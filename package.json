@@ -1,0 +1,54 @@
+{
+  "name": "agent-device",
+  "version": "0.1.0",
+  "description": "Unified control plane for physical and virtual devices via an agent-driven CLI.",
+  "license": "MIT",
+  "author": "Callstack",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "agent-device": "bin/agent-device.mjs"
+  },
+  "scripts": {
+    "lint": "node --eval \"console.log('no lint')\"",
+    "build": "rslib build",
+    "format": "prettier --write .",
+    "prepublishOnly": "pnpm build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "agent",
+    "device",
+    "cli",
+    "adb",
+    "simctl",
+    "devicectl",
+    "ios",
+    "android"
+  ],
+  "prettier": {
+    "singleQuote": true,
+    "semi": true,
+    "trailingComma": "all",
+    "printWidth": 100
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@rslib/core": "0.19.4",
+    "prettier": "^3.3.3",
+    "typescript": "^5.9.3"
+  }
+}
