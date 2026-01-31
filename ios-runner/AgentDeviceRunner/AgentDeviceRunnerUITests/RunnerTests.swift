@@ -365,6 +365,7 @@ final class RunnerTests: XCTestCase {
     var nodes: [SnapshotNode] = []
     var truncated = false
     let maxDepth = options.depth ?? 2
+    let viewport = app.frame
     let rootLabel = aggregatedLabel(for: app) ?? app.label.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootNode = SnapshotNode(
       index: 0,
@@ -393,6 +394,7 @@ final class RunnerTests: XCTestCase {
         truncated = true
         break
       }
+      if !isVisibleInViewport(element.frame, viewport) { continue }
       let label = aggregatedLabel(for: element) ?? element.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText: String? = {
@@ -433,6 +435,7 @@ final class RunnerTests: XCTestCase {
     let root = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
     var nodes: [SnapshotNode] = []
     var truncated = false
+    let viewport = app.frame
 
     func walk(_ element: XCUIElement, depth: Int) {
       if nodes.count >= maxSnapshotElements {
@@ -440,6 +443,7 @@ final class RunnerTests: XCTestCase {
         return
       }
       if let limit = options.depth, depth > limit { return }
+      if !isVisibleInViewport(element.frame, viewport) { return }
 
       let label = aggregatedLabel(for: element) ?? element.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -517,6 +521,11 @@ final class RunnerTests: XCTestCase {
     elements.append(contentsOf: root.collectionViews.allElementsBoundByIndex)
     elements.append(contentsOf: root.tables.allElementsBoundByIndex)
     return elements
+  }
+
+  private func isVisibleInViewport(_ rect: CGRect, _ viewport: CGRect) -> Bool {
+    if rect.isNull || rect.isEmpty { return false }
+    return rect.intersects(viewport)
   }
 
   private func jsonResponse(status: Int, response: Response) -> Data {

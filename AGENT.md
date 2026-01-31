@@ -7,6 +7,7 @@ Repository notes for future work.
 - Daemon: `src/daemon.ts`, started on demand by `src/daemon-client.ts`.
 - Core dispatcher: `src/core/dispatch.ts` routes commands to platform interactors.
 - iOS runner (simulator-only, v1): `src/platforms/ios/runner-client.ts` drives a UI test runner app.
+- iOS AX snapshot tool: `ios-runner/AXSnapshot` (SwiftPM CLI) used for fast accessibility snapshots.
 - iOS runner Xcode project: `ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj`.
 - iOS runner UI test: `ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests/RunnerTests.swift`.
 - Android: `src/platforms/android/*` with ADB utilities.
@@ -17,12 +18,14 @@ Repository notes for future work.
 3) `dispatchCommand` selects platform interactor.
 4) iOS simulator path:
    - Prefer `simctl` input when available (`simctlSupportsInput`).
+   - Snapshot default backend: AX (`snapshotAx`), fallback to iOS runner if AX is unavailable.
    - Fallback to iOS runner via `runIosRunnerCommand` for tap/type/swipe/list.
 5) iOS runner uses xcodebuild `test-without-building` with an injected `.xctestrun`,
    starts an `NWListener` HTTP server inside the UI test bundle, and executes UI actions.
 
 ## Key commands (local)
 - Build iOS runner: `xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination "platform=iOS Simulator,id=<UDID>" -derivedDataPath ~/.agent-device/ios-runner/derived`
+- Build AX snapshot tool: `swift build -c release` in `ios-runner/AXSnapshot`
 - Run command: `node bin/agent-device.mjs --platform ios --udid <UDID> open settings --verbose`
 - Scroll: `node bin/agent-device.mjs --platform ios --udid <UDID> scroll down 0.5 --verbose`
 
@@ -36,11 +39,12 @@ Repository notes for future work.
 ## Daemon details
 - Daemon info: `~/.agent-device/daemon.json` (port/token/pid/version).
 - Daemon log: `~/.agent-device/daemon.log` (also tailed in verbose mode).
+- Session logs: `~/.agent-device/sessions/<session>-<timestamp>.ad` (plain text actions).
 
 ## Environment variables
 - `AGENT_DEVICE_RUNNER_PORT`: port passed into the UI test bundle.
 - `AGENT_DEVICE_IOS_CLEAN_DERIVED=1`: delete `~/.agent-device/ios-runner/derived` before building/selecting xctestrun.
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS`: timeout for daemon request response (min 1000ms, default 5000).
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS`: timeout for daemon request response (min 1000ms, default 60000).
 
 ## Common failure modes
 - "Runner did not accept connection":

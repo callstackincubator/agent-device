@@ -32,13 +32,19 @@ export function formatSnapshotText(
 ): string {
   const nodes = (data.nodes ?? []) as SnapshotNode[];
   const truncated = Boolean(data.truncated);
+  const appName = typeof data.appName === 'string' ? data.appName : undefined;
+  const appBundleId = typeof data.appBundleId === 'string' ? data.appBundleId : undefined;
+  const meta: string[] = [];
+  if (appName) meta.push(`Page: ${appName}`);
+  if (appBundleId) meta.push(`App: ${appBundleId}`);
   const header = `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
+  const prefix = meta.length > 0 ? `${meta.join('\n')}\n` : '';
   if (!Array.isArray(nodes) || nodes.length === 0) {
-    return `${header}\n`;
+    return `${prefix}${header}\n`;
   }
   if (options.raw) {
     const rawLines = nodes.map((node) => JSON.stringify(node));
-    return `${header}\n${rawLines.join('\n')}\n`;
+    return `${prefix}${header}\n${rawLines.join('\n')}\n`;
   }
   const lines = nodes.map((node) => {
     const depth = node.depth ?? 0;
@@ -46,26 +52,23 @@ export function formatSnapshotText(
     const label = node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
     const type = formatRole(node.type ?? 'Element');
     const ref = node.ref ? `@${node.ref}` : '';
-    const rect = node.rect
-      ? ` [${Math.round(node.rect.x)},${Math.round(node.rect.y)} ${Math.round(
-          node.rect.width,
-        )}x${Math.round(node.rect.height)}]`
-      : '';
     const flags = [
-      node.hittable ? 'hittable' : null,
       node.enabled === false ? 'disabled' : null,
     ]
       .filter(Boolean)
       .join(', ');
-    const flagText = flags ? ` (${flags})` : '';
+    const flagText = flags ? ` [${flags}]` : '';
     const textPart = label ? ` "${label}"` : '';
-    return `${indent}${ref} ${type}${textPart}${rect}${flagText}`.trimEnd();
+    return `${indent}${ref} [${type}]${textPart}${flagText}`.trimEnd();
   });
-  return `${header}\n${lines.join('\n')}\n`;
+  return `${prefix}${header}\n${lines.join('\n')}\n`;
 }
 
 function formatRole(type: string): string {
-  const normalized = type.replace(/XCUIElementType/gi, '').toLowerCase();
+  let normalized = type.replace(/XCUIElementType/gi, '').toLowerCase();
+  if (normalized.startsWith("ax")) {
+    normalized = normalized.replace(/^ax/, "");
+  }
   switch (normalized) {
     case 'application':
       return 'application';
@@ -99,6 +102,28 @@ function formatRole(type: string): string {
       return 'search';
     case 'segmentedcontrol':
       return 'segmented-control';
+    case 'group':
+      return 'group';
+    case 'window':
+      return 'window';
+    case 'statictext':
+      return 'text';
+    case 'textfield':
+      return 'text-field';
+    case 'textarea':
+      return 'text-view';
+    case 'checkbox':
+      return 'checkbox';
+    case 'radio':
+      return 'radio';
+    case 'menuitem':
+      return 'menu-item';
+    case 'toolbar':
+      return 'toolbar';
+    case 'scrollarea':
+      return 'scroll-area';
+    case 'table':
+      return 'table';
     default:
       return normalized || 'element';
   }

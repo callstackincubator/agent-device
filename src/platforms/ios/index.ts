@@ -149,20 +149,24 @@ export async function scrollIos(
 
   switch (direction) {
     case 'up':
-      y1 = centerY + Math.floor(distanceY / 2);
-      y2 = centerY - Math.floor(distanceY / 2);
-      break;
-    case 'down':
+      // Content moves up -> swipe down.
       y1 = centerY - Math.floor(distanceY / 2);
       y2 = centerY + Math.floor(distanceY / 2);
       break;
-    case 'left':
-      x1 = centerX + Math.floor(distanceX / 2);
-      x2 = centerX - Math.floor(distanceX / 2);
+    case 'down':
+      // Content moves down -> swipe up.
+      y1 = centerY + Math.floor(distanceY / 2);
+      y2 = centerY - Math.floor(distanceY / 2);
       break;
-    case 'right':
+    case 'left':
+      // Content moves left -> swipe right.
       x1 = centerX - Math.floor(distanceX / 2);
       x2 = centerX + Math.floor(distanceX / 2);
+      break;
+    case 'right':
+      // Content moves right -> swipe left.
+      x1 = centerX + Math.floor(distanceX / 2);
+      x2 = centerX - Math.floor(distanceX / 2);
       break;
     default:
       throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);

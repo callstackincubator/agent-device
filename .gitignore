@@ -4,6 +4,8 @@ dist/
 .DS_Store
 *.log
 test/screenshots/*.png
+.build/
+.swiftpm/
 DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/

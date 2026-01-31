@@ -5,6 +5,7 @@ import { ensureAdb, snapshotAndroid } from '../platforms/android/index.ts';
 import { listIosDevices } from '../platforms/ios/devices.ts';
 import { getInteractor } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
+import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import { simctlSupportsInput } from '../platforms/ios/index.ts';
 
@@ -20,6 +21,9 @@ export type CommandFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  snapshotBackend?: 'ax' | 'xctest';
+  noRecord?: boolean;
+  recordJson?: boolean;
 };
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
@@ -208,11 +212,12 @@ export async function dispatchCommand(
           if (!['up', 'down', 'left', 'right'].includes(direction)) {
             throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
           }
+          const inverted = invertScrollDirection(direction as 'up' | 'down' | 'left' | 'right');
           await runIosRunnerCommand(
             device,
             {
               command: 'swipe',
-              direction: direction as 'up' | 'down' | 'left' | 'right',
+              direction: inverted,
               appBundleId: context?.appBundleId,
             },
             { verbose: context?.verbose, logPath: context?.logPath },
@@ -235,12 +240,23 @@ export async function dispatchCommand(
       return { path };
     }
     case 'snapshot': {
+      const backend = context?.snapshotBackend ?? 'ax';
       if (device.platform === 'ios') {
         if (device.kind !== 'simulator') {
           throw new AppError(
             'UNSUPPORTED_OPERATION',
             'snapshot is only supported on iOS simulators in v1',
           );
+        }
+        if (backend === 'ax') {
+          try {
+            const ax = await snapshotAx(device);
+            return { nodes: ax.nodes ?? [], truncated: false };
+          } catch (err) {
+            if (context?.snapshotBackend === 'ax') {
+              throw err;
+            }
+          }
         }
         const result = (await runIosRunnerCommand(
           device,
@@ -268,5 +284,18 @@ export async function dispatchCommand(
     }
     default:
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
+  }
+}
+
+function invertScrollDirection(direction: 'up' | 'down' | 'left' | 'right'): 'up' | 'down' | 'left' | 'right' {
+  switch (direction) {
+    case 'up':
+      return 'down';
+    case 'down':
+      return 'up';
+    case 'left':
+      return 'right';
+    case 'right':
+      return 'left';
   }
 }

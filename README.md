@@ -7,6 +7,7 @@ This project mirrors the spirit of `agent-browser`, but targets iOS simulators/d
 ## Current scope (v1)
 - Platforms: iOS (simulator + limited device support) and Android (emulator + device).
 - Core commands: `open`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `screenshot`, `close`.
+- Inspection commands: `snapshot` (accessibility tree).
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
 
@@ -35,6 +36,7 @@ agent-device open Settings
 agent-device press 120 320
 agent-device type "hello"
 agent-device screenshot --out ./screenshot.png
+agent-device snapshot -i -c -d 6
 agent-device close Settings
 ```
 
@@ -47,15 +49,18 @@ Flags:
 - `--session <name>`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
+- `--backend ax|xctest` (snapshot only; defaults to `ax` on iOS)
 
 Sessions:
 - `open` starts a session.
 - All interaction commands require an open session.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
+- Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
 
 iOS simulator input:
 - If `simctl` input is unavailable for your Xcode version, the CLI will use the XCTest runner to perform taps and scrolls.
+Snapshot defaults to the AX backend on iOS simulators and falls back to XCTest if AX is unavailable.
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).
@@ -89,6 +94,6 @@ Test screenshots are written to:
 ## Contributing
 See `CONTRIBUTING.md`.
 
-## Made with ❤️ at Callstack
+## Made at Callstack
 
-agent-device is an open source project and will always remain free to use. If you think it's cool, please star it 🌟. Callstack is a group of React and React Native geeks. Contact us at hello@callstack.com if you need any help with these technologies or just want to say hi.
+agent-device is an open source project and will always remain free to use. Callstack is a group of React and React Native geeks. Contact us at hello@callstack.com if you need any help with these technologies or just want to say hi.

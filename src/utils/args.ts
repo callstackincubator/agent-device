@@ -17,6 +17,9 @@ export type ParsedArgs = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
+    snapshotBackend?: 'ax' | 'xctest';
+    noRecord?: boolean;
+    recordJson?: boolean;
     help: boolean;
   };
 };
@@ -49,6 +52,25 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '--raw') {
       flags.snapshotRaw = true;
+      continue;
+    }
+    if (arg === '--no-record') {
+      flags.noRecord = true;
+      continue;
+    }
+    if (arg === '--record-json') {
+      flags.recordJson = true;
+      continue;
+    }
+    if (arg.startsWith('--backend')) {
+      const value = arg.includes('=')
+        ? arg.split('=')[1]
+        : argv[i + 1];
+      if (!arg.includes('=')) i += 1;
+      if (value !== 'ax' && value !== 'xctest') {
+        throw new AppError('INVALID_ARGS', `Invalid backend: ${value}`);
+      }
+      flags.snapshotBackend = value;
       continue;
     }
     if (arg.startsWith('--')) {
@@ -123,7 +145,7 @@ export function usage(): string {
 Commands:
   open <app>
   close [app]
-  snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
+  snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
   click <@ref>
   get text <@ref>
   get attrs <@ref>
@@ -147,5 +169,7 @@ Flags:
   --session <name>
   --verbose
   --json
+  --no-record
+  --record-json
 `;
 }

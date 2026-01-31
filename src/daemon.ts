@@ -27,6 +27,7 @@ type SessionState = {
   device: DeviceInfo;
   createdAt: number;
   appBundleId?: string;
+  appName?: string;
   snapshot?: SnapshotState;
   actions: SessionAction[];
 };
@@ -41,6 +42,9 @@ type SessionAction = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
+    snapshotBackend?: 'ax' | 'xctest';
+    noRecord?: boolean;
+    recordJson?: boolean;
   };
   result?: Record<string, unknown>;
 };
@@ -64,6 +68,7 @@ function contextFromFlags(
   snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
+  snapshotBackend?: 'ax' | 'xctest';
 } {
   return {
     appBundleId,
@@ -74,6 +79,7 @@ function contextFromFlags(
     snapshotDepth: flags?.snapshotDepth,
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
+    snapshotBackend: flags?.snapshotBackend,
   };
 }
 
@@ -101,6 +107,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   if (command === 'open') {
     const device = await resolveTargetDevice(req.flags ?? {});
     let appBundleId: string | undefined;
+    const appName = req.positionals?.[0];
     if (device.platform === 'ios') {
       try {
         const { resolveIosApp } = await import('./platforms/ios/index.ts');
@@ -117,6 +124,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       device,
       createdAt: Date.now(),
       appBundleId,
+      appName,
       actions: [],
     };
     recordAction(session, {
@@ -210,7 +218,15 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       result: { nodes: nodes.length, truncated: data?.truncated ?? false },
     });
     sessions.set(sessionName, nextSession);
-    return { ok: true, data: { nodes, truncated: data?.truncated ?? false } };
+    return {
+      ok: true,
+      data: {
+        nodes,
+        truncated: data?.truncated ?? false,
+        appName: session?.appName ?? appBundleId ?? device.name,
+        appBundleId: appBundleId,
+      },
+    };
   }
 
   if (command === 'click') {
@@ -223,13 +239,17 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     if (!ref) {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'click requires a ref like @e2' } };
     }
-    const node = findNodeByRef(session.snapshot.nodes, ref);
+    let node = findNodeByRef(session.snapshot.nodes, ref);
+    if (!node?.rect && req.positionals.length > 1) {
+      const fallbackLabel = req.positionals.slice(1).join(' ').trim();
+      if (fallbackLabel.length > 0) {
+        node = findNodeByLabel(session.snapshot.nodes, fallbackLabel);
+      }
+    }
     if (!node?.rect) {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has no bounds` } };
     }
-    const refLabel = [node.label, node.value, node.identifier]
-      .map((value) => (typeof value === 'string' ? value.trim() : ''))
-      .find((value) => value && value.length > 0);
+    const refLabel = resolveRefLabel(node, session.snapshot.nodes);
     const { x, y } = centerOfRect(node.rect);
     await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId),
@@ -253,14 +273,19 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       if (!ref) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires a ref like @e2' } };
       }
-      const text = req.positionals.slice(1).join(' ');
+      const labelCandidate = req.positionals.length >= 3 ? req.positionals[1] : '';
+      const text = req.positionals.length >= 3 ? req.positionals.slice(2).join(' ') : req.positionals.slice(1).join(' ');
       if (!text) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' } };
       }
-      const node = findNodeByRef(session.snapshot.nodes, ref);
+      let node = findNodeByRef(session.snapshot.nodes, ref);
+      if (!node?.rect && labelCandidate) {
+        node = findNodeByLabel(session.snapshot.nodes, labelCandidate);
+      }
       if (!node?.rect) {
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
       }
+      const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatchCommand(
         session.device,
@@ -275,7 +300,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result: data ?? { ref, x, y },
+        result: data ?? { ref, x, y, refLabel },
       });
       return { ok: true, data: data ?? { ref, x, y } };
     }
@@ -295,7 +320,13 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     if (!ref) {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'get text requires a ref like @e2' } };
     }
-    const node = findNodeByRef(session.snapshot.nodes, ref);
+    let node = findNodeByRef(session.snapshot.nodes, ref);
+    if (!node && req.positionals.length > 2) {
+      const labelCandidate = req.positionals.slice(2).join(' ').trim();
+      if (labelCandidate.length > 0) {
+        node = findNodeByLabel(session.snapshot.nodes, labelCandidate);
+      }
+    }
     if (!node) {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found` } };
     }
@@ -434,6 +465,7 @@ function recordAction(
     result?: Record<string, unknown>;
   },
 ): void {
+  if (entry.flags?.noRecord) return;
   session.actions.push({
     ts: Date.now(),
     command: entry.command,
@@ -457,6 +489,9 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
+    snapshotBackend,
+    noRecord,
+    recordJson,
   } = flags as any;
   return {
     platform,
@@ -470,6 +505,9 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
+    snapshotBackend,
+    noRecord,
+    recordJson,
   };
 }
 
@@ -478,6 +516,7 @@ function writeSessionLog(session: SessionState): void {
     if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
     const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const timestamp = new Date(session.createdAt).toISOString().replace(/[:.]/g, '-');
+    const scriptPath = path.join(sessionsDir, `${safeName}-${timestamp}.ad`);
     const filePath = path.join(sessionsDir, `${safeName}-${timestamp}.json`);
     const payload = {
       name: session.name,
@@ -487,7 +526,11 @@ function writeSessionLog(session: SessionState): void {
       actions: session.actions,
       optimizedActions: buildOptimizedActions(session),
     };
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+    const script = formatScript(session, payload.optimizedActions);
+    fs.writeFileSync(scriptPath, script);
+    if (session.actions.some((action) => action.flags?.recordJson)) {
+      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+    }
   } catch {
     // ignore
   }
@@ -517,7 +560,6 @@ function buildOptimizedActions(session: SessionState): SessionAction[] {
             platform: session.device.platform,
             snapshotInteractiveOnly: true,
             snapshotCompact: true,
-            snapshotDepth: 8,
             snapshotScope: refLabel.trim(),
           },
           result: { scope: refLabel.trim() },
@@ -527,6 +569,142 @@ function buildOptimizedActions(session: SessionState): SessionAction[] {
     optimized.push(action);
   }
   return optimized;
+}
+
+function formatScript(session: SessionState, actions: SessionAction[]): string {
+  const lines: string[] = [];
+  const deviceLabel = session.device.name.replace(/"/g, '\\"');
+  const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
+  const theme = 'unknown';
+  lines.push(`context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=${theme}`);
+  for (const action of actions) {
+    if (action.flags?.noRecord) continue;
+    lines.push(formatActionLine(action));
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+function formatActionLine(action: SessionAction): string {
+  const parts: string[] = [action.command];
+  if (action.command === 'click') {
+    const ref = action.positionals?.[0];
+    if (ref) {
+      parts.push(formatArg(ref));
+      const refLabel = action.result?.refLabel;
+      if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
+        parts.push(formatArg(refLabel));
+      }
+      return parts.join(' ');
+    }
+  }
+  if (action.command === 'fill') {
+    const ref = action.positionals?.[0];
+    if (ref && ref.startsWith('@')) {
+      parts.push(formatArg(ref));
+      const refLabel = action.result?.refLabel;
+      const text = action.positionals.slice(1).join(' ');
+      if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
+        parts.push(formatArg(refLabel));
+      }
+      if (text) {
+        parts.push(formatArg(text));
+      }
+      return parts.join(' ');
+    }
+  }
+  if (action.command === 'get') {
+    const sub = action.positionals?.[0];
+    const ref = action.positionals?.[1];
+    if (sub && ref) {
+      parts.push(formatArg(sub));
+      parts.push(formatArg(ref));
+      const refLabel = action.result?.refLabel;
+      if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
+        parts.push(formatArg(refLabel));
+      }
+      return parts.join(' ');
+    }
+  }
+  if (action.command === 'snapshot') {
+    if (action.flags?.snapshotInteractiveOnly) parts.push('-i');
+    if (action.flags?.snapshotCompact) parts.push('-c');
+    if (typeof action.flags?.snapshotDepth === 'number') {
+      parts.push('-d', String(action.flags.snapshotDepth));
+    }
+    if (action.flags?.snapshotScope) {
+      parts.push('-s', formatArg(action.flags.snapshotScope));
+    }
+    if (action.flags?.snapshotRaw) parts.push('--raw');
+    if (action.flags?.snapshotBackend) {
+      parts.push(`--backend`, action.flags.snapshotBackend);
+    }
+    return parts.join(' ');
+  }
+  for (const positional of action.positionals ?? []) {
+    parts.push(formatArg(positional));
+  }
+  return parts.join(' ');
+}
+
+function formatArg(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('@')) return trimmed;
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed;
+  return JSON.stringify(trimmed);
+}
+
+function findNodeByLabel(nodes: SnapshotState['nodes'], label: string) {
+  const query = label.toLowerCase();
+  return (
+    nodes.find((node) => {
+      const labelValue = (node.label ?? '').toLowerCase();
+      const valueValue = (node.value ?? '').toLowerCase();
+      const idValue = (node.identifier ?? '').toLowerCase();
+      return labelValue.includes(query) || valueValue.includes(query) || idValue.includes(query);
+    }) ?? null
+  );
+}
+
+function resolveRefLabel(
+  node: SnapshotState['nodes'][number],
+  nodes: SnapshotState['nodes'],
+): string | undefined {
+  const primary = [node.label, node.value, node.identifier]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .find((value) => value && value.length > 0);
+  if (primary && isMeaningfulLabel(primary)) return primary;
+  const fallback = findNearestMeaningfulLabel(node, nodes);
+  return fallback ?? (primary && isMeaningfulLabel(primary) ? primary : undefined);
+}
+
+function isMeaningfulLabel(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (/^(true|false)$/i.test(trimmed)) return false;
+  if (/^\d+$/.test(trimmed)) return false;
+  return true;
+}
+
+function findNearestMeaningfulLabel(
+  target: SnapshotState['nodes'][number],
+  nodes: SnapshotState['nodes'],
+): string | undefined {
+  if (!target.rect) return undefined;
+  const targetY = target.rect.y + target.rect.height / 2;
+  let best: { label: string; distance: number } | null = null;
+  for (const node of nodes) {
+    if (!node.rect) continue;
+    const label = [node.label, node.value, node.identifier]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .find((value) => value && value.length > 0);
+    if (!label || !isMeaningfulLabel(label)) continue;
+    const nodeY = node.rect.y + node.rect.height / 2;
+    const distance = Math.abs(nodeY - targetY);
+    if (!best || distance < best.distance) {
+      best = { label, distance };
+    }
+  }
+  return best?.label;
 }
 
 function readVersion(): string {

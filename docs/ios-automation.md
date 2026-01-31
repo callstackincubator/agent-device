@@ -1,10 +1,11 @@
 # iOS UI Automation Strategy (v1)
 
 ## Goal
-Provide robust element-level interactions for AI agents on iOS by running a lightweight XCUITest runner on the target simulator/device, with caching and a fallback to local builds.
+Provide robust element-level interactions for AI agents on iOS by combining a fast macOS Accessibility (AX) snapshot tool for simulators with an XCTest runner for interactions and fallbacks.
 
 ## Why this approach
 - Apple’s official UI automation layer is XCUITest/XCUI, which runs as an XCTest bundle on device/simulator.
+- macOS Accessibility (AX) can read the simulator UI tree quickly without launching XCTest.
 - Tools like Appium and Maestro use an on-device XCTest runner and talk to it over HTTP.
 - For real devices, code signing is required, so a local build/sign step is unavoidable.
 
@@ -15,19 +16,24 @@ Provide robust element-level interactions for AI agents on iOS by running a ligh
 - Devices: always require local signing.
 
 ## Implementation plan (condensed)
-1. **Runner project**
+1. **AX snapshot tool**
+   - `ios-runner/AXSnapshot` SwiftPM CLI that reads the simulator accessibility tree via AX.
+   - Used for fast `snapshot` output and interactive element discovery.
+2. **Runner project**
    - `ios-runner/` Xcode project with one XCTest target.
    - Minimal HTTP server inside tests to accept JSON commands (Maestro uses a long-running XCTest that serves HTTP and exposes view hierarchy and actions).
    - Protocol is documented in `docs/ios-runner-protocol.md`.
-2. **Build + cache**
+3. **Build + cache**
    - Build via `xcodebuild build-for-testing` and run via `test-without-building`.
    - Cache artifacts under `~/.agent-device/ios-runner/<xcode-version>/<runtime>`.
-3. **Node adapter**
+4. **Node adapter**
    - Add an iOS automation adapter that:
+     - Runs the AX snapshot tool on simulators for fast tree dumps.
      - Ensures runner is built/available.
      - Starts runner for the specific device/simulator.
      - Sends commands (tap, type, swipe, find, list elements) over HTTP.
-4. **Fallbacks**
+5. **Fallbacks**
+   - If AX snapshot is unavailable, fall back to XCTest snapshots.
    - If runner not available, fall back to `simctl`/`devicectl` capabilities.
 
 ## Notes
