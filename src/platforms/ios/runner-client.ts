@@ -53,30 +53,63 @@ export async function runIosRunnerCommand(
     throw new AppError('UNSUPPORTED_OPERATION', 'iOS runner only supports simulators in v1');
   }
 
-  const session = await ensureRunnerSession(device, options);
-  const response = await waitForRunner(device, session.port, command, options.logPath);
-  const text = await response.text();
-
-  let json: any = {};
   try {
-    json = JSON.parse(text);
-  } catch {
-    throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
-  }
+    const session = await ensureRunnerSession(device, options);
+    const response = await waitForRunner(device, session.port, command, options.logPath);
+    const text = await response.text();
 
-  if (!json.ok) {
-    throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
-      runner: json,
-      xcodebuild: {
-        exitCode: 1,
-        stdout: '',
-        stderr: '',
-      },
-      logPath: options.logPath,
-    });
-  }
+    let json: any = {};
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
+    }
 
-  return json.data ?? {};
+    if (!json.ok) {
+      throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
+        runner: json,
+        xcodebuild: {
+          exitCode: 1,
+          stdout: '',
+          stderr: '',
+        },
+        logPath: options.logPath,
+      });
+    }
+
+    return json.data ?? {};
+  } catch (err) {
+    const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
+    if (
+      appErr.code === 'COMMAND_FAILED' &&
+      typeof appErr.message === 'string' &&
+      appErr.message.includes('Runner did not accept connection')
+    ) {
+      await stopIosRunnerSession(device.id);
+      const session = await ensureRunnerSession(device, options);
+      const response = await waitForRunner(device, session.port, command, options.logPath);
+      const text = await response.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
+      }
+      if (!json.ok) {
+        throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
+          runner: json,
+          xcodebuild: {
+            exitCode: 1,
+            stdout: '',
+            stderr: '',
+          },
+          logPath: options.logPath,
+        });
+      }
+      return json.data ?? {};
+    }
+    throw err;
+  }
 }
 
 export async function stopIosRunnerSession(deviceId: string): Promise<void> {

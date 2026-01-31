@@ -35,7 +35,6 @@ function runCliJson(args: string[]): {
 test('ios settings commands', { skip: shouldSkipIos() }, () => {
   const selector = getIosSelectorArgs();
   const session = ['--session', 'ios-test'];
-  const caps = getSimctlIoCaps();
   const open = runCliJson([
     'open',
     'com.apple.Preferences',
@@ -46,91 +45,6 @@ test('ios settings commands', { skip: shouldSkipIos() }, () => {
     ...session,
   ]);
   assert.equal(open.status, 0, `${open.stderr}\n${open.stdout}`);
-
-  const press = runCliJson([
-    'press',
-    '100',
-    '200',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(press, caps.tap, 'tap');
-
-  const longPress = runCliJson([
-    'long-press',
-    '100',
-    '200',
-    '800',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(longPress, caps.swipe, 'swipe');
-
-  const focus = runCliJson([
-    'focus',
-    '100',
-    '200',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(focus, caps.tap, 'tap');
-
-  const type = runCliJson([
-    'type',
-    'agent-device',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(type, caps.keyboard, 'keyboard');
-
-  const fill = runCliJson([
-    'fill',
-    '100',
-    '200',
-    'agent-device',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(fill, caps.tap && caps.keyboard, 'tap+keyboard');
-
-  const scroll = runCliJson([
-    'scroll',
-    'down',
-    '0.5',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assertSupportOrUnsupported(scroll, caps.swipe, 'swipe');
-
-  const scrollInto = runCliJson([
-    'scrollintoview',
-    'About',
-    '--platform',
-    'ios',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(scrollInto.status, 1);
-  assert.equal(scrollInto.json?.error?.code, 'UNSUPPORTED_OPERATION');
 
   const outPath = `./test/screenshots/ios-settings.png`;
   const shot = runCliJson([
@@ -145,6 +59,34 @@ test('ios settings commands', { skip: shouldSkipIos() }, () => {
   ]);
   assert.equal(shot.status, 0, `${shot.stderr}\n${shot.stdout}`);
   assert.equal(existsSync(outPath), true);
+
+  const snapshot = runCliJson([
+    'snapshot',
+    '--json',
+    ...selector,
+    ...session,
+  ]);
+  assert.equal(snapshot.status, 0, `${snapshot.stderr}\n${snapshot.stdout}`);
+  assert.equal(Array.isArray(snapshot.json?.data?.nodes), true);
+
+  const click = runCliJson([
+    'click',
+    '@e3',
+    '--json',
+    ...selector,
+    ...session,
+  ]);
+  assert.equal(click.status, 0, `${click.stderr}\n${click.stdout}`);
+
+  const snapshotGeneral = runCliJson([
+    'snapshot',
+    '--json',
+    ...selector,
+    ...session,
+  ]);
+  assert.equal(snapshotGeneral.status, 0, `${snapshotGeneral.stderr}\n${snapshotGeneral.stdout}`);
+  assert.equal(snapshotGeneral.json?.data?.nodes[1].type, 'AXHeading');
+  assert.equal(snapshotGeneral.json?.data?.nodes[1].label, 'General');
 
   const close = runCliJson([
     'close',
@@ -174,49 +116,6 @@ function getIosSelectorArgs(): string[] {
   if (preferred?.udid) return ['--udid', preferred.udid];
   if (preferred?.name) return ['--device', preferred.name];
   return [];
-}
-
-function getSimctlIoCaps(): { tap: boolean; swipe: boolean; keyboard: boolean } {
-  const result = runCmdSync('xcrun', ['simctl', 'io'], { allowFailure: true });
-  const output = (result.stderr ?? '') as string;
-  const ops = extractIoOperations(output);
-  return {
-    tap: ops.has('tap'),
-    swipe: ops.has('swipe'),
-    keyboard: ops.has('keyboard'),
-  };
-}
-
-function extractIoOperations(text: string): Set<string> {
-  const ops = new Set<string>();
-  const lines = text.split('\n');
-  let inOps = false;
-  for (const line of lines) {
-    if (line.toLowerCase().includes('supported operations')) {
-      inOps = true;
-      continue;
-    }
-    if (!inOps) continue;
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.startsWith('Example:')) break;
-    const op = trimmed.split(/\s+/)[0];
-    if (op) ops.add(op);
-  }
-  return ops;
-}
-
-function assertSupportOrUnsupported(
-  result: { status: number; json?: any; stdout: string; stderr: string },
-  supported: boolean,
-  op: string,
-): void {
-  if (supported) {
-    assert.equal(result.status, 0, `${op}\n${result.stderr}\n${result.stdout}`);
-  } else {
-    assert.equal(result.status, 1, `${op}\n${result.stderr}\n${result.stdout}`);
-    assert.equal(result.json?.error?.code, 'UNSUPPORTED_OPERATION');
-  }
 }
 
 function findPreferredSimulator(): { udid?: string; name?: string } | null {

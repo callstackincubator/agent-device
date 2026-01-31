@@ -155,6 +155,21 @@ test('android settings commands', { skip: shouldSkipAndroid() }, () => {
   assert.equal(shot.status, 0, `${shot.stderr}\n${shot.stdout}`);
   assert.equal(existsSync(outPath), true);
 
+  const snapshot = runCliJson([
+    'snapshot',
+    '-i',
+    '-c',
+    '-d',
+    '6',
+    '--platform',
+    'android',
+    '--json',
+    ...selector,
+    ...session,
+  ]);
+  assert.equal(snapshot.status, 0, `${snapshot.stderr}\n${snapshot.stdout}`);
+  assert.equal(Array.isArray(snapshot.json?.data?.nodes), true);
+
   const close = runCliJson([
     'close',
     'com.android.settings',

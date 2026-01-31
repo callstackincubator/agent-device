@@ -20,7 +20,9 @@
     "format": "prettier --write .",
     "prepublishOnly": "pnpm build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test"
+    "test": "node --test",
+    "test:smoke": "node --test test/smoke/*.test.ts",
+    "test:integration": "node --test test/integration/*.test.ts"
   },
   "files": [
     "bin",
