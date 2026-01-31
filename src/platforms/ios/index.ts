@@ -77,8 +77,10 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
 export async function pressIos(device: DeviceInfo, x: number, y: number): Promise<void> {
   ensureSimulator(device, 'press');
   await ensureBootedSimulator(device);
-  await ensureSimulatorInputSupported('tap');
-  await runCmd('xcrun', ['simctl', 'io', device.id, 'tap', String(x), String(y)]);
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    'simctl io tap is not available; use the XCTest runner for input',
+  );
 }
 
 export async function longPressIos(
@@ -89,20 +91,10 @@ export async function longPressIos(
 ): Promise<void> {
   ensureSimulator(device, 'long-press');
   await ensureBootedSimulator(device);
-  await ensureSimulatorInputSupported('swipe');
-  const durationSec = Math.max(0.1, durationMs / 1000).toFixed(2);
-  await runCmd('xcrun', [
-    'simctl',
-    'io',
-    device.id,
-    'swipe',
-    String(x),
-    String(y),
-    String(x),
-    String(y),
-    '--duration',
-    durationSec,
-  ]);
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    'long-press is not supported on iOS simulators without XCTest runner support',
+  );
 }
 
 export async function focusIos(device: DeviceInfo, x: number, y: number): Promise<void> {
@@ -112,8 +104,10 @@ export async function focusIos(device: DeviceInfo, x: number, y: number): Promis
 export async function typeIos(device: DeviceInfo, text: string): Promise<void> {
   ensureSimulator(device, 'type');
   await ensureBootedSimulator(device);
-  await ensureSimulatorInputSupported('keyboard');
-  await runCmd('xcrun', ['simctl', 'io', device.id, 'keyboard', text]);
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    'simctl io keyboard is not available; use the XCTest runner for input',
+  );
 }
 
 export async function fillIos(
@@ -133,57 +127,10 @@ export async function scrollIos(
 ): Promise<void> {
   ensureSimulator(device, 'scroll');
   await ensureBootedSimulator(device);
-  await ensureSimulatorInputSupported('swipe');
-  const size = await getSimulatorScreenSize(device);
-  const { width, height } = size;
-  const distanceX = Math.floor(width * amount);
-  const distanceY = Math.floor(height * amount);
-
-  const centerX = Math.floor(width / 2);
-  const centerY = Math.floor(height / 2);
-
-  let x1 = centerX;
-  let y1 = centerY;
-  let x2 = centerX;
-  let y2 = centerY;
-
-  switch (direction) {
-    case 'up':
-      // Content moves up -> swipe down.
-      y1 = centerY - Math.floor(distanceY / 2);
-      y2 = centerY + Math.floor(distanceY / 2);
-      break;
-    case 'down':
-      // Content moves down -> swipe up.
-      y1 = centerY + Math.floor(distanceY / 2);
-      y2 = centerY - Math.floor(distanceY / 2);
-      break;
-    case 'left':
-      // Content moves left -> swipe right.
-      x1 = centerX - Math.floor(distanceX / 2);
-      x2 = centerX + Math.floor(distanceX / 2);
-      break;
-    case 'right':
-      // Content moves right -> swipe left.
-      x1 = centerX + Math.floor(distanceX / 2);
-      x2 = centerX - Math.floor(distanceX / 2);
-      break;
-    default:
-      throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
-  }
-
-  await runCmd('xcrun', [
-    'simctl',
-    'io',
-    device.id,
-    'swipe',
-    String(x1),
-    String(y1),
-    String(x2),
-    String(y2),
-    '--duration',
-    '0.3',
-  ]);
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    'simctl io swipe is not available; use the XCTest runner for input',
+  );
 }
 
 export async function scrollIntoViewIos(text: string): Promise<void> {
@@ -231,7 +178,7 @@ async function listSimulatorApps(
   }
 }
 
-async function getSimulatorScreenSize(
+export async function getSimulatorScreenSize(
   device: DeviceInfo,
 ): Promise<{ width: number; height: number }> {
   await ensureBootedSimulator(device);
@@ -241,61 +188,6 @@ async function getSimulatorScreenSize(
   const match = (result.stdout as string).match(/(\d+)x(\d+)/);
   if (match) return { width: Number(match[1]), height: Number(match[2]) };
   return { width: 1170, height: 2532 };
-}
-
-type SimctlIoCapabilities = {
-  tap: boolean;
-  swipe: boolean;
-  keyboard: boolean;
-};
-
-let cachedIoCaps: SimctlIoCapabilities | null = null;
-
-async function ensureSimulatorInputSupported(op: keyof SimctlIoCapabilities): Promise<void> {
-  const caps = await getSimctlIoCapabilities();
-  if (!caps[op]) {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      `iOS simulator input is not supported by this Xcode version (missing ${op})`,
-    );
-  }
-}
-
-export async function simctlSupportsInput(op: keyof SimctlIoCapabilities): Promise<boolean> {
-  const caps = await getSimctlIoCapabilities();
-  return caps[op];
-}
-
-async function getSimctlIoCapabilities(): Promise<SimctlIoCapabilities> {
-  if (cachedIoCaps) return cachedIoCaps;
-  const result = await runCmd('xcrun', ['simctl', 'io'], { allowFailure: true });
-  const stderr = (result.stderr ?? '').toString();
-  const ops = extractIoOperations(stderr);
-  cachedIoCaps = {
-    tap: ops.has('tap'),
-    swipe: ops.has('swipe'),
-    keyboard: ops.has('keyboard'),
-  };
-  return cachedIoCaps;
-}
-
-function extractIoOperations(text: string): Set<string> {
-  const ops = new Set<string>();
-  const lines = text.split('\n');
-  let inOps = false;
-  for (const line of lines) {
-    if (line.toLowerCase().includes('supported operations')) {
-      inOps = true;
-      continue;
-    }
-    if (!inOps) continue;
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.startsWith('Example:')) break;
-    const op = trimmed.split(/\s+/)[0];
-    if (op) ops.add(op);
-  }
-  return ops;
 }
 
 async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {

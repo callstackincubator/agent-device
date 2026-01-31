@@ -11,11 +11,17 @@ struct AXNode: Codable {
     }
 
     let role: String?
+    let subrole: String?
     let label: String?
     let value: String?
     let identifier: String?
     let frame: Frame?
     let children: [AXNode]
+}
+
+struct AXSnapshot: Codable {
+    let windowFrame: AXNode.Frame?
+    let root: AXNode
 }
 
 struct AXSnapshotError: Error, CustomStringConvertible {
@@ -50,6 +56,10 @@ func getChildren(_ element: AXUIElement) -> [AXUIElement] {
 
 func getRole(_ element: AXUIElement) -> String? {
     getAttribute(element, kAXRoleAttribute as CFString)
+}
+
+func getSubrole(_ element: AXUIElement) -> String? {
+    getAttribute(element, kAXSubroleAttribute as CFString)
 }
 
 func getLabel(_ element: AXUIElement) -> String? {
@@ -105,6 +115,7 @@ func buildTree(_ element: AXUIElement, depth: Int = 0, maxDepth: Int = 40) -> AX
     let children = depth < maxDepth ? getChildren(element).map { buildTree($0, depth: depth + 1, maxDepth: maxDepth) } : []
     return AXNode(
         role: getRole(element),
+        subrole: getSubrole(element),
         label: getLabel(element),
         value: getValue(element),
         identifier: getIdentifier(element),
@@ -113,13 +124,13 @@ func buildTree(_ element: AXUIElement, depth: Int = 0, maxDepth: Int = 40) -> AX
     )
 }
 
-func findIOSAppRoot(in simulator: NSRunningApplication) -> AXUIElement? {
+func findIOSAppRoot(in simulator: NSRunningApplication) -> (AXUIElement, AXNode.Frame?)? {
     let appElement = axElement(for: simulator)
     let windows = getChildren(appElement).filter { getRole($0) == "AXWindow" }
     for window in windows {
         for child in getChildren(window) {
             if getRole(child) == "AXGroup" {
-                return child
+                return (child, getFrame(window))
             }
         }
     }
@@ -133,13 +144,14 @@ func main() throws {
     guard let simulator = findSimulatorApp() else {
         throw AXSnapshotError(message: "iOS Simulator is not running.")
     }
-    guard let root = findIOSAppRoot(in: simulator) else {
+    guard let (root, windowFrame) = findIOSAppRoot(in: simulator) else {
         throw AXSnapshotError(message: "Could not find iOS app content in Simulator.")
     }
     let tree = buildTree(root)
+    let snapshot = AXSnapshot(windowFrame: windowFrame, root: tree)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
-    let data = try encoder.encode(tree)
+    let data = try encoder.encode(snapshot)
     if let json = String(data: data, encoding: .utf8) {
         print(json)
     } else {

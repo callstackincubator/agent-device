@@ -40,6 +40,8 @@ agent-device snapshot -i -c -d 6
 agent-device close Settings
 ```
 
+Best practice: run `snapshot` immediately before interactions to avoid stale coordinates if the Simulator window moves or UI changes.
+
 Flags:
 - `--platform ios|android`
 - `--device <name>`
@@ -58,8 +60,6 @@ Sessions:
 - Use `--session <name>` to manage multiple sessions.
 - Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
 
-iOS simulator input:
-- If `simctl` input is unavailable for your Xcode version, the CLI will use the XCTest runner to perform taps and scrolls.
 Snapshot defaults to the AX backend on iOS simulators and falls back to XCTest if AX is unavailable.
 
 ## App resolution

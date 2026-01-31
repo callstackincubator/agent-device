@@ -206,7 +206,9 @@ final class RunnerTests: XCTestCase {
     let bundleId = command.appBundleId ?? "com.apple.Preferences"
     if currentBundleId != bundleId {
       let target = XCUIApplication(bundleIdentifier: bundleId)
-      target.launch()
+      NSLog("AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d", bundleId, target.state.rawValue)
+      // activate avoids terminating and relaunching the target app
+      target.activate()
       currentApp = target
       currentBundleId = bundleId
     }
@@ -247,6 +249,21 @@ final class RunnerTests: XCTestCase {
       }
       let found = findElement(app: activeApp, text: text) != nil
       return Response(ok: true, data: DataPayload(found: found))
+    case .rect:
+      guard let text = command.text else {
+        return Response(ok: false, error: ErrorPayload(message: "rect requires text"))
+      }
+      guard let element = findElement(app: activeApp, text: text) else {
+        return Response(ok: false, error: ErrorPayload(message: "element not found"))
+      }
+      let frame = element.frame
+      let rect = SnapshotRect(
+        x: Double(frame.origin.x),
+        y: Double(frame.origin.y),
+        width: Double(frame.size.width),
+        height: Double(frame.size.height)
+      )
+      return Response(ok: true, data: DataPayload(rect: rect))
     case .listTappables:
       let elements = activeApp.descendants(matching: .any).allElementsBoundByIndex
       let labels = elements.compactMap { element -> String? in
@@ -493,6 +510,10 @@ final class RunnerTests: XCTestCase {
   ) -> Bool {
     let type = element.elementType
     let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
+    if options.compact && type == .other && !hasContent && !element.isHittable {
+      let children = element.children(matching: .any).allElementsBoundByIndex
+      if children.count <= 1 { return false }
+    }
     if options.interactiveOnly {
       if interactiveTypes.contains(type) { return true }
       if element.isHittable && type != .other { return true }
@@ -581,6 +602,7 @@ enum CommandType: String, Codable {
   case findText
   case listTappables
   case snapshot
+  case rect
   case shutdown
 }
 
@@ -623,19 +645,22 @@ struct DataPayload: Codable {
   let items: [String]?
   let nodes: [SnapshotNode]?
   let truncated: Bool?
+  let rect: SnapshotRect?
 
   init(
     message: String? = nil,
     found: Bool? = nil,
     items: [String]? = nil,
     nodes: [SnapshotNode]? = nil,
-    truncated: Bool? = nil
+    truncated: Bool? = nil,
+    rect: SnapshotRect? = nil
   ) {
     self.message = message
     self.found = found
     self.items = items
     self.nodes = nodes
     self.truncated = truncated
+    self.rect = rect
   }
 }
 

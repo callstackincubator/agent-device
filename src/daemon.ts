@@ -7,8 +7,15 @@ import { fileURLToPath } from 'node:url';
 import { dispatchCommand, resolveTargetDevice, type CommandFlags } from './core/dispatch.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import type { DeviceInfo } from './utils/device.ts';
-import { attachRefs, centerOfRect, findNodeByRef, normalizeRef, type SnapshotState } from './utils/snapshot.ts';
-import { stopIosRunnerSession } from './platforms/ios/runner-client.ts';
+import {
+  attachRefs,
+  centerOfRect,
+  findNodeByRef,
+  normalizeRef,
+  type SnapshotState,
+  type RawSnapshotNode,
+} from './utils/snapshot.ts';
+import { runIosRunnerCommand, stopIosRunnerSession } from './platforms/ios/runner-client.ts';
 
 type DaemonRequest = {
   token: string;
@@ -196,12 +203,19 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     const appBundleId = session?.appBundleId;
     const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
       ...contextFromFlags(req.flags, appBundleId),
-    })) as { nodes?: Array<Record<string, unknown>>; truncated?: boolean };
-    const nodes = attachRefs((data?.nodes ?? []) as any);
+    })) as {
+      nodes?: RawSnapshotNode[];
+      truncated?: boolean;
+      backend?: 'ax' | 'xctest' | 'android';
+      rootRect?: { width: number; height: number };
+    };
+    const pruned = pruneGroupNodes(data?.nodes ?? []);
+    const nodes = attachRefs(pruned);
     const snapshot: SnapshotState = {
       nodes,
       truncated: data?.truncated,
       createdAt: Date.now(),
+      backend: data?.backend,
     };
     const nextSession: SessionState = {
       name: sessionName,
@@ -250,6 +264,26 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has no bounds` } };
     }
     const refLabel = resolveRefLabel(node, session.snapshot.nodes);
+    const label = node.label?.trim();
+    if (
+      session.device.platform === 'ios' &&
+      session.device.kind === 'simulator' &&
+      label &&
+      isLabelUnique(session.snapshot.nodes, label)
+    ) {
+      await runIosRunnerCommand(
+        session.device,
+        { command: 'tap', text: label, appBundleId: session.appBundleId },
+        { verbose: req.flags?.verbose, logPath },
+      );
+      recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: { ref, refLabel: label, mode: 'text' },
+      });
+      return { ok: true, data: { ref, mode: 'text' } };
+    }
     const { x, y } = centerOfRect(node.rect);
     await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId),
@@ -352,6 +386,40 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     return { ok: true, data: { ref, text, node } };
   }
 
+  if (command === 'rect') {
+    const session = sessions.get(sessionName);
+    if (!session?.snapshot) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
+    }
+    const target = req.positionals?.[0] ?? '';
+    const ref = normalizeRef(target);
+    let label = '';
+    if (ref) {
+      const node = findNodeByRef(session.snapshot.nodes, ref);
+      label = node?.label?.trim() ?? '';
+    } else {
+      label = req.positionals.join(' ').trim();
+    }
+    if (!label) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'rect requires a label or ref with label' } };
+    }
+    if (session.device.platform !== 'ios' || session.device.kind !== 'simulator') {
+      return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'rect is only supported on iOS simulators' } };
+    }
+    const data = await runIosRunnerCommand(
+      session.device,
+      { command: 'rect', text: label, appBundleId: session.appBundleId },
+      { verbose: req.flags?.verbose, logPath },
+    );
+    recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { label, rect: data?.rect },
+    });
+    return { ok: true, data: { label, rect: data?.rect } };
+  }
+
   const session = sessions.get(sessionName);
   if (!session) {
     return {
@@ -408,7 +476,10 @@ function start(): void {
           response = await handleRequest(req);
         } catch (err) {
           const appErr = asAppError(err);
-          response = { ok: false, error: { code: appErr.code, message: appErr.message } };
+          response = {
+            ok: false,
+            error: { code: appErr.code, message: appErr.message, details: appErr.details },
+          };
         }
         socket.write(`${JSON.stringify(response)}\n`);
         idx = buffer.indexOf('\n');
@@ -705,6 +776,46 @@ function findNearestMeaningfulLabel(
     }
   }
   return best?.label;
+}
+
+function isLabelUnique(nodes: SnapshotState['nodes'], label: string): boolean {
+  const target = label.trim().toLowerCase();
+  if (!target) return false;
+  let count = 0;
+  for (const node of nodes) {
+    if ((node.label ?? '').trim().toLowerCase() === target) {
+      count += 1;
+      if (count > 1) return false;
+    }
+  }
+  return count === 1;
+}
+
+function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
+  const skippedDepths: number[] = [];
+  const result: RawSnapshotNode[] = [];
+  for (const node of nodes) {
+    const depth = node.depth ?? 0;
+    while (skippedDepths.length > 0 && depth <= skippedDepths[skippedDepths.length - 1]) {
+      skippedDepths.pop();
+    }
+    const type = normalizeType(node.type ?? '');
+    if (type === 'group' || type === 'ioscontentgroup') {
+      skippedDepths.push(depth);
+      continue;
+    }
+    const adjustedDepth = Math.max(0, depth - skippedDepths.length);
+    result.push({ ...node, depth: adjustedDepth });
+  }
+  return result;
+}
+
+function normalizeType(type: string): string {
+  let value = type.replace(/XCUIElementType/gi, '').toLowerCase();
+  if (value.startsWith('ax')) {
+    value = value.replace(/^ax/, '');
+  }
+  return value;
 }
 
 function readVersion(): string {

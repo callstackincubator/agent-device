@@ -8,7 +8,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import net from 'node:net';
 
 export type RunnerCommand = {
-  command: 'tap' | 'type' | 'swipe' | 'findText' | 'listTappables' | 'snapshot' | 'shutdown';
+  command: 'tap' | 'type' | 'swipe' | 'findText' | 'listTappables' | 'snapshot' | 'rect' | 'shutdown';
   appBundleId?: string;
   text?: string;
   x?: number;

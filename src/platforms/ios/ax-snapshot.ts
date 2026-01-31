@@ -3,10 +3,12 @@ import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { RawSnapshotNode } from '../../utils/snapshot.ts';
 
 type AXFrame = { x: number; y: number; width: number; height: number };
 type AXNode = {
   role?: string;
+  subrole?: string;
   label?: string;
   value?: string;
   identifier?: string;
@@ -14,7 +16,9 @@ type AXNode = {
   children?: AXNode[];
 };
 
-export async function snapshotAx(device: DeviceInfo): Promise<{ nodes: AXNode[] }> {
+export async function snapshotAx(
+  device: DeviceInfo,
+): Promise<{ nodes: RawSnapshotNode[]; rootRect?: AXFrame }> {
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     throw new AppError('UNSUPPORTED_OPERATION', 'AX snapshot is only supported on iOS simulators');
   }
@@ -27,14 +31,27 @@ export async function snapshotAx(device: DeviceInfo): Promise<{ nodes: AXNode[] 
     });
   }
   let tree: AXNode;
+  let originFrame: AXFrame | undefined;
   try {
-    tree = JSON.parse(result.stdout) as AXNode;
+    const payload = JSON.parse(result.stdout) as
+      | AXNode
+      | { root?: AXNode; windowFrame?: AXFrame | null };
+    if (payload && typeof payload === 'object' && 'root' in payload) {
+      const snapshot = payload as { root?: AXNode; windowFrame?: AXFrame | null };
+      if (!snapshot.root) throw new Error('AX snapshot missing root');
+      tree = snapshot.root;
+      originFrame = snapshot.windowFrame ?? undefined;
+    } else {
+      tree = payload as AXNode;
+    }
   } catch (err) {
     throw new AppError('COMMAND_FAILED', 'Invalid AX snapshot JSON', { error: String(err) });
   }
-  const rootFrame = tree.frame;
+  const rootFrame = tree.frame ?? originFrame;
+  const frameSamples: AXFrame[] = [];
   const nodes: Array<AXNode & { depth: number }> = [];
   const walk = (node: AXNode, depth: number) => {
+    if (node.frame) frameSamples.push(node.frame);
     const frame = node.frame && rootFrame
       ? {
           x: node.frame.x - rootFrame.x,
@@ -49,7 +66,53 @@ export async function snapshotAx(device: DeviceInfo): Promise<{ nodes: AXNode[] 
     }
   };
   walk(tree, 0);
-  return { nodes };
+  const normalized = normalizeFrames(nodes, rootFrame, frameSamples);
+  const mapped = normalized.map((node, index) => ({
+    index,
+    type: node.subrole ?? node.role,
+    label: node.label,
+    value: node.value,
+    identifier: node.identifier,
+    rect: node.frame
+      ? {
+          x: node.frame.x,
+          y: node.frame.y,
+          width: node.frame.width,
+          height: node.frame.height,
+        }
+      : undefined,
+    depth: node.depth,
+  }));
+  return { nodes: mapped, rootRect: rootFrame };
+}
+
+function normalizeFrames(
+  nodes: Array<AXNode & { depth: number }>,
+  originFrame: AXFrame | undefined,
+  frames: AXFrame[],
+): Array<AXNode & { depth: number }> {
+  if (!originFrame || frames.length === 0) return nodes;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  for (const frame of frames) {
+    if (frame.x < minX) minX = frame.x;
+    if (frame.y < minY) minY = frame.y;
+  }
+  const nearZero = minX <= 5 && minY <= 5;
+  if (nearZero) {
+    return nodes.map((node) => ({
+      ...node,
+      frame: node.frame
+        ? {
+            x: node.frame.x + originFrame.x,
+            y: node.frame.y + originFrame.y,
+            width: node.frame.width,
+            height: node.frame.height,
+          }
+        : undefined,
+    }));
+  }
+  return nodes;
 }
 
 async function ensureAxSnapshotBinary(): Promise<string> {

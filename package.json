@@ -14,6 +14,9 @@
   "scripts": {
     "lint": "node --eval \"console.log('no lint')\"",
     "build": "rslib build",
+    "build:node": "pnpm build && rm -f ~/.agent-device/daemon.json",
+    "build:swift": "swift build -c release --package-path ios-runner/AXSnapshot",
+    "build:clis": "pnpm build:node && pnpm build:swift",
     "format": "prettier --write .",
     "prepublishOnly": "pnpm build",
     "typecheck": "tsc -p tsconfig.json",

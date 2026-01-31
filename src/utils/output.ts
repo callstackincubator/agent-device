@@ -46,11 +46,23 @@ export function formatSnapshotText(
     const rawLines = nodes.map((node) => JSON.stringify(node));
     return `${prefix}${header}\n${rawLines.join('\n')}\n`;
   }
-  const lines = nodes.map((node) => {
+  const hiddenGroupDepths: number[] = [];
+  const lines: string[] = [];
+  for (const node of nodes) {
     const depth = node.depth ?? 0;
-    const indent = '  '.repeat(Math.max(0, depth));
+    while (hiddenGroupDepths.length > 0 && depth <= hiddenGroupDepths[hiddenGroupDepths.length - 1]) {
+      hiddenGroupDepths.pop();
+    }
     const label = node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
     const type = formatRole(node.type ?? 'Element');
+    const isHiddenGroup = type === 'group' && !label;
+    if (isHiddenGroup) {
+      hiddenGroupDepths.push(depth);
+    }
+    const adjustedDepth = isHiddenGroup
+      ? depth
+      : Math.max(0, depth - hiddenGroupDepths.length);
+    const indent = '  '.repeat(adjustedDepth);
     const ref = node.ref ? `@${node.ref}` : '';
     const flags = [
       node.enabled === false ? 'disabled' : null,
@@ -59,8 +71,12 @@ export function formatSnapshotText(
       .join(', ');
     const flagText = flags ? ` [${flags}]` : '';
     const textPart = label ? ` "${label}"` : '';
-    return `${indent}${ref} [${type}]${textPart}${flagText}`.trimEnd();
-  });
+    if (isHiddenGroup) {
+      lines.push(`${indent}${ref} [${type}]${flagText}`.trimEnd());
+      continue;
+    }
+    lines.push(`${indent}${ref} [${type}]${textPart}${flagText}`.trimEnd());
+  }
   return `${prefix}${header}\n${lines.join('\n')}\n`;
 }
 
