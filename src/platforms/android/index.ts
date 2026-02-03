@@ -276,6 +276,35 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
   await fs.writeFile(outPath, result.stdoutBuffer);
 }
 
+export async function setAndroidSetting(
+  device: DeviceInfo,
+  setting: string,
+  state: string,
+): Promise<void> {
+  const normalized = setting.toLowerCase();
+  const enabled = parseSettingState(state);
+  switch (normalized) {
+    case 'wifi': {
+      await runCmd('adb', adbArgs(device, ['shell', 'svc', 'wifi', enabled ? 'enable' : 'disable']));
+      return;
+    }
+    case 'airplane': {
+      const flag = enabled ? '1' : '0';
+      const bool = enabled ? 'true' : 'false';
+      await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'global', 'airplane_mode_on', flag]));
+      await runCmd('adb', adbArgs(device, ['shell', 'am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', bool]));
+      return;
+    }
+    case 'location': {
+      const mode = enabled ? '3' : '0';
+      await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]));
+      return;
+    }
+    default:
+      throw new AppError('INVALID_ARGS', `Unsupported setting: ${setting}`);
+  }
+}
+
 export async function snapshotAndroid(
   device: DeviceInfo,
   options: SnapshotOptions = {},
@@ -327,6 +356,13 @@ function isRetryableAdbError(err: unknown): boolean {
   if (stderr.includes('broken pipe')) return true;
   if (stderr.includes('timed out')) return true;
   return false;
+}
+
+function parseSettingState(state: string): boolean {
+  const normalized = state.toLowerCase();
+  if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
+  if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
+  throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
 function findBounds(xml: string, query: string): { x: number; y: number } | null {

@@ -638,6 +638,36 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     return { ok: true, data: { trace: 'stopped', outPath } };
   }
 
+  if (command === 'settings') {
+    const setting = req.positionals?.[0];
+    const state = req.positionals?.[1];
+    if (!setting || !state) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'settings requires <wifi|airplane|location> <on|off>' } };
+    }
+    const session = sessions.get(sessionName);
+    const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
+    if (!session) {
+      await ensureDeviceReady(device);
+    }
+    const appBundleId = session?.appBundleId;
+    const data = await dispatchCommand(
+      device,
+      'settings',
+      [setting, state, appBundleId ?? ''],
+      req.flags?.out,
+      { ...contextFromFlags(req.flags, appBundleId, session?.trace?.outPath) },
+    );
+    if (session) {
+      recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: data ?? { setting, state },
+      });
+    }
+    return { ok: true, data: data ?? { setting, state } };
+  }
+
   if (command === 'find') {
     const args = req.positionals ?? [];
     if (args.length === 0) {

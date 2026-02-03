@@ -195,6 +195,7 @@ Commands:
   find value <value> <action> [value]        Find by value
   find role <role> <action> [value]          Find by role/type
   find id <id> <action> [value]              Find by identifier/resource-id
+  settings <wifi|airplane|location> <on|off> Toggle OS settings (simulators)
   session list                               List active sessions
 
 Flags:

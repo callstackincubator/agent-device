@@ -1,11 +1,19 @@
 import { AppError } from '../utils/errors.ts';
 import { selectDevice, type DeviceInfo } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
-import { appSwitcherAndroid, backAndroid, ensureAdb, homeAndroid, snapshotAndroid } from '../platforms/android/index.ts';
+import {
+  appSwitcherAndroid,
+  backAndroid,
+  ensureAdb,
+  homeAndroid,
+  setAndroidSetting,
+  snapshotAndroid,
+} from '../platforms/android/index.ts';
 import { listIosDevices } from '../platforms/ios/devices.ts';
 import { getInteractor } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
+import { setIosSetting } from '../platforms/ios/index.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 
 export type CommandFlags = {
@@ -263,6 +271,15 @@ export async function dispatchCommand(
       }
       await appSwitcherAndroid(device);
       return { action: 'app-switcher' };
+    }
+    case 'settings': {
+      const [setting, state, appBundleId] = positionals;
+      if (device.platform === 'ios') {
+        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId);
+        return { setting, state };
+      }
+      await setAndroidSetting(device, setting, state);
+      return { setting, state };
     }
     case 'snapshot': {
       const backend = context?.snapshotBackend ?? 'hybrid';

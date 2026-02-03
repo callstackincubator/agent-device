@@ -154,6 +154,60 @@ export async function screenshotIos(device: DeviceInfo, outPath: string): Promis
   await runCmd('xcrun', ['devicectl', 'device', 'screenshot', '--device', device.id, outPath]);
 }
 
+export async function setIosSetting(
+  device: DeviceInfo,
+  setting: string,
+  state: string,
+  appBundleId?: string,
+): Promise<void> {
+  ensureSimulator(device, 'settings');
+  await ensureBootedSimulator(device);
+  const normalized = setting.toLowerCase();
+  const enabled = parseSettingState(state);
+  switch (normalized) {
+    case 'wifi': {
+      const mode = enabled ? 'active' : 'failed';
+      await runCmd('xcrun', ['simctl', 'status_bar', device.id, 'override', '--wifiMode', mode]);
+      return;
+    }
+    case 'airplane': {
+      if (enabled) {
+        await runCmd('xcrun', [
+          'simctl',
+          'status_bar',
+          device.id,
+          'override',
+          '--dataNetwork',
+          'hide',
+          '--wifiMode',
+          'failed',
+          '--wifiBars',
+          '0',
+          '--cellularMode',
+          'failed',
+          '--cellularBars',
+          '0',
+          '--operatorName',
+          '',
+        ]);
+      } else {
+        await runCmd('xcrun', ['simctl', 'status_bar', device.id, 'clear']);
+      }
+      return;
+    }
+    case 'location': {
+      if (!appBundleId) {
+        throw new AppError('INVALID_ARGS', 'location setting requires an active app in session');
+      }
+      const action = enabled ? 'grant' : 'revoke';
+      await runCmd('xcrun', ['simctl', 'privacy', device.id, action, 'location', appBundleId]);
+      return;
+    }
+    default:
+      throw new AppError('INVALID_ARGS', `Unsupported setting: ${setting}`);
+  }
+}
+
 function ensureSimulator(device: DeviceInfo, command: string): void {
   if (device.kind !== 'simulator') {
     throw new AppError(
@@ -161,6 +215,13 @@ function ensureSimulator(device: DeviceInfo, command: string): void {
       `${command} is only supported on iOS simulators in v1`,
     );
   }
+}
+
+function parseSettingState(state: string): boolean {
+  const normalized = state.toLowerCase();
+  if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
+  if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
+  throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
 export async function listSimulatorApps(

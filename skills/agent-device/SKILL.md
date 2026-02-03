@@ -68,6 +68,20 @@ agent-device find "Settings" wait 10000
 agent-device find "Settings" exists
 ```
 
+### Settings helpers (simulators)
+
+```bash
+agent-device settings wifi on
+agent-device settings wifi off
+agent-device settings airplane on
+agent-device settings airplane off
+agent-device settings location on
+agent-device settings location off
+```
+
+Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
+Airplane off clears status bar overrides.
+
 ### Interactions (use @refs from snapshot)
 
 ```bash
