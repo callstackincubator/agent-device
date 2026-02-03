@@ -58,7 +58,7 @@ type SessionAction = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest';
+    snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
     noRecord?: boolean;
     recordJson?: boolean;
   };
@@ -84,7 +84,7 @@ function contextFromFlags(
   snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
-  snapshotBackend?: 'ax' | 'xctest';
+  snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
   snapshotRaw?: boolean;
 } {
   return {
@@ -321,7 +321,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     })) as {
       nodes?: RawSnapshotNode[];
       truncated?: boolean;
-      backend?: 'ax' | 'xctest' | 'android';
+      backend?: 'ax' | 'xctest' | 'hybrid' | 'android';
     };
     const rawNodes = data?.nodes ?? [];
     const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));

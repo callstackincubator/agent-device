@@ -45,15 +45,15 @@ agent-device snapshot -c              # Compact output
 agent-device snapshot -d 3            # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw           # Raw node output
+agent-device snapshot --backend hybrid # Default: best speed vs correctness trade-off (AX fast, XCTest complete)
 agent-device snapshot --backend ax    # macOS Accessibility tree (fast, needs permissions)
 agent-device snapshot --backend xctest # XCTest snapshot (slow, no permissions)
 ```
 
-If AX shows a container (e.g. `group` or `tab bar`) without children, re-snapshot with XCTest and scope to its label:
-
-```bash
-agent-device snapshot --backend xctest -s "Tab Bar"
-```
+Hybrid will automatically fill empty containers (e.g. `group`, `tab bar`) by scoping XCTest to the container label.
+It is recommended because AX is fast but can miss UI details, while XCTest is slower but more complete.
+If you want explicit control or AX is unavailable, use `--backend xctest`.
+In practice, if AX returns a `Tab Bar` group with no children, hybrid will run a scoped XCTest snapshot for `Tab Bar` and insert those nodes under the group.
 
 ### Interactions (use @refs from snapshot)
 
@@ -95,8 +95,8 @@ agent-device apps --platform android --user-installed
 
 - Always snapshot right before interactions; refs invalidate on UI changes.
 - Prefer `snapshot -i` to reduce output size.
-- On iOS, AX snapshot is fastest but needs Accessibility permission.
-- If AX returns the Simulator window or empty tree, restart Simulator.
+- On iOS, hybrid is the default and uses AX first, so Accessibility permission is still required.
+- If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 
 ## References

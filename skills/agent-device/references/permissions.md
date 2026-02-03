@@ -2,7 +2,7 @@
 
 ## iOS AX snapshot
 
-AX snapshot (default) uses macOS Accessibility APIs and requires permission:
+Hybrid snapshot (default) is recommended for best speed vs correctness; it uses macOS Accessibility APIs and requires permission:
 
 System Settings > Privacy & Security > Accessibility
 
@@ -12,7 +12,7 @@ If permission is missing, use:
 agent-device snapshot --backend xctest --platform ios
 ```
 
-AX is fast; XCTest is slower but does not require permissions.
+Hybrid/AX is fast; XCTest is slower but does not require permissions.
 
 ## Simulator troubleshooting
 

@@ -20,7 +20,7 @@ export type CommandFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
-  snapshotBackend?: 'ax' | 'xctest';
+  snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
   noRecord?: boolean;
   recordJson?: boolean;
   appsFilter?: 'launchable' | 'user-installed' | 'all';
@@ -73,7 +73,7 @@ export async function dispatchCommand(
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest';
+    snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
   },
 ): Promise<Record<string, unknown> | void> {
   const interactor = getInteractor(device);
@@ -264,7 +264,7 @@ export async function dispatchCommand(
       return { action: 'app-switcher' };
     }
     case 'snapshot': {
-      const backend = context?.snapshotBackend ?? 'ax';
+      const backend = context?.snapshotBackend ?? 'hybrid';
       if (device.platform === 'ios') {
         if (device.kind !== 'simulator') {
           throw new AppError(
@@ -275,6 +275,24 @@ export async function dispatchCommand(
         if (backend === 'ax') {
           const ax = await snapshotAx(device);
           return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };
+        }
+        if (backend === 'hybrid') {
+          const ax = await snapshotAx(device);
+          const axNodes = ax.nodes ?? [];
+          const containers = findHybridContainers(axNodes);
+          if (containers.length === 0) {
+            return { nodes: axNodes, truncated: false, backend: 'hybrid' };
+          }
+          const merged = await fillHybridContainers(device, axNodes, containers, {
+            appBundleId: context?.appBundleId,
+            interactiveOnly: context?.snapshotInteractiveOnly,
+            compact: context?.snapshotCompact,
+            depth: context?.snapshotDepth,
+            raw: context?.snapshotRaw,
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+          });
+          return { nodes: merged.nodes, truncated: merged.truncated, backend: 'hybrid' };
         }
         const result = (await runIosRunnerCommand(
           device,
@@ -303,6 +321,115 @@ export async function dispatchCommand(
     default:
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
   }
+}
+
+type HybridContainer = {
+  index: number;
+  depth: number;
+  label?: string;
+  identifier?: string;
+  type?: string;
+};
+
+const hybridContainerTypes = new Set(['tabbar', 'toolbar', 'group']);
+
+function findHybridContainers(nodes: RawSnapshotNode[]): HybridContainer[] {
+  const containers: HybridContainer[] = [];
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i];
+    const depth = node.depth ?? 0;
+    const nextDepth = nodes[i + 1]?.depth ?? -1;
+    if (nextDepth > depth) continue;
+    const normalized = normalizeSnapshotType(node.type);
+    if (!hybridContainerTypes.has(normalized)) continue;
+    containers.push({
+      index: i,
+      depth,
+      label: node.label,
+      identifier: node.identifier,
+      type: node.type,
+    });
+  }
+  return containers;
+}
+
+async function fillHybridContainers(
+  device: DeviceInfo,
+  axNodes: RawSnapshotNode[],
+  containers: HybridContainer[],
+  options: {
+    appBundleId?: string;
+    interactiveOnly?: boolean;
+    compact?: boolean;
+    depth?: number;
+    raw?: boolean;
+    verbose?: boolean;
+    logPath?: string;
+  },
+): Promise<{ nodes: RawSnapshotNode[]; truncated: boolean }> {
+  let merged = [...axNodes];
+  let truncated = false;
+  let offset = 0;
+  for (const container of containers) {
+    const scope = resolveContainerScope(container);
+    if (!scope) continue;
+    const result = (await runIosRunnerCommand(
+      device,
+      {
+        command: 'snapshot',
+        appBundleId: options.appBundleId,
+        interactiveOnly: options.interactiveOnly,
+        compact: options.compact,
+        depth: options.depth,
+        scope,
+        raw: options.raw,
+      },
+      { verbose: options.verbose, logPath: options.logPath },
+    )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
+    if (result.truncated) truncated = true;
+    const filtered = (result.nodes ?? []).filter((node) => {
+      const normalized = normalizeSnapshotType(node.type);
+      return normalized !== 'application' && normalized !== 'window';
+    });
+    if (filtered.length === 0) continue;
+    const adjusted = adjustDepths(filtered, container.depth + 1);
+    merged.splice(container.index + 1 + offset, 0, ...adjusted);
+    offset += adjusted.length;
+  }
+  merged = merged.map((node, index) => ({ ...node, index }));
+  return { nodes: merged, truncated };
+}
+
+function adjustDepths(nodes: RawSnapshotNode[], baseDepth: number): RawSnapshotNode[] {
+  let minDepth = Number.POSITIVE_INFINITY;
+  for (const node of nodes) {
+    const depth = node.depth ?? 0;
+    if (depth < minDepth) minDepth = depth;
+  }
+  if (!Number.isFinite(minDepth)) minDepth = 0;
+  return nodes.map((node) => ({
+    ...node,
+    depth: baseDepth + (node.depth ?? 0) - minDepth,
+  }));
+}
+
+function normalizeSnapshotType(type?: string): string {
+  if (!type) return '';
+  let value = type.replace(/XCUIElementType/gi, '').toLowerCase();
+  if (value.startsWith('ax')) {
+    value = value.replace(/^ax/, '');
+  }
+  return value;
+}
+
+function resolveContainerScope(container: HybridContainer): string | null {
+  const candidates = [container.label, container.identifier];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const value = candidate.trim();
+    if (value) return value;
+  }
+  return null;
 }
 
 function invertScrollDirection(direction: 'up' | 'down' | 'left' | 'right'): 'up' | 'down' | 'left' | 'right' {

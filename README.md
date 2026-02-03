@@ -52,11 +52,11 @@ Coordinates:
 - X increases to the right, Y increases downward.
 
 iOS snapshots:
-- Default backend is `ax` (fast). It requires enabling Accessibility for the terminal app in System Settings.
-- If AX is not available, use `--backend xctest` explicitly.
-- If AX shows a container like `group` or `tab bar` without children, re-snapshot with XCTest and scope to the container label:
-  `snapshot --backend xctest -s "<label>"`
-- Use `-s @ref` to scope the snapshot to the label of a prior ref in the current session.
+- Default backend is `hybrid` because it provides the best speed vs correctness trade-off: AX is fast but can miss UI details, while XCTest is slower but more complete. Hybrid uses the fast AX snapshot first, then fills empty containers (tab bars/toolbars/groups) with scoped XCTest snapshots.
+- `ax` is the fast AX-only backend and requires enabling Accessibility for the terminal app in System Settings.
+- `xctest` is the slower XCTest-only backend that avoids Accessibility permissions.
+- You can scope snapshots to a label or identifier with `-s "<label>"` or to a previous ref with `-s @ref`.
+  In practice, if AX returns a `Tab Bar` group with no children, hybrid will run a scoped XCTest snapshot for `Tab Bar` and insert those nodes under the group.
 
 Flags:
 - `--platform ios|android`
@@ -67,7 +67,7 @@ Flags:
 - `--session <name>`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
-- `--backend ax|xctest` (snapshot only; defaults to `ax` on iOS)
+- `--backend ax|xctest|hybrid` (snapshot only; defaults to `hybrid` on iOS)
 
 Sessions:
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
@@ -76,7 +76,7 @@ Sessions:
 - Use `--session <name>` to manage multiple sessions.
 - Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
 
-Snapshot defaults to the AX backend on iOS simulators. Use `--backend xctest` if AX is unavailable.
+Snapshot defaults to the hybrid backend on iOS simulators. Use `--backend ax` for AX-only or `--backend xctest` for XCTest-only.
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).

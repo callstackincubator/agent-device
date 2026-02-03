@@ -36,6 +36,7 @@ Instructions for AI coding agents working with this codebase.
 
 - Build iOS runner: `xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination "platform=iOS Simulator,id=<UDID>" -derivedDataPath ~/.agent-device/ios-runner/derived`
 - Build AX snapshot tool: `swift build -c release` in `ios-runner/AXSnapshot`
+- Build everything: `pnpm build:all`
 - Run command: `node bin/agent-device.mjs --platform ios --udid <UDID> open settings --verbose`
 - Scroll: `node bin/agent-device.mjs --platform ios --udid <UDID> scroll down 0.5 --verbose`
 
