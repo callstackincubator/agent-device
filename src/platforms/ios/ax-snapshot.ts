@@ -18,12 +18,27 @@ type AXNode = {
 
 export async function snapshotAx(
   device: DeviceInfo,
+  options: { traceLogPath?: string } = {},
 ): Promise<{ nodes: RawSnapshotNode[] }> {
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     throw new AppError('UNSUPPORTED_OPERATION', 'AX snapshot is only supported on iOS simulators');
   }
   const binary = await ensureAxSnapshotBinary();
   const result = await runCmd(binary, [], { allowFailure: true });
+  if (options.traceLogPath) {
+    const stdoutText = (result.stdout ?? '').toString();
+    const stderrText = (result.stderr ?? '').toString();
+    const header = `\n[axsnapshot] exit=${result.exitCode} stdoutBytes=${stdoutText.length} stderrBytes=${stderrText.length}\n`;
+    fs.appendFileSync(options.traceLogPath, header);
+    if (result.exitCode !== 0 || stderrText.length > 0) {
+      if (stderrText.length > 0) {
+        fs.appendFileSync(options.traceLogPath, `${stderrText}\n`);
+      }
+      if (result.exitCode !== 0 && stdoutText.length > 0) {
+        fs.appendFileSync(options.traceLogPath, `${stdoutText}\n`);
+      }
+    }
+  }
   if (result.exitCode !== 0) {
     const stderrText = (result.stderr ?? '').toString();
     let hint = '';

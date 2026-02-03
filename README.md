@@ -69,6 +69,10 @@ Flags:
 - `--json` for structured output
 - `--backend ax|xctest|hybrid` (snapshot only; defaults to `hybrid` on iOS)
 
+Tracing:
+- `trace start [path]` to begin capturing AX/XCTest logs for the session.
+- `trace stop [path]` to stop capture and optionally move the trace log.
+
 Sessions:
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
 - All interaction commands require an open session.
@@ -77,6 +81,14 @@ Sessions:
 - Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
 
 Snapshot defaults to the hybrid backend on iOS simulators. Use `--backend ax` for AX-only or `--backend xctest` for XCTest-only.
+
+## Debug
+
+- Start trace capture before a flaky sequence:
+  - `agent-device trace start`
+  - `agent-device trace stop ./trace.log`
+- The trace log includes AX snapshot stderr and XCTest runner logs for the session.
+- For snapshot issues, compare `--backend ax` vs `--backend xctest` and scope with `-s "<label>"`.
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).

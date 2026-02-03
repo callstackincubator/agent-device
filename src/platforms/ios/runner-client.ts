@@ -59,7 +59,7 @@ export type RunnerSnapshotNode = {
 export async function runIosRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string } = {},
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
 ): Promise<Record<string, unknown>> {
   if (device.kind !== 'simulator') {
     throw new AppError('UNSUPPORTED_OPERATION', 'iOS runner only supports simulators in v1');
@@ -150,7 +150,7 @@ async function ensureBooted(udid: string): Promise<void> {
 
 async function ensureRunnerSession(
   device: DeviceInfo,
-  options: { verbose?: boolean; logPath?: string },
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<RunnerSession> {
   const existing = runnerSessions.get(device.id);
   if (existing) return existing;
@@ -181,10 +181,10 @@ async function ensureRunnerSession(
     ],
     {
       onStdoutChunk: (chunk) => {
-        logChunk(chunk, options.logPath, options.verbose);
+        logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
       },
       onStderrChunk: (chunk) => {
-        logChunk(chunk, options.logPath, options.verbose);
+        logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
       },
       allowFailure: true,
       env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port), AGENT_DEVICE_RUNNER_TIMEOUT: runnerTimeout },
@@ -206,7 +206,7 @@ async function ensureRunnerSession(
 
 async function ensureXctestrun(
   udid: string,
-  options: { verbose?: boolean; logPath?: string },
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
   const base = path.join(os.homedir(), '.agent-device', 'ios-runner');
   const derived = path.join(base, 'derived');
@@ -247,10 +247,10 @@ async function ensureXctestrun(
       ],
       {
         onStdoutChunk: (chunk) => {
-          logChunk(chunk, options.logPath, options.verbose);
+          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
         },
         onStderrChunk: (chunk) => {
-          logChunk(chunk, options.logPath, options.verbose);
+          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
         },
       },
     );
@@ -309,10 +309,9 @@ function findProjectRoot(): string {
   return start;
 }
 
-function logChunk(chunk: string, logPath?: string, verbose?: boolean): void {
-  if (logPath) {
-    fs.appendFileSync(logPath, chunk);
-  }
+function logChunk(chunk: string, logPath?: string, traceLogPath?: string, verbose?: boolean): void {
+  if (logPath) fs.appendFileSync(logPath, chunk);
+  if (traceLogPath) fs.appendFileSync(traceLogPath, chunk);
   if (verbose) {
     process.stderr.write(chunk);
   }

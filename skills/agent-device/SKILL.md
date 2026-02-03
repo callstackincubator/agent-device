@@ -81,6 +81,15 @@ agent-device get attrs @e1
 agent-device screenshot --out out.png
 ```
 
+### Trace logs (AX/XCTest)
+
+```bash
+agent-device trace start               # Start trace capture
+agent-device trace start ./trace.log   # Start trace capture to path
+agent-device trace stop                # Stop trace capture
+agent-device trace stop ./trace.log    # Stop and move trace log
+```
+
 ### Devices and apps
 
 ```bash

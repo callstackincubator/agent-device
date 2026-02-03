@@ -38,6 +38,10 @@ type SessionState = {
   appBundleId?: string;
   appName?: string;
   snapshot?: SnapshotState;
+  trace?: {
+    outPath: string;
+    startedAt: number;
+  };
   actions: SessionAction[];
   recording?: {
     platform: 'ios' | 'android';
@@ -76,10 +80,12 @@ const token = crypto.randomBytes(24).toString('hex');
 function contextFromFlags(
   flags: CommandFlags | undefined,
   appBundleId?: string,
+  traceLogPath?: string,
 ): {
   appBundleId?: string;
   verbose?: boolean;
   logPath?: string;
+  traceLogPath?: string;
   snapshotInteractiveOnly?: boolean;
   snapshotCompact?: boolean;
   snapshotDepth?: number;
@@ -91,6 +97,7 @@ function contextFromFlags(
     appBundleId,
     verbose: flags?.verbose,
     logPath,
+    traceLogPath,
     snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,
     snapshotCompact: flags?.snapshotCompact,
     snapshotDepth: flags?.snapshotDepth,
@@ -276,7 +283,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     }
     if (req.positionals && req.positionals.length > 0) {
       await dispatchCommand(session.device, 'close', req.positionals ?? [], req.flags?.out, {
-        ...contextFromFlags(req.flags, session.appBundleId),
+        ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
     }
     if (session.device.platform === 'ios' && session.device.kind === 'simulator') {
@@ -317,7 +324,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       snapshotScope = resolved;
     }
     const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
-      ...contextFromFlags({ ...req.flags, snapshotScope }, appBundleId),
+      ...contextFromFlags({ ...req.flags, snapshotScope }, appBundleId, session?.trace?.outPath),
     })) as {
       nodes?: RawSnapshotNode[];
       truncated?: boolean;
@@ -415,7 +422,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         const result = (await runIosRunnerCommand(
           device,
           { command: 'findText', text, appBundleId: session?.appBundleId },
-          { verbose: req.flags?.verbose, logPath },
+          { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
         )) as { found?: boolean };
         if (result?.found) {
           if (session) {
@@ -462,7 +469,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           const data = await runIosRunnerCommand(
             device,
             { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
-            { verbose: req.flags?.verbose, logPath },
+            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
           );
           if (session) {
             recordAction(session, {
@@ -487,7 +494,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         action: action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get',
         appBundleId: session?.appBundleId,
       },
-      { verbose: req.flags?.verbose, logPath },
+      { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
     );
     if (session) {
       recordAction(session, {
@@ -580,6 +587,56 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     return { ok: true, data: { recording: 'stopped', outPath: recording.outPath } };
   }
 
+  if (command === 'trace') {
+    const action = (req.positionals?.[0] ?? '').toLowerCase();
+    if (!['start', 'stop'].includes(action)) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'trace requires start|stop' } };
+    }
+    const session = sessions.get(sessionName);
+    if (!session) {
+      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
+    }
+    if (action === 'start') {
+      if (session.trace) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'trace already in progress' } };
+      }
+      const outPath = req.positionals?.[1] ?? defaultTracePath(session);
+      const resolvedOut = expandHome(outPath);
+      fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
+      fs.appendFileSync(resolvedOut, '');
+      session.trace = { outPath: resolvedOut, startedAt: Date.now() };
+      recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: { action: 'start', outPath: resolvedOut },
+      });
+      return { ok: true, data: { trace: 'started', outPath: resolvedOut } };
+    }
+    if (!session.trace) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active trace' } };
+    }
+    let outPath = session.trace.outPath;
+    if (req.positionals?.[1]) {
+      const resolvedOut = expandHome(req.positionals[1]);
+      fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
+      if (fs.existsSync(outPath)) {
+        fs.renameSync(outPath, resolvedOut);
+      } else {
+        fs.appendFileSync(resolvedOut, '');
+      }
+      outPath = resolvedOut;
+    }
+    session.trace = undefined;
+    recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { action: 'stop', outPath },
+    });
+    return { ok: true, data: { trace: 'stopped', outPath } };
+  }
+
   if (command === 'click') {
     const session = sessions.get(sessionName);
     if (!session?.snapshot) {
@@ -611,7 +668,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       await runIosRunnerCommand(
         session.device,
         { command: 'tap', text: label, appBundleId: session.appBundleId },
-        { verbose: req.flags?.verbose, logPath },
+        { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
       );
       recordAction(session, {
         command,
@@ -623,7 +680,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     }
     const { x, y } = centerOfRect(node.rect);
     await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
-      ...contextFromFlags(req.flags, session.appBundleId),
+      ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
     recordAction(session, {
       command,
@@ -664,7 +721,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         [String(x), String(y), text],
         req.flags?.out,
         {
-          ...contextFromFlags(req.flags, session.appBundleId),
+          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
         },
       );
       recordAction(session, {
@@ -733,7 +790,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   }
 
   const data = await dispatchCommand(session.device, command, req.positionals ?? [], req.flags?.out, {
-    ...contextFromFlags(req.flags, session.appBundleId),
+    ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
   });
   recordAction(session, {
     command,
@@ -909,6 +966,12 @@ function writeSessionLog(session: SessionState): void {
   } catch {
     // ignore
   }
+}
+
+function defaultTracePath(session: SessionState): string {
+  const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return path.join(sessionsDir, `${safeName}-${timestamp}.trace.log`);
 }
 
 function expandHome(filePath: string): string {

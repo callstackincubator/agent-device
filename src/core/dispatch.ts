@@ -68,6 +68,7 @@ export async function dispatchCommand(
     appBundleId?: string;
     verbose?: boolean;
     logPath?: string;
+    traceLogPath?: string;
     snapshotInteractiveOnly?: boolean;
     snapshotCompact?: boolean;
     snapshotDepth?: number;
@@ -102,7 +103,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {
         await interactor.tap(x, y);
@@ -126,7 +127,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {
         await interactor.focus(x, y);
@@ -140,7 +141,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'type', text, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {
         await interactor.type(text);
@@ -158,12 +159,12 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
         await runIosRunnerCommand(
           device,
           { command: 'type', text, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {
         await interactor.fill(x, y, text);
@@ -182,7 +183,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'swipe', direction: inverted, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {
         await interactor.scroll(direction, amount);
@@ -198,13 +199,13 @@ export async function dispatchCommand(
           const found = (await runIosRunnerCommand(
             device,
             { command: 'findText', text, appBundleId: context?.appBundleId },
-            { verbose: context?.verbose, logPath: context?.logPath },
+            { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
           )) as { found?: boolean };
           if (found?.found) return { text, attempts: attempt + 1 };
           await runIosRunnerCommand(
             device,
             { command: 'swipe', direction: 'up', appBundleId: context?.appBundleId },
-            { verbose: context?.verbose, logPath: context?.logPath },
+            { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
           );
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
@@ -226,7 +227,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'back', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
         return { action: 'back' };
       }
@@ -241,7 +242,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'home', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
         return { action: 'home' };
       }
@@ -256,7 +257,7 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'appSwitcher', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
         return { action: 'app-switcher' };
       }
@@ -273,11 +274,11 @@ export async function dispatchCommand(
           );
         }
         if (backend === 'ax') {
-          const ax = await snapshotAx(device);
+          const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
           return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };
         }
         if (backend === 'hybrid') {
-          const ax = await snapshotAx(device);
+          const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
           const axNodes = ax.nodes ?? [];
           const containers = findHybridContainers(axNodes);
           if (containers.length === 0) {
@@ -291,6 +292,7 @@ export async function dispatchCommand(
             raw: context?.snapshotRaw,
             verbose: context?.verbose,
             logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
           });
           return { nodes: merged.nodes, truncated: merged.truncated, backend: 'hybrid' };
         }
@@ -305,7 +307,7 @@ export async function dispatchCommand(
             scope: context?.snapshotScope,
             raw: context?.snapshotRaw,
           },
-          { verbose: context?.verbose, logPath: context?.logPath },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
         return { nodes: result.nodes ?? [], truncated: result.truncated ?? false, backend: 'xctest' };
       }
@@ -365,6 +367,7 @@ async function fillHybridContainers(
     raw?: boolean;
     verbose?: boolean;
     logPath?: string;
+    traceLogPath?: string;
   },
 ): Promise<{ nodes: RawSnapshotNode[]; truncated: boolean }> {
   let merged = [...axNodes];
@@ -384,7 +387,7 @@ async function fillHybridContainers(
         scope,
         raw: options.raw,
       },
-      { verbose: options.verbose, logPath: options.logPath },
+      { verbose: options.verbose, logPath: options.logPath, traceLogPath: options.traceLogPath },
     )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
     if (result.truncated) truncated = true;
     const filtered = (result.nodes ?? []).filter((node) => {

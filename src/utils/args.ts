@@ -187,6 +187,8 @@ Commands:
   screenshot [--out path]                    Capture screenshot
   record start [path]                        Start screen recording
   record stop                                Stop screen recording
+  trace start [path]                         Start trace log capture
+  trace stop [path]                          Stop trace log capture
   session list                               List active sessions
 
 Flags:
