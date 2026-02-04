@@ -1,6 +1,6 @@
 # agent-device
 
-CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel/agent-browser). 
+CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel-labs/agent-browser). 
 
 The project is in early development, considered experimental. Pull requests are welcome!
 
