@@ -25,12 +25,6 @@ runs:
       run: pnpm install --frozen-lockfile
       shell: bash
 
-    - name: Install dependencies (docs)
-      if: ${{ github.event.action != 'closed' }}
-      working-directory: website
-      run: pnpm install --frozen-lockfile
-      shell: bash
-
     - name: Build docs
       if: ${{ github.event.action != 'closed' }}
       working-directory: website
