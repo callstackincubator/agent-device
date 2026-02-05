@@ -20,6 +20,7 @@ export type ParsedArgs = {
     snapshotBackend?: 'ax' | 'xctest';
     appsFilter?: 'launchable' | 'user-installed' | 'all';
     appsMetadata?: boolean;
+    activity?: string;
     noRecord?: boolean;
     recordJson?: boolean;
     help: boolean;
@@ -125,6 +126,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '--session':
           flags.session = value;
           break;
+        case '--activity':
+          flags.activity = value;
+          break;
         default:
           throw new AppError('INVALID_ARGS', `Unknown flag: ${key}`);
       }
@@ -208,6 +212,7 @@ Flags:
   --device <name>                            Device name to target
   --udid <udid>                              iOS device UDID
   --serial <serial>                          Android device serial
+  --activity <component>                     Android activity to launch (package/Activity)
   --out <path>                               Output path for screenshots
   --session <name>                           Named session
   --verbose                                  Stream daemon/runner logs

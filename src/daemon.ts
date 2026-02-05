@@ -84,6 +84,7 @@ function contextFromFlags(
   traceLogPath?: string,
 ): {
   appBundleId?: string;
+  activity?: string;
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;
@@ -96,6 +97,7 @@ function contextFromFlags(
 } {
   return {
     appBundleId,
+    activity: flags?.activity,
     verbose: flags?.verbose,
     logPath,
     traceLogPath,

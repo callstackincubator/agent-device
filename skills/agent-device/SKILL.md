@@ -37,6 +37,7 @@ npx -y agent-device
 
 ```bash
 agent-device open [app]           # Boot device/simulator; optionally launch app
+agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity
 agent-device close [app]          # Close app or just end session
 agent-device session list         # List active sessions
 ```
@@ -145,6 +146,7 @@ agent-device apps --platform android --user-installed
 - `open <app>` can be used within an existing session to switch apps and update the session bundle id.
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
+- Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK).
 
 ## References
 

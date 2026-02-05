@@ -98,6 +98,7 @@ Flags:
 - `--device <name>`
 - `--udid <udid>` (iOS)
 - `--serial <serial>` (Android)
+- `--activity <component>` (Android; package/Activity or package/.Activity)
 - `--out <path>` (screenshot)
 - `--session <name>`
 - `--verbose` for daemon and runner logs

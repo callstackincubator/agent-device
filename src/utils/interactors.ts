@@ -28,7 +28,7 @@ import {
 } from '../platforms/ios/index.ts';
 
 export type Interactor = {
-  open(app: string): Promise<void>;
+  open(app: string, options?: { activity?: string }): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
   tap(x: number, y: number): Promise<void>;
@@ -45,7 +45,7 @@ export function getInteractor(device: DeviceInfo): Interactor {
   switch (device.platform) {
     case 'android':
       return {
-        open: (app) => openAndroidApp(device, app),
+        open: (app, options) => openAndroidApp(device, app, options?.activity),
         openDevice: () => openAndroidDevice(device),
         close: (app) => closeAndroidApp(device, app),
         tap: (x, y) => pressAndroid(device, x, y),

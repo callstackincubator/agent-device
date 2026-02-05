@@ -22,6 +22,7 @@ export type CommandFlags = {
   udid?: string;
   serial?: string;
   out?: string;
+  activity?: string;
   verbose?: boolean;
   snapshotInteractiveOnly?: boolean;
   snapshotCompact?: boolean;
@@ -94,7 +95,7 @@ export async function dispatchCommand(
         await interactor.openDevice();
         return { app: null };
       }
-      await interactor.open(app);
+      await interactor.open(app, { activity: context?.activity });
       return { app };
     }
     case 'close': {

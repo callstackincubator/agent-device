@@ -148,25 +148,58 @@ function parseAndroidFocus(text: string): { package?: string; activity?: string 
   return null;
 }
 
-export async function openAndroidApp(device: DeviceInfo, app: string): Promise<void> {
+export async function openAndroidApp(
+  device: DeviceInfo,
+  app: string,
+  activity?: string,
+): Promise<void> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {
+    if (activity) {
+      throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
+    }
     await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-a', resolved.value]));
+    return;
+  }
+  if (activity) {
+    const component = activity.includes('/')
+      ? activity
+      : `${resolved.value}/${activity.startsWith('.') ? activity : `.${activity}`}`;
+    await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        'android.intent.category.DEFAULT',
+        '-c',
+        'android.intent.category.LAUNCHER',
+        '-n',
+        component,
+      ]),
+    );
     return;
   }
   await runCmd(
     'adb',
     adbArgs(device, [
       'shell',
-      'monkey',
-      '-p',
-      resolved.value,
+      'am',
+      'start',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.DEFAULT',
       '-c',
       'android.intent.category.LAUNCHER',
-      '1',
+      '-p',
+      resolved.value,
     ]),
   );
 }
