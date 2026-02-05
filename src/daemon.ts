@@ -63,7 +63,7 @@ type SessionAction = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
+    snapshotBackend?: 'ax' | 'xctest';
     noRecord?: boolean;
     recordJson?: boolean;
   };
@@ -91,7 +91,7 @@ function contextFromFlags(
   snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
-  snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
+  snapshotBackend?: 'ax' | 'xctest';
   snapshotRaw?: boolean;
 } {
   return {
@@ -244,13 +244,43 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
 
   if (command === 'open') {
     if (sessions.has(sessionName)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'Session already active. Close it first or pass a new --session name.',
-        },
+      const session = sessions.get(sessionName);
+      const appName = req.positionals?.[0];
+      if (!session || !appName) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'Session already active. Close it first or pass a new --session name.',
+          },
+        };
+      }
+      let appBundleId: string | undefined;
+      if (session.device.platform === 'ios') {
+        try {
+          const { resolveIosApp } = await import('./platforms/ios/index.ts');
+          appBundleId = await resolveIosApp(session.device, appName);
+        } catch {
+          appBundleId = undefined;
+        }
+      }
+      await dispatchCommand(session.device, 'open', req.positionals ?? [], req.flags?.out, {
+        ...contextFromFlags(req.flags, appBundleId),
+      });
+      const nextSession: SessionState = {
+        ...session,
+        appBundleId,
+        appName,
+        snapshot: undefined,
       };
+      recordAction(nextSession, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: { session: sessionName, appName, appBundleId },
+      });
+      sessions.set(sessionName, nextSession);
+      return { ok: true, data: { session: sessionName, appName, appBundleId } };
     }
     const device = await resolveTargetDevice(req.flags ?? {});
     await ensureDeviceReady(device);
@@ -377,7 +407,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     })) as {
       nodes?: RawSnapshotNode[];
       truncated?: boolean;
-      backend?: 'ax' | 'xctest' | 'hybrid' | 'android';
+      backend?: 'ax' | 'xctest' | 'android';
     };
     const rawNodes = data?.nodes ?? [];
     const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
@@ -767,7 +797,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       })) as {
         nodes?: RawSnapshotNode[];
         truncated?: boolean;
-        backend?: 'ax' | 'xctest' | 'hybrid' | 'android';
+        backend?: 'ax' | 'xctest' | 'android';
       };
       const rawNodes = data?.nodes ?? [];
       const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
@@ -965,26 +995,6 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has no bounds` } };
     }
     const refLabel = resolveRefLabel(node, session.snapshot.nodes);
-    const label = node.label?.trim();
-    if (
-      session.device.platform === 'ios' &&
-      session.device.kind === 'simulator' &&
-      label &&
-      isLabelUnique(session.snapshot.nodes, label)
-    ) {
-      await runIosRunnerCommand(
-        session.device,
-        { command: 'tap', text: label, appBundleId: session.appBundleId },
-        { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-      );
-      recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, refLabel: label, mode: 'text' },
-      });
-      return { ok: true, data: { ref, mode: 'text' } };
-    }
     const { x, y } = centerOfRect(node.rect);
     await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
@@ -1022,45 +1032,29 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       }
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const label = node.label?.trim();
-      if (session.device.platform === 'ios' && session.device.kind === 'simulator') {
-        if (refLabel && isTextInputType(node.type)) {
-          await runIosRunnerCommand(
-            session.device,
-            { command: 'tap', text: refLabel, appBundleId: session.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-          );
-          await runIosRunnerCommand(
-            session.device,
-            { command: 'type', text, appBundleId: session.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-          );
-          recordAction(session, {
-            command,
-            positionals: req.positionals ?? [],
-            flags: req.flags ?? {},
-            result: { ref, refLabel, mode: 'text' },
-          });
-          return { ok: true, data: { ref, mode: 'text' } };
+      if (session.device.platform === 'ios' && session.device.kind === 'simulator' && isTextInputType(node.type)) {
+        const coords = node.rect ? centerOfRect(node.rect) : null;
+        if (!coords) {
+          return {
+            ok: false,
+            error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` },
+          };
         }
-        if (label && isLabelUnique(session.snapshot.nodes, label)) {
-          await runIosRunnerCommand(
-            session.device,
-            { command: 'tap', text: label, appBundleId: session.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-          );
-          await runIosRunnerCommand(
-            session.device,
-            { command: 'type', text, appBundleId: session.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-          );
-          recordAction(session, {
-            command,
-            positionals: req.positionals ?? [],
-            flags: req.flags ?? {},
-            result: { ref, refLabel: label, mode: 'text' },
-          });
-          return { ok: true, data: { ref, mode: 'text' } };
-        }
+        await dispatchCommand(session.device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
+          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        });
+        await runIosRunnerCommand(
+          session.device,
+          { command: 'type', text, appBundleId: session.appBundleId },
+          { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+        );
+        recordAction(session, {
+          command,
+          positionals: req.positionals ?? [],
+          flags: req.flags ?? {},
+          result: { ref, refLabel: refLabel ?? label, action: 'fill', text },
+        });
+        return { ok: true, data: { ref } };
       }
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatchCommand(

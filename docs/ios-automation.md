@@ -32,14 +32,11 @@ Provide robust element-level interactions for AI agents on iOS by combining a fa
      - Ensures runner is built/available.
      - Starts runner for the specific device/simulator.
      - Sends commands (tap, type, swipe, find, list elements) over HTTP.
-5. **Fallbacks and hybrid snapshots**
-   - Default snapshot backend is `hybrid` because it provides the best speed vs correctness trade-off:
-     AX is fast but can miss UI details, while XCTest is slower but more complete. Hybrid uses the fast AX snapshot
-     first, then scoped XCTest fill for empty containers (tab bars/toolbars/groups) to improve parity while staying fast.
-   - Performance: hybrid only triggers XCTest when empty containers are detected, and scopes each call with `-s`
-     to limit tree size. Pure AX remains the fastest option if you don't need fill behavior.
+5. **Snapshot backends**
+   - Default snapshot backend is `xctest` for completeness, which works out of the box.
+   - The `--backend ax` flag is available for macOS Accessibility Tree snapshots when you can tolerate missing details.
+   - If XCTest returns 0 nodes (foreground app changed), call `open` for the target app. Otherwise, agent-device will fall back to AX when available (requires permissions).
    - Use `trace start [path]` / `trace stop [path]` to capture AX/XCTest logs for debugging snapshot issues.
-   - If AX snapshot is unavailable, use the XCTest backend directly.
    - If runner not available, fall back to `simctl`/`devicectl` capabilities.
 
 ## Notes

@@ -173,7 +173,7 @@ async function ensureRunnerSession(
   await ensureBooted(device.id);
   const xctestrun = await ensureXctestrun(device.id, options);
   const port = await getFreePort();
-  const runnerTimeout = process.env.AGENT_DEVICE_RUNNER_TIMEOUT ?? '300';
+  const runnerTimeout = process.env.AGENT_DEVICE_RUNNER_TIMEOUT ?? '0';
   const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
     xctestrun,
     { AGENT_DEVICE_RUNNER_PORT: String(port), AGENT_DEVICE_RUNNER_TIMEOUT: runnerTimeout },
@@ -359,12 +359,9 @@ async function waitForRunner(
   command: RunnerCommand,
   logPath?: string,
 ): Promise<Response> {
-  if (logPath) {
-    await waitForRunnerReady(logPath, 4000);
-  }
   const start = Date.now();
   let lastError: unknown = null;
-  while (Date.now() - start < 8000) {
+  while (Date.now() - start < 15000) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/command`, {
         method: 'POST',
@@ -381,23 +378,9 @@ async function waitForRunner(
     const simResponse = await postCommandViaSimulator(device.id, port, command);
     return new Response(simResponse.body, { status: simResponse.status });
   }
-  const fallbackPort = logPath ? extractPortFromLog(logPath) : null;
-  if (fallbackPort && fallbackPort !== port) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${fallbackPort}/command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(command),
-      });
-      return response;
-    } catch (err) {
-      lastError = err;
-    }
-  }
 
   throw new AppError('COMMAND_FAILED', 'Runner did not accept connection', {
     port,
-    fallbackPort,
     logPath,
     lastError: lastError ? String(lastError) : undefined,
   });
@@ -453,43 +436,6 @@ async function getFreePort(): Promise<number> {
     });
     server.on('error', reject);
   });
-}
-
-async function waitForRunnerReady(logPath: string, timeoutMs: number): Promise<void> {
-  if (!fs.existsSync(logPath)) return;
-  const start = Date.now();
-  let offset = 0;
-  while (Date.now() - start < timeoutMs) {
-    if (!fs.existsSync(logPath)) return;
-    const stats = fs.statSync(logPath);
-    if (stats.size > offset) {
-      const fd = fs.openSync(logPath, 'r');
-      const buffer = Buffer.alloc(stats.size - offset);
-      fs.readSync(fd, buffer, 0, buffer.length, offset);
-      fs.closeSync(fd);
-      offset = stats.size;
-      const text = buffer.toString('utf8');
-      if (
-        text.includes('AGENT_DEVICE_RUNNER_LISTENER_READY') ||
-        text.includes('AGENT_DEVICE_RUNNER_PORT=')
-      ) {
-        return;
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-}
-
-function extractPortFromLog(logPath: string): number | null {
-  try {
-    if (!fs.existsSync(logPath)) return null;
-    const text = fs.readFileSync(logPath, 'utf8');
-    const match = text.match(/AGENT_DEVICE_RUNNER_PORT=(\d+)/);
-    if (match) return Number(match[1]);
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 async function prepareXctestrunWithEnv(

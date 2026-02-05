@@ -7,7 +7,7 @@ Refs let agents interact without repeating full UI trees. Snapshot -> refs -> cl
 ## Snapshot
 
 ```bash
-agent-device snapshot -i --platform ios
+agent-device snapshot -i
 ```
 
 Output:
@@ -24,8 +24,8 @@ App: com.apple.Preferences
 ## Using refs
 
 ```bash
-agent-device click @e2 --platform ios
-agent-device fill @e5 "test" --platform ios
+agent-device click @e2
+agent-device fill @e5 "test"
 ```
 
 ## Ref lifecycle
@@ -38,12 +38,12 @@ Always re-snapshot after any transition.
 Use `-s` to scope to labels/identifiers. This reduces size and speeds up results:
 
 ```bash
-agent-device snapshot -i -s "Camera" --platform ios
-agent-device snapshot -i -s @e3 --platform ios
+agent-device snapshot -i -s "Camera"
+agent-device snapshot -i -s @e3
 ```
 
 ## Troubleshooting
 
 - Ref not found: re-snapshot.
 - AX returns Simulator window: restart Simulator and re-run.
-- AX empty: verify Accessibility permission or use `--backend xctest` (hybrid is recommended because AX is fast but can miss UI details, while XCTest is slower but more complete).
+- AX empty: verify Accessibility permission or use `--backend xctest` (XCTest is more complete).

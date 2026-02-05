@@ -17,7 +17,7 @@ export type ParsedArgs = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest' | 'hybrid';
+    snapshotBackend?: 'ax' | 'xctest';
     appsFilter?: 'launchable' | 'user-installed' | 'all';
     appsMetadata?: boolean;
     noRecord?: boolean;
@@ -81,7 +81,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         ? arg.split('=')[1]
         : argv[i + 1];
       if (!arg.includes('=')) i += 1;
-      if (value !== 'ax' && value !== 'xctest' && value !== 'hybrid') {
+      if (value !== 'ax' && value !== 'xctest') {
         throw new AppError('INVALID_ARGS', `Invalid backend: ${value}`);
       }
       flags.snapshotBackend = value;
@@ -161,16 +161,15 @@ CLI to control iOS and Android devices for AI agents.
 Commands:
   open [app]                                 Boot device/simulator; optionally launch app
   close [app]                                Close app or just end session
-  snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest|hybrid]
+  snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
                                              Capture accessibility tree
     -i                                       Interactive elements only
     -c                                       Compact output (drop empty structure)
     -d <depth>                               Limit snapshot depth
     -s <scope>                               Scope snapshot to label/identifier
     --raw                                    Raw node output
-    --backend ax|xctest|hybrid               hybrid: default; AX snapshot with XCTest fill for empty containers
+    --backend ax|xctest                      xctest: default; XCTest snapshot (slower, no permissions)
                                              ax: macOS Accessibility tree (fast, needs permissions)
-                                             xctest: XCTest snapshot (slower, no permissions)
   devices                                   List available devices
   apps [--user-installed|--all|--metadata]  List installed apps (Android launchable by default, iOS simulator)
   appstate                                  Show foreground app/activity

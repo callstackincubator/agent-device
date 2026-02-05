@@ -4,7 +4,7 @@
 
 ```bash
 agent-device --session auth open Settings --platform ios
-agent-device --session auth snapshot -i --platform ios
+agent-device --session auth snapshot -i
 ```
 
 Sessions isolate device context. A device can only be held by one session at a time.

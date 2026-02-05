@@ -65,6 +65,7 @@ final class RunnerTests: XCTestCase {
         }
       case .failed(let error):
         NSLog("AGENT_DEVICE_RUNNER_LISTENER_FAILED=%@", String(describing: error))
+        self?.doneExpectation?.fulfill()
       default:
         break
       }
@@ -80,7 +81,9 @@ final class RunnerTests: XCTestCase {
       return
     }
     NSLog("AGENT_DEVICE_RUNNER_WAITING")
-    let result = XCTWaiter.wait(for: [expectation], timeout: resolveRunnerTimeout())
+    let timeout = resolveRunnerTimeout()
+    let effectiveTimeout = timeout > 0 ? timeout : 24 * 60 * 60
+    let result = XCTWaiter.wait(for: [expectation], timeout: effectiveTimeout)
     NSLog("AGENT_DEVICE_RUNNER_WAIT_RESULT=%@", String(describing: result))
     if result != .completed {
       XCTFail("runner wait ended with \(result)")
@@ -203,7 +206,7 @@ final class RunnerTests: XCTestCase {
   }
 
   private func executeOnMain(command: Command) throws -> Response {
-    let bundleId = command.appBundleId ?? "com.apple.Preferences"
+    let bundleId = command.appBundleId ?? currentBundleId ?? "com.apple.Preferences"
     if currentBundleId != bundleId {
       let target = XCUIApplication(bundleIdentifier: bundleId)
       NSLog("AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d", bundleId, target.state.rawValue)
@@ -412,75 +415,116 @@ final class RunnerTests: XCTestCase {
     case .checkBox: return "CheckBox"
     case .menuItem: return "MenuItem"
     case .other: return "Other"
-    default: return "Element(\(type.rawValue))"
+    default:
+      switch type.rawValue {
+      case 19:
+        return "Keyboard"
+      case 20:
+        return "Key"
+      case 24:
+        return "SearchField"
+      default:
+        return "Element(\(type.rawValue))"
+      }
     }
   }
 
   private func snapshotFast(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
     var nodes: [SnapshotNode] = []
     var truncated = false
-    let maxDepth = options.depth ?? 2
+    let maxDepth = options.depth ?? Int.max
     let viewport = app.frame
-    let rootLabel = aggregatedLabel(for: app) ?? app.label.trimmingCharacters(in: .whitespacesAndNewlines)
-    let rootNode = SnapshotNode(
-      index: 0,
-      type: "Application",
-      label: rootLabel.isEmpty ? nil : rootLabel,
-      identifier: app.identifier.isEmpty ? nil : app.identifier,
-      value: nil,
-      rect: SnapshotRect(
-        x: Double(app.frame.origin.x),
-        y: Double(app.frame.origin.y),
-        width: Double(app.frame.size.width),
-        height: Double(app.frame.size.height),
-      ),
-      enabled: app.isEnabled,
-      hittable: app.isHittable,
-      depth: 0,
-    )
-    nodes.append(rootNode)
-
     let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
-    let elements = collectFastElements(root: queryRoot)
-    var seen = Set<String>()
 
-    for element in elements {
+    let rootSnapshot: XCUIElementSnapshot
+    do {
+      rootSnapshot = try queryRoot.snapshot()
+    } catch {
+      return DataPayload(nodes: nodes, truncated: truncated)
+    }
+
+    let rootLabel = aggregatedLabel(for: rootSnapshot) ?? rootSnapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    let rootIdentifier = rootSnapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+    let rootValue = snapshotValueText(rootSnapshot)
+    nodes.append(
+      SnapshotNode(
+        index: 0,
+        type: elementTypeName(rootSnapshot.elementType),
+        label: rootLabel.isEmpty ? nil : rootLabel,
+        identifier: rootIdentifier.isEmpty ? nil : rootIdentifier,
+        value: rootValue,
+        rect: SnapshotRect(
+          x: Double(rootSnapshot.frame.origin.x),
+          y: Double(rootSnapshot.frame.origin.y),
+          width: Double(rootSnapshot.frame.size.width),
+          height: Double(rootSnapshot.frame.size.height),
+        ),
+        enabled: rootSnapshot.isEnabled,
+        hittable: snapshotHittable(rootSnapshot),
+        depth: 0,
+      )
+    )
+
+    var seen = Set<String>()
+    var stack: [(XCUIElementSnapshot, Int, Int)] = rootSnapshot.children.map { ($0, 1, 1) }
+
+    while let (snapshot, depth, visibleDepth) = stack.popLast() {
       if nodes.count >= fastSnapshotLimit {
         truncated = true
         break
       }
-      if !isVisibleInViewport(element.frame, viewport) { continue }
-      let label = aggregatedLabel(for: element) ?? element.label.trimmingCharacters(in: .whitespacesAndNewlines)
-      let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-      let valueText: String? = {
-        guard let value = element.value else { return nil }
-        let text = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.isEmpty ? nil : text
-      }()
-      if !shouldInclude(element: element, label: label, identifier: identifier, valueText: valueText, options: options) {
+      if let limit = options.depth, depth > limit { continue }
+
+      let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+      let valueText = snapshotValueText(snapshot)
+      let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
+      if !isVisibleInViewport(snapshot.frame, viewport) && !hasContent {
         continue
       }
-      let key = "\(element.elementType)-\(label)-\(identifier)-\(element.frame.origin.x)-\(element.frame.origin.y)"
-      if seen.contains(key) { continue }
-      seen.insert(key)
+
+      let include = shouldInclude(
+        snapshot: snapshot,
+        label: label,
+        identifier: identifier,
+        valueText: valueText,
+        options: options
+      )
+
+      let key = "\(snapshot.elementType)-\(label)-\(identifier)-\(snapshot.frame.origin.x)-\(snapshot.frame.origin.y)"
+      let isDuplicate = seen.contains(key)
+      if !isDuplicate {
+        seen.insert(key)
+      }
+
+      if depth < maxDepth {
+        let nextVisibleDepth = include && !isDuplicate ? visibleDepth + 1 : visibleDepth
+        for child in snapshot.children.reversed() {
+          stack.append((child, depth + 1, nextVisibleDepth))
+        }
+      }
+
+      if !include || isDuplicate { continue }
+
       nodes.append(
         SnapshotNode(
           index: nodes.count,
-          type: elementTypeName(element.elementType),
+          type: elementTypeName(snapshot.elementType),
           label: label.isEmpty ? nil : label,
           identifier: identifier.isEmpty ? nil : identifier,
           value: valueText,
           rect: SnapshotRect(
-            x: Double(element.frame.origin.x),
-            y: Double(element.frame.origin.y),
-            width: Double(element.frame.size.width),
-            height: Double(element.frame.size.height),
+            x: Double(snapshot.frame.origin.x),
+            y: Double(snapshot.frame.origin.y),
+            width: Double(snapshot.frame.size.width),
+            height: Double(snapshot.frame.size.height),
           ),
-          enabled: element.isEnabled,
-          hittable: element.isHittable,
-          depth: min(maxDepth, 1),
+          enabled: snapshot.isEnabled,
+          hittable: snapshotHittable(snapshot),
+          depth: min(maxDepth, visibleDepth),
         )
       )
+
     }
 
     return DataPayload(nodes: nodes, truncated: truncated)
@@ -564,22 +608,52 @@ final class RunnerTests: XCTestCase {
     return true
   }
 
-  private func collectFastElements(root: XCUIElement) -> [XCUIElement] {
-    var elements: [XCUIElement] = []
-    elements.append(contentsOf: root.buttons.allElementsBoundByIndex)
-    elements.append(contentsOf: root.links.allElementsBoundByIndex)
-    elements.append(contentsOf: root.cells.allElementsBoundByIndex)
-    elements.append(contentsOf: root.staticTexts.allElementsBoundByIndex)
-    elements.append(contentsOf: root.switches.allElementsBoundByIndex)
-    elements.append(contentsOf: root.textFields.allElementsBoundByIndex)
-    elements.append(contentsOf: root.textViews.allElementsBoundByIndex)
-    elements.append(contentsOf: root.navigationBars.allElementsBoundByIndex)
-    elements.append(contentsOf: root.tabBars.allElementsBoundByIndex)
-    elements.append(contentsOf: root.searchFields.allElementsBoundByIndex)
-    elements.append(contentsOf: root.segmentedControls.allElementsBoundByIndex)
-    elements.append(contentsOf: root.collectionViews.allElementsBoundByIndex)
-    elements.append(contentsOf: root.tables.allElementsBoundByIndex)
-    return elements
+  private func shouldInclude(
+    snapshot: XCUIElementSnapshot,
+    label: String,
+    identifier: String,
+    valueText: String?,
+    options: SnapshotOptions
+  ) -> Bool {
+    let type = snapshot.elementType
+    let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
+    if options.compact && type == .other && !hasContent && !snapshotHittable(snapshot) {
+      if snapshot.children.count <= 1 { return false }
+    }
+    if options.interactiveOnly {
+      if interactiveTypes.contains(type) { return true }
+      if snapshotHittable(snapshot) && type != .other { return true }
+      if hasContent && type != .other { return true }
+      return false
+    }
+    if options.compact {
+      return hasContent || snapshotHittable(snapshot)
+    }
+    return true
+  }
+
+  private func snapshotValueText(_ snapshot: XCUIElementSnapshot) -> String? {
+    guard let value = snapshot.value else { return nil }
+    let text = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
+    return text.isEmpty ? nil : text
+  }
+
+  private func snapshotHittable(_ snapshot: XCUIElementSnapshot) -> Bool {
+    // XCUIElementSnapshot does not expose isHittable; use enabled as a lightweight proxy.
+    return snapshot.isEnabled
+  }
+
+  private func aggregatedLabel(for snapshot: XCUIElementSnapshot, depth: Int = 0) -> String? {
+    if depth > 4 { return nil }
+    let text = snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !text.isEmpty { return text }
+    if let valueText = snapshotValueText(snapshot) { return valueText }
+    for child in snapshot.children {
+      if let childLabel = aggregatedLabel(for: child, depth: depth + 1) {
+        return childLabel
+      }
+    }
+    return nil
   }
 
   private func isVisibleInViewport(_ rect: CGRect, _ viewport: CGRect) -> Bool {
@@ -630,7 +704,7 @@ private func resolveRunnerTimeout() -> TimeInterval {
      let parsed = Double(env) {
     return parsed
   }
-  return 300
+  return 0
 }
 
 enum CommandType: String, Codable {

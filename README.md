@@ -2,9 +2,9 @@
 
 CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel-labs/agent-browser). 
 
-The project is in early development, considered experimental. Pull requests are welcome!
+The project is in early development and considered experimental. Pull requests are welcome!
 
-## Current scope (v1)
+## Features
 - Platforms: iOS (simulator + limited device support) and Android (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`.
 - Inspection commands: `snapshot` (accessibility tree).
@@ -23,40 +23,67 @@ Or use it without installing:
 npx agent-device open SampleApp
 ```
 
-## Usage
+## Quick Start
+
+```bash
+agent-device open Contacts --platform ios # creates session on iOS Simulator
+agent-device snapshot                      
+agent-device click @e5
+agent-device fill @e6 "John"
+agent-device fill @e7 "Doe"
+agent-device click @e3
+agent-device close
+```
+
+## CLI Usage
 
 ```bash
 agent-device <command> [args] [--json]
 ```
 
-Examples:
+Basic flow:
 
 ```bash
 agent-device open SampleApp
 agent-device snapshot
-agent-device snapshot -s @e7
 agent-device click @e7
-agent-device wait text "Camera"
-agent-device alert wait 10000
-agent-device back
-agent-device type "hello"
-agent-device screenshot --out ./screenshot.png
+agent-device fill @e8 "hello"
 agent-device close SampleApp
 ```
 
-Best practice: run `snapshot` immediately before interactions to avoid stale coordinates if the Simulator window moves or UI changes.
-When interacting with UI elements from a snapshot, prefer refs (e.g. `click @e7`) over raw coordinates. Refs are stable across runs and avoid coordinate drift.
+Debug flow:
+
+```bash
+agent-device trace start
+agent-device snapshot -s "Sample App"
+agent-device find label "Wi-Fi" click
+agent-device trace stop ./trace.log
+```
 
 Coordinates:
 - All coordinate-based commands (`press`, `long-press`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
 
-iOS snapshots:
-- Default backend is `hybrid` because it provides the best speed vs correctness trade-off: AX is fast but can miss UI details, while XCTest is slower but more complete. Hybrid uses the fast AX snapshot first, then fills empty containers (tab bars/toolbars/groups) with scoped XCTest snapshots.
-- `ax` is the fast AX-only backend and requires enabling Accessibility for the terminal app in System Settings.
-- `xctest` is the slower XCTest-only backend that avoids Accessibility permissions.
-- You can scope snapshots to a label or identifier with `-s "<label>"` or to a previous ref with `-s @ref`.
-  In practice, if AX returns a `Tab Bar` group with no children, hybrid will run a scoped XCTest snapshot for `Tab Bar` and insert those nodes under the group.
+## Command Index
+- `open`, `close`, `home`, `back`, `app-switcher`
+- `snapshot`, `find`, `get`
+- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`
+- `alert`, `wait`, `screenshot`
+- `trace start`, `trace stop`
+- `settings wifi|airplane|location on|off`
+- `appstate`, `apps`, `devices`, `session list`
+
+## Backends (iOS snapshots)
+
+| Backend | Speed | Accuracy | Requirements |
+| --- | --- | --- | --- |
+| `xctest` | Fast | High | No Accessibility permission required |
+| `ax` | Fast | Medium | Accessibility permission for the terminal app, not recommended |
+
+Notes:
+- Default backend is `xctest` on iOS.
+- Scope snapshots with `-s "<label>"` or `-s @ref`.
+- If XCTest returns 0 nodes (e.g., foreground app changed), agent-device falls back to AX when available.
 
 Flags:
 - `--platform ios|android`
@@ -67,20 +94,18 @@ Flags:
 - `--session <name>`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
-- `--backend ax|xctest|hybrid` (snapshot only; defaults to `hybrid` on iOS)
+- `--backend ax|xctest` (snapshot only; defaults to `xctest` on iOS)
 
-Tracing:
-- `trace start [path]` to begin capturing AX/XCTest logs for the session.
-- `trace stop [path]` to stop capture and optionally move the trace log.
+## Skills
+Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).
 
 Sessions:
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
 - All interaction commands require an open session.
+- If a session is already open, `open <app>` switches the active app and updates the session app bundle.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
 - Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
-
-Snapshot defaults to the hybrid backend on iOS simulators. Use `--backend ax` for AX-only or `--backend xctest` for XCTest-only.
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
@@ -90,8 +115,8 @@ Find (semantic):
 Settings helpers (simulators):
 - `settings wifi on|off`
 - `settings airplane on|off`
-- `settings location on|off` (iOS uses per‑app permission for the current session app)
-  - Note: iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
+- `settings location on|off` (iOS uses per-app permission for the current session app)
+Note: iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
 - `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it falls back to a snapshot-based guess (AX first, XCTest if AX can’t identify).
@@ -99,12 +124,11 @@ App state:
 
 ## Debug
 
-- Start trace capture before a flaky sequence:
-  - `agent-device trace start`
-  - `agent-device trace stop ./trace.log`
-- The trace log includes AX snapshot stderr and XCTest runner logs for the session.
+- `agent-device trace start`
+- `agent-device trace stop ./trace.log`
+- The trace log includes snapshot logs and XCTest runner logs for the session.
 - Built-in retries cover transient runner connection failures, AX snapshot hiccups, and Android UI dumps.
-- For snapshot issues, compare `--backend ax` vs `--backend xctest` and scope with `-s "<label>"`.
+- For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).
