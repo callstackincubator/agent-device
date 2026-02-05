@@ -54,6 +54,7 @@ export async function runCli(argv: string[]): Promise<void> {
         process.stdout.write(
           formatSnapshotText((response.data ?? {}) as Record<string, unknown>, {
             raw: flags.snapshotRaw,
+            flatten: flags.snapshotInteractiveOnly,
           }),
         );
         if (logTailStopper) logTailStopper();
