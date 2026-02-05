@@ -76,6 +76,7 @@ export async function dispatchCommand(
   outPath?: string,
   context?: {
     appBundleId?: string;
+    activity?: string;
     verbose?: boolean;
     logPath?: string;
     traceLogPath?: string;

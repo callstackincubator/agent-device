@@ -843,7 +843,11 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     if (!node) {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find did not match any element' } };
     }
-    const ref = `@${node.ref}`;
+    const resolvedNode =
+      action === 'click' || action === 'focus' || action === 'fill' || action === 'type'
+        ? findNearestHittableAncestor(nodes, node) ?? node
+        : node;
+    const ref = `@${resolvedNode.ref}`;
     const actionFlags = { ...(req.flags ?? {}), noRecord: true };
     if (action === 'exists') {
       if (session) {
@@ -1684,6 +1688,24 @@ function normalizeType(type: string): string {
     value = value.replace(/^ax/, '');
   }
   return value;
+}
+
+function findNearestHittableAncestor(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotState['nodes'][number],
+): SnapshotState['nodes'][number] | null {
+  if (node.hittable) return node;
+  let current = node;
+  const visited = new Set<string>();
+  while (current.parentIndex !== undefined) {
+    if (visited.has(current.ref)) break;
+    visited.add(current.ref);
+    const parent = nodes[current.parentIndex];
+    if (!parent) break;
+    if (parent.hittable) return parent;
+    current = parent;
+  }
+  return null;
 }
 
 function readVersion(): string {

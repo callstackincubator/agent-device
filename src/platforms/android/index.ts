@@ -493,7 +493,7 @@ function parseUiHierarchy(
   const scopedRoot = options.scope ? findScopeNode(tree, options.scope) : null;
   const roots = scopedRoot ? [scopedRoot] : tree.children;
 
-  const walk = (node: AndroidNode, depth: number) => {
+  const walk = (node: AndroidNode, depth: number, parentIndex?: number) => {
     if (nodes.length >= maxNodes) {
       truncated = true;
       return;
@@ -501,9 +501,11 @@ function parseUiHierarchy(
     if (depth > maxDepth) return;
 
     const include = options.raw ? true : shouldIncludeAndroidNode(node, options);
+    let currentIndex = parentIndex;
     if (include) {
+      currentIndex = nodes.length;
       nodes.push({
-        index: nodes.length,
+        index: currentIndex,
         type: node.type ?? undefined,
         label: node.label ?? undefined,
         value: node.value ?? undefined,
@@ -512,17 +514,17 @@ function parseUiHierarchy(
         enabled: node.enabled,
         hittable: node.hittable,
         depth,
-        parentIndex: node.parentIndex,
+        parentIndex,
       });
     }
     for (const child of node.children) {
-      walk(child, depth + 1);
+      walk(child, depth + 1, currentIndex);
       if (truncated) return;
     }
   };
 
   for (const root of roots) {
-    walk(root, 0);
+    walk(root, 0, undefined);
     if (truncated) break;
   }
 
