@@ -158,7 +158,3 @@ agent-device apps --platform android --user-installed
 - [references/permissions.md](references/permissions.md)
 - [references/video-recording.md](references/video-recording.md)
 - [references/coordinate-system.md](references/coordinate-system.md)
-
-## Missing features roadmap (high level)
-
-See [references/missing-features.md](references/missing-features.md) for planned parity with agent-browser.
