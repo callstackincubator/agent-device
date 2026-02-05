@@ -19,4 +19,4 @@ Tips:
 
 - Use `find ... wait <timeoutMs>` to wait for UI to appear.
 - Combine with scoped snapshots using `snapshot -s "<label>"` for speed.
-- If a matched node is not hittable, agent-device will click/focus the nearest hittable ancestor.
+- [Android] If a matched node is not hittable, agent-device will click/focus the nearest hittable ancestor.
