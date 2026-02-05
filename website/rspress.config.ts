@@ -19,6 +19,13 @@ export default withCallstackPreset(
         discord: 'https://discord.gg/eYapw6F3',
       },
     },
+    theme: {
+      content: {
+        outlineCTAHeadline: 'Curious about developing mobile apps with AI agents?',
+        outlineCTADescription: 'We can help you take your agentic workflows to the next level and ship faster.',
+        outlineCTAButtonText: "Book a call",
+      },
+    },
   },
   defineConfig({
     base: process.env.RSPRESS_BASE || '/agent-device',

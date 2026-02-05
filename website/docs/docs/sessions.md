@@ -9,8 +9,16 @@ Sessions keep device state and snapshots consistent across commands.
 ```bash
 agent-device open Settings --platform ios
 agent-device session list
-agent-device open Contacts --session default
+agent-device open Contacts          # change app while reusing the default session
 agent-device close
+```
+
+Open another session independently (for parallel work):
+
+```bash
+agent-device open Contacts --platform ios --session my-session
+agent-device snapshot -i
+agent-device close --session my-session
 ```
 
 Notes:

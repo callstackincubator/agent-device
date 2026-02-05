@@ -24,3 +24,29 @@ If you know `agent-browser`, this is the mobile-native counterpart focused on si
 2. The daemon manages sessions and dispatches to platform drivers.
 3. iOS uses XCTest runner for snapshots and input; AX is optional fallback.
 4. Android uses ADB-based tooling.
+
+## Example
+
+```bash
+# Navigate and get snapshot
+agent-device open Settings --platform ios
+agent-device snapshot -i
+# Output
+# Page: Contacts
+# App: com.apple.MobileAddressBook
+# Snapshot: 44 nodes
+# @e1 [application] "Contacts"
+#  @e2 [window]
+#    @e3 [other]
+#  @e4 [other] "Lists"
+#    @e5 [navigation-bar] "Lists"
+#      @e6 [button] "Lists"
+#      @e7 [text] "Contacts"
+#    @e8 [other] "John Doe"
+
+# Click and fill
+agent-device click @e8
+agent-device snapshot -i
+agent-device fill @e5 "Doe 2"
+agent-device close
+```

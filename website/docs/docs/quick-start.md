@@ -4,15 +4,73 @@ title: Quick Start
 
 # Quick Start
 
+Every device automation follows this pattern:
+
 ```bash
-agent-device open Contacts --platform ios
+# 1. Navigate
+agent-device open SampleApp --platform ios # or android
+
+# 2. Snapshot to get element refs
 agent-device snapshot -i
-agent-device click @e5
-agent-device fill @e6 "John"
+# Output:
+# @e1 [heading] "Sample App"
+# @e2 [button] "Settings"
+
+# 3. Interact using refs
+agent-device click @e2
+
+# 4. Re-snapshot before next interactions
+agent-device snapshot -i
+```
+
+## Common commands
+
+```bash
+agent-device open SampleApp
+agent-device snapshot -i                 # Get interactive elements with refs
+agent-device click @e2                   # Click by ref
+agent-device fill @e3 "test@example.com" # Fill input by ref
+agent-device get text @e1                # Get text content
+agent-device screenshot --out page.png   # Save to specific path
 agent-device close
 ```
 
-Tips:
+## Semantic selectors
 
-- Re-snapshot after navigation.
-- Use `find` when you want semantic targeting instead of raw refs.
+Use `find` for human-readable targeting without refs:
+
+```bash
+agent-device find "Sign In" click
+agent-device find label "Email" fill "user@example.com"
+agent-device find role button click
+```
+
+## Scrolling
+
+Navigate content that extends beyond the viewport:
+
+```bash
+agent-device scroll down 0.5            # Scroll down half screen
+agent-device scroll up 0.3              # Scroll up 30%
+```
+
+## Settings helpers
+
+Toggle device settings directly:
+
+```bash
+agent-device settings wifi on
+agent-device settings airplane on
+agent-device settings location off
+```
+
+## JSON output
+
+For programmatic parsing in scripts:
+
+```bash
+agent-device snapshot --json
+agent-device get text @e1 --json
+```
+
+Note: The default text output is more compact and preferred for AI agents.
