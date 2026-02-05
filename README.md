@@ -1,3 +1,11 @@
+<a href="https://www.callstack.com/open-source?utm_campaign=generic&utm_source=github&utm_medium=referral&utm_content=agent-device" align="center">
+  <picture>
+    <img alt="agent-device" src="website/docs/public/agent-device-banner.jpg">
+  </picture>
+</a>
+
+---
+
 # agent-device
 
 CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel/agent-browser).

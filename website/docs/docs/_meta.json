@@ -1,0 +1,37 @@
+[
+  {
+    "name": "introduction",
+    "type": "file",
+    "label": "Introduction"
+  },
+  {
+    "name": "installation",
+    "type": "file",
+    "label": "Installation"
+  },
+  {
+    "name": "quick-start",
+    "type": "file",
+    "label": "Quick Start"
+  },
+  {
+    "name": "commands",
+    "type": "file",
+    "label": "Commands"
+  },
+  {
+    "name": "selectors",
+    "type": "file",
+    "label": "Selectors"
+  },
+  {
+    "name": "sessions",
+    "type": "file",
+    "label": "Sessions"
+  },
+  {
+    "name": "snapshots",
+    "type": "file",
+    "label": "Snapshots"
+  }
+]
