@@ -26,12 +26,12 @@ npx agent-device open SampleApp
 ## Quick Start
 
 ```bash
-agent-device open Contacts --platform ios
-agent-device snapshot -i -c --platform ios
-agent-device click @e5 --platform ios
-agent-device fill @e6 "John" --platform ios
-agent-device fill @e7 "Doe" --platform ios
-agent-device click @e3 --platform ios
+agent-device open Contacts --platform ios # creates session on iOS Simulator
+agent-device snapshot                      
+agent-device click @e5
+agent-device fill @e6 "John"
+agent-device fill @e7 "Doe"
+agent-device click @e3
 agent-device close
 ```
 
@@ -55,7 +55,7 @@ Debug flow:
 
 ```bash
 agent-device trace start
-agent-device snapshot --backend xctest -s "Sample App"
+agent-device snapshot -s "Sample App"
 agent-device find label "Wi-Fi" click
 agent-device trace stop ./trace.log
 ```
@@ -77,8 +77,8 @@ Coordinates:
 
 | Backend | Speed | Accuracy | Requirements |
 | --- | --- | --- | --- |
-| `ax` | Fast | Medium | Accessibility permission for the terminal app |
 | `xctest` | Fast | High | No Accessibility permission required |
+| `ax` | Fast | Medium | Accessibility permission for the terminal app, not recommended |
 
 Notes:
 - Default backend is `xctest` on iOS.
@@ -126,9 +126,9 @@ App state:
 
 - `agent-device trace start`
 - `agent-device trace stop ./trace.log`
-- The trace log includes AX snapshot stderr and XCTest runner logs for the session.
+- The trace log includes snapshot logs and XCTest runner logs for the session.
 - Built-in retries cover transient runner connection failures, AX snapshot hiccups, and Android UI dumps.
-- For snapshot issues, compare `--backend ax` vs `--backend xctest` and scope with `-s "<label>"`.
+- For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).

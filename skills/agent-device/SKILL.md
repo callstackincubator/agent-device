@@ -10,7 +10,6 @@ description: Automates mobile and simulator interactions for iOS and Android dev
 ```bash
 agent-device open Settings --platform ios
 agent-device snapshot -i
-agent-device snapshot -s @e3
 agent-device click @e3
 agent-device wait text "Camera"
 agent-device alert wait 10000
@@ -21,8 +20,8 @@ agent-device close
 ## Core workflow
 
 1. Open app or just boot device: `open [app]`
-2. Snapshot: `snapshot -i` to get compact refs
-3. Interact using refs (`click @eN`, `fill @eN "text"`)
+2. Snapshot: `snapshot` to get full XCTest accessibility tree snapshot
+3. Interact using refs (`click @ref`, `fill @ref "text"`)
 4. Re-snapshot after navigation or UI changes
 5. Close session when done
 
@@ -45,7 +44,7 @@ agent-device snapshot -c               # Compact output
 agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
-agent-device snapshot --backend xctest # XCTest snapshot (fast, complete, no permissions)
+agent-device snapshot --backend xctest # default: XCTest snapshot (fast, complete, no permissions)
 agent-device snapshot --backend ax     # macOS Accessibility tree (fast, needs permissions, less fidelity, optional)
 ```
 
