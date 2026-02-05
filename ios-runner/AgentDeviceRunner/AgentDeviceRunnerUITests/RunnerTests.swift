@@ -305,6 +305,12 @@ final class RunnerTests: XCTestCase {
       }
       let buttonLabels = alert.buttons.allElementsBoundByIndex.map { $0.label }
       return Response(ok: true, data: DataPayload(message: alert.label, items: buttonLabels))
+    case .pinch:
+      guard let scale = command.scale, scale > 0 else {
+        return Response(ok: false, error: ErrorPayload(message: "pinch requires scale > 0"))
+      }
+      pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
+      return Response(ok: true, data: DataPayload(message: "pinched"))
     }
   }
 
@@ -370,6 +376,39 @@ final class RunnerTests: XCTestCase {
     case .right:
       left.press(forDuration: 0.1, thenDragTo: right)
     }
+  }
+
+  private func pinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) {
+    let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
+
+    // Use double-tap + drag gesture for reliable map zoom
+    // Zoom in (scale > 1): tap then drag UP
+    // Zoom out (scale < 1): tap then drag DOWN
+
+    // Determine center point (use provided x/y or screen center)
+    let centerX = x.map { $0 / target.frame.width } ?? 0.5
+    let centerY = y.map { $0 / target.frame.height } ?? 0.5
+    let center = target.coordinate(withNormalizedOffset: CGVector(dx: centerX, dy: centerY))
+
+    // Calculate drag distance based on scale (clamped to reasonable range)
+    // Larger scale = more drag distance
+    let dragAmount: CGFloat
+    if scale > 1.0 {
+      // Zoom in: drag up (negative Y direction in normalized coords)
+      dragAmount = min(0.4, CGFloat(scale - 1.0) * 0.2)
+    } else {
+      // Zoom out: drag down (positive Y direction)
+      dragAmount = min(0.4, CGFloat(1.0 - scale) * 0.4)
+    }
+
+    let endY = scale > 1.0 ? (centerY - Double(dragAmount)) : (centerY + Double(dragAmount))
+    let endPoint = target.coordinate(withNormalizedOffset: CGVector(dx: centerX, dy: max(0.1, min(0.9, endY))))
+
+    // Tap first (first tap of double-tap)
+    center.tap()
+
+    // Immediately press and drag (second tap + drag)
+    center.press(forDuration: 0.05, thenDragTo: endPoint)
   }
 
   private func aggregatedLabel(for element: XCUIElement, depth: Int = 0) -> String? {
@@ -718,6 +757,7 @@ enum CommandType: String, Codable {
   case home
   case appSwitcher
   case alert
+  case pinch
   case shutdown
 }
 
@@ -736,6 +776,7 @@ struct Command: Codable {
   let x: Double?
   let y: Double?
   let direction: SwipeDirection?
+  let scale: Double?
   let interactiveOnly: Bool?
   let compact: Bool?
   let depth: Int?

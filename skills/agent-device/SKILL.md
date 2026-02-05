@@ -1,6 +1,6 @@
 ---
 name: agent-device
-description: Automates mobile and simulator interactions for iOS and Android devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, or extracting UI info on mobile devices or simulators.
+description: Automates mobile and simulator interactions for iOS and Android devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, pinching, or extracting UI info on mobile devices or simulators.
 ---
 
 # Mobile Automation with agent-device
@@ -102,6 +102,8 @@ agent-device type "text"               # Type into focused field
 agent-device press 300 500             # Tap by coordinates
 agent-device long-press 300 500 800    # Long press (where supported)
 agent-device scroll down 0.5
+agent-device pinch 2.0              # Zoom in 2x (iOS simulator)
+agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator)
 agent-device back
 agent-device home
 agent-device app-switcher
@@ -139,6 +141,7 @@ agent-device apps --platform android --user-installed
 
 ## Best practices
 
+- Pinch (`pinch <scale> [x y]`) is supported on iOS simulators only; scale > 1 zooms in, < 1 zooms out.
 - Always snapshot right before interactions; refs invalidate on UI changes.
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, `xctest` is the default and does not require Accessibility permission.
@@ -153,7 +156,7 @@ agent-device apps --platform android --user-installed
 - [references/snapshot-refs.md](references/snapshot-refs.md)
 - [references/session-management.md](references/session-management.md)
 - [references/permissions.md](references/permissions.md)
-- [references/recording.md](references/recording.md)
+- [references/video-recording.md](references/video-recording.md)
 - [references/coordinate-system.md](references/coordinate-system.md)
 
 ## Missing features roadmap (high level)
