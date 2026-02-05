@@ -13,7 +13,7 @@ Sessions isolate device context. A device can only be held by one session at a t
 
 - Name sessions semantically.
 - Close sessions when done.
-- Use separate devices for parallel work.
+- Use separate sessions for parallel work.
 
 ## Listing sessions
 
