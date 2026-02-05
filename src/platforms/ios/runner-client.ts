@@ -20,6 +20,7 @@ export type RunnerCommand = {
     | 'home'
     | 'appSwitcher'
     | 'alert'
+    | 'pinch'
     | 'shutdown';
   appBundleId?: string;
   text?: string;
@@ -27,6 +28,7 @@ export type RunnerCommand = {
   x?: number;
   y?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
+  scale?: number;
   interactiveOnly?: boolean;
   compact?: boolean;
   depth?: number;

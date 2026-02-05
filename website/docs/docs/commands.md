@@ -34,6 +34,8 @@ agent-device type "text"
 agent-device press 300 500
 agent-device long-press 300 500 800
 agent-device scroll down 0.5
+agent-device pinch 2.0          # zoom in 2x
+agent-device pinch 0.5 200 400 # zoom out at coordinates
 ```
 
 ## Find (semantic)

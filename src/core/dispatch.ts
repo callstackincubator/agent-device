@@ -223,6 +223,24 @@ export async function dispatchCommand(
       await interactor.scrollIntoView(text);
       return { text };
     }
+    case 'pinch': {
+      const scale = Number(positionals[0]);
+      const x = positionals[1] ? Number(positionals[1]) : undefined;
+      const y = positionals[2] ? Number(positionals[2]) : undefined;
+      if (Number.isNaN(scale) || scale <= 0) {
+        throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
+      }
+      if (device.platform === 'ios' && device.kind === 'simulator') {
+        await runIosRunnerCommand(
+          device,
+          { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+        );
+      } else {
+        throw new AppError('UNSUPPORTED_OPERATION', 'pinch is only supported on iOS simulators');
+      }
+      return { scale, x, y };
+    }
     case 'screenshot': {
       const path = outPath ?? `./screenshot-${Date.now()}.png`;
       await interactor.screenshot(path);
