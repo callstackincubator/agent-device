@@ -107,6 +107,10 @@ Flags:
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).
 
+```bash
+npx skills add https://github.com/callstackincubator/agent-device --skill agent-device
+```
+
 Sessions:
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
 - All interaction commands require an open session.
