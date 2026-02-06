@@ -1,0 +1,67 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { isCommandSupportedOnDevice } from '../capabilities.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
+
+const iosSimulator: DeviceInfo = {
+  platform: 'ios',
+  id: 'sim-1',
+  name: 'iPhone',
+  kind: 'simulator',
+};
+
+const iosDevice: DeviceInfo = {
+  platform: 'ios',
+  id: 'dev-1',
+  name: 'iPhone',
+  kind: 'device',
+};
+
+const androidDevice: DeviceInfo = {
+  platform: 'android',
+  id: 'and-1',
+  name: 'Pixel',
+  kind: 'device',
+};
+
+test('iOS simulator-only commands reject iOS devices and Android', () => {
+  for (const cmd of ['alert', 'pinch']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
+    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
+    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), false, `${cmd} on Android`);
+  }
+});
+
+test('iOS simulator + Android commands reject iOS devices', () => {
+  for (const cmd of [
+    'app-switcher',
+    'apps',
+    'back',
+    'click',
+    'close',
+    'fill',
+    'find',
+    'focus',
+    'get',
+    'home',
+    'long-press',
+    'open',
+    'press',
+    'record',
+    'screenshot',
+    'scroll',
+    'settings',
+    'snapshot',
+    'type',
+    'wait',
+  ]) {
+    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
+    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
+    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
+  }
+});
+
+test('unknown commands default to supported', () => {
+  assert.equal(isCommandSupportedOnDevice('some-future-cmd', iosSimulator), true);
+  assert.equal(isCommandSupportedOnDevice('some-future-cmd', androidDevice), true);
+});

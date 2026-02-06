@@ -1,80 +1,116 @@
 # AGENTS.md
 
-Instructions for AI coding agents working with this codebase.
+Minimal operating guide for AI coding agents in this repo.
 
-## Code Style
+## Objective
 
-- Do not use emojis in code, output, or documentation. Unicode symbols (✓, ✗, →, ⚠) are acceptable.
-- Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution; avoid direct `spawn`/`spawnSync`.
-- Commands should use the daemon session model; open a session before interactions and close it after.
-- When removing a command (e.g., `rect`), ensure shared model types remain intact (e.g., snapshot structs used by other code paths) and verify with `pnpm typecheck` + a runner build if Swift files changed.
+- Solve issues with the smallest context read.
+- Keep changes scoped to one module family.
+- Preserve daemon session semantics and platform behavior.
 
-## Overview
+## Hard Rules
 
-- CLI entry: `src/bin.ts` -> `src/cli.ts`.
-- Daemon: `src/daemon.ts`, started on demand by `src/daemon-client.ts`.
-- Core dispatcher: `src/core/dispatch.ts` routes commands to platform interactors.
-- iOS runner (simulator-only, v1): `src/platforms/ios/runner-client.ts` drives a UI test runner app.
-- iOS AX snapshot tool: `ios-runner/AXSnapshot` (SwiftPM CLI) used for fast accessibility snapshots.
-- iOS runner Xcode project: `ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj`.
-- iOS runner UI test: `ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests/RunnerTests.swift`.
-- Android: `src/platforms/android/*` with ADB utilities.
+- Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution.
+- Use daemon session flow for interactions (`open` before interactions, `close` after).
+- Do not remove shared snapshot/session model behavior without full migration.
+- If Swift runner code changes, run `pnpm build:xcuitest`.
 
-## Architecture (runtime flow)
+## Architecture In One Screen
 
-1) CLI parses args in `src/cli.ts`, then sends a request to the daemon.
-2) Daemon (`src/daemon.ts`) resolves device, tracks session state, and calls `dispatchCommand`.
-3) `dispatchCommand` selects platform interactor.
-4) iOS simulator path:
-   - Snapshot default backend: XCTest for everything, fallback to AX if XCTest returns 0 nodes.
-5) iOS runner uses xcodebuild `test-without-building` with an injected `.xctestrun`,
-   starts an `NWListener` HTTP server inside the UI test bundle, and executes UI actions.
+1. CLI parse + formatting:
+   - `src/bin.ts`
+   - `src/cli.ts`
+   - `src/utils/args.ts`
+2. Daemon client transport:
+   - `src/daemon-client.ts`
+3. Daemon server bootstrap/router:
+   - `src/daemon.ts`
+4. Daemon command families:
+   - session/apps/appstate/open/close/replay: `src/daemon/handlers/session.ts`
+   - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
+   - semantic find actions: `src/daemon/handlers/find.ts`
+   - record/trace: `src/daemon/handlers/record-trace.ts`
+5. Daemon shared domain:
+   - session state + logs: `src/daemon/session-store.ts`
+   - snapshot tree shaping + label resolution: `src/daemon/snapshot-processing.ts`
+   - handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`, `src/daemon/app-state.ts`
+6. Platform dispatch/backends:
+   - dispatcher: `src/core/dispatch.ts`
+   - capabilities: `src/core/capabilities.ts`
+   - iOS: `src/platforms/ios/*`, `ios-runner/*`
+   - Android: `src/platforms/android/*`
 
-## Key commands (local)
+## First-Read Protocol (Strict)
 
-- Build iOS runner: `pnpm build:xcuitest`
-- Build AX snapshot tool: `pnpm build:axsnapshot`
-- Build everything: `pnpm build:all`
-- Run command: `pnpm ad`
+1. Identify command family from failing behavior.
+2. Read at most 3 files first:
+   - the owning handler/module
+   - one shared helper used by that handler
+   - one downstream platform file if needed
+3. Expand only when contract crosses module boundaries.
 
-## Run and Test
+Do not read both iOS and Android paths unless issue is explicitly cross-platform.
 
-- Run CLI (preferred): `pnpm ad <command>`
-- Build JS + Swift artifacts: `pnpm build:all`
+## Command Family Ownership
+
+- `session list`, `devices`, `apps`, `appstate`, `open`, `close`, `replay`:
+  - `src/daemon/handlers/session.ts`
+- `snapshot`, `wait`, `alert`, `settings`:
+  - `src/daemon/handlers/snapshot.ts`
+- `find ...`:
+  - `src/daemon/handlers/find.ts`
+- `record start|stop`, `trace start|stop`:
+  - `src/daemon/handlers/record-trace.ts`
+- `click`, `fill`, `get`, generic passthrough:
+  - `src/daemon.ts` (remaining fallback logic)
+
+## Capability Source Of Truth
+
+- Command/device support must come from `src/core/capabilities.ts`.
+- Do not scatter new support checks across handlers.
+
+## Testing Strategy
+
+### Test placement policy
+
+- Unit tests are colocated with source files under `src/**`.
+- Use `__tests__` folders colocated with the related source folder.
+- The `test/**` tree is integration-only (including smoke integration tests).
+
+### Unit tests (default for all refactors, colocated)
+
+- `src/core/__tests__/capabilities.test.ts`
+- `src/daemon/handlers/__tests__/find.test.ts`
+- `src/daemon/__tests__/snapshot-processing.test.ts`
+- `src/daemon/__tests__/session-store.test.ts`
+
+Add/extend colocated unit tests in the same PR for touched module logic.
+
+### Verification matrix
+
+- Any TS change:
+  - `pnpm typecheck`
+- Daemon handler/shared module change:
+  - `pnpm test:unit`
+  - `pnpm test:smoke`
+- iOS runner/Swift change:
+  - `pnpm build:xcuitest`
+
+Run integration tests when behavior crosses platform boundaries:
+- `pnpm test:integration`
+
+## Productivity Measurement
+
+- Use `docs/daemon-refactor-impact.md`.
+- Track:
+  - files touched per fix
+  - cycle time
+  - iOS/Android regressions
+
+## Local Commands
+
+- Run CLI: `pnpm ad <command>`
 - Typecheck: `pnpm typecheck`
-- Tests: `pnpm test` (all), `pnpm test:smoke`, `pnpm test:integration`
-
-## iOS runner details
-
-- Test method name used by CLI: `RunnerTests.testCommand`.
-- The UI test launches the target app and listens for HTTP on a dynamic port.
-- Port injection uses `.xctestrun` env vars and `AGENT_DEVICE_RUNNER_PORT`.
-- Logs of readiness: `AGENT_DEVICE_RUNNER_LISTENER_READY` and `AGENT_DEVICE_RUNNER_PORT=...`.
-- Main-thread UI actions are mandatory (XCUIApplication).
-- Real device support (including snapshots) is on the roadmap for iOS.
-
-## Daemon details
-
-- Daemon info: `~/.agent-device/daemon.json` (port/token/pid/version).
-- Daemon log: `~/.agent-device/daemon.log` (also tailed in verbose mode).
-- Session logs: `~/.agent-device/sessions/<session>-<timestamp>.ad` (plain text actions).
-
-## Environment variables
-
-- `AGENT_DEVICE_RUNNER_PORT`: port passed into the UI test bundle.
-- `AGENT_DEVICE_IOS_CLEAN_DERIVED=1`: delete `~/.agent-device/ios-runner/derived` before building/selecting xctestrun.
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS`: timeout for daemon request response (min 1000ms, default 60000).
-
-## Common failure modes
-
-- "Runner did not accept connection":
-  - Stale `.xctestrun` was selected; clean derived or rebuild.
-  - Listener not ready yet; check daemon log for readiness markers.
-- XCTest main-thread crash: ensure UI actions run on main thread.
-
-## Files to check when debugging
-
-- `src/platforms/ios/runner-client.ts` (xcodebuild, xctestrun injection, HTTP connect logic)
-- `ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests/RunnerTests.swift` (listener + UI actions)
-- `src/daemon-client.ts` and `src/daemon.ts` (daemon startup and request flow)
-- `src/core/dispatch.ts` (command routing and iOS simctl fallback)
+- Unit tests: `pnpm test:unit`
+- Smoke tests: `pnpm test:smoke`
+- Integration tests: `pnpm test:integration`

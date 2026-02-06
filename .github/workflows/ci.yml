@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+  integration-smoke:
+    name: Integration Smoke
+    runs-on: macos-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run smoke integration tests
+        run: |
+          pnpm build:all
+          pnpm test:smoke
+
+  integration-android:
+    name: Integration Android
+    runs-on: macos-latest
+    timeout-minutes: 80
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Build Node CLI
+        run: pnpm build:node
+
+      - name: Run Android integration test
+        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_7
+          script: node --test test/integration/android.test.ts
+
+      - name: Upload Android artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-artifacts
+          if-no-files-found: ignore
+          path: |
+            /Users/runner/.agent-device/daemon.log
+            /Users/runner/.agent-device/sessions/**
+            test/screenshots/**
+
+  integration-ios:
+    name: Integration iOS
+    runs-on: macos-latest
+    timeout-minutes: 80
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Select and boot iOS simulator
+        run: |
+          UDID="$(
+            xcrun simctl list devices -j | node -e "
+              const fs = require('node:fs');
+              const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const all = Object.values(payload.devices ?? {}).flat();
+              const available = all.filter((d) => d.isAvailable);
+              const preferred = available.find((d) => d.name === 'iPhone 17 Pro') ?? available[0];
+              if (!preferred?.udid) process.exit(1);
+              process.stdout.write(preferred.udid);
+            "
+          )"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          echo "IOS_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build all artifacts
+        run: pnpm build:all
+
+      - name: Run iOS integration test
+        run: node --test test/integration/ios.test.ts
+
+      - name: Upload iOS artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-artifacts
+          if-no-files-found: ignore
+          path: |
+            /Users/runner/.agent-device/daemon.log
+            /Users/runner/.agent-device/sessions/**
+            test/screenshots/**
