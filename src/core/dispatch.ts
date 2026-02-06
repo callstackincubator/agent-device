@@ -244,7 +244,8 @@ export async function dispatchCommand(
       return { scale, x, y };
     }
     case 'screenshot': {
-      const path = outPath ?? `./screenshot-${Date.now()}.png`;
+      const positionalPath = positionals[0];
+      const path = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
       await interactor.screenshot(path);
       return { path };
     }

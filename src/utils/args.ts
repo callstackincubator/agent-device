@@ -193,7 +193,7 @@ Commands:
   fill <x> <y> <text> | fill <@ref> <text>   Tap then type
   scroll <direction> [amount]                Scroll in direction (0-1 amount)
   scrollintoview <text>                      Scroll until text appears (Android only)
-  screenshot [--out path]                    Capture screenshot
+  screenshot [path]                          Capture screenshot
   record start [path]                        Start screen recording
   record stop                                Stop screen recording
   trace start [path]                         Start trace log capture
@@ -213,7 +213,6 @@ Flags:
   --udid <udid>                              iOS device UDID
   --serial <serial>                          Android device serial
   --activity <component>                     Android activity to launch (package/Activity)
-  --out <path>                               Output path for screenshots
   --session <name>                           Named session
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output

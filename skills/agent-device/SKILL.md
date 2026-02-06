@@ -117,7 +117,7 @@ agent-device alert get
 ```bash
 agent-device get text @e1
 agent-device get attrs @e1
-agent-device screenshot --out out.png
+agent-device screenshot out.png
 ```
 
 ### Trace logs (AX/XCTest)

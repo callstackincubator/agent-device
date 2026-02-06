@@ -1413,7 +1413,7 @@ function writeSessionLog(session: SessionState): void {
     const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const timestamp = new Date(session.createdAt).toISOString().replace(/[:.]/g, '-');
     const scriptPath = path.join(sessionsDir, `${safeName}-${timestamp}.ad`);
-    const filePath = path.join(sessionsDir, `${safeName}-${timestamp}.json`);
+    const filePath = resolveSessionJsonPath(session, safeName, timestamp);
     const payload = {
       name: session.name,
       device: session.device,
@@ -1425,11 +1425,39 @@ function writeSessionLog(session: SessionState): void {
     const script = formatScript(session, payload.optimizedActions);
     fs.writeFileSync(scriptPath, script);
     if (session.actions.some((action) => action.flags?.recordJson)) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
     }
   } catch {
     // ignore
   }
+}
+
+function resolveSessionJsonPath(session: SessionState, safeName: string, timestamp: string): string {
+  const defaultFile = path.join(sessionsDir, `${safeName}-${timestamp}.json`);
+  const actionWithOut = [...session.actions]
+    .reverse()
+    .find((action) => action.flags?.recordJson && typeof action.flags?.out === 'string' && action.flags.out.trim().length > 0);
+  if (!actionWithOut || !actionWithOut.flags?.out) {
+    return defaultFile;
+  }
+
+  const rawOut = actionWithOut.flags.out.trim();
+  const resolvedOut = expandHome(rawOut);
+  const wantsDirectory = rawOut.endsWith('/') || rawOut.endsWith('\\');
+  if (wantsDirectory) {
+    return path.join(resolvedOut, `${safeName}-${timestamp}.json`);
+  }
+
+  try {
+    if (fs.existsSync(resolvedOut) && fs.statSync(resolvedOut).isDirectory()) {
+      return path.join(resolvedOut, `${safeName}-${timestamp}.json`);
+    }
+  } catch {
+    return defaultFile;
+  }
+
+  return resolvedOut;
 }
 
 function defaultTracePath(session: SessionState): string {

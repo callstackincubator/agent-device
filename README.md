@@ -99,7 +99,6 @@ Flags:
 - `--udid <udid>` (iOS)
 - `--serial <serial>` (Android)
 - `--activity <component>` (Android; package/Activity or package/.Activity)
-- `--out <path>` (screenshot)
 - `--session <name>`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
@@ -115,6 +114,7 @@ Sessions:
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
 - Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
+- With `--record-json`, JSON logs are written to `~/.agent-device/sessions/<session>-<timestamp>.json` by default.
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
