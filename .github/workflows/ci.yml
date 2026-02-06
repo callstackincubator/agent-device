@@ -78,7 +78,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 35
-          arch: x86_64
+          arch: arm64-v8a
           profile: pixel_7
           script: |
             SERIAL="$(adb devices | awk '$2=="device" {print $1; exit}')"
