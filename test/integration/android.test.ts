@@ -32,7 +32,7 @@ function runCliJson(args: string[]): {
   return { status: result.status, json, stdout: result.stdout, stderr: result.stderr };
 }
 
-const selector = getAndroidSelectorArgs();
+const selector: string[] = [];
 const session = ['--session', 'android-test'];
 
 test.after(() => {
@@ -87,19 +87,10 @@ function shouldSkipAndroid(): boolean | string {
   return false;
 }
 
-function getAndroidSelectorArgs(): string[] {
-  const onlineSerials = listOnlineAndroidSerials();
-  const envSerial = process.env.ANDROID_SERIAL?.trim();
-  if (envSerial && onlineSerials.includes(envSerial)) return ['--serial', envSerial];
-  if (onlineSerials.length === 1) return ['--serial', onlineSerials[0]];
-  if (process.env.ANDROID_DEVICE) return ['--device', process.env.ANDROID_DEVICE];
-  return [];
-}
-
 function findAndroidSettingsLabel(): string | null {
-  const hasSerial = Boolean(process.env.ANDROID_SERIAL);
-  if (!hasSerial && hasMultipleAndroidDevices()) return null;
-  const selector = hasSerial ? ['-s', process.env.ANDROID_SERIAL as string] : [];
+  if (hasMultipleAndroidDevices()) return null;
+  const serial = listOnlineAndroidSerials()[0];
+  const selector = serial ? ['-s', serial] : [];
   const dump = runCmdSync(
     'adb',
     [...selector, 'shell', 'uiautomator', 'dump', '/sdcard/window_dump.xml'],
