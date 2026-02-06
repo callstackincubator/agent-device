@@ -237,11 +237,18 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
       if command.clearFirst == true {
-        guard clearFocusedText(app: activeApp) else {
+        guard let focused = focusedTextInput(app: activeApp) else {
           return Response(ok: false, error: ErrorPayload(message: "no focused text input to clear"))
         }
+        clearTextInput(focused)
+        focused.typeText(text)
+        return Response(ok: true, data: DataPayload(message: "typed"))
       }
-      activeApp.typeText(text)
+      if let focused = focusedTextInput(app: activeApp) {
+        focused.typeText(text)
+      } else {
+        activeApp.typeText(text)
+      }
       return Response(ok: true, data: DataPayload(message: "typed"))
     case .swipe:
       guard let direction = command.direction else {
@@ -346,15 +353,11 @@ final class RunnerTests: XCTestCase {
     return element.exists ? element : nil
   }
 
-  private func clearFocusedText(app: XCUIApplication) -> Bool {
-    if let focused = focusedTextInput(app: app) {
-      moveCaretToEnd(element: focused)
-      let count = estimatedDeleteCount(for: focused)
-      let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: count)
-      focused.typeText(deletes)
-      return true
-    }
-    return false
+  private func clearTextInput(_ element: XCUIElement) {
+    moveCaretToEnd(element: element)
+    let count = estimatedDeleteCount(for: element)
+    let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: count)
+    element.typeText(deletes)
   }
 
   private func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
