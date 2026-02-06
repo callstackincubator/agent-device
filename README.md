@@ -121,6 +121,13 @@ Find (semantic):
 - `find text|label|value|role|id <value> <action> [value]` for specific locators.
 - Actions: `click` (default), `fill`, `type`, `focus`, `get text`, `get attrs`, `wait [timeout]`, `exists`.
 
+Android fill reliability:
+- `fill` clears the current value, then enters text.
+- `type` enters text into the focused field without clearing.
+- `fill` now verifies the entered value on Android.
+- If value does not match, agent-device clears the field and retries once with slower typing.
+- This reduces IME-related character swaps on long strings (e.g. emails and IDs).
+
 Settings helpers (simulators):
 - `settings wifi on|off`
 - `settings airplane on|off`

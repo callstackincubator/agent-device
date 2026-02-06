@@ -238,6 +238,9 @@ final class RunnerTests: XCTestCase {
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
+      if command.clearFirst == true {
+        clearFocusedText(app: activeApp)
+      }
       activeApp.typeText(text)
       return Response(ok: true, data: DataPayload(message: "typed"))
     case .swipe:
@@ -341,6 +344,16 @@ final class RunnerTests: XCTestCase {
     let predicate = NSPredicate(format: "label CONTAINS[c] %@ OR identifier CONTAINS[c] %@ OR value CONTAINS[c] %@", text, text, text)
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  private func clearFocusedText(app: XCUIApplication) {
+    // Fast path: select-all + delete when keyboard shortcuts are available.
+    app.typeKey("a", modifierFlags: .command)
+    app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+    // Fallback for cases where select-all is ignored.
+    let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: 64)
+    app.typeText(deletes)
   }
 
   private func findScopeElement(app: XCUIApplication, scope: String) -> XCUIElement? {
@@ -772,6 +785,7 @@ struct Command: Codable {
   let command: CommandType
   let appBundleId: String?
   let text: String?
+  let clearFirst: Bool?
   let action: String?
   let x: Double?
   let y: Double?

@@ -34,6 +34,7 @@ export type RunnerCommand = {
   depth?: number;
   scope?: string;
   raw?: boolean;
+  clearFirst?: boolean;
 };
 
 export type RunnerSession = {

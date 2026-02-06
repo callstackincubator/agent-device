@@ -174,7 +174,7 @@ export async function dispatchCommand(
         );
         await runIosRunnerCommand(
           device,
-          { command: 'type', text, appBundleId: context?.appBundleId },
+          { command: 'type', text, clearFirst: true, appBundleId: context?.appBundleId },
           { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
       } else {

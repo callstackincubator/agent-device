@@ -1037,31 +1037,6 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
       }
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
-      const label = node.label?.trim();
-      if (session.device.platform === 'ios' && session.device.kind === 'simulator' && isTextInputType(node.type)) {
-        const coords = node.rect ? centerOfRect(node.rect) : null;
-        if (!coords) {
-          return {
-            ok: false,
-            error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` },
-          };
-        }
-        await dispatchCommand(session.device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
-          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
-        });
-        await runIosRunnerCommand(
-          session.device,
-          { command: 'type', text, appBundleId: session.appBundleId },
-          { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-        );
-        recordAction(session, {
-          command,
-          positionals: req.positionals ?? [],
-          flags: req.flags ?? {},
-          result: { ref, refLabel: refLabel ?? label, action: 'fill', text },
-        });
-        return { ok: true, data: { ref } };
-      }
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatchCommand(
         session.device,
@@ -1647,16 +1622,6 @@ function isLabelUnique(nodes: SnapshotState['nodes'], label: string): boolean {
     }
   }
   return count === 1;
-}
-
-function isTextInputType(type: string | undefined): boolean {
-  const normalized = normalizeType(type ?? '');
-  return (
-    normalized === 'textfield' ||
-    normalized === 'textview' ||
-    normalized === 'searchfield' ||
-    normalized === 'textarea'
-  );
 }
 
 function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
