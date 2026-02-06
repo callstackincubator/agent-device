@@ -1036,32 +1036,17 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       if (!node?.rect) {
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
       }
-      const refLabel = resolveRefLabel(node, session.snapshot.nodes);
-      const label = node.label?.trim();
-      if (session.device.platform === 'ios' && session.device.kind === 'simulator' && isTextInputType(node.type)) {
-        const coords = node.rect ? centerOfRect(node.rect) : null;
-        if (!coords) {
-          return {
-            ok: false,
-            error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` },
-          };
-        }
-        await dispatchCommand(session.device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
-          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
-        });
-        await runIosRunnerCommand(
-          session.device,
-          { command: 'type', text, appBundleId: session.appBundleId },
-          { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-        );
-        recordAction(session, {
-          command,
-          positionals: req.positionals ?? [],
-          flags: req.flags ?? {},
-          result: { ref, refLabel: refLabel ?? label, action: 'fill', text },
-        });
-        return { ok: true, data: { ref } };
+      const nodeType = node.type ?? '';
+      if (nodeType && !isFillableType(nodeType, session.device.platform)) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: `fill requires a text input element, got "${nodeType}" for ${req.positionals[0]}. Select a text input ref or use click/focus + type.`,
+          },
+        };
       }
+      const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatchCommand(
         session.device,
@@ -1649,16 +1634,6 @@ function isLabelUnique(nodes: SnapshotState['nodes'], label: string): boolean {
   return count === 1;
 }
 
-function isTextInputType(type: string | undefined): boolean {
-  const normalized = normalizeType(type ?? '');
-  return (
-    normalized === 'textfield' ||
-    normalized === 'textview' ||
-    normalized === 'searchfield' ||
-    normalized === 'textarea'
-  );
-}
-
 function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
   const skippedDepths: number[] = [];
   const result: RawSnapshotNode[] = [];
@@ -1688,6 +1663,25 @@ function normalizeType(type: string): string {
     value = value.replace(/^ax/, '');
   }
   return value;
+}
+
+function isFillableType(type: string, platform: 'ios' | 'android'): boolean {
+  const normalized = normalizeType(type);
+  if (!normalized) return true;
+  if (platform === 'android') {
+    return (
+      normalized.includes('edittext') ||
+      normalized.includes('autocompletetextview')
+    );
+  }
+  return (
+    normalized.includes('textfield') ||
+    normalized.includes('securetextfield') ||
+    normalized.includes('searchfield') ||
+    normalized.includes('textview') ||
+    normalized.includes('textarea') ||
+    normalized === 'search'
+  );
 }
 
 function findNearestHittableAncestor(

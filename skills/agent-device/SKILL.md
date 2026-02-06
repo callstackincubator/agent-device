@@ -97,8 +97,8 @@ agent-device apps --metadata --platform android
 ```bash
 agent-device click @e1
 agent-device focus @e2
-agent-device fill @e2 "text"           # Tap then type
-agent-device type "text"               # Type into focused field
+agent-device fill @e2 "text"           # Clear then type (Android: verifies value and retries once on mismatch)
+agent-device type "text"               # Type into focused field without clearing
 agent-device press 300 500             # Tap by coordinates
 agent-device long-press 300 500 800    # Long press (where supported)
 agent-device scroll down 0.5
@@ -150,6 +150,9 @@ agent-device apps --platform android --user-installed
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK).
+- Use `fill` when you want clear-then-type semantics.
+- Use `type` when you want to append/enter text without clearing.
+- On Android, prefer `fill` for important fields; it verifies entered text and retries once when IME reorders characters.
 
 ## References
 

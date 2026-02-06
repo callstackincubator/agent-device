@@ -275,8 +275,30 @@ export async function fillAndroid(
   y: number,
   text: string,
 ): Promise<void> {
+  const attempts = [
+    { clearPadding: 12, minClear: 8, maxClear: 48, chunkSize: 4, delayMs: 0 },
+    { clearPadding: 24, minClear: 16, maxClear: 96, chunkSize: 1, delayMs: 15 },
+  ] as const;
+
   await focusAndroid(device, x, y);
-  await typeAndroid(device, text);
+  let lastActual: string | null = null;
+
+  for (const attempt of attempts) {
+    const clearCount = clampCount(
+      text.length + attempt.clearPadding,
+      attempt.minClear,
+      attempt.maxClear,
+    );
+    await clearFocusedText(device, clearCount);
+    await typeAndroidChunked(device, text, attempt.chunkSize, attempt.delayMs);
+    lastActual = await readInputValueAtPoint(device, x, y);
+    if (lastActual === text) return;
+  }
+
+  throw new AppError('COMMAND_FAILED', 'Android fill verification failed', {
+    expected: text,
+    actual: lastActual ?? null,
+  });
 }
 
 export async function scrollAndroid(
@@ -455,6 +477,112 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
+async function typeAndroidChunked(
+  device: DeviceInfo,
+  text: string,
+  chunkSize: number,
+  delayMs: number,
+): Promise<void> {
+  const size = Math.max(1, Math.floor(chunkSize));
+  for (let i = 0; i < text.length; i += size) {
+    const chunk = text.slice(i, i + size);
+    await typeAndroid(device, chunk);
+    if (delayMs > 0 && i + size < text.length) {
+      await sleep(delayMs);
+    }
+  }
+}
+
+async function clearFocusedText(device: DeviceInfo, count: number): Promise<void> {
+  const deletes = Math.max(0, count);
+  await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', 'KEYCODE_MOVE_END']), {
+    allowFailure: true,
+  });
+  const batchSize = 24;
+  for (let i = 0; i < deletes; i += batchSize) {
+    const size = Math.min(batchSize, deletes - i);
+    await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'input', 'keyevent', ...Array(size).fill('KEYCODE_DEL')]),
+      {
+        allowFailure: true,
+      },
+    );
+  }
+}
+
+async function readInputValueAtPoint(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+): Promise<string | null> {
+  const xml = await dumpUiHierarchy(device);
+  const nodeRegex = /<node\b[^>]*>/g;
+  let match: RegExpExecArray | null;
+  let focusedEdit: { text: string; area: number } | null = null;
+  let editAtPoint: { text: string; area: number } | null = null;
+  let anyAtPoint: { text: string; area: number } | null = null;
+
+  while ((match = nodeRegex.exec(xml)) !== null) {
+    const node = match[0];
+    const attrs = readNodeAttributes(node);
+    const rect = parseBounds(attrs.bounds);
+    if (!rect) continue;
+    const className = attrs.className ?? '';
+    const text = decodeXmlEntities(attrs.text ?? '');
+    const focused = attrs.focused ?? false;
+    if (!text) continue;
+    const area = Math.max(1, rect.width * rect.height);
+    const containsPoint =
+      x >= rect.x &&
+      x <= rect.x + rect.width &&
+      y >= rect.y &&
+      y <= rect.y + rect.height;
+
+    if (focused && isEditTextClass(className)) {
+      if (!focusedEdit || area <= focusedEdit.area) {
+        focusedEdit = { text, area };
+      }
+      continue;
+    }
+    if (containsPoint && isEditTextClass(className)) {
+      if (!editAtPoint || area <= editAtPoint.area) {
+        editAtPoint = { text, area };
+      }
+      continue;
+    }
+    if (containsPoint) {
+      if (!anyAtPoint || area <= anyAtPoint.area) {
+        anyAtPoint = { text, area };
+      }
+    }
+  }
+
+  return focusedEdit?.text ?? editAtPoint?.text ?? anyAtPoint?.text ?? null;
+}
+
+function isEditTextClass(className: string): boolean {
+  const lower = className.toLowerCase();
+  return lower.includes('edittext') || lower.includes('textfield');
+}
+
+function decodeXmlEntities(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function clampCount(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function findBounds(xml: string, query: string): { x: number; y: number } | null {
   const q = query.toLowerCase();
   const nodeRegex = /<node[^>]+>/g;
@@ -570,6 +698,7 @@ function readNodeAttributes(node: string): {
   clickable?: boolean;
   enabled?: boolean;
   focusable?: boolean;
+  focused?: boolean;
 } {
   const getAttr = (name: string): string | null => {
     const regex = new RegExp(`${name}="([^"]*)"`);
@@ -590,6 +719,7 @@ function readNodeAttributes(node: string): {
     clickable: boolAttr('clickable'),
     enabled: boolAttr('enabled'),
     focusable: boolAttr('focusable'),
+    focused: boolAttr('focused'),
   };
 }
 

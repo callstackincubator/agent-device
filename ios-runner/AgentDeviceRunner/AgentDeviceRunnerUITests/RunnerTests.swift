@@ -81,9 +81,7 @@ final class RunnerTests: XCTestCase {
       return
     }
     NSLog("AGENT_DEVICE_RUNNER_WAITING")
-    let timeout = resolveRunnerTimeout()
-    let effectiveTimeout = timeout > 0 ? timeout : 24 * 60 * 60
-    let result = XCTWaiter.wait(for: [expectation], timeout: effectiveTimeout)
+    let result = XCTWaiter.wait(for: [expectation], timeout: 24 * 60 * 60)
     NSLog("AGENT_DEVICE_RUNNER_WAIT_RESULT=%@", String(describing: result))
     if result != .completed {
       XCTFail("runner wait ended with \(result)")
@@ -238,7 +236,19 @@ final class RunnerTests: XCTestCase {
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
-      activeApp.typeText(text)
+      if command.clearFirst == true {
+        guard let focused = focusedTextInput(app: activeApp) else {
+          return Response(ok: false, error: ErrorPayload(message: "no focused text input to clear"))
+        }
+        clearTextInput(focused)
+        focused.typeText(text)
+        return Response(ok: true, data: DataPayload(message: "typed"))
+      }
+      if let focused = focusedTextInput(app: activeApp) {
+        focused.typeText(text)
+      } else {
+        activeApp.typeText(text)
+      }
       return Response(ok: true, data: DataPayload(message: "typed"))
     case .swipe:
       guard let direction = command.direction else {
@@ -341,6 +351,48 @@ final class RunnerTests: XCTestCase {
     let predicate = NSPredicate(format: "label CONTAINS[c] %@ OR identifier CONTAINS[c] %@ OR value CONTAINS[c] %@", text, text, text)
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  private func clearTextInput(_ element: XCUIElement) {
+    moveCaretToEnd(element: element)
+    let count = estimatedDeleteCount(for: element)
+    let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: count)
+    element.typeText(deletes)
+  }
+
+  private func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
+    let focused = app
+      .descendants(matching: .any)
+      .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
+      .firstMatch
+    guard focused.exists else { return nil }
+
+    switch focused.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      return focused
+    default:
+      return nil
+    }
+  }
+
+  private func moveCaretToEnd(element: XCUIElement) {
+    let frame = element.frame
+    guard !frame.isEmpty else {
+      element.tap()
+      return
+    }
+    let origin = element.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    let target = origin.withOffset(
+      CGVector(dx: max(2, frame.width - 4), dy: max(2, frame.height / 2))
+    )
+    target.tap()
+  }
+
+  private func estimatedDeleteCount(for element: XCUIElement) -> Int {
+    let valueText = String(describing: element.value ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let base = valueText.isEmpty ? 24 : (valueText.count + 8)
+    return max(24, min(120, base))
   }
 
   private func findScopeElement(app: XCUIApplication, scope: String) -> XCUIElement? {
@@ -738,14 +790,6 @@ private func resolveRunnerPort() -> UInt16 {
   return 0
 }
 
-private func resolveRunnerTimeout() -> TimeInterval {
-  if let env = ProcessInfo.processInfo.environment["AGENT_DEVICE_RUNNER_TIMEOUT"],
-     let parsed = Double(env) {
-    return parsed
-  }
-  return 0
-}
-
 enum CommandType: String, Codable {
   case tap
   case type
@@ -772,6 +816,7 @@ struct Command: Codable {
   let command: CommandType
   let appBundleId: String?
   let text: String?
+  let clearFirst: Bool?
   let action: String?
   let x: Double?
   let y: Double?
