@@ -493,14 +493,42 @@ function parseUiHierarchy(
   const scopedRoot = options.scope ? findScopeNode(tree, options.scope) : null;
   const roots = scopedRoot ? [scopedRoot] : tree.children;
 
-  const walk = (node: AndroidNode, depth: number, parentIndex?: number) => {
+  const interactiveDescendantMemo = new Map<AndroidNode, boolean>();
+  const hasInteractiveDescendant = (node: AndroidNode): boolean => {
+    const cached = interactiveDescendantMemo.get(node);
+    if (cached !== undefined) return cached;
+    for (const child of node.children) {
+      if (child.hittable || hasInteractiveDescendant(child)) {
+        interactiveDescendantMemo.set(node, true);
+        return true;
+      }
+    }
+    interactiveDescendantMemo.set(node, false);
+    return false;
+  };
+
+  const walk = (
+    node: AndroidNode,
+    depth: number,
+    parentIndex?: number,
+    ancestorHittable: boolean = false,
+    ancestorCollection: boolean = false,
+  ) => {
     if (nodes.length >= maxNodes) {
       truncated = true;
       return;
     }
     if (depth > maxDepth) return;
 
-    const include = options.raw ? true : shouldIncludeAndroidNode(node, options);
+    const include = options.raw
+      ? true
+      : shouldIncludeAndroidNode(
+          node,
+          options,
+          ancestorHittable,
+          hasInteractiveDescendant(node),
+          ancestorCollection,
+        );
     let currentIndex = parentIndex;
     if (include) {
       currentIndex = nodes.length;
@@ -517,14 +545,16 @@ function parseUiHierarchy(
         parentIndex,
       });
     }
+    const nextAncestorHittable = ancestorHittable || Boolean(node.hittable);
+    const nextAncestorCollection = ancestorCollection || isCollectionContainerType(node.type);
     for (const child of node.children) {
-      walk(child, depth + 1, currentIndex);
+      walk(child, depth + 1, currentIndex, nextAncestorHittable, nextAncestorCollection);
       if (truncated) return;
     }
   };
 
   for (const root of roots) {
-    walk(root, 0, undefined);
+    walk(root, 0, undefined, false, false);
     if (truncated) break;
   }
 
@@ -630,16 +660,69 @@ function parseUiHierarchyTree(xml: string): AndroidNode {
   return root;
 }
 
-function shouldIncludeAndroidNode(node: AndroidNode, options: SnapshotOptions): boolean {
+function shouldIncludeAndroidNode(
+  node: AndroidNode,
+  options: SnapshotOptions,
+  ancestorHittable: boolean,
+  descendantHittable: boolean,
+  ancestorCollection: boolean,
+): boolean {
+  const type = normalizeAndroidType(node.type);
+  const hasText = Boolean(node.label && node.label.trim().length > 0);
+  const hasId = Boolean(node.identifier && node.identifier.trim().length > 0);
+  const hasMeaningfulText = hasText && !isGenericAndroidId(node.label ?? '');
+  const hasMeaningfulId = hasId && !isGenericAndroidId(node.identifier ?? '');
+  const isStructural = isStructuralAndroidType(type);
+  const isVisual = type === 'imageview' || type === 'imagebutton';
   if (options.interactiveOnly) {
-    return Boolean(node.hittable);
+    if (node.hittable) return true;
+    // Keep text proxies for tappable rows while dropping structural noise.
+    const proxyCandidate = hasMeaningfulText || hasMeaningfulId;
+    if (!proxyCandidate) return false;
+    if (isVisual) return false;
+    if (isStructural && !ancestorCollection) return false;
+    return ancestorHittable || descendantHittable || ancestorCollection;
   }
   if (options.compact) {
-    const hasText = Boolean(node.label && node.label.trim().length > 0);
-    const hasId = Boolean(node.identifier && node.identifier.trim().length > 0);
-    return hasText || hasId || Boolean(node.hittable);
+    return hasMeaningfulText || hasMeaningfulId || Boolean(node.hittable);
+  }
+  if (isStructural || isVisual) {
+    if (node.hittable) return true;
+    if (hasMeaningfulText) return true;
+    if (hasMeaningfulId && descendantHittable) return true;
+    return descendantHittable;
   }
   return true;
+}
+
+function isCollectionContainerType(type: string | null): boolean {
+  if (!type) return false;
+  const normalized = normalizeAndroidType(type);
+  return (
+    normalized.includes('recyclerview') ||
+    normalized.includes('listview') ||
+    normalized.includes('gridview')
+  );
+}
+
+function normalizeAndroidType(type: string | null): string {
+  if (!type) return '';
+  return type.toLowerCase();
+}
+
+function isStructuralAndroidType(type: string): boolean {
+  const short = type.split('.').pop() ?? type;
+  return (
+    short.includes('layout') ||
+    short === 'viewgroup' ||
+    short === 'view'
+  );
+}
+
+function isGenericAndroidId(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return /^[\w.]+:id\/[\w.-]+$/i.test(trimmed);
 }
 
 function findScopeNode(root: AndroidNode, scope: string): AndroidNode | null {
