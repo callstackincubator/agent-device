@@ -1036,6 +1036,16 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
       if (!node?.rect) {
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
       }
+      const nodeType = node.type ?? '';
+      if (nodeType && !isFillableType(nodeType, session.device.platform)) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: `fill requires a text input element, got "${nodeType}" for ${req.positionals[0]}. Select a text input ref or use click/focus + type.`,
+          },
+        };
+      }
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatchCommand(
@@ -1653,6 +1663,25 @@ function normalizeType(type: string): string {
     value = value.replace(/^ax/, '');
   }
   return value;
+}
+
+function isFillableType(type: string, platform: 'ios' | 'android'): boolean {
+  const normalized = normalizeType(type);
+  if (!normalized) return true;
+  if (platform === 'android') {
+    return (
+      normalized.includes('edittext') ||
+      normalized.includes('autocompletetextview')
+    );
+  }
+  return (
+    normalized.includes('textfield') ||
+    normalized.includes('securetextfield') ||
+    normalized.includes('searchfield') ||
+    normalized.includes('textview') ||
+    normalized.includes('textarea') ||
+    normalized === 'search'
+  );
 }
 
 function findNearestHittableAncestor(

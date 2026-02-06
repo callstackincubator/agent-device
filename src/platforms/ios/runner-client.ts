@@ -176,10 +176,9 @@ async function ensureRunnerSession(
   await ensureBooted(device.id);
   const xctestrun = await ensureXctestrun(device.id, options);
   const port = await getFreePort();
-  const runnerTimeout = process.env.AGENT_DEVICE_RUNNER_TIMEOUT ?? '0';
   const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
     xctestrun,
-    { AGENT_DEVICE_RUNNER_PORT: String(port), AGENT_DEVICE_RUNNER_TIMEOUT: runnerTimeout },
+    { AGENT_DEVICE_RUNNER_PORT: String(port) },
     `session-${device.id}-${port}`,
   );
   const testPromise = runCmdStreaming(
@@ -189,6 +188,8 @@ async function ensureRunnerSession(
       '-only-testing',
       'AgentDeviceRunnerUITests/RunnerTests/testCommand',
       '-parallel-testing-enabled',
+      'NO',
+      '-test-timeouts-enabled',
       'NO',
       '-maximum-concurrent-test-simulator-destinations',
       '1',
@@ -205,7 +206,7 @@ async function ensureRunnerSession(
         logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
       },
       allowFailure: true,
-      env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port), AGENT_DEVICE_RUNNER_TIMEOUT: runnerTimeout },
+      env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
     },
   );
 

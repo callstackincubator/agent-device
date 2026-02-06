@@ -81,9 +81,7 @@ final class RunnerTests: XCTestCase {
       return
     }
     NSLog("AGENT_DEVICE_RUNNER_WAITING")
-    let timeout = resolveRunnerTimeout()
-    let effectiveTimeout = timeout > 0 ? timeout : 24 * 60 * 60
-    let result = XCTWaiter.wait(for: [expectation], timeout: effectiveTimeout)
+    let result = XCTWaiter.wait(for: [expectation], timeout: 24 * 60 * 60)
     NSLog("AGENT_DEVICE_RUNNER_WAIT_RESULT=%@", String(describing: result))
     if result != .completed {
       XCTFail("runner wait ended with \(result)")
@@ -239,7 +237,9 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
       if command.clearFirst == true {
-        clearFocusedText(app: activeApp)
+        guard clearFocusedText(app: activeApp) else {
+          return Response(ok: false, error: ErrorPayload(message: "no focused text input to clear"))
+        }
       }
       activeApp.typeText(text)
       return Response(ok: true, data: DataPayload(message: "typed"))
@@ -346,14 +346,50 @@ final class RunnerTests: XCTestCase {
     return element.exists ? element : nil
   }
 
-  private func clearFocusedText(app: XCUIApplication) {
-    // Fast path: select-all + delete when keyboard shortcuts are available.
-    app.typeKey("a", modifierFlags: .command)
-    app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+  private func clearFocusedText(app: XCUIApplication) -> Bool {
+    if let focused = focusedTextInput(app: app) {
+      moveCaretToEnd(element: focused)
+      let count = estimatedDeleteCount(for: focused)
+      let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: count)
+      focused.typeText(deletes)
+      return true
+    }
+    return false
+  }
 
-    // Fallback for cases where select-all is ignored.
-    let deletes = String(repeating: XCUIKeyboardKey.delete.rawValue, count: 64)
-    app.typeText(deletes)
+  private func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
+    let focused = app
+      .descendants(matching: .any)
+      .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
+      .firstMatch
+    guard focused.exists else { return nil }
+
+    switch focused.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      return focused
+    default:
+      return nil
+    }
+  }
+
+  private func moveCaretToEnd(element: XCUIElement) {
+    let frame = element.frame
+    guard !frame.isEmpty else {
+      element.tap()
+      return
+    }
+    let origin = element.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    let target = origin.withOffset(
+      CGVector(dx: max(2, frame.width - 4), dy: max(2, frame.height / 2))
+    )
+    target.tap()
+  }
+
+  private func estimatedDeleteCount(for element: XCUIElement) -> Int {
+    let valueText = String(describing: element.value ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let base = valueText.isEmpty ? 24 : (valueText.count + 8)
+    return max(24, min(120, base))
   }
 
   private func findScopeElement(app: XCUIApplication, scope: String) -> XCUIElement? {
@@ -747,14 +783,6 @@ private func resolveRunnerPort() -> UInt16 {
       let value = arg.replacingOccurrences(of: "AGENT_DEVICE_RUNNER_PORT=", with: "")
       if let port = UInt16(value) { return port }
     }
-  }
-  return 0
-}
-
-private func resolveRunnerTimeout() -> TimeInterval {
-  if let env = ProcessInfo.processInfo.environment["AGENT_DEVICE_RUNNER_TIMEOUT"],
-     let parsed = Double(env) {
-    return parsed
   }
   return 0
 }

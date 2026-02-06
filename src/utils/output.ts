@@ -88,8 +88,14 @@ function formatSnapshotLine(node: SnapshotNode, depth: number, hiddenGroup: bool
 
 function displayLabel(node: SnapshotNode, type: string): string {
   const label = node.label?.trim();
-  if (label) return label;
   const value = node.value?.trim();
+  if (isEditableRole(type)) {
+    // For inputs, prefer current value over placeholder/accessibility label.
+    if (value) return value;
+    if (label) return label;
+  } else if (label) {
+    return label;
+  }
   if (value) return value;
   const identifier = node.identifier?.trim();
   if (!identifier) return '';
@@ -97,6 +103,10 @@ function displayLabel(node: SnapshotNode, type: string): string {
     return '';
   }
   return identifier;
+}
+
+function isEditableRole(type: string): boolean {
+  return type === 'text-field' || type === 'text-view' || type === 'search';
 }
 
 function isGenericResourceId(value: string): boolean {
