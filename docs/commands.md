@@ -25,14 +25,17 @@ agent-device get attrs @e1
 ```bash
 agent-device click @e1
 agent-device focus @e2
-agent-device fill @e2 "text"
-agent-device type "text"
+agent-device fill @e2 "text"          # Clear then type
+agent-device type "text"              # Type into focused field without clearing
 agent-device press 300 500
 agent-device long-press 300 500 800
 agent-device scroll down 0.5
 agent-device pinch 2.0          # zoom in 2x
 agent-device pinch 0.5 200 400 # zoom out at coordinates
 ```
+
+`fill` clears then types. `type` does not clear.
+On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 
 ## Find (semantic)
 
