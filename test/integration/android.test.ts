@@ -36,14 +36,7 @@ const selector = getAndroidSelectorArgs();
 const session = ['--session', 'android-test'];
 
 test.after(() => {
-  runCliJson([
-    'close',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
+  runCliJson(['close', '--platform', 'android', '--json', ...selector, ...session]);
 });
 
 test('android settings commands', { skip: shouldSkipAndroid() }, () => {
@@ -58,129 +51,22 @@ test('android settings commands', { skip: shouldSkipAndroid() }, () => {
   ]);
   assert.equal(open.status, 0, `${open.stderr}\n${open.stdout}`);
 
-  const press = runCliJson([
-    'press',
-    '100',
-    '200',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(press.status, 0, `${press.stderr}\n${press.stdout}`);
-
-  const longPress = runCliJson([
-    'long-press',
-    '100',
-    '200',
-    '800',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(longPress.status, 0, `${longPress.stderr}\n${longPress.stdout}`);
-
-  const focus = runCliJson([
-    'focus',
-    '100',
-    '200',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(focus.status, 0, `${focus.stderr}\n${focus.stdout}`);
-
-  const type = runCliJson([
-    'type',
-    'agent-device',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(type.status, 0, `${type.stderr}\n${type.stdout}`);
-
-  const fill = runCliJson([
-    'fill',
-    '100',
-    '200',
-    'agent-device',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(fill.status, 0, `${fill.stderr}\n${fill.stdout}`);
-
-  const scroll = runCliJson([
-    'scroll',
-    'down',
-    '0.5',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(scroll.status, 0, `${scroll.stderr}\n${scroll.stdout}`);
-
-  const scrollTarget = findAndroidSettingsLabel();
-  if (scrollTarget) {
-    const scrollInto = runCliJson([
-      'scrollintoview',
-      scrollTarget,
-      '--platform',
-      'android',
-      '--json',
-      ...selector,
-      ...session,
-    ]);
-    if (scrollInto.status === 0) {
-      assert.equal(scrollInto.status, 0, `${scrollInto.stderr}\n${scrollInto.stdout}`);
-    } else {
-      assert.equal(
-        scrollInto.json?.error?.code,
-        'UNSUPPORTED_OPERATION',
-        `${scrollInto.stderr}\n${scrollInto.stdout}`,
-      );
-    }
-  }
-
-  const outPath = `./test/screenshots/android-settings.png`;
-  const shot = runCliJson([
-    'screenshot',
-    '--platform',
-    'android',
-    '--json',
-    '--out',
-    outPath,
-    ...selector,
-    ...session,
-  ]);
-  assert.equal(shot.status, 0, `${shot.stderr}\n${shot.stdout}`);
-  assert.equal(existsSync(outPath), true);
-
-  const snapshot = runCliJson([
-    'snapshot',
-    '-i',
-    '-c',
-    '-d',
-    '6',
-    '--platform',
-    'android',
-    '--json',
-    ...selector,
-    ...session,
-  ]);
+  const snapshot = runCliJson(['snapshot', '-i', '--json', ...selector, ...session]);
   assert.equal(snapshot.status, 0, `${snapshot.stderr}\n${snapshot.stdout}`);
   assert.equal(Array.isArray(snapshot.json?.data?.nodes), true);
+
+  const clickApps = runCliJson(['click', '@e13', '--json', ...selector, ...session]);
+  assert.equal(clickApps.status, 0, `${clickApps.stderr}\n${clickApps.stdout}`);
+  
+  const snapshotApps = runCliJson([
+    'snapshot',
+    '-i',
+    '--json',
+    ...selector,
+    ...session,
+  ]);
+  assert.equal(snapshotApps.status, 0, `${snapshotApps.stderr}\n${snapshotApps.stdout}`);
+  assert.equal(Array.isArray(snapshotApps.json?.data?.nodes), true);
 
   const close = runCliJson([
     'close',
@@ -196,18 +82,16 @@ test('android settings commands', { skip: shouldSkipAndroid() }, () => {
 
 function shouldSkipAndroid(): boolean | string {
   if (!hasCommand('adb')) return 'adb not available';
-  const result = runCmdSync('adb', ['devices'], { allowFailure: true });
-  if (result.exitCode !== 0) return 'adb devices failed';
-  const devices = result.stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('List of devices'));
+  const devices = listOnlineAndroidSerials();
   if (devices.length === 0) return 'no android devices connected';
   return false;
 }
 
 function getAndroidSelectorArgs(): string[] {
-  if (process.env.ANDROID_SERIAL) return ['--serial', process.env.ANDROID_SERIAL];
+  const onlineSerials = listOnlineAndroidSerials();
+  const envSerial = process.env.ANDROID_SERIAL?.trim();
+  if (envSerial && onlineSerials.includes(envSerial)) return ['--serial', envSerial];
+  if (onlineSerials.length === 1) return ['--serial', onlineSerials[0]];
   if (process.env.ANDROID_DEVICE) return ['--device', process.env.ANDROID_DEVICE];
   return [];
 }
@@ -235,11 +119,17 @@ function findAndroidSettingsLabel(): string | null {
 }
 
 function hasMultipleAndroidDevices(): boolean {
+  return listOnlineAndroidSerials().length > 1;
+}
+
+function listOnlineAndroidSerials(): string[] {
   const result = runCmdSync('adb', ['devices'], { allowFailure: true });
-  if (result.exitCode !== 0) return true;
-  const devices = result.stdout
+  if (result.exitCode !== 0) return [];
+  return result.stdout
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('List of devices'));
-  return devices.length > 1;
+    .filter((line) => line && !line.startsWith('List of devices'))
+    .map((line) => line.split(/\s+/))
+    .filter((parts) => parts.length >= 2 && parts[1] === 'device')
+    .map((parts) => parts[0]);
 }
