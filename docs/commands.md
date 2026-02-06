@@ -55,3 +55,13 @@ agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
 ```
+
+## Media and logs
+
+```bash
+agent-device screenshot                 # Auto filename
+agent-device screenshot page.png        # Explicit screenshot path
+agent-device record start               # Start screen recording to auto filename
+agent-device record start session.mp4   # Start recording to explicit path
+agent-device record stop                # Stop active recording
+```
