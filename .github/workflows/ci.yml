@@ -71,9 +71,6 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Build Node CLI
-        run: pnpm build:node
-
       - name: Resolve agent-device home
         id: android-agent-home
         run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
@@ -139,8 +136,8 @@ jobs:
           xcrun simctl boot "$UDID" || true
           echo "IOS_UDID=$UDID" >> "$GITHUB_ENV"
 
-      - name: Build all artifacts
-        run: pnpm build:all
+      - name: Build iOS integration artifacts
+        run: pnpm build:xcuitest
 
       - name: Wait for iOS simulator boot
         run: xcrun simctl bootstatus "$IOS_UDID" -b
