@@ -146,6 +146,8 @@ jobs:
         run: xcrun simctl bootstatus "$IOS_UDID" -b
 
       - name: Run iOS integration test
+        env:
+          AGENT_DEVICE_DAEMON_TIMEOUT_MS: "180000"
         run: node --test test/integration/ios.test.ts
 
       - name: Upload iOS artifacts
