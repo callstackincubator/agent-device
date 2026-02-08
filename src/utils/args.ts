@@ -23,6 +23,7 @@ export type ParsedArgs = {
     activity?: string;
     noRecord?: boolean;
     recordJson?: boolean;
+    replayUpdate?: boolean;
     help: boolean;
   };
 };
@@ -63,6 +64,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '--record-json') {
       flags.recordJson = true;
+      continue;
+    }
+    if (arg === '--update' || arg === '-u') {
+      flags.replayUpdate = true;
       continue;
     }
     if (arg === '--user-installed') {
@@ -180,17 +185,19 @@ Commands:
   back                                      Navigate back (where supported)
   home                                      Go to home screen (where supported)
   app-switcher                              Open app switcher (where supported)
-  wait <ms>|text <text>|@ref [timeoutMs]     Wait for duration or text to appear
+  wait <ms>|text <text>|@ref|<selector> [timeoutMs]
+                                             Wait for duration, text, ref, or selector to appear
   alert [get|accept|dismiss|wait] [timeout] Inspect or handle alert (iOS simulator)
-  click <@ref>                               Click element by snapshot ref
-  get text <@ref>                            Return element text by ref
-  get attrs <@ref>                           Return element attributes by ref
-  replay <path>                              Replay a recorded session
+  click <@ref|selector>                      Click element by snapshot ref or selector
+  get text <@ref|selector>                   Return element text by ref or selector
+  get attrs <@ref|selector>                  Return element attributes by ref or selector
+  replay <path> [--update|-u]                Replay a recorded session
   press <x> <y>                              Tap at coordinates
   long-press <x> <y> [durationMs]            Long press (where supported)
   focus <x> <y>                              Focus input at coordinates
   type <text>                                Type text in focused field
-  fill <x> <y> <text> | fill <@ref> <text>   Tap then type
+  fill <x> <y> <text> | fill <@ref|selector> <text>
+                                             Tap then type
   scroll <direction> [amount]                Scroll in direction (0-1 amount)
   scrollintoview <text>                      Scroll until text appears (Android only)
   screenshot [path]                          Capture screenshot
@@ -204,6 +211,7 @@ Commands:
   find value <value> <action> [value]        Find by value
   find role <role> <action> [value]          Find by role/type
   find id <id> <action> [value]              Find by identifier/resource-id
+  is <predicate> <selector> [value]          Assert UI state (visible|hidden|exists|editable|selected|text)
   settings <wifi|airplane|location> <on|off> Toggle OS settings (simulators)
   session list                               List active sessions
 
@@ -218,6 +226,7 @@ Flags:
   --json                                     JSON output
   --no-record                                Do not record this action
   --record-json                              Record JSON session log
+  --update, -u                               Replay: heal selectors and update replay file in place
   --user-installed                           Apps: list user-installed packages (Android only)
   --all                                      Apps: list all packages (Android only)
 `;

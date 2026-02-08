@@ -87,6 +87,31 @@ test('parseWaitArgs parses bare text with timeout', () => {
   assert.deepEqual(result, { kind: 'text', text: 'Hello', timeoutMs: 5000 });
 });
 
+test('parseWaitArgs parses selector expression', () => {
+  const result = parseWaitArgs(['id=login_email']);
+  assert.ok(result);
+  assert.equal(result.kind, 'selector');
+  if (result.kind === 'selector') {
+    assert.equal(result.selectorExpression, 'id=login_email');
+    assert.equal(result.timeoutMs, null);
+  }
+});
+
+test('parseWaitArgs parses selector expression with timeout', () => {
+  const result = parseWaitArgs(['id=login_email', '5000']);
+  assert.ok(result);
+  assert.equal(result.kind, 'selector');
+  if (result.kind === 'selector') {
+    assert.equal(result.selectorExpression, 'id=login_email');
+    assert.equal(result.timeoutMs, 5000);
+  }
+});
+
+test('parseWaitArgs falls back to text when selector-like token is invalid', () => {
+  const result = parseWaitArgs(['foo=bar', '5000']);
+  assert.deepEqual(result, { kind: 'text', text: 'foo=bar', timeoutMs: 5000 });
+});
+
 test('parseWaitArgs parses bare multi-word text', () => {
   const result = parseWaitArgs(['Sign', 'In']);
   assert.deepEqual(result, { kind: 'text', text: 'Sign In', timeoutMs: null });

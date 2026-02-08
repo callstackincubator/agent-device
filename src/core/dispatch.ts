@@ -37,6 +37,7 @@ export type CommandFlags = {
   recordJson?: boolean;
   appsFilter?: 'launchable' | 'user-installed' | 'all';
   appsMetadata?: boolean;
+  replayUpdate?: boolean;
 };
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {

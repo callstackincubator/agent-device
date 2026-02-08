@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionState } from './types.ts';
+import { inferFillText } from './action-utils.ts';
 
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
@@ -130,6 +131,41 @@ export class SessionStore {
       if (action.command === 'snapshot') {
         continue;
       }
+      const selectorChain =
+        Array.isArray(action.result?.selectorChain) &&
+        action.result?.selectorChain.every((entry) => typeof entry === 'string')
+          ? (action.result.selectorChain as string[])
+          : [];
+      if (selectorChain.length > 0 && (action.command === 'click' || action.command === 'fill' || action.command === 'get')) {
+        const selectorExpr = selectorChain.join(' || ');
+        if (action.command === 'click') {
+          optimized.push({
+            ...action,
+            positionals: [selectorExpr],
+          });
+          continue;
+        }
+        if (action.command === 'fill') {
+          const text = inferFillText(action);
+          if (text.length > 0) {
+            optimized.push({
+              ...action,
+              positionals: [selectorExpr, text],
+            });
+            continue;
+          }
+        }
+        if (action.command === 'get') {
+          const sub = action.positionals?.[0];
+          if (sub === 'text' || sub === 'attrs') {
+            optimized.push({
+              ...action,
+              positionals: [sub, selectorExpr],
+            });
+            continue;
+          }
+        }
+      }
       if (action.command === 'click' || action.command === 'fill' || action.command === 'get') {
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
@@ -171,7 +207,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     appsMetadata,
     noRecord,
     recordJson,
-  } = flags as any;
+  } = flags;
   return {
     platform,
     device,
@@ -210,9 +246,11 @@ function formatActionLine(action: SessionAction): string {
     const ref = action.positionals?.[0];
     if (ref) {
       parts.push(formatArg(ref));
-      const refLabel = action.result?.refLabel;
-      if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
-        parts.push(formatArg(refLabel));
+      if (ref.startsWith('@')) {
+        const refLabel = action.result?.refLabel;
+        if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
+          parts.push(formatArg(refLabel));
+        }
       }
       return parts.join(' ');
     }
@@ -238,9 +276,11 @@ function formatActionLine(action: SessionAction): string {
     if (sub && ref) {
       parts.push(formatArg(sub));
       parts.push(formatArg(ref));
-      const refLabel = action.result?.refLabel;
-      if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
-        parts.push(formatArg(refLabel));
+      if (ref.startsWith('@')) {
+        const refLabel = action.result?.refLabel;
+        if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
+          parts.push(formatArg(refLabel));
+        }
       }
       return parts.join(' ');
     }

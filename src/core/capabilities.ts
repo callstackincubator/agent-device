@@ -25,6 +25,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   find: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   focus: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   get: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  is: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   home: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   'long-press': { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   open: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },

@@ -14,6 +14,7 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import { findSelectorChainMatch, splitSelectorFromArgs, tryParseSelectorChain, type SelectorChain } from '../selectors.ts';
 import { parseTimeout, POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS } from './parse-utils.ts';
 
 export async function handleSnapshotCommands(params: {
@@ -132,7 +133,61 @@ export async function handleSnapshotCommands(params: {
     }
     let text: string;
     let timeoutMs: number | null;
-    if (parsed.kind === 'ref') {
+    if (parsed.kind === 'selector') {
+      const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+          ...contextFromFlags(
+            logPath,
+            {
+              ...req.flags,
+              snapshotInteractiveOnly: false,
+              snapshotCompact: false,
+            },
+            session?.appBundleId,
+            session?.trace?.outPath,
+          ),
+        })) as {
+          nodes?: RawSnapshotNode[];
+          truncated?: boolean;
+          backend?: 'ax' | 'xctest' | 'android';
+        };
+        const rawNodes = data?.nodes ?? [];
+        const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+        if (session) {
+          session.snapshot = {
+            nodes,
+            truncated: data?.truncated,
+            createdAt: Date.now(),
+            backend: data?.backend,
+          };
+          sessionStore.set(sessionName, session);
+        }
+        const match = findSelectorChainMatch(nodes, parsed.selector, { platform: device.platform });
+        if (match) {
+          recordIfSession(sessionStore, session, req, {
+            selector: match.selector.raw,
+            waitedMs: Date.now() - start,
+          });
+          return {
+            ok: true,
+            data: {
+              selector: match.selector.raw,
+              waitedMs: Date.now() - start,
+            },
+          };
+        }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `wait timed out for selector: ${parsed.selectorExpression}`,
+        },
+      };
+    } else if (parsed.kind === 'ref') {
       if (!session?.snapshot) {
         return {
           ok: false,
@@ -275,6 +330,7 @@ export async function handleSnapshotCommands(params: {
 type WaitParsed =
   | { kind: 'sleep'; durationMs: number }
   | { kind: 'ref'; rawRef: string; timeoutMs: number | null }
+  | { kind: 'selector'; selector: SelectorChain; selectorExpression: string; timeoutMs: number | null }
   | { kind: 'text'; text: string; timeoutMs: number | null };
 
 export function parseWaitArgs(args: string[]): WaitParsed | null {
@@ -295,6 +351,20 @@ export function parseWaitArgs(args: string[]): WaitParsed | null {
   }
 
   const timeoutMs = parseTimeout(args[args.length - 1]);
+  const argsWithoutTimeout = timeoutMs !== null ? args.slice(0, -1) : args.slice();
+  const split = splitSelectorFromArgs(argsWithoutTimeout);
+  if (split && split.rest.length === 0) {
+    const selector = tryParseSelectorChain(split.selectorExpression);
+    if (selector) {
+      return {
+        kind: 'selector',
+        selector,
+        selectorExpression: split.selectorExpression,
+        timeoutMs,
+      };
+    }
+  }
+
   const text = timeoutMs !== null ? args.slice(0, -1).join(' ') : args.join(' ');
   return { kind: 'text', text: text.trim(), timeoutMs };
 }

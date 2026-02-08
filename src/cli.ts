@@ -93,6 +93,12 @@ export async function runCli(argv: string[]): Promise<void> {
           return;
         }
       }
+      if (command === 'is') {
+        const predicate = (response.data as any)?.predicate ?? 'assertion';
+        process.stdout.write(`Passed: is ${predicate}\n`);
+        if (logTailStopper) logTailStopper();
+        return;
+      }
       if (command === 'click') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;

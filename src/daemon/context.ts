@@ -1,11 +1,6 @@
 import type { CommandFlags } from '../core/dispatch.ts';
 
-export function contextFromFlags(
-  logPath: string,
-  flags: CommandFlags | undefined,
-  appBundleId?: string,
-  traceLogPath?: string,
-): {
+export type DaemonCommandContext = {
   appBundleId?: string;
   activity?: string;
   verbose?: boolean;
@@ -17,7 +12,14 @@ export function contextFromFlags(
   snapshotScope?: string;
   snapshotBackend?: 'ax' | 'xctest';
   snapshotRaw?: boolean;
-} {
+};
+
+export function contextFromFlags(
+  logPath: string,
+  flags: CommandFlags | undefined,
+  appBundleId?: string,
+  traceLogPath?: string,
+): DaemonCommandContext {
   return {
     appBundleId,
     activity: flags?.activity,
