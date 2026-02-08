@@ -30,8 +30,8 @@ agent-device type "text"              # Type into focused field without clearing
 agent-device press 300 500
 agent-device long-press 300 500 800
 agent-device scroll down 0.5
-agent-device pinch 2.0          # zoom in 2x
-agent-device pinch 0.5 200 400 # zoom out at coordinates
+agent-device pinch 2.0          # zoom in 2x (iOS simulator)
+agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 ```
 
 `fill` clears then types. `type` does not clear.
