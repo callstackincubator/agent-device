@@ -61,7 +61,7 @@ jobs:
 
   integration-android:
     name: Integration Android
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 80
     continue-on-error: true
     steps:
@@ -74,12 +74,23 @@ jobs:
       - name: Build Node CLI
         run: pnpm build:node
 
+      - name: Resolve agent-device home
+        id: android-agent-home
+        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run Android integration test
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 35
-          arch: arm64-v8a
+          arch: x86_64
           profile: pixel_7
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: node --test test/integration/android.test.ts
 
       - name: Upload Android artifacts
@@ -89,8 +100,8 @@ jobs:
           name: android-artifacts
           if-no-files-found: ignore
           path: |
-            /Users/runner/.agent-device/daemon.log
-            /Users/runner/.agent-device/sessions/**
+            ${{ steps.android-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.android-agent-home.outputs.dir }}/sessions/**
             test/screenshots/**
 
   integration-ios:
@@ -104,6 +115,10 @@ jobs:
 
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
+
+      - name: Resolve agent-device home
+        id: ios-agent-home
+        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
 
       - name: Select and start iOS simulator
         run: |
@@ -140,6 +155,6 @@ jobs:
           name: ios-artifacts
           if-no-files-found: ignore
           path: |
-            /Users/runner/.agent-device/daemon.log
-            /Users/runner/.agent-device/sessions/**
+            ${{ steps.ios-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.ios-agent-home.outputs.dir }}/sessions/**
             test/screenshots/**

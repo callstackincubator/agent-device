@@ -1,3 +1,5 @@
+import { promises as fs } from 'node:fs';
+import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
 import { selectDevice, type DeviceInfo } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
@@ -242,9 +244,10 @@ export async function dispatchCommand(
     }
     case 'screenshot': {
       const positionalPath = positionals[0];
-      const path = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
-      await interactor.screenshot(path);
-      return { path };
+      const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
+      await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
+      await interactor.screenshot(screenshotPath);
+      return { path: screenshotPath };
     }
     case 'back': {
       if (device.platform === 'ios') {
