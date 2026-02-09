@@ -704,7 +704,7 @@ final class RunnerTests: XCTestCase {
     if options.interactiveOnly {
       if interactiveTypes.contains(type) { return true }
       if element.isHittable && type != .other { return true }
-      if hasContent && type != .other { return true }
+      if hasContent { return true }
       return false
     }
     if options.compact {
@@ -728,7 +728,7 @@ final class RunnerTests: XCTestCase {
     if options.interactiveOnly {
       if interactiveTypes.contains(type) { return true }
       if snapshotHittable(snapshot) && type != .other { return true }
-      if hasContent && type != .other { return true }
+      if hasContent { return true }
       return false
     }
     if options.compact {
