@@ -16,7 +16,7 @@ concurrency:
 jobs:
   integration-ios:
     name: Integration Tests
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 80
     continue-on-error: true
     steps:
