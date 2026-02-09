@@ -53,7 +53,30 @@ jobs:
         run: pnpm build:xcuitest
 
       - name: Wait for iOS simulator boot
-        run: xcrun simctl bootstatus "$IOS_UDID" -b
+        run: |
+          set -euo pipefail
+
+          wait_boot() {
+            timeout 180 xcrun simctl bootstatus "$IOS_UDID" -b
+          }
+
+          if wait_boot; then
+            exit 0
+          fi
+
+          echo "Initial simulator boot wait timed out; retrying boot once..."
+          xcrun simctl shutdown "$IOS_UDID" || true
+          xcrun simctl boot "$IOS_UDID" || true
+
+          if wait_boot; then
+            exit 0
+          fi
+
+          echo "Simulator failed to become ready after retry. Collecting diagnostics..."
+          xcrun simctl list devices || true
+          xcrun simctl list runtimes || true
+          xcrun simctl diagnose || true
+          exit 1
 
       - name: Run iOS integration test
         env:
