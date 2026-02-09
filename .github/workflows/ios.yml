@@ -1,4 +1,4 @@
-name: iOS Integration
+name: iOS
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   integration-ios:
-    name: Integration iOS
+    name: Integration Tests
     runs-on: macos-latest
     timeout-minutes: 80
     continue-on-error: true

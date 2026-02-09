@@ -1,4 +1,4 @@
-name: Android Integration
+name: Android
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   integration-android:
-    name: Integration Android
+    name: Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 80
     continue-on-error: true
