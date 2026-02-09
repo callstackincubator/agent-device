@@ -232,6 +232,13 @@ final class RunnerTests: XCTestCase {
         return Response(ok: true, data: DataPayload(message: "tapped"))
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
+    case .longPress:
+      guard let x = command.x, let y = command.y else {
+        return Response(ok: false, error: ErrorPayload(message: "longPress requires x and y"))
+      }
+      let duration = (command.durationMs ?? 800) / 1000.0
+      longPressAt(app: activeApp, x: x, y: y, duration: duration)
+      return Response(ok: true, data: DataPayload(message: "long pressed"))
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -409,6 +416,12 @@ final class RunnerTests: XCTestCase {
     let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
     coordinate.tap()
+  }
+
+  private func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) {
+    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
+    coordinate.press(forDuration: duration)
   }
 
   private func swipe(app: XCUIApplication, direction: SwipeDirection) {
@@ -792,6 +805,7 @@ private func resolveRunnerPort() -> UInt16 {
 
 enum CommandType: String, Codable {
   case tap
+  case longPress
   case type
   case swipe
   case findText
@@ -820,6 +834,7 @@ struct Command: Codable {
   let action: String?
   let x: Double?
   let y: Double?
+  let durationMs: Double?
   let direction: SwipeDirection?
   let scale: Double?
   let interactiveOnly: Bool?

@@ -11,6 +11,7 @@ import net from 'node:net';
 export type RunnerCommand = {
   command:
     | 'tap'
+    | 'longPress'
     | 'type'
     | 'swipe'
     | 'findText'
@@ -27,6 +28,7 @@ export type RunnerCommand = {
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
+  durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   scale?: number;
   interactiveOnly?: boolean;
