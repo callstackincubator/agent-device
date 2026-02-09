@@ -30,6 +30,11 @@
     "label": "Sessions"
   },
   {
+    "name": "replay-e2e",
+    "type": "file",
+    "label": "Replay & E2E (Experimental)"
+  },
+  {
     "name": "snapshots",
     "type": "file",
     "label": "Snapshots"

@@ -12,7 +12,7 @@ agent-device record start ./recordings/ios.mov
 
 # Perform actions
 agent-device open App
-agent-device snapshot
+agent-device snapshot -i
 agent-device click @e3
 agent-device close
 
@@ -30,7 +30,7 @@ agent-device record start ./recordings/android.mp4
 
 # Perform actions
 agent-device open App
-agent-device snapshot
+agent-device snapshot -i
 agent-device click @e3
 agent-device close
 

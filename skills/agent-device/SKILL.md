@@ -5,6 +5,8 @@ description: Automates mobile and simulator interactions for iOS and Android dev
 
 # Mobile Automation with agent-device
 
+For agent-driven exploration: use refs. For deterministic replay scripts: use selectors.
+
 ## Quick start
 
 ```bash
@@ -26,9 +28,9 @@ npx -y agent-device
 ## Core workflow
 
 1. Open app or just boot device: `open [app]`
-2. Snapshot: `snapshot` to get full XCTest accessibility tree snapshot
+2. Snapshot: `snapshot` to get refs from accessibility tree
 3. Interact using refs (`click @ref`, `fill @ref "text"`)
-4. Re-snapshot after navigation or UI changes
+4. Re-snapshot after navigation/UI changes
 5. Close session when done
 
 ## Commands
@@ -109,6 +111,8 @@ agent-device home
 agent-device app-switcher
 agent-device wait 1000
 agent-device wait text "Settings"
+agent-device is visible 'id="settings_anchor"'  # selector assertions for deterministic checks
+agent-device is text 'id="header_title"' "Settings"
 agent-device alert get
 ```
 
@@ -119,6 +123,16 @@ agent-device get text @e1
 agent-device get attrs @e1
 agent-device screenshot out.png
 ```
+
+### Deterministic replay and updating
+
+```bash
+agent-device open App --save-script   # Save session script (.ad) on close
+agent-device replay ./session.ad      # Run deterministic replay from .ad script
+agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
+```
+
+`replay` reads `.ad` recordings.
 
 ### Trace logs (AX/XCTest)
 
@@ -142,7 +156,8 @@ agent-device apps --platform android --user-installed
 ## Best practices
 
 - Pinch (`pinch <scale> [x y]`) is supported on iOS simulators and Android; scale > 1 zooms in, < 1 zooms out. On Android, pinch uses multi-touch `sendevent` injection.
-- Always snapshot right before interactions; refs invalidate on UI changes.
+- Snapshot refs are the core mechanism for interactive agent flows.
+- Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, `xctest` is the default and does not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
@@ -153,6 +168,7 @@ agent-device apps --platform android --user-installed
 - Use `fill` when you want clear-then-type semantics.
 - Use `type` when you want to append/enter text without clearing.
 - On Android, prefer `fill` for important fields; it verifies entered text and retries once when IME reorders characters.
+- If using deterministic replay scripts, use `replay -u` during maintenance runs to update selector drift in replay scripts. Use plain `replay` in CI.
 
 ## References
 

@@ -33,9 +33,11 @@ npx agent-device open SampleApp
 
 ## Quick Start
 
+Use refs for agent-driven exploration and normal automation flows.
+
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
-agent-device snapshot                      
+agent-device snapshot
 agent-device click @e5
 agent-device fill @e6 "John"
 agent-device fill @e7 "Doe"
@@ -75,7 +77,7 @@ Coordinates:
 ## Command Index
 - `open`, `close`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
-- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`
+- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
@@ -117,13 +119,44 @@ Sessions:
 - If a session is already open, `open <app>` switches the active app and updates the session app bundle.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
-- Session logs are written to `~/.agent-device/sessions/<session>-<timestamp>.ad`.
-- With `--record-json`, JSON logs are written to `~/.agent-device/sessions/<session>-<timestamp>.json` by default.
+- Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
+- Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
 - `find text|label|value|role|id <value> <action> [value]` for specific locators.
 - Actions: `click` (default), `fill`, `type`, `focus`, `get text`, `get attrs`, `wait [timeout]`, `exists`.
+
+Assertions:
+- `is` predicates: `visible`, `hidden`, `exists`, `editable`, `selected`, `text`.
+- `is text` uses exact equality.
+
+Replay update:
+- `replay <path>` runs deterministic replay from `.ad` scripts.
+- `replay -u <path>` attempts selector updates on failures and atomically rewrites the same file.
+- Refs are the default/core mechanism for interactive agent flows.
+- Update targets: `click`, `fill`, `get`, `is`, `wait`.
+- Selector matching is a replay-update internal: replay parses `.ad` lines into actions, tries them, snapshots on failure, resolves a better selector, then rewrites that failing line.
+
+Update examples:
+
+```sh
+# Before (stale selector)
+click "id=\"old_continue\" || label=\"Continue\""
+
+# After replay -u (rewritten in place)
+click "id=\"auth_continue\" || label=\"Continue\""
+```
+
+```sh
+# Before (ref-based action from discovery)
+snapshot -i -c -s "Continue"
+click @e13 "Continue"
+
+# After replay -u (upgraded to selector-based action)
+snapshot -i -c -s "Continue"
+click "id=\"auth_continue\" || label=\"Continue\""
+```
 
 Android fill reliability:
 - `fill` clears the current value, then enters text.

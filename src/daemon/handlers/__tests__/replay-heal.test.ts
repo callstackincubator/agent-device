@@ -30,28 +30,64 @@ function makeSession(name: string): SessionState {
 }
 
 function writeReplayFile(filePath: string, action: SessionAction) {
-  const payload = {
-    optimizedActions: [action],
-  };
-  fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+  const args = action.positionals.map((value) => JSON.stringify(value)).join(' ');
+  fs.writeFileSync(filePath, `${action.command}${args.length > 0 ? ` ${args}` : ''}\n`);
 }
 
 function readReplaySelector(filePath: string, command: string): string {
-  const payload = JSON.parse(fs.readFileSync(filePath, 'utf8')) as {
-    optimizedActions?: Array<{ command?: string; positionals?: string[] }>;
-  };
-  const action = payload.optimizedActions?.find((entry) => entry.command === command);
-  if (!action) return '';
+  const lines = fs
+    .readFileSync(filePath, 'utf8')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const line = lines.find((entry) => entry.startsWith(`${command} `) || entry === command);
+  if (!line) return '';
+  const args = tokenizeReplayLine(line).slice(1);
   if (command === 'is') {
-    return action.positionals?.[1] ?? '';
+    return args[1] ?? '';
   }
-  return action.positionals?.[0] ?? '';
+  return args[0] ?? '';
+}
+
+function tokenizeReplayLine(line: string): string[] {
+  const tokens: string[] = [];
+  let cursor = 0;
+  while (cursor < line.length) {
+    while (cursor < line.length && /\s/.test(line[cursor])) {
+      cursor += 1;
+    }
+    if (cursor >= line.length) break;
+    if (line[cursor] === '"') {
+      let end = cursor + 1;
+      let escaped = false;
+      while (end < line.length) {
+        const char = line[end];
+        if (char === '"' && !escaped) break;
+        escaped = char === '\\' && !escaped;
+        if (char !== '\\') escaped = false;
+        end += 1;
+      }
+      if (end >= line.length) {
+        throw new Error(`Invalid replay script line: ${line}`);
+      }
+      tokens.push(JSON.parse(line.slice(cursor, end + 1)) as string);
+      cursor = end + 1;
+      continue;
+    }
+    let end = cursor;
+    while (end < line.length && !/\s/.test(line[end])) {
+      end += 1;
+    }
+    tokens.push(line.slice(cursor, end));
+    cursor = end;
+  }
+  return tokens;
 }
 
 test('replay --update heals selector and rewrites replay file', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-'));
   const sessionsDir = path.join(tempRoot, 'sessions');
-  const replayPath = path.join(tempRoot, 'replay.json');
+  const replayPath = path.join(tempRoot, 'replay.ad');
   const sessionStore = new SessionStore(sessionsDir);
   const sessionName = 'heal-session';
   sessionStore.set(sessionName, makeSession(sessionName));
@@ -59,12 +95,9 @@ test('replay --update heals selector and rewrites replay file', async () => {
   writeReplayFile(replayPath, {
     ts: Date.now(),
     command: 'click',
-    positionals: ['id="old_continue"'],
+    positionals: ['id="old_continue" || label="Continue"'],
     flags: {},
-    result: {
-      refLabel: 'Continue',
-      selectorChain: ['id="old_continue"', 'label="Continue"'],
-    },
+    result: {},
   });
 
   const invokeCalls: string[] = [];
@@ -128,7 +161,7 @@ test('replay --update heals selector and rewrites replay file', async () => {
   });
 
   assert.ok(response);
-  assert.equal(response.ok, true);
+  assert.equal(response.ok, true, JSON.stringify(response));
   if (response.ok) {
     assert.equal(response.data?.healed, 1);
     assert.equal(response.data?.replayed, 1);
@@ -145,7 +178,7 @@ test('replay --update heals selector and rewrites replay file', async () => {
 test('replay without --update does not heal or rewrite', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-noheal-'));
   const sessionsDir = path.join(tempRoot, 'sessions');
-  const replayPath = path.join(tempRoot, 'replay.json');
+  const replayPath = path.join(tempRoot, 'replay.ad');
   const sessionStore = new SessionStore(sessionsDir);
   const sessionName = 'noheal-session';
   sessionStore.set(sessionName, makeSession(sessionName));
@@ -153,12 +186,9 @@ test('replay without --update does not heal or rewrite', async () => {
   writeReplayFile(replayPath, {
     ts: Date.now(),
     command: 'click',
-    positionals: ['id="old_continue"'],
+    positionals: ['id="old_continue" || label="Continue"'],
     flags: {},
-    result: {
-      refLabel: 'Continue',
-      selectorChain: ['id="old_continue"', 'label="Continue"'],
-    },
+    result: {},
   });
   const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
@@ -202,7 +232,7 @@ test('replay without --update does not heal or rewrite', async () => {
 test('replay --update heals selector in is command', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-is-'));
   const sessionsDir = path.join(tempRoot, 'sessions');
-  const replayPath = path.join(tempRoot, 'replay.json');
+  const replayPath = path.join(tempRoot, 'replay.ad');
   const sessionStore = new SessionStore(sessionsDir);
   const sessionName = 'heal-is-session';
   sessionStore.set(sessionName, makeSession(sessionName));
@@ -210,12 +240,9 @@ test('replay --update heals selector in is command', async () => {
   writeReplayFile(replayPath, {
     ts: Date.now(),
     command: 'is',
-    positionals: ['visible', 'id="old_continue"'],
+    positionals: ['visible', 'id="old_continue" || label="Continue"'],
     flags: {},
-    result: {
-      selectorChain: ['id="old_continue"', 'label="Continue"'],
-      refLabel: 'Continue',
-    },
+    result: {},
   });
 
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
@@ -266,10 +293,72 @@ test('replay --update heals selector in is command', async () => {
   });
 
   assert.ok(response);
-  assert.equal(response.ok, true);
+  assert.equal(response.ok, true, JSON.stringify(response));
   if (response.ok) {
     assert.equal(response.data?.healed, 1);
   }
   const rewrittenSelector = readReplaySelector(replayPath, 'is');
   assert.ok(rewrittenSelector.includes('auth_continue'));
+});
+
+test('replay rejects legacy JSON payload files', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-json-rejected-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.json');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'json-rejected-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+  fs.writeFileSync(replayPath, JSON.stringify({ optimizedActions: [] }, null, 2));
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke: async () => ({ ok: true, data: {} }),
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /\.ad script files/);
+  }
+});
+
+test('replay rejects malformed .ad lines with unclosed quotes', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-invalid-ad-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'invalid-ad-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+  fs.writeFileSync(replayPath, 'click "id=\\"broken\\"\n');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke: async () => ({ ok: true, data: {} }),
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /Invalid replay script line/);
+  }
 });

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { asAppError } from '../../utils/errors.ts';
+import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -180,6 +180,7 @@ export async function handleSessionCommands(params: {
         ...session,
         appBundleId,
         appName,
+        recordSession: session.recordSession || req.flags?.saveScript === true,
         snapshot: undefined,
       };
       sessionStore.recordAction(nextSession, {
@@ -223,6 +224,7 @@ export async function handleSessionCommands(params: {
       createdAt: Date.now(),
       appBundleId,
       appName,
+      recordSession: req.flags?.saveScript === true,
       actions: [],
     };
     sessionStore.recordAction(session, {
@@ -242,11 +244,18 @@ export async function handleSessionCommands(params: {
     }
     try {
       const resolved = SessionStore.expandHome(filePath);
-      const payload = JSON.parse(fs.readFileSync(resolved, 'utf8')) as {
-        actions?: SessionAction[];
-        optimizedActions?: SessionAction[];
-      };
-      const actions = payload.optimizedActions ?? payload.actions ?? [];
+      const script = fs.readFileSync(resolved, 'utf8');
+      const firstNonWhitespace = script.trimStart()[0];
+      if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'replay accepts .ad script files. JSON replay payloads are no longer supported.',
+          },
+        };
+      }
+      const actions = parseReplayScript(script);
       const shouldUpdate = req.flags?.replayUpdate === true;
       let healed = 0;
       for (let index = 0; index < actions.length; index += 1) {
@@ -285,7 +294,8 @@ export async function handleSessionCommands(params: {
         healed += 1;
       }
       if (shouldUpdate && healed > 0) {
-        writeReplayPayload(resolved, payload);
+        const session = sessionStore.get(sessionName);
+        writeReplayScript(resolved, actions, session);
       }
       return { ok: true, data: { replayed: actions.length, healed, session: sessionName } };
     } catch (err) {
@@ -313,6 +323,9 @@ export async function handleSessionCommands(params: {
       flags: req.flags ?? {},
       result: { session: sessionName },
     });
+    if (req.flags?.saveScript) {
+      session.recordSession = true;
+    }
     sessionStore.writeSessionLog(session);
     sessionStore.delete(sessionName);
     return { ok: true, data: { session: sessionName } };
@@ -512,9 +525,208 @@ function parseSelectorWaitPositionals(positionals: string[]): {
   };
 }
 
-function writeReplayPayload(filePath: string, payload: { actions?: SessionAction[]; optimizedActions?: SessionAction[] }) {
-  const serialized = JSON.stringify(payload, null, 2);
+function parseReplayScript(script: string): SessionAction[] {
+  const actions: SessionAction[] = [];
+  const lines = script.split(/\r?\n/);
+  for (const line of lines) {
+    const parsed = parseReplayScriptLine(line);
+    if (parsed) {
+      actions.push(parsed);
+    }
+  }
+  return actions;
+}
+
+function parseReplayScriptLine(line: string): SessionAction | null {
+  const trimmed = line.trim();
+  if (trimmed.length === 0 || trimmed.startsWith('#')) return null;
+  const tokens = tokenizeReplayLine(trimmed);
+  if (tokens.length === 0) return null;
+  const [command, ...args] = tokens;
+  if (command === 'context') return null;
+
+  const action: SessionAction = {
+    ts: Date.now(),
+    command,
+    positionals: [],
+    flags: {},
+  };
+
+  if (command === 'snapshot') {
+    action.positionals = [];
+    for (let index = 0; index < args.length; index += 1) {
+      const token = args[index];
+      if (token === '-i') {
+        action.flags.snapshotInteractiveOnly = true;
+        continue;
+      }
+      if (token === '-c') {
+        action.flags.snapshotCompact = true;
+        continue;
+      }
+      if (token === '--raw') {
+        action.flags.snapshotRaw = true;
+        continue;
+      }
+      if ((token === '-d' || token === '--depth') && index + 1 < args.length) {
+        const parsedDepth = Number(args[index + 1]);
+        if (Number.isFinite(parsedDepth) && parsedDepth >= 0) {
+          action.flags.snapshotDepth = Math.floor(parsedDepth);
+        }
+        index += 1;
+        continue;
+      }
+      if ((token === '-s' || token === '--scope') && index + 1 < args.length) {
+        action.flags.snapshotScope = args[index + 1];
+        index += 1;
+        continue;
+      }
+      if (token === '--backend' && index + 1 < args.length) {
+        const backend = args[index + 1];
+        if (backend === 'ax' || backend === 'xctest') {
+          action.flags.snapshotBackend = backend;
+        }
+        index += 1;
+      }
+    }
+    return action;
+  }
+
+  if (command === 'click') {
+    if (args.length === 0) return action;
+    const target = args[0];
+    if (target.startsWith('@')) {
+      action.positionals = [target];
+      if (args[1]) {
+        action.result = { refLabel: args[1] };
+      }
+      return action;
+    }
+    action.positionals = [args.join(' ')];
+    return action;
+  }
+
+  if (command === 'fill') {
+    if (args.length < 2) {
+      action.positionals = args;
+      return action;
+    }
+    const target = args[0];
+    if (target.startsWith('@')) {
+      if (args.length >= 3) {
+        action.positionals = [target, args.slice(2).join(' ')];
+        action.result = { refLabel: args[1] };
+        return action;
+      }
+      action.positionals = [target, args[1]];
+      return action;
+    }
+    action.positionals = [target, args.slice(1).join(' ')];
+    return action;
+  }
+
+  if (command === 'get') {
+    if (args.length < 2) {
+      action.positionals = args;
+      return action;
+    }
+    const sub = args[0];
+    const target = args[1];
+    if (target.startsWith('@')) {
+      action.positionals = [sub, target];
+      if (args[2]) {
+        action.result = { refLabel: args[2] };
+      }
+      return action;
+    }
+    action.positionals = [sub, args.slice(1).join(' ')];
+    return action;
+  }
+
+  action.positionals = args;
+  return action;
+}
+
+function tokenizeReplayLine(line: string): string[] {
+  const tokens: string[] = [];
+  let cursor = 0;
+  while (cursor < line.length) {
+    while (cursor < line.length && /\s/.test(line[cursor])) {
+      cursor += 1;
+    }
+    if (cursor >= line.length) break;
+    if (line[cursor] === '"') {
+      let end = cursor + 1;
+      let escaped = false;
+      while (end < line.length) {
+        const char = line[end];
+        if (char === '"' && !escaped) break;
+        escaped = char === '\\' && !escaped;
+        if (char !== '\\') escaped = false;
+        end += 1;
+      }
+      if (end >= line.length) {
+        throw new AppError('INVALID_ARGS', `Invalid replay script line: ${line}`);
+      }
+      const literal = line.slice(cursor, end + 1);
+      tokens.push(JSON.parse(literal) as string);
+      cursor = end + 1;
+      continue;
+    }
+    let end = cursor;
+    while (end < line.length && !/\s/.test(line[end])) {
+      end += 1;
+    }
+    tokens.push(line.slice(cursor, end));
+    cursor = end;
+  }
+  return tokens;
+}
+
+function writeReplayScript(filePath: string, actions: SessionAction[], session?: SessionState) {
+  const lines: string[] = [];
+  // Session can be missing if the replay session is closed/deleted between execution and update write.
+  // In that case we still persist healed actions and omit only the context header.
+  if (session) {
+    const deviceLabel = session.device.name.replace(/"/g, '\\"');
+    const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
+    lines.push(`context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=unknown`);
+  }
+  for (const action of actions) {
+    lines.push(formatReplayActionLine(action));
+  }
+  const serialized = `${lines.join('\n')}\n`;
   const tmpPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
   fs.writeFileSync(tmpPath, serialized);
   fs.renameSync(tmpPath, filePath);
+}
+
+function formatReplayActionLine(action: SessionAction): string {
+  const parts: string[] = [action.command];
+  if (action.command === 'snapshot') {
+    if (action.flags?.snapshotInteractiveOnly) parts.push('-i');
+    if (action.flags?.snapshotCompact) parts.push('-c');
+    if (typeof action.flags?.snapshotDepth === 'number') {
+      parts.push('-d', String(action.flags.snapshotDepth));
+    }
+    if (action.flags?.snapshotScope) {
+      parts.push('-s', formatReplayArg(action.flags.snapshotScope));
+    }
+    if (action.flags?.snapshotRaw) parts.push('--raw');
+    if (action.flags?.snapshotBackend) {
+      parts.push('--backend', action.flags.snapshotBackend);
+    }
+    return parts.join(' ');
+  }
+  for (const positional of action.positionals ?? []) {
+    parts.push(formatReplayArg(positional));
+  }
+  return parts.join(' ');
+}
+
+function formatReplayArg(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('@')) return trimmed;
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed;
+  return JSON.stringify(trimmed);
 }

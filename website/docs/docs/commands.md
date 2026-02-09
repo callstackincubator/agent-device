@@ -49,6 +49,18 @@ agent-device find label "Email" fill "user@example.com"
 agent-device find role button click
 ```
 
+## Replay
+
+```bash
+agent-device replay ./session.ad      # Run deterministic replay from .ad script
+agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
+```
+
+- `replay` runs deterministic `.ad` scripts.
+- `replay -u` updates stale recorded actions and rewrites the same script.
+
+See [Replay & E2E (Experimental)](/docs/replay-e2e) for recording and CI workflow details.
+
 ## Settings helpers
 
 ```bash

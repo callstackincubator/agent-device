@@ -26,6 +26,7 @@ export type SessionState = {
     outPath: string;
     startedAt: number;
   };
+  recordSession?: boolean;
   actions: SessionAction[];
   recording?: {
     platform: 'ios' | 'android';
@@ -47,8 +48,8 @@ export type SessionAction = {
     snapshotScope?: string;
     snapshotRaw?: boolean;
     snapshotBackend?: 'ax' | 'xctest';
+    saveScript?: boolean;
     noRecord?: boolean;
-    recordJson?: boolean;
   };
   result?: Record<string, unknown>;
 };

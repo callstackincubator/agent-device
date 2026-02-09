@@ -25,3 +25,5 @@ Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
 - Use `--session <name>` to run multiple sessions in parallel.
+
+For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/docs/replay-e2e).
