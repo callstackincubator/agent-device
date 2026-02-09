@@ -33,6 +33,7 @@ final class RunnerTests: XCTestCase {
     .switch,
     .tabBar,
     .textField,
+    .secureTextField,
     .textView,
   ]
 
