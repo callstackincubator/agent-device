@@ -31,7 +31,7 @@ agent-device screenshot page.png         # Save to specific path
 agent-device close
 ```
 
-## Semantic selectors
+## Semantic discovery
 
 Use `find` for human-readable targeting without refs:
 
@@ -40,6 +40,10 @@ agent-device find "Sign In" click
 agent-device find label "Email" fill "user@example.com"
 agent-device find role button click
 ```
+
+## Replay (experimental)
+
+For deterministic replay scripts and E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
 
 ## Scrolling
 
