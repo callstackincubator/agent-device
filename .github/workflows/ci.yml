@@ -44,7 +44,7 @@ jobs:
 
   integration-smoke:
     name: Integration Smoke
-    runs-on: ubuntu-latest
+    runs-on: macos-26
     timeout-minutes: 60
     continue-on-error: true
     steps:
