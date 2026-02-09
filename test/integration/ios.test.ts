@@ -29,7 +29,7 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     formatResultDebug('snapshot nodes', snapshotArgs, snapshot),
   );
 
-  const clickArgs = ['click', '@e15', '--json', ...session];
+  const clickArgs = ['click', '@e21', '--json', ...session];
   const click = runCliJson(clickArgs);
   assert.equal(click.status, 0, formatResultDebug('click @e13', clickArgs, click));
 
