@@ -583,24 +583,21 @@ function clampCount(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function findBounds(xml: string, query: string): { x: number; y: number } | null {
+export function findBounds(xml: string, query: string): { x: number; y: number } | null {
   const q = query.toLowerCase();
   const nodeRegex = /<node[^>]+>/g;
   let match = nodeRegex.exec(xml);
   while (match) {
     const node = match[0];
-    const textMatch = /text="([^"]*)"/.exec(node);
-    const descMatch = /content-desc="([^"]*)"/.exec(node);
-    const textVal = (textMatch?.[1] ?? '').toLowerCase();
-    const descVal = (descMatch?.[1] ?? '').toLowerCase();
+    const textVal = (readXmlAttr(node, 'text') ?? '').toLowerCase();
+    const descVal = (readXmlAttr(node, 'content-desc') ?? '').toLowerCase();
     if (textVal.includes(q) || descVal.includes(q)) {
-      const boundsMatch = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node);
-      if (boundsMatch) {
-        const x1 = Number(boundsMatch[1]);
-        const y1 = Number(boundsMatch[2]);
-        const x2 = Number(boundsMatch[3]);
-        const y2 = Number(boundsMatch[4]);
-        return { x: Math.floor((x1 + x2) / 2), y: Math.floor((y1 + y2) / 2) };
+      const rect = parseBounds(readXmlAttr(node, 'bounds'));
+      if (rect) {
+        return {
+          x: Math.floor(rect.x + rect.width / 2),
+          y: Math.floor(rect.y + rect.height / 2),
+        };
       }
       return { x: 0, y: 0 };
     }
@@ -609,7 +606,7 @@ function findBounds(xml: string, query: string): { x: number; y: number } | null
   return null;
 }
 
-function parseUiHierarchy(
+export function parseUiHierarchy(
   xml: string,
   maxNodes: number,
   options: SnapshotOptions,
@@ -700,11 +697,7 @@ function readNodeAttributes(node: string): {
   focusable?: boolean;
   focused?: boolean;
 } {
-  const getAttr = (name: string): string | null => {
-    const regex = new RegExp(`${name}="([^"]*)"`);
-    const match = regex.exec(node);
-    return match ? match[1] : null;
-  };
+  const getAttr = (name: string): string | null => readXmlAttr(node, name);
   const boolAttr = (name: string): boolean | undefined => {
     const raw = getAttr(name);
     if (raw === null) return undefined;
@@ -721,6 +714,13 @@ function readNodeAttributes(node: string): {
     focusable: boolAttr('focusable'),
     focused: boolAttr('focused'),
   };
+}
+
+function readXmlAttr(node: string, name: string): string | null {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`${escapedName}=(["'])(.*?)\\1`);
+  const match = regex.exec(node);
+  return match ? match[2] : null;
 }
 
 function parseBounds(bounds: string | null): Rect | undefined {
