@@ -21,8 +21,8 @@ export type ParsedArgs = {
     appsFilter?: 'launchable' | 'user-installed' | 'all';
     appsMetadata?: boolean;
     activity?: string;
+    saveScript?: boolean;
     noRecord?: boolean;
-    recordJson?: boolean;
     replayUpdate?: boolean;
     help: boolean;
   };
@@ -62,8 +62,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       flags.noRecord = true;
       continue;
     }
-    if (arg === '--record-json') {
-      flags.recordJson = true;
+    if (arg === '--save-script') {
+      flags.saveScript = true;
       continue;
     }
     if (arg === '--update' || arg === '-u') {
@@ -225,8 +225,8 @@ Flags:
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output
   --no-record                                Do not record this action
-  --record-json                              Record JSON session log
-  --update, -u                               Replay: heal selectors and update replay file in place
+  --save-script                             Save session script (.ad) on close
+  --update, -u                               Replay: update selectors and rewrite replay file in place
   --user-installed                           Apps: list user-installed packages (Android only)
   --all                                      Apps: list all packages (Android only)
 `;
