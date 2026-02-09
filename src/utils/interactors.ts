@@ -15,16 +15,9 @@ import {
 } from '../platforms/android/index.ts';
 import {
   closeIosApp,
-  fillIos,
-  focusIos,
-  longPressIos,
   openIosApp,
   openIosDevice,
-  pressIos,
-  scrollIos,
-  scrollIntoViewIos,
   screenshotIos,
-  typeIos,
 } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 
@@ -49,7 +42,7 @@ export type Interactor = {
   screenshot(outPath: string): Promise<void>;
 };
 
-export function getInteractor(device: DeviceInfo, runnerContext?: RunnerContext): Interactor {
+export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
   switch (device.platform) {
     case 'android':
       return {
@@ -65,36 +58,25 @@ export function getInteractor(device: DeviceInfo, runnerContext?: RunnerContext)
         scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
         screenshot: (outPath) => screenshotAndroid(device, outPath),
       };
-    case 'ios': {
-      if (device.kind === 'simulator' && runnerContext) {
-        return createIosSimulatorInteractor(device, runnerContext);
-      }
+    case 'ios':
       return {
         open: (app) => openIosApp(device, app),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
-        tap: (x, y) => pressIos(device, x, y),
-        longPress: (x, y, durationMs) => longPressIos(device, x, y, durationMs),
-        focus: (x, y) => focusIos(device, x, y),
-        type: (text) => typeIos(device, text),
-        fill: (x, y, text) => fillIos(device, x, y, text),
-        scroll: (direction, amount) => scrollIos(device, direction, amount),
-        scrollIntoView: (text) => scrollIntoViewIos(text),
+        ...iosRunnerOverrides(device, runnerContext),
         screenshot: (outPath) => screenshotIos(device, outPath),
       };
-    }
     default:
       throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform: ${device.platform}`);
   }
 }
 
-function createIosSimulatorInteractor(device: DeviceInfo, ctx: RunnerContext): Interactor {
+type IoRunnerOverrides = Pick<Interactor, 'tap' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll' | 'scrollIntoView'>;
+
+function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
   const runnerOpts = { verbose: ctx.verbose, logPath: ctx.logPath, traceLogPath: ctx.traceLogPath };
 
   return {
-    open: (app) => openIosApp(device, app),
-    openDevice: () => openIosDevice(device),
-    close: (app) => closeIosApp(device, app),
     tap: async (x, y) => {
       await runIosRunnerCommand(
         device,
@@ -164,7 +146,6 @@ function createIosSimulatorInteractor(device: DeviceInfo, ctx: RunnerContext): I
       }
       throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`);
     },
-    screenshot: (outPath) => screenshotIos(device, outPath),
   };
 }
 
