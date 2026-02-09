@@ -63,8 +63,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         open: (app) => openIosApp(device, app),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
-        ...iosRunnerOverrides(device, runnerContext),
         screenshot: (outPath) => screenshotIos(device, outPath),
+        ...iosRunnerOverrides(device, runnerContext),
       };
     default:
       throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform: ${device.platform}`);
