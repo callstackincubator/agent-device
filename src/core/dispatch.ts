@@ -165,7 +165,8 @@ export async function dispatchCommand(
     case 'scrollintoview': {
       const text = positionals.join(' ').trim();
       if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
-      await interactor.scrollIntoView(text);
+      const result = await interactor.scrollIntoView(text);
+      if (result?.attempts) return { text, attempts: result.attempts };
       return { text };
     }
     case 'pinch': {
@@ -278,4 +279,3 @@ export async function dispatchCommand(
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
   }
 }
-

@@ -45,7 +45,7 @@ export type Interactor = {
   type(text: string): Promise<void>;
   fill(x: number, y: number, text: string): Promise<void>;
   scroll(direction: string, amount?: number): Promise<void>;
-  scrollIntoView(text: string): Promise<void>;
+  scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string): Promise<void>;
 };
 
@@ -154,7 +154,7 @@ function createIosSimulatorInteractor(device: DeviceInfo, ctx: RunnerContext): I
           { command: 'findText', text, appBundleId: ctx.appBundleId },
           runnerOpts,
         )) as { found?: boolean };
-        if (found?.found) return;
+        if (found?.found) return { attempts: attempt + 1 };
         await runIosRunnerCommand(
           device,
           { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
