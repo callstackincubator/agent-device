@@ -2,11 +2,42 @@
 
 Minimal operating guide for AI coding agents in this repo.
 
-## Objective
+## Before Implementing
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
 
+## Code Changes
+- Minimum code that solves the problem. No speculative features.
+- No abstractions for single-use code.
+- Surgical edits: touch only what the task requires.
+- Match existing style, even if you'd do it differently.
+- Remove imports/variables YOUR changes made unused; don't touch pre-existing dead code.
+
+## Verification
+- Transform tasks into verifiable goals with clear success criteria.
+- For multi-step tasks, state a brief plan with verification checkpoints.
+
+## Scope
 - Solve issues with the smallest context read.
-- Keep changes scoped to one module family.
+- Keep changes scoped to one command family or module group.
 - Preserve daemon session semantics and platform behavior.
+- Read at most 3 files first:
+  - the owning handler/module
+  - one shared helper used by that handler
+  - one downstream platform file if needed
+- Expand only when contracts cross module boundaries.
+- Do not read both iOS and Android paths unless the issue is explicitly cross-platform.
+
+## Routing
+- Keep `src/daemon.ts` as a thin router.
+- Put command logic in handler modules:
+  - session/apps/appstate/open/close/replay: `src/daemon/handlers/session.ts`
+  - click/fill/get/is: `src/daemon/handlers/interaction.ts`
+  - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
+  - find: `src/daemon/handlers/find.ts`
+  - record/trace: `src/daemon/handlers/record-trace.ts`
+- Generic passthrough (press/scroll/type) is daemon fallback only after handlers return null.
 
 ## Hard Rules
 
@@ -14,64 +45,20 @@ Minimal operating guide for AI coding agents in this repo.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
 - Do not remove shared snapshot/session model behavior without full migration.
 - If Swift runner code changes, run `pnpm build:xcuitest`.
-- Do not add command logic to `daemon.ts` — it is a thin router. Use handler modules.
 - Use `inferFillText` and `uniqueStrings` from `src/daemon/action-utils.ts`. Do not duplicate.
 - Use `evaluateIsPredicate` from `src/daemon/is-predicates.ts` for assertion logic. Do not inline.
 
-## Architecture In One Screen
-
-1. CLI parse + formatting:
-   - `src/bin.ts`
-   - `src/cli.ts`
-   - `src/utils/args.ts`
-2. Daemon client transport:
-   - `src/daemon-client.ts`
-3. Daemon server bootstrap/router:
-   - `src/daemon.ts` — thin router only, delegates to handler modules
-4. Daemon command families:
-   - session/apps/appstate/open/close/replay: `src/daemon/handlers/session.ts`
-   - click/fill/get/is: `src/daemon/handlers/interaction.ts`
-   - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
-   - semantic find actions: `src/daemon/handlers/find.ts`
-   - record/trace: `src/daemon/handlers/record-trace.ts`
-5. Daemon shared domain:
-   - session state + logs: `src/daemon/session-store.ts`
-   - selector DSL (parse, resolve, build): `src/daemon/selectors.ts`
-   - `is` predicate evaluation: `src/daemon/is-predicates.ts`
-   - shared action helpers (inferFillText, uniqueStrings): `src/daemon/action-utils.ts`
-   - snapshot tree shaping + label resolution: `src/daemon/snapshot-processing.ts`
-   - handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`, `src/daemon/app-state.ts`
-6. Platform dispatch/backends:
-   - dispatcher: `src/core/dispatch.ts`
-   - capabilities: `src/core/capabilities.ts`
-   - iOS: `src/platforms/ios/*`, `ios-runner/*`
-   - Android: `src/platforms/android/*`
-
-## First-Read Protocol (Strict)
-
-1. Identify command family from failing behavior.
-2. Read at most 3 files first:
-   - the owning handler/module
-   - one shared helper used by that handler
-   - one downstream platform file if needed
-3. Expand only when contract crosses module boundaries.
-
-Do not read both iOS and Android paths unless issue is explicitly cross-platform.
-
-## Command Family Ownership
-
-- `session list`, `devices`, `apps`, `appstate`, `open`, `close`, `replay`:
-  - `src/daemon/handlers/session.ts`
-- `click`, `fill`, `get`, `is`:
-  - `src/daemon/handlers/interaction.ts`
-- `snapshot`, `wait`, `alert`, `settings`:
-  - `src/daemon/handlers/snapshot.ts`
-- `find ...`:
-  - `src/daemon/handlers/find.ts`
-- `record start|stop`, `trace start|stop`:
-  - `src/daemon/handlers/record-trace.ts`
-- Generic passthrough (press, scroll, type, etc.):
-  - `src/daemon.ts` (fallback after all handlers return null)
+## Key Files
+- CLI parse + formatting: `src/bin.ts`, `src/cli.ts`, `src/utils/args.ts`
+- Daemon client transport: `src/daemon-client.ts`
+- Daemon state/store: `src/daemon/session-store.ts`
+- Selector DSL and matching: `src/daemon/selectors.ts`
+- `is` predicate evaluation: `src/daemon/is-predicates.ts`
+- Shared action helpers: `src/daemon/action-utils.ts`
+- Snapshot shaping + labels: `src/daemon/snapshot-processing.ts`
+- Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`, `src/daemon/app-state.ts`
+- Dispatcher and capability source of truth: `src/core/dispatch.ts`, `src/core/capabilities.ts`
+- Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
 ## Capability Source Of Truth
 
@@ -80,29 +67,20 @@ Do not read both iOS and Android paths unless issue is explicitly cross-platform
 
 ## Selector System Rules
 
-All interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors in addition to `@ref`.
-The selector pipeline is: **parse → resolve → act → record selectorChain → heal on replay**.
+- Interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors and `@ref`.
+- Pipeline is: **parse -> resolve -> act -> record selectorChain -> heal on replay**.
+- Keep selector parsing/matching in `src/daemon/selectors.ts`.
+- Call `buildSelectorChainForNode` after resolving an interaction target.
+- New element-targeting interactions must support selector input and `@ref`, record `selectorChain`, and hook replay healing (`healReplayAction` + `collectReplaySelectorCandidates` in `session.ts`).
+- New selector key updates stay centralized in `selectors.ts` (`SelectorKey`, key sets, matcher, token checks).
+- New `is` predicates belong in `evaluateIsPredicate` (`src/daemon/is-predicates.ts`), not handler code.
 
-- Selector DSL lives in `src/daemon/selectors.ts`. Do not duplicate parsing/matching logic elsewhere.
-- `buildSelectorChainForNode` generates fallback chains stored in action results. Always call it after resolving a node for an interaction — it powers replay healing.
-- When adding a new interaction command that targets a UI element: support both `@ref` and selector input, record `selectorChain`, and update replay healing (`healReplayAction` + `collectReplaySelectorCandidates` in `session.ts`).
-- When adding a new selector key: update `SelectorKey` type, `ALL_KEYS`/`TEXT_KEYS`/`BOOLEAN_KEYS` sets, `matchesTerm`, and `isSelectorToken` — all in `selectors.ts`.
-- When adding a new `is` predicate: update `IsPredicate` type and `evaluateIsPredicate` in `is-predicates.ts`, not in the handler.
-- `daemon.ts` must stay a thin router. Do not add command logic there — use the appropriate handler module.
-
-## Testing Strategy
-
-### Test placement policy
-
+## Testing
 - Unit tests are colocated with source files under `src/**`.
 - Use `__tests__` folders colocated with the related source folder.
 - The `test/**` tree is integration-only (including smoke integration tests).
 - Example: tests for `src/daemon/selectors.ts` go in `src/daemon/__tests__/selectors.test.ts`.
-
-Add/extend colocated unit tests in the same PR for touched module logic.
-
-### Verification matrix
-
+- Add/extend colocated unit tests in the same PR for touched module logic.
 - Any TS change:
   - `pnpm typecheck`
 - Daemon handler/shared module change:
@@ -114,13 +92,9 @@ Add/extend colocated unit tests in the same PR for touched module logic.
 Run integration tests when behavior crosses platform boundaries:
 - `pnpm test:integration`
 
-## Productivity Measurement
-
+## Measurement
 - Use `docs/daemon-refactor-impact.md`.
-- Track:
-  - files touched per fix
-  - cycle time
-  - iOS/Android regressions
+- Track files touched per fix, cycle time, and iOS/Android regressions.
 
 ## Local Commands
 
