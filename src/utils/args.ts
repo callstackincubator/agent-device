@@ -224,8 +224,8 @@ Flags:
   --session <name>                           Named session
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output
-  --no-record                                Do not record this action
   --save-script                             Save session script (.ad) on close
+  --no-record                                Do not record this action
   --update, -u                               Replay: update selectors and rewrite replay file in place
   --user-installed                           Apps: list user-installed packages (Android only)
   --all                                      Apps: list all packages (Android only)
