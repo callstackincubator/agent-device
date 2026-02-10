@@ -9,10 +9,12 @@ import XCTest
 import Network
 
 final class RunnerTests: XCTestCase {
+  private static let springboardBundleId = "com.apple.springboard"
   private var listener: NWListener?
   private var port: UInt16 = 0
   private var doneExpectation: XCTestExpectation?
   private let app = XCUIApplication()
+  private lazy var springboard = XCUIApplication(bundleIdentifier: Self.springboardBundleId)
   private var currentApp: XCUIApplication?
   private var currentBundleId: String?
   private let maxRequestBytes = 2 * 1024 * 1024
@@ -35,6 +37,15 @@ final class RunnerTests: XCTestCase {
     .textField,
     .secureTextField,
     .textView,
+  ]
+  // Keep blocker actions narrow to avoid false positives from generic hittable containers.
+  private let actionableTypes: Set<XCUIElement.ElementType> = [
+    .button,
+    .cell,
+    .link,
+    .menuItem,
+    .checkBox,
+    .switch,
   ]
 
   override func setUp() {
@@ -535,6 +546,10 @@ final class RunnerTests: XCTestCase {
   }
 
   private func snapshotFast(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+    if let blocking = blockingSystemAlertSnapshot() {
+      return blocking
+    }
+
     var nodes: [SnapshotNode] = []
     var truncated = false
     let maxDepth = options.depth ?? Int.max
@@ -636,6 +651,10 @@ final class RunnerTests: XCTestCase {
   }
 
   private func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+    if let blocking = blockingSystemAlertSnapshot() {
+      return blocking
+    }
+
     let root = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
     var nodes: [SnapshotNode] = []
     var truncated = false
@@ -686,6 +705,136 @@ final class RunnerTests: XCTestCase {
 
     walk(root, depth: 0)
     return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func blockingSystemAlertSnapshot() -> DataPayload? {
+    guard let modal = firstBlockingSystemModal(in: springboard) else {
+      return nil
+    }
+    let actions = actionableElements(in: modal)
+    guard !actions.isEmpty else {
+      return nil
+    }
+
+    let title = preferredSystemModalTitle(modal)
+
+    var nodes: [SnapshotNode] = [
+      makeSnapshotNode(
+        element: modal,
+        index: 0,
+        type: "Alert",
+        labelOverride: title,
+        identifierOverride: modal.identifier,
+        depth: 0,
+        hittableOverride: true
+      )
+    ]
+
+    for action in actions {
+      nodes.append(
+        makeSnapshotNode(
+          element: action,
+          index: nodes.count,
+          type: elementTypeName(action.elementType),
+          depth: 1,
+          hittableOverride: true
+        )
+      )
+    }
+
+    return DataPayload(nodes: nodes, truncated: false)
+  }
+
+  private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
+    for alert in springboard.alerts.allElementsBoundByIndex {
+      if isBlockingSystemModal(alert, in: springboard) {
+        return alert
+      }
+    }
+
+    for sheet in springboard.sheets.allElementsBoundByIndex {
+      if isBlockingSystemModal(sheet, in: springboard) {
+        return sheet
+      }
+    }
+
+    return nil
+  }
+
+  private func isBlockingSystemModal(_ element: XCUIElement, in springboard: XCUIApplication) -> Bool {
+    guard element.exists else { return false }
+    let frame = element.frame
+    if frame.isNull || frame.isEmpty { return false }
+
+    let viewport = springboard.frame
+    if viewport.isNull || viewport.isEmpty { return false }
+
+    let center = CGPoint(x: frame.midX, y: frame.midY)
+    if !viewport.contains(center) { return false }
+
+    return true
+  }
+
+  private func actionableElements(in element: XCUIElement) -> [XCUIElement] {
+    var seen = Set<String>()
+    var actions: [XCUIElement] = []
+    let descendants = element.descendants(matching: .any).allElementsBoundByIndex
+    for candidate in descendants {
+      if !candidate.exists || !candidate.isHittable { continue }
+      if !actionableTypes.contains(candidate.elementType) { continue }
+      let frame = candidate.frame
+      if frame.isNull || frame.isEmpty { continue }
+      let key = "\(candidate.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(candidate.label)"
+      if seen.contains(key) { continue }
+      seen.insert(key)
+      actions.append(candidate)
+    }
+    return actions
+  }
+
+  private func preferredSystemModalTitle(_ element: XCUIElement) -> String {
+    let label = element.label
+    if !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      return label
+    }
+    let identifier = element.identifier
+    if !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      return identifier
+    }
+    return "System Alert"
+  }
+
+  private func makeSnapshotNode(
+    element: XCUIElement,
+    index: Int,
+    type: String,
+    labelOverride: String? = nil,
+    identifierOverride: String? = nil,
+    depth: Int,
+    hittableOverride: Bool? = nil
+  ) -> SnapshotNode {
+    let label = (labelOverride ?? element.label).trimmingCharacters(in: .whitespacesAndNewlines)
+    let identifier = (identifierOverride ?? element.identifier).trimmingCharacters(in: .whitespacesAndNewlines)
+    return SnapshotNode(
+      index: index,
+      type: type,
+      label: label.isEmpty ? nil : label,
+      identifier: identifier.isEmpty ? nil : identifier,
+      value: nil,
+      rect: snapshotRect(from: element.frame),
+      enabled: element.isEnabled,
+      hittable: hittableOverride ?? element.isHittable,
+      depth: depth
+    )
+  }
+
+  private func snapshotRect(from frame: CGRect) -> SnapshotRect {
+    return SnapshotRect(
+      x: Double(frame.origin.x),
+      y: Double(frame.origin.y),
+      width: Double(frame.size.width),
+      height: Double(frame.size.height)
+    )
   }
 
   private func shouldInclude(
