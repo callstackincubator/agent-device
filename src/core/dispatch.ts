@@ -12,7 +12,7 @@ import {
   snapshotAndroid,
 } from '../platforms/android/index.ts';
 import { listIosDevices } from '../platforms/ios/devices.ts';
-import { getInteractor } from '../utils/interactors.ts';
+import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import { setIosSetting } from '../platforms/ios/index.ts';
@@ -92,7 +92,13 @@ export async function dispatchCommand(
     snapshotBackend?: 'ax' | 'xctest';
   },
 ): Promise<Record<string, unknown> | void> {
-  const interactor = getInteractor(device);
+  const runnerCtx: RunnerContext = {
+    appBundleId: context?.appBundleId,
+    verbose: context?.verbose,
+    logPath: context?.logPath,
+    traceLogPath: context?.traceLogPath,
+  };
+  const interactor = getInteractor(device, runnerCtx);
   switch (command) {
     case 'open': {
       const app = positionals[0];
@@ -114,15 +120,7 @@ export async function dispatchCommand(
     case 'press': {
       const [x, y] = positionals.map(Number);
       if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'press requires x y');
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-      } else {
-        await interactor.tap(x, y);
-      }
+      await interactor.tap(x, y);
       return { x, y };
     }
     case 'long-press': {
@@ -138,29 +136,13 @@ export async function dispatchCommand(
     case 'focus': {
       const [x, y] = positionals.map(Number);
       if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'focus requires x y');
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-      } else {
-        await interactor.focus(x, y);
-      }
+      await interactor.focus(x, y);
       return { x, y };
     }
     case 'type': {
       const text = positionals.join(' ');
       if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'type', text, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-      } else {
-        await interactor.type(text);
-      }
+      await interactor.type(text);
       return { text };
     }
     case 'fill': {
@@ -170,63 +152,21 @@ export async function dispatchCommand(
       if (Number.isNaN(x) || Number.isNaN(y) || !text) {
         throw new AppError('INVALID_ARGS', 'fill requires x y text');
       }
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-        await runIosRunnerCommand(
-          device,
-          { command: 'type', text, clearFirst: true, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-      } else {
-        await interactor.fill(x, y, text);
-      }
+      await interactor.fill(x, y, text);
       return { x, y, text };
     }
     case 'scroll': {
       const direction = positionals[0];
       const amount = positionals[1] ? Number(positionals[1]) : undefined;
       if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        if (!['up', 'down', 'left', 'right'].includes(direction)) {
-          throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
-        }
-        const inverted = invertScrollDirection(direction as 'up' | 'down' | 'left' | 'right');
-        await runIosRunnerCommand(
-          device,
-          { command: 'swipe', direction: inverted, appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-        );
-      } else {
-        await interactor.scroll(direction, amount);
-      }
+      await interactor.scroll(direction, amount);
       return { direction, amount };
     }
     case 'scrollintoview': {
       const text = positionals.join(' ').trim();
       if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
-      if (device.platform === 'ios' && device.kind === 'simulator') {
-        const maxAttempts = 8;
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const found = (await runIosRunnerCommand(
-            device,
-            { command: 'findText', text, appBundleId: context?.appBundleId },
-            { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-          )) as { found?: boolean };
-          if (found?.found) return { text, attempts: attempt + 1 };
-          await runIosRunnerCommand(
-            device,
-            { command: 'swipe', direction: 'up', appBundleId: context?.appBundleId },
-            { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
-          );
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-        throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`);
-      }
-      await interactor.scrollIntoView(text);
+      const result = await interactor.scrollIntoView(text);
+      if (result?.attempts) return { text, attempts: result.attempts };
       return { text };
     }
     case 'pinch': {
@@ -339,18 +279,3 @@ export async function dispatchCommand(
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
   }
 }
-
-function invertScrollDirection(direction: 'up' | 'down' | 'left' | 'right'): 'up' | 'down' | 'left' | 'right' {
-  switch (direction) {
-    case 'up':
-      return 'down';
-    case 'down':
-      return 'up';
-    case 'left':
-      return 'right';
-    case 'right':
-      return 'left';
-  }
-}
-
-// Runner-only input on iOS simulators (simctl io input is not supported).

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd, runCmdStreaming, type ExecResult } from '../../utils/exec.ts';
+import { runCmd, runCmdStreaming, runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import net from 'node:net';
@@ -11,6 +11,7 @@ import net from 'node:net';
 export type RunnerCommand = {
   command:
     | 'tap'
+    | 'longPress'
     | 'type'
     | 'swipe'
     | 'findText'
@@ -27,6 +28,7 @@ export type RunnerCommand = {
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
+  durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   scale?: number;
   interactiveOnly?: boolean;
@@ -44,9 +46,30 @@ export type RunnerSession = {
   xctestrunPath: string;
   jsonPath: string;
   testPromise: Promise<ExecResult>;
+  child: ExecBackgroundResult['child'];
+  ready: boolean;
 };
 
 const runnerSessions = new Map<string, RunnerSession>();
+const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
+  120_000,
+  5_000,
+);
+const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_RUNNER_COMMAND_TIMEOUT_MS,
+  15_000,
+  1_000,
+);
+const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
+const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
+
+function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
+}
 
 export type RunnerSnapshotNode = {
   index: number;
@@ -85,29 +108,14 @@ async function executeRunnerCommand(
 
   try {
     const session = await ensureRunnerSession(device, options);
-    const response = await waitForRunner(device, session.port, command, options.logPath);
-    const text = await response.text();
-
-    let json: any = {};
-    try {
-      json = JSON.parse(text);
-    } catch {
-      throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
-    }
-
-    if (!json.ok) {
-      throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
-        runner: json,
-        xcodebuild: {
-          exitCode: 1,
-          stdout: '',
-          stderr: '',
-        },
-        logPath: options.logPath,
-      });
-    }
-
-    return json.data ?? {};
+    const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
+    return await executeRunnerCommandWithSession(
+      device,
+      session,
+      command,
+      options.logPath,
+      timeoutMs,
+    );
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
     if (
@@ -117,29 +125,55 @@ async function executeRunnerCommand(
     ) {
       await stopIosRunnerSession(device.id);
       const session = await ensureRunnerSession(device, options);
-      const response = await waitForRunner(device, session.port, command, options.logPath);
-      const text = await response.text();
-      let json: any = {};
-      try {
-        json = JSON.parse(text);
-      } catch {
-        throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
-      }
-      if (!json.ok) {
-        throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
-          runner: json,
-          xcodebuild: {
-            exitCode: 1,
-            stdout: '',
-            stderr: '',
-          },
-          logPath: options.logPath,
-        });
-      }
-      return json.data ?? {};
+      const response = await waitForRunner(
+        session.device,
+        session.port,
+        command,
+        options.logPath,
+        RUNNER_STARTUP_TIMEOUT_MS,
+      );
+      return await parseRunnerResponse(response, session, options.logPath);
     }
     throw err;
   }
+}
+
+async function executeRunnerCommandWithSession(
+  device: DeviceInfo,
+  session: RunnerSession,
+  command: RunnerCommand,
+  logPath: string | undefined,
+  timeoutMs: number,
+): Promise<Record<string, unknown>> {
+  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs);
+  return await parseRunnerResponse(response, session, logPath);
+}
+
+async function parseRunnerResponse(
+  response: Response,
+  session: RunnerSession,
+  logPath?: string,
+): Promise<Record<string, unknown>> {
+  const text = await response.text();
+  let json: any = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
+  }
+  if (!json.ok) {
+    throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
+      runner: json,
+      xcodebuild: {
+        exitCode: 1,
+        stdout: '',
+        stderr: '',
+      },
+      logPath,
+    });
+  }
+  session.ready = true;
+  return json.data ?? {};
 }
 
 export async function stopIosRunnerSession(deviceId: string): Promise<void> {
@@ -148,15 +182,22 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   try {
     await waitForRunner(session.device, session.port, {
       command: 'shutdown',
-    } as RunnerCommand);
+    } as RunnerCommand, undefined, RUNNER_SHUTDOWN_TIMEOUT_MS);
   } catch {
-    // ignore
+    // Runner not responsive — send SIGTERM so we don't hang on testPromise
+    await killRunnerProcessTree(session.child.pid, 'SIGTERM');
   }
   try {
-    await session.testPromise;
+    // Bound the wait so we never hang if xcodebuild refuses to exit
+    await Promise.race([
+      session.testPromise,
+      new Promise<void>((resolve) => setTimeout(resolve, RUNNER_STOP_WAIT_TIMEOUT_MS)),
+    ]);
   } catch {
     // ignore
   }
+  // Force-kill if still alive (harmless if already exited)
+  await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
   runnerSessions.delete(deviceId);
@@ -181,7 +222,7 @@ async function ensureRunnerSession(
     { AGENT_DEVICE_RUNNER_PORT: String(port) },
     `session-${device.id}-${port}`,
   );
-  const testPromise = runCmdStreaming(
+  const { child, wait: testPromise } = runCmdBackground(
     'xcodebuild',
     [
       'test-without-building',
@@ -199,16 +240,16 @@ async function ensureRunnerSession(
       `platform=iOS Simulator,id=${device.id}`,
     ],
     {
-      onStdoutChunk: (chunk) => {
-        logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-      },
-      onStderrChunk: (chunk) => {
-        logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-      },
       allowFailure: true,
       env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
     },
   );
+  child.stdout?.on('data', (chunk: string) => {
+    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+  });
+  child.stderr?.on('data', (chunk: string) => {
+    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+  });
 
   const session: RunnerSession = {
     device,
@@ -217,9 +258,29 @@ async function ensureRunnerSession(
     xctestrunPath,
     jsonPath,
     testPromise,
+    child,
+    ready: false,
   };
   runnerSessions.set(device.id, session);
   return session;
+}
+
+async function killRunnerProcessTree(
+  pid: number | undefined,
+  signal: 'SIGTERM' | 'SIGKILL',
+): Promise<void> {
+  if (!pid || pid <= 0) return;
+  try {
+    process.kill(pid, signal);
+  } catch {
+    // ignore
+  }
+  const pkillSignal = signal === 'SIGTERM' ? 'TERM' : 'KILL';
+  try {
+    await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
+  } catch {
+    // ignore
+  }
 }
 
 
@@ -362,10 +423,11 @@ async function waitForRunner(
   port: number,
   command: RunnerCommand,
   logPath?: string,
+  timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
 ): Promise<Response> {
   const start = Date.now();
   let lastError: unknown = null;
-  while (Date.now() - start < 15000) {
+  while (Date.now() - start < timeoutMs) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/command`, {
         method: 'POST',

@@ -1,0 +1,72 @@
+name: iOS
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-ios:
+    name: Integration Tests
+    runs-on: macos-latest
+    timeout-minutes: 80
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Resolve agent-device home
+        id: ios-agent-home
+        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
+
+      - name: Select and start iOS simulator
+        run: |
+          UDID="$(
+            xcrun simctl list devices -j | node -e "
+              const fs = require('node:fs');
+              const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const all = Object.values(payload.devices ?? {}).flat();
+              const available = all.filter((d) => d.isAvailable);
+              const preferred =
+                available.find((d) => d.state === 'Booted') ??
+                available.find((d) => d.name === 'iPhone 17 Pro') ??
+                available[0];
+              if (!preferred?.udid) process.exit(1);
+              process.stdout.write(preferred.udid);
+            "
+          )"
+          xcrun simctl boot "$UDID" || true
+          echo "IOS_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Build iOS integration artifacts
+        run: pnpm build:xcuitest
+
+      - name: Wait for iOS simulator boot
+        run: xcrun simctl bootstatus "$IOS_UDID" -b
+
+      - name: Run iOS integration test
+        env:
+          AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
+        run: node --test test/integration/ios.test.ts
+
+      - name: Upload iOS artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-artifacts
+          if-no-files-found: ignore
+          path: |
+            ${{ steps.ios-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.ios-agent-home.outputs.dir }}/sessions/**
+            test/screenshots/**

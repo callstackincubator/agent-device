@@ -83,68 +83,6 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   ]);
 }
 
-export async function pressIos(device: DeviceInfo, _x: number, _y: number): Promise<void> {
-  ensureSimulator(device, 'press');
-  throw new AppError(
-    'UNSUPPORTED_OPERATION',
-    'simctl io tap is not available; use the XCTest runner for input',
-  );
-}
-
-export async function longPressIos(
-  device: DeviceInfo,
-  _x: number,
-  _y: number,
-  _durationMs = 800,
-): Promise<void> {
-  ensureSimulator(device, 'long-press');
-  throw new AppError(
-    'UNSUPPORTED_OPERATION',
-    'long-press is not supported on iOS simulators without XCTest runner support',
-  );
-}
-
-export async function focusIos(device: DeviceInfo, x: number, y: number): Promise<void> {
-  await pressIos(device, x, y);
-}
-
-export async function typeIos(device: DeviceInfo, _text: string): Promise<void> {
-  ensureSimulator(device, 'type');
-  throw new AppError(
-    'UNSUPPORTED_OPERATION',
-    'simctl io keyboard is not available; use the XCTest runner for input',
-  );
-}
-
-export async function fillIos(
-  device: DeviceInfo,
-  x: number,
-  y: number,
-  text: string,
-): Promise<void> {
-  await focusIos(device, x, y);
-  await typeIos(device, text);
-}
-
-export async function scrollIos(
-  device: DeviceInfo,
-  _direction: string,
-  _amount = 0.6,
-): Promise<void> {
-  ensureSimulator(device, 'scroll');
-  throw new AppError(
-    'UNSUPPORTED_OPERATION',
-    'simctl io swipe is not available; use the XCTest runner for input',
-  );
-}
-
-export async function scrollIntoViewIos(text: string): Promise<void> {
-  throw new AppError(
-    'UNSUPPORTED_OPERATION',
-    `scrollintoview is not supported on iOS without UI automation (${text})`,
-  );
-}
-
 export async function screenshotIos(device: DeviceInfo, outPath: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
