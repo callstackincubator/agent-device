@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findBounds, parseUiHierarchy } from '../index.ts';
+import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
 
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
   const xml =
@@ -52,4 +52,23 @@ test('findBounds supports single and double quoted attributes', () => {
 
   assert.deepEqual(findBounds(xml, 'single quote'), { x: 200, y: 350 });
   assert.deepEqual(findBounds(xml, 'alt double'), { x: 100, y: 150 });
+});
+
+test('parseUiHierarchy ignores attribute-name prefix spoofing', () => {
+  const xml =
+    "<hierarchy><node class='android.widget.TextView' hint-text='Spoofed' text='Actual' bounds='[10,20][110,60]'/></hierarchy>";
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(result.nodes.length, 1);
+  assert.equal(result.nodes[0].value, 'Actual');
+});
+
+test('findBounds ignores bounds-like fragments inside other attribute values', () => {
+  const xml = [
+    '<hierarchy>',
+    "<node text='Target' content-desc=\"metadata bounds='[900,900][1000,1000]'\" bounds='[100,200][300,500]'/>",
+    '</hierarchy>',
+  ].join('');
+
+  assert.deepEqual(findBounds(xml, 'target'), { x: 200, y: 350 });
 });
