@@ -1,10 +1,14 @@
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
+import { classifyBootFailure } from '../boot-diagnostics.ts';
 
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
+
+const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(process.env.AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS, 120_000, 5_000);
 
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();
@@ -207,8 +211,82 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   if (device.kind !== 'simulator') return;
   const state = await getSimulatorState(device.id);
   if (state === 'Booted') return;
-  await runCmd('xcrun', ['simctl', 'boot', device.id], { allowFailure: true });
-  await runCmd('xcrun', ['simctl', 'bootstatus', device.id, '-b'], { allowFailure: true });
+  const deadline = Deadline.fromTimeoutMs(IOS_BOOT_TIMEOUT_MS);
+  let bootResult: { stdout: string; stderr: string; exitCode: number } | null = null;
+  let bootStatusResult: { stdout: string; stderr: string; exitCode: number } | null = null;
+  try {
+    await retryWithPolicy(
+      async () => {
+        const currentState = await getSimulatorState(device.id);
+        if (currentState === 'Booted') return;
+        bootResult = await runCmd('xcrun', ['simctl', 'boot', device.id], { allowFailure: true });
+        const bootOutput = `${bootResult.stdout}\n${bootResult.stderr}`.toLowerCase();
+        const bootAlreadyDone =
+          bootOutput.includes('already booted') || bootOutput.includes('current state: booted');
+        if (bootResult.exitCode !== 0 && !bootAlreadyDone) {
+          throw new AppError('COMMAND_FAILED', 'simctl boot failed', {
+            stdout: bootResult.stdout,
+            stderr: bootResult.stderr,
+            exitCode: bootResult.exitCode,
+          });
+        }
+        bootStatusResult = await runCmd('xcrun', ['simctl', 'bootstatus', device.id, '-b'], {
+          allowFailure: true,
+        });
+        if (bootStatusResult.exitCode !== 0) {
+          throw new AppError('COMMAND_FAILED', 'simctl bootstatus failed', {
+            stdout: bootStatusResult.stdout,
+            stderr: bootStatusResult.stderr,
+            exitCode: bootStatusResult.exitCode,
+          });
+        }
+        const nextState = await getSimulatorState(device.id);
+        if (nextState !== 'Booted') {
+          throw new AppError('COMMAND_FAILED', 'Simulator is still booting', {
+            state: nextState,
+          });
+        }
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 500,
+        maxDelayMs: 2000,
+        jitter: 0.2,
+        shouldRetry: (error) => {
+          const reason = classifyBootFailure({
+            error,
+            stdout: bootStatusResult?.stdout ?? bootResult?.stdout,
+            stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
+          });
+          return reason !== 'PERMISSION_DENIED' && reason !== 'TOOL_MISSING';
+        },
+      },
+      { deadline },
+    );
+  } catch (error) {
+    const reason = classifyBootFailure({
+      error,
+      stdout: bootStatusResult?.stdout ?? bootResult?.stdout,
+      stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
+    });
+    throw new AppError('COMMAND_FAILED', 'iOS simulator failed to boot', {
+      platform: 'ios',
+      deviceId: device.id,
+      timeoutMs: IOS_BOOT_TIMEOUT_MS,
+      elapsedMs: deadline.elapsedMs(),
+      reason,
+      boot: bootResult
+        ? { exitCode: bootResult.exitCode, stdout: bootResult.stdout, stderr: bootResult.stderr }
+        : undefined,
+      bootstatus: bootStatusResult
+        ? {
+          exitCode: bootStatusResult.exitCode,
+          stdout: bootStatusResult.stdout,
+          stderr: bootStatusResult.stderr,
+        }
+        : undefined,
+    });
+  }
 }
 
 async function getSimulatorState(udid: string): Promise<string | null> {
@@ -228,4 +306,11 @@ async function getSimulatorState(udid: string): Promise<string | null> {
     return null;
   }
   return null;
+}
+
+function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
 }

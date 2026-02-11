@@ -26,7 +26,7 @@
     "prepack": "pnpm build:node && pnpm build:axsnapshot",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test",
-    "test:unit": "node --test src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts",
+    "test:unit": "node --test src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts src/utils/**/__tests__/*.test.ts",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts"
   },
