@@ -96,6 +96,7 @@ Notes:
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device falls back to AX when available.
 
 Flags:
+- `--version, -V` print version and exit
 - `--platform ios|android`
 - `--device <name>`
 - `--udid <udid>` (iOS)

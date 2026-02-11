@@ -25,11 +25,12 @@ export type ParsedArgs = {
     noRecord?: boolean;
     replayUpdate?: boolean;
     help: boolean;
+    version: boolean;
   };
 };
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  const flags: ParsedArgs['flags'] = { json: false, help: false };
+  const flags: ParsedArgs['flags'] = { json: false, help: false, version: false };
   const positionals: string[] = [];
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -40,6 +41,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '--help' || arg === '-h') {
       flags.help = true;
+      continue;
+    }
+    if (arg === '--version' || arg === '-V') {
+      flags.version = true;
       continue;
     }
     if (arg === '--verbose' || arg === '-v') {
@@ -229,5 +234,6 @@ Flags:
   --update, -u                               Replay: update selectors and rewrite replay file in place
   --user-installed                           Apps: list user-installed packages (Android only)
   --all                                      Apps: list all packages (Android only)
+  --version, -V                              Print version and exit
 `;
 }

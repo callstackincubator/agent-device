@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError } from './utils/errors.ts';
+import { readVersion } from './utils/version.ts';
 import { stopIosRunnerSession } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
@@ -203,26 +203,3 @@ function start(): void {
 }
 
 start();
-
-function readVersion(): string {
-  try {
-    const root = findProjectRoot();
-    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
-      version?: string;
-    };
-    return pkg.version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
-
-function findProjectRoot(): string {
-  const start = path.dirname(fileURLToPath(import.meta.url));
-  let current = start;
-  for (let i = 0; i < 6; i += 1) {
-    const pkgPath = path.join(current, 'package.json');
-    if (fs.existsSync(pkgPath)) return current;
-    current = path.dirname(current);
-  }
-  return start;
-}

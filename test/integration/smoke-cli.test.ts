@@ -17,6 +17,18 @@ test('cli --help returns usage', () => {
   assert.match(result.stdout, /agent-device/i);
 });
 
+test('cli --version prints semver and exits 0', () => {
+  const result = runCli(['--version']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^\d+\.\d+\.\d+/i);
+});
+
+test('cli -V prints semver and exits 0', () => {
+  const result = runCli(['-V']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^\d+\.\d+\.\d+/i);
+});
+
 test('cli without command prints usage and exits 1', () => {
   const result = runCli([]);
   assert.equal(result.status, 1, result.stderr);
