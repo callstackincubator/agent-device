@@ -54,4 +54,5 @@ jobs:
           path: |
             ${{ steps.android-agent-home.outputs.dir }}/daemon.log
             ${{ steps.android-agent-home.outputs.dir }}/sessions/**
+            test/artifacts/**
             test/screenshots/**

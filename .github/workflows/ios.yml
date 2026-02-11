@@ -98,4 +98,5 @@ jobs:
           path: |
             ${{ steps.ios-agent-home.outputs.dir }}/daemon.log
             ${{ steps.ios-agent-home.outputs.dir }}/sessions/**
+            test/artifacts/**
             test/screenshots/**
