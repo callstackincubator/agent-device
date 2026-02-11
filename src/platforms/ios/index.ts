@@ -1,4 +1,5 @@
 import { runCmd } from '../../utils/exec.ts';
+import type { ExecResult } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
@@ -212,8 +213,8 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   const state = await getSimulatorState(device.id);
   if (state === 'Booted') return;
   const deadline = Deadline.fromTimeoutMs(IOS_BOOT_TIMEOUT_MS);
-  let bootResult: { stdout: string; stderr: string; exitCode: number } | null = null;
-  let bootStatusResult: { stdout: string; stderr: string; exitCode: number } | null = null;
+  let bootResult: ExecResult | undefined;
+  let bootStatusResult: ExecResult | undefined;
   try {
     await retryWithPolicy(
       async () => {
@@ -264,10 +265,16 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
       { deadline },
     );
   } catch (error) {
+    const bootStdout = bootResult?.stdout;
+    const bootStderr = bootResult?.stderr;
+    const bootExitCode = bootResult?.exitCode;
+    const bootstatusStdout = bootStatusResult?.stdout;
+    const bootstatusStderr = bootStatusResult?.stderr;
+    const bootstatusExitCode = bootStatusResult?.exitCode;
     const reason = classifyBootFailure({
       error,
-      stdout: bootStatusResult?.stdout ?? bootResult?.stdout,
-      stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
+      stdout: bootstatusStdout ?? bootStdout,
+      stderr: bootstatusStderr ?? bootStderr,
     });
     throw new AppError('COMMAND_FAILED', 'iOS simulator failed to boot', {
       platform: 'ios',
@@ -276,13 +283,13 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
       elapsedMs: deadline.elapsedMs(),
       reason,
       boot: bootResult
-        ? { exitCode: bootResult.exitCode, stdout: bootResult.stdout, stderr: bootResult.stderr }
+        ? { exitCode: bootExitCode, stdout: bootStdout, stderr: bootStderr }
         : undefined,
       bootstatus: bootStatusResult
         ? {
-          exitCode: bootStatusResult.exitCode,
-          stdout: bootStatusResult.stdout,
-          stderr: bootStatusResult.stderr,
+          exitCode: bootstatusExitCode,
+          stdout: bootstatusStdout,
+          stderr: bootstatusStderr,
         }
         : undefined,
     });

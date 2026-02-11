@@ -1,4 +1,5 @@
 import { runCmd, whichCmd } from '../../utils/exec.ts';
+import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
@@ -63,7 +64,7 @@ export async function isAndroidBooted(serial: string): Promise<boolean> {
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
   const maxAttempts = Math.max(1, Math.ceil(timeoutMs / 1000));
-  let lastBootResult: { stdout: string; stderr: string; exitCode: number } | null = null;
+  let lastBootResult: ExecResult | undefined;
   let timedOut = false;
   try {
     await retryWithPolicy(
@@ -109,19 +110,22 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
     );
   } catch (error) {
     const appErr = asAppError(error);
+    const stdout = lastBootResult?.stdout;
+    const stderr = lastBootResult?.stderr;
+    const exitCode = lastBootResult?.exitCode;
     const reason = classifyBootFailure({
       error,
-      stdout: lastBootResult?.stdout,
-      stderr: lastBootResult?.stderr,
+      stdout,
+      stderr,
     });
     const baseDetails = {
       serial,
       timeoutMs,
       elapsedMs: deadline.elapsedMs(),
       reason,
-      stdout: lastBootResult?.stdout,
-      stderr: lastBootResult?.stderr,
-      exitCode: lastBootResult?.exitCode,
+      stdout,
+      stderr,
+      exitCode,
     };
     if (timedOut || reason === 'BOOT_TIMEOUT') {
       throw new AppError('COMMAND_FAILED', 'Android device did not finish booting in time', baseDetails);
