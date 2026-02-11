@@ -1,6 +1,7 @@
 import { parseArgs, usage } from './utils/args.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
+import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
@@ -9,6 +10,11 @@ import path from 'node:path';
 
 export async function runCli(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv);
+
+  if (parsed.flags.version) {
+    process.stdout.write(`${readVersion()}\n`);
+    process.exit(0);
+  }
 
   if (parsed.flags.help || !parsed.command) {
     process.stdout.write(`${usage()}\n`);

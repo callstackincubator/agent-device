@@ -2,10 +2,10 @@ import net from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { AppError } from './utils/errors.ts';
 import type { CommandFlags } from './core/dispatch.ts';
 import { runCmdDetached } from './utils/exec.ts';
+import { findProjectRoot, readVersion } from './utils/version.ts';
 
 export type DaemonRequest = {
   token: string;
@@ -134,33 +134,10 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
   });
 }
 
-function readVersion(): string {
-  try {
-    const root = findProjectRoot();
-    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
-      version?: string;
-    };
-    return pkg.version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
-  }
-}
-
 function resolveRequestTimeoutMs(): number {
   const raw = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS;
   if (!raw) return 60000;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 60000;
   return Math.max(1000, Math.floor(parsed));
-}
-
-function findProjectRoot(): string {
-  const start = path.dirname(fileURLToPath(import.meta.url));
-  let current = start;
-  for (let i = 0; i < 6; i += 1) {
-    const pkgPath = path.join(current, 'package.json');
-    if (fs.existsSync(pkgPath)) return current;
-    current = path.dirname(current);
-  }
-  return start;
 }
