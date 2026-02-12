@@ -321,7 +321,6 @@ export async function handleSessionCommands(params: {
       return { ok: true, data: { session: sessionName, appName, appBundleId } };
     }
     const device = await resolveTargetDevice(req.flags ?? {});
-    await ensureReady(device);
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {
