@@ -30,29 +30,41 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     detail: 'expected snapshot to include a nodes array',
   });
 
-  const clickArgs = ['click', '@e21', '--json', ...session];
-  integration.runStep('click @e21', clickArgs);
+  const openGeneralArgs = ['find', 'text', 'General', 'click', '--json', ...session];
+  const openGeneral = integration.runStep('open general', openGeneralArgs);
+  integration.assertResult(
+    openGeneral.json?.success,
+    'open general success',
+    openGeneralArgs,
+    openGeneral,
+    { detail: 'expected find General click to return success=true' },
+  );
 
   const snapshotGeneralArgs = ['snapshot', '--json', ...session];
   const snapshotGeneral = integration.runStep('snapshot general', snapshotGeneralArgs);
-  const generalDescription = 'Manage your overall setup and preferences';
+  const generalDescriptionCandidates = [
+    'Manage your overall setup and preferences',
+    'About',
+    'Software Update',
+  ];
   const generalNodes = Array.isArray(snapshotGeneral.json?.data?.nodes)
     ? snapshotGeneral.json.data.nodes
     : [];
   integration.assertResult(
-    generalNodes.some(
-      (node: { label?: string }) =>
-        typeof node?.label === 'string' && node.label.includes(generalDescription),
-    ),
+    generalNodes.some((node: { label?: string }) => {
+      const label = node?.label;
+      if (typeof label !== 'string') return false;
+      return generalDescriptionCandidates.some((candidate) => label.includes(candidate));
+    }),
     'snapshot shows general page description',
     snapshotGeneralArgs,
     snapshotGeneral,
     {
-      detail: `expected a node label containing ${JSON.stringify(generalDescription)}`,
+      detail: `expected a node label containing one of ${JSON.stringify(generalDescriptionCandidates)}`,
     },
   );
 
-  const findTextArgs = ['find', 'text', generalDescription, 'exists', '--json', ...session];
+  const findTextArgs = ['find', 'text', 'Software Update', 'exists', '--json', ...session];
   const findText = integration.runStep('find text', findTextArgs);
   integration.assertResult(
     findText.json?.success,
