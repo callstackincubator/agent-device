@@ -75,7 +75,7 @@ Coordinates:
 - X increases to the right, Y increases downward.
 
 ## Command Index
-- `open`, `close`, `home`, `back`, `app-switcher`
+- `boot`, `open`, `close`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
 - `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`, `is`
 - `alert`, `wait`, `screenshot`
@@ -186,8 +186,10 @@ App state:
 
 Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
-- Reason codes: `BOOT_TIMEOUT`, `DEVICE_UNAVAILABLE`, `DEVICE_OFFLINE`, `PERMISSION_DENIED`, `TOOL_MISSING`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
+- Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
+- Use `agent-device boot --platform ios|android` for explicit CI preflight readiness checks.
+- Set `AGENT_DEVICE_RETRY_LOGS=1` to print structured retry telemetry (attempt, phase, delay, elapsed/remaining deadline, reason).
 
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).

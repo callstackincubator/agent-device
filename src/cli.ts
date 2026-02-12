@@ -105,6 +105,13 @@ export async function runCli(argv: string[]): Promise<void> {
         if (logTailStopper) logTailStopper();
         return;
       }
+      if (command === 'boot') {
+        const platform = (response.data as any)?.platform ?? 'unknown';
+        const device = (response.data as any)?.device ?? (response.data as any)?.id ?? 'unknown';
+        process.stdout.write(`Boot ready: ${device} (${platform})\n`);
+        if (logTailStopper) logTailStopper();
+        return;
+      }
       if (command === 'click') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;

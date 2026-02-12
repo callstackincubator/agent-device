@@ -52,37 +52,13 @@ jobs:
       - name: Build iOS integration artifacts
         run: pnpm build:xcuitest
 
-      - name: Wait for iOS simulator boot
+      - name: Boot preflight via agent-device
         run: |
           set -euo pipefail
-
-          wait_boot() {
-            local deadline=$(( $(date +%s) + 180 ))
-            while [ "$(date +%s)" -lt "$deadline" ]; do
-              if xcrun simctl list devices "$IOS_UDID" | grep -q "(Booted)"; then
-                return 0
-              fi
-              sleep 2
-            done
-            return 1
-          }
-
-          if wait_boot; then
-            exit 0
-          fi
-
-          echo "Initial simulator boot wait timed out; retrying boot once..."
-          xcrun simctl shutdown "$IOS_UDID" || true
-          xcrun simctl boot "$IOS_UDID" || true
-
-          if wait_boot; then
-            exit 0
-          fi
-
-          echo "Simulator failed to become ready after retry. Collecting diagnostics..."
-          xcrun simctl list devices || true
-          xcrun simctl list runtimes || true
-          exit 1
+          node --experimental-strip-types src/bin.ts boot --platform ios --udid "$IOS_UDID" --json
+        env:
+          AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
+          AGENT_DEVICE_RETRY_LOGS: "1"
 
       - name: Run iOS integration test
         env:

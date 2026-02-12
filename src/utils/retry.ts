@@ -22,6 +22,29 @@ export type RetryAttemptContext = {
   deadline?: Deadline;
 };
 
+export type TimeoutProfile = {
+  startupMs: number;
+  operationMs: number;
+  totalMs: number;
+};
+
+export type RetryTelemetryEvent = {
+  phase?: string;
+  event: 'attempt_failed' | 'retry_scheduled' | 'succeeded' | 'exhausted';
+  attempt: number;
+  maxAttempts: number;
+  delayMs?: number;
+  elapsedMs?: number;
+  remainingMs?: number;
+  reason?: string;
+};
+
+export const TIMEOUT_PROFILES: Record<string, TimeoutProfile> = {
+  ios_boot: { startupMs: 120_000, operationMs: 20_000, totalMs: 120_000 },
+  ios_runner_connect: { startupMs: 120_000, operationMs: 15_000, totalMs: 120_000 },
+  android_boot: { startupMs: 60_000, operationMs: 10_000, totalMs: 60_000 },
+};
+
 const defaultOptions: Required<Pick<RetryOptions, 'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'jitter'>> = {
   attempts: 3,
   baseDelayMs: 200,
@@ -58,7 +81,12 @@ export class Deadline {
 export async function retryWithPolicy<T>(
   fn: (context: RetryAttemptContext) => Promise<T>,
   policy: Partial<RetryPolicy> = {},
-  options: { deadline?: Deadline } = {},
+  options: {
+    deadline?: Deadline;
+    phase?: string;
+    classifyReason?: (error: unknown) => string | undefined;
+    onEvent?: (event: RetryTelemetryEvent) => void;
+  } = {},
 ): Promise<T> {
   const merged: RetryPolicy = {
     maxAttempts: policy.maxAttempts ?? defaultOptions.attempts,
@@ -71,17 +99,55 @@ export async function retryWithPolicy<T>(
   for (let attempt = 1; attempt <= merged.maxAttempts; attempt += 1) {
     if (options.deadline?.isExpired() && attempt > 1) break;
     try {
-      return await fn({ attempt, maxAttempts: merged.maxAttempts, deadline: options.deadline });
+      const result = await fn({ attempt, maxAttempts: merged.maxAttempts, deadline: options.deadline });
+      options.onEvent?.({
+        phase: options.phase,
+        event: 'succeeded',
+        attempt,
+        maxAttempts: merged.maxAttempts,
+        elapsedMs: options.deadline?.elapsedMs(),
+        remainingMs: options.deadline?.remainingMs(),
+      });
+      return result;
     } catch (err) {
       lastError = err;
+      const reason = options.classifyReason?.(err);
+      options.onEvent?.({
+        phase: options.phase,
+        event: 'attempt_failed',
+        attempt,
+        maxAttempts: merged.maxAttempts,
+        elapsedMs: options.deadline?.elapsedMs(),
+        remainingMs: options.deadline?.remainingMs(),
+        reason,
+      });
       if (attempt >= merged.maxAttempts) break;
       if (merged.shouldRetry && !merged.shouldRetry(err, attempt)) break;
       const delay = computeDelay(merged.baseDelayMs, merged.maxDelayMs, merged.jitter, attempt);
       const boundedDelay = options.deadline ? Math.min(delay, options.deadline.remainingMs()) : delay;
       if (boundedDelay <= 0) break;
+      options.onEvent?.({
+        phase: options.phase,
+        event: 'retry_scheduled',
+        attempt,
+        maxAttempts: merged.maxAttempts,
+        delayMs: boundedDelay,
+        elapsedMs: options.deadline?.elapsedMs(),
+        remainingMs: options.deadline?.remainingMs(),
+        reason,
+      });
       await sleep(boundedDelay);
     }
   }
+  options.onEvent?.({
+    phase: options.phase,
+    event: 'exhausted',
+    attempt: merged.maxAttempts,
+    maxAttempts: merged.maxAttempts,
+    elapsedMs: options.deadline?.elapsedMs(),
+    remainingMs: options.deadline?.remainingMs(),
+    reason: options.classifyReason?.(lastError),
+  });
   if (lastError) throw lastError;
   throw new AppError('COMMAND_FAILED', 'retry failed');
 }
