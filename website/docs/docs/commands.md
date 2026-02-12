@@ -21,7 +21,8 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
-- Use `boot --platform ios|android` for CI preflight checks.
+- `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
+- `open [app]` already boots/activates the selected target when needed.
 
 ## Snapshot and inspect
 

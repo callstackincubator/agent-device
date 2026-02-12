@@ -119,11 +119,16 @@ Sessions:
 - All interaction commands require an open session.
 - If a session is already open, `open <app>` switches the active app and updates the session app bundle.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
-- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
-- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
+
+Navigation helpers:
+- `boot --platform ios|android` ensures the target is ready without launching an app.
+- Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
+- `open [app]` already boots/activates the selected target when needed.
+- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
+- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
@@ -190,7 +195,7 @@ Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
 - Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
-- Use `agent-device boot --platform ios|android` for explicit CI preflight readiness checks.
+- Use `agent-device boot --platform ios|android` when starting a new session only if `open` fails because no booted target is available.
 - Set `AGENT_DEVICE_RETRY_LOGS=1` to print structured retry telemetry (attempt, phase, delay, elapsed/remaining deadline, reason).
 
 ## App resolution
