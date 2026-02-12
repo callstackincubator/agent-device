@@ -2,14 +2,12 @@ import { runCmd, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { Deadline, isEnvTruthy, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
-const RETRY_LOGS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
-  (process.env.AGENT_DEVICE_RETRY_LOGS ?? '').toLowerCase(),
-);
+const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 function adbArgs(serial: string, args: string[]): string[] {
   return ['-s', serial, ...args];

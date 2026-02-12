@@ -2,7 +2,7 @@ import { runCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { Deadline, isEnvTruthy, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const ALIASES: Record<string, string> = {
@@ -14,9 +14,7 @@ const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
   TIMEOUT_PROFILES.ios_boot.totalMs,
   5_000,
 );
-const RETRY_LOGS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
-  (process.env.AGENT_DEVICE_RETRY_LOGS ?? '').toLowerCase(),
-);
+const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();

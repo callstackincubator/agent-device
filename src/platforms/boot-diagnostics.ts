@@ -3,6 +3,7 @@ import { asAppError } from '../utils/errors.ts';
 export type BootFailureReason =
   | 'IOS_BOOT_TIMEOUT'
   | 'IOS_RUNNER_CONNECT_TIMEOUT'
+  | 'IOS_TOOL_MISSING'
   | 'ANDROID_BOOT_TIMEOUT'
   | 'ADB_TRANSPORT_UNAVAILABLE'
   | 'CI_RESOURCE_STARVATION_SUSPECTED'
@@ -25,7 +26,7 @@ export function classifyBootFailure(input: {
   const platform = input.context?.platform;
   const phase = input.context?.phase;
   if (appErr?.code === 'TOOL_MISSING') {
-    return platform === 'android' ? 'ADB_TRANSPORT_UNAVAILABLE' : 'BOOT_COMMAND_FAILED';
+    return platform === 'android' ? 'ADB_TRANSPORT_UNAVAILABLE' : 'IOS_TOOL_MISSING';
   }
   const details = (appErr?.details ?? {}) as Record<string, unknown>;
   const detailMessage = typeof details.message === 'string' ? details.message : undefined;
@@ -117,6 +118,8 @@ export function bootFailureHint(reason: BootFailureReason): string {
       return 'Check adb server/device transport (adb devices -l), restart adb, and ensure the target device is online and authorized.';
     case 'CI_RESOURCE_STARVATION_SUSPECTED':
       return 'CI machine may be resource constrained; reduce parallel jobs or use a larger runner.';
+    case 'IOS_TOOL_MISSING':
+      return 'Xcode command-line tools are missing or not in PATH; run xcode-select --install and verify xcrun works.';
     case 'BOOT_COMMAND_FAILED':
       return 'Inspect command stderr/stdout for the failing boot phase and retry after environment validation.';
     default:

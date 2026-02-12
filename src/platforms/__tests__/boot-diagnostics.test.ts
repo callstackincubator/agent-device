@@ -19,12 +19,20 @@ test('classifyBootFailure maps adb offline errors', () => {
   assert.equal(reason, 'ADB_TRANSPORT_UNAVAILABLE');
 });
 
-test('classifyBootFailure maps tool missing from AppError code', () => {
+test('classifyBootFailure maps tool missing from AppError code (android)', () => {
   const reason = classifyBootFailure({
     error: new AppError('TOOL_MISSING', 'adb not found in PATH'),
     context: { platform: 'android', phase: 'transport' },
   });
   assert.equal(reason, 'ADB_TRANSPORT_UNAVAILABLE');
+});
+
+test('classifyBootFailure maps tool missing from AppError code (ios)', () => {
+  const reason = classifyBootFailure({
+    error: new AppError('TOOL_MISSING', 'xcrun not found in PATH'),
+    context: { platform: 'ios', phase: 'boot' },
+  });
+  assert.equal(reason, 'IOS_TOOL_MISSING');
 });
 
 test('classifyBootFailure reads stderr from AppError details', () => {

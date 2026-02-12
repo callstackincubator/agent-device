@@ -39,6 +39,10 @@ export type RetryTelemetryEvent = {
   reason?: string;
 };
 
+export function isEnvTruthy(value: string | undefined): boolean {
+  return ['1', 'true', 'yes', 'on'].includes((value ?? '').toLowerCase());
+}
+
 export const TIMEOUT_PROFILES: Record<string, TimeoutProfile> = {
   ios_boot: { startupMs: 120_000, operationMs: 20_000, totalMs: 120_000 },
   ios_runner_connect: { startupMs: 120_000, operationMs: 15_000, totalMs: 120_000 },

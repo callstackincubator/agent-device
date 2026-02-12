@@ -1,5 +1,5 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
-import { findBestMatchesByLocator, findNodeByLocator, type FindLocator } from '../../utils/finders.ts';
+import { findBestMatchesByLocator, type FindLocator } from '../../utils/finders.ts';
 import { attachRefs, centerOfRect, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
@@ -97,7 +97,7 @@ export async function handleFindCommands(params: {
     const start = Date.now();
     while (Date.now() - start < timeout) {
       const { nodes } = await fetchNodes();
-      const match = findNodeByLocator(nodes, locator, query, { requireRect: false });
+      const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false }).matches[0];
       if (match) {
         if (session) {
           sessionStore.recordAction(session, {
@@ -134,7 +134,7 @@ export async function handleFindCommands(params: {
       },
     };
   }
-  const node = findNodeByLocator(nodes, locator, query, { requireRect: requiresRect });
+  const node = bestMatches.matches[0] ?? null;
   if (!node) {
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find did not match any element' } };
   }
