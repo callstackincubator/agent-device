@@ -2,7 +2,7 @@ import { runCmd, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { Deadline, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
@@ -19,9 +19,13 @@ function isEmulatorSerial(serial: string): boolean {
   return serial.startsWith(EMULATOR_SERIAL_PREFIX);
 }
 
-async function readAndroidBootProp(serial: string): Promise<ExecResult> {
+async function readAndroidBootProp(
+  serial: string,
+  timeoutMs = TIMEOUT_PROFILES.android_boot.operationMs,
+): Promise<ExecResult> {
   return runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'sys.boot_completed']), {
     allowFailure: true,
+    timeoutMs,
   });
 }
 
@@ -30,6 +34,7 @@ async function resolveAndroidDeviceName(serial: string, rawModel: string): Promi
   if (!isEmulatorSerial(serial)) return modelName || serial;
   const avd = await runCmd('adb', adbArgs(serial, ['emu', 'avd', 'name']), {
     allowFailure: true,
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
   });
   const avdName = avd.stdout.trim();
   if (avd.exitCode === 0 && avdName) {
@@ -44,7 +49,9 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
     throw new AppError('TOOL_MISSING', 'adb not found in PATH');
   }
 
-  const result = await runCmd('adb', ['devices', '-l']);
+  const result = await runCmd('adb', ['devices', '-l'], {
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+  });
   const lines = result.stdout.split('\n').map((l: string) => l.trim());
   const entries = lines
     .filter((line) => line.length > 0 && !line.startsWith('List of devices'))
@@ -99,7 +106,11 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
             message: 'timeout',
           });
         }
-        const result = await readAndroidBootProp(serial);
+        const remainingMs = Math.max(1_000, attemptDeadline?.remainingMs() ?? timeoutBudget);
+        const result = await readAndroidBootProp(
+          serial,
+          Math.min(remainingMs, TIMEOUT_PROFILES.android_boot.operationMs),
+        );
         lastBootResult = result;
         if (result.stdout.trim() === '1') return;
         throw new AppError('COMMAND_FAILED', 'Android device is still booting', {

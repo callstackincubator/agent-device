@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + limited device support) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree).
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -75,7 +75,7 @@ Coordinates:
 - X increases to the right, Y increases downward.
 
 ## Command Index
-- `boot`, `open`, `close`, `home`, `back`, `app-switcher`
+- `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
 - `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`, `is`
 - `alert`, `wait`, `screenshot`
@@ -122,6 +122,13 @@ Sessions:
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
+
+Navigation helpers:
+- `boot --platform ios|android` ensures the target is ready without launching an app.
+- Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
+- `open [app]` already boots/activates the selected target when needed.
+- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
+- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
@@ -188,7 +195,7 @@ Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
 - Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
-- Use `agent-device boot --platform ios|android` for explicit CI preflight readiness checks.
+- Use `agent-device boot --platform ios|android` when starting a new session only if `open` cannot find/connect to an available target.
 - Set `AGENT_DEVICE_RETRY_LOGS=1` to print structured retry telemetry (attempt, phase, delay, elapsed/remaining deadline, reason).
 
 ## App resolution

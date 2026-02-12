@@ -23,6 +23,12 @@ agent-device click @e2
 agent-device snapshot -i
 ```
 
+boot simulator if there's none available:
+
+```bash
+agent-device boot --platform ios # or android
+```
+
 ## Common commands
 
 ```bash
@@ -34,6 +40,8 @@ agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device close
 ```
+
+If `open` fails because no booted simulator/emulator is available, run `boot --platform ios|android` and retry.
 
 ## Semantic discovery
 

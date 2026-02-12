@@ -14,6 +14,39 @@ import { pruneGroupNodes } from '../snapshot-processing.ts';
 import { buildSelectorChainForNode, parseSelectorChain, resolveSelectorChain, splitSelectorFromArgs } from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 
+type ReinstallOps = {
+  ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
+  android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package: string }>;
+};
+
+function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {
+  return Boolean(flags?.platform || flags?.device || flags?.udid || flags?.serial);
+}
+
+async function resolveCommandDevice(params: {
+  session: SessionState | undefined;
+  flags: DaemonRequest['flags'] | undefined;
+  ensureReadyFn: typeof ensureDeviceReady;
+  ensureReady?: boolean;
+}): Promise<DeviceInfo> {
+  const device = params.session?.device ?? (await resolveTargetDevice(params.flags ?? {}));
+  if (params.ensureReady !== false) {
+    await params.ensureReadyFn(device);
+  }
+  return device;
+}
+
+const defaultReinstallOps: ReinstallOps = {
+  ios: async (device, app, appPath) => {
+    const { reinstallIosApp } = await import('../../platforms/ios/index.ts');
+    return await reinstallIosApp(device, app, appPath);
+  },
+  android: async (device, app, appPath) => {
+    const { reinstallAndroidApp } = await import('../../platforms/android/index.ts');
+    return await reinstallAndroidApp(device, app, appPath);
+  },
+};
+
 export async function handleSessionCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -22,6 +55,7 @@ export async function handleSessionCommands(params: {
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   dispatch?: typeof dispatchCommand;
   ensureReady?: typeof ensureDeviceReady;
+  reinstallOps?: ReinstallOps;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -31,6 +65,7 @@ export async function handleSessionCommands(params: {
     invoke,
     dispatch: dispatchOverride,
     ensureReady: ensureReadyOverride,
+    reinstallOps = defaultReinstallOps,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
@@ -82,7 +117,7 @@ export async function handleSessionCommands(params: {
   if (command === 'apps') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    if (!session && !flags.platform && !flags.device && !flags.udid && !flags.serial) {
+    if (!session && !hasExplicitDeviceSelector(flags)) {
       return {
         ok: false,
         error: {
@@ -91,8 +126,7 @@ export async function handleSessionCommands(params: {
         },
       };
     }
-    const device = session?.device ?? (await resolveTargetDevice(flags));
-    await ensureReady(device);
+    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: true });
     if (!isCommandSupportedOnDevice('apps', device)) {
       return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' } };
     }
@@ -119,7 +153,7 @@ export async function handleSessionCommands(params: {
   if (command === 'boot') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    if (!session && !flags.platform && !flags.device && !flags.udid && !flags.serial) {
+    if (!session && !hasExplicitDeviceSelector(flags)) {
       return {
         ok: false,
         error: {
@@ -148,8 +182,7 @@ export async function handleSessionCommands(params: {
   if (command === 'appstate') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    const device = session?.device ?? (await resolveTargetDevice(flags));
-    await ensureReady(device);
+    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: true });
     if (device.platform === 'ios') {
       if (session?.appBundleId) {
         return {
@@ -188,6 +221,62 @@ export async function handleSessionCommands(params: {
         activity: state.activity,
       },
     };
+  }
+
+  if (command === 'reinstall') {
+    const session = sessionStore.get(sessionName);
+    const flags = req.flags ?? {};
+    if (!session && !hasExplicitDeviceSelector(flags)) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'reinstall requires an active session or an explicit device selector (e.g. --platform ios).',
+        },
+      };
+    }
+    const app = req.positionals?.[0]?.trim();
+    const appPathInput = req.positionals?.[1]?.trim();
+    if (!app || !appPathInput) {
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: 'reinstall requires: reinstall <app> <path-to-app-binary>' },
+      };
+    }
+    const appPath = SessionStore.expandHome(appPathInput);
+    if (!fs.existsSync(appPath)) {
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
+      };
+    }
+    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: false });
+    if (!isCommandSupportedOnDevice('reinstall', device)) {
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'reinstall is not supported on this device' },
+      };
+    }
+    let reinstallData:
+      | { platform: 'ios'; appId: string; bundleId: string }
+      | { platform: 'android'; appId: string; package: string };
+    if (device.platform === 'ios') {
+      const iosResult = await reinstallOps.ios(device, app, appPath);
+      reinstallData = { platform: 'ios', appId: iosResult.bundleId, bundleId: iosResult.bundleId };
+    } else {
+      const androidResult = await reinstallOps.android(device, app, appPath);
+      reinstallData = { platform: 'android', appId: androidResult.package, package: androidResult.package };
+    }
+    const result = { app, appPath, ...reinstallData };
+    if (session) {
+      sessionStore.recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result,
+      });
+    }
+    return { ok: true, data: result };
   }
 
   if (command === 'open') {
@@ -232,7 +321,6 @@ export async function handleSessionCommands(params: {
       return { ok: true, data: { session: sessionName, appName, appBundleId } };
     }
     const device = await resolveTargetDevice(req.flags ?? {});
-    await ensureDeviceReady(device);
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {

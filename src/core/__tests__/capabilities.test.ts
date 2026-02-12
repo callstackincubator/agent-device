@@ -47,6 +47,7 @@ test('iOS simulator + Android commands reject iOS devices', () => {
     'home',
     'long-press',
     'open',
+    'reinstall',
     'press',
     'record',
     'screenshot',

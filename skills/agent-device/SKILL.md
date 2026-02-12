@@ -27,7 +27,7 @@ npx -y agent-device
 
 ## Core workflow
 
-1. Open app or just boot device: `open [app]`
+1. Open app: `open [app]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
 3. Interact using refs (`click @ref`, `fill @ref "text"`)
 4. Re-snapshot after navigation/UI changes
@@ -38,11 +38,18 @@ npx -y agent-device
 ### Navigation
 
 ```bash
+agent-device boot                 # Ensure target is booted/ready without opening app
+agent-device boot --platform ios  # Boot iOS simulator
+agent-device boot --platform android # Boot Android emulator/device target
 agent-device open [app]           # Boot device/simulator; optionally launch app
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity
 agent-device close [app]          # Close app or just end session
+agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
 ```
+
+`boot` requires either an active session or an explicit selector (`--platform`, `--device`, `--udid`, or `--serial`).
+`boot` is a fallback, not a regular step: use it when starting a new session only if `open` cannot find/connect to an available target.
 
 ### Snapshot (page analysis)
 
