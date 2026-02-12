@@ -27,22 +27,30 @@ npx -y agent-device
 
 ## Core workflow
 
-1. Open app or just boot device: `open [app]`
-2. Snapshot: `snapshot` to get refs from accessibility tree
-3. Interact using refs (`click @ref`, `fill @ref "text"`)
-4. Re-snapshot after navigation/UI changes
-5. Close session when done
+1. Optional preflight in CI: `boot --platform ios|android`
+2. Open app or just boot device: `open [app]`
+3. Use `reinstall <app> <path>` when you need fresh app state before testing auth/onboarding flows
+4. Snapshot: `snapshot` to get refs from accessibility tree
+5. Interact using refs (`click @ref`, `fill @ref "text"`)
+6. Re-snapshot after navigation/UI changes
+7. Close session when done
 
 ## Commands
 
 ### Navigation
 
 ```bash
+agent-device boot                 # Ensure target is booted/ready without opening app
+agent-device boot --platform ios  # CI preflight for iOS simulator
+agent-device boot --platform android # CI preflight for Android device/emulator
 agent-device open [app]           # Boot device/simulator; optionally launch app
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity
 agent-device close [app]          # Close app or just end session
+agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
 ```
+
+`boot` requires either an active session or an explicit selector (`--platform`, `--device`, `--udid`, or `--serial`).
 
 ### Snapshot (page analysis)
 
@@ -162,8 +170,10 @@ agent-device apps --platform android --user-installed
 - On iOS, `xctest` is the default and does not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
 - `open <app>` can be used within an existing session to switch apps and update the session bundle id.
+- `reinstall <app> <path>` supports Android devices/emulators and iOS simulators in v1.
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
+- Use `boot --platform ios|android` as explicit preflight in CI before `open`.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK).
 - Use `fill` when you want clear-then-type semantics.
 - Use `type` when you want to append/enter text without clearing.

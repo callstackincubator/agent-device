@@ -7,6 +7,9 @@ title: Quick Start
 Every device automation follows this pattern:
 
 ```bash
+# 0. Optional CI/device preflight
+agent-device boot --platform ios # or android
+
 # 1. Navigate
 agent-device open SampleApp --platform ios # or android
 
@@ -26,10 +29,13 @@ agent-device snapshot -i
 ## Common commands
 
 ```bash
+agent-device boot --platform ios          # Ensure simulator/device is ready
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
+agent-device reinstall com.example.app ./build/MyApp.app --platform ios      # Fresh app state (iOS simulator)
+agent-device reinstall com.example.app ./build/app.apk --platform android     # Fresh app state (Android)
 agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device close
