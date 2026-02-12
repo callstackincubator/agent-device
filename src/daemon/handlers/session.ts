@@ -321,10 +321,6 @@ export async function handleSessionCommands(params: {
       return { ok: true, data: { session: sessionName, appName, appBundleId } };
     }
     const device = await resolveTargetDevice(req.flags ?? {});
-<<<<<<< HEAD
-=======
-    await ensureReady(device);
->>>>>>> 6519908 (Refine reinstall flow and add agent-focused coverage)
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {
