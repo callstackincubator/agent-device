@@ -25,3 +25,20 @@ test('retryWithPolicy retries until success', async () => {
   assert.equal(result, 'ok');
   assert.equal(attempts, 3);
 });
+
+test('retryWithPolicy emits telemetry events', async () => {
+  const events: string[] = [];
+  await retryWithPolicy(
+    async ({ attempt }) => {
+      if (attempt === 1) throw new Error('transient');
+      return 'ok';
+    },
+    { maxAttempts: 2, baseDelayMs: 1, maxDelayMs: 1, jitter: 0 },
+    {
+      phase: 'boot',
+      classifyReason: () => 'ANDROID_BOOT_TIMEOUT',
+      onEvent: (event) => events.push(event.event),
+    },
+  );
+  assert.deepEqual(events, ['attempt_failed', 'retry_scheduled', 'succeeded']);
+});

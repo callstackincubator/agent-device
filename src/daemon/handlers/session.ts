@@ -106,6 +106,32 @@ export async function handleSessionCommands(params: {
     return { ok: true, data: { apps } };
   }
 
+  if (command === 'boot') {
+    const session = sessionStore.get(sessionName);
+    const flags = req.flags ?? {};
+    if (!session && !flags.platform && !flags.device && !flags.udid && !flags.serial) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'boot requires an active session or an explicit device selector (e.g. --platform ios).',
+        },
+      };
+    }
+    const device = session?.device ?? (await resolveTargetDevice(flags));
+    await ensureDeviceReady(device);
+    return {
+      ok: true,
+      data: {
+        platform: device.platform,
+        device: device.name,
+        id: device.id,
+        kind: device.kind,
+        booted: true,
+      },
+    };
+  }
+
   if (command === 'appstate') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};

@@ -2,11 +2,14 @@ import { runCmd, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { classifyBootFailure } from '../boot-diagnostics.ts';
+import { Deadline, retryWithPolicy, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
+const RETRY_LOGS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  (process.env.AGENT_DEVICE_RETRY_LOGS ?? '').toLowerCase(),
+);
 
 function adbArgs(serial: string, args: string[]): string[] {
   return ['-s', serial, ...args];
@@ -79,8 +82,9 @@ export async function isAndroidBooted(serial: string): Promise<boolean> {
 }
 
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {
-  const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const maxAttempts = Math.max(1, Math.ceil(timeoutMs / ANDROID_BOOT_POLL_MS));
+  const timeoutBudget = timeoutMs;
+  const deadline = Deadline.fromTimeoutMs(timeoutBudget);
+  const maxAttempts = Math.max(1, Math.ceil(timeoutBudget / ANDROID_BOOT_POLL_MS));
   let lastBootResult: ExecResult | undefined;
   let timedOut = false;
   try {
@@ -115,11 +119,26 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
             error,
             stdout: lastBootResult?.stdout,
             stderr: lastBootResult?.stderr,
+            context: { platform: 'android', phase: 'boot' },
           });
-          return reason !== 'PERMISSION_DENIED' && reason !== 'TOOL_MISSING' && reason !== 'BOOT_TIMEOUT';
+          return reason !== 'ADB_TRANSPORT_UNAVAILABLE' && reason !== 'ANDROID_BOOT_TIMEOUT';
         },
       },
-      { deadline },
+      {
+        deadline,
+        phase: 'boot',
+        classifyReason: (error) =>
+          classifyBootFailure({
+            error,
+            stdout: lastBootResult?.stdout,
+            stderr: lastBootResult?.stderr,
+            context: { platform: 'android', phase: 'boot' },
+          }),
+        onEvent: (event: RetryTelemetryEvent) => {
+          if (!RETRY_LOGS_ENABLED) return;
+          process.stderr.write(`[agent-device][retry] ${JSON.stringify(event)}\n`);
+        },
+      },
     );
   } catch (error) {
     const appErr = asAppError(error);
@@ -130,26 +149,28 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
       error,
       stdout,
       stderr,
+      context: { platform: 'android', phase: 'boot' },
     });
     const baseDetails = {
       serial,
-      timeoutMs,
+      timeoutMs: timeoutBudget,
       elapsedMs: deadline.elapsedMs(),
       reason,
+      hint: bootFailureHint(reason),
       stdout,
       stderr,
       exitCode,
     };
-    if (timedOut || reason === 'BOOT_TIMEOUT') {
+    if (timedOut || reason === 'ANDROID_BOOT_TIMEOUT') {
       throw new AppError('COMMAND_FAILED', 'Android device did not finish booting in time', baseDetails);
     }
-    if (appErr.code === 'TOOL_MISSING' || reason === 'TOOL_MISSING') {
+    if (appErr.code === 'TOOL_MISSING') {
       throw new AppError('TOOL_MISSING', appErr.message, {
         ...baseDetails,
         ...(appErr.details ?? {}),
       });
     }
-    if (reason === 'PERMISSION_DENIED' || reason === 'DEVICE_UNAVAILABLE' || reason === 'DEVICE_OFFLINE') {
+    if (reason === 'ADB_TRANSPORT_UNAVAILABLE') {
       throw new AppError('COMMAND_FAILED', appErr.message, {
         ...baseDetails,
         ...(appErr.details ?? {}),

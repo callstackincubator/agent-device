@@ -7,6 +7,7 @@ import { runCmd, runCmdStreaming, runCmdBackground, type ExecResult, type ExecBa
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import net from 'node:net';
+import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 export type RunnerCommand = {
   command:
@@ -449,6 +450,12 @@ async function waitForRunner(
     port,
     logPath,
     lastError: lastError ? String(lastError) : undefined,
+    reason: classifyBootFailure({
+      error: lastError,
+      message: 'Runner did not accept connection',
+      context: { platform: 'ios', phase: 'connect' },
+    }),
+    hint: bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT'),
   });
 }
 

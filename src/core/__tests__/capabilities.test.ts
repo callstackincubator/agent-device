@@ -37,6 +37,7 @@ test('iOS simulator + Android commands reject iOS devices', () => {
     'app-switcher',
     'apps',
     'back',
+    'boot',
     'click',
     'close',
     'fill',

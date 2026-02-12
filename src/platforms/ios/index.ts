@@ -2,14 +2,21 @@ import { runCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { classifyBootFailure } from '../boot-diagnostics.ts';
+import { Deadline, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
 
-const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(process.env.AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS, 120_000, 5_000);
+const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS,
+  TIMEOUT_PROFILES.ios_boot.totalMs,
+  5_000,
+);
+const RETRY_LOGS_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  (process.env.AGENT_DEVICE_RETRY_LOGS ?? '').toLowerCase(),
+);
 
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();
@@ -258,11 +265,26 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
             error,
             stdout: bootStatusResult?.stdout ?? bootResult?.stdout,
             stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
+            context: { platform: 'ios', phase: 'boot' },
           });
-          return reason !== 'PERMISSION_DENIED' && reason !== 'TOOL_MISSING';
+          return reason !== 'IOS_BOOT_TIMEOUT' && reason !== 'CI_RESOURCE_STARVATION_SUSPECTED';
         },
       },
-      { deadline },
+      {
+        deadline,
+        phase: 'boot',
+        classifyReason: (error) =>
+          classifyBootFailure({
+            error,
+            stdout: bootStatusResult?.stdout ?? bootResult?.stdout,
+            stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
+            context: { platform: 'ios', phase: 'boot' },
+          }),
+        onEvent: (event: RetryTelemetryEvent) => {
+          if (!RETRY_LOGS_ENABLED) return;
+          process.stderr.write(`[agent-device][retry] ${JSON.stringify(event)}\n`);
+        },
+      },
     );
   } catch (error) {
     const bootStdout = bootResult?.stdout;
@@ -275,6 +297,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
       error,
       stdout: bootstatusStdout ?? bootStdout,
       stderr: bootstatusStderr ?? bootStderr,
+      context: { platform: 'ios', phase: 'boot' },
     });
     throw new AppError('COMMAND_FAILED', 'iOS simulator failed to boot', {
       platform: 'ios',
@@ -282,6 +305,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
       timeoutMs: IOS_BOOT_TIMEOUT_MS,
       elapsedMs: deadline.elapsedMs(),
       reason,
+      hint: bootFailureHint(reason),
       boot: bootResult
         ? { exitCode: bootExitCode, stdout: bootStdout, stderr: bootStderr }
         : undefined,

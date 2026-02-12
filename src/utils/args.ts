@@ -173,6 +173,7 @@ export function usage(): string {
 CLI to control iOS and Android devices for AI agents.
 
 Commands:
+  boot                                      Ensure target device/simulator is booted and ready
   open [app]                                 Boot device/simulator; optionally launch app
   close [app]                                Close app or just end session
   snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
