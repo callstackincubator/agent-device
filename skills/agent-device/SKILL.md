@@ -27,7 +27,7 @@ npx -y agent-device
 
 ## Core workflow
 
-1. Open app: `open [app]` (open boots/activates the selected target when needed)
+1. Open app: `open [app]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
 3. Interact using refs (`click @ref`, `fill @ref "text"`)
 4. Re-snapshot after navigation/UI changes
@@ -49,7 +49,7 @@ agent-device session list         # List active sessions
 ```
 
 `boot` requires either an active session or an explicit selector (`--platform`, `--device`, `--udid`, or `--serial`).
-Use `boot` when starting a new session only if `open` fails because no booted target is available.
+`boot` is a fallback, not a regular step: use it when starting a new session only if `open` cannot find/connect to an available target.
 
 ### Snapshot (page analysis)
 

@@ -195,7 +195,7 @@ Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
 - Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
-- Use `agent-device boot --platform ios|android` when starting a new session only if `open` fails because no booted target is available.
+- Use `agent-device boot --platform ios|android` when starting a new session only if `open` cannot find/connect to an available target.
 - Set `AGENT_DEVICE_RETRY_LOGS=1` to print structured retry telemetry (attempt, phase, delay, elapsed/remaining deadline, reason).
 
 ## App resolution
