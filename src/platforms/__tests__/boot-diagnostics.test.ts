@@ -41,3 +41,11 @@ test('bootFailureHint returns actionable guidance', () => {
   const hint = bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT');
   assert.equal(hint.includes('xcodebuild logs'), true);
 });
+
+test('connect phase does not classify non-timeout errors as connect timeout', () => {
+  const reason = classifyBootFailure({
+    message: 'Runner returned malformed JSON payload',
+    context: { platform: 'ios', phase: 'connect' },
+  });
+  assert.equal(reason, 'BOOT_COMMAND_FAILED');
+});

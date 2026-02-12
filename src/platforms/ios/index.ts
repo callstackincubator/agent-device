@@ -225,8 +225,6 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   try {
     await retryWithPolicy(
       async () => {
-        const currentState = await getSimulatorState(device.id);
-        if (currentState === 'Booted') return;
         bootResult = await runCmd('xcrun', ['simctl', 'boot', device.id], { allowFailure: true });
         const bootOutput = `${bootResult.stdout}\n${bootResult.stderr}`.toLowerCase();
         const bootAlreadyDone =

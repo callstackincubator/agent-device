@@ -21,9 +21,19 @@ export async function handleSessionCommands(params: {
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   dispatch?: typeof dispatchCommand;
+  ensureReady?: typeof ensureDeviceReady;
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, logPath, sessionStore, invoke, dispatch: dispatchOverride } = params;
+  const {
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    invoke,
+    dispatch: dispatchOverride,
+    ensureReady: ensureReadyOverride,
+  } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
+  const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -82,7 +92,7 @@ export async function handleSessionCommands(params: {
       };
     }
     const device = session?.device ?? (await resolveTargetDevice(flags));
-    await ensureDeviceReady(device);
+    await ensureReady(device);
     if (!isCommandSupportedOnDevice('apps', device)) {
       return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' } };
     }
@@ -119,7 +129,10 @@ export async function handleSessionCommands(params: {
       };
     }
     const device = session?.device ?? (await resolveTargetDevice(flags));
-    await ensureDeviceReady(device);
+    if (!isCommandSupportedOnDevice('boot', device)) {
+      return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' } };
+    }
+    await ensureReady(device);
     return {
       ok: true,
       data: {
@@ -136,7 +149,7 @@ export async function handleSessionCommands(params: {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
     const device = session?.device ?? (await resolveTargetDevice(flags));
-    await ensureDeviceReady(device);
+    await ensureReady(device);
     if (device.platform === 'ios') {
       if (session?.appBundleId) {
         return {

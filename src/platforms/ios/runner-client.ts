@@ -485,11 +485,19 @@ async function postCommandViaSimulator(
   );
   const body = result.stdout as string;
   if (result.exitCode !== 0) {
+    const reason = classifyBootFailure({
+      message: 'Runner did not accept connection (simctl spawn)',
+      stdout: result.stdout,
+      stderr: result.stderr,
+      context: { platform: 'ios', phase: 'connect' },
+    });
     throw new AppError('COMMAND_FAILED', 'Runner did not accept connection (simctl spawn)', {
       port,
       stdout: result.stdout,
       stderr: result.stderr,
       exitCode: result.exitCode,
+      reason,
+      hint: bootFailureHint(reason),
     });
   }
   return { status: 200, body };

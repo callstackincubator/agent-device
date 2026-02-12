@@ -145,12 +145,15 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
     const stdout = lastBootResult?.stdout;
     const stderr = lastBootResult?.stderr;
     const exitCode = lastBootResult?.exitCode;
-    const reason = classifyBootFailure({
+    let reason = classifyBootFailure({
       error,
       stdout,
       stderr,
       context: { platform: 'android', phase: 'boot' },
     });
+    if (reason === 'BOOT_COMMAND_FAILED' && appErr.message === 'Android device is still booting') {
+      reason = 'ANDROID_BOOT_TIMEOUT';
+    }
     const baseDetails = {
       serial,
       timeoutMs: timeoutBudget,

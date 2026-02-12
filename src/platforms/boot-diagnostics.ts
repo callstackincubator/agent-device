@@ -55,7 +55,21 @@ export function classifyBootFailure(input: {
     .join('\n')
     .toLowerCase();
 
-  if (platform === 'ios' && (phase === 'connect' || haystack.includes('runner did not accept connection'))) {
+  if (
+    platform === 'ios' &&
+    (
+      haystack.includes('runner did not accept connection') ||
+      (phase === 'connect' &&
+        (
+          haystack.includes('timed out') ||
+          haystack.includes('timeout') ||
+          haystack.includes('econnrefused') ||
+          haystack.includes('connection refused') ||
+          haystack.includes('fetch failed') ||
+          haystack.includes('socket hang up')
+        ))
+    )
+  ) {
     return 'IOS_RUNNER_CONNECT_TIMEOUT';
   }
   if (platform === 'ios' && phase === 'boot' && (haystack.includes('timed out') || haystack.includes('timeout'))) {
@@ -73,15 +87,16 @@ export function classifyBootFailure(input: {
     return 'CI_RESOURCE_STARVATION_SUSPECTED';
   }
   if (
-    platform === 'android' && (
-    haystack.includes('device not found') ||
-    haystack.includes('no devices') ||
-    haystack.includes('device offline') ||
-    haystack.includes('offline') ||
-    haystack.includes('unauthorized') ||
-    haystack.includes('not authorized') ||
-    haystack.includes('unable to locate device') ||
-    haystack.includes('invalid device')
+    platform === 'android' &&
+    (
+      haystack.includes('device not found') ||
+      haystack.includes('no devices') ||
+      haystack.includes('device offline') ||
+      haystack.includes('offline') ||
+      haystack.includes('unauthorized') ||
+      haystack.includes('not authorized') ||
+      haystack.includes('unable to locate device') ||
+      haystack.includes('invalid device')
     )
   ) {
     return 'ADB_TRANSPORT_UNAVAILABLE';

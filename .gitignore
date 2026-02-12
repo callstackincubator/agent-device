@@ -4,6 +4,7 @@ dist/
 .DS_Store
 *.log
 test/screenshots/*.png
+test/artifacts/
 .build/
 .swiftpm/
 DerivedData/
