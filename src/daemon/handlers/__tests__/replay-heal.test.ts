@@ -225,6 +225,11 @@ test('replay without --update does not heal or rewrite', async () => {
 
   assert.ok(response);
   assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.equal(response.error.details?.step, 1);
+    assert.equal(response.error.details?.action, 'click');
+  }
   assert.equal(snapshotDispatchCalls, 0);
   assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
 });

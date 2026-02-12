@@ -6,28 +6,46 @@ export type FindMatchOptions = {
   requireRect?: boolean;
 };
 
+export type FindBestMatches = {
+  matches: SnapshotNode[];
+  score: number;
+};
+
 export function findNodeByLocator(
   nodes: SnapshotNode[],
   locator: FindLocator,
   query: string,
   options: FindMatchOptions = {},
 ): SnapshotNode | null {
+  const best = findBestMatchesByLocator(nodes, locator, query, options);
+  return best.matches[0] ?? null;
+}
+
+export function findBestMatchesByLocator(
+  nodes: SnapshotNode[],
+  locator: FindLocator,
+  query: string,
+  options: FindMatchOptions = {},
+): FindBestMatches {
   const normalizedQuery = normalizeText(query);
-  if (!normalizedQuery) return null;
-  let best: { node: SnapshotNode; score: number } | null = null;
+  if (!normalizedQuery) return { matches: [], score: 0 };
+  let bestScore = 0;
+  const matches: SnapshotNode[] = [];
   for (const node of nodes) {
     if (options.requireRect && !node.rect) continue;
     const score = matchNode(node, locator, normalizedQuery);
     if (score <= 0) continue;
-    if (!best || score > best.score) {
-      best = { node, score };
-      if (score >= 2) {
-        // exact match, keep first exact match
-        break;
-      }
+    if (score > bestScore) {
+      bestScore = score;
+      matches.length = 0;
+      matches.push(node);
+      continue;
+    }
+    if (score === bestScore) {
+      matches.push(node);
     }
   }
-  return best?.node ?? null;
+  return { matches, score: bestScore };
 }
 
 function matchNode(node: SnapshotNode, locator: FindLocator, query: string): number {

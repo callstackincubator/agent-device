@@ -1,5 +1,5 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
-import { findNodeByLocator, type FindLocator } from '../../utils/finders.ts';
+import { findBestMatchesByLocator, findNodeByLocator, type FindLocator } from '../../utils/finders.ts';
 import { attachRefs, centerOfRect, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
@@ -114,6 +114,26 @@ export async function handleFindCommands(params: {
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
   }
   const { nodes } = await fetchNodes();
+  const bestMatches = findBestMatchesByLocator(nodes, locator, query, { requireRect: requiresRect });
+  if (requiresRect && bestMatches.matches.length > 1) {
+    const candidates = bestMatches.matches.slice(0, 8).map((candidate) => {
+      const label = extractNodeText(candidate) || candidate.label || candidate.identifier || candidate.type || '';
+      return `@${candidate.ref}${label ? `(${label})` : ''}`;
+    });
+    return {
+      ok: false,
+      error: {
+        code: 'AMBIGUOUS_MATCH',
+        message: `find matched ${bestMatches.matches.length} elements for ${locator} "${query}". Use a more specific locator or selector.`,
+        details: {
+          locator,
+          query,
+          matches: bestMatches.matches.length,
+          candidates,
+        },
+      },
+    };
+  }
   const node = findNodeByLocator(nodes, locator, query, { requireRect: requiresRect });
   if (!node) {
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find did not match any element' } };

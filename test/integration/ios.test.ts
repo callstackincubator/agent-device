@@ -30,14 +30,14 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     detail: 'expected snapshot to include a nodes array',
   });
 
-  const openGeneralArgs = ['find', 'text', 'General', 'click', '--json', ...session];
+  const openGeneralArgs = ['click', 'role=cell', 'label=General', '--json', ...session];
   const openGeneral = integration.runStep('open general', openGeneralArgs);
   integration.assertResult(
     openGeneral.json?.success,
     'open general success',
     openGeneralArgs,
     openGeneral,
-    { detail: 'expected find General click to return success=true' },
+    { detail: 'expected click role=cell label=General to return success=true' },
   );
 
   const snapshotGeneralArgs = ['snapshot', '--json', ...session];
