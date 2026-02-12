@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + limited device support) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree).
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -75,7 +75,7 @@ Coordinates:
 - X increases to the right, Y increases downward.
 
 ## Command Index
-- `boot`, `open`, `close`, `home`, `back`, `app-switcher`
+- `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
 - `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`, `is`
 - `alert`, `wait`, `screenshot`
@@ -119,6 +119,8 @@ Sessions:
 - All interaction commands require an open session.
 - If a session is already open, `open <app>` switches the active app and updates the session app bundle.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
+- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
+- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.

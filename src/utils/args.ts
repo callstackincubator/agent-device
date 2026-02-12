@@ -176,6 +176,7 @@ Commands:
   boot                                      Ensure target device/simulator is booted and ready
   open [app]                                 Boot device/simulator; optionally launch app
   close [app]                                Close app or just end session
+  reinstall <app> <path>                     Uninstall + install app from binary path
   snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
                                              Capture accessibility tree
     -i                                       Interactive elements only

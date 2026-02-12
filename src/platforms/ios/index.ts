@@ -95,6 +95,42 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   ]);
 }
 
+export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<{ bundleId: string }> {
+  ensureSimulator(device, 'reinstall');
+  const bundleId = await resolveIosApp(device, app);
+  await ensureBootedSimulator(device);
+  const result = await runCmd('xcrun', ['simctl', 'uninstall', device.id, bundleId], {
+    allowFailure: true,
+  });
+  if (result.exitCode !== 0) {
+    const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+    if (!output.includes('not installed') && !output.includes('not found') && !output.includes('no such file')) {
+      throw new AppError('COMMAND_FAILED', `simctl uninstall failed for ${bundleId}`, {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+      });
+    }
+  }
+  return { bundleId };
+}
+
+export async function installIosApp(device: DeviceInfo, appPath: string): Promise<void> {
+  ensureSimulator(device, 'reinstall');
+  await ensureBootedSimulator(device);
+  await runCmd('xcrun', ['simctl', 'install', device.id, appPath]);
+}
+
+export async function reinstallIosApp(
+  device: DeviceInfo,
+  app: string,
+  appPath: string,
+): Promise<{ bundleId: string }> {
+  const { bundleId } = await uninstallIosApp(device, app);
+  await installIosApp(device, appPath);
+  return { bundleId };
+}
+
 export async function screenshotIos(device: DeviceInfo, outPath: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);

@@ -272,6 +272,45 @@ export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<
   await runCmd('adb', adbArgs(device, ['shell', 'am', 'force-stop', resolved.value]));
 }
 
+export async function uninstallAndroidApp(
+  device: DeviceInfo,
+  app: string,
+): Promise<{ package: string }> {
+  const resolved = await resolveAndroidApp(device, app);
+  if (resolved.type === 'intent') {
+    throw new AppError('INVALID_ARGS', 'reinstall requires a package name, not an intent');
+  }
+  const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), { allowFailure: true });
+  if (result.exitCode !== 0) {
+    const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+    if (!output.includes('unknown package') && !output.includes('not installed')) {
+      throw new AppError('COMMAND_FAILED', `adb uninstall failed for ${resolved.value}`, {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+      });
+    }
+  }
+  return { package: resolved.value };
+}
+
+export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  await runCmd('adb', adbArgs(device, ['install', appPath]));
+}
+
+export async function reinstallAndroidApp(
+  device: DeviceInfo,
+  app: string,
+  appPath: string,
+): Promise<{ package: string }> {
+  if (!device.booted) {
+    await waitForAndroidBoot(device.id);
+  }
+  const { package: pkg } = await uninstallAndroidApp(device, app);
+  await installAndroidApp(device, appPath);
+  return { package: pkg };
+}
+
 export async function pressAndroid(device: DeviceInfo, x: number, y: number): Promise<void> {
   await runCmd('adb', adbArgs(device, ['shell', 'input', 'tap', String(x), String(y)]));
 }
