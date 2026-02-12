@@ -5,12 +5,20 @@ This page summarizes the primary command groups.
 ## Navigation
 
 ```bash
+agent-device boot
+agent-device boot --platform ios
+agent-device boot --platform android
 agent-device open [app]
 agent-device close [app]
 agent-device back
 agent-device home
 agent-device app-switcher
 ```
+
+- `boot` ensures the selected target is ready without launching an app.
+- `boot` requires either an active session or an explicit device selector.
+- `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
+- `open [app]` already boots/activates the selected target when needed.
 
 ## Snapshot and inspect
 
@@ -56,6 +64,17 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 - `replay -u` updates stale recorded actions and rewrites the same script.
 
 See [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md) for recording and CI workflow details.
+
+## App reinstall (fresh state)
+
+```bash
+agent-device reinstall com.example.app ./build/app.apk --platform android
+agent-device reinstall com.example.app ./build/MyApp.app --platform ios
+```
+
+- `reinstall <app> <path>` uninstalls and installs in one command.
+- Supports Android devices/emulators and iOS simulators in v1.
+- Useful for login/logout reset flows and deterministic test setup.
 
 ## Settings helpers
 

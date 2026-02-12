@@ -11,7 +11,7 @@
 - [](/agent-device/404.md)
 - [Commands](/agent-device/docs/commands.md): This page summarizes the primary command groups.
 - [Installation](/agent-device/docs/installation.md)
-- [Quick Start](/agent-device/docs/quick-start.md): Every device automation follows this pattern:
+- [Quick Start](/agent-device/docs/quick-start.md): Every device automation follows this pattern: boot simulator if there's none available:
 - [Replay & E2E Testing (Experimental)](/agent-device/docs/replay-e2e.md): Agents use refs for exploration and authoring. Replay scripts are deterministic runs that can be used for E2E testing.
 - [Selectors](/agent-device/docs/selectors.md): Use find to locate elements by semantic attributes instead of raw refs. Tips: Use find ... wait <timeoutMs> to wait for UI to appear.Combine with scoped snapshots using snapshot -s "<label>" for speed.[Android] If a matched node is not hittable, agent-device will click/focus the nearest hittable ancestor.
 - [Sessions](/agent-device/docs/sessions.md): Sessions keep device state and snapshots consistent across commands. Open another session independently (for parallel work): Notes: open <app> within an existing session switches the active app and updates the session bundle id.Use --session <name> to run multiple sessions in parallel. For replay scripts and deterministic E2E guidance, see Replay & E2E (Experimental).
