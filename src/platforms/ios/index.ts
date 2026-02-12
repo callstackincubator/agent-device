@@ -267,7 +267,10 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
           });
         }
         const remainingMs = Math.max(1_000, attemptDeadline?.remainingMs() ?? IOS_BOOT_TIMEOUT_MS);
-        bootResult = await runCmd('xcrun', ['simctl', 'boot', device.id], { allowFailure: true });
+        bootResult = await runCmd('xcrun', ['simctl', 'boot', device.id], {
+          allowFailure: true,
+          timeoutMs: remainingMs,
+        });
         const bootOutput = `${bootResult.stdout}\n${bootResult.stderr}`.toLowerCase();
         const bootAlreadyDone =
           bootOutput.includes('already booted') || bootOutput.includes('current state: booted');

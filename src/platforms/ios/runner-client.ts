@@ -205,7 +205,10 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
 }
 
 async function ensureBooted(udid: string): Promise<void> {
-  await runCmd('xcrun', ['simctl', 'bootstatus', udid, '-b'], { allowFailure: true });
+  await runCmd('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
+    allowFailure: true,
+    timeoutMs: RUNNER_STARTUP_TIMEOUT_MS,
+  });
 }
 
 async function ensureRunnerSession(
