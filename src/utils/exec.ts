@@ -14,6 +14,7 @@ export type ExecOptions = {
   allowFailure?: boolean;
   binaryStdout?: boolean;
   stdin?: string | Buffer;
+  timeoutMs?: number;
 };
 
 export type ExecStreamOptions = ExecOptions & {
@@ -41,6 +42,14 @@ export async function runCmd(
     let stdout = '';
     let stdoutBuffer: Buffer | undefined = options.binaryStdout ? Buffer.alloc(0) : undefined;
     let stderr = '';
+    let didTimeout = false;
+    const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
+    const timeoutHandle = timeoutMs
+      ? setTimeout(() => {
+        didTimeout = true;
+        child.kill('SIGKILL');
+      }, timeoutMs)
+      : null;
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
@@ -66,6 +75,7 @@ export async function runCmd(
     });
 
     child.on('error', (err) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
         reject(new AppError('TOOL_MISSING', `${cmd} not found in PATH`, { cmd }, err));
@@ -75,7 +85,21 @@ export async function runCmd(
     });
 
     child.on('close', (code) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       const exitCode = code ?? 1;
+      if (didTimeout && timeoutMs) {
+        reject(
+          new AppError('COMMAND_FAILED', `${cmd} timed out after ${timeoutMs}ms`, {
+            cmd,
+            args,
+            stdout,
+            stderr,
+            exitCode,
+            timeoutMs,
+          }),
+        );
+        return;
+      }
       if (exitCode !== 0 && !options.allowFailure) {
         reject(
           new AppError('COMMAND_FAILED', `${cmd} exited with code ${exitCode}`, {
@@ -110,10 +134,18 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
     encoding: options.binaryStdout ? undefined : 'utf8',
     input: options.stdin,
+    timeout: normalizeTimeoutMs(options.timeoutMs),
   });
 
   if (result.error) {
     const code = (result.error as NodeJS.ErrnoException).code;
+    if (code === 'ETIMEDOUT') {
+      throw new AppError('COMMAND_FAILED', `${cmd} timed out after ${normalizeTimeoutMs(options.timeoutMs)}ms`, {
+        cmd,
+        args,
+        timeoutMs: normalizeTimeoutMs(options.timeoutMs),
+      }, result.error);
+    }
     if (code === 'ENOENT') {
       throw new AppError('TOOL_MISSING', `${cmd} not found in PATH`, { cmd }, result.error);
     }
@@ -297,4 +329,11 @@ function resolveWhichArgs(cmd: string): { shell: string; args: string[] } {
     return { shell: 'cmd.exe', args: ['/c', 'where', cmd] };
   }
   return { shell: 'bash', args: ['-lc', `command -v ${cmd}`] };
+}
+
+function normalizeTimeoutMs(value: number | undefined): number | undefined {
+  if (!Number.isFinite(value)) return undefined;
+  const timeout = Math.floor(value as number);
+  if (timeout <= 0) return undefined;
+  return timeout;
 }

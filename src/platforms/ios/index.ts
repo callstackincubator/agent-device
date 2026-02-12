@@ -260,7 +260,13 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   let bootStatusResult: ExecResult | undefined;
   try {
     await retryWithPolicy(
-      async () => {
+      async ({ deadline: attemptDeadline }) => {
+        if (attemptDeadline?.isExpired()) {
+          throw new AppError('COMMAND_FAILED', 'iOS simulator boot deadline exceeded', {
+            timeoutMs: IOS_BOOT_TIMEOUT_MS,
+          });
+        }
+        const remainingMs = Math.max(1_000, attemptDeadline?.remainingMs() ?? IOS_BOOT_TIMEOUT_MS);
         bootResult = await runCmd('xcrun', ['simctl', 'boot', device.id], { allowFailure: true });
         const bootOutput = `${bootResult.stdout}\n${bootResult.stderr}`.toLowerCase();
         const bootAlreadyDone =
@@ -274,6 +280,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
         }
         bootStatusResult = await runCmd('xcrun', ['simctl', 'bootstatus', device.id, '-b'], {
           allowFailure: true,
+          timeoutMs: remainingMs,
         });
         if (bootStatusResult.exitCode !== 0) {
           throw new AppError('COMMAND_FAILED', 'simctl bootstatus failed', {
@@ -357,6 +364,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
 async function getSimulatorState(udid: string): Promise<string | null> {
   const result = await runCmd('xcrun', ['simctl', 'list', 'devices', '-j'], {
     allowFailure: true,
+    timeoutMs: TIMEOUT_PROFILES.ios_boot.operationMs,
   });
   if (result.exitCode !== 0) return null;
   try {
