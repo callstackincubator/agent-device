@@ -5,6 +5,36 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { classifyBootFailure } from '../boot-diagnostics.ts';
 
+const EMULATOR_SERIAL_PREFIX = 'emulator-';
+const ANDROID_BOOT_POLL_MS = 1000;
+
+function adbArgs(serial: string, args: string[]): string[] {
+  return ['-s', serial, ...args];
+}
+
+function isEmulatorSerial(serial: string): boolean {
+  return serial.startsWith(EMULATOR_SERIAL_PREFIX);
+}
+
+async function readAndroidBootProp(serial: string): Promise<ExecResult> {
+  return runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'sys.boot_completed']), {
+    allowFailure: true,
+  });
+}
+
+async function resolveAndroidDeviceName(serial: string, rawModel: string): Promise<string> {
+  const modelName = rawModel.replace(/_/g, ' ').trim();
+  if (!isEmulatorSerial(serial)) return modelName || serial;
+  const avd = await runCmd('adb', adbArgs(serial, ['emu', 'avd', 'name']), {
+    allowFailure: true,
+  });
+  const avdName = avd.stdout.trim();
+  if (avd.exitCode === 0 && avdName) {
+    return avdName.replace(/_/g, ' ');
+  }
+  return modelName || serial;
+}
+
 export async function listAndroidDevices(): Promise<DeviceInfo[]> {
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
@@ -13,49 +43,36 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
 
   const result = await runCmd('adb', ['devices', '-l']);
   const lines = result.stdout.split('\n').map((l: string) => l.trim());
-  const devices: DeviceInfo[] = [];
+  const entries = lines
+    .filter((line) => line.length > 0 && !line.startsWith('List of devices'))
+    .map((line) => line.split(/\s+/))
+    .filter((parts) => parts[1] === 'device')
+    .map((parts) => ({
+      serial: parts[0],
+      rawModel: (parts.find((p: string) => p.startsWith('model:')) ?? '').replace('model:', ''),
+    }));
 
-  for (const line of lines) {
-    if (!line || line.startsWith('List of devices')) continue;
-    const parts = line.split(/\s+/);
-    const serial = parts[0];
-    const state = parts[1];
-    if (state !== 'device') continue;
-
-    const modelPart = parts.find((p: string) => p.startsWith('model:')) ?? '';
-    const rawModel = modelPart.replace('model:', '').replace(/_/g, ' ').trim();
-    let name = rawModel || serial;
-
-    if (serial.startsWith('emulator-')) {
-      const avd = await runCmd('adb', ['-s', serial, 'emu', 'avd', 'name'], {
-        allowFailure: true,
-      });
-      const avdName = (avd.stdout as string).trim();
-      if (avd.exitCode === 0 && avdName) {
-        name = avdName.replace(/_/g, ' ');
-      }
-    }
-
-    const booted = await isAndroidBooted(serial);
-
-    devices.push({
+  const devices = await Promise.all(entries.map(async ({ serial, rawModel }) => {
+    const [name, booted] = await Promise.all([
+      resolveAndroidDeviceName(serial, rawModel),
+      isAndroidBooted(serial),
+    ]);
+    return {
       platform: 'android',
       id: serial,
       name,
-      kind: serial.startsWith('emulator-') ? 'emulator' : 'device',
+      kind: isEmulatorSerial(serial) ? 'emulator' : 'device',
       booted,
-    });
-  }
+    } satisfies DeviceInfo;
+  }));
 
   return devices;
 }
 
 export async function isAndroidBooted(serial: string): Promise<boolean> {
   try {
-    const result = await runCmd('adb', ['-s', serial, 'shell', 'getprop', 'sys.boot_completed'], {
-      allowFailure: true,
-    });
-    return (result.stdout as string).trim() === '1';
+    const result = await readAndroidBootProp(serial);
+    return result.stdout.trim() === '1';
   } catch {
     return false;
   }
@@ -63,7 +80,7 @@ export async function isAndroidBooted(serial: string): Promise<boolean> {
 
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const maxAttempts = Math.max(1, Math.ceil(timeoutMs / 1000));
+  const maxAttempts = Math.max(1, Math.ceil(timeoutMs / ANDROID_BOOT_POLL_MS));
   let lastBootResult: ExecResult | undefined;
   let timedOut = false;
   try {
@@ -78,13 +95,9 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
             message: 'timeout',
           });
         }
-        const result = await runCmd(
-          'adb',
-          ['-s', serial, 'shell', 'getprop', 'sys.boot_completed'],
-          { allowFailure: true },
-        );
+        const result = await readAndroidBootProp(serial);
         lastBootResult = result;
-        if ((result.stdout as string).trim() === '1') return;
+        if (result.stdout.trim() === '1') return;
         throw new AppError('COMMAND_FAILED', 'Android device is still booting', {
           serial,
           stdout: result.stdout,
@@ -94,8 +107,8 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
       },
       {
         maxAttempts,
-        baseDelayMs: 1000,
-        maxDelayMs: 1000,
+        baseDelayMs: ANDROID_BOOT_POLL_MS,
+        maxDelayMs: ANDROID_BOOT_POLL_MS,
         jitter: 0,
         shouldRetry: (error) => {
           const reason = classifyBootFailure({

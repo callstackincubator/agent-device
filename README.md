@@ -184,6 +184,11 @@ App state:
 - Built-in retries cover transient runner connection failures, AX snapshot hiccups, and Android UI dumps.
 - For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
 
+Boot diagnostics:
+- Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
+- Reason codes: `BOOT_TIMEOUT`, `DEVICE_UNAVAILABLE`, `DEVICE_OFFLINE`, `PERMISSION_DENIED`, `TOOL_MISSING`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
+- Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
+
 ## App resolution
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).
 - Human-readable names are resolved when possible (e.g., `Settings`).
@@ -200,6 +205,14 @@ App state:
 pnpm test
 ```
 
+Useful local checks:
+
+```bash
+pnpm typecheck
+pnpm test:unit
+pnpm test:smoke
+```
+
 ## Build
 
 ```bash
@@ -209,6 +222,7 @@ pnpm build
 Environment selectors:
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
+- `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 
 Test screenshots are written to:
 - `test/screenshots/android-settings.png`
