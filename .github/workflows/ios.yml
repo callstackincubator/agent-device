@@ -55,7 +55,7 @@ jobs:
       - name: Boot preflight via agent-device
         run: |
           set -euo pipefail
-          pnpm ad boot --platform ios --udid "$IOS_UDID" --json
+          node --experimental-strip-types src/bin.ts boot --platform ios --udid "$IOS_UDID" --json
         env:
           AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
           AGENT_DEVICE_RETRY_LOGS: "1"
