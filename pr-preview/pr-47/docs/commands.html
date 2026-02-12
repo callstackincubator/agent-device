@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-47/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-47/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-47/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-47/static/js/index.2dd1e797.js"></script>
+<script defer src="/agent-device/pr-preview/pr-47/static/js/index.16ac4bbf.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -35,7 +35,8 @@
 <ul>
 <li><code>boot</code> ensures the selected target is ready without launching an app.</li>
 <li><code>boot</code> requires either an active session or an explicit device selector.</li>
-<li>Use <code>boot --platform ios|android</code> for CI preflight checks.</li>
+<li><code>boot</code> is mainly needed when starting a new session and <code>open</code> fails because no booted simulator/emulator is available.</li>
+<li><code>open [app]</code> already boots/activates the selected target when needed.</li>
 </ul>
 <h2 class="rp-toc-include" id="snapshot-and-inspect"><a href="#snapshot-and-inspect" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Snapshot and inspect</h2>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-foreground)"> [-i] [-c] [-d </span><span style="color:var(--shiki-token-keyword)">&lt;</span><span style="color:var(--shiki-foreground)">depth</span><span style="color:var(--shiki-token-keyword)">&gt;</span><span style="color:var(--shiki-foreground)">] [-s </span><span style="color:var(--shiki-token-keyword)">&lt;</span><span style="color:var(--shiki-foreground)">scope</span><span style="color:var(--shiki-token-keyword)">&gt;</span><span style="color:var(--shiki-foreground)">] [--raw] [--backend ax</span><span style="color:var(--shiki-token-keyword)">|</span><span style="color:var(--shiki-foreground)">xctest]</span></span>
