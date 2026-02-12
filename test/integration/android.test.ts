@@ -1,6 +1,5 @@
 import test from 'node:test';
-import assert from 'node:assert/strict';
-import { formatResultDebug, runCliJson } from './test-helpers.ts';
+import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'android-test'];
 
@@ -9,35 +8,34 @@ test.after(() => {
 });
 
 test('android settings commands', () => {
-  const openArgs = ['open', 'Settings', '--platform', 'android', ...session];
-  const open = runCliJson(openArgs);
-  assert.equal(open.status, 0, formatResultDebug('open settings', openArgs, open));
+  const integration = createIntegrationTestContext({
+    platform: 'android',
+    testName: 'android settings commands',
+  });
+  const openArgs = ['open', 'Settings', '--platform', 'android', '--json', ...session];
+  integration.runStep('open settings', openArgs);
 
   const snapshotArgs = ['snapshot', '-i', '--json', ...session];
-  const snapshot = runCliJson(snapshotArgs);
-  assert.equal(snapshot.status, 0, formatResultDebug('snapshot', snapshotArgs, snapshot));
-  assert.ok(
-    Array.isArray(snapshot.json?.data?.nodes),
-    formatResultDebug('snapshot nodes', snapshotArgs, snapshot),
-  );
+  const snapshot = integration.runStep('snapshot', snapshotArgs);
+  integration.assertResult(Array.isArray(snapshot.json?.data?.nodes), 'snapshot nodes', snapshotArgs, snapshot, {
+    detail: 'expected snapshot to include a nodes array',
+  });
 
-  const clickAppsArgs = ['click', '@e13', ...session];
-  const clickApps = runCliJson(clickAppsArgs);
-  assert.equal(clickApps.status, 0, formatResultDebug('click apps', clickAppsArgs, clickApps));
+  const clickAppsArgs = ['click', '@e13', '--json', ...session];
+  integration.runStep('click apps', clickAppsArgs);
 
   const snapshotAppsArgs = ['snapshot', '-i', '--json', ...session];
-  const snapshotApps = runCliJson(snapshotAppsArgs);
-  assert.equal(
-    snapshotApps.status,
-    0,
-    formatResultDebug('snapshot apps', snapshotAppsArgs, snapshotApps),
-  );
-  assert.ok(
+  const snapshotApps = integration.runStep('snapshot apps', snapshotAppsArgs);
+  integration.assertResult(
     Array.isArray(snapshotApps.json?.data?.nodes),
-    formatResultDebug('snapshot apps nodes', snapshotAppsArgs, snapshotApps),
+    'snapshot apps nodes',
+    snapshotAppsArgs,
+    snapshotApps,
+    {
+      detail: 'expected snapshot after click to include a nodes array',
+    },
   );
 
-  const backArgs = ['back', ...session];
-  const back = runCliJson(backArgs);
-  assert.equal(back.status, 0, formatResultDebug('back', backArgs, back));
+  const backArgs = ['back', '--json', ...session];
+  integration.runStep('back', backArgs);
 });
