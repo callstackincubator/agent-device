@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { parseAndroidLaunchComponent } from '../index.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
 
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
@@ -71,4 +72,20 @@ test('findBounds ignores bounds-like fragments inside other attribute values', (
   ].join('');
 
   assert.deepEqual(findBounds(xml, 'target'), { x: 200, y: 350 });
+});
+
+test('parseAndroidLaunchComponent extracts final resolved component', () => {
+  const stdout = [
+    'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true',
+    'com.boatsgroup.boattrader/com.boatsgroup.boattrader.MainActivity',
+  ].join('\n');
+  assert.equal(
+    parseAndroidLaunchComponent(stdout),
+    'com.boatsgroup.boattrader/com.boatsgroup.boattrader.MainActivity',
+  );
+});
+
+test('parseAndroidLaunchComponent returns null when no component is present', () => {
+  const stdout = 'No activity found';
+  assert.equal(parseAndroidLaunchComponent(stdout), null);
 });

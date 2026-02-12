@@ -269,7 +269,9 @@ export async function handleSessionCommands(params: {
           flags: action.flags ?? {},
         });
         if (response.ok) continue;
-        if (!shouldUpdate) return response;
+        if (!shouldUpdate) {
+          return withReplayFailureContext(response, action, index, resolved);
+        }
         const nextAction = await healReplayAction({
           action,
           sessionName,
@@ -278,7 +280,7 @@ export async function handleSessionCommands(params: {
           dispatch,
         });
         if (!nextAction) {
-          return response;
+          return withReplayFailureContext(response, action, index, resolved);
         }
         actions[index] = nextAction;
         response = await invoke({
@@ -289,7 +291,7 @@ export async function handleSessionCommands(params: {
           flags: nextAction.flags ?? {},
         });
         if (!response.ok) {
-          return response;
+          return withReplayFailureContext(response, nextAction, index, resolved);
         }
         healed += 1;
       }
@@ -332,6 +334,42 @@ export async function handleSessionCommands(params: {
   }
 
   return null;
+}
+
+function withReplayFailureContext(
+  response: DaemonResponse,
+  action: SessionAction,
+  index: number,
+  replayPath: string,
+): DaemonResponse {
+  if (response.ok) return response;
+  const step = index + 1;
+  const summary = formatReplayActionSummary(action);
+  const details = {
+    ...(response.error.details ?? {}),
+    replayPath,
+    step,
+    action: action.command,
+    positionals: action.positionals ?? [],
+  };
+  return {
+    ok: false,
+    error: {
+      code: response.error.code,
+      message: `Replay failed at step ${step} (${summary}): ${response.error.message}`,
+      details,
+    },
+  };
+}
+
+function formatReplayActionSummary(action: SessionAction): string {
+  const values = (action.positionals ?? []).map((value) => {
+    const trimmed = value.trim();
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed;
+    if (trimmed.startsWith('@')) return trimmed;
+    return JSON.stringify(trimmed);
+  });
+  return [action.command, ...values].join(' ');
 }
 
 async function healReplayAction(params: {

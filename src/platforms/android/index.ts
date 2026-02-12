@@ -187,22 +187,70 @@ export async function openAndroidApp(
     );
     return;
   }
-  await runCmd(
+  try {
+    await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        'android.intent.category.DEFAULT',
+        '-c',
+        'android.intent.category.LAUNCHER',
+        '-p',
+        resolved.value,
+      ]),
+    );
+    return;
+  } catch (initialError) {
+    const component = await resolveAndroidLaunchComponent(device, resolved.value);
+    if (!component) throw initialError;
+    await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'am',
+        'start',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        'android.intent.category.DEFAULT',
+        '-c',
+        'android.intent.category.LAUNCHER',
+        '-n',
+        component,
+      ]),
+    );
+  }
+}
+
+async function resolveAndroidLaunchComponent(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<string | null> {
+  const result = await runCmd(
     'adb',
-    adbArgs(device, [
-      'shell',
-      'am',
-      'start',
-      '-a',
-      'android.intent.action.MAIN',
-      '-c',
-      'android.intent.category.DEFAULT',
-      '-c',
-      'android.intent.category.LAUNCHER',
-      '-p',
-      resolved.value,
-    ]),
+    adbArgs(device, ['shell', 'cmd', 'package', 'resolve-activity', '--brief', packageName]),
+    { allowFailure: true },
   );
+  if (result.exitCode !== 0) return null;
+  return parseAndroidLaunchComponent(result.stdout);
+}
+
+export function parseAndroidLaunchComponent(stdout: string): string | null {
+  const lines = stdout
+    .split('\n')
+    .map((line: string) => line.trim())
+    .filter(Boolean);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+    if (!line.includes('/')) continue;
+    return line.split(/\s+/)[0];
+  }
+  return null;
 }
 
 export async function openAndroidDevice(device: DeviceInfo): Promise<void> {
