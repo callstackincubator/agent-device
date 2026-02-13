@@ -119,6 +119,52 @@ test('resolveSelectorChain disambiguates to deeper/smaller matching node when en
   assert.equal(resolved.matches, 2);
 });
 
+test('resolveSelectorChain disambiguation tie falls back to next selector', () => {
+  const tieNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'e1',
+      index: 0,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 0, y: 0, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 0, y: 40, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      type: 'Other',
+      label: 'Press me',
+      identifier: 'press_me_unique',
+      rect: { x: 0, y: 80, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+  ];
+  const chain = parseSelectorChain('label="Press me" || id="press_me_unique"');
+  const resolved = resolveSelectorChain(tieNodes, chain, {
+    platform: 'ios',
+    requireRect: true,
+    requireUnique: true,
+    disambiguateAmbiguous: true,
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.selectorIndex, 1);
+  assert.equal(resolved.node.ref, 'e3');
+});
+
 test('findSelectorChainMatch returns first matching selector for existence checks', () => {
   const chain = parseSelectorChain('label="Continue" || id=auth_continue');
   const match = findSelectorChainMatch(nodes, chain, {

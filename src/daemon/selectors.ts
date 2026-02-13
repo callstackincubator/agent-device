@@ -94,7 +94,7 @@ export function resolveSelectorChain(
   const diagnostics: SelectorDiagnostics[] = [];
   for (let i = 0; i < chain.selectors.length; i += 1) {
     const selector = chain.selectors[i];
-    const summary = countSelectorMatches(nodes, selector, {
+    const summary = analyzeSelectorMatches(nodes, selector, {
       platform: options.platform,
       requireRect,
     });
@@ -102,10 +102,7 @@ export function resolveSelectorChain(
     if (summary.count === 0 || !summary.firstNode) continue;
     if (requireUnique && summary.count !== 1) {
       if (!disambiguateAmbiguous) continue;
-      const disambiguatedNode = pickDisambiguatedNode(nodes, selector, {
-        platform: options.platform,
-        requireRect,
-      });
+      const disambiguatedNode = summary.disambiguated;
       if (!disambiguatedNode) continue;
       return {
         node: disambiguatedNode,
@@ -138,13 +135,13 @@ export function findSelectorChainMatch(
   const diagnostics: SelectorDiagnostics[] = [];
   for (let i = 0; i < chain.selectors.length; i += 1) {
     const selector = chain.selectors[i];
-    const summary = countSelectorMatches(nodes, selector, {
+    const matches = countSelectorMatchesOnly(nodes, selector, {
       platform: options.platform,
       requireRect,
     });
-    diagnostics.push({ selector: selector.raw, matches: summary.count });
-    if (summary.count > 0) {
-      return { selectorIndex: i, selector, matches: summary.count, diagnostics };
+    diagnostics.push({ selector: selector.raw, matches });
+    if (matches > 0) {
+      return { selectorIndex: i, selector, matches, diagnostics };
     }
   }
   return null;
@@ -197,9 +194,11 @@ export function splitSelectorFromArgs(
   if (boundaries.length === 0) return null;
   let boundary = boundaries[boundaries.length - 1];
   if (preferTrailingValue) {
-    const boundaryWithRest = [...boundaries].reverse().find((index) => index < args.length);
-    if (boundaryWithRest !== undefined) {
-      boundary = boundaryWithRest;
+    for (let j = boundaries.length - 1; j >= 0; j -= 1) {
+      if (boundaries[j] < args.length) {
+        boundary = boundaries[j];
+        break;
+      }
     }
   }
   const selectorExpression = args.slice(0, boundary).join(' ').trim();
@@ -208,6 +207,17 @@ export function splitSelectorFromArgs(
     selectorExpression,
     rest: args.slice(boundary),
   };
+}
+
+export function splitIsSelectorArgs(positionals: string[]): {
+  predicate: string;
+  split: { selectorExpression: string; rest: string[] } | null;
+} {
+  const predicate = positionals[0] ?? '';
+  const split = splitSelectorFromArgs(positionals.slice(1), {
+    preferTrailingValue: predicate === 'text',
+  });
+  return { predicate, split };
 }
 
 export function isNodeVisible(node: SnapshotNode): boolean {
@@ -455,13 +465,15 @@ function normalizeSelectorText(value: string | undefined): string | null {
   return trimmed;
 }
 
-function countSelectorMatches(
+function analyzeSelectorMatches(
   nodes: SnapshotState['nodes'],
   selector: Selector,
   options: { platform: 'ios' | 'android'; requireRect: boolean },
-): { count: number; firstNode: SnapshotNode | null } {
+): { count: number; firstNode: SnapshotNode | null; disambiguated: SnapshotNode | null } {
   let count = 0;
   let firstNode: SnapshotNode | null = null;
+  let best: SnapshotNode | null = null;
+  let tie = false;
   for (const node of nodes) {
     if (options.requireRect && !node.rect) continue;
     if (!matchesSelector(node, selector, options.platform)) continue;
@@ -469,20 +481,6 @@ function countSelectorMatches(
     if (!firstNode) {
       firstNode = node;
     }
-  }
-  return { count, firstNode };
-}
-
-function pickDisambiguatedNode(
-  nodes: SnapshotState['nodes'],
-  selector: Selector,
-  options: { platform: 'ios' | 'android'; requireRect: boolean },
-): SnapshotNode | null {
-  let best: SnapshotNode | null = null;
-  let tie = false;
-  for (const node of nodes) {
-    if (options.requireRect && !node.rect) continue;
-    if (!matchesSelector(node, selector, options.platform)) continue;
     if (!best) {
       best = node;
       tie = false;
@@ -498,7 +496,25 @@ function pickDisambiguatedNode(
       tie = true;
     }
   }
-  return tie ? null : best;
+  return {
+    count,
+    firstNode,
+    disambiguated: tie ? null : best,
+  };
+}
+
+function countSelectorMatchesOnly(
+  nodes: SnapshotState['nodes'],
+  selector: Selector,
+  options: { platform: 'ios' | 'android'; requireRect: boolean },
+): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (options.requireRect && !node.rect) continue;
+    if (!matchesSelector(node, selector, options.platform)) continue;
+    count += 1;
+  }
+  return count;
 }
 
 function compareDisambiguationCandidates(a: SnapshotNode, b: SnapshotNode): number {

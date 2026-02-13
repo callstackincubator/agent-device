@@ -82,13 +82,9 @@ export function normalizeType(type: string): string {
   if (value.startsWith('ax')) {
     value = value.replace(/^ax/, '');
   }
-  if (value.includes('.')) {
-    const suffix = value.split('.').pop();
-    if (suffix) value = suffix;
-  }
-  if (value.includes('/')) {
-    const suffix = value.split('/').pop();
-    if (suffix) value = suffix;
+  const lastSeparator = Math.max(value.lastIndexOf('.'), value.lastIndexOf('/'));
+  if (lastSeparator !== -1) {
+    value = value.slice(lastSeparator + 1);
   }
   return value;
 }

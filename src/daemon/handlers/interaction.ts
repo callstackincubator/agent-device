@@ -12,6 +12,7 @@ import {
   formatSelectorFailure,
   parseSelectorChain,
   resolveSelectorChain,
+  splitIsSelectorArgs,
   splitSelectorFromArgs,
 } from '../selectors.ts';
 
@@ -369,8 +370,7 @@ export async function handleInteractionCommands(params: {
         error: { code: 'UNSUPPORTED_OPERATION', message: 'is is not supported on this device' },
       };
     }
-    const selectorArgs = req.positionals.slice(1);
-    const split = splitSelectorFromArgs(selectorArgs, { preferTrailingValue: predicate === 'text' });
+    const { split } = splitIsSelectorArgs(req.positionals);
     if (!split) {
       return {
         ok: false,

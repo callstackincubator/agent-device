@@ -11,7 +11,13 @@ import { resolveIosAppStateFromSnapshots } from '../app-state.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
-import { buildSelectorChainForNode, resolveSelectorChain, splitSelectorFromArgs, tryParseSelectorChain } from '../selectors.ts';
+import {
+  buildSelectorChainForNode,
+  resolveSelectorChain,
+  splitIsSelectorArgs,
+  splitSelectorFromArgs,
+  tryParseSelectorChain,
+} from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 
 type ReinstallOps = {
@@ -520,7 +526,7 @@ async function healReplayAction(params: {
       platform: session.device.platform,
       requireRect: requiresRect,
       requireUnique: true,
-      disambiguateAmbiguous: action.command === 'click' || action.command === 'fill',
+      disambiguateAmbiguous: requiresRect,
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
@@ -550,11 +556,8 @@ async function healReplayAction(params: {
       };
     }
     if (action.command === 'is') {
-      const predicate = action.positionals?.[0];
+      const { predicate, split } = splitIsSelectorArgs(action.positionals);
       if (!predicate) continue;
-      const split = splitSelectorFromArgs(action.positionals.slice(1), {
-        preferTrailingValue: predicate === 'text',
-      });
       const expectedText = split?.rest.join(' ').trim() ?? '';
       const nextPositionals = [predicate, selectorExpression];
       if (predicate === 'text' && expectedText.length > 0) {
@@ -645,10 +648,7 @@ function collectReplaySelectorCandidates(action: SessionAction): string[] {
     }
   }
   if (action.command === 'is') {
-    const predicate = action.positionals?.[0];
-    const split = splitSelectorFromArgs(action.positionals.slice(1), {
-      preferTrailingValue: predicate === 'text',
-    });
+    const { split } = splitIsSelectorArgs(action.positionals);
     if (split) {
       result.push(split.selectorExpression);
     }
