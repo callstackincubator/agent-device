@@ -174,7 +174,7 @@ CLI to control iOS and Android devices for AI agents.
 
 Commands:
   boot                                      Ensure target device/simulator is booted and ready
-  open [app]                                 Boot device/simulator; optionally launch app
+  open [app|url]                             Boot device/simulator; optionally launch app or deep link URL
   close [app]                                Close app or just end session
   reinstall <app> <path>                     Uninstall + install app from binary path
   snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
@@ -227,7 +227,7 @@ Flags:
   --device <name>                            Device name to target
   --udid <udid>                              iOS device UDID
   --serial <serial>                          Android device serial
-  --activity <component>                     Android activity to launch (package/Activity)
+  --activity <component>                     Android app launch activity (package/Activity); not for URL opens
   --session <name>                           Named session
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output

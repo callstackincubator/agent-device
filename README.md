@@ -101,7 +101,7 @@ Flags:
 - `--device <name>`
 - `--udid <udid>` (iOS)
 - `--serial <serial>` (Android)
-- `--activity <component>` (Android; package/Activity or package/.Activity)
+- `--activity <component>` (Android app launch only; package/Activity or package/.Activity; not for URL opens)
 - `--session <name>`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
@@ -117,7 +117,7 @@ npx skills add https://github.com/callstackincubator/agent-device --skill agent-
 Sessions:
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
 - All interaction commands require an open session.
-- If a session is already open, `open <app>` switches the active app and updates the session app bundle.
+- If a session is already open, `open <app|url>` switches the active app or opens a deep link URL.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
@@ -126,9 +126,20 @@ Sessions:
 Navigation helpers:
 - `boot --platform ios|android` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
-- `open [app]` already boots/activates the selected target when needed.
+- `open [app|url]` already boots/activates the selected target when needed.
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
 - `reinstall` accepts package/bundle id style app names and supports `~` in paths.
+
+Deep links:
+- `open <url>` supports deep links with `scheme://...`.
+- Android opens deep links via `VIEW` intent.
+- iOS deep link open is simulator-only in v1.
+- `--activity` cannot be combined with URL opens.
+
+```bash
+agent-device open "myapp://home" --platform android
+agent-device open "https://example.com" --platform ios
+```
 
 Find (semantic):
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.

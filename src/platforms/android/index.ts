@@ -4,6 +4,7 @@ import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
+import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { findBounds, parseBounds, parseUiHierarchy, readNodeAttributes } from './ui-hierarchy.ts';
 
@@ -156,6 +157,23 @@ export async function openAndroidApp(
 ): Promise<void> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
+  }
+  const deepLinkTarget = app.trim();
+  if (isDeepLinkTarget(deepLinkTarget)) {
+    if (activity) {
+      throw new AppError('INVALID_ARGS', 'Activity override is not supported when opening a deep link URL');
+    }
+    await runCmd('adb', adbArgs(device, [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      deepLinkTarget,
+    ]));
+    return;
   }
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {

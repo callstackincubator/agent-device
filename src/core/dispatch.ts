@@ -106,7 +106,7 @@ export async function dispatchCommand(
         await interactor.openDevice();
         return { app: null };
       }
-      await interactor.open(app, { activity: context?.activity });
+      await interactor.open(app, { activity: context?.activity, appBundleId: context?.appBundleId });
       return { app };
     }
     case 'close': {

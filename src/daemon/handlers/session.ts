@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
@@ -299,7 +300,7 @@ export async function handleSessionCommands(params: {
         };
       }
       let appBundleId: string | undefined;
-      if (session.device.platform === 'ios') {
+      if (session.device.platform === 'ios' && !isDeepLinkTarget(appName)) {
         try {
           const { resolveIosApp } = await import('../../platforms/ios/index.ts');
           appBundleId = await resolveIosApp(session.device, appName);
@@ -340,10 +341,10 @@ export async function handleSessionCommands(params: {
     }
     let appBundleId: string | undefined;
     const appName = req.positionals?.[0];
-    if (device.platform === 'ios') {
+    if (device.platform === 'ios' && appName && !isDeepLinkTarget(appName)) {
       try {
         const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-        appBundleId = await resolveIosApp(device, req.positionals?.[0] ?? '');
+        appBundleId = await resolveIosApp(device, appName);
       } catch {
         appBundleId = undefined;
       }

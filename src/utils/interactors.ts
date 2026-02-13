@@ -29,7 +29,7 @@ export type RunnerContext = {
 };
 
 export type Interactor = {
-  open(app: string, options?: { activity?: string }): Promise<void>;
+  open(app: string, options?: { activity?: string; appBundleId?: string }): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
   tap(x: number, y: number): Promise<void>;
@@ -60,7 +60,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
       };
     case 'ios':
       return {
-        open: (app) => openIosApp(device, app),
+        open: (app, options) => openIosApp(device, app, { appBundleId: options?.appBundleId }),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
         screenshot: (outPath) => screenshotIos(device, outPath),

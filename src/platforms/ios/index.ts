@@ -3,6 +3,7 @@ import type { ExecResult } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, isEnvTruthy, retryWithPolicy, TIMEOUT_PROFILES, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const ALIASES: Record<string, string> = {
@@ -35,8 +36,22 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
   throw new AppError('APP_NOT_INSTALLED', `No app found matching "${app}"`);
 }
 
-export async function openIosApp(device: DeviceInfo, app: string): Promise<void> {
-  const bundleId = await resolveIosApp(device, app);
+export async function openIosApp(
+  device: DeviceInfo,
+  app: string,
+  options?: { appBundleId?: string },
+): Promise<void> {
+  const deepLinkTarget = app.trim();
+  if (isDeepLinkTarget(deepLinkTarget)) {
+    if (device.kind !== 'simulator') {
+      throw new AppError('UNSUPPORTED_OPERATION', 'Deep link open is only supported on iOS simulators in v1');
+    }
+    await ensureBootedSimulator(device);
+    await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+    await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+    return;
+  }
+  const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
     await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
