@@ -19,6 +19,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 80
     continue-on-error: true
+    env:
+      IOS_RUNTIME_VERSION: '26.2'
+      PREBUILT_DIR: ${{ runner.temp }}/ios-runner-prebuilt
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -26,36 +29,41 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
+      - name: Resolve Xcode cache key
+        id: xcode
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/[[:space:]]$//')"
+          XCODE_KEY="$(echo "$XCODE_VERSION" | tr ' ' '-' | tr -cd '[:alnum:]._-')"
+          echo "key=$XCODE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Restore iOS runner prebuilt cache
+        id: restore-prebuilt
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PREBUILT_DIR }}
+          key: ios-runner-prebuilt-${{ steps.xcode.outputs.key }}-ios-${{ env.IOS_RUNTIME_VERSION }}
+
+      - name: Hydrate derived data from prebuilt cache
+        if: steps.restore-prebuilt.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.agent-device/ios-runner"
+          rm -rf "$HOME/.agent-device/ios-runner/derived"
+          cp -R "$PREBUILT_DIR/derived-data" "$HOME/.agent-device/ios-runner/derived"
+
       - name: Resolve agent-device home
         id: ios-agent-home
         run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
 
-      - name: Select and start iOS simulator
-        run: |
-          UDID="$(
-            xcrun simctl list devices -j | node -e "
-              const fs = require('node:fs');
-              const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
-              const all = Object.values(payload.devices ?? {}).flat();
-              const available = all.filter((d) => d.isAvailable);
-              const preferred =
-                available.find((d) => d.state === 'Booted') ??
-                available.find((d) => d.name === 'iPhone 17 Pro') ??
-                available[0];
-              if (!preferred?.udid) process.exit(1);
-              process.stdout.write(preferred.udid);
-            "
-          )"
-          xcrun simctl boot "$UDID" || true
-          echo "IOS_UDID=$UDID" >> "$GITHUB_ENV"
-
       - name: Build iOS integration artifacts
+        if: steps.restore-prebuilt.outputs.cache-hit != 'true'
         run: pnpm build:xcuitest
 
       - name: Boot preflight via agent-device
         run: |
           set -euo pipefail
-          node --experimental-strip-types src/bin.ts boot --platform ios --udid "$IOS_UDID" --json
+          node --experimental-strip-types src/bin.ts boot --platform ios --device "iPhone 17 Pro" --json
         env:
           AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
           AGENT_DEVICE_RETRY_LOGS: "1"
