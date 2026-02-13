@@ -745,7 +745,7 @@ function healNumericGetTextDrift(
   const numericValues = uniqueStrings(numericNodes.map((node) => extractNodeText(node).trim()));
   if (numericValues.length !== 1) return null;
 
-  const targetNode = numericNodes.find((node) => extractNodeText(node).trim() === numericValues[0]);
+  const targetNode = numericNodes[0];
   if (!targetNode) return null;
   const selectorChain = buildSelectorChainForNode(targetNode, session.device.platform, { action: 'get' });
   if (selectorChain.length === 0) return null;
