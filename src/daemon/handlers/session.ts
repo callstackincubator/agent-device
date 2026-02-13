@@ -286,10 +286,21 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'open') {
+    const shouldRelaunch = req.flags?.relaunch === true;
     if (sessionStore.has(sessionName)) {
       const session = sessionStore.get(sessionName);
-      const appName = req.positionals?.[0];
+      const requestedAppName = req.positionals?.[0];
+      const appName = requestedAppName ?? (shouldRelaunch ? session?.appName : undefined);
       if (!session || !appName) {
+        if (shouldRelaunch) {
+          return {
+            ok: false,
+            error: {
+              code: 'INVALID_ARGS',
+              message: 'open --relaunch requires an app name or an active session app.',
+            },
+          };
+        }
         return {
           ok: false,
           error: {
@@ -307,7 +318,13 @@ export async function handleSessionCommands(params: {
           appBundleId = undefined;
         }
       }
-      await dispatch(session.device, 'open', req.positionals ?? [], req.flags?.out, {
+      const openPositionals = requestedAppName ? (req.positionals ?? []) : [appName];
+      if (shouldRelaunch) {
+        await dispatch(session.device, 'close', [appName], req.flags?.out, {
+          ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
+        });
+      }
+      await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
       const nextSession: SessionState = {
@@ -319,12 +336,22 @@ export async function handleSessionCommands(params: {
       };
       sessionStore.recordAction(nextSession, {
         command,
-        positionals: req.positionals ?? [],
+        positionals: openPositionals,
         flags: req.flags ?? {},
         result: { session: sessionName, appName, appBundleId },
       });
       sessionStore.set(sessionName, nextSession);
       return { ok: true, data: { session: sessionName, appName, appBundleId } };
+    }
+    const appName = req.positionals?.[0];
+    if (shouldRelaunch && !appName) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'open --relaunch requires an app argument.',
+        },
+      };
     }
     const device = await resolveTargetDevice(req.flags ?? {});
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
@@ -339,14 +366,20 @@ export async function handleSessionCommands(params: {
       };
     }
     let appBundleId: string | undefined;
-    const appName = req.positionals?.[0];
     if (device.platform === 'ios') {
       try {
-        const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-        appBundleId = await resolveIosApp(device, req.positionals?.[0] ?? '');
+        if (appName) {
+          const { resolveIosApp } = await import('../../platforms/ios/index.ts');
+          appBundleId = await resolveIosApp(device, appName);
+        }
       } catch {
         appBundleId = undefined;
       }
+    }
+    if (shouldRelaunch && appName) {
+      await dispatch(device, 'close', [appName], req.flags?.out, {
+        ...contextFromFlags(logPath, req.flags, appBundleId),
+      });
     }
     await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, appBundleId),
@@ -822,6 +855,19 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     return action;
   }
 
+  if (command === 'open') {
+    action.positionals = [];
+    for (let index = 0; index < args.length; index += 1) {
+      const token = args[index];
+      if (token === '--relaunch') {
+        action.flags.relaunch = true;
+        continue;
+      }
+      action.positionals.push(token);
+    }
+    return action;
+  }
+
   if (command === 'click') {
     if (args.length === 0) return action;
     const target = args[0];
@@ -945,6 +991,15 @@ function formatReplayActionLine(action: SessionAction): string {
     if (action.flags?.snapshotRaw) parts.push('--raw');
     if (action.flags?.snapshotBackend) {
       parts.push('--backend', action.flags.snapshotBackend);
+    }
+    return parts.join(' ');
+  }
+  if (action.command === 'open') {
+    for (const positional of action.positionals ?? []) {
+      parts.push(formatReplayArg(positional));
+    }
+    if (action.flags?.relaunch) {
+      parts.push('--relaunch');
     }
     return parts.join(' ');
   }

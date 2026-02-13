@@ -34,6 +34,7 @@ export type CommandFlags = {
   snapshotRaw?: boolean;
   snapshotBackend?: 'ax' | 'xctest';
   saveScript?: boolean;
+  relaunch?: boolean;
   noRecord?: boolean;
   appsFilter?: 'launchable' | 'user-installed' | 'all';
   appsMetadata?: boolean;

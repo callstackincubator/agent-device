@@ -93,3 +93,27 @@ test('saveScript flag enables .ad session log writing', () => {
   const files = fs.readdirSync(root);
   assert.equal(files.filter((file) => file.endsWith('.ad')).length, 1);
 });
+
+test('writeSessionLog persists open --relaunch in script output', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-relaunch-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true, relaunch: true },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'close',
+    positionals: [],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(script, /open "Settings" --relaunch/);
+});

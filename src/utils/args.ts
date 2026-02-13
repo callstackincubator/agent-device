@@ -22,6 +22,7 @@ export type ParsedArgs = {
     appsMetadata?: boolean;
     activity?: string;
     saveScript?: boolean;
+    relaunch?: boolean;
     noRecord?: boolean;
     replayUpdate?: boolean;
     help: boolean;
@@ -69,6 +70,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (arg === '--save-script') {
       flags.saveScript = true;
+      continue;
+    }
+    if (arg === '--relaunch') {
+      flags.relaunch = true;
       continue;
     }
     if (arg === '--update' || arg === '-u') {
@@ -232,6 +237,7 @@ Flags:
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output
   --save-script                             Save session script (.ad) on close
+  --relaunch                               open: terminate app process before launching it
   --no-record                                Do not record this action
   --update, -u                               Replay: update selectors and rewrite replay file in place
   --user-installed                           Apps: list user-installed packages (Android only)

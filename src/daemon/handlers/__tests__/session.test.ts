@@ -120,3 +120,105 @@ test('boot succeeds for supported device in session', async () => {
     assert.equal(response.data?.booted, true);
   }
 });
+
+test('open --relaunch closes and reopens active session app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel Emulator',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appName: 'com.example.app',
+    },
+  );
+
+  const calls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: [],
+      flags: { relaunch: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, command, positionals) => {
+      calls.push({ command, positionals });
+      return {};
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], { command: 'close', positionals: ['com.example.app'] });
+  assert.deepEqual(calls[1], { command: 'open', positionals: ['com.example.app'] });
+});
+
+test('open --relaunch fails without app when no session exists', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: [],
+      flags: { relaunch: true },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /requires an app argument/i);
+  }
+});
+
+test('replay parses open --relaunch flag and replays open with relaunch semantics', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-relaunch-'));
+  const replayPath = path.join(replayRoot, 'relaunch.ad');
+  fs.writeFileSync(replayPath, 'open "Settings" --relaunch\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.replayed, 1);
+  }
+  assert.equal(invoked.length, 1);
+  assert.equal(invoked[0]?.command, 'open');
+  assert.deepEqual(invoked[0]?.positionals, ['Settings']);
+  assert.equal(invoked[0]?.flags?.relaunch, true);
+});

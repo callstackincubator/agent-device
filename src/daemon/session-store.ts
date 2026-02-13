@@ -166,6 +166,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotRaw,
     snapshotBackend,
     appsMetadata,
+    relaunch,
     saveScript,
     noRecord,
   } = flags;
@@ -183,6 +184,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotRaw,
     snapshotBackend,
     appsMetadata,
+    relaunch,
     saveScript,
     noRecord,
   };
@@ -258,6 +260,15 @@ function formatActionLine(action: SessionAction): string {
     if (action.flags?.snapshotRaw) parts.push('--raw');
     if (action.flags?.snapshotBackend) {
       parts.push(`--backend`, action.flags.snapshotBackend);
+    }
+    return parts.join(' ');
+  }
+  if (action.command === 'open') {
+    for (const positional of action.positionals ?? []) {
+      parts.push(formatArg(positional));
+    }
+    if (action.flags?.relaunch) {
+      parts.push('--relaunch');
     }
     return parts.join(' ');
   }
