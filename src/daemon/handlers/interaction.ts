@@ -310,6 +310,7 @@ export async function handleInteractionCommands(params: {
       platform: session.device.platform,
       requireRect: false,
       requireUnique: true,
+      disambiguateAmbiguous: sub === 'text',
     });
     if (!resolved) {
       return {
