@@ -26,6 +26,7 @@ jobs:
       AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS: "60000"
       AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
       AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
+      AGENT_DEVICE_IOS_APP_LAUNCH_TIMEOUT_MS: "60000"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
