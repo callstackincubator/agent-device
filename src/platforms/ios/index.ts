@@ -45,7 +45,28 @@ export async function openIosApp(device: DeviceInfo, app: string): Promise<void>
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
     await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-    await runCmd('xcrun', ['simctl', 'launch', device.id, bundleId]);
+    await retryWithPolicy(
+      async () => {
+        const result = await runCmd('xcrun', ['simctl', 'launch', device.id, bundleId], {
+          allowFailure: true,
+        });
+        if (result.exitCode === 0) return;
+        throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
+          cmd: 'xcrun',
+          args: ['simctl', 'launch', device.id, bundleId],
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        });
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 500,
+        maxDelayMs: 2000,
+        jitter: 0.2,
+        shouldRetry: (error) => isTransientSimulatorLaunchFailure(error),
+      },
+    );
     return;
   }
   await runCmd('xcrun', [
@@ -211,6 +232,18 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function isTransientSimulatorLaunchFailure(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const details = (error.details ?? {}) as { exitCode?: number; stderr?: unknown };
+  if (details.exitCode !== 4) return false;
+  const stderr = String(details.stderr ?? '').toLowerCase();
+  return (
+    stderr.includes('fbsopenapplicationserviceerrordomain') &&
+    stderr.includes('the request to open')
+  );
 }
 
 export async function listSimulatorApps(
