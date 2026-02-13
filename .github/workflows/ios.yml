@@ -65,6 +65,7 @@ jobs:
           set -euo pipefail
           node --experimental-strip-types src/bin.ts boot --platform ios --device "iPhone 17 Pro" --json
         env:
+          AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
           AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
           AGENT_DEVICE_RETRY_LOGS: "1"
 
