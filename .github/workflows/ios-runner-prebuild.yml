@@ -18,8 +18,8 @@ jobs:
     env:
       IOS_RUNTIME_VERSION: '26.2'
       IOS_DEVICE_NAME: 'iPhone 17 Pro'
-      PREBUILT_DIR: ${{ runner.temp }}/ios-runner-prebuilt
-      DERIVED_DATA_PATH: ${{ runner.temp }}/ios-runner-derived
+      PREBUILT_DIR: ${{ github.workspace }}/.tmp/ios-runner-prebuilt
+      DERIVED_DATA_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
