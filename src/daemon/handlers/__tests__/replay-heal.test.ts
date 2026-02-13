@@ -234,6 +234,65 @@ test('replay without --update does not heal or rewrite', async () => {
   assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
 });
 
+test('replay --update skips malformed selector candidates and preserves replay error context', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-malformed-candidate-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'malformed-candidate-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  writeReplayFile(replayPath, {
+    ts: Date.now(),
+    command: 'click',
+    positionals: ['id="old_continue" ||'],
+    flags: {},
+    result: {},
+  });
+
+  const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    return {
+      nodes: [
+        {
+          index: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Continue',
+          identifier: 'auth_continue',
+          rect: { x: 10, y: 10, width: 100, height: 44 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      backend: 'xctest',
+    };
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: { replayUpdate: true },
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke: async () => ({ ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } }),
+    dispatch,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error.code, 'COMMAND_FAILED');
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.equal(response.error.details?.step, 1);
+    assert.equal(response.error.details?.action, 'click');
+  }
+});
+
 test('replay --update heals selector in is command', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-is-'));
   const sessionsDir = path.join(tempRoot, 'sessions');

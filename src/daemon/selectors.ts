@@ -85,25 +85,38 @@ export function resolveSelectorChain(
     platform: 'ios' | 'android';
     requireRect?: boolean;
     requireUnique?: boolean;
+    disambiguateAmbiguous?: boolean;
   },
 ): SelectorResolution | null {
   const requireRect = options.requireRect ?? false;
   const requireUnique = options.requireUnique ?? true;
+  const disambiguateAmbiguous = options.disambiguateAmbiguous ?? false;
   const diagnostics: SelectorDiagnostics[] = [];
   for (let i = 0; i < chain.selectors.length; i += 1) {
     const selector = chain.selectors[i];
-    const matches = nodes.filter((node) => {
-      if (requireRect && !node.rect) return false;
-      return matchesSelector(node, selector, options.platform);
+    const summary = analyzeSelectorMatches(nodes, selector, {
+      platform: options.platform,
+      requireRect,
     });
-    diagnostics.push({ selector: selector.raw, matches: matches.length });
-    if (matches.length === 0) continue;
-    if (requireUnique && matches.length !== 1) continue;
+    diagnostics.push({ selector: selector.raw, matches: summary.count });
+    if (summary.count === 0 || !summary.firstNode) continue;
+    if (requireUnique && summary.count !== 1) {
+      if (!disambiguateAmbiguous) continue;
+      const disambiguatedNode = summary.disambiguated;
+      if (!disambiguatedNode) continue;
+      return {
+        node: disambiguatedNode,
+        selector,
+        selectorIndex: i,
+        matches: summary.count,
+        diagnostics,
+      };
+    }
     return {
-      node: matches[0],
+      node: summary.firstNode,
       selector,
       selectorIndex: i,
-      matches: matches.length,
+      matches: summary.count,
       diagnostics,
     };
   }
@@ -122,13 +135,13 @@ export function findSelectorChainMatch(
   const diagnostics: SelectorDiagnostics[] = [];
   for (let i = 0; i < chain.selectors.length; i += 1) {
     const selector = chain.selectors[i];
-    const matches = nodes.filter((node) => {
-      if (requireRect && !node.rect) return false;
-      return matchesSelector(node, selector, options.platform);
+    const matches = countSelectorMatchesOnly(nodes, selector, {
+      platform: options.platform,
+      requireRect,
     });
-    diagnostics.push({ selector: selector.raw, matches: matches.length });
-    if (matches.length > 0) {
-      return { selectorIndex: i, selector, matches: matches.length, diagnostics };
+    diagnostics.push({ selector: selector.raw, matches });
+    if (matches > 0) {
+      return { selectorIndex: i, selector, matches, diagnostics };
     }
   }
   return null;
@@ -162,19 +175,49 @@ export function isSelectorToken(token: string): boolean {
   return ALL_KEYS.has(trimmed.toLowerCase() as SelectorKey);
 }
 
-export function splitSelectorFromArgs(args: string[]): { selectorExpression: string; rest: string[] } | null {
+export function splitSelectorFromArgs(
+  args: string[],
+  options: { preferTrailingValue?: boolean } = {},
+): { selectorExpression: string; rest: string[] } | null {
   if (args.length === 0) return null;
+  const preferTrailingValue = options.preferTrailingValue ?? false;
   let i = 0;
+  const boundaries: number[] = [];
   while (i < args.length && isSelectorToken(args[i])) {
     i += 1;
+    const candidate = args.slice(0, i).join(' ').trim();
+    if (!candidate) continue;
+    if (tryParseSelectorChain(candidate)) {
+      boundaries.push(i);
+    }
   }
-  if (i === 0) return null;
-  const selectorExpression = args.slice(0, i).join(' ').trim();
+  if (boundaries.length === 0) return null;
+  let boundary = boundaries[boundaries.length - 1];
+  if (preferTrailingValue) {
+    for (let j = boundaries.length - 1; j >= 0; j -= 1) {
+      if (boundaries[j] < args.length) {
+        boundary = boundaries[j];
+        break;
+      }
+    }
+  }
+  const selectorExpression = args.slice(0, boundary).join(' ').trim();
   if (!selectorExpression) return null;
   return {
     selectorExpression,
-    rest: args.slice(i),
+    rest: args.slice(boundary),
   };
+}
+
+export function splitIsSelectorArgs(positionals: string[]): {
+  predicate: string;
+  split: { selectorExpression: string; rest: string[] } | null;
+} {
+  const predicate = positionals[0] ?? '';
+  const split = splitSelectorFromArgs(positionals.slice(1), {
+    preferTrailingValue: predicate === 'text',
+  });
+  return { predicate, split };
 }
 
 export function isNodeVisible(node: SnapshotNode): boolean {
@@ -318,7 +361,7 @@ function splitByFallback(expression: string): string[] {
   let quote: '"' | "'" | null = null;
   for (let i = 0; i < expression.length; i += 1) {
     const ch = expression[i];
-    if ((ch === '"' || ch === "'") && expression[i - 1] !== '\\') {
+    if ((ch === '"' || ch === "'") && !isEscapedQuote(expression, i)) {
       if (!quote) {
         quote = ch;
       } else if (quote === ch) {
@@ -353,7 +396,7 @@ function tokenize(segment: string): string[] {
   let quote: '"' | "'" | null = null;
   for (let i = 0; i < segment.length; i += 1) {
     const ch = segment[i];
-    if ((ch === '"' || ch === "'") && segment[i - 1] !== '\\') {
+    if ((ch === '"' || ch === "'") && !isEscapedQuote(segment, i)) {
       if (!quote) {
         quote = ch;
       } else if (quote === ch) {
@@ -420,4 +463,79 @@ function normalizeSelectorText(value: string | undefined): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
   return trimmed;
+}
+
+function analyzeSelectorMatches(
+  nodes: SnapshotState['nodes'],
+  selector: Selector,
+  options: { platform: 'ios' | 'android'; requireRect: boolean },
+): { count: number; firstNode: SnapshotNode | null; disambiguated: SnapshotNode | null } {
+  let count = 0;
+  let firstNode: SnapshotNode | null = null;
+  let best: SnapshotNode | null = null;
+  let tie = false;
+  for (const node of nodes) {
+    if (options.requireRect && !node.rect) continue;
+    if (!matchesSelector(node, selector, options.platform)) continue;
+    count += 1;
+    if (!firstNode) {
+      firstNode = node;
+    }
+    if (!best) {
+      best = node;
+      tie = false;
+      continue;
+    }
+    const comparison = compareDisambiguationCandidates(node, best);
+    if (comparison > 0) {
+      best = node;
+      tie = false;
+      continue;
+    }
+    if (comparison === 0) {
+      tie = true;
+    }
+  }
+  return {
+    count,
+    firstNode,
+    disambiguated: tie ? null : best,
+  };
+}
+
+function countSelectorMatchesOnly(
+  nodes: SnapshotState['nodes'],
+  selector: Selector,
+  options: { platform: 'ios' | 'android'; requireRect: boolean },
+): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (options.requireRect && !node.rect) continue;
+    if (!matchesSelector(node, selector, options.platform)) continue;
+    count += 1;
+  }
+  return count;
+}
+
+function compareDisambiguationCandidates(a: SnapshotNode, b: SnapshotNode): number {
+  const depthA = a.depth ?? 0;
+  const depthB = b.depth ?? 0;
+  if (depthA !== depthB) return depthA > depthB ? 1 : -1;
+  const areaA = areaOfNode(a);
+  const areaB = areaOfNode(b);
+  if (areaA !== areaB) return areaA < areaB ? 1 : -1;
+  return 0;
+}
+
+function areaOfNode(node: SnapshotNode): number {
+  if (!node.rect) return Number.POSITIVE_INFINITY;
+  return node.rect.width * node.rect.height;
+}
+
+function isEscapedQuote(source: string, index: number): boolean {
+  let backslashCount = 0;
+  for (let i = index - 1; i >= 0 && source[i] === '\\'; i -= 1) {
+    backslashCount += 1;
+  }
+  return backslashCount % 2 === 1;
 }

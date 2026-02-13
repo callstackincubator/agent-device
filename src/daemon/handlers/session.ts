@@ -11,7 +11,13 @@ import { resolveIosAppStateFromSnapshots } from '../app-state.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
-import { buildSelectorChainForNode, parseSelectorChain, resolveSelectorChain, splitSelectorFromArgs } from '../selectors.ts';
+import {
+  buildSelectorChainForNode,
+  resolveSelectorChain,
+  splitIsSelectorArgs,
+  splitSelectorFromArgs,
+  tryParseSelectorChain,
+} from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 
 type ReinstallOps = {
@@ -514,11 +520,13 @@ async function healReplayAction(params: {
   const snapshot = await captureSnapshotForReplay(session, action, logPath, requiresRect, dispatch, sessionStore);
   const selectorCandidates = collectReplaySelectorCandidates(action);
   for (const candidate of selectorCandidates) {
-    const chain = parseSelectorChain(candidate);
+    const chain = tryParseSelectorChain(candidate);
+    if (!chain) continue;
     const resolved = resolveSelectorChain(snapshot.nodes, chain, {
       platform: session.device.platform,
       requireRect: requiresRect,
       requireUnique: true,
+      disambiguateAmbiguous: requiresRect,
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
@@ -548,9 +556,8 @@ async function healReplayAction(params: {
       };
     }
     if (action.command === 'is') {
-      const predicate = action.positionals?.[0];
+      const { predicate, split } = splitIsSelectorArgs(action.positionals);
       if (!predicate) continue;
-      const split = splitSelectorFromArgs(action.positionals.slice(1));
       const expectedText = split?.rest.join(' ').trim() ?? '';
       const nextPositionals = [predicate, selectorExpression];
       if (predicate === 'text' && expectedText.length > 0) {
@@ -641,7 +648,7 @@ function collectReplaySelectorCandidates(action: SessionAction): string[] {
     }
   }
   if (action.command === 'is') {
-    const split = splitSelectorFromArgs(action.positionals.slice(1));
+    const { split } = splitIsSelectorArgs(action.positionals);
     if (split) {
       result.push(split.selectorExpression);
     }

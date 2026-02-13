@@ -74,6 +74,97 @@ test('resolveSelectorChain falls back when first selector is ambiguous', () => {
   assert.equal(resolved.node.ref, 'e2');
 });
 
+test('resolveSelectorChain keeps strict ambiguity behavior by default', () => {
+  const chain = parseSelectorChain('label="Continue"');
+  const resolved = resolveSelectorChain(nodes, chain, {
+    platform: 'ios',
+    requireRect: true,
+    requireUnique: true,
+  });
+  assert.equal(resolved, null);
+});
+
+test('resolveSelectorChain disambiguates to deeper/smaller matching node when enabled', () => {
+  const disambiguationNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'e1',
+      index: 0,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 0, y: 0, width: 300, height: 300 },
+      depth: 1,
+      enabled: true,
+      hittable: true,
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 10, y: 10, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+  ];
+  const chain = parseSelectorChain('role="other" label="Press me" || label="Press me"');
+  const resolved = resolveSelectorChain(disambiguationNodes, chain, {
+    platform: 'ios',
+    requireRect: true,
+    requireUnique: true,
+    disambiguateAmbiguous: true,
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.node.ref, 'e2');
+  assert.equal(resolved.matches, 2);
+});
+
+test('resolveSelectorChain disambiguation tie falls back to next selector', () => {
+  const tieNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'e1',
+      index: 0,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 0, y: 0, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      type: 'Other',
+      label: 'Press me',
+      rect: { x: 0, y: 40, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      type: 'Other',
+      label: 'Press me',
+      identifier: 'press_me_unique',
+      rect: { x: 0, y: 80, width: 100, height: 20 },
+      depth: 2,
+      enabled: true,
+      hittable: true,
+    },
+  ];
+  const chain = parseSelectorChain('label="Press me" || id="press_me_unique"');
+  const resolved = resolveSelectorChain(tieNodes, chain, {
+    platform: 'ios',
+    requireRect: true,
+    requireUnique: true,
+    disambiguateAmbiguous: true,
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.selectorIndex, 1);
+  assert.equal(resolved.node.ref, 'e3');
+});
+
 test('findSelectorChainMatch returns first matching selector for existence checks', () => {
   const chain = parseSelectorChain('label="Continue" || id=auth_continue');
   const match = findSelectorChainMatch(nodes, chain, {
@@ -91,10 +182,29 @@ test('splitSelectorFromArgs extracts selector prefix and trailing value', () => 
   assert.deepEqual(split.rest, ['qa@example.com']);
 });
 
+test('splitSelectorFromArgs prefers trailing token for value when requested', () => {
+  const split = splitSelectorFromArgs(['label="Filter"', 'visible=true'], { preferTrailingValue: true });
+  assert.ok(split);
+  assert.equal(split.selectorExpression, 'label="Filter"');
+  assert.deepEqual(split.rest, ['visible=true']);
+});
+
+test('splitSelectorFromArgs keeps full selector when trailing value preference is disabled', () => {
+  const split = splitSelectorFromArgs(['label="Filter"', 'visible=true']);
+  assert.ok(split);
+  assert.equal(split.selectorExpression, 'label="Filter" visible=true');
+  assert.deepEqual(split.rest, []);
+});
+
 test('parseSelectorChain rejects unknown keys and malformed quotes', () => {
   assert.throws(() => parseSelectorChain('foo=bar'), /Unknown selector key/i);
   assert.throws(() => parseSelectorChain('label="unclosed'), /Unclosed quote/i);
   assert.throws(() => parseSelectorChain(''), /cannot be empty/i);
+});
+
+test('parseSelectorChain handles quoted values ending in escaped backslashes', () => {
+  const chain = parseSelectorChain('label="path\\\\" || id=auth_continue');
+  assert.equal(chain.selectors.length, 2);
 });
 
 test('isSelectorToken only accepts known keys for key=value tokens', () => {
@@ -125,4 +235,27 @@ test('buildSelectorChainForNode prefers id and adds editable for fill action', (
   const chain = buildSelectorChainForNode(target, 'ios', { action: 'fill' });
   assert.ok(chain.some((entry) => entry.includes('id=')));
   assert.ok(chain.some((entry) => entry.includes('editable=true')));
+});
+
+test('role selector normalization matches Android class names by leaf type', () => {
+  const androidNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'a1',
+      index: 0,
+      type: 'android.widget.Button',
+      label: 'Continue',
+      identifier: 'auth_continue',
+      rect: { x: 0, y: 0, width: 120, height: 44 },
+      enabled: true,
+      hittable: true,
+    },
+  ];
+  const chain = parseSelectorChain('role=button label="Continue"');
+  const resolved = resolveSelectorChain(androidNodes, chain, {
+    platform: 'android',
+    requireRect: true,
+    requireUnique: true,
+  });
+  assert.ok(resolved);
+  assert.equal(resolved.node.ref, 'a1');
 });
