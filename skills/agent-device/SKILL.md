@@ -135,12 +135,14 @@ agent-device screenshot out.png
 ### Deterministic replay and updating
 
 ```bash
-agent-device open App --relaunch --save-script # Record fresh-launch semantics in .ad script
+agent-device open App --relaunch      # Fresh app process restart in the current session
+agent-device open App --save-script   # Save session script (.ad) on close
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 `replay` reads `.ad` recordings.
+`--relaunch` controls launch semantics; `--save-script` controls recording. Combine only when both are needed.
 
 ### Trace logs (AX/XCTest)
 
