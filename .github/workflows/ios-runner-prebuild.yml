@@ -43,40 +43,6 @@ jobs:
           path: ${{ env.PREBUILT_DIR }}
           key: ios-runner-prebuilt-${{ steps.xcode.outputs.key }}-ios-${{ env.IOS_RUNTIME_VERSION }}
 
-      - name: Resolve iOS runtime 26.2
-        if: steps.restore-prebuilt.outputs.cache-hit != 'true'
-        id: runtime
-        run: |
-          set -euo pipefail
-          RUNTIME_ID="$(
-            xcrun simctl list runtimes -j | node -e "
-              const fs = require('node:fs');
-              const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
-              const targetVersion = process.env.IOS_RUNTIME_VERSION;
-              const runtime = (payload.runtimes ?? [])
-                .filter((item) => item.isAvailable)
-                .find((item) => item.platform === 'iOS' && item.version === targetVersion);
-              if (!runtime?.identifier) process.exit(1);
-              process.stdout.write(runtime.identifier);
-            "
-          )"
-
-          if [ -z "$RUNTIME_ID" ]; then
-            echo "Could not find available iOS runtime ${IOS_RUNTIME_VERSION}" >&2
-            exit 1
-          fi
-
-          echo "runtime_id=$RUNTIME_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Create simulator for runtime
-        if: steps.restore-prebuilt.outputs.cache-hit != 'true'
-        id: simulator
-        run: |
-          set -euo pipefail
-          UDID="$(xcrun simctl create "agent-device-prebuild-${GITHUB_RUN_ID}" "$IOS_DEVICE_NAME" "${{ steps.runtime.outputs.runtime_id }}")"
-          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          xcrun simctl boot "$UDID" || true
-
       - name: Build ios-runner for testing
         if: steps.restore-prebuilt.outputs.cache-hit != 'true'
         run: |
@@ -85,10 +51,10 @@ jobs:
           xcodebuild build-for-testing \
             -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj \
             -scheme AgentDeviceRunner \
-            -destination "id=${{ steps.simulator.outputs.udid }}" \
+            -destination "platform=iOS Simulator,name=${IOS_DEVICE_NAME},OS=${IOS_RUNTIME_VERSION}" \
             -derivedDataPath "$DERIVED_DATA_PATH"
 
-      - name: Package prebuilt artifact
+      - name: Package prebuilt cache payload
         if: steps.restore-prebuilt.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
@@ -96,9 +62,7 @@ jobs:
           cp -R "$DERIVED_DATA_PATH" "$PREBUILT_DIR/derived-data"
           cat > "$PREBUILT_DIR/metadata.txt" <<EOF
           runtime_version=${IOS_RUNTIME_VERSION}
-          runtime_id=${{ steps.runtime.outputs.runtime_id }}
           device_name=${IOS_DEVICE_NAME}
-          simulator_udid=${{ steps.simulator.outputs.udid }}
           xcode_version=${{ steps.xcode.outputs.version }}
           github_run_id=${GITHUB_RUN_ID}
           github_sha=${GITHUB_SHA}
@@ -119,9 +83,3 @@ jobs:
           else
             echo "Created/updated prebuild cache."
           fi
-
-      - name: Cleanup simulator
-        if: always() && steps.restore-prebuilt.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          xcrun simctl delete "${{ steps.simulator.outputs.udid }}" || true
