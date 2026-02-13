@@ -33,7 +33,16 @@ export async function handleSnapshotCommands(params: {
         ok: false,
         error: {
           code: 'UNSUPPORTED_OPERATION',
-          message: 'snapshot is only supported on iOS simulators in v1',
+          message: 'snapshot is not supported on this device',
+        },
+      };
+    }
+    if (device.platform === 'ios' && device.kind === 'device' && req.flags?.snapshotBackend === 'ax') {
+      return {
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'AX snapshot backend is not supported on iOS physical devices; use --backend xctest',
         },
       };
     }
@@ -227,7 +236,7 @@ export async function handleSnapshotCommands(params: {
     const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const start = Date.now();
     while (Date.now() - start < timeout) {
-      if (device.platform === 'ios' && device.kind === 'simulator') {
+      if (device.platform === 'ios') {
         const result = (await runIosRunnerCommand(
           device,
           { command: 'findText', text, appBundleId: session?.appBundleId },
@@ -310,6 +319,15 @@ export async function handleSnapshotCommands(params: {
       };
     }
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
+    if (!isCommandSupportedOnDevice('settings', device)) {
+      return {
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'settings is not supported on this device',
+        },
+      };
+    }
     const appBundleId = session?.appBundleId;
     const data = await dispatchCommand(
       device,

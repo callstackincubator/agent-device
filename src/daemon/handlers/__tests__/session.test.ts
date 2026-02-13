@@ -46,7 +46,7 @@ test('boot requires session or explicit selector', async () => {
   }
 });
 
-test('boot rejects unsupported iOS device kind', async () => {
+test('boot succeeds for iOS physical devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
   sessionStore.set(
@@ -59,6 +59,7 @@ test('boot rejects unsupported iOS device kind', async () => {
       booted: true,
     }),
   );
+  let ensureCalls = 0;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -72,13 +73,15 @@ test('boot rejects unsupported iOS device kind', async () => {
     sessionStore,
     invoke: noopInvoke,
     ensureReady: async () => {
-      throw new Error('ensureReady should not be called for unsupported boot');
+      ensureCalls += 1;
     },
   });
   assert.ok(response);
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+  assert.equal(response?.ok, true);
+  assert.equal(ensureCalls, 1);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.booted, true);
   }
 });
 

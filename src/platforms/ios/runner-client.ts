@@ -106,10 +106,6 @@ async function executeRunnerCommand(
   command: RunnerCommand,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
 ): Promise<Record<string, unknown>> {
-  if (device.kind !== 'simulator') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'iOS runner only supports simulators in v1');
-  }
-
   try {
     const session = await ensureRunnerSession(device, options);
     const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
@@ -221,8 +217,8 @@ async function ensureRunnerSession(
   const existing = runnerSessions.get(device.id);
   if (existing) return existing;
 
-  await ensureBooted(device.id);
-  const xctestrun = await ensureXctestrun(device.id, options);
+  await ensureBootedIfNeeded(device);
+  const xctestrun = await ensureXctestrun(device, options);
   const port = await getFreePort();
   const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
     xctestrun,
@@ -239,12 +235,12 @@ async function ensureRunnerSession(
       'NO',
       '-test-timeouts-enabled',
       'NO',
-      '-maximum-concurrent-test-simulator-destinations',
+      '-maximum-concurrent-test-device-destinations',
       '1',
       '-xctestrun',
       xctestrunPath,
       '-destination',
-      `platform=iOS Simulator,id=${device.id}`,
+      resolveRunnerDestination(device),
     ],
     {
       allowFailure: true,
@@ -292,10 +288,10 @@ async function killRunnerProcessTree(
 
 
 async function ensureXctestrun(
-  udid: string,
+  device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
-  const derived = resolveRunnerDerivedPath();
+  const derived = resolveRunnerDerivedPath(device.kind);
   if (shouldCleanDerived()) {
     try {
       fs.rmSync(derived, { recursive: true, force: true });
@@ -313,6 +309,8 @@ async function ensureXctestrun(
     throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
   }
 
+  const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
+  const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
   try {
     await runCmdStreaming(
       'xcodebuild',
@@ -324,12 +322,14 @@ async function ensureXctestrun(
         'AgentDeviceRunner',
         '-parallel-testing-enabled',
         'NO',
-        '-maximum-concurrent-test-simulator-destinations',
+        '-maximum-concurrent-test-device-destinations',
         '1',
         '-destination',
-        `platform=iOS Simulator,id=${udid}`,
+        resolveRunnerBuildDestination(device),
         '-derivedDataPath',
         derived,
+        ...provisioningArgs,
+        ...signingBuildSettings,
       ],
       {
         onStdoutChunk: (chunk) => {
@@ -342,10 +342,12 @@ async function ensureXctestrun(
     );
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
+    const hint = resolveSigningFailureHint(appErr);
     throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
       error: appErr.message,
       details: appErr.details,
       logPath: options.logPath,
+      hint,
     });
   }
 
@@ -356,13 +358,76 @@ async function ensureXctestrun(
   return built;
 }
 
-function resolveRunnerDerivedPath(): string {
+function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
   const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
   if (override) {
     return path.resolve(override);
   }
   const base = path.join(os.homedir(), '.agent-device', 'ios-runner');
-  return path.join(base, 'derived');
+  return path.join(base, 'derived', kind);
+}
+
+export function resolveRunnerDestination(device: DeviceInfo): string {
+  if (device.platform !== 'ios') {
+    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+  }
+  if (device.kind === 'simulator') {
+    return `platform=iOS Simulator,id=${device.id}`;
+  }
+  return `platform=iOS,id=${device.id}`;
+}
+
+export function resolveRunnerBuildDestination(device: DeviceInfo): string {
+  if (device.platform !== 'ios') {
+    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+  }
+  if (device.kind === 'simulator') {
+    return `platform=iOS Simulator,id=${device.id}`;
+  }
+  return 'generic/platform=iOS';
+}
+
+function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
+  if (device.kind !== 'simulator') {
+    return Promise.resolve();
+  }
+  return ensureBooted(device.id);
+}
+
+export function resolveRunnerSigningBuildSettings(
+  env: NodeJS.ProcessEnv = process.env,
+  forDevice = false,
+): string[] {
+  const teamId = env.AGENT_DEVICE_IOS_TEAM_ID?.trim() || '';
+  const configuredIdentity = env.AGENT_DEVICE_IOS_SIGNING_IDENTITY?.trim() || '';
+  const profile = env.AGENT_DEVICE_IOS_PROVISIONING_PROFILE?.trim() || '';
+  if (!forDevice && !teamId && !configuredIdentity && !profile) {
+    return [];
+  }
+  const args = ['CODE_SIGN_STYLE=Automatic'];
+  if (teamId) {
+    args.push(`DEVELOPMENT_TEAM=${teamId}`);
+  }
+  if (configuredIdentity || forDevice) {
+    args.push(`CODE_SIGN_IDENTITY=${configuredIdentity || 'Apple Development'}`);
+  }
+  if (profile) args.push(`PROVISIONING_PROFILE_SPECIFIER=${profile}`);
+  return args;
+}
+
+function resolveSigningFailureHint(error: AppError): string | undefined {
+  const details = error.details ? JSON.stringify(error.details) : '';
+  const combined = `${error.message}\n${details}`.toLowerCase();
+  if (combined.includes('requires a development team')) {
+    return 'Configure signing in Xcode or set AGENT_DEVICE_IOS_TEAM_ID for physical-device runs.';
+  }
+  if (combined.includes('no profiles for') || combined.includes('provisioning profile')) {
+    return 'Install/select a valid iOS provisioning profile, or set AGENT_DEVICE_IOS_PROVISIONING_PROFILE.';
+  }
+  if (combined.includes('code signing')) {
+    return 'Enable Automatic Signing in Xcode or provide AGENT_DEVICE_IOS_TEAM_ID and optional AGENT_DEVICE_IOS_SIGNING_IDENTITY.';
+  }
+  return undefined;
 }
 
 function findXctestrun(root: string): string | null {
@@ -440,20 +505,23 @@ async function waitForRunner(
   logPath?: string,
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
 ): Promise<Response> {
+  const endpoints = await resolveRunnerCommandEndpoints(device, port);
   const start = Date.now();
   let lastError: unknown = null;
   while (Date.now() - start < timeoutMs) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(command),
-      });
-      return response;
-    } catch (err) {
-      lastError = err;
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(command),
+        });
+        return response;
+      } catch (err) {
+        lastError = err;
+      }
     }
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   if (device.kind === 'simulator') {
     const simResponse = await postCommandViaSimulator(device.id, port, command);
@@ -462,6 +530,7 @@ async function waitForRunner(
 
   throw new AppError('COMMAND_FAILED', 'Runner did not accept connection', {
     port,
+    endpoints,
     logPath,
     lastError: lastError ? String(lastError) : undefined,
     reason: classifyBootFailure({
@@ -471,6 +540,60 @@ async function waitForRunner(
     }),
     hint: bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT'),
   });
+}
+
+async function resolveRunnerCommandEndpoints(
+  device: DeviceInfo,
+  port: number,
+): Promise<string[]> {
+  const endpoints = [`http://127.0.0.1:${port}/command`];
+  if (device.kind !== 'device') {
+    return endpoints;
+  }
+  const tunnelIp = await resolveDeviceTunnelIp(device.id);
+  if (tunnelIp) {
+    endpoints.unshift(`http://[${tunnelIp}]:${port}/command`);
+  }
+  return endpoints;
+}
+
+async function resolveDeviceTunnelIp(deviceId: string): Promise<string | null> {
+  const jsonPath = path.join(
+    os.tmpdir(),
+    `agent-device-devicectl-info-${process.pid}-${Date.now()}.json`,
+  );
+  try {
+    const result = await runCmd(
+      'xcrun',
+      [
+        'devicectl',
+        'device',
+        'info',
+        'details',
+        '--device',
+        deviceId,
+        '--json-output',
+        jsonPath,
+        '--timeout',
+        '10',
+      ],
+      { allowFailure: true },
+    );
+    if (result.exitCode !== 0 || !fs.existsSync(jsonPath)) {
+      return null;
+    }
+    const payload = JSON.parse(fs.readFileSync(jsonPath, 'utf8')) as {
+      result?: {
+        connectionProperties?: { tunnelIPAddress?: string };
+      };
+    };
+    const ip = payload.result?.connectionProperties?.tunnelIPAddress?.trim();
+    return ip && ip.length > 0 ? ip : null;
+  } catch {
+    return null;
+  } finally {
+    cleanupTempFile(jsonPath);
+  }
 }
 
 async function postCommandViaSimulator(

@@ -5,9 +5,13 @@ import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'ios-test'];
 const iosTarget = ['--platform', 'ios'];
+const iosPhysicalUdid = process.env.IOS_UDID?.trim();
 
 test.after(() => {
   runCliJson(['close', ...iosTarget, '--json', ...session]);
+  if (iosPhysicalUdid) {
+    runCliJson(['close', '--platform', 'ios', '--udid', iosPhysicalUdid, '--json', '--session', 'ios-device-test']);
+  }
 });
 
 test('ios settings commands', { skip: shouldSkipIos() }, async () => {
@@ -79,6 +83,38 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
   integration.runStep('back', backArgs);
 });
 
+test('ios physical device core lifecycle', { skip: shouldSkipIosPhysicalDevice() }, async () => {
+  const integration = createIntegrationTestContext({
+    platform: 'ios',
+    testName: 'ios physical device core lifecycle',
+  });
+  const deviceSession = ['--session', 'ios-device-test'];
+  const target = ['--platform', 'ios', '--udid', iosPhysicalUdid as string];
+
+  const openArgs = ['open', 'com.apple.Preferences', ...target, '--json', ...deviceSession];
+  integration.runStep('open settings (device)', openArgs);
+
+  const snapshotArgs = ['snapshot', '--backend', 'xctest', '--json', ...deviceSession];
+  const snapshot = integration.runStep('snapshot (device)', snapshotArgs);
+  integration.assertResult(
+    Array.isArray(snapshot.json?.data?.nodes),
+    'snapshot nodes (device)',
+    snapshotArgs,
+    snapshot,
+    { detail: 'expected snapshot to include a nodes array' },
+  );
+
+  const clickArgs = ['click', 'role=cell', 'label=General', '--json', ...deviceSession];
+  integration.runStep('click general (device)', clickArgs);
+
+  const backArgs = ['back', '--json', ...deviceSession];
+  integration.runStep('back (device)', backArgs);
+});
+
 function shouldSkipIos(): boolean {
   return process.platform !== 'darwin';
+}
+
+function shouldSkipIosPhysicalDevice(): boolean {
+  return process.platform !== 'darwin' || !iosPhysicalUdid;
 }

@@ -23,6 +23,7 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app]` already boots/activates the selected target when needed.
+- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only in v1.
 
 ## Snapshot and inspect
 
@@ -31,6 +32,9 @@ agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|
 agent-device get text @e1
 agent-device get attrs @e1
 ```
+
+- `--backend xctest` works on iOS simulators and iOS devices.
+- `--backend ax` is simulator-only.
 
 ## Interactions
 
@@ -98,6 +102,9 @@ agent-device settings location on
 agent-device settings location off
 ```
 
+- iOS `settings` support is simulator-only in v1.
+- Android `settings` support works on emulators and devices.
+
 ## Media and logs
 
 ```bash
@@ -107,3 +114,16 @@ agent-device record start               # Start screen recording to auto filenam
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record stop                # Stop active recording
 ```
+
+- iOS `record` is simulator-only in v1.
+
+## iOS device prerequisites
+
+- Xcode + `xcrun devicectl` available.
+- Paired physical device with Developer Mode enabled.
+- Use Automatic Signing in Xcode, or pass optional env overrides:
+  - `AGENT_DEVICE_IOS_TEAM_ID`
+  - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (defaults to `Apple Development` when overrides are used)
+  - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- If first-run XCTest setup/build is slow, increase daemon request timeout:
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)

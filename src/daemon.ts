@@ -175,7 +175,7 @@ function start(): void {
   const shutdown = async () => {
     const sessionsToStop = sessionStore.toArray();
     for (const session of sessionsToStop) {
-      if (session.device.platform === 'ios' && session.device.kind === 'simulator') {
+      if (session.device.platform === 'ios') {
         await stopIosRunnerSession(session.device.id);
       }
       sessionStore.writeSessionLog(session);

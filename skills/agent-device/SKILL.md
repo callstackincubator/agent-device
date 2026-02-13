@@ -1,6 +1,6 @@
 ---
 name: agent-device
-description: Automates mobile and simulator interactions for iOS and Android devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, pinching, or extracting UI info on mobile devices or simulators.
+description: Automates interactions for iOS simulators/devices and Android emulators/devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, or extracting UI info on mobile targets.
 ---
 
 # Mobile Automation with agent-device
@@ -39,13 +39,13 @@ npx -y agent-device
 
 ```bash
 agent-device boot                 # Ensure target is booted/ready without opening app
-agent-device boot --platform ios  # Boot iOS simulator
+agent-device boot --platform ios  # Boot iOS simulator/device target
 agent-device boot --platform android # Boot Android emulator/device target
 agent-device open [app|url]       # Boot device/simulator; optionally launch app or deep link URL
 agent-device open [app] --relaunch # Terminate app process first, then launch (fresh runtime)
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity (app targets only)
 agent-device open "myapp://home" --platform android          # Android deep link
-agent-device open "https://example.com" --platform ios       # iOS simulator deep link
+agent-device open "https://example.com" --platform ios       # iOS simulator deep link (device unsupported in v1)
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
@@ -82,7 +82,7 @@ agent-device find "Settings" wait 10000
 agent-device find "Settings" exists
 ```
 
-### Settings helpers (simulators)
+### Settings helpers
 
 ```bash
 agent-device settings wifi on
@@ -95,6 +95,7 @@ agent-device settings location off
 
 Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
 Airplane off clears status bar overrides.
+iOS settings helpers are simulator-only in v1.
 
 ### App state
 
@@ -118,8 +119,8 @@ agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800    # Long press (where supported)
 agent-device scroll down 0.5
-agent-device pinch 2.0              # Zoom in 2x (iOS simulator)
-agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator)
+agent-device pinch 2.0              # Zoom in 2x (iOS simulator only)
+agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator only)
 agent-device back
 agent-device home
 agent-device app-switcher
@@ -179,7 +180,7 @@ agent-device apps --platform android --user-installed
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, `xctest` is the default and does not require Accessibility permission.
-- If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
+- If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX on simulators when available.
 - `open <app|url>` can be used within an existing session to switch apps or open deep links.
 - `open <app>` updates session app bundle context; URL opens do not set an app bundle id.
 - Use `open <app> --relaunch` during React Native/Fast Refresh debugging when you need a fresh app process without ending the session.
@@ -187,6 +188,8 @@ agent-device apps --platform android --user-installed
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
 - iOS deep-link opens are simulator-only in v1.
+- iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
+- For long first-run physical-device setup/build, increase daemon timeout: `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher).
 - Use `fill` when you want clear-then-type semantics.
 - Use `type` when you want to append/enter text without clearing.
 - On Android, prefer `fill` for important fields; it verifies entered text and retries once when IME reorders characters.

@@ -497,7 +497,7 @@ export async function handleSessionCommands(params: {
         ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
       });
     }
-    if (session.device.platform === 'ios' && session.device.kind === 'simulator') {
+    if (session.device.platform === 'ios') {
       await stopIosRunnerSession(session.device.id);
     }
     sessionStore.recordAction(session, {

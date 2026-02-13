@@ -10,6 +10,28 @@ export async function resolveIosAppStateFromSnapshots(
   traceLogPath: string | undefined,
   flags: CommandFlags | undefined,
 ): Promise<{ appName: string; appBundleId?: string; source: 'snapshot-ax' | 'snapshot-xctest' }> {
+  if (device.kind === 'device') {
+    const xctestResult = await dispatchCommand(device, 'snapshot', [], flags?.out, {
+      ...contextFromFlags(
+        logPath,
+        {
+          ...flags,
+          snapshotDepth: 1,
+          snapshotCompact: true,
+          snapshotBackend: 'xctest',
+        },
+        undefined,
+        traceLogPath,
+      ),
+    });
+    const xcNode = extractAppNodeFromSnapshot(xctestResult as { nodes?: RawSnapshotNode[] });
+    return {
+      appName: xcNode?.appName ?? xcNode?.appBundleId ?? 'unknown',
+      appBundleId: xcNode?.appBundleId,
+      source: 'snapshot-xctest',
+    };
+  }
+
   const axResult = await dispatchCommand(device, 'snapshot', [], flags?.out, {
     ...contextFromFlags(
       logPath,

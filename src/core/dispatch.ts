@@ -283,6 +283,12 @@ export async function dispatchCommand(
     case 'snapshot': {
       const backend = context?.snapshotBackend ?? 'xctest';
       if (device.platform === 'ios') {
+        if (backend === 'ax' && device.kind !== 'simulator') {
+          throw new AppError(
+            'UNSUPPORTED_OPERATION',
+            'AX snapshot backend is not supported on iOS physical devices; use --backend xctest',
+          );
+        }
         if (backend === 'ax') {
           const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
           return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };
@@ -301,7 +307,7 @@ export async function dispatchCommand(
           { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
         const nodes = result.nodes ?? [];
-        if (nodes.length === 0) {
+        if (nodes.length === 0 && device.kind === 'simulator') {
           try {
             const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
             return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };

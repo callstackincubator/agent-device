@@ -14,13 +14,13 @@ hero:
 
 features:
   - title: One CLI, many devices
-    details: Control iOS simulators and Android emulators with consistent commands for snapshotting, input, and navigation.
+    details: Control iOS simulators + physical devices and Android emulators + devices with consistent snapshot and interaction commands.
   - title: Token-efficient UI snapshots
     details: XCTest accessibility trees give agents a complete view of the UI while keeping output compact.
   - title: Interactions that just work
     details: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
   - title: Session and replay
-    details: Open apps, switch apps in-session, and replay recorded actions to reproduce flows.
+    details: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
   - title: Visual verification
     details: Capture full-resolution screenshots for reporting and visual checks.
   - title: Traceable automation

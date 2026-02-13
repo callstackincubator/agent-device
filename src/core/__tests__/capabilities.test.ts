@@ -32,10 +32,17 @@ test('iOS simulator-only commands reject iOS devices and Android', () => {
   }
 });
 
-test('iOS simulator + Android commands reject iOS devices', () => {
+test('simulator-only iOS commands with Android support reject iOS devices', () => {
+  for (const cmd of ['apps', 'reinstall', 'record', 'settings', 'swipe']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
+    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
+    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
+  }
+});
+
+test('core commands support iOS simulator, iOS device, and Android', () => {
   for (const cmd of [
     'app-switcher',
-    'apps',
     'back',
     'boot',
     'click',
@@ -47,19 +54,16 @@ test('iOS simulator + Android commands reject iOS devices', () => {
     'home',
     'long-press',
     'open',
-    'reinstall',
     'press',
-    'record',
     'screenshot',
     'scroll',
-    'swipe',
-    'settings',
+    'scrollintoview',
     'snapshot',
     'type',
     'wait',
   ]) {
     assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
-    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
+    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), true, `${cmd} on iOS device`);
     assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
   }
 });

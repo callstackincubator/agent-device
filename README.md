@@ -13,8 +13,8 @@ CLI to control iOS and Android devices for AI agents influenced by Vercel’s [a
 The project is in early development and considered experimental. Pull requests are welcome!
 
 ## Features
-- Platforms: iOS (simulator + limited device support) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `swipe`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `pinch`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
+- Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree).
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -99,9 +99,10 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 | `ax` | Fast | Medium | Accessibility permission for the terminal app, not recommended |
 
 Notes:
-- Default backend is `xctest` on iOS.
+- Default backend is `xctest` on iOS simulators and iOS devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
-- If XCTest returns 0 nodes (e.g., foreground app changed), agent-device falls back to AX when available.
+- If XCTest returns 0 nodes (e.g., foreground app changed), agent-device falls back to AX on simulators when available.
+- `ax` backend is simulator-only.
 
 Flags:
 - `--version, -V` print version and exit
@@ -207,14 +208,14 @@ Android fill reliability:
 - If value does not match, agent-device clears the field and retries once with slower typing.
 - This reduces IME-related character swaps on long strings (e.g. emails and IDs).
 
-Settings helpers (simulators):
+Settings helpers:
 - `settings wifi on|off`
 - `settings airplane on|off`
 - `settings location on|off` (iOS uses per-app permission for the current session app)
-Note: iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
+Note: iOS supports these only on simulators in v1. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
-- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it falls back to a snapshot-based guess (AX first, XCTest if AX can’t identify).
+- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it falls back to a snapshot-based guess (`xctest` on devices; AX-first on simulators with XCTest fallback).
 - `apps --metadata` returns app list with minimal metadata.
 
 ## Debug
@@ -238,9 +239,10 @@ Boot diagnostics:
 - Built-in aliases include `Settings` for both platforms.
 
 ## iOS notes
-- Input commands (`press`, `type`, `scroll`, etc.) are supported only on simulators in v1 and use the XCTest runner.
-- `alert` and `scrollintoview` use the XCTest runner and are simulator-only in v1.
-- Real device support (including snapshots) is on the roadmap for iOS.
+- Core runner commands (`snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`) support iOS simulators and iOS devices.
+- Simulator-only commands in v1: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`.
+- iOS deep link open (`open <url>`) is simulator-only in v1.
+- iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
 
@@ -266,6 +268,10 @@ Environment selectors:
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to increase daemon request timeout for slow first-run iOS device setup (for example `180000`).
+- `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
+- `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override (defaults to `Apple Development` when signing overrides are used).
+- `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
 
 Test screenshots are written to:
 - `test/screenshots/android-settings.png`

@@ -1,3 +1,6 @@
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -41,16 +44,34 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
   const devicectlAvailable = await whichCmd('xcrun');
   if (devicectlAvailable) {
     try {
-      const result = await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json']);
-      const payload = JSON.parse(result.stdout as string) as {
-        devices: { identifier: string; name: string; platform: string }[];
+      const jsonPath = path.join(
+        os.tmpdir(),
+        `agent-device-devicectl-${process.pid}-${Date.now()}.json`,
+      );
+      await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath]);
+      const jsonText = await fs.readFile(jsonPath, 'utf8');
+      await fs.rm(jsonPath, { force: true });
+      const payload = JSON.parse(jsonText) as {
+        result?: {
+          devices?: Array<{
+            identifier?: string;
+            name?: string;
+            hardwareProperties?: { platform?: string; udid?: string };
+            deviceProperties?: { name?: string };
+            connectionProperties?: { tunnelState?: string };
+          }>;
+        };
       };
-      for (const device of payload.devices ?? []) {
-        if (device.platform?.toLowerCase().includes('ios')) {
+      for (const device of payload.result?.devices ?? []) {
+        const platform = device.hardwareProperties?.platform ?? '';
+        if (platform.toLowerCase().includes('ios')) {
+          const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
+          const name = device.name ?? device.deviceProperties?.name ?? id;
+          if (!id) continue;
           devices.push({
             platform: 'ios',
-            id: device.identifier,
-            name: device.name,
+            id,
+            name,
             kind: 'device',
             booted: true,
           });
