@@ -23,6 +23,8 @@ jobs:
       IOS_RUNTIME_VERSION: '26.2'
       PREBUILT_DIR: ${{ github.workspace }}/.tmp/ios-runner-prebuilt
       AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS: "60000"
+      AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
+      AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -61,18 +63,7 @@ jobs:
         if: steps.restore-prebuilt.outputs.cache-hit != 'true'
         run: pnpm build:xcuitest
 
-      - name: Boot preflight via agent-device
-        run: |
-          set -euo pipefail
-          node --experimental-strip-types src/bin.ts boot --platform ios --device "iPhone 17 Pro" --json --session ios-test
-        env:
-          AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
-          AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
-          AGENT_DEVICE_RETRY_LOGS: "1"
-
       - name: Run iOS integration test
-        env:
-          AGENT_DEVICE_DAEMON_TIMEOUT_MS: "300000"
         run: node --test test/integration/ios.test.ts
 
       - name: Upload iOS artifacts
