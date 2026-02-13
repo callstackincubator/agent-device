@@ -14,6 +14,7 @@ Sessions isolate device context. A device can only be held by one session at a t
 - Name sessions semantically.
 - Close sessions when done.
 - Use separate sessions for parallel work.
+- For dev loops where runtime state can persist (for example React Native Fast Refresh), use `open <app> --relaunch` to restart the app process in the same session.
 - For deterministic replay scripts, prefer selector-based actions and assertions.
 - Use `replay -u` to update selector drift during maintenance.
 

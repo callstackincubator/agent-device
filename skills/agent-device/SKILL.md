@@ -42,6 +42,7 @@ agent-device boot                 # Ensure target is booted/ready without openin
 agent-device boot --platform ios  # Boot iOS simulator
 agent-device boot --platform android # Boot Android emulator/device target
 agent-device open [app]           # Boot device/simulator; optionally launch app
+agent-device open [app] --relaunch # Terminate app process first, then launch (fresh runtime)
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
@@ -134,7 +135,7 @@ agent-device screenshot out.png
 ### Deterministic replay and updating
 
 ```bash
-agent-device open App --save-script   # Save session script (.ad) on close
+agent-device open App --relaunch --save-script # Record fresh-launch semantics in .ad script
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
@@ -169,6 +170,7 @@ agent-device apps --platform android --user-installed
 - On iOS, `xctest` is the default and does not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
 - `open <app>` can be used within an existing session to switch apps and update the session bundle id.
+- Use `open <app> --relaunch` during React Native/Fast Refresh debugging when you need a fresh app process without ending the session.
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK).
