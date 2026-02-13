@@ -121,6 +121,98 @@ test('boot succeeds for supported device in session', async () => {
   }
 });
 
+test('open URL on existing iOS session clears stale app bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 15',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.old',
+      appName: 'Old App',
+    },
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['https://example.com/path'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, undefined);
+  assert.equal(updated?.appName, 'https://example.com/path');
+  assert.equal(dispatchedContext?.appBundleId, undefined);
+});
+
+test('open app on existing iOS session resolves and stores bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 15',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.old',
+      appName: 'Old App',
+    },
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'com.apple.Preferences');
+  assert.equal(updated?.appName, 'settings');
+  assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
+});
+
 test('open --relaunch closes and reopens active session app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-session';
@@ -162,6 +254,30 @@ test('open --relaunch closes and reopens active session app', async () => {
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], { command: 'close', positionals: ['com.example.app'] });
   assert.deepEqual(calls[1], { command: 'open', positionals: ['com.example.app'] });
+});
+
+test('open --relaunch rejects URL targets', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['https://example.com/path'],
+      flags: { relaunch: true },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /does not support URL targets/i);
+  }
 });
 
 test('open --relaunch fails without app when no session exists', async () => {

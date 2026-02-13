@@ -4,9 +4,10 @@ import path from 'node:path';
 import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'ios-test'];
+const iosTarget = ['--platform', 'ios'];
 
 test.after(() => {
-  runCliJson(['close', '--platform', 'ios', '--json', ...session]);
+  runCliJson(['close', ...iosTarget, '--json', ...session]);
 });
 
 test('ios settings commands', { skip: shouldSkipIos() }, async () => {
@@ -14,11 +15,11 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     platform: 'ios',
     testName: 'ios settings commands',
   });
-  const openArgs = ['open', 'com.apple.Preferences', '--platform', 'ios', '--json', ...session];
+  const openArgs = ['open', 'com.apple.Preferences', ...iosTarget, '--json', ...session];
   integration.runStep('open settings', openArgs);
 
   const outPath = path.resolve('test/screenshots/ios-settings.png');
-  const shotArgs = ['screenshot', outPath, '--platform', 'ios', '--json', ...session];
+  const shotArgs = ['screenshot', outPath, ...iosTarget, '--json', ...session];
   const shot = integration.runStep('screenshot settings', shotArgs);
   integration.assertResult(existsSync(outPath), 'screenshot file missing', shotArgs, shot, {
     detail: `expected screenshot file at ${outPath}`,

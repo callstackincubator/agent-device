@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
@@ -52,6 +53,18 @@ const defaultReinstallOps: ReinstallOps = {
     return await reinstallAndroidApp(device, app, appPath);
   },
 };
+
+async function resolveIosBundleIdForOpen(device: DeviceInfo, openTarget: string | undefined): Promise<string | undefined> {
+  if (device.platform !== 'ios' || !openTarget || isDeepLinkTarget(openTarget)) {
+    return undefined;
+  }
+  try {
+    const { resolveIosApp } = await import('../../platforms/ios/index.ts');
+    return await resolveIosApp(device, openTarget);
+  } catch {
+    return undefined;
+  }
+}
 
 export async function handleSessionCommands(params: {
   req: DaemonRequest;
@@ -289,9 +302,9 @@ export async function handleSessionCommands(params: {
     const shouldRelaunch = req.flags?.relaunch === true;
     if (sessionStore.has(sessionName)) {
       const session = sessionStore.get(sessionName);
-      const requestedAppName = req.positionals?.[0];
-      const appName = requestedAppName ?? (shouldRelaunch ? session?.appName : undefined);
-      if (!session || !appName) {
+      const requestedOpenTarget = req.positionals?.[0];
+      const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session?.appName : undefined);
+      if (!session || !openTarget) {
         if (shouldRelaunch) {
           return {
             ok: false,
@@ -309,18 +322,20 @@ export async function handleSessionCommands(params: {
           },
         };
       }
-      let appBundleId: string | undefined;
-      if (session.device.platform === 'ios') {
-        try {
-          const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-          appBundleId = await resolveIosApp(session.device, appName);
-        } catch {
-          appBundleId = undefined;
-        }
+      if (shouldRelaunch && isDeepLinkTarget(openTarget)) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'open --relaunch does not support URL targets.',
+          },
+        };
       }
-      const openPositionals = requestedAppName ? (req.positionals ?? []) : [appName];
+      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget);
+      const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
-        await dispatch(session.device, 'close', [appName], req.flags?.out, {
+        const closeTarget = appBundleId ?? openTarget;
+        await dispatch(session.device, 'close', [closeTarget], req.flags?.out, {
           ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
         });
       }
@@ -330,7 +345,7 @@ export async function handleSessionCommands(params: {
       const nextSession: SessionState = {
         ...session,
         appBundleId,
-        appName,
+        appName: openTarget,
         recordSession: session.recordSession || req.flags?.saveScript === true,
         snapshot: undefined,
       };
@@ -338,18 +353,27 @@ export async function handleSessionCommands(params: {
         command,
         positionals: openPositionals,
         flags: req.flags ?? {},
-        result: { session: sessionName, appName, appBundleId },
+        result: { session: sessionName, appName: openTarget, appBundleId },
       });
       sessionStore.set(sessionName, nextSession);
-      return { ok: true, data: { session: sessionName, appName, appBundleId } };
+      return { ok: true, data: { session: sessionName, appName: openTarget, appBundleId } };
     }
-    const appName = req.positionals?.[0];
-    if (shouldRelaunch && !appName) {
+    const openTarget = req.positionals?.[0];
+    if (shouldRelaunch && !openTarget) {
       return {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
           message: 'open --relaunch requires an app argument.',
+        },
+      };
+    }
+    if (shouldRelaunch && openTarget && isDeepLinkTarget(openTarget)) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'open --relaunch does not support URL targets.',
         },
       };
     }
@@ -365,19 +389,10 @@ export async function handleSessionCommands(params: {
         },
       };
     }
-    let appBundleId: string | undefined;
-    if (device.platform === 'ios') {
-      try {
-        if (appName) {
-          const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-          appBundleId = await resolveIosApp(device, appName);
-        }
-      } catch {
-        appBundleId = undefined;
-      }
-    }
-    if (shouldRelaunch && appName) {
-      await dispatch(device, 'close', [appName], req.flags?.out, {
+    const appBundleId = await resolveIosBundleIdForOpen(device, openTarget);
+    if (shouldRelaunch && openTarget) {
+      const closeTarget = appBundleId ?? openTarget;
+      await dispatch(device, 'close', [closeTarget], req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
     }
@@ -389,7 +404,7 @@ export async function handleSessionCommands(params: {
       device,
       createdAt: Date.now(),
       appBundleId,
-      appName,
+      appName: openTarget,
       recordSession: req.flags?.saveScript === true,
       actions: [],
     };

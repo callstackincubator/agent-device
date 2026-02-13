@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAndroidLaunchComponent } from '../index.ts';
+import { openAndroidApp, parseAndroidLaunchComponent } from '../index.ts';
+import type { DeviceInfo } from '../../../utils/device.ts';
+import { AppError } from '../../../utils/errors.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
 
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
@@ -88,4 +90,23 @@ test('parseAndroidLaunchComponent extracts final resolved component', () => {
 test('parseAndroidLaunchComponent returns null when no component is present', () => {
   const stdout = 'No activity found';
   assert.equal(parseAndroidLaunchComponent(stdout), null);
+});
+
+test('openAndroidApp rejects activity override for deep link URLs', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  await assert.rejects(
+    () => openAndroidApp(device, '  https://example.com/path  ', '.MainActivity'),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      return true;
+    },
+  );
 });
