@@ -14,6 +14,16 @@ const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
   TIMEOUT_PROFILES.ios_boot.totalMs,
   5_000,
 );
+const IOS_SIMCTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS,
+  TIMEOUT_PROFILES.ios_boot.operationMs,
+  1_000,
+);
+const IOS_APP_LAUNCH_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_APP_LAUNCH_TIMEOUT_MS,
+  30_000,
+  5_000,
+);
 const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
@@ -40,7 +50,35 @@ export async function openIosApp(device: DeviceInfo, app: string): Promise<void>
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
     await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-    await runCmd('xcrun', ['simctl', 'launch', device.id, bundleId]);
+    const launchDeadline = Deadline.fromTimeoutMs(IOS_APP_LAUNCH_TIMEOUT_MS);
+    await retryWithPolicy(
+      async ({ deadline: attemptDeadline }) => {
+        if (attemptDeadline?.isExpired()) {
+          throw new AppError('COMMAND_FAILED', 'App launch deadline exceeded', {
+            timeoutMs: IOS_APP_LAUNCH_TIMEOUT_MS,
+          });
+        }
+        const result = await runCmd('xcrun', ['simctl', 'launch', device.id, bundleId], {
+          allowFailure: true,
+        });
+        if (result.exitCode === 0) return;
+        throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
+          cmd: 'xcrun',
+          args: ['simctl', 'launch', device.id, bundleId],
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        });
+      },
+      {
+        maxAttempts: 30,
+        baseDelayMs: 1_000,
+        maxDelayMs: 5_000,
+        jitter: 0.2,
+        shouldRetry: isTransientSimulatorLaunchFailure,
+      },
+      { deadline: launchDeadline },
+    );
     return;
   }
   await runCmd('xcrun', [
@@ -208,6 +246,18 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
+function isTransientSimulatorLaunchFailure(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const details = (error.details ?? {}) as { exitCode?: number; stderr?: unknown };
+  if (details.exitCode !== 4) return false;
+  const stderr = String(details.stderr ?? '').toLowerCase();
+  return (
+    stderr.includes('fbsopenapplicationserviceerrordomain') &&
+    stderr.includes('the request to open')
+  );
+}
+
 export async function listSimulatorApps(
   device: DeviceInfo,
 ): Promise<{ bundleId: string; name: string }[]> {
@@ -365,7 +415,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
 async function getSimulatorState(udid: string): Promise<string | null> {
   const result = await runCmd('xcrun', ['simctl', 'list', 'devices', '-j'], {
     allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.ios_boot.operationMs,
+    timeoutMs: IOS_SIMCTL_LIST_TIMEOUT_MS,
   });
   if (result.exitCode !== 0) return null;
   try {
