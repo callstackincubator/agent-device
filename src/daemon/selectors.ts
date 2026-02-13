@@ -483,7 +483,6 @@ function analyzeSelectorMatches(
     }
     if (!best) {
       best = node;
-      tie = false;
       continue;
     }
     const comparison = compareDisambiguationCandidates(node, best);

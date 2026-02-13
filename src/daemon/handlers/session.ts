@@ -10,7 +10,7 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import { resolveIosAppStateFromSnapshots } from '../app-state.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
-import { pruneGroupNodes } from '../snapshot-processing.ts';
+import { extractNodeText, normalizeType, pruneGroupNodes } from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
   resolveSelectorChain,
@@ -517,6 +517,10 @@ async function healReplayAction(params: {
   const session = sessionStore.get(sessionName);
   if (!session) return null;
   const requiresRect = action.command === 'click' || action.command === 'fill';
+  const allowDisambiguation =
+    action.command === 'click' ||
+    action.command === 'fill' ||
+    (action.command === 'get' && action.positionals?.[0] === 'text');
   const snapshot = await captureSnapshotForReplay(session, action, logPath, requiresRect, dispatch, sessionStore);
   const selectorCandidates = collectReplaySelectorCandidates(action);
   for (const candidate of selectorCandidates) {
@@ -526,7 +530,7 @@ async function healReplayAction(params: {
       platform: session.device.platform,
       requireRect: requiresRect,
       requireUnique: true,
-      disambiguateAmbiguous: requiresRect,
+      disambiguateAmbiguous: allowDisambiguation,
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
@@ -579,6 +583,10 @@ async function healReplayAction(params: {
         positionals: nextPositionals,
       };
     }
+  }
+  const numericDriftHeal = healNumericGetTextDrift(action, snapshot, session);
+  if (numericDriftHeal) {
+    return numericDriftHeal;
   }
   return null;
 }
@@ -694,6 +702,56 @@ function parseSelectorWaitPositionals(positionals: string[]): {
   return {
     selectorExpression: split.selectorExpression,
     selectorTimeout: hasTimeout ? maybeTimeout : null,
+  };
+}
+
+function healNumericGetTextDrift(
+  action: SessionAction,
+  snapshot: SnapshotState,
+  session: SessionState,
+): SessionAction | null {
+  if (action.command !== 'get') return null;
+  if (action.positionals?.[0] !== 'text') return null;
+  const selectorExpression = action.positionals?.[1];
+  if (!selectorExpression) return null;
+  const chain = tryParseSelectorChain(selectorExpression);
+  if (!chain) return null;
+
+  const roleFilters = new Set<string>();
+  let hasNumericTerm = false;
+  for (const selector of chain.selectors) {
+    for (const term of selector.terms) {
+      if (term.key === 'role' && typeof term.value === 'string') {
+        roleFilters.add(normalizeType(term.value));
+      }
+      if (
+        (term.key === 'text' || term.key === 'label' || term.key === 'value') &&
+        typeof term.value === 'string' &&
+        /^\d+$/.test(term.value.trim())
+      ) {
+        hasNumericTerm = true;
+      }
+    }
+  }
+  if (!hasNumericTerm) return null;
+
+  const numericNodes = snapshot.nodes.filter((node) => {
+    const text = extractNodeText(node).trim();
+    if (!/^\d+$/.test(text)) return false;
+    if (roleFilters.size === 0) return true;
+    return roleFilters.has(normalizeType(node.type ?? ''));
+  });
+  if (numericNodes.length === 0) return null;
+  const numericValues = uniqueStrings(numericNodes.map((node) => extractNodeText(node).trim()));
+  if (numericValues.length !== 1) return null;
+
+  const targetNode = numericNodes[0];
+  if (!targetNode) return null;
+  const selectorChain = buildSelectorChainForNode(targetNode, session.device.platform, { action: 'get' });
+  if (selectorChain.length === 0) return null;
+  return {
+    ...action,
+    positionals: ['text', selectorChain.join(' || ')],
   };
 }
 

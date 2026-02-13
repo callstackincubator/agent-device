@@ -365,6 +365,87 @@ test('replay --update heals selector in is command', async () => {
   assert.ok(rewrittenSelector.includes('auth_continue'));
 });
 
+test('replay --update heals numeric get text drift when numeric candidate value is unique', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-get-numeric-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-get-numeric-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  writeReplayFile(replayPath, {
+    ts: Date.now(),
+    command: 'get',
+    positionals: ['text', 'role="statictext" label="2" || label="2"'],
+    flags: {},
+    result: {},
+  });
+
+  const invokeCalls: string[] = [];
+  const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
+    if (request.command !== 'get') {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+    }
+    const selector = request.positionals?.[1] ?? '';
+    invokeCalls.push(selector);
+    if (selector.includes('label="2"')) {
+      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } };
+    }
+    if (selector.includes('label="20"')) {
+      return { ok: true, data: { text: '20' } };
+    }
+    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'unexpected selector' } };
+  };
+
+  const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    return {
+      nodes: [
+        {
+          index: 0,
+          type: 'XCUIElementTypeStaticText',
+          label: '20',
+          rect: { x: 0, y: 100, width: 100, height: 24 },
+          enabled: true,
+          hittable: true,
+        },
+        {
+          index: 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Version: 0.84.0',
+          rect: { x: 0, y: 200, width: 220, height: 17 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      backend: 'xctest',
+    };
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: { replayUpdate: true },
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke,
+    dispatch,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true, JSON.stringify(response));
+  if (response.ok) {
+    assert.equal(response.data?.healed, 1);
+    assert.equal(response.data?.replayed, 1);
+  }
+  assert.equal(invokeCalls.length, 2);
+});
+
 test('replay rejects legacy JSON payload files', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-json-rejected-'));
   const sessionsDir = path.join(tempRoot, 'sessions');
