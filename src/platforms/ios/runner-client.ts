@@ -292,8 +292,7 @@ async function ensureXctestrun(
   udid: string,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
-  const base = path.join(os.homedir(), '.agent-device', 'ios-runner');
-  const derived = path.join(base, 'derived');
+  const derived = resolveRunnerDerivedPath();
   if (shouldCleanDerived()) {
     try {
       fs.rmSync(derived, { recursive: true, force: true });
@@ -352,6 +351,15 @@ async function ensureXctestrun(
     throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
   }
   return built;
+}
+
+function resolveRunnerDerivedPath(): string {
+  const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
+  if (override) {
+    return path.resolve(override);
+  }
+  const base = path.join(os.homedir(), '.agent-device', 'ios-runner');
+  return path.join(base, 'derived');
 }
 
 function findXctestrun(root: string): string | null {
