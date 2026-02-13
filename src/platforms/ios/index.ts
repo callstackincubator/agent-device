@@ -64,7 +64,7 @@ export async function openIosApp(device: DeviceInfo, app: string): Promise<void>
         baseDelayMs: 500,
         maxDelayMs: 2000,
         jitter: 0.2,
-        shouldRetry: (error) => isTransientSimulatorLaunchFailure(error),
+        shouldRetry: isTransientSimulatorLaunchFailure,
       },
     );
     return;
