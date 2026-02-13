@@ -59,6 +59,27 @@ jobs:
         id: ios-agent-home
         run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve iOS 26.2 simulator UDID
+        run: |
+          set -euo pipefail
+          UDID="$(
+            xcrun simctl list devices -j | node -e "
+              const fs = require('node:fs');
+              const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+              const runtimeKey = 'com.apple.CoreSimulator.SimRuntime.iOS-26-2';
+              const devices = payload.devices?.[runtimeKey] ?? [];
+              const available = devices.filter((d) => d.isAvailable && d.name === 'iPhone 17 Pro');
+              const preferred = available.find((d) => d.state === 'Booted') ?? available[0];
+              if (!preferred?.udid) process.exit(1);
+              process.stdout.write(preferred.udid);
+            "
+          )"
+          if [ -z "$UDID" ]; then
+            echo "Unable to resolve iOS 26.2 iPhone 17 Pro simulator UDID" >&2
+            exit 1
+          fi
+          echo "AGENT_DEVICE_IOS_TEST_UDID=$UDID" >> "$GITHUB_ENV"
+
       - name: Build iOS integration artifacts
         if: steps.restore-prebuilt.outputs.cache-hit != 'true'
         run: pnpm build:xcuitest
