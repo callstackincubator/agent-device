@@ -14,6 +14,11 @@ const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
   TIMEOUT_PROFILES.ios_boot.totalMs,
   5_000,
 );
+const IOS_SIMCTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS,
+  TIMEOUT_PROFILES.ios_boot.operationMs,
+  1_000,
+);
 const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
@@ -365,7 +370,7 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
 async function getSimulatorState(udid: string): Promise<string | null> {
   const result = await runCmd('xcrun', ['simctl', 'list', 'devices', '-j'], {
     allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.ios_boot.operationMs,
+    timeoutMs: IOS_SIMCTL_LIST_TIMEOUT_MS,
   });
   if (result.exitCode !== 0) return null;
   try {
