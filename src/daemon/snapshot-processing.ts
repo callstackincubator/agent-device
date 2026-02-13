@@ -78,9 +78,17 @@ export function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
 }
 
 export function normalizeType(type: string): string {
-  let value = type.replace(/XCUIElementType/gi, '').toLowerCase();
+  let value = type.trim().replace(/XCUIElementType/gi, '').toLowerCase();
   if (value.startsWith('ax')) {
     value = value.replace(/^ax/, '');
+  }
+  if (value.includes('.')) {
+    const suffix = value.split('.').pop();
+    if (suffix) value = suffix;
+  }
+  if (value.includes('/')) {
+    const suffix = value.split('/').pop();
+    if (suffix) value = suffix;
   }
   return value;
 }

@@ -90,6 +90,7 @@ export async function handleInteractionCommands(params: {
       platform: session.device.platform,
       requireRect: true,
       requireUnique: true,
+      disambiguateAmbiguous: true,
     });
     if (!resolved || !resolved.node.rect) {
       return {
@@ -180,7 +181,7 @@ export async function handleInteractionCommands(params: {
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
       };
     }
-    const selectorArgs = splitSelectorFromArgs(req.positionals ?? []);
+    const selectorArgs = splitSelectorFromArgs(req.positionals ?? [], { preferTrailingValue: true });
     if (selectorArgs) {
       if (selectorArgs.rest.length === 0) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' } };
@@ -197,6 +198,7 @@ export async function handleInteractionCommands(params: {
         platform: session.device.platform,
         requireRect: true,
         requireUnique: true,
+        disambiguateAmbiguous: true,
       });
       if (!resolved || !resolved.node.rect) {
         return {
@@ -368,7 +370,7 @@ export async function handleInteractionCommands(params: {
       };
     }
     const selectorArgs = req.positionals.slice(1);
-    const split = splitSelectorFromArgs(selectorArgs);
+    const split = splitSelectorFromArgs(selectorArgs, { preferTrailingValue: predicate === 'text' });
     if (!split) {
       return {
         ok: false,

@@ -11,7 +11,7 @@ import { resolveIosAppStateFromSnapshots } from '../app-state.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
-import { buildSelectorChainForNode, parseSelectorChain, resolveSelectorChain, splitSelectorFromArgs } from '../selectors.ts';
+import { buildSelectorChainForNode, resolveSelectorChain, splitSelectorFromArgs, tryParseSelectorChain } from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 
 type ReinstallOps = {
@@ -514,11 +514,13 @@ async function healReplayAction(params: {
   const snapshot = await captureSnapshotForReplay(session, action, logPath, requiresRect, dispatch, sessionStore);
   const selectorCandidates = collectReplaySelectorCandidates(action);
   for (const candidate of selectorCandidates) {
-    const chain = parseSelectorChain(candidate);
+    const chain = tryParseSelectorChain(candidate);
+    if (!chain) continue;
     const resolved = resolveSelectorChain(snapshot.nodes, chain, {
       platform: session.device.platform,
       requireRect: requiresRect,
       requireUnique: true,
+      disambiguateAmbiguous: action.command === 'click' || action.command === 'fill',
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
@@ -550,7 +552,9 @@ async function healReplayAction(params: {
     if (action.command === 'is') {
       const predicate = action.positionals?.[0];
       if (!predicate) continue;
-      const split = splitSelectorFromArgs(action.positionals.slice(1));
+      const split = splitSelectorFromArgs(action.positionals.slice(1), {
+        preferTrailingValue: predicate === 'text',
+      });
       const expectedText = split?.rest.join(' ').trim() ?? '';
       const nextPositionals = [predicate, selectorExpression];
       if (predicate === 'text' && expectedText.length > 0) {
@@ -641,7 +645,10 @@ function collectReplaySelectorCandidates(action: SessionAction): string[] {
     }
   }
   if (action.command === 'is') {
-    const split = splitSelectorFromArgs(action.positionals.slice(1));
+    const predicate = action.positionals?.[0];
+    const split = splitSelectorFromArgs(action.positionals.slice(1), {
+      preferTrailingValue: predicate === 'text',
+    });
     if (split) {
       result.push(split.selectorExpression);
     }
