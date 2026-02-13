@@ -52,6 +52,7 @@ test('iOS simulator + Android commands reject iOS devices', () => {
     'record',
     'screenshot',
     'scroll',
+    'swipe',
     'settings',
     'snapshot',
     'type',

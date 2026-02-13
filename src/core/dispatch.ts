@@ -38,6 +38,12 @@ export type CommandFlags = {
   noRecord?: boolean;
   appsFilter?: 'launchable' | 'user-installed' | 'all';
   appsMetadata?: boolean;
+  count?: number;
+  intervalMs?: number;
+  holdMs?: number;
+  jitterPx?: number;
+  pauseMs?: number;
+  pattern?: 'one-way' | 'ping-pong';
   replayUpdate?: boolean;
 };
 
@@ -91,6 +97,12 @@ export async function dispatchCommand(
     snapshotScope?: string;
     snapshotRaw?: boolean;
     snapshotBackend?: 'ax' | 'xctest';
+    count?: number;
+    intervalMs?: number;
+    holdMs?: number;
+    jitterPx?: number;
+    pauseMs?: number;
+    pattern?: 'one-way' | 'ping-pong';
   },
 ): Promise<Record<string, unknown> | void> {
   const runnerCtx: RunnerContext = {
@@ -121,8 +133,48 @@ export async function dispatchCommand(
     case 'press': {
       const [x, y] = positionals.map(Number);
       if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'press requires x y');
-      await interactor.tap(x, y);
-      return { x, y };
+      const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
+      const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
+      const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
+      const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
+
+      for (let index = 0; index < count; index += 1) {
+        const [dx, dy] = computeDeterministicJitter(index, jitterPx);
+        const targetX = x + dx;
+        const targetY = y + dy;
+        if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
+        else await interactor.tap(targetX, targetY);
+        if (index < count - 1 && intervalMs > 0) await sleep(intervalMs);
+      }
+
+      return { x, y, count, intervalMs, holdMs, jitterPx };
+    }
+    case 'swipe': {
+      const x1 = Number(positionals[0]);
+      const y1 = Number(positionals[1]);
+      const x2 = Number(positionals[2]);
+      const y2 = Number(positionals[3]);
+      if ([x1, y1, x2, y2].some(Number.isNaN)) {
+        throw new AppError('INVALID_ARGS', 'swipe requires x1 y1 x2 y2 [durationMs]');
+      }
+
+      const rawDurationMs = positionals[4] ? Number(positionals[4]) : 250;
+      const durationMs = requireIntInRange(rawDurationMs, 'durationMs', 16, 10_000);
+      const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
+      const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
+      const pattern = context?.pattern ?? 'one-way';
+      if (pattern !== 'one-way' && pattern !== 'ping-pong') {
+        throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
+      }
+
+      for (let index = 0; index < count; index += 1) {
+        const reverse = pattern === 'ping-pong' && index % 2 === 1;
+        if (reverse) await interactor.swipe(x2, y2, x1, y1, durationMs);
+        else await interactor.swipe(x1, y1, x2, y2, durationMs);
+        if (index < count - 1 && pauseMs > 0) await sleep(pauseMs);
+      }
+
+      return { x1, y1, x2, y2, durationMs, count, pauseMs, pattern };
     }
     case 'long-press': {
       const x = Number(positionals[0]);
@@ -171,6 +223,12 @@ export async function dispatchCommand(
       return { text };
     }
     case 'pinch': {
+      if (device.platform === 'android') {
+        throw new AppError(
+          'UNSUPPORTED_OPERATION',
+          'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
+        );
+      }
       const scale = Number(positionals[0]);
       const x = positionals[1] ? Number(positionals[1]) : undefined;
       const y = positionals[2] ? Number(positionals[2]) : undefined;
@@ -279,4 +337,33 @@ export async function dispatchCommand(
     default:
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
   }
+}
+
+const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+  [0, -1],
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+];
+
+function requireIntInRange(value: number, name: string, min: number, max: number): number {
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < min || value > max) {
+    throw new AppError('INVALID_ARGS', `${name} must be an integer between ${min} and ${max}`);
+  }
+  return value;
+}
+
+function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {
+  if (jitterPx <= 0) return [0, 0];
+  const [dx, dy] = DETERMINISTIC_JITTER_PATTERN[index % DETERMINISTIC_JITTER_PATTERN.length];
+  return [dx * jitterPx, dy * jitterPx];
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }

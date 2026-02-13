@@ -20,6 +20,12 @@ export type ParsedArgs = {
     snapshotBackend?: 'ax' | 'xctest';
     appsFilter?: 'launchable' | 'user-installed' | 'all';
     appsMetadata?: boolean;
+    count?: number;
+    intervalMs?: number;
+    holdMs?: number;
+    jitterPx?: number;
+    pauseMs?: number;
+    pattern?: 'one-way' | 'ping-pong';
     activity?: string;
     saveScript?: boolean;
     relaunch?: boolean;
@@ -144,6 +150,27 @@ export function parseArgs(argv: string[]): ParsedArgs {
         case '--activity':
           flags.activity = value;
           break;
+        case '--count':
+          flags.count = parseNumericFlag(key, value);
+          break;
+        case '--interval-ms':
+          flags.intervalMs = parseNumericFlag(key, value);
+          break;
+        case '--hold-ms':
+          flags.holdMs = parseNumericFlag(key, value);
+          break;
+        case '--jitter-px':
+          flags.jitterPx = parseNumericFlag(key, value);
+          break;
+        case '--pause-ms':
+          flags.pauseMs = parseNumericFlag(key, value);
+          break;
+        case '--pattern':
+          if (value !== 'one-way' && value !== 'ping-pong') {
+            throw new AppError('INVALID_ARGS', `Invalid pattern: ${value}`);
+          }
+          flags.pattern = value;
+          break;
         default:
           throw new AppError('INVALID_ARGS', `Unknown flag: ${key}`);
       }
@@ -170,6 +197,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   const command = positionals.shift() ?? null;
   return { command, positionals, flags };
+}
+
+function parseNumericFlag(name: string, value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new AppError('INVALID_ARGS', `Invalid ${name}: ${value}`);
+  }
+  return parsed;
 }
 
 export function usage(): string {
@@ -204,13 +239,17 @@ Commands:
   get text <@ref|selector>                   Return element text by ref or selector
   get attrs <@ref|selector>                  Return element attributes by ref or selector
   replay <path> [--update|-u]                Replay a recorded session
-  press <x> <y>                              Tap at coordinates
+  press <x> <y> [--count N] [--interval-ms I] [--hold-ms H] [--jitter-px J]
+                                             Tap/press at coordinates (supports repeated gesture series)
   long-press <x> <y> [durationMs]            Long press (where supported)
+  swipe <x1> <y1> <x2> <y2> [durationMs] [--count N] [--pause-ms P] [--pattern one-way|ping-pong]
+                                             Swipe coordinates with optional repeat pattern
   focus <x> <y>                              Focus input at coordinates
   type <text>                                Type text in focused field
   fill <x> <y> <text> | fill <@ref|selector> <text>
                                              Tap then type
   scroll <direction> [amount]                Scroll in direction (0-1 amount)
+  pinch <scale> [x] [y]                      Pinch/zoom (iOS simulator only)
   scrollintoview <text>                      Scroll until text appears (Android only)
   screenshot [path]                          Capture screenshot
   record start [path]                        Start screen recording
@@ -234,6 +273,12 @@ Flags:
   --serial <serial>                          Android device serial
   --activity <component>                     Android app launch activity (package/Activity); not for URL opens
   --session <name>                           Named session
+  --count <n>                                Repeat count for press/swipe series
+  --interval-ms <ms>                         Delay between press iterations
+  --hold-ms <ms>                             Press hold duration for each iteration
+  --jitter-px <n>                            Deterministic coordinate jitter radius for press
+  --pause-ms <ms>                            Delay between swipe iterations
+  --pattern one-way|ping-pong                Swipe repeat pattern
   --verbose                                  Stream daemon/runner logs
   --json                                     JSON output
   --save-script                             Save session script (.ad) on close

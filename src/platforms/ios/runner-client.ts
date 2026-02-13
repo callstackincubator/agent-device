@@ -13,6 +13,7 @@ export type RunnerCommand = {
   command:
     | 'tap'
     | 'longPress'
+    | 'drag'
     | 'type'
     | 'swipe'
     | 'findText'
@@ -29,6 +30,8 @@ export type RunnerCommand = {
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
+  x2?: number;
+  y2?: number;
   durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   scale?: number;

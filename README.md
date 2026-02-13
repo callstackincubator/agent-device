@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + limited device support) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `swipe`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `pinch`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree).
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -71,13 +71,21 @@ agent-device trace stop ./trace.log
 ```
 
 Coordinates:
-- All coordinate-based commands (`press`, `long-press`, `focus`, `fill`) use device coordinates with origin at top-left.
+- All coordinate-based commands (`press`, `long-press`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
+
+Gesture series examples:
+
+```bash
+agent-device press 300 500 --count 12 --interval-ms 45
+agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
+agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
+```
 
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
-- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `scroll`, `scrollintoview`, `is`
+- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
@@ -103,9 +111,19 @@ Flags:
 - `--serial <serial>` (Android)
 - `--activity <component>` (Android app launch only; package/Activity or package/.Activity; not for URL opens)
 - `--session <name>`
+- `--count <n>` repeat count for `press`/`swipe`
+- `--interval-ms <ms>` delay between `press` iterations
+- `--hold-ms <ms>` hold duration per `press` iteration
+- `--jitter-px <n>` deterministic coordinate jitter for `press`
+- `--pause-ms <ms>` delay between `swipe` iterations
+- `--pattern one-way|ping-pong` repeat pattern for `swipe`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
 - `--backend ax|xctest` (snapshot only; defaults to `xctest` on iOS)
+
+Pinch:
+- `pinch` is supported on iOS simulators.
+- On Android, `pinch` currently returns `UNSUPPORTED_OPERATION` in the adb backend.
 
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).

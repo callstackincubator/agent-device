@@ -12,6 +12,12 @@ export type DaemonCommandContext = {
   snapshotScope?: string;
   snapshotBackend?: 'ax' | 'xctest';
   snapshotRaw?: boolean;
+  count?: number;
+  intervalMs?: number;
+  holdMs?: number;
+  jitterPx?: number;
+  pauseMs?: number;
+  pattern?: 'one-way' | 'ping-pong';
 };
 
 export function contextFromFlags(
@@ -32,5 +38,11 @@ export function contextFromFlags(
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
     snapshotBackend: flags?.snapshotBackend,
+    count: flags?.count,
+    intervalMs: flags?.intervalMs,
+    holdMs: flags?.holdMs,
+    jitterPx: flags?.jitterPx,
+    pauseMs: flags?.pauseMs,
+    pattern: flags?.pattern,
   };
 }

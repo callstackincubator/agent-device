@@ -251,6 +251,13 @@ final class RunnerTests: XCTestCase {
       let duration = (command.durationMs ?? 800) / 1000.0
       longPressAt(app: activeApp, x: x, y: y, duration: duration)
       return Response(ok: true, data: DataPayload(message: "long pressed"))
+    case .drag:
+      guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
+        return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
+      }
+      let holdDuration = min(max((command.durationMs ?? 250) / 1000.0, 0.016), 10.0)
+      dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      return Response(ok: true, data: DataPayload(message: "dragged"))
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -434,6 +441,20 @@ final class RunnerTests: XCTestCase {
     let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
     coordinate.press(forDuration: duration)
+  }
+
+  private func dragAt(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double,
+    holdDuration: TimeInterval
+  ) {
+    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    let start = origin.withOffset(CGVector(dx: x, dy: y))
+    let end = origin.withOffset(CGVector(dx: x2, dy: y2))
+    start.press(forDuration: holdDuration, thenDragTo: end)
   }
 
   private func swipe(app: XCUIApplication, direction: SwipeDirection) {
@@ -956,6 +977,7 @@ private func resolveRunnerPort() -> UInt16 {
 enum CommandType: String, Codable {
   case tap
   case longPress
+  case drag
   case type
   case swipe
   case findText
@@ -984,6 +1006,8 @@ struct Command: Codable {
   let action: String?
   let x: Double?
   let y: Double?
+  let x2: Double?
+  let y2: Double?
   let durationMs: Double?
   let direction: SwipeDirection?
   let scale: Double?

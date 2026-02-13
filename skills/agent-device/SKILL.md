@@ -112,10 +112,14 @@ agent-device focus @e2
 agent-device fill @e2 "text"           # Clear then type (Android: verifies value and retries once on mismatch)
 agent-device type "text"               # Type into focused field without clearing
 agent-device press 300 500             # Tap by coordinates
+agent-device press 300 500 --count 12 --interval-ms 45
+agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
+agent-device swipe 540 1500 540 500 120
+agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800    # Long press (where supported)
 agent-device scroll down 0.5
-agent-device pinch 2.0              # Zoom in 2x (iOS simulator + Android)
-agent-device pinch 0.5 200 400     # Zoom out at coordinates
+agent-device pinch 2.0              # Zoom in 2x (iOS simulator)
+agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator)
 agent-device back
 agent-device home
 agent-device app-switcher
@@ -167,7 +171,9 @@ agent-device apps --platform android --user-installed
 
 ## Best practices
 
-- Pinch (`pinch <scale> [x y]`) is supported on iOS simulators and Android; scale > 1 zooms in, < 1 zooms out. On Android, pinch uses multi-touch `sendevent` injection.
+- `press` supports gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`.
+- `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
+- Pinch (`pinch <scale> [x y]`) is currently supported on iOS simulators only.
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
