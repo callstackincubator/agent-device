@@ -60,9 +60,9 @@ export async function openIosApp(device: DeviceInfo, app: string): Promise<void>
         });
       },
       {
-        maxAttempts: 3,
-        baseDelayMs: 500,
-        maxDelayMs: 2000,
+        maxAttempts: 5,
+        baseDelayMs: 1_000,
+        maxDelayMs: 5_000,
         jitter: 0.2,
         shouldRetry: isTransientSimulatorLaunchFailure,
       },
