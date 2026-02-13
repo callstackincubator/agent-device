@@ -4,9 +4,7 @@ import path from 'node:path';
 import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'ios-test'];
-const iosTarget = process.env.AGENT_DEVICE_IOS_TEST_UDID
-  ? ['--udid', process.env.AGENT_DEVICE_IOS_TEST_UDID]
-  : ['--platform', 'ios'];
+const iosTarget = ['--platform', 'ios'];
 
 test.after(() => {
   runCliJson(['close', ...iosTarget, '--json', ...session]);
