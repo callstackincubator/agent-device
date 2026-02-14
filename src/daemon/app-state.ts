@@ -11,26 +11,35 @@ export async function resolveIosAppStateFromSnapshots(
   flags: CommandFlags | undefined,
   dispatch: typeof dispatchCommand = dispatchCommand,
 ): Promise<{ appName: string; appBundleId?: string; source: 'snapshot-ax' | 'snapshot-xctest' }> {
-  const xctestResult = await dispatch(device, 'snapshot', [], flags?.out, {
-    ...contextFromFlags(
-      logPath,
-      {
-        ...flags,
-        snapshotDepth: 1,
-        snapshotCompact: true,
-        snapshotBackend: 'xctest',
-      },
-      undefined,
-      traceLogPath,
-    ),
-  });
-  const xcNode = extractAppNodeFromSnapshot(xctestResult as { nodes?: RawSnapshotNode[] });
-  if (xcNode?.appName || xcNode?.appBundleId) {
-    return {
-      appName: xcNode.appName ?? xcNode.appBundleId ?? 'unknown',
-      appBundleId: xcNode.appBundleId,
-      source: 'snapshot-xctest',
-    };
+  let xctestError: unknown = undefined;
+  let xcNode: { appName?: string; appBundleId?: string } | null = null;
+  try {
+    const xctestResult = await dispatch(device, 'snapshot', [], flags?.out, {
+      ...contextFromFlags(
+        logPath,
+        {
+          ...flags,
+          snapshotDepth: 1,
+          snapshotCompact: true,
+          snapshotBackend: 'xctest',
+        },
+        undefined,
+        traceLogPath,
+      ),
+    });
+    xcNode = extractAppNodeFromSnapshot(xctestResult as { nodes?: RawSnapshotNode[] });
+    if (xcNode?.appName || xcNode?.appBundleId) {
+      return {
+        appName: xcNode.appName ?? xcNode.appBundleId ?? 'unknown',
+        appBundleId: xcNode.appBundleId,
+        source: 'snapshot-xctest',
+      };
+    }
+  } catch (error) {
+    xctestError = error;
+    if (device.kind === 'device') {
+      throw error;
+    }
   }
 
   if (device.kind === 'device') {
@@ -61,6 +70,10 @@ export async function resolveIosAppStateFromSnapshots(
       appBundleId: axNode.appBundleId,
       source: 'snapshot-ax',
     };
+  }
+
+  if (xctestError) {
+    throw xctestError;
   }
 
   return {

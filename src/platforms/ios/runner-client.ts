@@ -521,17 +521,22 @@ async function waitForRunner(
   logPath?: string,
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
 ): Promise<Response> {
-  const endpoints = await resolveRunnerCommandEndpoints(device, port);
+  let endpoints = await resolveRunnerCommandEndpoints(device, port);
+  let nextEndpointRefreshAt = Date.now() + 1_000;
   const start = Date.now();
   let lastError: unknown = null;
   while (Date.now() - start < timeoutMs) {
+    if (device.kind === 'device' && Date.now() >= nextEndpointRefreshAt) {
+      endpoints = await resolveRunnerCommandEndpoints(device, port);
+      nextEndpointRefreshAt = Date.now() + 1_000;
+    }
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetchWithTimeout(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(command),
-        });
+        }, 1_000);
         return response;
       } catch (err) {
         lastError = err;
@@ -571,6 +576,20 @@ async function resolveRunnerCommandEndpoints(
     endpoints.unshift(`http://[${tunnelIp}]:${port}/command`);
   }
   return endpoints;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function resolveDeviceTunnelIp(deviceId: string): Promise<string | null> {

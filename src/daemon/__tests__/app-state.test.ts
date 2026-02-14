@@ -99,3 +99,56 @@ test('appstate does not try ax on iOS device', async () => {
   assert.equal(result.source, 'snapshot-xctest');
   assert.equal(result.appName, 'unknown');
 });
+
+test('appstate falls back to ax on simulator when xctest throws', async () => {
+  const backends: string[] = [];
+  const fakeDispatch: typeof dispatchCommand = async (_device, _command, _positionals, _outPath, context) => {
+    const backend = context?.snapshotBackend ?? 'unknown';
+    backends.push(backend);
+    if (backend === 'xctest') {
+      throw new Error('xctest failed');
+    }
+    return {
+      nodes: [
+        {
+          type: 'AXApplication',
+          label: 'Photos',
+          identifier: 'com.apple.mobileslideshow',
+        },
+      ],
+    };
+  };
+
+  const result = await resolveIosAppStateFromSnapshots(
+    iosSimulator,
+    '/tmp/daemon.log',
+    undefined,
+    {} as CommandFlags,
+    fakeDispatch,
+  );
+
+  assert.deepEqual(backends, ['xctest', 'ax']);
+  assert.equal(result.source, 'snapshot-ax');
+  assert.equal(result.appBundleId, 'com.apple.mobileslideshow');
+});
+
+test('appstate surfaces xctest failure on simulator when ax fallback fails', async () => {
+  const fakeDispatch: typeof dispatchCommand = async (_device, _command, _positionals, _outPath, context) => {
+    const backend = context?.snapshotBackend ?? 'unknown';
+    if (backend === 'xctest') {
+      throw new Error('xctest failed');
+    }
+    return { nodes: [] };
+  };
+
+  await assert.rejects(
+    resolveIosAppStateFromSnapshots(
+      iosSimulator,
+      '/tmp/daemon.log',
+      undefined,
+      {} as CommandFlags,
+      fakeDispatch,
+    ),
+    /xctest failed/,
+  );
+});
