@@ -72,7 +72,7 @@ agent-device settings airplane on
 agent-device settings location off
 ```
 
-Note: iOS `settings` commands are simulator-only in v1.
+Note: iOS `settings` commands are simulator-only.
 
 ## JSON output
 

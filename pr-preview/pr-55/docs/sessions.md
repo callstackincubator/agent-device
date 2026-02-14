@@ -20,7 +20,7 @@ agent-device close --session my-session
 Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
-- `open <url>` in iOS sessions is simulator-only in v1.
+- `open <url>` in iOS sessions is simulator-only.
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-55/docs/replay-e2e.md).
