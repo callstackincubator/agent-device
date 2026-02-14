@@ -125,6 +125,11 @@ Pinch:
 - `pinch` is supported on iOS simulators.
 - On Android, `pinch` currently returns `UNSUPPORTED_OPERATION` in the adb backend.
 
+Swipe timing:
+- `swipe` accepts optional `durationMs` (default `250`, range `16..10000`).
+- Android uses requested swipe duration directly.
+- iOS uses a safe normalized duration to avoid long-press side effects.
+
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).
 

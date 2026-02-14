@@ -158,8 +158,9 @@ export async function dispatchCommand(
         throw new AppError('INVALID_ARGS', 'swipe requires x1 y1 x2 y2 [durationMs]');
       }
 
-      const rawDurationMs = positionals[4] ? Number(positionals[4]) : 250;
-      const durationMs = requireIntInRange(rawDurationMs, 'durationMs', 16, 10_000);
+      const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
+      const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
+      const effectiveDurationMs = device.platform === 'ios' ? 60 : durationMs;
       const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
       const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
       const pattern = context?.pattern ?? 'one-way';
@@ -169,12 +170,23 @@ export async function dispatchCommand(
 
       for (let index = 0; index < count; index += 1) {
         const reverse = pattern === 'ping-pong' && index % 2 === 1;
-        if (reverse) await interactor.swipe(x2, y2, x1, y1, durationMs);
-        else await interactor.swipe(x1, y1, x2, y2, durationMs);
+        if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
+        else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
         if (index < count - 1 && pauseMs > 0) await sleep(pauseMs);
       }
 
-      return { x1, y1, x2, y2, durationMs, count, pauseMs, pattern };
+      return {
+        x1,
+        y1,
+        x2,
+        y2,
+        durationMs,
+        effectiveDurationMs,
+        timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
+        count,
+        pauseMs,
+        pattern,
+      };
     }
     case 'long-press': {
       const x = Number(positionals[0]);

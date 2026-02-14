@@ -173,6 +173,7 @@ agent-device apps --platform android --user-installed
 
 - `press` supports gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
+- `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
 - Pinch (`pinch <scale> [x y]`) is currently supported on iOS simulators only.
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).

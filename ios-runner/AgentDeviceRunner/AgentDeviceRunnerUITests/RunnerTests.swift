@@ -255,7 +255,7 @@ final class RunnerTests: XCTestCase {
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
-      let holdDuration = min(max((command.durationMs ?? 250) / 1000.0, 0.016), 10.0)
+      let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
       return Response(ok: true, data: DataPayload(message: "dragged"))
     case .type:

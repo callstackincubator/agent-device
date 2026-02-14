@@ -53,6 +53,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
+On iOS, swipe timing uses a safe normalized duration to avoid long-press side effects.
 `pinch` is iOS-simulator-only in the current adb-backed Android implementation.
 
 ## Find (semantic)
