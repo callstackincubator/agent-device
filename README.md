@@ -272,6 +272,7 @@ Environment selectors:
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
+- `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH=<path>` optional override for iOS runner derived data root. By default, agent-device separates caches by target kind (`.../derived/simulator` and `.../derived/device`). If you set this override, use separate paths per kind to avoid simulator/device artifact collisions.
 
 Test screenshots are written to:
 - `test/screenshots/android-settings.png`
