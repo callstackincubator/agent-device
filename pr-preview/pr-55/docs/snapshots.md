@@ -18,7 +18,8 @@ agent-device snapshot -i -c -d 5         # Combine options
 | `-d <depth>` | Limit tree depth          |
 | `-s <scope>` | Scope to label/identifier |
 
-Note: If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX on iOS simulators when available.
+Note: If XCTest returns 0 nodes (foreground app changed), agent-device fails explicitly.
+It does not automatically switch to AX.
 
 ## Example output:
 

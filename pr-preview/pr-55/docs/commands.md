@@ -31,6 +31,7 @@ agent-device get attrs @e1
 
 - `--backend xctest` works on iOS simulators and iOS devices.
 - `--backend ax` is simulator-only.
+- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
 
 ## Interactions
 
@@ -40,6 +41,10 @@ agent-device focus @e2
 agent-device fill @e2 "text"          # Clear then type
 agent-device type "text"              # Type into focused field without clearing
 agent-device press 300 500
+agent-device press 300 500 --count 12 --interval-ms 45
+agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
+agent-device swipe 540 1500 540 500 120
+agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800
 agent-device scroll down 0.5
 agent-device pinch 2.0          # zoom in 2x (iOS simulator)
@@ -48,6 +53,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
+`swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
+On iOS, swipe timing uses a safe normalized duration to avoid long-press side effects.
 `pinch` is iOS simulator-only.
 
 ## Find (semantic)

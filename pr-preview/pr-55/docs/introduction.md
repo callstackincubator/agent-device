@@ -24,7 +24,7 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 
 1. CLI sends requests to the daemon.
 2. The daemon manages sessions and dispatches to platform drivers.
-3. iOS uses XCTest runner for snapshots and input on simulators and physical devices; AX is optional simulator fallback.
+3. iOS uses XCTest runner for snapshots and input on simulators and physical devices.
 4. Android uses ADB-based tooling.
 
 ## Example
