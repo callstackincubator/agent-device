@@ -189,7 +189,7 @@ agent-device record stop                # Stop active recording
 - Paired physical device with Developer Mode enabled.
 - Use Automatic Signing in Xcode, or pass optional env overrides:
   - `AGENT_DEVICE_IOS_TEAM_ID`
-  - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (defaults to `Apple Development` when overrides are used)
+  - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (optional)
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 - If first-run XCTest setup/build is slow, increase daemon request timeout:
   - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
