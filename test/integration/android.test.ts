@@ -2,6 +2,25 @@ import test from 'node:test';
 import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'android-test'];
+const settingsSectionLabels = [
+  'Apps',
+  'Apps & notifications',
+  'Network & internet',
+  'Network and internet',
+  'Connected devices',
+  'Display',
+  'Battery',
+  'Notifications',
+  'Security',
+  'Privacy',
+];
+const settingsSectionSelector = settingsSectionLabels
+  .map((label) => (label.includes(' ') || label.includes('&') ? `label="${label}"` : `label=${label}`))
+  .join(' || ');
+const settingsCrashDialogLabels = ['Wait', 'Close app'];
+const settingsCrashDialogSelector = settingsCrashDialogLabels
+  .map((label) => (label.includes(' ') ? `label="${label}"` : `label=${label}`))
+  .join(' || ');
 
 test.after(() => {
   runCliJson(['close', '--platform', 'android', ...session]);
@@ -29,20 +48,43 @@ test('android settings commands', () => {
   );
 
   const snapshotArgs = ['snapshot', '-i', '--json', ...session];
-  const snapshot = integration.runStep('snapshot', snapshotArgs);
+  let snapshot = integration.runStep('snapshot', snapshotArgs);
   integration.assertResult(Array.isArray(snapshot.json?.data?.nodes), 'snapshot nodes', snapshotArgs, snapshot, {
     detail: 'expected snapshot to include a nodes array',
   });
+  if (snapshotHasAnyLabel(snapshot, settingsCrashDialogLabels)) {
+    const dismissCrashDialogArgs = ['click', settingsCrashDialogSelector, '--json', ...session];
+    const dismissCrashDialog = integration.runStep(
+      'dismiss settings crash dialog',
+      dismissCrashDialogArgs,
+    );
+    integration.assertResult(
+      dismissCrashDialog.json?.success,
+      'dismiss settings crash dialog success',
+      dismissCrashDialogArgs,
+      dismissCrashDialog,
+      { detail: 'expected click on crash dialog action to return success=true' },
+    );
+    integration.runStep('re-open settings after crash dialog', openArgs);
+    snapshot = integration.runStep('snapshot after crash dialog', snapshotArgs);
+    integration.assertResult(
+      Array.isArray(snapshot.json?.data?.nodes),
+      'snapshot after crash dialog nodes',
+      snapshotArgs,
+      snapshot,
+      { detail: 'expected snapshot after crash dialog recovery to include a nodes array' },
+    );
+  }
+  integration.assertResult(
+    snapshotHasAnyLabel(snapshot, settingsSectionLabels),
+    'snapshot contains settings section labels',
+    snapshotArgs,
+    snapshot,
+    {
+      detail: `expected snapshot to include one of ${JSON.stringify(settingsSectionLabels)}`,
+    },
+  );
 
-  const settingsSectionSelector = [
-    'label=Apps',
-    'label="Apps & notifications"',
-    'label="Network & internet"',
-    'label="Connected devices"',
-    'label=Display',
-    'label=Battery',
-    'label=Notifications',
-  ].join(' || ');
   const clickArgs = ['click', settingsSectionSelector, '--json', ...session];
   const openSection = integration.runStep('open settings section', clickArgs);
   integration.assertResult(
@@ -80,3 +122,15 @@ test('android settings commands', () => {
   const backArgs = ['back', '--json', ...session];
   integration.runStep('back', backArgs);
 });
+
+function snapshotHasAnyLabel(
+  result: ReturnType<typeof runCliJson>,
+  candidateLabels: string[],
+): boolean {
+  const nodes = Array.isArray(result.json?.data?.nodes) ? result.json.data.nodes : [];
+  return nodes.some((node: { label?: string }) => {
+    const label = node?.label;
+    if (typeof label !== 'string') return false;
+    return candidateLabels.includes(label);
+  });
+}
