@@ -23,7 +23,7 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only in v1.
+- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only.
 
 ## Snapshot and inspect
 
@@ -58,7 +58,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe timing uses a safe normalized duration to avoid long-press side effects.
-`pinch` is iOS-simulator-only in the current adb-backed Android implementation.
+`pinch` is iOS simulator-only.
 
 ## Find (semantic)
 
@@ -88,7 +88,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```
 
 - `reinstall <app> <path>` uninstalls and installs in one command.
-- Supports Android devices/emulators and iOS simulators in v1.
+- Supports Android devices/emulators and iOS simulators.
 - Useful for login/logout reset flows and deterministic test setup.
 
 ## Settings helpers
@@ -102,7 +102,7 @@ agent-device settings location on
 agent-device settings location off
 ```
 
-- iOS `settings` support is simulator-only in v1.
+- iOS `settings` support is simulator-only.
 - Android `settings` support works on emulators and devices.
 
 ## Media and logs
@@ -115,7 +115,7 @@ agent-device record start session.mp4   # Start recording to explicit path
 agent-device record stop                # Stop active recording
 ```
 
-- iOS `record` is simulator-only in v1.
+- iOS `record` is simulator-only.
 
 ## iOS device prerequisites
 

@@ -8,4 +8,4 @@ This folder is reserved for the lightweight XCUITest runner used to provide elem
 - Support simulator prebuilds where compatible.
 
 ## Status
-Planned for v1 automation layer. See `docs/ios-automation.md` and `docs/ios-runner-protocol.md`.
+Planned for the automation layer. See `docs/ios-automation.md` and `docs/ios-runner-protocol.md`.

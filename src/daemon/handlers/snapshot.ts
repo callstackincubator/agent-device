@@ -269,7 +269,7 @@ export async function handleSnapshotCommands(params: {
         ok: false,
         error: {
           code: 'UNSUPPORTED_OPERATION',
-          message: 'alert is only supported on iOS simulators in v1',
+          message: 'alert is only supported on iOS simulators',
         },
       };
     }

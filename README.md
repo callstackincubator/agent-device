@@ -151,13 +151,13 @@ Navigation helpers:
 - `boot --platform ios|android` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url]` already boots/activates the selected target when needed.
-- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator in v1).
+- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator).
 - `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
 - Android opens deep links via `VIEW` intent.
-- iOS deep link open is simulator-only in v1.
+- iOS deep link open is simulator-only.
 - `--activity` cannot be combined with URL opens.
 
 ```bash
@@ -212,7 +212,7 @@ Settings helpers:
 - `settings wifi on|off`
 - `settings airplane on|off`
 - `settings location on|off` (iOS uses per-app permission for the current session app)
-Note: iOS supports these only on simulators in v1. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
+Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
 - `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it falls back to a snapshot-based guess (`xctest` on devices; AX-first on simulators with XCTest fallback).
@@ -240,8 +240,8 @@ Boot diagnostics:
 
 ## iOS notes
 - Core runner commands (`snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`) support iOS simulators and iOS devices.
-- Simulator-only commands in v1: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`.
-- iOS deep link open (`open <url>`) is simulator-only in v1.
+- Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`.
+- iOS deep link open (`open <url>`) is simulator-only.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing

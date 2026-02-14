@@ -47,7 +47,7 @@ export async function handleRecordTraceCommands(params: {
       if (!isCommandSupportedOnDevice('record', device)) {
         return {
           ok: false,
-          error: { code: 'UNSUPPORTED_OPERATION', message: 'record is only supported on iOS simulators in v1' },
+          error: { code: 'UNSUPPORTED_OPERATION', message: 'record is only supported on iOS simulators' },
         };
       }
       if (device.platform === 'ios') {

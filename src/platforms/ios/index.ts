@@ -54,7 +54,7 @@ export async function openIosApp(
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
     if (device.kind !== 'simulator') {
-      throw new AppError('UNSUPPORTED_OPERATION', 'Deep link open is only supported on iOS simulators in v1');
+      throw new AppError('UNSUPPORTED_OPERATION', 'Deep link open is only supported on iOS simulators');
     }
     await ensureBootedSimulator(device);
     await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
@@ -249,7 +249,7 @@ function ensureSimulator(device: DeviceInfo, command: string): void {
   if (device.kind !== 'simulator') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      `${command} is only supported on iOS simulators in v1`,
+      `${command} is only supported on iOS simulators`,
     );
   }
 }

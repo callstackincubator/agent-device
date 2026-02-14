@@ -45,7 +45,7 @@ agent-device open [app|url]       # Boot device/simulator; optionally launch app
 agent-device open [app] --relaunch # Terminate app process first, then launch (fresh runtime)
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity (app targets only)
 agent-device open "myapp://home" --platform android          # Android deep link
-agent-device open "https://example.com" --platform ios       # iOS simulator deep link (device unsupported in v1)
+agent-device open "https://example.com" --platform ios       # iOS simulator deep link (device unsupported)
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
@@ -95,7 +95,7 @@ agent-device settings location off
 
 Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
 Airplane off clears status bar overrides.
-iOS settings helpers are simulator-only in v1.
+iOS settings helpers are simulator-only.
 
 ### App state
 
@@ -175,7 +175,7 @@ agent-device apps --platform android --user-installed
 - `press` supports gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
 - `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
-- Pinch (`pinch <scale> [x y]`) is currently supported on iOS simulators only.
+- Pinch (`pinch <scale> [x y]`) is iOS simulator-only; scale > 1 zooms in, < 1 zooms out.
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
@@ -187,7 +187,7 @@ agent-device apps --platform android --user-installed
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
-- iOS deep-link opens are simulator-only in v1.
+- iOS deep-link opens are simulator-only.
 - iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 - For long first-run physical-device setup/build, increase daemon timeout: `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher).
 - Use `fill` when you want clear-then-type semantics.

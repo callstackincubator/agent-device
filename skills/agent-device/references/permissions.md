@@ -13,7 +13,7 @@ agent-device snapshot --backend xctest --platform ios
 ```
 
 Hybrid/AX is fast; XCTest is equally fast but does not require permissions.
-AX backend is simulator-only in v1.
+AX backend is simulator-only.
 
 ## iOS physical device runner
 

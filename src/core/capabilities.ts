@@ -13,7 +13,7 @@ type CommandCapability = {
 };
 
 const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
-  // iOS simulator-only in v1.
+  // iOS simulator-only.
   alert: { ios: { simulator: true }, android: {} },
   pinch: { ios: { simulator: true }, android: {} },
   'app-switcher': { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },

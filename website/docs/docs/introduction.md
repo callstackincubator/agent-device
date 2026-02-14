@@ -21,7 +21,7 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 ## Platform support highlights
 
 - iOS simulator + iOS device core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `appstate`.
-- iOS simulator-only in v1: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`, and deep-link open (`open <url>`).
+- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`, and deep-link open (`open <url>`).
 - Android emulator + Android device support remains unchanged.
 
 ## Architecture (high level)

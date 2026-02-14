@@ -20,7 +20,7 @@ agent-device close
 agent-device record stop
 ```
 
-`record` is iOS simulator-only in v1.
+`record` is iOS simulator-only.
 
 ## Android Emulator/Device
 
