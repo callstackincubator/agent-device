@@ -30,7 +30,6 @@ export type CliFlags = {
   version: boolean;
 };
 
-export type DaemonFlags = Omit<CliFlags, 'json' | 'help' | 'version'>;
 export type FlagKey = keyof CliFlags;
 export type FlagType = 'boolean' | 'int' | 'enum' | 'string';
 
@@ -47,15 +46,13 @@ export type FlagDefinition = {
 };
 
 export type CommandSchema = {
-  name: string;
-  capabilityKey: string | null;
-  usage: string;
   description: string;
-  details?: readonly string[];
   positionalArgs: readonly string[];
   allowsExtraPositionals?: boolean;
   allowedFlags: readonly FlagKey[];
   defaults?: Partial<CliFlags>;
+  skipCapabilityCheck?: boolean;
+  usageOverride?: string;
 };
 
 const SNAPSHOT_FLAGS = [
@@ -233,7 +230,6 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'appsFilter',
     names: ['--user-installed'],
     type: 'enum',
-    enumValues: ['launchable', 'user-installed', 'all'],
     setValue: 'user-installed',
     usageLabel: '--user-installed',
     usageDescription: 'Apps: list user-installed packages (Android only)',
@@ -242,7 +238,6 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'appsFilter',
     names: ['--all'],
     type: 'enum',
-    enumValues: ['launchable', 'user-installed', 'all'],
     setValue: 'all',
     usageLabel: '--all',
     usageDescription: 'Apps: list all packages (Android only)',
@@ -320,358 +315,198 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'noRecord',
 ]);
 
-export const CLI_COMMAND_ORDER = [
-  'boot',
-  'open',
-  'close',
-  'reinstall',
-  'snapshot',
-  'devices',
-  'apps',
-  'appstate',
-  'back',
-  'home',
-  'app-switcher',
-  'wait',
-  'alert',
-  'click',
-  'get',
-  'replay',
-  'press',
-  'long-press',
-  'swipe',
-  'focus',
-  'type',
-  'fill',
-  'scroll',
-  'scrollintoview',
-  'pinch',
-  'screenshot',
-  'record',
-  'trace',
-  'find',
-  'is',
-  'settings',
-  'session',
-] as const;
-
 export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   boot: {
-    name: 'boot',
-    capabilityKey: 'boot',
-    usage: 'boot',
     description: 'Ensure target device/simulator is booted and ready',
     positionalArgs: [],
     allowedFlags: [],
   },
   open: {
-    name: 'open',
-    capabilityKey: 'open',
-    usage: 'open [app|url]',
     description: 'Boot device/simulator; optionally launch app or deep link URL',
     positionalArgs: ['appOrUrl?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch'],
   },
   close: {
-    name: 'close',
-    capabilityKey: 'close',
-    usage: 'close [app]',
     description: 'Close app or just end session',
     positionalArgs: ['app?'],
     allowedFlags: ['saveScript'],
   },
   reinstall: {
-    name: 'reinstall',
-    capabilityKey: 'reinstall',
-    usage: 'reinstall <app> <path>',
     description: 'Uninstall + install app from binary path',
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
   },
   snapshot: {
-    name: 'snapshot',
-    capabilityKey: 'snapshot',
-    usage: 'snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]',
     description: 'Capture accessibility tree',
-    details: [
-      '-i: Interactive elements only',
-      '-c: Compact output (drop empty structure)',
-      '-d <depth>: Limit snapshot depth',
-      '-s <scope>: Scope snapshot to label/identifier',
-      '--raw: Raw node output',
-      '--backend ax|xctest: xctest is default; ax is faster but needs permissions',
-    ],
     positionalArgs: [],
     allowedFlags: [...SNAPSHOT_FLAGS],
   },
   devices: {
-    name: 'devices',
-    capabilityKey: null,
-    usage: 'devices',
     description: 'List available devices',
     positionalArgs: [],
     allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   apps: {
-    name: 'apps',
-    capabilityKey: 'apps',
-    usage: 'apps [--user-installed|--all|--metadata]',
     description: 'List installed apps (Android launchable by default, iOS simulator)',
     positionalArgs: [],
     allowedFlags: ['appsFilter', 'appsMetadata'],
   },
   appstate: {
-    name: 'appstate',
-    capabilityKey: null,
-    usage: 'appstate',
     description: 'Show foreground app/activity',
     positionalArgs: [],
     allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   back: {
-    name: 'back',
-    capabilityKey: 'back',
-    usage: 'back',
     description: 'Navigate back (where supported)',
     positionalArgs: [],
     allowedFlags: [],
   },
   home: {
-    name: 'home',
-    capabilityKey: 'home',
-    usage: 'home',
     description: 'Go to home screen (where supported)',
     positionalArgs: [],
     allowedFlags: [],
   },
   'app-switcher': {
-    name: 'app-switcher',
-    capabilityKey: 'app-switcher',
-    usage: 'app-switcher',
     description: 'Open app switcher (where supported)',
     positionalArgs: [],
     allowedFlags: [],
   },
   wait: {
-    name: 'wait',
-    capabilityKey: 'wait',
-    usage: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
+    usageOverride: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
     description: 'Wait for duration, text, ref, or selector to appear',
     positionalArgs: ['durationOrSelector', 'timeoutMs?'],
     allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   alert: {
-    name: 'alert',
-    capabilityKey: 'alert',
-    usage: 'alert [get|accept|dismiss|wait] [timeout]',
+    usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
     description: 'Inspect or handle alert (iOS simulator)',
     positionalArgs: ['action?', 'timeout?'],
     allowedFlags: [],
   },
   click: {
-    name: 'click',
-    capabilityKey: 'click',
-    usage: 'click <@ref|selector>',
+    usageOverride: 'click <@ref|selector>',
     description: 'Click element by snapshot ref or selector',
     positionalArgs: ['target'],
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   get: {
-    name: 'get',
-    capabilityKey: 'get',
-    usage: 'get text|attrs <@ref|selector>',
+    usageOverride: 'get text|attrs <@ref|selector>',
     description: 'Return element text/attributes by ref or selector',
     positionalArgs: ['subcommand', 'target'],
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   replay: {
-    name: 'replay',
-    capabilityKey: null,
-    usage: 'replay <path> [--update|-u]',
     description: 'Replay a recorded session',
     positionalArgs: ['path'],
     allowedFlags: ['replayUpdate'],
+    skipCapabilityCheck: true,
   },
   press: {
-    name: 'press',
-    capabilityKey: 'press',
-    usage: 'press <x> <y> [--count N] [--interval-ms I] [--hold-ms H] [--jitter-px J]',
     description: 'Tap/press at coordinates (supports repeated gesture series)',
     positionalArgs: ['x', 'y'],
     allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx'],
   },
   'long-press': {
-    name: 'long-press',
-    capabilityKey: 'long-press',
-    usage: 'long-press <x> <y> [durationMs]',
     description: 'Long press (where supported)',
     positionalArgs: ['x', 'y', 'durationMs?'],
     allowedFlags: [],
   },
   swipe: {
-    name: 'swipe',
-    capabilityKey: 'swipe',
-    usage: 'swipe <x1> <y1> <x2> <y2> [durationMs] [--count N] [--pause-ms P] [--pattern one-way|ping-pong]',
     description: 'Swipe coordinates with optional repeat pattern',
     positionalArgs: ['x1', 'y1', 'x2', 'y2', 'durationMs?'],
     allowedFlags: ['count', 'pauseMs', 'pattern'],
   },
   focus: {
-    name: 'focus',
-    capabilityKey: 'focus',
-    usage: 'focus <x> <y>',
     description: 'Focus input at coordinates',
     positionalArgs: ['x', 'y'],
     allowedFlags: [],
   },
   type: {
-    name: 'type',
-    capabilityKey: 'type',
-    usage: 'type <text>',
     description: 'Type text in focused field',
     positionalArgs: ['text'],
     allowsExtraPositionals: true,
     allowedFlags: [],
   },
   fill: {
-    name: 'fill',
-    capabilityKey: 'fill',
-    usage: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
+    usageOverride: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
     description: 'Tap then type',
     positionalArgs: ['targetOrX', 'yOrText', 'text?'],
     allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   scroll: {
-    name: 'scroll',
-    capabilityKey: 'scroll',
-    usage: 'scroll <direction> [amount]',
     description: 'Scroll in direction (0-1 amount)',
     positionalArgs: ['direction', 'amount?'],
     allowedFlags: [],
   },
   scrollintoview: {
-    name: 'scrollintoview',
-    capabilityKey: null,
-    usage: 'scrollintoview <text>',
     description: 'Scroll until text appears (Android only)',
     positionalArgs: ['text'],
     allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   pinch: {
-    name: 'pinch',
-    capabilityKey: 'pinch',
-    usage: 'pinch <scale> [x] [y]',
     description: 'Pinch/zoom gesture (iOS simulator)',
     positionalArgs: ['scale', 'x?', 'y?'],
     allowedFlags: [],
   },
   screenshot: {
-    name: 'screenshot',
-    capabilityKey: 'screenshot',
-    usage: 'screenshot [path]',
     description: 'Capture screenshot',
     positionalArgs: ['path?'],
     allowedFlags: ['out'],
   },
   record: {
-    name: 'record',
-    capabilityKey: 'record',
-    usage: 'record start [path] | record stop',
+    usageOverride: 'record start [path] | record stop',
     description: 'Start/stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: [],
   },
   trace: {
-    name: 'trace',
-    capabilityKey: null,
-    usage: 'trace start [path] | trace stop [path]',
+    usageOverride: 'trace start [path] | trace stop [path]',
     description: 'Start/stop trace log capture',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   find: {
-    name: 'find',
-    capabilityKey: 'find',
-    usage: 'find <locator|text> <action> [value]',
+    usageOverride: 'find <locator|text> <action> [value]',
     description: 'Find by text/label/value/role/id and run action',
-    details: [
-      'find text <text> <action> [value]',
-      'find label <label> <action> [value]',
-      'find value <value> <action> [value]',
-      'find role <role> <action> [value]',
-      'find id <id> <action> [value]',
-    ],
     positionalArgs: ['query', 'action', 'value?'],
     allowsExtraPositionals: true,
     allowedFlags: [...FIND_SNAPSHOT_FLAGS],
   },
   is: {
-    name: 'is',
-    capabilityKey: 'is',
-    usage: 'is <predicate> <selector> [value]',
     description: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
     positionalArgs: ['predicate', 'selector', 'value?'],
     allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   settings: {
-    name: 'settings',
-    capabilityKey: 'settings',
-    usage: 'settings <wifi|airplane|location> <on|off>',
     description: 'Toggle OS settings (simulators)',
     positionalArgs: ['setting', 'state'],
     allowedFlags: [],
   },
   session: {
-    name: 'session',
-    capabilityKey: null,
-    usage: 'session list',
+    usageOverride: 'session list',
     description: 'List active sessions',
     positionalArgs: ['list?'],
     allowedFlags: [],
+    skipCapabilityCheck: true,
   },
 };
 
-const FLAG_HELP_ORDER: readonly string[] = [
-  '--platform',
-  '--device',
-  '--udid',
-  '--serial',
-  '--activity',
-  '--session',
-  '--count',
-  '--interval-ms',
-  '--hold-ms',
-  '--jitter-px',
-  '--pause-ms',
-  '--pattern',
-  '--verbose',
-  '--json',
-  '--save-script',
-  '--relaunch',
-  '--no-record',
-  '--update',
-  '--user-installed',
-  '--all',
-  '--metadata',
-  '-i',
-  '-c',
-  '--depth',
-  '--scope',
-  '--raw',
-  '--backend',
-  '--out',
-  '--help',
-  '--version',
-];
-
 const flagDefinitionByName = new Map<string, FlagDefinition>();
+const flagDefinitionsByKey = new Map<FlagKey, FlagDefinition[]>();
 for (const definition of FLAG_DEFINITIONS) {
   for (const name of definition.names) {
     flagDefinitionByName.set(name, definition);
   }
+  const list = flagDefinitionsByKey.get(definition.key);
+  if (list) list.push(definition);
+  else flagDefinitionsByKey.set(definition.key, [definition]);
 }
 
 export function getFlagDefinition(token: string): FlagDefinition | undefined {
@@ -684,13 +519,13 @@ export function getCommandSchema(command: string | null): CommandSchema | undefi
 }
 
 export function getCliCommandNames(): string[] {
-  return [...CLI_COMMAND_ORDER];
+  return Object.keys(COMMAND_SCHEMAS);
 }
 
 export function getSchemaCapabilityKeys(): string[] {
-  return Object.values(COMMAND_SCHEMAS)
-    .map((schema) => schema.capabilityKey)
-    .filter((key): key is string => typeof key === 'string')
+  return Object.entries(COMMAND_SCHEMAS)
+    .filter(([, schema]) => !schema.skipCapabilityCheck)
+    .map(([name]) => name)
     .sort();
 }
 
@@ -700,33 +535,40 @@ export function isStrictFlagModeEnabled(value: string | undefined): boolean {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
-let cachedUsageText: string | null = null;
+function formatPositionalArg(arg: string): string {
+  const optional = arg.endsWith('?');
+  const name = optional ? arg.slice(0, -1) : arg;
+  return optional ? `[${name}]` : `<${name}>`;
+}
 
-export function buildUsageText(): string {
-  if (cachedUsageText) return cachedUsageText;
+function buildCommandUsage(commandName: string, schema: CommandSchema): string {
+  if (schema.usageOverride) return schema.usageOverride;
+  const positionals = schema.positionalArgs.map(formatPositionalArg);
+  const flagLabels = schema.allowedFlags.flatMap((key) =>
+    (flagDefinitionsByKey.get(key) ?? []).map((definition) => definition.usageLabel ?? definition.names[0]),
+  );
+  const optionalFlags = flagLabels.map((label) => `[${label}]`);
+  return [commandName, ...positionals, ...optionalFlags].join(' ');
+}
+
+function renderUsageText(): string {
   const header = `agent-device <command> [args] [--json]
 
 CLI to control iOS and Android devices for AI agents.
 `;
 
-  const commands = CLI_COMMAND_ORDER.map((name) => {
+  const commands = getCliCommandNames().map((name) => {
     const schema = COMMAND_SCHEMAS[name];
     if (!schema) throw new Error(`Missing command schema for ${name}`);
-    return schema;
+    return { name, schema, usage: buildCommandUsage(name, schema) };
   });
   const maxUsage = Math.max(...commands.map((command) => command.usage.length)) + 2;
   const commandLines: string[] = ['Commands:'];
   for (const command of commands) {
-    commandLines.push(`  ${command.usage.padEnd(maxUsage)}${command.description}`);
-    for (const detail of command.details ?? []) {
-      commandLines.push(`    ${detail}`);
-    }
+    commandLines.push(`  ${command.usage.padEnd(maxUsage)}${command.schema.description}`);
   }
 
-  const helpFlags = FLAG_HELP_ORDER
-    .map((token) => flagDefinitionByName.get(token))
-    .filter((definition): definition is FlagDefinition => Boolean(definition))
-    .filter((definition, index, all) => all.indexOf(definition) === index)
+  const helpFlags = FLAG_DEFINITIONS
     .filter((definition) => definition.usageLabel && definition.usageDescription);
   const maxFlagLabel = Math.max(...helpFlags.map((flag) => (flag.usageLabel ?? '').length)) + 2;
   const flagLines: string[] = ['Flags:'];
@@ -736,10 +578,15 @@ CLI to control iOS and Android devices for AI agents.
     );
   }
 
-  cachedUsageText = `${header}
+  return `${header}
 ${commandLines.join('\n')}
 
 ${flagLines.join('\n')}
 `;
-  return cachedUsageText;
+}
+
+const USAGE_TEXT = renderUsageText();
+
+export function buildUsageText(): string {
+  return USAGE_TEXT;
 }

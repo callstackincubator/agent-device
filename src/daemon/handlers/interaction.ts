@@ -41,16 +41,8 @@ export async function handleInteractionCommands(params: {
     }
     const refInput = req.positionals?.[0] ?? '';
     if (refInput.startsWith('@')) {
-      const unsupported = unsupportedRefSnapshotFlags(req.flags);
-      if (unsupported.length > 0) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: `click @ref does not support ${unsupported.join(', ')}.`,
-          },
-        };
-      }
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('click', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -136,16 +128,8 @@ export async function handleInteractionCommands(params: {
   if (command === 'fill') {
     const session = sessionStore.get(sessionName);
     if (req.positionals?.[0]?.startsWith('@')) {
-      const unsupported = unsupportedRefSnapshotFlags(req.flags);
-      if (unsupported.length > 0) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: `fill @ref does not support ${unsupported.join(', ')}.`,
-          },
-        };
-      }
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session?.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -278,16 +262,8 @@ export async function handleInteractionCommands(params: {
     }
     const refInput = req.positionals?.[1] ?? '';
     if (refInput.startsWith('@')) {
-      const unsupported = unsupportedRefSnapshotFlags(req.flags);
-      if (unsupported.length > 0) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: `get @ref does not support ${unsupported.join(', ')}.`,
-          },
-        };
-      }
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('get', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -548,6 +524,21 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
   ['snapshotRaw', '--raw'],
   ['snapshotBackend', '--backend'],
 ];
+
+function refSnapshotFlagGuardResponse(
+  command: 'click' | 'fill' | 'get',
+  flags: CommandFlags | undefined,
+): DaemonResponse | null {
+  const unsupported = unsupportedRefSnapshotFlags(flags);
+  if (unsupported.length === 0) return null;
+  return {
+    ok: false,
+    error: {
+      code: 'INVALID_ARGS',
+      message: `${command} @ref does not support ${unsupported.join(', ')}.`,
+    },
+  };
+}
 
 export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): string[] {
   if (!flags) return [];

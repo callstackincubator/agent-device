@@ -154,11 +154,7 @@ function parseFlagValue(
 }
 
 function labelForFlag(token: string): string {
-  if (token === '--backend') return 'backend';
-  if (token === '--platform') return 'platform';
-  if (token === '--depth' || token === '-d') return 'depth';
-  if (token.startsWith('--')) return token.slice(2);
-  return token.slice(1);
+  return token.replace(/^-+/, '');
 }
 
 function looksLikeFlagToken(value: string): boolean {

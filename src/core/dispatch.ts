@@ -17,9 +17,9 @@ import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import { setIosSetting } from '../platforms/ios/index.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
-import type { DaemonFlags } from '../utils/command-schema.ts';
+import type { CliFlags } from '../utils/command-schema.ts';
 
-export type CommandFlags = DaemonFlags;
+export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version'>;
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
   const selector = {
