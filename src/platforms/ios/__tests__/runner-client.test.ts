@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import {
+  assertSafeDerivedCleanup,
   resolveRunnerBuildDestination,
   resolveRunnerDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
@@ -83,4 +84,30 @@ test('resolveRunnerSigningBuildSettings applies optional overrides when provided
     'CODE_SIGN_IDENTITY=Apple Development',
     'PROVISIONING_PROFILE_SPECIFIER=My Profile',
   ]);
+});
+
+test('assertSafeDerivedCleanup allows cleaning when no override is set', () => {
+  assert.doesNotThrow(() => {
+    assertSafeDerivedCleanup('/tmp/derived', {});
+  });
+});
+
+test('assertSafeDerivedCleanup rejects cleaning override path by default', () => {
+  assert.throws(
+    () => {
+      assertSafeDerivedCleanup('/tmp/custom', {
+        AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: '/tmp/custom',
+      });
+    },
+    /Refusing to clean AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH automatically/,
+  );
+});
+
+test('assertSafeDerivedCleanup allows cleaning override path with explicit opt-in', () => {
+  assert.doesNotThrow(() => {
+    assertSafeDerivedCleanup('/tmp/custom', {
+      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: '/tmp/custom',
+      AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN: '1',
+    });
+  });
 });

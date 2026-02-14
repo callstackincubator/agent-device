@@ -273,6 +273,7 @@ Environment selectors:
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
 - `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH=<path>` optional override for iOS runner derived data root. By default, agent-device separates caches by target kind (`.../derived/simulator` and `.../derived/device`). If you set this override, use separate paths per kind to avoid simulator/device artifact collisions.
+- `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` rebuild iOS runner artifacts from scratch. When `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` is set, cleanup is blocked by default; set `AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN=1` only for trusted custom paths.
 
 Test screenshots are written to:
 - `test/screenshots/android-settings.png`
