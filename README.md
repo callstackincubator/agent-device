@@ -270,7 +270,7 @@ Environment selectors:
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to increase daemon request timeout for slow first-run iOS device setup (for example `180000`).
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
-- `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override (defaults to `Apple Development` when signing overrides are used).
+- `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
 
 Test screenshots are written to:

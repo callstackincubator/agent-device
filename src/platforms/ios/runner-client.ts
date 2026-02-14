@@ -408,8 +408,8 @@ export function resolveRunnerSigningBuildSettings(
   if (teamId) {
     args.push(`DEVELOPMENT_TEAM=${teamId}`);
   }
-  if (configuredIdentity || forDevice) {
-    args.push(`CODE_SIGN_IDENTITY=${configuredIdentity || 'Apple Development'}`);
+  if (configuredIdentity) {
+    args.push(`CODE_SIGN_IDENTITY=${configuredIdentity}`);
   }
   if (profile) args.push(`PROVISIONING_PROFILE_SPECIFIER=${profile}`);
   return args;
@@ -583,11 +583,19 @@ async function resolveDeviceTunnelIp(deviceId: string): Promise<string | null> {
       return null;
     }
     const payload = JSON.parse(fs.readFileSync(jsonPath, 'utf8')) as {
+      info?: { outcome?: string };
       result?: {
         connectionProperties?: { tunnelIPAddress?: string };
+        device?: { connectionProperties?: { tunnelIPAddress?: string } };
       };
     };
-    const ip = payload.result?.connectionProperties?.tunnelIPAddress?.trim();
+    if (payload.info?.outcome && payload.info.outcome !== 'success') {
+      return null;
+    }
+    const ip = (
+      payload.result?.connectionProperties?.tunnelIPAddress
+      ?? payload.result?.device?.connectionProperties?.tunnelIPAddress
+    )?.trim();
     return ip && ip.length > 0 ? ip : null;
   } catch {
     return null;
