@@ -1,292 +1,203 @@
 import { AppError } from './errors.ts';
+import {
+  buildUsageText,
+  getCommandSchema,
+  getFlagDefinition,
+  GLOBAL_FLAG_KEYS,
+  isStrictFlagModeEnabled,
+  type CliFlags,
+  type FlagDefinition,
+  type FlagKey,
+} from './command-schema.ts';
 
 export type ParsedArgs = {
   command: string | null;
   positionals: string[];
-  flags: {
-    json: boolean;
-    platform?: 'ios' | 'android';
-    device?: string;
-    udid?: string;
-    serial?: string;
-    out?: string;
-    session?: string;
-    verbose?: boolean;
-    snapshotInteractiveOnly?: boolean;
-    snapshotCompact?: boolean;
-    snapshotDepth?: number;
-    snapshotScope?: string;
-    snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest';
-    appsFilter?: 'launchable' | 'user-installed' | 'all';
-    appsMetadata?: boolean;
-    count?: number;
-    intervalMs?: number;
-    holdMs?: number;
-    jitterPx?: number;
-    pauseMs?: number;
-    pattern?: 'one-way' | 'ping-pong';
-    activity?: string;
-    saveScript?: boolean;
-    relaunch?: boolean;
-    noRecord?: boolean;
-    replayUpdate?: boolean;
-    help: boolean;
-    version: boolean;
-  };
+  flags: CliFlags;
+  warnings: string[];
 };
 
-export function parseArgs(argv: string[]): ParsedArgs {
-  const flags: ParsedArgs['flags'] = { json: false, help: false, version: false };
+type ParseArgsOptions = {
+  strictFlags?: boolean;
+};
+
+type ParsedFlagRecord = {
+  key: FlagKey;
+  token: string;
+};
+
+export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArgs {
+  const strictFlags = options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
+  const flags: CliFlags = { json: false, help: false, version: false };
+  let command: string | null = null;
   const positionals: string[] = [];
+  const warnings: string[] = [];
+  const providedFlags: ParsedFlagRecord[] = [];
+  let parseFlags = true;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--json') {
-      flags.json = true;
+    if (parseFlags && arg === '--') {
+      parseFlags = false;
       continue;
     }
-    if (arg === '--help' || arg === '-h') {
-      flags.help = true;
+    if (!parseFlags) {
+      if (!command) command = arg;
+      else positionals.push(arg);
       continue;
     }
-    if (arg === '--version' || arg === '-V') {
-      flags.version = true;
+    const isLongFlag = arg.startsWith('--');
+    const isShortFlag = arg.startsWith('-') && arg.length > 1;
+    if (!isLongFlag && !isShortFlag) {
+      if (!command) command = arg;
+      else positionals.push(arg);
       continue;
     }
-    if (arg === '--verbose' || arg === '-v') {
-      flags.verbose = true;
-      continue;
-    }
-    if (arg === '-i') {
-      flags.snapshotInteractiveOnly = true;
-      continue;
-    }
-    if (arg === '-c') {
-      flags.snapshotCompact = true;
-      continue;
-    }
-    if (arg === '--raw') {
-      flags.snapshotRaw = true;
-      continue;
-    }
-    if (arg === '--no-record') {
-      flags.noRecord = true;
-      continue;
-    }
-    if (arg === '--save-script') {
-      flags.saveScript = true;
-      continue;
-    }
-    if (arg === '--relaunch') {
-      flags.relaunch = true;
-      continue;
-    }
-    if (arg === '--update' || arg === '-u') {
-      flags.replayUpdate = true;
-      continue;
-    }
-    if (arg === '--user-installed') {
-      flags.appsFilter = 'user-installed';
-      continue;
-    }
-    if (arg === '--all') {
-      flags.appsFilter = 'all';
-      continue;
-    }
-    if (arg === '--metadata') {
-      flags.appsMetadata = true;
-      continue;
-    }
-    if (arg.startsWith('--backend')) {
-      const value = arg.includes('=')
-        ? arg.split('=')[1]
-        : argv[i + 1];
-      if (!arg.includes('=')) i += 1;
-      if (value !== 'ax' && value !== 'xctest') {
-        throw new AppError('INVALID_ARGS', `Invalid backend: ${value}`);
-      }
-      flags.snapshotBackend = value;
-      continue;
-    }
-    if (arg.startsWith('--')) {
-      const [key, valueInline] = arg.split('=');
-      const value = valueInline ?? argv[i + 1];
-      if (!valueInline) i += 1;
 
-      switch (key) {
-        case '--platform':
-          if (value !== 'ios' && value !== 'android') {
-            throw new AppError('INVALID_ARGS', `Invalid platform: ${value}`);
-          }
-          flags.platform = value;
-          break;
-        case '--depth': {
-          const parsed = Number(value);
-          if (!Number.isFinite(parsed) || parsed < 0) {
-            throw new AppError('INVALID_ARGS', `Invalid depth: ${value}`);
-          }
-          flags.snapshotDepth = Math.floor(parsed);
-          break;
-        }
-        case '--scope':
-          flags.snapshotScope = value;
-          break;
-        case '--device':
-          flags.device = value;
-          break;
-        case '--udid':
-          flags.udid = value;
-          break;
-        case '--serial':
-          flags.serial = value;
-          break;
-        case '--out':
-          flags.out = value;
-          break;
-        case '--session':
-          flags.session = value;
-          break;
-        case '--activity':
-          flags.activity = value;
-          break;
-        case '--count':
-          flags.count = parseNumericFlag(key, value);
-          break;
-        case '--interval-ms':
-          flags.intervalMs = parseNumericFlag(key, value);
-          break;
-        case '--hold-ms':
-          flags.holdMs = parseNumericFlag(key, value);
-          break;
-        case '--jitter-px':
-          flags.jitterPx = parseNumericFlag(key, value);
-          break;
-        case '--pause-ms':
-          flags.pauseMs = parseNumericFlag(key, value);
-          break;
-        case '--pattern':
-          if (value !== 'one-way' && value !== 'ping-pong') {
-            throw new AppError('INVALID_ARGS', `Invalid pattern: ${value}`);
-          }
-          flags.pattern = value;
-          break;
-        default:
-          throw new AppError('INVALID_ARGS', `Unknown flag: ${key}`);
+    const [token, inlineValue] = isLongFlag ? splitLongFlag(arg) : [arg, undefined];
+    const definition = getFlagDefinition(token);
+    if (!definition) {
+      if (shouldTreatUnknownDashTokenAsPositional(command, positionals, arg)) {
+        if (!command) command = arg;
+        else positionals.push(arg);
+        continue;
       }
-      continue;
+      throw new AppError('INVALID_ARGS', `Unknown flag: ${token}`);
     }
-    if (arg === '-d') {
-      const value = argv[i + 1];
-      i += 1;
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        throw new AppError('INVALID_ARGS', `Invalid depth: ${value}`);
-      }
-      flags.snapshotDepth = Math.floor(parsed);
-      continue;
-    }
-    if (arg === '-s') {
-      const value = argv[i + 1];
-      i += 1;
-      flags.snapshotScope = value;
-      continue;
-    }
-    positionals.push(arg);
+
+    const parsed = parseFlagValue(definition, token, inlineValue, argv[i + 1]);
+    if (parsed.consumeNext) i += 1;
+    (flags as Record<string, unknown>)[definition.key] = parsed.value;
+    providedFlags.push({ key: definition.key, token });
   }
 
-  const command = positionals.shift() ?? null;
-  return { command, positionals, flags };
+  const commandSchema = getCommandSchema(command);
+  const allowedFlagKeys = new Set<FlagKey>([
+    ...GLOBAL_FLAG_KEYS,
+    ...(commandSchema?.allowedFlags ?? []),
+  ]);
+  const disallowed = providedFlags.filter((entry) => !allowedFlagKeys.has(entry.key));
+  if (disallowed.length > 0) {
+    const unsupported = disallowed.map((entry) => entry.token);
+    const message = formatUnsupportedFlagMessage(command, unsupported);
+    if (strictFlags) {
+      throw new AppError('INVALID_ARGS', message);
+    }
+    warnings.push(`${message} Enable AGENT_DEVICE_STRICT_FLAGS=1 to fail fast.`);
+    for (const entry of disallowed) {
+      delete (flags as Record<string, unknown>)[entry.key];
+    }
+  }
+  if (commandSchema?.defaults) {
+    for (const [key, value] of Object.entries(commandSchema.defaults) as Array<[FlagKey, unknown]>) {
+      if ((flags as Record<string, unknown>)[key] === undefined) {
+        (flags as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+  return { command, positionals, flags, warnings };
 }
 
-function parseNumericFlag(name: string, value: string): number {
+function splitLongFlag(flag: string): [string, string | undefined] {
+  const equals = flag.indexOf('=');
+  if (equals === -1) return [flag, undefined];
+  return [flag.slice(0, equals), flag.slice(equals + 1)];
+}
+
+function parseFlagValue(
+  definition: FlagDefinition,
+  token: string,
+  inlineValue: string | undefined,
+  nextArg: string | undefined,
+): { value: unknown; consumeNext: boolean } {
+  if (definition.setValue !== undefined) {
+    if (inlineValue !== undefined) {
+      throw new AppError('INVALID_ARGS', `Flag ${token} does not take a value.`);
+    }
+    return { value: definition.setValue, consumeNext: false };
+  }
+  if (definition.type === 'boolean') {
+    if (inlineValue !== undefined) {
+      throw new AppError('INVALID_ARGS', `Flag ${token} does not take a value.`);
+    }
+    return { value: true, consumeNext: false };
+  }
+
+  const value = inlineValue ?? nextArg;
+  if (value === undefined) {
+    throw new AppError('INVALID_ARGS', `Flag ${token} requires a value.`);
+  }
+  if (inlineValue === undefined && looksLikeFlagToken(value)) {
+    throw new AppError('INVALID_ARGS', `Flag ${token} requires a value.`);
+  }
+
+  if (definition.type === 'string') {
+    return { value, consumeNext: inlineValue === undefined };
+  }
+  if (definition.type === 'enum') {
+    if (!definition.enumValues?.includes(value)) {
+      throw new AppError('INVALID_ARGS', `Invalid ${labelForFlag(token)}: ${value}`);
+    }
+    return { value, consumeNext: inlineValue === undefined };
+  }
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    throw new AppError('INVALID_ARGS', `Invalid ${name}: ${value}`);
+    throw new AppError('INVALID_ARGS', `Invalid ${labelForFlag(token)}: ${value}`);
   }
-  return parsed;
+  if (typeof definition.min === 'number' && parsed < definition.min) {
+    throw new AppError('INVALID_ARGS', `Invalid ${labelForFlag(token)}: ${value}`);
+  }
+  if (typeof definition.max === 'number' && parsed > definition.max) {
+    throw new AppError('INVALID_ARGS', `Invalid ${labelForFlag(token)}: ${value}`);
+  }
+  return { value: Math.floor(parsed), consumeNext: inlineValue === undefined };
+}
+
+function labelForFlag(token: string): string {
+  return token.replace(/^-+/, '');
+}
+
+function looksLikeFlagToken(value: string): boolean {
+  if (!value.startsWith('-') || value === '-') return false;
+  const [token] = value.startsWith('--') ? splitLongFlag(value) : [value, undefined];
+  return getFlagDefinition(token) !== undefined;
+}
+
+function shouldTreatUnknownDashTokenAsPositional(
+  command: string | null,
+  positionals: string[],
+  arg: string,
+): boolean {
+  if (!isNegativeNumericToken(arg)) return false;
+  if (!command) return false;
+  const schema = getCommandSchema(command);
+  if (!schema) return true;
+  if (schema.allowsExtraPositionals) return true;
+  if (schema.positionalArgs.length === 0) return false;
+  if (positionals.length < schema.positionalArgs.length) return true;
+  return schema.positionalArgs.some((entry) => entry.includes('?'));
+}
+
+function isNegativeNumericToken(value: string): boolean {
+  return /^-\d+(\.\d+)?$/.test(value);
+}
+
+function formatUnsupportedFlagMessage(command: string | null, unsupported: string[]): string {
+  if (!command) {
+    return unsupported.length === 1
+      ? `Flag ${unsupported[0]} requires a command that supports it.`
+      : `Flags ${unsupported.join(', ')} require a command that supports them.`;
+  }
+  return unsupported.length === 1
+    ? `Flag ${unsupported[0]} is not supported for command ${command}.`
+    : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
+}
+
+export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' | 'version'> {
+  const { json: _json, help: _help, version: _version, ...daemonFlags } = flags;
+  return daemonFlags;
 }
 
 export function usage(): string {
-  return `agent-device <command> [args] [--json]
-
-CLI to control iOS and Android devices for AI agents.
-
-Commands:
-  boot                                      Ensure target device/simulator is booted and ready
-  open [app|url]                             Boot device/simulator; optionally launch app or deep link URL
-  close [app]                                Close app or just end session
-  reinstall <app> <path>                     Uninstall + install app from binary path
-  snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
-                                             Capture accessibility tree
-    -i                                       Interactive elements only
-    -c                                       Compact output (drop empty structure)
-    -d <depth>                               Limit snapshot depth
-    -s <scope>                               Scope snapshot to label/identifier
-    --raw                                    Raw node output
-    --backend ax|xctest                      xctest: default; XCTest snapshot (slower, no permissions)
-                                             ax: macOS Accessibility tree (fast, needs permissions)
-  devices                                   List available devices
-  apps [--user-installed|--all|--metadata]  List installed apps (Android launchable by default, iOS simulator)
-  appstate                                  Show foreground app/activity
-  back                                      Navigate back (where supported)
-  home                                      Go to home screen (where supported)
-  app-switcher                              Open app switcher (where supported)
-  wait <ms>|text <text>|@ref|<selector> [timeoutMs]
-                                             Wait for duration, text, ref, or selector to appear
-  alert [get|accept|dismiss|wait] [timeout] Inspect or handle alert (iOS simulator)
-  click <@ref|selector>                      Click element by snapshot ref or selector
-  get text <@ref|selector>                   Return element text by ref or selector
-  get attrs <@ref|selector>                  Return element attributes by ref or selector
-  replay <path> [--update|-u]                Replay a recorded session
-  press <x> <y> [--count N] [--interval-ms I] [--hold-ms H] [--jitter-px J]
-                                             Tap/press at coordinates (supports repeated gesture series)
-  long-press <x> <y> [durationMs]            Long press (where supported)
-  swipe <x1> <y1> <x2> <y2> [durationMs] [--count N] [--pause-ms P] [--pattern one-way|ping-pong]
-                                             Swipe coordinates with optional repeat pattern
-  focus <x> <y>                              Focus input at coordinates
-  type <text>                                Type text in focused field
-  fill <x> <y> <text> | fill <@ref|selector> <text>
-                                             Tap then type
-  scroll <direction> [amount]                Scroll in direction (0-1 amount)
-  pinch <scale> [x] [y]                      Pinch/zoom (iOS simulator only)
-  scrollintoview <text>                      Scroll until text appears (Android only)
-  screenshot [path]                          Capture screenshot
-  record start [path]                        Start screen recording
-  record stop                                Stop screen recording
-  trace start [path]                         Start trace log capture
-  trace stop [path]                          Stop trace log capture
-  find <text> <action> [value]               Find by any text (label/value/id)
-  find text <text> <action> [value]          Find by text content
-  find label <label> <action> [value]        Find by label
-  find value <value> <action> [value]        Find by value
-  find role <role> <action> [value]          Find by role/type
-  find id <id> <action> [value]              Find by identifier/resource-id
-  is <predicate> <selector> [value]          Assert UI state (visible|hidden|exists|editable|selected|text)
-  settings <wifi|airplane|location> <on|off> Toggle OS settings (simulators)
-  session list                               List active sessions
-
-Flags:
-  --platform ios|android                     Platform to target
-  --device <name>                            Device name to target
-  --udid <udid>                              iOS device UDID
-  --serial <serial>                          Android device serial
-  --activity <component>                     Android app launch activity (package/Activity); not for URL opens
-  --session <name>                           Named session
-  --count <n>                                Repeat count for press/swipe series
-  --interval-ms <ms>                         Delay between press iterations
-  --hold-ms <ms>                             Press hold duration for each iteration
-  --jitter-px <n>                            Deterministic coordinate jitter radius for press
-  --pause-ms <ms>                            Delay between swipe iterations
-  --pattern one-way|ping-pong                Swipe repeat pattern
-  --verbose                                  Stream daemon/runner logs
-  --json                                     JSON output
-  --save-script                             Save session script (.ad) on close
-  --relaunch                               open: terminate app process before launching it
-  --no-record                                Do not record this action
-  --update, -u                               Replay: update selectors and rewrite replay file in place
-  --user-installed                           Apps: list user-installed packages (Android only)
-  --all                                      Apps: list all packages (Android only)
-  --version, -V                              Print version and exit
-`;
+  return buildUsageText();
 }

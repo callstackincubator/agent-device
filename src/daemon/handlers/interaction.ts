@@ -41,6 +41,8 @@ export async function handleInteractionCommands(params: {
     }
     const refInput = req.positionals?.[0] ?? '';
     if (refInput.startsWith('@')) {
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('click', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -126,6 +128,8 @@ export async function handleInteractionCommands(params: {
   if (command === 'fill') {
     const session = sessionStore.get(sessionName);
     if (req.positionals?.[0]?.startsWith('@')) {
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session?.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -258,6 +262,8 @@ export async function handleInteractionCommands(params: {
     }
     const refInput = req.positionals?.[1] ?? '';
     if (refInput.startsWith('@')) {
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('get', req.flags);
+      if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
@@ -510,4 +516,35 @@ async function captureSnapshotForSession(
   };
   sessionStore.set(session.name, session);
   return session.snapshot;
+}
+
+const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
+  ['snapshotDepth', '--depth'],
+  ['snapshotScope', '--scope'],
+  ['snapshotRaw', '--raw'],
+  ['snapshotBackend', '--backend'],
+];
+
+function refSnapshotFlagGuardResponse(
+  command: 'click' | 'fill' | 'get',
+  flags: CommandFlags | undefined,
+): DaemonResponse | null {
+  const unsupported = unsupportedRefSnapshotFlags(flags);
+  if (unsupported.length === 0) return null;
+  return {
+    ok: false,
+    error: {
+      code: 'INVALID_ARGS',
+      message: `${command} @ref does not support ${unsupported.join(', ')}.`,
+    },
+  };
+}
+
+export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): string[] {
+  if (!flags) return [];
+  const unsupported: string[] = [];
+  for (const [key, label] of REF_UNSUPPORTED_FLAG_MAP) {
+    if (flags[key] !== undefined) unsupported.push(label);
+  }
+  return unsupported;
 }

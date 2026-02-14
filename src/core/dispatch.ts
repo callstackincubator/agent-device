@@ -17,35 +17,9 @@ import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import { setIosSetting } from '../platforms/ios/index.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
+import type { CliFlags } from '../utils/command-schema.ts';
 
-export type CommandFlags = {
-  session?: string;
-  platform?: 'ios' | 'android';
-  device?: string;
-  udid?: string;
-  serial?: string;
-  out?: string;
-  activity?: string;
-  verbose?: boolean;
-  snapshotInteractiveOnly?: boolean;
-  snapshotCompact?: boolean;
-  snapshotDepth?: number;
-  snapshotScope?: string;
-  snapshotRaw?: boolean;
-  snapshotBackend?: 'ax' | 'xctest';
-  saveScript?: boolean;
-  relaunch?: boolean;
-  noRecord?: boolean;
-  appsFilter?: 'launchable' | 'user-installed' | 'all';
-  appsMetadata?: boolean;
-  count?: number;
-  intervalMs?: number;
-  holdMs?: number;
-  jitterPx?: number;
-  pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
-  replayUpdate?: boolean;
-};
+export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version'>;
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
   const selector = {

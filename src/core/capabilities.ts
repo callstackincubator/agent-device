@@ -50,3 +50,7 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
   return byPlatform[kind] === true;
 }
+
+export function listCapabilityCommands(): string[] {
+  return Object.keys(COMMAND_CAPABILITY_MATRIX).sort();
+}

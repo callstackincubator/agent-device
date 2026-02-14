@@ -1,4 +1,4 @@
-import { parseArgs, usage } from './utils/args.ts';
+import { parseArgs, toDaemonFlags, usage } from './utils/args.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
@@ -10,6 +10,9 @@ import path from 'node:path';
 
 export async function runCli(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv);
+  for (const warning of parsed.warnings) {
+    process.stderr.write(`Warning: ${warning}\n`);
+  }
 
   if (parsed.flags.version) {
     process.stdout.write(`${readVersion()}\n`);
@@ -22,6 +25,7 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 
   const { command, positionals, flags } = parsed;
+  const daemonFlags = toDaemonFlags(flags);
   const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
   const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
   try {
@@ -34,7 +38,7 @@ export async function runCli(argv: string[]): Promise<void> {
         session: sessionName,
         command: 'session_list',
         positionals: [],
-        flags: {},
+        flags: daemonFlags,
       });
       if (!response.ok) throw new AppError(response.error.code as any, response.error.message);
       if (flags.json) printJson({ success: true, data: response.data ?? {} });
@@ -47,7 +51,7 @@ export async function runCli(argv: string[]): Promise<void> {
       session: sessionName,
       command: command!,
       positionals,
-      flags,
+      flags: daemonFlags,
     });
 
     if (response.ok) {
