@@ -77,12 +77,9 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
     ...(commandSchema?.allowedFlags ?? []),
   ]);
   const disallowed = providedFlags.filter((entry) => !allowedFlagKeys.has(entry.key));
-  if (disallowed.length > 0 && command) {
+  if (disallowed.length > 0) {
     const unsupported = disallowed.map((entry) => entry.token);
-    const message =
-      unsupported.length === 1
-        ? `Flag ${unsupported[0]} is not supported for command ${command}.`
-        : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
+    const message = formatUnsupportedFlagMessage(command, unsupported);
     if (strictFlags) {
       throw new AppError('INVALID_ARGS', message);
     }
@@ -179,6 +176,7 @@ function shouldTreatUnknownDashTokenAsPositional(
   if (!command) return false;
   const schema = getCommandSchema(command);
   if (!schema) return true;
+  if (schema.allowsExtraPositionals) return true;
   if (schema.positionalArgs.length === 0) return false;
   if (positionals.length < schema.positionalArgs.length) return true;
   return schema.positionalArgs.some((entry) => entry.includes('?'));
@@ -186,6 +184,17 @@ function shouldTreatUnknownDashTokenAsPositional(
 
 function isNegativeNumericToken(value: string): boolean {
   return /^-\d+(\.\d+)?$/.test(value);
+}
+
+function formatUnsupportedFlagMessage(command: string | null, unsupported: string[]): string {
+  if (!command) {
+    return unsupported.length === 1
+      ? `Flag ${unsupported[0]} requires a command that supports it.`
+      : `Flags ${unsupported.join(', ')} require a command that supports them.`;
+  }
+  return unsupported.length === 1
+    ? `Flag ${unsupported[0]} is not supported for command ${command}.`
+    : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
 }
 
 export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' | 'version'> {

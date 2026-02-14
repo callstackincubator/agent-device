@@ -118,9 +118,31 @@ test('negative numeric positionals are accepted without -- separator', () => {
   assert.equal(typed.command, 'type');
   assert.deepEqual(typed.positionals, ['-123']);
 
+  const typedMulti = parseArgs(['type', '-123', '-456'], { strictFlags: true });
+  assert.equal(typedMulti.command, 'type');
+  assert.deepEqual(typedMulti.positionals, ['-123', '-456']);
+
   const pressed = parseArgs(['press', '-10', '20'], { strictFlags: true });
   assert.equal(pressed.command, 'press');
   assert.deepEqual(pressed.positionals, ['-10', '20']);
+});
+
+test('command-specific flags without command fail in strict mode', () => {
+  assert.throws(
+    () => parseArgs(['--depth', '3'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('requires a command that supports it'),
+  );
+});
+
+test('command-specific flags without command warn and strip in compat mode', () => {
+  const parsed = parseArgs(['--depth', '3'], { strictFlags: false });
+  assert.equal(parsed.command, null);
+  assert.equal(parsed.flags.snapshotDepth, undefined);
+  assert.equal(parsed.warnings.length, 1);
+  assert.match(parsed.warnings[0], /requires a command that supports/);
 });
 
 test('all commands participate in strict command-flag validation', () => {

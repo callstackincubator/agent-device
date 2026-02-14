@@ -53,6 +53,7 @@ export type CommandSchema = {
   description: string;
   details?: readonly string[];
   positionalArgs: readonly string[];
+  allowsExtraPositionals?: boolean;
   allowedFlags: readonly FlagKey[];
   defaults?: Partial<CliFlags>;
 };
@@ -457,6 +458,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usage: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
     description: 'Wait for duration, text, ref, or selector to appear',
     positionalArgs: ['durationOrSelector', 'timeoutMs?'],
+    allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   alert: {
@@ -529,6 +531,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usage: 'type <text>',
     description: 'Type text in focused field',
     positionalArgs: ['text'],
+    allowsExtraPositionals: true,
     allowedFlags: [],
   },
   fill: {
@@ -537,6 +540,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usage: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
     description: 'Tap then type',
     positionalArgs: ['targetOrX', 'yOrText', 'text?'],
+    allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   scroll: {
@@ -600,6 +604,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'find id <id> <action> [value]',
     ],
     positionalArgs: ['query', 'action', 'value?'],
+    allowsExtraPositionals: true,
     allowedFlags: [...FIND_SNAPSHOT_FLAGS],
   },
   is: {
@@ -608,6 +613,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usage: 'is <predicate> <selector> [value]',
     description: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
     positionalArgs: ['predicate', 'selector', 'value?'],
+    allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   settings: {
