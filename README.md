@@ -215,7 +215,7 @@ Settings helpers:
 Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
-- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it falls back to a snapshot-based guess (`xctest` on devices; AX-first on simulators with XCTest fallback).
+- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it uses a snapshot-based guess (XCTest first; AX fallback on simulators).
 - `apps --metadata` returns app list with minimal metadata.
 
 ## Debug
