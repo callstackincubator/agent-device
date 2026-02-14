@@ -64,10 +64,10 @@ agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
 agent-device snapshot --backend xctest # default: XCTest snapshot (fast, complete, no permissions)
-agent-device snapshot --backend ax     # macOS Accessibility tree (fast, needs permissions, less fidelity, optional)
+agent-device snapshot --backend ax     # macOS Accessibility tree (manual diagnostics only; no automatic fallback)
 ```
 
-XCTest is the default: fast and complete and does not require permissions. Use AX only for manual diagnostics, and prefer XCTest for normal automation flows.
+XCTest is the default: fast and complete and does not require permissions. Use AX only for manual diagnostics, and prefer XCTest for normal automation flows. agent-device does not automatically fall back to AX.
 
 ### Find (semantic)
 

@@ -2,7 +2,7 @@
 
 ## iOS AX snapshot
 
-AX snapshot is an alternative to XCTest for when it fails (which shouldn't happen usually); it uses macOS Accessibility APIs and requires permission:
+AX snapshot is available for manual diagnostics when needed; it is not used as an automatic fallback. It uses macOS Accessibility APIs and requires permission:
 
 System Settings > Privacy & Security > Accessibility
 

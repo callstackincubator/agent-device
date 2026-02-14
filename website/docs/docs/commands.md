@@ -35,6 +35,7 @@ agent-device get attrs @e1
 
 - `--backend xctest` works on iOS simulators and iOS devices.
 - `--backend ax` is simulator-only.
+- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
 
 ## Interactions
 

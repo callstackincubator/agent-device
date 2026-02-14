@@ -56,6 +56,7 @@ agent-device snapshot -i -s @e3
 - AX returns Simulator window: restart Simulator and re-run.
 - AX empty: verify Accessibility permission or use `--backend xctest` (XCTest is more complete).
 - AX backend is simulator-only; use `--backend xctest` on iOS devices.
+- agent-device does not automatically fall back to AX when XCTest fails.
 
 ## Replay note
 
