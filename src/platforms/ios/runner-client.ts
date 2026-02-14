@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd, runCmdStreaming, runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
-import { withRetry } from '../../utils/retry.ts';
+import { Deadline, retryWithPolicy, withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
@@ -522,28 +522,52 @@ async function waitForRunner(
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
 ): Promise<Response> {
   let endpoints = await resolveRunnerCommandEndpoints(device, port);
-  let nextEndpointRefreshAt = Date.now() + 1_000;
-  const start = Date.now();
   let lastError: unknown = null;
-  while (Date.now() - start < timeoutMs) {
-    if (device.kind === 'device' && Date.now() >= nextEndpointRefreshAt) {
-      endpoints = await resolveRunnerCommandEndpoints(device, port);
-      nextEndpointRefreshAt = Date.now() + 1_000;
+  const deadline = Deadline.fromTimeoutMs(timeoutMs);
+  const maxAttempts = Math.max(1, Math.ceil(timeoutMs / 250));
+  try {
+    return await retryWithPolicy(
+      async () => {
+        if (device.kind === 'device') {
+          endpoints = await resolveRunnerCommandEndpoints(device, port);
+        }
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetchWithTimeout(
+              endpoint,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(command),
+              },
+              1_000,
+            );
+            return response;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw new AppError('COMMAND_FAILED', 'Runner endpoint probe failed', {
+          port,
+          endpoints,
+          lastError: lastError ? String(lastError) : undefined,
+        });
+      },
+      {
+        maxAttempts,
+        baseDelayMs: 100,
+        maxDelayMs: 500,
+        jitter: 0.2,
+        shouldRetry: () => true,
+      },
+      { deadline, phase: 'ios_runner_connect' },
+    );
+  } catch (error) {
+    if (!lastError) {
+      lastError = error;
     }
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetchWithTimeout(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(command),
-        }, 1_000);
-        return response;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
   }
+
   if (device.kind === 'simulator') {
     const simResponse = await postCommandViaSimulator(device.id, port, command);
     return new Response(simResponse.body, { status: simResponse.status });
