@@ -35,8 +35,9 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
 async function ensureDaemon(): Promise<DaemonInfo> {
   const existing = readDaemonInfo();
   const localVersion = readVersion();
-  if (existing && existing.version === localVersion && (await canConnect(existing))) return existing;
-  if (existing && (existing.version !== localVersion || !(await canConnect(existing)))) {
+  const existingReachable = existing ? await canConnect(existing) : false;
+  if (existing && existing.version === localVersion && existingReachable) return existing;
+  if (existing && (existing.version !== localVersion || !existingReachable)) {
     removeDaemonInfo();
   }
 
@@ -67,7 +68,11 @@ function readDaemonInfo(): DaemonInfo | null {
 }
 
 function removeDaemonInfo(): void {
-  if (fs.existsSync(infoPath)) fs.unlinkSync(infoPath);
+  try {
+    if (fs.existsSync(infoPath)) fs.unlinkSync(infoPath);
+  } catch {
+    // Best-effort cleanup only; daemon can still overwrite this file on startup.
+  }
 }
 
 async function canConnect(info: DaemonInfo): Promise<boolean> {
@@ -87,11 +92,14 @@ async function startDaemon(): Promise<void> {
   const distPath = path.join(root, 'dist', 'src', 'daemon.js');
   const srcPath = path.join(root, 'src', 'daemon.ts');
 
-  const useDist = fs.existsSync(distPath);
-  if (!useDist && !fs.existsSync(srcPath)) {
+  const hasDist = fs.existsSync(distPath);
+  const hasSrc = fs.existsSync(srcPath);
+  if (!hasDist && !hasSrc) {
     throw new AppError('COMMAND_FAILED', 'Daemon entry not found', { distPath, srcPath });
   }
-  const args = useDist ? [distPath] : ['--experimental-strip-types', srcPath];
+  const runningFromSource = process.execArgv.includes('--experimental-strip-types');
+  const useSrc = runningFromSource ? hasSrc : !hasDist && hasSrc;
+  const args = useSrc ? ['--experimental-strip-types', srcPath] : [distPath];
 
   runCmdDetached(process.execPath, args);
 }
