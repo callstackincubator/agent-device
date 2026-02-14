@@ -1,6 +1,7 @@
 import { dispatchCommand, type CommandFlags } from '../core/dispatch.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import { attachRefs, type RawSnapshotNode } from '../utils/snapshot.ts';
+import { AppError } from '../utils/errors.ts';
 import { contextFromFlags } from './context.ts';
 import { normalizeType } from './snapshot-processing.ts';
 
@@ -10,11 +11,10 @@ export async function resolveIosAppStateFromSnapshots(
   traceLogPath: string | undefined,
   flags: CommandFlags | undefined,
   dispatch: typeof dispatchCommand = dispatchCommand,
-): Promise<{ appName: string; appBundleId?: string; source: 'snapshot-ax' | 'snapshot-xctest' }> {
-  let xctestError: unknown = undefined;
-  let xcNode: { appName?: string; appBundleId?: string } | null = null;
+): Promise<{ appName: string; appBundleId?: string; source: 'snapshot-xctest' }> {
+  let xctestResult: { nodes?: RawSnapshotNode[] } | undefined;
   try {
-    const xctestResult = await dispatch(device, 'snapshot', [], flags?.out, {
+    xctestResult = (await dispatch(device, 'snapshot', [], flags?.out, {
       ...contextFromFlags(
         logPath,
         {
@@ -26,61 +26,29 @@ export async function resolveIosAppStateFromSnapshots(
         undefined,
         traceLogPath,
       ),
-    });
-    xcNode = extractAppNodeFromSnapshot(xctestResult as { nodes?: RawSnapshotNode[] });
-    if (xcNode?.appName || xcNode?.appBundleId) {
-      return {
-        appName: xcNode.appName ?? xcNode.appBundleId ?? 'unknown',
-        appBundleId: xcNode.appBundleId,
-        source: 'snapshot-xctest',
-      };
-    }
+    })) as { nodes?: RawSnapshotNode[] };
   } catch (error) {
-    xctestError = error;
-    if (device.kind === 'device') {
-      throw error;
-    }
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Unable to resolve iOS app state from XCTest snapshot. You can try snapshot --backend ax for diagnostics, but AX snapshots are not recommended.',
+      { cause },
+    );
   }
 
-  if (device.kind === 'device') {
+  const xcNode = extractAppNodeFromSnapshot(xctestResult);
+  if (xcNode?.appName || xcNode?.appBundleId) {
     return {
-      appName: 'unknown',
-      appBundleId: undefined,
+      appName: xcNode.appName ?? xcNode.appBundleId ?? 'unknown',
+      appBundleId: xcNode.appBundleId,
       source: 'snapshot-xctest',
     };
   }
 
-  const axResult = await dispatch(device, 'snapshot', [], flags?.out, {
-    ...contextFromFlags(
-      logPath,
-      {
-        ...flags,
-        snapshotDepth: 1,
-        snapshotCompact: true,
-        snapshotBackend: 'ax',
-      },
-      undefined,
-      traceLogPath,
-    ),
-  });
-  const axNode = extractAppNodeFromSnapshot(axResult as { nodes?: RawSnapshotNode[] });
-  if (axNode?.appName || axNode?.appBundleId) {
-    return {
-      appName: axNode.appName ?? axNode.appBundleId ?? 'unknown',
-      appBundleId: axNode.appBundleId,
-      source: 'snapshot-ax',
-    };
-  }
-
-  if (xctestError) {
-    throw xctestError;
-  }
-
-  return {
-    appName: 'unknown',
-    appBundleId: undefined,
-    source: 'snapshot-xctest',
-  };
+  throw new AppError(
+    'COMMAND_FAILED',
+    'Unable to resolve iOS app state from XCTest snapshot (0 nodes or missing application node). You can try snapshot --backend ax for diagnostics, but AX snapshots are not recommended.',
+  );
 }
 
 function extractAppNodeFromSnapshot(

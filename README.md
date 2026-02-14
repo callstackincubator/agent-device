@@ -101,7 +101,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 Notes:
 - Default backend is `xctest` on iOS simulators and iOS devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
-- If XCTest returns 0 nodes (e.g., foreground app changed), agent-device falls back to AX on simulators when available.
+- If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
 - `ax` backend is simulator-only.
 
 Flags:
@@ -215,7 +215,7 @@ Settings helpers:
 Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
-- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it uses a snapshot-based guess (XCTest first; AX fallback on simulators).
+- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it resolves via XCTest snapshot.
 - `apps --metadata` returns app list with minimal metadata.
 
 ## Debug
@@ -223,7 +223,7 @@ App state:
 - `agent-device trace start`
 - `agent-device trace stop ./trace.log`
 - The trace log includes snapshot logs and XCTest runner logs for the session.
-- Built-in retries cover transient runner connection failures, AX snapshot hiccups, and Android UI dumps.
+- Built-in retries cover transient runner connection failures and Android UI dumps.
 - For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
 
 Boot diagnostics:

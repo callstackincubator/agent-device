@@ -309,12 +309,10 @@ export async function dispatchCommand(
         )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
         const nodes = result.nodes ?? [];
         if (nodes.length === 0 && device.kind === 'simulator') {
-          try {
-            const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
-            return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };
-          } catch {
-            // keep the empty XCTest snapshot if AX is unavailable
-          }
+          throw new AppError(
+            'COMMAND_FAILED',
+            'XCTest snapshot returned 0 nodes on iOS simulator. You can try --backend ax for diagnostics, but AX snapshots are not recommended.',
+          );
         }
         return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
       }
