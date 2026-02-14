@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArgs, usage } from '../args.ts';
+import { AppError } from '../errors.ts';
+import { getCliCommandNames } from '../command-schema.ts';
+import { listCapabilityCommands } from '../../core/capabilities.ts';
 
 test('parseArgs recognizes --relaunch', () => {
   const parsed = parseArgs(['open', 'settings', '--relaunch']);
@@ -61,6 +64,71 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
+  assert.match(usage(), /--metadata/);
+});
+
+test('every capability command has a parser schema entry', () => {
+  const schemaCommands = new Set(getCliCommandNames());
+  for (const command of listCapabilityCommands()) {
+    assert.equal(schemaCommands.has(command), true, `Missing schema for command: ${command}`);
+  }
+});
+
+test('compat mode warns and strips unsupported pilot-command flags', () => {
+  const parsed = parseArgs(['press', '10', '20', '--depth', '2'], { strictFlags: false });
+  assert.equal(parsed.command, 'press');
+  assert.equal(parsed.flags.snapshotDepth, undefined);
+  assert.equal(parsed.warnings.length, 1);
+  assert.match(parsed.warnings[0], /not supported for command press/);
+});
+
+test('strict mode rejects unsupported pilot-command flags', () => {
+  assert.throws(
+    () => parseArgs(['press', '10', '20', '--depth', '2'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('not supported for command press'),
+  );
+});
+
+test('snapshot command accepts command-specific flags', () => {
+  const parsed = parseArgs(['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login'], { strictFlags: true });
+  assert.equal(parsed.command, 'snapshot');
+  assert.equal(parsed.flags.snapshotInteractiveOnly, true);
+  assert.equal(parsed.flags.snapshotCompact, true);
+  assert.equal(parsed.flags.snapshotDepth, 3);
+  assert.equal(parsed.flags.snapshotScope, 'Login');
+});
+
+test('unknown short flags are rejected', () => {
+  assert.throws(
+    () => parseArgs(['press', '10', '20', '-x'], { strictFlags: true }),
+    (error) => error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Unknown flag: -x',
+  );
+});
+
+test('all commands participate in strict command-flag validation', () => {
+  assert.throws(
+    () => parseArgs(['open', 'Settings', '--depth', '1'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('not supported for command open'),
+  );
+});
+
+test('invalid enum/range errors are deterministic', () => {
+  assert.throws(
+    () => parseArgs(['snapshot', '--backend', 'foo'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Invalid backend: foo',
+  );
+  assert.throws(
+    () => parseArgs(['snapshot', '--depth', '-1'], { strictFlags: true }),
+    (error) => error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Invalid depth: -1',
+  );
 });
 
 test('usage includes swipe and press series options', () => {
