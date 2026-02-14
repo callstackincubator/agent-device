@@ -41,44 +41,45 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
     throw new AppError('COMMAND_FAILED', 'Failed to parse simctl devices JSON', undefined, err);
   }
 
-  const devicectlAvailable = await whichCmd('xcrun');
-  if (devicectlAvailable) {
-    try {
-      const jsonPath = path.join(
-        os.tmpdir(),
-        `agent-device-devicectl-${process.pid}-${Date.now()}.json`,
-      );
-      await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath]);
-      const jsonText = await fs.readFile(jsonPath, 'utf8');
-      await fs.rm(jsonPath, { force: true });
-      const payload = JSON.parse(jsonText) as {
-        result?: {
-          devices?: Array<{
-            identifier?: string;
-            name?: string;
-            hardwareProperties?: { platform?: string; udid?: string };
-            deviceProperties?: { name?: string };
-            connectionProperties?: { tunnelState?: string };
-          }>;
-        };
+  let jsonPath: string | null = null;
+  try {
+    jsonPath = path.join(
+      os.tmpdir(),
+      `agent-device-devicectl-${process.pid}-${Date.now()}.json`,
+    );
+    await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath]);
+    const jsonText = await fs.readFile(jsonPath, 'utf8');
+    const payload = JSON.parse(jsonText) as {
+      result?: {
+        devices?: Array<{
+          identifier?: string;
+          name?: string;
+          hardwareProperties?: { platform?: string; udid?: string };
+          deviceProperties?: { name?: string };
+          connectionProperties?: { tunnelState?: string };
+        }>;
       };
-      for (const device of payload.result?.devices ?? []) {
-        const platform = device.hardwareProperties?.platform ?? '';
-        if (platform.toLowerCase().includes('ios')) {
-          const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
-          const name = device.name ?? device.deviceProperties?.name ?? id;
-          if (!id) continue;
-          devices.push({
-            platform: 'ios',
-            id,
-            name,
-            kind: 'device',
-            booted: true,
-          });
-        }
+    };
+    for (const device of payload.result?.devices ?? []) {
+      const platform = device.hardwareProperties?.platform ?? '';
+      if (platform.toLowerCase().includes('ios')) {
+        const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
+        const name = device.name ?? device.deviceProperties?.name ?? id;
+        if (!id) continue;
+        devices.push({
+          platform: 'ios',
+          id,
+          name,
+          kind: 'device',
+          booted: true,
+        });
       }
-    } catch {
-      // Ignore devicectl failures; simulators are still supported.
+    }
+  } catch {
+    // Ignore devicectl failures; simulators are still supported.
+  } finally {
+    if (jsonPath) {
+      await fs.rm(jsonPath, { force: true }).catch(() => {});
     }
   }
 

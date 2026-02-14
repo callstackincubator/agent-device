@@ -92,6 +92,7 @@ export async function runIosRunnerCommand(
   command: RunnerCommand,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
 ): Promise<Record<string, unknown>> {
+  validateRunnerDevice(device);
   if (isReadOnlyRunnerCommand(command.command)) {
     return withRetry(
       () => executeRunnerCommand(device, command, options),
@@ -235,7 +236,7 @@ async function ensureRunnerSession(
       'NO',
       '-test-timeouts-enabled',
       'NO',
-      '-maximum-concurrent-test-device-destinations',
+      resolveRunnerMaxConcurrentDestinationsFlag(device),
       '1',
       '-xctestrun',
       xctestrunPath,
@@ -322,7 +323,7 @@ async function ensureXctestrun(
         'AgentDeviceRunner',
         '-parallel-testing-enabled',
         'NO',
-        '-maximum-concurrent-test-device-destinations',
+        resolveRunnerMaxConcurrentDestinationsFlag(device),
         '1',
         '-destination',
         resolveRunnerBuildDestination(device),
@@ -394,16 +395,31 @@ function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
   return ensureBooted(device.id);
 }
 
+function validateRunnerDevice(device: DeviceInfo): void {
+  if (device.platform !== 'ios') {
+    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+  }
+  if (device.kind !== 'simulator' && device.kind !== 'device') {
+    throw new AppError('UNSUPPORTED_OPERATION', `Unsupported iOS device kind for runner: ${device.kind}`);
+  }
+}
+
+export function resolveRunnerMaxConcurrentDestinationsFlag(device: DeviceInfo): string {
+  return device.kind === 'device'
+    ? '-maximum-concurrent-test-device-destinations'
+    : '-maximum-concurrent-test-simulator-destinations';
+}
+
 export function resolveRunnerSigningBuildSettings(
   env: NodeJS.ProcessEnv = process.env,
   forDevice = false,
 ): string[] {
+  if (!forDevice) {
+    return [];
+  }
   const teamId = env.AGENT_DEVICE_IOS_TEAM_ID?.trim() || '';
   const configuredIdentity = env.AGENT_DEVICE_IOS_SIGNING_IDENTITY?.trim() || '';
   const profile = env.AGENT_DEVICE_IOS_PROVISIONING_PROFILE?.trim() || '';
-  if (!forDevice && !teamId && !configuredIdentity && !profile) {
-    return [];
-  }
   const args = ['CODE_SIGN_STYLE=Automatic'];
   if (teamId) {
     args.push(`DEVELOPMENT_TEAM=${teamId}`);

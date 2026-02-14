@@ -283,6 +283,7 @@ export async function dispatchCommand(
     case 'snapshot': {
       const backend = context?.snapshotBackend ?? 'xctest';
       if (device.platform === 'ios') {
+        // Keep this guard for non-daemon callers that invoke dispatch directly.
         if (backend === 'ax' && device.kind !== 'simulator') {
           throw new AppError(
             'UNSUPPORTED_OPERATION',

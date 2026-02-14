@@ -6,10 +6,11 @@ import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 const session = ['--session', 'ios-test'];
 const iosTarget = ['--platform', 'ios'];
 const iosPhysicalUdid = process.env.IOS_UDID?.trim();
+let didRunIosPhysicalSession = false;
 
 test.after(() => {
   runCliJson(['close', ...iosTarget, '--json', ...session]);
-  if (iosPhysicalUdid) {
+  if (iosPhysicalUdid && didRunIosPhysicalSession) {
     runCliJson(['close', '--platform', 'ios', '--udid', iosPhysicalUdid, '--json', '--session', 'ios-device-test']);
   }
 });
@@ -90,6 +91,7 @@ test('ios physical device core lifecycle', { skip: shouldSkipIosPhysicalDevice()
   });
   const deviceSession = ['--session', 'ios-device-test'];
   const target = ['--platform', 'ios', '--udid', iosPhysicalUdid as string];
+  didRunIosPhysicalSession = true;
 
   const openArgs = ['open', 'com.apple.Preferences', ...target, '--json', ...deviceSession];
   integration.runStep('open settings (device)', openArgs);
