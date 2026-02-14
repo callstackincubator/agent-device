@@ -443,10 +443,9 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   scrollintoview: {
-    description: 'Scroll until text appears (Android only)',
+    description: 'Scroll until text appears',
     positionalArgs: ['text'],
     allowedFlags: [],
-    skipCapabilityCheck: true,
   },
   pinch: {
     description: 'Pinch/zoom gesture (iOS simulator)',
