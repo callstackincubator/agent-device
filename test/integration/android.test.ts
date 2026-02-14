@@ -35,18 +35,18 @@ test('android settings commands', () => {
   });
 
   const nodes = Array.isArray(snapshot.json?.data?.nodes) ? (snapshot.json.data.nodes as SnapshotNode[]) : [];
-  const clickTarget = selectSettingsClickTarget(nodes);
+  const clickTarget = selectSettingsClickSelector(nodes);
   integration.assertResult(
     Boolean(clickTarget),
     'select click target',
     snapshotArgs,
     snapshot,
-    { detail: 'expected at least one bounded, labeled node with a ref in snapshot output' },
+    { detail: 'expected at least one bounded, labeled node in snapshot output' },
   );
   if (!clickTarget) return;
 
-  const clickArgs = ['click', asRefArg(clickTarget.ref), '--json', ...session];
-  integration.runStep(`click ${clickTarget.label ?? clickTarget.ref}`, clickArgs);
+  const clickArgs = ['click', clickTarget.selector, '--json', ...session];
+  integration.runStep(`click ${clickTarget.label}`, clickArgs);
 
   const snapshotAppsArgs = ['snapshot', '-i', '--json', ...session];
   const snapshotApps = integration.runStep('snapshot apps', snapshotAppsArgs);
@@ -77,19 +77,22 @@ test('android settings commands', () => {
 });
 
 type SnapshotNode = {
-  ref?: string;
+  type?: string;
   label?: string;
   rect?: { width?: number; height?: number };
 };
 
-function selectSettingsClickTarget(nodes: SnapshotNode[]): SnapshotNode | null {
+type SelectorTarget = {
+  label: string;
+  selector: string;
+};
+
+function selectSettingsClickSelector(nodes: SnapshotNode[]): SelectorTarget | null {
   const clickableNodes = nodes.filter((node) => {
-    const ref = typeof node.ref === 'string' ? node.ref.trim() : '';
     const label = typeof node.label === 'string' ? node.label.trim() : '';
     const width = node.rect?.width;
     const height = node.rect?.height;
     return (
-      ref.length > 0 &&
       label.length > 0 &&
       label !== '(no-label)' &&
       typeof width === 'number' &&
@@ -100,6 +103,17 @@ function selectSettingsClickTarget(nodes: SnapshotNode[]): SnapshotNode | null {
   });
   if (clickableNodes.length === 0) return null;
 
+  const labelCounts = new Map<string, number>();
+  const roleLabelCounts = new Map<string, number>();
+  for (const node of clickableNodes) {
+    const labelKey = normalizeSelectorText(node.label);
+    if (!labelKey) continue;
+    labelCounts.set(labelKey, (labelCounts.get(labelKey) ?? 0) + 1);
+    const roleKey = normalizeSelectorText(node.type) ?? '';
+    const roleLabelKey = `${roleKey}::${labelKey}`;
+    roleLabelCounts.set(roleLabelKey, (roleLabelCounts.get(roleLabelKey) ?? 0) + 1);
+  }
+
   const preferredLabels = [
     'Apps',
     'Apps & notifications',
@@ -109,14 +123,61 @@ function selectSettingsClickTarget(nodes: SnapshotNode[]): SnapshotNode | null {
     'Battery',
     'Notifications',
   ];
-  const preferred = clickableNodes.find((node) => {
-    const label = String(node.label ?? '').toLowerCase();
+  const preferredTargets = clickableNodes.filter((node) => {
+    const label = normalizeSelectorText(node.label);
+    if (!label) return false;
     return preferredLabels.some((candidate) => label.includes(candidate.toLowerCase()));
   });
-  return preferred ?? clickableNodes[0] ?? null;
+  const candidates = preferredTargets.length > 0 ? preferredTargets : clickableNodes;
+  const selected = candidates.find((node) => hasUniqueRoleAndLabel(node, labelCounts, roleLabelCounts))
+    ?? candidates.find((node) => hasUniqueLabel(node, labelCounts))
+    ?? candidates[0];
+  if (!selected) return null;
+
+  const selector = toSelectorExpression(selected, labelCounts, roleLabelCounts);
+  if (!selector) return null;
+  const label = String(selected.label ?? '').trim();
+  return { label: label.length > 0 ? label : selector, selector };
 }
 
-function asRefArg(ref: string | undefined): string {
-  const normalized = String(ref ?? '').trim();
-  return normalized.startsWith('@') ? normalized : `@${normalized}`;
+function hasUniqueLabel(node: SnapshotNode, labelCounts: Map<string, number>): boolean {
+  const labelKey = normalizeSelectorText(node.label);
+  if (!labelKey) return false;
+  return (labelCounts.get(labelKey) ?? 0) === 1;
+}
+
+function hasUniqueRoleAndLabel(
+  node: SnapshotNode,
+  labelCounts: Map<string, number>,
+  roleLabelCounts: Map<string, number>,
+): boolean {
+  const labelKey = normalizeSelectorText(node.label);
+  if (!labelKey) return false;
+  const roleKey = normalizeSelectorText(node.type) ?? '';
+  const roleLabelKey = `${roleKey}::${labelKey}`;
+  if (roleKey.length === 0) return hasUniqueLabel(node, labelCounts);
+  return (roleLabelCounts.get(roleLabelKey) ?? 0) === 1;
+}
+
+function toSelectorExpression(
+  node: SnapshotNode,
+  labelCounts: Map<string, number>,
+  roleLabelCounts: Map<string, number>,
+): string | null {
+  const label = normalizeSelectorText(node.label);
+  if (!label) return null;
+  const role = normalizeSelectorText(node.type);
+  if (role) {
+    const roleLabelKey = `${role}::${label}`;
+    if ((roleLabelCounts.get(roleLabelKey) ?? 0) === 1 || (labelCounts.get(label) ?? 0) > 1) {
+      return `role=${JSON.stringify(role)} label=${JSON.stringify(label)}`;
+    }
+  }
+  return `label=${JSON.stringify(label)}`;
+}
+
+function normalizeSelectorText(value: string | undefined): string | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
 }
