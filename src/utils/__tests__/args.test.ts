@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArgs, usage } from '../args.ts';
 import { AppError } from '../errors.ts';
-import { getCliCommandNames } from '../command-schema.ts';
+import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
 
 test('parseArgs recognizes --relaunch', () => {
@@ -75,6 +75,10 @@ test('every capability command has a parser schema entry', () => {
   }
 });
 
+test('schema capability mappings match capability source-of-truth', () => {
+  assert.deepEqual(getSchemaCapabilityKeys(), listCapabilityCommands());
+});
+
 test('compat mode warns and strips unsupported pilot-command flags', () => {
   const parsed = parseArgs(['press', '10', '20', '--depth', '2'], { strictFlags: false });
   assert.equal(parsed.command, 'press');
@@ -107,6 +111,16 @@ test('unknown short flags are rejected', () => {
     () => parseArgs(['press', '10', '20', '-x'], { strictFlags: true }),
     (error) => error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Unknown flag: -x',
   );
+});
+
+test('negative numeric positionals are accepted without -- separator', () => {
+  const typed = parseArgs(['type', '-123'], { strictFlags: true });
+  assert.equal(typed.command, 'type');
+  assert.deepEqual(typed.positionals, ['-123']);
+
+  const pressed = parseArgs(['press', '-10', '20'], { strictFlags: true });
+  assert.equal(pressed.command, 'press');
+  assert.deepEqual(pressed.positionals, ['-10', '20']);
 });
 
 test('all commands participate in strict command-flag validation', () => {
