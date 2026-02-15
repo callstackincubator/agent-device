@@ -4,13 +4,13 @@ url: /agent-device/docs/introduction.md
 
 # Introduction
 
-`agent-device` is a CLI for automating iOS simulators and Android emulators (and devices) from agents. It provides:
+`agent-device` is a CLI for automating iOS simulators + physical devices and Android emulators + devices from agents. It provides:
 
 - Accessibility snapshots for UI understanding
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
 
-If you know `agent-browser`, this is the mobile-native counterpart focused on simulators and emulators.
+If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation.
 
 ## What it’s good at
 
@@ -18,11 +18,17 @@ If you know `agent-browser`, this is the mobile-native counterpart focused on si
 - Driving common UI actions with refs or semantic selectors
 - Replaying flows for regression checks
 
+## Platform support highlights
+
+- iOS simulator + iOS device core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `appstate`.
+- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`, and deep-link open (`open <url>`).
+- Android emulator + Android device support remains unchanged.
+
 ## Architecture (high level)
 
 1. CLI sends requests to the daemon.
 2. The daemon manages sessions and dispatches to platform drivers.
-3. iOS uses XCTest runner for snapshots and input; AX is optional fallback.
+3. iOS uses XCTest runner for snapshots and input on simulators and physical devices.
 4. Android uses ADB-based tooling.
 
 ## Example
@@ -89,6 +95,7 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app]` already boots/activates the selected target when needed.
+- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only.
 
 ## Snapshot and inspect
 
@@ -97,6 +104,10 @@ agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|
 agent-device get text @e1
 agent-device get attrs @e1
 ```
+
+- `--backend xctest` works on iOS simulators and iOS devices.
+- `--backend ax` is simulator-only.
+- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
 
 ## Interactions
 
@@ -120,7 +131,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe timing uses a safe normalized duration to avoid long-press side effects.
-`pinch` is iOS-simulator-only in the current adb-backed Android implementation.
+`pinch` is iOS simulator-only.
 
 ## Find (semantic)
 
@@ -150,7 +161,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```
 
 - `reinstall <app> <path>` uninstalls and installs in one command.
-- Supports Android devices/emulators and iOS simulators in v1.
+- Supports Android devices/emulators and iOS simulators.
 - Useful for login/logout reset flows and deterministic test setup.
 
 ## Settings helpers
@@ -164,6 +175,9 @@ agent-device settings location on
 agent-device settings location off
 ```
 
+- iOS `settings` support is simulator-only.
+- Android `settings` support works on emulators and devices.
+
 ## Media and logs
 
 ```bash
@@ -173,6 +187,19 @@ agent-device record start               # Start screen recording to auto filenam
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record stop                # Stop active recording
 ```
+
+- iOS `record` is simulator-only.
+
+## iOS device prerequisites
+
+- Xcode + `xcrun devicectl` available.
+- Paired physical device with Developer Mode enabled.
+- Use Automatic Signing in Xcode, or pass optional env overrides:
+  - `AGENT_DEVICE_IOS_TEAM_ID`
+  - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (optional)
+  - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- If first-run XCTest setup/build is slow, increase daemon request timeout:
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
 
 
 
@@ -197,8 +224,19 @@ npx agent-device open Settings --platform ios
 ## Requirements
 
 - Node.js 22+
-- Xcode for iOS simulator automation
+- Xcode for iOS simulator/device automation (`simctl` + `devicectl`)
 - Android SDK / ADB for Android
+
+## iOS physical device prerequisites
+
+- Device is paired and visible in `xcrun devicectl list devices`.
+- Developer Mode enabled on device.
+- Signing configured in Xcode (Automatic Signing recommended), or use:
+- `AGENT_DEVICE_IOS_TEAM_ID`
+- `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
+- `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- If first-run device setup is slow, increase daemon timeout:
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
 
 
 
@@ -227,7 +265,7 @@ agent-device click @e2
 agent-device snapshot -i
 ```
 
-boot simulator if there's none available:
+Boot target if there is no ready device/simulator:
 
 ```bash
 agent-device boot --platform ios # or android
@@ -245,7 +283,7 @@ agent-device screenshot page.png         # Save to specific path
 agent-device close
 ```
 
-If `open` fails because no booted simulator/emulator is available, run `boot --platform ios|android` and retry.
+If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 
 ## Semantic discovery
 
@@ -279,6 +317,8 @@ agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings location off
 ```
+
+Note: iOS `settings` commands are simulator-only.
 
 ## JSON output
 
@@ -442,6 +482,7 @@ agent-device close --session my-session
 Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
+- `open <url>` in iOS sessions is simulator-only.
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
@@ -472,7 +513,8 @@ agent-device snapshot -i -c -d 5         # Combine options
 | `-d <depth>` | Limit tree depth          |
 | `-s <scope>` | Scope to label/identifier |
 
-Note: If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
+Note: If XCTest returns 0 nodes (foreground app changed), agent-device fails explicitly.
+It does not automatically switch to AX.
 
 ## Example output:
 
@@ -493,8 +535,8 @@ agent-device snapshot -i
 
 ## Backends (iOS):
 
-- `xctest` (default): full fidelity, fast, no Accessibility permission required.
-- `ax`: fast accessibility tree, may miss details, requires Accessibility permission.
+- `xctest` (default): full fidelity, fast, no Accessibility permission required; supported on iOS simulators and iOS devices.
+- `ax`: fast accessibility tree, may miss details, requires Accessibility permission; simulator-only.
 
 
 
@@ -510,10 +552,10 @@ url: /agent-device/index.md
 
 ## Features
 
-- **One CLI, many devices**: Control iOS simulators and Android emulators with consistent commands for snapshotting, input, and navigation.
+- **One CLI, many devices**: Control iOS simulators + physical devices and Android emulators + devices with consistent snapshot and interaction commands.
 - **Token-efficient UI snapshots**: XCTest accessibility trees give agents a complete view of the UI while keeping output compact.
 - **Interactions that just work**: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
-- **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows.
+- **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
 - **Visual verification**: Capture full-resolution screenshots for reporting and visual checks.
 - **Traceable automation**: Collect trace logs for XCTest and AX to debug flaky interactions.
 

@@ -19,7 +19,7 @@ agent-device click @e2
 agent-device snapshot -i
 ```
 
-boot simulator if there's none available:
+Boot target if there is no ready device/simulator:
 
 ```bash
 agent-device boot --platform ios # or android
@@ -37,7 +37,7 @@ agent-device screenshot page.png         # Save to specific path
 agent-device close
 ```
 
-If `open` fails because no booted simulator/emulator is available, run `boot --platform ios|android` and retry.
+If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 
 ## Semantic discovery
 
@@ -71,6 +71,8 @@ agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings location off
 ```
+
+Note: iOS `settings` commands are simulator-only.
 
 ## JSON output
 

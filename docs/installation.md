@@ -15,5 +15,16 @@ npx agent-device open Settings --platform ios
 ## Requirements
 
 - Node.js 22+
-- Xcode for iOS simulator automation
+- Xcode for iOS simulator/device automation (`simctl` + `devicectl`)
 - Android SDK / ADB for Android
+
+## iOS physical device prerequisites
+
+- Device is paired and visible in `xcrun devicectl list devices`.
+- Developer Mode enabled on device.
+- Signing configured in Xcode (Automatic Signing recommended), or use:
+- `AGENT_DEVICE_IOS_TEAM_ID`
+- `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
+- `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- If first-run device setup is slow, increase daemon timeout:
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)

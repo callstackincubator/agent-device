@@ -18,7 +18,8 @@ agent-device snapshot -i -c -d 5         # Combine options
 | `-d <depth>` | Limit tree depth          |
 | `-s <scope>` | Scope to label/identifier |
 
-Note: If XCTest returns 0 nodes (foreground app changed), agent-device falls back to AX when available.
+Note: If XCTest returns 0 nodes (foreground app changed), agent-device fails explicitly.
+It does not automatically switch to AX.
 
 ## Example output:
 
@@ -39,5 +40,5 @@ agent-device snapshot -i
 
 ## Backends (iOS):
 
-- `xctest` (default): full fidelity, fast, no Accessibility permission required.
-- `ax`: fast accessibility tree, may miss details, requires Accessibility permission.
+- `xctest` (default): full fidelity, fast, no Accessibility permission required; supported on iOS simulators and iOS devices.
+- `ax`: fast accessibility tree, may miss details, requires Accessibility permission; simulator-only.
