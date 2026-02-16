@@ -20,10 +20,10 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 
 ## Platform support highlights
 
-- iOS simulator + iOS device core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
+- iOS core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
 - iOS `appstate` is session-scoped on the selected target device.
-- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `settings`, and deep-link open (`open <url>`).
-- Android emulator + Android device support remains unchanged.
+- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `settings`.
+- Android support remains unchanged.
 
 ## Architecture (high level)
 
@@ -85,7 +85,7 @@ This page summarizes the primary command groups.
 agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
-agent-device open [app]
+agent-device open [app|url] [url]
 agent-device close [app]
 agent-device back
 agent-device home
@@ -95,8 +95,15 @@ agent-device app-switcher
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
-- `open [app]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only.
+- `open [app|url] [url]` already boots/activates the selected target when needed.
+- `open <url>` deep links are supported on Android and iOS.
+- `open <app> <url>` opens a deep link on iOS.
+- On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
+
+```bash
+agent-device open "https://example.com" --platform ios           # open link in web browser
+agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
+```
 
 ## Snapshot and inspect
 
@@ -106,7 +113,7 @@ agent-device get text @e1
 agent-device get attrs @e1
 ```
 
-- `--backend xctest` works on iOS simulators and iOS devices.
+- `--backend xctest` is the default backend.
 - `--backend ax` is simulator-only.
 - agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
 
@@ -179,7 +186,6 @@ agent-device settings location off
 ```
 
 - iOS `settings` support is simulator-only.
-- Android `settings` support works on emulators and devices.
 
 ## App state and app lists
 
@@ -193,7 +199,6 @@ agent-device apps --platform android --all
 
 - Android `appstate` reports live foreground package/activity.
 - iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
-- iOS `apps` supports simulators and physical devices.
 - `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 ## Media and logs
@@ -515,7 +520,9 @@ agent-device close --session my-session
 Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
-- `open <url>` in iOS sessions is simulator-only.
+- `open <url>` in iOS sessions opens deep links.
+- `open <app> <url>` in iOS sessions opens deep links.
+- On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - Use `--session <name>` to run multiple sessions in parallel.
 
@@ -569,7 +576,7 @@ agent-device snapshot -i
 
 ## Backends (iOS):
 
-- `xctest` (default): full fidelity, fast, no Accessibility permission required; supported on iOS simulators and iOS devices.
+- `xctest` (default): full fidelity, fast, no Accessibility permission required.
 - `ax`: fast accessibility tree, may miss details, requires Accessibility permission; simulator-only.
 
 

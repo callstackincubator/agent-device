@@ -40,5 +40,5 @@ agent-device snapshot -i
 
 ## Backends (iOS):
 
-- `xctest` (default): full fidelity, fast, no Accessibility permission required; supported on iOS simulators and iOS devices.
+- `xctest` (default): full fidelity, fast, no Accessibility permission required.
 - `ax`: fast accessibility tree, may miss details, requires Accessibility permission; simulator-only.
