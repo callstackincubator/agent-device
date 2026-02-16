@@ -1,7 +1,10 @@
 import { runCmdSync } from './exec.ts';
 
 const PS_TIMEOUT_MS = 1_000;
-const DAEMON_PATH_MARKERS = ['daemon.js', 'src/daemon.ts', 'src\\daemon.ts'];
+const DAEMON_COMMAND_PATTERNS = [
+  /(^|[\/\s"'=])dist\/src\/daemon\.js($|[\s"'])/,
+  /(^|[\/\s"'=])src\/daemon\.ts($|[\s"'])/,
+];
 
 export function isProcessAlive(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false;
@@ -44,9 +47,9 @@ export function readProcessCommand(pid: number): string | null {
 }
 
 export function isAgentDeviceDaemonCommand(command: string): boolean {
-  const normalized = command.toLowerCase();
+  const normalized = command.toLowerCase().replaceAll('\\', '/');
   if (!normalized.includes('agent-device')) return false;
-  return DAEMON_PATH_MARKERS.some((marker) => normalized.includes(marker));
+  return DAEMON_COMMAND_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 export function isAgentDeviceDaemonProcess(pid: number, expectedStartTime?: string): boolean {

@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { resolveDaemonRequestTimeoutMs } from '../../daemon-client.ts';
 import {
   isProcessAlive,
@@ -20,7 +23,12 @@ test('resolveDaemonRequestTimeoutMs enforces minimum timeout', () => {
 });
 
 test('stopDaemonProcessForTakeover terminates a matching daemon process', async (t) => {
-  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000) // agent-device daemon.js'], {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-test-'));
+  const daemonDir = path.join(root, 'agent-device', 'dist', 'src');
+  const daemonScriptPath = path.join(daemonDir, 'daemon.js');
+  fs.mkdirSync(daemonDir, { recursive: true });
+  fs.writeFileSync(daemonScriptPath, 'setInterval(() => {}, 1000);\n', 'utf8');
+  const child = spawn(process.execPath, [daemonScriptPath], {
     stdio: 'ignore',
   });
   const pid = child.pid;
@@ -43,6 +51,7 @@ test('stopDaemonProcessForTakeover terminates a matching daemon process', async 
     if (isProcessAlive(pid)) {
       process.kill(pid, 'SIGKILL');
     }
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
