@@ -206,7 +206,7 @@ export async function openAndroidApp(
     if (activity) {
       throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
     }
-    await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-a', resolved.value]));
+    await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]));
     return;
   }
   if (activity) {
@@ -219,6 +219,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',
@@ -238,6 +239,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',
@@ -258,6 +260,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',
