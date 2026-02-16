@@ -144,12 +144,14 @@ agent-device find role button click
 ## Replay
 
 ```bash
+agent-device open Settings --platform ios --session e2e --save-script [path]
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 - `replay` runs deterministic `.ad` scripts.
 - `replay -u` updates stale recorded actions and rewrites the same script.
+- `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 
 See [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md) for recording and CI workflow details.
 
@@ -359,11 +361,21 @@ agent-device click @e13 --session e2e
 agent-device close --session e2e
 ```
 
-On `close`, a replay script is written to:
+By default, on `close`, a replay script is written to:
 
 ```text
 ~/.agent-device/sessions/<session>-<timestamp>.ad
 ```
+
+You can also provide a custom output file path:
+
+```bash
+agent-device open Settings --platform ios --session e2e --save-script ./workflows/e2e-settings.ad
+```
+
+- `--save-script` value is treated as a file path.
+- Parent directories are created automatically when they do not exist.
+- For ambiguous bare values, use `--save-script=workflow.ad` or a path-like value such as `./workflow.ad`.
 
 ## Run replay
 

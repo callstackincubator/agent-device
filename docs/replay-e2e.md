@@ -20,11 +20,21 @@ agent-device click @e13 --session e2e
 agent-device close --session e2e
 ```
 
-On `close`, a replay script is written to:
+By default, on `close`, a replay script is written to:
 
 ```text
 ~/.agent-device/sessions/<session>-<timestamp>.ad
 ```
+
+You can also provide a custom output file path:
+
+```bash
+agent-device open Settings --platform ios --session e2e --save-script ./workflows/e2e-settings.ad
+```
+
+- `--save-script` value is treated as a file path.
+- Parent directories are created automatically when they do not exist.
+- For ambiguous bare values, use `--save-script=workflow.ad` or a path-like value such as `./workflow.ad`.
 
 ## Run replay
 
