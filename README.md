@@ -160,12 +160,16 @@ Navigation helpers:
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
 - Android opens deep links via `VIEW` intent.
-- iOS deep link open is simulator-only.
+- iOS simulator opens deep links via `simctl openurl`.
+- iOS device opens deep links via `devicectl --payload-url`. For `http(s)://` URLs, Safari is used automatically if no app is active in the session. Custom scheme URLs (`myapp://`) require an active app.
 - `--activity` cannot be combined with URL opens.
 
 ```bash
 agent-device open "myapp://home" --platform android
-agent-device open "https://example.com" --platform ios
+agent-device open "https://example.com" --platform ios          # Safari on device, simctl on simulator
+# iOS device custom scheme: open the app first, then deep link in the same session
+agent-device open com.example.app --session dev --platform ios --device "iPhone"
+agent-device open "myapp://home" --session dev
 ```
 
 Find (semantic):
@@ -248,7 +252,7 @@ Boot diagnostics:
 - Core runner commands (`snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`) support iOS simulators and iOS devices.
 - `apps` is supported on both iOS simulators and iOS devices.
 - Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
-- iOS deep link open (`open <url>`) is simulator-only.
+- iOS deep link open (`open <url>`) is supported on simulators and devices. On devices, `http(s)://` URLs fall back to Safari automatically; custom scheme URLs require an active app in the session.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing

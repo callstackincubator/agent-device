@@ -1,14 +1,14 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { isDeepLinkTarget, isWebUrl } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
-import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { extractNodeText, normalizeType, pruneGroupNodes } from '../snapshot-processing.ts';
 import {
@@ -97,8 +97,16 @@ const defaultReinstallOps: ReinstallOps = {
   },
 };
 
-async function resolveIosBundleIdForOpen(device: DeviceInfo, openTarget: string | undefined): Promise<string | undefined> {
-  if (device.platform !== 'ios' || !openTarget || isDeepLinkTarget(openTarget)) {
+async function resolveIosBundleIdForOpen(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+  currentAppBundleId?: string,
+): Promise<string | undefined> {
+  if (device.platform !== 'ios' || !openTarget) return undefined;
+  if (isDeepLinkTarget(openTarget)) {
+    if (device.kind === 'device') {
+      return currentAppBundleId ?? (isWebUrl(openTarget) ? 'com.apple.mobilesafari' : undefined);
+    }
     return undefined;
   }
   try {
@@ -120,7 +128,7 @@ async function handleAppStateCommand(params: {
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
   if (!session && hasExplicitSessionFlag(flags)) {
-    const iOSSessionHint =
+    const missingSessionHint =
       flags.platform === 'ios'
         ? `No active session "${sessionName}". Run open with --session ${sessionName} first.`
         : `No active session "${sessionName}". Run open with --session ${sessionName} first, or omit --session to query by device selector.`;
@@ -128,7 +136,7 @@ async function handleAppStateCommand(params: {
       ok: false,
       error: {
         code: 'SESSION_NOT_FOUND',
-        message: iOSSessionHint,
+        message: missingSessionHint,
       },
     };
   }
@@ -179,7 +187,7 @@ async function handleAppStateCommand(params: {
       ok: false,
       error: {
         code: 'SESSION_NOT_FOUND',
-        message: IOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
+        message: `Resolved target device "${device.name}" is iOS. ${IOS_APPSTATE_SESSION_REQUIRED_MESSAGE}`,
       },
     };
   }
@@ -423,7 +431,7 @@ export async function handleSessionCommands(params: {
         };
       }
       await ensureReady(session.device);
-      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget);
+      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId);
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
         const closeTarget = appBundleId ?? openTarget;
@@ -591,6 +599,7 @@ export async function handleSessionCommands(params: {
       });
     }
     if (session.device.platform === 'ios') {
+      const { stopIosRunnerSession } = await import('../../platforms/ios/runner-client.ts');
       await stopIosRunnerSession(session.device.id);
     }
     sessionStore.recordAction(session, {

@@ -2,7 +2,6 @@ export {
   closeIosApp,
   installIosApp,
   listIosApps,
-  listSimulatorApps,
   openIosApp,
   openIosDevice,
   reinstallIosApp,
@@ -14,7 +13,4 @@ export {
 
 export { ensureBootedSimulator } from './simulator.ts';
 
-export {
-  parseIosDeviceAppsPayload,
-  type IosAppInfo,
-} from './devicectl.ts';
+export { type IosAppInfo } from './devicectl.ts';

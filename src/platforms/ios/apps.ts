@@ -2,10 +2,10 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { isDeepLinkTarget, isWebUrl } from '../../core/open-target.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS } from './config.ts';
-import { listIosDeviceApps, runIosDevicectl, type IosAppInfo } from './devicectl.ts';
+import { filterIosApps, listIosDeviceApps, runIosDevicectl, type IosAppInfo } from './devicectl.ts';
 import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './simulator.ts';
 
 const ALIASES: Record<string, string> = {
@@ -39,12 +39,14 @@ export async function openIosApp(
 ): Promise<void> {
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
-    if (device.kind !== 'simulator') {
-      throw new AppError('UNSUPPORTED_OPERATION', 'Deep link open is only supported on iOS simulators');
+    if (device.kind === 'simulator') {
+      await ensureBootedSimulator(device);
+      await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+      await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+      return;
     }
-    await ensureBootedSimulator(device);
-    await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-    await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+    const bundleId = resolveIosDeviceDeepLinkBundleId(options?.appBundleId, deepLinkTarget);
+    await launchIosDeviceProcess(device, bundleId, { payloadUrl: deepLinkTarget });
     return;
   }
 
@@ -208,7 +210,7 @@ export async function listIosApps(
 ): Promise<IosAppInfo[]> {
   if (device.kind === 'simulator') {
     const apps = await listSimulatorApps(device);
-    return filterIosAppsByBundlePrefix(apps, filter);
+    return filterIosApps(apps, filter);
   }
   return await listIosDeviceApps(device, filter);
 }
@@ -257,6 +259,30 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+const IOS_SAFARI_BUNDLE_ID = 'com.apple.mobilesafari';
+
+function resolveIosDeviceDeepLinkBundleId(appBundleId: string | undefined, url: string): string {
+  const bundleId = appBundleId?.trim();
+  if (bundleId) return bundleId;
+  if (isWebUrl(url)) return IOS_SAFARI_BUNDLE_ID;
+  throw new AppError(
+    'INVALID_ARGS',
+    'Deep link open on iOS devices requires an active app bundle ID. Open the app first, then open the URL.',
+  );
+}
+
+async function launchIosDeviceProcess(
+  device: DeviceInfo,
+  bundleId: string,
+  options?: { payloadUrl?: string },
+): Promise<void> {
+  const args = ['device', 'process', 'launch', '--device', device.id, bundleId];
+  if (options?.payloadUrl) {
+    args.push('--payload-url', options.payloadUrl);
+  }
+  await runIosDevicectl(args, { action: 'launch iOS app', deviceId: device.id });
 }
 
 function isTransientSimulatorLaunchFailure(error: unknown): boolean {
@@ -308,11 +334,4 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
     },
     { deadline: launchDeadline },
   );
-}
-
-function filterIosAppsByBundlePrefix(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
-  if (filter === 'user-installed') {
-    return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
-  }
-  return apps;
 }

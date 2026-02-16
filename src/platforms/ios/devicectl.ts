@@ -85,7 +85,7 @@ export async function listIosDeviceApps(
     }
     const jsonText = await fs.readFile(jsonPath, 'utf8');
     const apps = parseIosDeviceAppsPayload(JSON.parse(jsonText));
-    return filterIosDeviceApps(apps, filter);
+    return filterIosApps(apps, filter);
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError('COMMAND_FAILED', 'Failed to parse iOS apps list', {
@@ -112,7 +112,7 @@ export function parseIosDeviceAppsPayload(payload: unknown): IosAppInfo[] {
   return parsed;
 }
 
-function filterIosDeviceApps(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
+export function filterIosApps(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
   if (filter === 'user-installed') {
     return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
   }

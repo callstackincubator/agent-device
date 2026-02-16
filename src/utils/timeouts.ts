@@ -5,5 +5,5 @@ export function resolveTimeoutMs(raw: string | undefined, fallback: number, min:
   return Math.max(min, Math.floor(parsed));
 }
 
-/** Alias for `resolveTimeoutMs` — semantically marks the caller expects seconds. */
-export const resolveTimeoutSeconds = resolveTimeoutMs;
+/** Unit-agnostic alias for `resolveTimeoutMs`; use when the resolved value is not milliseconds (e.g. seconds). */
+export const resolveTimeoutValue = resolveTimeoutMs;

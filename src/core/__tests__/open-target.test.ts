@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isDeepLinkTarget } from '../open-target.ts';
+import { isDeepLinkTarget, isWebUrl } from '../open-target.ts';
 
 test('isDeepLinkTarget accepts URL-style deep links', () => {
   assert.equal(isDeepLinkTarget('myapp://home'), true);
@@ -13,4 +13,17 @@ test('isDeepLinkTarget rejects app identifiers and malformed URLs', () => {
   assert.equal(isDeepLinkTarget('com.example.app'), false);
   assert.equal(isDeepLinkTarget('settings'), false);
   assert.equal(isDeepLinkTarget('http:/x'), false);
+});
+
+test('isWebUrl accepts http and https URLs', () => {
+  assert.equal(isWebUrl('https://example.com'), true);
+  assert.equal(isWebUrl('http://example.com/path'), true);
+  assert.equal(isWebUrl('https://example.com/path?q=1'), true);
+});
+
+test('isWebUrl rejects custom schemes and non-URLs', () => {
+  assert.equal(isWebUrl('myapp://home'), false);
+  assert.equal(isWebUrl('tel:123456789'), false);
+  assert.equal(isWebUrl('com.example.app'), false);
+  assert.equal(isWebUrl('settings'), false);
 });

@@ -194,7 +194,7 @@ agent-device apps --platform android --user-installed
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
-- iOS deep-link opens are simulator-only.
+- iOS deep-link opens work on simulators and devices. On devices, `http(s)://` URLs fall back to Safari automatically; custom scheme URLs require an active app in the session.
 - iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 - Default daemon request timeout is `45000`ms. For slow physical-device setup/build, increase `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (for example `120000`).
 - For daemon startup troubleshooting, follow stale metadata hints for `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock`.

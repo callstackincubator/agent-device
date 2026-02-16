@@ -24,7 +24,7 @@ agent-device close --session my-session
 Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
-- `open <url>` in iOS sessions is simulator-only.
+- `open <url>` in iOS sessions works on both simulators and devices. On devices, `http(s)://` URLs fall back to Safari; custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - Use `--session <name>` to run multiple sessions in parallel.
 

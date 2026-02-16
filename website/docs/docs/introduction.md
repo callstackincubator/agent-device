@@ -22,7 +22,8 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 
 - iOS simulator + iOS device core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
 - iOS `appstate` is session-scoped on the selected target device.
-- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `settings`, and deep-link open (`open <url>`).
+- iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `settings`.
+- iOS deep-link open (`open <url>`) works on both simulators and devices. On devices, `http(s)://` URLs fall back to Safari; custom scheme URLs require an active app.
 - Android emulator + Android device support remains unchanged.
 
 ## Architecture (high level)

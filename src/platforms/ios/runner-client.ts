@@ -10,7 +10,7 @@ import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
-import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
+import { resolveTimeoutMs, resolveTimeoutValue } from '../../utils/timeouts.ts';
 
 export type RunnerCommand = {
   command:
@@ -94,7 +94,7 @@ const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
   10_000,
   500,
 );
-const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
+const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutValue(
   process.env.AGENT_DEVICE_RUNNER_DESTINATION_TIMEOUT_SECONDS,
   20,
   5,

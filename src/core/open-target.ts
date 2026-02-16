@@ -11,3 +11,8 @@ export function isDeepLinkTarget(input: string): boolean {
   }
   return true;
 }
+
+export function isWebUrl(input: string): boolean {
+  const scheme = input.trim().split(':')[0]?.toLowerCase();
+  return scheme === 'http' || scheme === 'https';
+}
