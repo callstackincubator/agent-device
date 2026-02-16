@@ -160,12 +160,16 @@ Navigation helpers:
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
 - Android opens deep links via `VIEW` intent.
-- iOS deep link open is simulator-only.
+- iOS simulator opens deep links via `simctl openurl`.
+- iOS device opens deep links via `devicectl --payload-url`. For `http(s)://` URLs, Safari is used automatically if no app is active in the session. Custom scheme URLs (`myapp://`) require an active app.
 - `--activity` cannot be combined with URL opens.
 
 ```bash
 agent-device open "myapp://home" --platform android
-agent-device open "https://example.com" --platform ios
+agent-device open "https://example.com" --platform ios          # Safari on device, simctl on simulator
+# iOS device custom scheme: open the app first, then deep link in the same session
+agent-device open com.example.app --session dev --platform ios --device "iPhone"
+agent-device open "myapp://home" --session dev
 ```
 
 Find (semantic):

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { isDeepLinkTarget, isWebUrl } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
@@ -97,10 +97,22 @@ const defaultReinstallOps: ReinstallOps = {
   },
 };
 
-async function resolveIosBundleIdForOpen(device: DeviceInfo, openTarget: string | undefined): Promise<string | undefined> {
-  if (device.platform !== 'ios' || !openTarget || isDeepLinkTarget(openTarget)) {
+async function resolveIosBundleIdForOpen(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+  currentAppBundleId?: string,
+): Promise<string | undefined> {
+  if (device.platform !== 'ios' || !openTarget) return undefined;
+  if (isDeepLinkTarget(openTarget)) {
+    if (device.kind === 'device') {
+      return currentAppBundleId ?? (isWebUrl(openTarget) ? 'com.apple.mobilesafari' : undefined);
+    }
     return undefined;
   }
+  return await tryResolveIosAppBundleId(device, openTarget);
+}
+
+async function tryResolveIosAppBundleId(device: DeviceInfo, openTarget: string): Promise<string | undefined> {
   try {
     const { resolveIosApp } = await import('../../platforms/ios/index.ts');
     return await resolveIosApp(device, openTarget);
@@ -423,7 +435,7 @@ export async function handleSessionCommands(params: {
         };
       }
       await ensureReady(session.device);
-      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget);
+      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId);
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
         const closeTarget = appBundleId ?? openTarget;

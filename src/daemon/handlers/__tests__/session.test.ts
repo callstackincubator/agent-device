@@ -463,6 +463,94 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
   assert.equal(dispatchedContext?.appBundleId, undefined);
 });
 
+test('open URL on existing iOS device session preserves app bundle id context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'ios-device-1',
+        name: 'iPhone Device',
+        kind: 'device',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+      appName: 'Example App',
+    },
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['myapp://item/42'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'com.example.app');
+  assert.equal(updated?.appName, 'myapp://item/42');
+  assert.equal(dispatchedContext?.appBundleId, 'com.example.app');
+});
+
+test('open web URL on iOS device session without active app falls back to Safari', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['https://example.com/path'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'com.apple.mobilesafari');
+  assert.equal(updated?.appName, 'https://example.com/path');
+  assert.equal(dispatchedContext?.appBundleId, 'com.apple.mobilesafari');
+});
+
 test('open app on existing iOS session resolves and stores bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
