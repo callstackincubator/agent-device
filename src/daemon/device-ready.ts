@@ -5,7 +5,7 @@ import { promises as fs } from 'node:fs';
 import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
 import { resolveTimeoutMs } from '../utils/timeouts.ts';
-import { resolveIosDevicectlHint } from '../platforms/ios/devicectl.ts';
+import { resolveIosDevicectlHint, IOS_DEVICECTL_DEFAULT_HINT } from '../platforms/ios/devicectl.ts';
 
 const IOS_DEVICE_READY_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICE_READY_TIMEOUT_MS,
@@ -146,12 +146,10 @@ async function readIosReadyPayload(jsonPath: string): Promise<{ parsed: boolean;
 
 export function resolveIosReadyHint(stdout: string, stderr: string): string {
   const devicectlHint = resolveIosDevicectlHint(stdout, stderr);
-  if (devicectlHint !== 'Ensure the iOS device is unlocked, trusted, and available in Xcode > Devices, then retry.') {
-    return devicectlHint;
-  }
+  if (devicectlHint) return devicectlHint;
   const text = `${stdout}\n${stderr}`.toLowerCase();
   if (text.includes('timed out waiting for all destinations')) {
     return 'Xcode destination did not become available in time. Keep device unlocked and retry.';
   }
-  return devicectlHint;
+  return IOS_DEVICECTL_DEFAULT_HINT;
 }

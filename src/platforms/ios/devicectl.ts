@@ -41,7 +41,7 @@ export async function runIosDevicectl(
     stdout,
     stderr,
     deviceId: context.deviceId,
-    hint: resolveIosDevicectlHint(stdout, stderr),
+    hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
   });
 }
 
@@ -80,7 +80,7 @@ export async function listIosDeviceApps(
         stdout,
         stderr,
         deviceId: device.id,
-        hint: resolveIosDevicectlHint(stdout, stderr),
+        hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
       });
     }
     const jsonText = await fs.readFile(jsonPath, 'utf8');
@@ -119,7 +119,10 @@ function filterIosDeviceApps(apps: IosAppInfo[], filter: 'user-installed' | 'all
   return apps;
 }
 
-export function resolveIosDevicectlHint(stdout: string, stderr: string): string {
+export const IOS_DEVICECTL_DEFAULT_HINT =
+  'Ensure the iOS device is unlocked, trusted, and available in Xcode > Devices, then retry.';
+
+export function resolveIosDevicectlHint(stdout: string, stderr: string): string | null {
   const text = `${stdout}\n${stderr}`.toLowerCase();
   if (text.includes('device is busy') && text.includes('connecting')) {
     return 'iOS device is still connecting. Keep it unlocked and connected by cable until it is fully available in Xcode Devices, then retry.';
@@ -127,5 +130,5 @@ export function resolveIosDevicectlHint(stdout: string, stderr: string): string 
   if (text.includes('coredeviceservice') && text.includes('timed out')) {
     return 'CoreDevice service timed out. Reconnect the device and retry; if it persists restart Xcode and the iOS device.';
   }
-  return 'Ensure the iOS device is unlocked, trusted, and available in Xcode > Devices, then retry.';
+  return null;
 }

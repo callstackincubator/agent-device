@@ -115,6 +115,7 @@ export function inferAndroidAppName(packageName: string): string {
     .flatMap((segment) => segment.split(/[_-]+/))
     .map((token) => token.trim().toLowerCase())
     .filter((token) => token.length > 0);
+  // Fallback to last token if every token is ignored (e.g. "com.android.app.services" → "Services").
   let chosen = tokens[tokens.length - 1] ?? packageName;
   for (let index = tokens.length - 1; index >= 0; index -= 1) {
     const token = tokens[index];
