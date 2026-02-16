@@ -551,6 +551,55 @@ test('open web URL on iOS device session without active app falls back to Safari
   assert.equal(dispatchedContext?.appBundleId, 'com.apple.mobilesafari');
 });
 
+test('open app and URL on existing iOS device session keeps app context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'ios-device-1',
+        name: 'iPhone Device',
+        kind: 'device',
+        booted: true,
+      }),
+      appBundleId: 'com.example.previous',
+      appName: 'Previous App',
+    },
+  );
+
+  let dispatchedPositionals: string[] | undefined;
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Settings', 'myapp://screen/to'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, positionals, _out, context) => {
+      dispatchedPositionals = positionals;
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'com.apple.Preferences');
+  assert.equal(updated?.appName, 'Settings');
+  assert.deepEqual(dispatchedPositionals, ['Settings', 'myapp://screen/to']);
+  assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
+});
+
 test('open app on existing iOS session resolves and stores bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';

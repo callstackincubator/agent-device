@@ -35,8 +35,31 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
 export async function openIosApp(
   device: DeviceInfo,
   app: string,
-  options?: { appBundleId?: string },
+  options?: { appBundleId?: string; url?: string },
 ): Promise<void> {
+  const explicitUrl = options?.url?.trim();
+  if (explicitUrl) {
+    if (!isDeepLinkTarget(explicitUrl)) {
+      throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
+    }
+    if (device.kind === 'simulator') {
+      await ensureBootedSimulator(device);
+      await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+      await runCmd('xcrun', ['simctl', 'openurl', device.id, explicitUrl]);
+      return;
+    }
+    const appBundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
+    const bundleId = resolveIosDeviceDeepLinkBundleId(appBundleId, explicitUrl);
+    if (!bundleId) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'Deep link open on iOS devices requires an active app bundle ID. Open the app first, then open the URL.',
+      );
+    }
+    await launchIosDeviceProcess(device, bundleId, { payloadUrl: explicitUrl });
+    return;
+  }
+
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
     if (device.kind === 'simulator') {

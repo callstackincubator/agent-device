@@ -16,6 +16,7 @@ import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import { setIosSetting } from '../platforms/ios/index.ts';
+import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 
@@ -89,9 +90,27 @@ export async function dispatchCommand(
   switch (command) {
     case 'open': {
       const app = positionals[0];
+      const url = positionals[1];
+      if (positionals.length > 2) {
+        throw new AppError('INVALID_ARGS', 'open accepts at most two arguments: <app|url> [url]');
+      }
       if (!app) {
         await interactor.openDevice();
         return { app: null };
+      }
+      if (url !== undefined) {
+        if (device.platform !== 'ios') {
+          throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on iOS');
+        }
+        if (!isDeepLinkTarget(url)) {
+          throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
+        }
+        await interactor.open(app, {
+          activity: context?.activity,
+          appBundleId: context?.appBundleId,
+          url,
+        });
+        return { app, url };
       }
       await interactor.open(app, { activity: context?.activity, appBundleId: context?.appBundleId });
       return { app };

@@ -130,6 +130,58 @@ test('openIosApp custom scheme on iOS device uses active app context', async () 
   }
 });
 
+test('openIosApp with app and URL on iOS device launches app bundle with payload URL', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-open-app-url-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'iPhone Device',
+    kind: 'device',
+    booted: true,
+  };
+
+  try {
+    await openIosApp(device, 'MyApp', { appBundleId: 'com.example.app', url: 'myapp://screen/to' });
+    const args = (await fs.readFile(argsLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    assert.deepEqual(args, [
+      'devicectl',
+      'device',
+      'process',
+      'launch',
+      '--device',
+      'ios-device-1',
+      'com.example.app',
+      '--payload-url',
+      'myapp://screen/to',
+    ]);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('parseIosDeviceAppsPayload maps devicectl app entries', () => {
   const apps = parseIosDeviceAppsPayload({
     result: {

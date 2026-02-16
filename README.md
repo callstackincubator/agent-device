@@ -153,12 +153,13 @@ Sessions:
 Navigation helpers:
 - `boot --platform ios|android` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
-- `open [app|url]` already boots/activates the selected target when needed.
+- `open [app|url] [url]` already boots/activates the selected target when needed.
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator).
 - `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
+- `open <app> <url>` opens a deep link in the selected iOS app context.
 - Android opens deep links via `VIEW` intent.
 - iOS simulator opens deep links via `simctl openurl`.
 - iOS device opens deep links via `devicectl --payload-url`.
@@ -168,9 +169,7 @@ Deep links:
 ```bash
 agent-device open "myapp://home" --platform android
 agent-device open "https://example.com" --platform ios          # open link in web browser
-# Open deep link to a specific iOS app (same session)
-agent-device open MyApp --platform ios --session myapp
-agent-device open "myapp://screen/to" --session myapp
+agent-device open MyApp "myapp://screen/to" --platform ios      # open deep link to MyApp
 ```
 
 Find (semantic):
@@ -251,7 +250,7 @@ Boot diagnostics:
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
-- iOS deep link open (`open <url>`) supports simulators and devices.
+- iOS deep link open is available for simulator and device targets.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
