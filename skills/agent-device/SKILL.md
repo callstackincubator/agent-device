@@ -39,13 +39,15 @@ npx -y agent-device
 
 ```bash
 agent-device boot                 # Ensure target is booted/ready without opening app
-agent-device boot --platform ios  # Boot iOS simulator/device target
+agent-device boot --platform ios  # Boot iOS target
 agent-device boot --platform android # Boot Android emulator/device target
 agent-device open [app|url]       # Boot device/simulator; optionally launch app or deep link URL
 agent-device open [app] --relaunch # Terminate app process first, then launch (fresh runtime)
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity (app targets only)
 agent-device open "myapp://home" --platform android          # Android deep link
-agent-device open "https://example.com" --platform ios       # iOS deep link (simulator: simctl, device: devicectl --payload-url)
+agent-device open "https://example.com" --platform ios       # iOS deep link (simulator-only; opens in browser)
+agent-device open MyApp --platform ios --session myapp
+agent-device open "myapp://screen/to" --session myapp        # iOS: open deep link to MyApp (same session)
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
@@ -194,7 +196,7 @@ agent-device apps --platform android --user-installed
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
-- iOS deep-link opens work on simulators and devices. On devices, `http(s)://` URLs fall back to Safari automatically; custom scheme URLs require an active app in the session.
+- iOS deep-link opens are simulator-only.
 - iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 - Default daemon request timeout is `45000`ms. For slow physical-device setup/build, increase `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (for example `120000`).
 - For daemon startup troubleshooting, follow stale metadata hints for `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock`.

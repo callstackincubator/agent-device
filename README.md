@@ -99,7 +99,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 | `ax` | Fast | Medium | Accessibility permission for the terminal app, not recommended |
 
 Notes:
-- Default backend is `xctest` on iOS simulators and iOS devices.
+- Default backend is `xctest`.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
 - `ax` backend is simulator-only.
@@ -161,15 +161,15 @@ Deep links:
 - `open <url>` supports deep links with `scheme://...`.
 - Android opens deep links via `VIEW` intent.
 - iOS simulator opens deep links via `simctl openurl`.
-- iOS device opens deep links via `devicectl --payload-url`. For `http(s)://` URLs, Safari is used automatically if no app is active in the session. Custom scheme URLs (`myapp://`) require an active app.
+- iOS deep-link open is simulator-only.
 - `--activity` cannot be combined with URL opens.
 
 ```bash
 agent-device open "myapp://home" --platform android
-agent-device open "https://example.com" --platform ios          # Safari on device, simctl on simulator
-# iOS device custom scheme: open the app first, then deep link in the same session
-agent-device open com.example.app --session dev --platform ios --device "iPhone"
-agent-device open "myapp://home" --session dev
+agent-device open "https://example.com" --platform ios          # open link in web browser (iOS simulator)
+# Open deep link to a specific iOS app (same session, iOS simulator)
+agent-device open MyApp --platform ios --session myapp
+agent-device open "myapp://screen/to" --session myapp
 ```
 
 Find (semantic):
@@ -224,7 +224,6 @@ Note: iOS supports these only on simulators. iOS wifi/airplane toggles status ba
 App state:
 - `appstate` shows the foreground app/activity (Android).
 - On iOS, `appstate` returns the currently tracked session app (`source: session`) and requires an active session on the selected device.
-- `apps` supports Android, iOS simulators, and iOS devices.
 - `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 ## Debug
@@ -249,8 +248,7 @@ Boot diagnostics:
 - Built-in aliases include `Settings` for both platforms.
 
 ## iOS notes
-- Core runner commands (`snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`) support iOS simulators and iOS devices.
-- `apps` is supported on both iOS simulators and iOS devices.
+- Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
 - iOS deep link open (`open <url>`) is simulator-only.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
