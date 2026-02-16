@@ -6,6 +6,7 @@ import { AppError } from './utils/errors.ts';
 import type { CommandFlags } from './core/dispatch.ts';
 import { runCmdDetached } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
+import { stopProcessForTakeover } from './utils/process-identity.ts';
 
 export type DaemonRequest = {
   token: string;
@@ -19,12 +20,20 @@ export type DaemonResponse =
   | { ok: true; data?: Record<string, unknown> }
   | { ok: false; error: { code: string; message: string; details?: Record<string, unknown> } };
 
-type DaemonInfo = { port: number; token: string; pid: number; version?: string };
+type DaemonInfo = {
+  port: number;
+  token: string;
+  pid: number;
+  version?: string;
+  processStartTime?: string;
+};
 
 const baseDir = path.join(os.homedir(), '.agent-device');
 const infoPath = path.join(baseDir, 'daemon.json');
-const REQUEST_TIMEOUT_MS = resolveRequestTimeoutMs();
+const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
 const DAEMON_STARTUP_TIMEOUT_MS = 5000;
+const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
+const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
 
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
   const info = await ensureDaemon();
@@ -38,6 +47,7 @@ async function ensureDaemon(): Promise<DaemonInfo> {
   const existingReachable = existing ? await canConnect(existing) : false;
   if (existing && existing.version === localVersion && existingReachable) return existing;
   if (existing && (existing.version !== localVersion || !existingReachable)) {
+    await stopDaemonProcessForTakeover(existing);
     removeDaemonInfo();
   }
 
@@ -56,12 +66,23 @@ async function ensureDaemon(): Promise<DaemonInfo> {
   });
 }
 
+async function stopDaemonProcessForTakeover(info: DaemonInfo): Promise<void> {
+  await stopProcessForTakeover(info.pid, {
+    termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
+    killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
+    expectedStartTime: info.processStartTime,
+  });
+}
+
 function readDaemonInfo(): DaemonInfo | null {
   if (!fs.existsSync(infoPath)) return null;
   try {
     const data = JSON.parse(fs.readFileSync(infoPath, 'utf8')) as DaemonInfo;
     if (!data.port || !data.token) return null;
-    return data;
+    return {
+      ...data,
+      pid: Number.isInteger(data.pid) && data.pid > 0 ? data.pid : 0,
+    };
   } catch {
     return null;
   }
@@ -142,10 +163,9 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
   });
 }
 
-function resolveRequestTimeoutMs(): number {
-  const raw = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS;
-  if (!raw) return 60000;
+export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
+  if (!raw) return 180000;
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 60000;
+  if (!Number.isFinite(parsed)) return 180000;
   return Math.max(1000, Math.floor(parsed));
 }

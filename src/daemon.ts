@@ -7,7 +7,7 @@ import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import { readVersion } from './utils/version.ts';
-import { stopIosRunnerSession } from './platforms/ios/runner-client.ts';
+import { stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
 import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './daemon/context.ts';
@@ -18,15 +18,29 @@ import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
 import { resolveEffectiveSessionName } from './daemon/session-routing.ts';
+import {
+  isAgentDeviceDaemonProcess,
+  readProcessStartTime,
+} from './utils/process-identity.ts';
 
 const baseDir = path.join(os.homedir(), '.agent-device');
 const infoPath = path.join(baseDir, 'daemon.json');
+const lockPath = path.join(baseDir, 'daemon.lock');
 const logPath = path.join(baseDir, 'daemon.log');
 const sessionsDir = path.join(baseDir, 'sessions');
 const sessionStore = new SessionStore(sessionsDir);
 const version = readVersion();
 const token = crypto.randomBytes(24).toString('hex');
 const selectorValidationExemptCommands = new Set(['session_list', 'devices']);
+
+type DaemonLockInfo = {
+  pid: number;
+  version: string;
+  startedAt: number;
+  processStartTime?: string;
+};
+
+const daemonProcessStartTime = readProcessStartTime(process.pid) ?? undefined;
 
 function contextFromFlags(
   flags: CommandFlags | undefined,
@@ -122,7 +136,7 @@ function writeInfo(port: number): void {
   fs.writeFileSync(logPath, '');
   fs.writeFileSync(
     infoPath,
-    JSON.stringify({ port, token, pid: process.pid, version }, null, 2),
+    JSON.stringify({ port, token, pid: process.pid, version, processStartTime: daemonProcessStartTime }, null, 2),
     {
       mode: 0o600,
     },
@@ -133,7 +147,71 @@ function removeInfo(): void {
   if (fs.existsSync(infoPath)) fs.unlinkSync(infoPath);
 }
 
+function readLockInfo(): DaemonLockInfo | null {
+  if (!fs.existsSync(lockPath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as DaemonLockInfo;
+    if (!Number.isInteger(parsed.pid) || parsed.pid <= 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function acquireDaemonLock(): boolean {
+  if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+  const lockData: DaemonLockInfo = {
+    pid: process.pid,
+    version,
+    startedAt: Date.now(),
+    processStartTime: daemonProcessStartTime,
+  };
+  const payload = JSON.stringify(lockData, null, 2);
+
+  const tryWriteLock = (): boolean => {
+    try {
+      fs.writeFileSync(lockPath, payload, { flag: 'wx', mode: 0o600 });
+      return true;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+      throw err;
+    }
+  };
+
+  if (tryWriteLock()) return true;
+  const existing = readLockInfo();
+  if (
+    existing?.pid
+    && existing.pid !== process.pid
+    && isAgentDeviceDaemonProcess(existing.pid, existing.processStartTime)
+  ) {
+    return false;
+  }
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {
+    // ignore
+  }
+  return tryWriteLock();
+}
+
+function releaseDaemonLock(): void {
+  const existing = readLockInfo();
+  if (existing && existing.pid !== process.pid) return;
+  try {
+    if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+  } catch {
+    // ignore
+  }
+}
+
 function start(): void {
+  if (!acquireDaemonLock()) {
+    process.stderr.write('Daemon lock is held by another process; exiting.\n');
+    process.exit(0);
+    return;
+  }
+
   const server = net.createServer((socket) => {
     let buffer = '';
     socket.setEncoding('utf8');
@@ -172,16 +250,18 @@ function start(): void {
     }
   });
 
+  let shuttingDown = false;
   const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     const sessionsToStop = sessionStore.toArray();
     for (const session of sessionsToStop) {
-      if (session.device.platform === 'ios') {
-        await stopIosRunnerSession(session.device.id);
-      }
       sessionStore.writeSessionLog(session);
     }
+    await stopAllIosRunnerSessions();
     server.close(() => {
       removeInfo();
+      releaseDaemonLock();
       process.exit(0);
     });
   };
