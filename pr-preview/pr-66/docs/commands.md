@@ -19,7 +19,13 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android and iOS. On iOS devices, `http(s)://` URLs fall back to Safari automatically; custom scheme URLs require an active app in the session.
+- `open <url>` deep links are supported on Android and iOS simulator (`simctl openurl`). iOS deep-link open is simulator-only.
+
+```bash
+agent-device open "https://example.com" --platform ios           # open link in web browser (iOS simulator)
+agent-device open MyApp --platform ios --session myapp
+agent-device open "myapp://screen/to" --session myapp            # open deep link to MyApp
+```
 
 ## Snapshot and inspect
 
@@ -29,7 +35,7 @@ agent-device get text @e1
 agent-device get attrs @e1
 ```
 
-- `--backend xctest` works on iOS simulators and iOS devices.
+- `--backend xctest` is the default backend.
 - `--backend ax` is simulator-only.
 - agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
 
@@ -102,7 +108,6 @@ agent-device settings location off
 ```
 
 - iOS `settings` support is simulator-only.
-- Android `settings` support works on emulators and devices.
 
 ## App state and app lists
 
@@ -116,7 +121,6 @@ agent-device apps --platform android --all
 
 - Android `appstate` reports live foreground package/activity.
 - iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
-- iOS `apps` supports simulators and physical devices.
 - `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 ## Media and logs
