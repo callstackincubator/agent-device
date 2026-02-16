@@ -190,7 +190,7 @@ agent-device apps --platform android --user-installed
 - On iOS, `xctest` is the default and does not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), treat it as an explicit failure and retry the flow/app state.
 - `open <app|url> [url]` can be used within an existing session to switch apps or open deep links.
-- `open <app>` updates session app bundle context; `open <app> <url>` keeps that app context for deep links.
+- `open <app>` updates session app bundle context; `open <app> <url>` opens a deep link on iOS.
 - Use `open <app> --relaunch` during React Native/Fast Refresh debugging when you need a fresh app process without ending the session.
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.

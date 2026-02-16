@@ -102,6 +102,9 @@ export async function dispatchCommand(
         if (device.platform !== 'ios') {
           throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on iOS');
         }
+        if (isDeepLinkTarget(app)) {
+          throw new AppError('INVALID_ARGS', 'open <app> <url> requires an app target as the first argument');
+        }
         if (!isDeepLinkTarget(url)) {
           throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
         }

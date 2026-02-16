@@ -159,7 +159,7 @@ Navigation helpers:
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
-- `open <app> <url>` opens a deep link in the selected iOS app context.
+- `open <app> <url>` opens a deep link on iOS.
 - Android opens deep links via `VIEW` intent.
 - iOS simulator opens deep links via `simctl openurl`.
 - iOS device opens deep links via `devicectl --payload-url`.
@@ -250,7 +250,7 @@ Boot diagnostics:
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
-- iOS deep link open is available for simulator and device targets.
+- iOS deep link open is supported.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
