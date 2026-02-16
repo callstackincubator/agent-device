@@ -8,7 +8,7 @@ This page summarizes the primary command groups.
 agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
-agent-device open [app]
+agent-device open [app|url]
 agent-device close [app]
 agent-device back
 agent-device home
@@ -19,10 +19,11 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android and iOS simulator (`simctl openurl`). iOS deep-link open is simulator-only.
+- `open <url>` deep links are supported on Android and iOS (`simctl openurl` on simulator, `devicectl --payload-url` on device).
+- On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 
 ```bash
-agent-device open "https://example.com" --platform ios           # open link in web browser (iOS simulator)
+agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp --platform ios --session myapp
 agent-device open "myapp://screen/to" --session myapp            # open deep link to MyApp
 ```
