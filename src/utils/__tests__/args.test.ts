@@ -12,6 +12,33 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.flags.relaunch, true);
 });
 
+test('parseArgs accepts --save-script with optional path value', () => {
+  const withoutPath = parseArgs(['open', 'settings', '--save-script']);
+  assert.equal(withoutPath.command, 'open');
+  assert.deepEqual(withoutPath.positionals, ['settings']);
+  assert.equal(withoutPath.flags.saveScript, true);
+
+  const withPath = parseArgs(['open', 'settings', '--save-script', './workflows/my-flow.ad']);
+  assert.equal(withPath.command, 'open');
+  assert.deepEqual(withPath.positionals, ['settings']);
+  assert.equal(withPath.flags.saveScript, './workflows/my-flow.ad');
+
+  const nonPathPositional = parseArgs(['open', '--save-script', 'settings']);
+  assert.equal(nonPathPositional.command, 'open');
+  assert.deepEqual(nonPathPositional.positionals, ['settings']);
+  assert.equal(nonPathPositional.flags.saveScript, true);
+
+  const inlineValue = parseArgs(['open', 'settings', '--save-script=my-flow.ad']);
+  assert.equal(inlineValue.command, 'open');
+  assert.deepEqual(inlineValue.positionals, ['settings']);
+  assert.equal(inlineValue.flags.saveScript, 'my-flow.ad');
+
+  const ambiguousBareValue = parseArgs(['open', '--save-script', 'my-flow.ad']);
+  assert.equal(ambiguousBareValue.command, 'open');
+  assert.deepEqual(ambiguousBareValue.positionals, ['my-flow.ad']);
+  assert.equal(ambiguousBareValue.flags.saveScript, true);
+});
+
 test('parseArgs recognizes press series flags', () => {
   const parsed = parseArgs([
     'press',
@@ -64,6 +91,7 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.match(usage(), /--metadata/);
 });

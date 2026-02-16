@@ -122,6 +122,21 @@ function parseFlagValue(
     }
     return { value: true, consumeNext: false };
   }
+  if (definition.type === 'booleanOrString') {
+    if (inlineValue !== undefined) {
+      if (inlineValue.trim().length === 0) {
+        throw new AppError('INVALID_ARGS', `Flag ${token} requires a non-empty value when provided.`);
+      }
+      return { value: inlineValue, consumeNext: false };
+    }
+    if (nextArg === undefined || looksLikeFlagToken(nextArg)) {
+      return { value: true, consumeNext: false };
+    }
+    if (shouldConsumeOptionalPathValue(nextArg)) {
+      return { value: nextArg, consumeNext: true };
+    }
+    return { value: true, consumeNext: false };
+  }
 
   const value = inlineValue ?? nextArg;
   if (value === undefined) {
@@ -161,6 +176,17 @@ function looksLikeFlagToken(value: string): boolean {
   if (!value.startsWith('-') || value === '-') return false;
   const [token] = value.startsWith('--') ? splitLongFlag(value) : [value, undefined];
   return getFlagDefinition(token) !== undefined;
+}
+
+function shouldConsumeOptionalPathValue(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) return false;
+  if (trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('~/') || trimmed.startsWith('/')) {
+    return true;
+  }
+  if (trimmed.includes('/') || trimmed.includes('\\')) return true;
+  return false;
 }
 
 function shouldTreatUnknownDashTokenAsPositional(

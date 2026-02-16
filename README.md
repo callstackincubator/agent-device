@@ -145,6 +145,8 @@ Sessions:
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
+- `--save-script` accepts an optional path: `--save-script ./workflows/my-flow.ad`.
+- For ambiguous bare values, use an explicit form: `--save-script=workflow.ad` or a path-like value such as `./workflow.ad`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
 
 Navigation helpers:

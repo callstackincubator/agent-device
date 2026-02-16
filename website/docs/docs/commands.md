@@ -72,12 +72,14 @@ agent-device find role button click
 ## Replay
 
 ```bash
+agent-device open Settings --platform ios --session e2e --save-script [path]
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 - `replay` runs deterministic `.ad` scripts.
 - `replay -u` updates stale recorded actions and rewrites the same script.
+- `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 
 See [Replay & E2E (Experimental)](/docs/replay-e2e) for recording and CI workflow details.
 

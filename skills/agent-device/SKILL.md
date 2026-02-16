@@ -143,13 +143,16 @@ agent-device screenshot out.png
 
 ```bash
 agent-device open App --relaunch      # Fresh app process restart in the current session
-agent-device open App --save-script   # Save session script (.ad) on close
+agent-device open App --save-script   # Save session script (.ad) on close (default path)
+agent-device open App --save-script ./workflows/app-flow.ad  # Save to custom file path
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 `replay` reads `.ad` recordings.
 `--relaunch` controls launch semantics; `--save-script` controls recording. Combine only when both are needed.
+`--save-script` path is a file path; parent directories are created automatically.
+For ambiguous bare values, use `--save-script=workflow.ad` or `./workflow.ad`.
 
 ### Trace logs (AX/XCTest)
 

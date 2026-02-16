@@ -22,7 +22,7 @@ export type CliFlags = {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
-  saveScript?: boolean;
+  saveScript?: boolean | string;
   relaunch?: boolean;
   noRecord?: boolean;
   replayUpdate?: boolean;
@@ -31,7 +31,7 @@ export type CliFlags = {
 };
 
 export type FlagKey = keyof CliFlags;
-export type FlagType = 'boolean' | 'int' | 'enum' | 'string';
+export type FlagType = 'boolean' | 'int' | 'enum' | 'string' | 'booleanOrString';
 
 export type FlagDefinition = {
   key: FlagKey;
@@ -201,9 +201,9 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
     key: 'saveScript',
     names: ['--save-script'],
-    type: 'boolean',
-    usageLabel: '--save-script',
-    usageDescription: 'Save session script (.ad) on close',
+    type: 'booleanOrString',
+    usageLabel: '--save-script [path]',
+    usageDescription: 'Save session script (.ad) on close; optional custom output path',
   },
   {
     key: 'relaunch',

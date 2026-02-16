@@ -346,7 +346,7 @@ export async function handleSessionCommands(params: {
         ...session,
         appBundleId,
         appName: openTarget,
-        recordSession: session.recordSession || req.flags?.saveScript === true,
+        recordSession: session.recordSession || Boolean(req.flags?.saveScript),
         snapshot: undefined,
       };
       sessionStore.recordAction(nextSession, {
@@ -405,7 +405,7 @@ export async function handleSessionCommands(params: {
       createdAt: Date.now(),
       appBundleId,
       appName: openTarget,
-      recordSession: req.flags?.saveScript === true,
+      recordSession: Boolean(req.flags?.saveScript),
       actions: [],
     };
     sessionStore.recordAction(session, {
