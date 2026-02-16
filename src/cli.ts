@@ -1,4 +1,4 @@
-import { parseArgs, toDaemonFlags, usage } from './utils/args.ts';
+import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
@@ -8,7 +8,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export async function runCli(argv: string[]): Promise<void> {
+type CliDeps = {
+  sendToDaemon: typeof sendToDaemon;
+};
+
+const DEFAULT_CLI_DEPS: CliDeps = {
+  sendToDaemon,
+};
+
+export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const parsed = parseArgs(argv);
   for (const warning of parsed.warnings) {
     process.stderr.write(`Warning: ${warning}\n`);
@@ -19,9 +27,31 @@ export async function runCli(argv: string[]): Promise<void> {
     process.exit(0);
   }
 
-  if (parsed.flags.help || !parsed.command) {
+  const isHelpAlias = parsed.command === 'help';
+  const isHelpFlag = parsed.flags.help;
+  if (isHelpAlias || isHelpFlag) {
+    if (isHelpAlias && parsed.positionals.length > 1) {
+      printHumanError(new AppError('INVALID_ARGS', 'help accepts at most one command.'));
+      process.exit(1);
+    }
+    const helpTarget = isHelpAlias ? parsed.positionals[0] : parsed.command;
+    if (!helpTarget) {
+      process.stdout.write(`${usage()}\n`);
+      process.exit(0);
+    }
+    const commandHelp = usageForCommand(helpTarget);
+    if (commandHelp) {
+      process.stdout.write(commandHelp);
+      process.exit(0);
+    }
+    printHumanError(new AppError('INVALID_ARGS', `Unknown command: ${helpTarget}`));
     process.stdout.write(`${usage()}\n`);
-    process.exit(parsed.flags.help ? 0 : 1);
+    process.exit(1);
+  }
+
+  if (!parsed.command) {
+    process.stdout.write(`${usage()}\n`);
+    process.exit(1);
   }
 
   const { command, positionals, flags } = parsed;
@@ -34,7 +64,7 @@ export async function runCli(argv: string[]): Promise<void> {
       if (sub !== 'list') {
         throw new AppError('INVALID_ARGS', 'session only supports list');
       }
-      const response = await sendToDaemon({
+      const response = await deps.sendToDaemon({
         session: sessionName,
         command: 'session_list',
         positionals: [],
@@ -47,7 +77,7 @@ export async function runCli(argv: string[]): Promise<void> {
       return;
     }
 
-    const response = await sendToDaemon({
+    const response = await deps.sendToDaemon({
       session: sessionName,
       command: command!,
       positionals,
