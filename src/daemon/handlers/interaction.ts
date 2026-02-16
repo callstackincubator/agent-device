@@ -504,7 +504,7 @@ async function captureSnapshotForSession(
   })) as {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'ax' | 'xctest' | 'android';
+    backend?: 'xctest' | 'android';
   };
   const rawNodes = data?.nodes ?? [];
   const nodes = attachRefs(flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
@@ -522,7 +522,6 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
   ['snapshotDepth', '--depth'],
   ['snapshotScope', '--scope'],
   ['snapshotRaw', '--raw'],
-  ['snapshotBackend', '--backend'],
 ];
 
 function refSnapshotFlagGuardResponse(

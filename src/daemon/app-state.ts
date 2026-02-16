@@ -21,7 +21,6 @@ export async function resolveIosAppStateFromSnapshots(
           ...flags,
           snapshotDepth: 1,
           snapshotCompact: true,
-          snapshotBackend: 'xctest',
         },
         undefined,
         traceLogPath,
@@ -31,7 +30,7 @@ export async function resolveIosAppStateFromSnapshots(
     const cause = error instanceof Error ? error.message : String(error);
     throw new AppError(
       'COMMAND_FAILED',
-      'Unable to resolve iOS app state from XCTest snapshot. You can try snapshot --backend ax for diagnostics, but AX snapshots are not recommended.',
+      'Unable to resolve iOS app state from XCTest snapshot.',
       { cause },
     );
   }
@@ -47,7 +46,7 @@ export async function resolveIosAppStateFromSnapshots(
 
   throw new AppError(
     'COMMAND_FAILED',
-    'Unable to resolve iOS app state from XCTest snapshot (0 nodes or missing application node). You can try snapshot --backend ax for diagnostics, but AX snapshots are not recommended.',
+    'Unable to resolve iOS app state from XCTest snapshot (0 nodes or missing application node).',
   );
 }
 

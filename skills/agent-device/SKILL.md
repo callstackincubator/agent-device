@@ -63,11 +63,9 @@ agent-device snapshot -c               # Compact output
 agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
-agent-device snapshot --backend xctest # default: XCTest snapshot (fast, complete, no permissions)
-agent-device snapshot --backend ax     # macOS Accessibility tree (manual diagnostics only; no automatic fallback)
 ```
 
-XCTest is the default: fast and complete and does not require permissions. Use AX only for manual diagnostics, and prefer XCTest for normal automation flows. agent-device does not automatically fall back to AX.
+XCTest is the iOS snapshot engine: fast, complete, and no Accessibility permission required.
 
 ### Find (semantic)
 
@@ -151,7 +149,7 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 `replay` reads `.ad` recordings.
 `--relaunch` controls launch semantics; `--save-script` controls recording. Combine only when both are needed.
 
-### Trace logs (AX/XCTest)
+### Trace logs (XCTest)
 
 ```bash
 agent-device trace start               # Start trace capture
@@ -179,12 +177,11 @@ agent-device apps --platform android --user-installed
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
-- On iOS, `xctest` is the default and does not require Accessibility permission.
+- On iOS, snapshots use XCTest and do not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), treat it as an explicit failure and retry the flow/app state.
 - `open <app|url>` can be used within an existing session to switch apps or open deep links.
 - `open <app>` updates session app bundle context; URL opens do not set an app bundle id.
 - Use `open <app> --relaunch` during React Native/Fast Refresh debugging when you need a fresh app process without ending the session.
-- If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
 - iOS deep-link opens are simulator-only.

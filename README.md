@@ -91,18 +91,12 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 - `settings wifi|airplane|location on|off`
 - `appstate`, `apps`, `devices`, `session list`
 
-## Backends (iOS snapshots)
-
-| Backend | Speed | Accuracy | Requirements |
-| --- | --- | --- | --- |
-| `xctest` | Fast | High | No Accessibility permission required |
-| `ax` | Fast | Medium | Accessibility permission for the terminal app, not recommended |
+## iOS Snapshots
 
 Notes:
-- Default backend is `xctest` on iOS simulators and iOS devices.
+- iOS snapshots use XCTest on simulators and physical devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
-- `ax` backend is simulator-only.
 
 Flags:
 - `--version, -V` print version and exit
@@ -120,7 +114,6 @@ Flags:
 - `--pattern one-way|ping-pong` repeat pattern for `swipe`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
-- `--backend ax|xctest` (snapshot only; defaults to `xctest` on iOS)
 
 Pinch:
 - `pinch` is supported on iOS simulators.

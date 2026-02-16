@@ -97,7 +97,7 @@ test('ios physical device core lifecycle', { skip: shouldSkipIosPhysicalDevice()
   const openArgs = ['open', 'com.apple.Preferences', ...target, '--json', ...deviceSession];
   integration.runStep('open settings (device)', openArgs);
 
-  const snapshotArgs = ['snapshot', '--backend', 'xctest', '--json', ...deviceSession];
+  const snapshotArgs = ['snapshot', '--json', ...deviceSession];
   const snapshot = integration.runStep('snapshot (device)', snapshotArgs);
   integration.assertResult(
     Array.isArray(snapshot.json?.data?.nodes),

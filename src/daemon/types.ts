@@ -47,7 +47,6 @@ export type SessionAction = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest';
     saveScript?: boolean;
     noRecord?: boolean;
   };

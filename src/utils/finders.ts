@@ -94,8 +94,5 @@ function normalizeRole(value: string): string {
   if (!normalized) return '';
   const lastSegment = normalized.split('.').pop() ?? normalized;
   normalized = lastSegment.replace(/XCUIElementType/gi, '').toLowerCase();
-  if (normalized.startsWith('ax')) {
-    normalized = normalized.replace(/^ax/, '');
-  }
   return normalized;
 }

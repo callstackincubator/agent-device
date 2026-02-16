@@ -12,7 +12,6 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
-  snapshotBackend?: 'ax' | 'xctest';
   appsFilter?: 'launchable' | 'user-installed' | 'all';
   appsMetadata?: boolean;
   count?: number;
@@ -61,17 +60,15 @@ const SNAPSHOT_FLAGS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
-  'snapshotBackend',
 ] as const satisfies readonly FlagKey[];
 
 const SELECTOR_SNAPSHOT_FLAGS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
-  'snapshotBackend',
 ] as const satisfies readonly FlagKey[];
 
-const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw', 'snapshotBackend'] as const satisfies readonly FlagKey[];
+const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
 
 export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
@@ -284,14 +281,6 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--raw',
     usageDescription: 'Snapshot: raw node output',
-  },
-  {
-    key: 'snapshotBackend',
-    names: ['--backend'],
-    type: 'enum',
-    enumValues: ['ax', 'xctest'],
-    usageLabel: '--backend ax|xctest',
-    usageDescription: 'Snapshot backend (iOS): ax or xctest',
   },
   {
     key: 'out',

@@ -661,7 +661,7 @@ async function captureSnapshotForReplay(
   })) as {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'ax' | 'xctest' | 'android';
+    backend?: 'xctest' | 'android';
   };
   const rawNodes = data?.nodes ?? [];
   const nodes = attachRefs(action.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
@@ -860,11 +860,9 @@ function parseReplayScriptLine(line: string): SessionAction | null {
         continue;
       }
       if (token === '--backend' && index + 1 < args.length) {
-        const backend = args[index + 1];
-        if (backend === 'ax' || backend === 'xctest') {
-          action.flags.snapshotBackend = backend;
-        }
+        // Backward compatibility: ignore legacy snapshot backend token.
         index += 1;
+        continue;
       }
     }
     return action;
@@ -1004,9 +1002,6 @@ function formatReplayActionLine(action: SessionAction): string {
       parts.push('-s', formatReplayArg(action.flags.snapshotScope));
     }
     if (action.flags?.snapshotRaw) parts.push('--raw');
-    if (action.flags?.snapshotBackend) {
-      parts.push('--backend', action.flags.snapshotBackend);
-    }
     return parts.join(' ');
   }
   if (action.command === 'open') {

@@ -119,9 +119,6 @@ function formatRole(type: string): string {
   const isAndroidClass =
     raw.includes('.') &&
     (raw.startsWith('android.') || raw.startsWith('androidx.') || raw.startsWith('com.'));
-  if (normalized.startsWith('ax')) {
-    normalized = normalized.replace(/^ax/, '');
-  }
   if (normalized.includes('.')) {
     normalized = normalized
       .replace(/^android\.widget\./, '')
