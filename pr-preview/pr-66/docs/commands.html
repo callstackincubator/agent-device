@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-66/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-66/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-66/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-66/static/js/index.b6d84188.js"></script>
+<script defer src="/agent-device/pr-preview/pr-66/static/js/index.a2e95b6a.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -37,8 +37,8 @@
 <li><code>boot</code> requires either an active session or an explicit device selector.</li>
 <li><code>boot</code> is mainly needed when starting a new session and <code>open</code> fails because no booted simulator/emulator is available.</li>
 <li><code>open [app|url] [url]</code> already boots/activates the selected target when needed.</li>
-<li><code>open &lt;url&gt;</code> deep links are supported on Android and iOS (<code>simctl openurl</code> on simulator, <code>devicectl --payload-url</code> on device).</li>
-<li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link in a selected iOS app context.</li>
+<li><code>open &lt;url&gt;</code> deep links are supported on Android and iOS.</li>
+<li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link on iOS.</li>
 <li>On iOS devices, <code>http(s)://</code> URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.</li>
 </ul>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-token-string-expression)"> &quot;https://example.com&quot;</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> ios</span><span style="color:var(--shiki-token-comment)">           # open link in web browser</span></span>

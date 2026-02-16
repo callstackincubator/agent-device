@@ -19,8 +19,8 @@ agent-device app-switcher
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android and iOS (`simctl openurl` on simulator, `devicectl --payload-url` on device).
-- `open <app> <url>` opens a deep link in a selected iOS app context.
+- `open <url>` deep links are supported on Android and iOS.
+- `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 
 ```bash
