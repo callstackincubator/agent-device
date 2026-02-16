@@ -103,3 +103,11 @@ Run integration tests when behavior crosses platform boundaries:
 - Unit tests: `pnpm test:unit`
 - Smoke tests: `pnpm test:smoke`
 - Integration tests: `pnpm test:integration`
+
+## Pull Requests
+- Before opening PR: ensure no conflict markers and no unmerged paths.
+- Run required checks for touched scope (at minimum `pnpm typecheck`; plus test commands from **Testing** above).
+- PR body must be short and include:
+  - `## Summary` with key behavior changes
+  - `## Validation` with exact commands run
+- Call out known gaps or follow-ups explicitly; do not hide failing checks.
