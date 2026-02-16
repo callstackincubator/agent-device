@@ -187,6 +187,8 @@ function acquireDaemonLock(): boolean {
   ) {
     return false;
   }
+  // Best-effort stale-lock cleanup: another process may win the race between unlink and re-create.
+  // We rely on the subsequent write with `wx` to enforce single-writer semantics.
   try {
     fs.unlinkSync(lockPath);
   } catch {
@@ -251,19 +253,27 @@ function start(): void {
   });
 
   let shuttingDown = false;
+  const closeServer = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      try {
+        server.close(() => resolve());
+      } catch {
+        resolve();
+      }
+    });
+  };
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    await closeServer();
     const sessionsToStop = sessionStore.toArray();
     for (const session of sessionsToStop) {
       sessionStore.writeSessionLog(session);
     }
     await stopAllIosRunnerSessions();
-    server.close(() => {
-      removeInfo();
-      releaseDaemonLock();
-      process.exit(0);
-    });
+    removeInfo();
+    releaseDaemonLock();
+    process.exit(0);
   };
 
   process.on('SIGINT', () => {

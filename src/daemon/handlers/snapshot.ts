@@ -1,7 +1,6 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
-import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import { runIosRunnerCommand, stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
 import {
   attachRefs,
@@ -79,8 +78,7 @@ export async function handleSnapshotCommands(params: {
       }
       snapshotScope = resolved;
     }
-    const shouldCleanupSessionlessIosRunner = !session && device.platform === 'ios';
-    try {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
         ...contextFromFlags(
           logPath,
@@ -120,11 +118,7 @@ export async function handleSnapshotCommands(params: {
           appBundleId: nextSession.appBundleId,
         },
       };
-    } finally {
-      if (shouldCleanupSessionlessIosRunner) {
-        await stopIosRunnerSession(device.id);
-      }
-    }
+    });
   }
 
   if (command === 'wait') {
@@ -148,8 +142,7 @@ export async function handleSnapshotCommands(params: {
         error: { code: 'UNSUPPORTED_OPERATION', message: 'wait is not supported on this device' },
       };
     }
-    const shouldCleanupSessionlessIosRunner = !session && device.platform === 'ios';
-    try {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       let text: string;
       let timeoutMs: number | null;
       if (parsed.kind === 'selector') {
@@ -269,11 +262,7 @@ export async function handleSnapshotCommands(params: {
         ok: false,
         error: { code: 'COMMAND_FAILED', message: `wait timed out for text: ${text}` },
       };
-    } finally {
-      if (shouldCleanupSessionlessIosRunner) {
-        await stopIosRunnerSession(device.id);
-      }
-    }
+    });
   }
 
   if (command === 'alert') {
@@ -288,8 +277,7 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    const shouldCleanupSessionlessIosRunner = !session && device.platform === 'ios';
-    try {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       if (action === 'wait') {
         const timeout = parseTimeout(req.positionals?.[1]) ?? DEFAULT_TIMEOUT_MS;
         const start = Date.now();
@@ -321,11 +309,7 @@ export async function handleSnapshotCommands(params: {
       );
       recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
       return { ok: true, data };
-    } finally {
-      if (shouldCleanupSessionlessIosRunner) {
-        await stopIosRunnerSession(device.id);
-      }
-    }
+    });
   }
 
   if (command === 'settings') {
@@ -350,18 +334,20 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    const appBundleId = session?.appBundleId;
-    const data = await dispatchCommand(
-      device,
-      'settings',
-      [setting, state, appBundleId ?? ''],
-      req.flags?.out,
-      {
-        ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
-      },
-    );
-    recordIfSession(sessionStore, session, req, data ?? { setting, state });
-    return { ok: true, data: data ?? { setting, state } };
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      const appBundleId = session?.appBundleId;
+      const data = await dispatchCommand(
+        device,
+        'settings',
+        [setting, state, appBundleId ?? ''],
+        req.flags?.out,
+        {
+          ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
+        },
+      );
+      recordIfSession(sessionStore, session, req, data ?? { setting, state });
+      return { ok: true, data: data ?? { setting, state } };
+    });
   }
 
   return null;
@@ -418,6 +404,23 @@ async function resolveSessionDevice(
   const device = session?.device ?? (await resolveTargetDevice(flags ?? {}));
   if (!session) await ensureDeviceReady(device);
   return { session, device };
+}
+
+async function withSessionlessRunnerCleanup<T>(
+  session: SessionState | undefined,
+  device: SessionState['device'],
+  task: () => Promise<T>,
+): Promise<T> {
+  const shouldCleanupSessionlessIosRunner = !session && device.platform === 'ios';
+  try {
+    return await task();
+  } finally {
+    // Sessionless iOS commands intentionally stop the runner to avoid leaked xcodebuild processes.
+    // For multi-command flows, keep an active session via `open` so the runner can be reused.
+    if (shouldCleanupSessionlessIosRunner) {
+      await stopIosRunnerSession(device.id);
+    }
+  }
 }
 
 function recordIfSession(

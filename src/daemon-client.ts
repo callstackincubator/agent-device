@@ -164,6 +164,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
+  // iOS physical-device runner startup/build can exceed 60s, so use a safer default for daemon RPCs.
   if (!raw) return 180000;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 180000;

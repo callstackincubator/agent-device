@@ -140,8 +140,9 @@ async function executeRunnerCommand(
   command: RunnerCommand,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
 ): Promise<Record<string, unknown>> {
+  let session: RunnerSession | undefined;
   try {
-    const session = await ensureRunnerSession(device, options);
+    session = await ensureRunnerSession(device, options);
     const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
     return await executeRunnerCommandWithSession(
       device,
@@ -157,8 +158,12 @@ async function executeRunnerCommand(
       typeof appErr.message === 'string' &&
       appErr.message.includes('Runner did not accept connection')
     ) {
-      await stopIosRunnerSession(device.id);
-      const session = await ensureRunnerSession(device, options);
+      if (session) {
+        await stopRunnerSession(session);
+      } else {
+        await stopIosRunnerSession(device.id);
+      }
+      session = await ensureRunnerSession(device, options);
       const response = await waitForRunner(
         session.device,
         session.port,
@@ -217,12 +222,17 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
 }
 
 export async function stopAllIosRunnerSessions(): Promise<void> {
-  while (runnerSessions.size > 0) {
-    const pending = Array.from(runnerSessions.keys());
-    await Promise.allSettled(pending.map(async (deviceId) => {
-      await stopIosRunnerSession(deviceId);
-    }));
-  }
+  // Shutdown cleanup drains the sessions known at invocation time; daemon shutdown closes intake.
+  const pending = Array.from(runnerSessions.keys());
+  await Promise.allSettled(pending.map(async (deviceId) => {
+    await stopIosRunnerSession(deviceId);
+  }));
+}
+
+async function stopRunnerSession(session: RunnerSession): Promise<void> {
+  await withRunnerSessionLock(session.deviceId, async () => {
+    await stopRunnerSessionInternal(session.deviceId, session);
+  });
 }
 
 async function stopRunnerSessionInternal(deviceId: string, sessionOverride?: RunnerSession): Promise<void> {
