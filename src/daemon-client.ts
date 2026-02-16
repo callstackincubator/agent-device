@@ -78,6 +78,7 @@ async function ensureDaemon(): Promise<DaemonInfo> {
   }
 
   throw new AppError('COMMAND_FAILED', 'Failed to start daemon', {
+    kind: 'daemon_startup_failed',
     infoPath,
     lockPath,
     hint: resolveDaemonStartupHint(getDaemonMetadataState()),
@@ -99,6 +100,10 @@ async function recoverDaemonLockHolder(): Promise<boolean> {
   if (!state.hasLock || state.hasInfo) return false;
   const lockInfo = readDaemonLockInfo();
   if (!lockInfo) {
+    removeDaemonLock();
+    return true;
+  }
+  if (!isAgentDeviceDaemonProcess(lockInfo.pid, lockInfo.processStartTime)) {
     removeDaemonLock();
     return true;
   }
@@ -250,9 +255,9 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
-  if (!raw) return 45000;
+  if (!raw) return 90000;
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 45000;
+  if (!Number.isFinite(parsed)) return 90000;
   return Math.max(1000, Math.floor(parsed));
 }
 

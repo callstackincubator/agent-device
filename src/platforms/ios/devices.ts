@@ -4,6 +4,7 @@ import path from 'node:path';
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 
 const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICECTL_LIST_TIMEOUT_MS,
@@ -51,7 +52,7 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
   try {
     jsonPath = path.join(
       os.tmpdir(),
-      `agent-device-devicectl-${process.pid}-${Date.now()}.json`,
+      `agent-device-devicectl-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
     );
     const devicectlResult = await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath], {
       allowFailure: true,
@@ -96,11 +97,4 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
   }
 
   return devices;
-}
-
-function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
 }

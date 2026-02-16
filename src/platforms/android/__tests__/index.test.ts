@@ -99,6 +99,9 @@ test('inferAndroidAppName derives readable names from package ids', () => {
   assert.equal(inferAndroidAppName('com.android.settings'), 'Settings');
   assert.equal(inferAndroidAppName('com.google.android.apps.maps'), 'Maps');
   assert.equal(inferAndroidAppName('org.mozilla.firefox'), 'Firefox');
+  assert.equal(inferAndroidAppName('com.facebook.katana'), 'Katana');
+  assert.equal(inferAndroidAppName('single'), 'Single');
+  assert.equal(inferAndroidAppName('com.android.app.services'), 'Services');
 });
 
 test('listAndroidApps returns launchable apps with inferred names', async () => {

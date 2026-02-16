@@ -119,7 +119,7 @@ function filterIosDeviceApps(apps: IosAppInfo[], filter: 'user-installed' | 'all
   return apps;
 }
 
-function resolveIosDevicectlHint(stdout: string, stderr: string): string {
+export function resolveIosDevicectlHint(stdout: string, stderr: string): string {
   const text = `${stdout}\n${stderr}`.toLowerCase();
   if (text.includes('device is busy') && text.includes('connecting')) {
     return 'iOS device is still connecting. Keep it unlocked and connected by cable until it is fully available in Xcode Devices, then retry.';

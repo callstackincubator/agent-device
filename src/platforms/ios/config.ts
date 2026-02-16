@@ -1,4 +1,5 @@
 import { isEnvTruthy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
+import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 
 export const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS,
@@ -25,10 +26,3 @@ export const IOS_DEVICECTL_TIMEOUT_MS = resolveTimeoutMs(
 );
 
 export const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
-
-function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
-}

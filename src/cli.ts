@@ -254,6 +254,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
 
 function isDaemonStartupFailure(error: AppError): boolean {
   if (error.code !== 'COMMAND_FAILED') return false;
+  if (error.details?.kind === 'daemon_startup_failed') return true;
   if (!error.message.toLowerCase().includes('failed to start daemon')) return false;
   return typeof error.details?.infoPath === 'string' || typeof error.details?.lockPath === 'string';
 }

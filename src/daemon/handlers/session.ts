@@ -148,7 +148,7 @@ async function handleAppStateCommand(params: {
   }
   if (shouldUseSessionStateForIos) {
     const appName = session.appName ?? session.appBundleId;
-    if (!appName && !session.appBundleId) {
+    if (!session.appName && !session.appBundleId) {
       return {
         ok: false,
         error: {

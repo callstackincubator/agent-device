@@ -275,7 +275,7 @@ Environment selectors:
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `45000`). Increase for slow physical-device setup (for example `120000`).
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.

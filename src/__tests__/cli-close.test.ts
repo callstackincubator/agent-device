@@ -67,6 +67,7 @@ async function runCliCapture(argv: string[]): Promise<RunResult> {
 async function runCliCaptureWithErrorDetails(
   argv: string[],
   details: Record<string, unknown>,
+  message = 'Failed to start daemon',
 ): Promise<RunResult> {
   let daemonCalls = 0;
   let stdout = '';
@@ -91,7 +92,7 @@ async function runCliCaptureWithErrorDetails(
 
   const sendToDaemon = async (): Promise<DaemonResponse> => {
     daemonCalls += 1;
-    throw new AppError('COMMAND_FAILED', 'Failed to start daemon', details);
+    throw new AppError('COMMAND_FAILED', message, details);
   };
 
   try {
@@ -132,6 +133,21 @@ test('close treats lock-only daemon startup failure as no-op', async () => {
     lockPath: '/tmp/daemon.lock',
     hint: 'stale daemon lock',
   });
+  assert.equal(result.code, null);
+  assert.equal(result.daemonCalls, 1);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+});
+
+test('close treats structured daemon startup failure as no-op without relying on message text', async () => {
+  const result = await runCliCaptureWithErrorDetails(
+    ['close'],
+    {
+      kind: 'daemon_startup_failed',
+      lockPath: '/tmp/daemon.lock',
+    },
+    'daemon bootstrap failed',
+  );
   assert.equal(result.code, null);
   assert.equal(result.daemonCalls, 1);
   assert.equal(result.stdout, '');

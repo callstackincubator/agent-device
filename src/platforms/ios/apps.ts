@@ -19,13 +19,14 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
   const alias = ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
 
-  if (device.kind === 'simulator') {
-    const list = await listSimulatorApps(device);
-    const matches = list.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-    if (matches.length === 1) return matches[0].bundleId;
-    if (matches.length > 1) {
-      throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
-    }
+  const list =
+    device.kind === 'simulator'
+      ? await listSimulatorApps(device)
+      : await listIosDeviceApps(device, 'all');
+  const matches = list.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
+  if (matches.length === 1) return matches[0].bundleId;
+  if (matches.length > 1) {
+    throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
   }
 
   throw new AppError('APP_NOT_INSTALLED', `No app found matching "${app}"`);
@@ -206,7 +207,8 @@ export async function listIosApps(
   filter: 'user-installed' | 'all' = 'all',
 ): Promise<IosAppInfo[]> {
   if (device.kind === 'simulator') {
-    return await listSimulatorApps(device);
+    const apps = await listSimulatorApps(device);
+    return filterIosAppsByBundlePrefix(apps, filter);
   }
   return await listIosDeviceApps(device, filter);
 }
@@ -306,4 +308,11 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
     },
     { deadline: launchDeadline },
   );
+}
+
+function filterIosAppsByBundlePrefix(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
+  if (filter === 'user-installed') {
+    return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
+  }
+  return apps;
 }

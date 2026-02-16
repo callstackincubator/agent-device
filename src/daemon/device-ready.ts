@@ -4,12 +4,15 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
+import { resolveTimeoutMs } from '../utils/timeouts.ts';
+import { resolveIosDevicectlHint } from '../platforms/ios/devicectl.ts';
 
 const IOS_DEVICE_READY_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICE_READY_TIMEOUT_MS,
   15_000,
   1_000,
 );
+const IOS_DEVICE_READY_COMMAND_TIMEOUT_BUFFER_MS = 3_000;
 
 export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
   if (device.platform === 'ios') {
@@ -29,15 +32,11 @@ export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
   }
 }
 
-function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
-}
-
 async function ensureIosDeviceReady(deviceId: string): Promise<void> {
-  const jsonPath = path.join(os.tmpdir(), `agent-device-ready-${process.pid}-${Date.now()}.json`);
+  const jsonPath = path.join(
+    os.tmpdir(),
+    `agent-device-ready-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
   const timeoutSeconds = Math.max(1, Math.ceil(IOS_DEVICE_READY_TIMEOUT_MS / 1000));
   try {
     const result = await runCmd(
@@ -54,7 +53,10 @@ async function ensureIosDeviceReady(deviceId: string): Promise<void> {
         '--timeout',
         String(timeoutSeconds),
       ],
-      { allowFailure: true, timeoutMs: IOS_DEVICE_READY_TIMEOUT_MS },
+      {
+        allowFailure: true,
+        timeoutMs: IOS_DEVICE_READY_TIMEOUT_MS + IOS_DEVICE_READY_COMMAND_TIMEOUT_BUFFER_MS,
+      },
     );
     const stdout = String(result.stdout ?? '');
     const stderr = String(result.stderr ?? '');
@@ -143,15 +145,13 @@ async function readIosReadyPayload(jsonPath: string): Promise<{ parsed: boolean;
 }
 
 export function resolveIosReadyHint(stdout: string, stderr: string): string {
+  const devicectlHint = resolveIosDevicectlHint(stdout, stderr);
+  if (devicectlHint !== 'Ensure the iOS device is unlocked, trusted, and available in Xcode > Devices, then retry.') {
+    return devicectlHint;
+  }
   const text = `${stdout}\n${stderr}`.toLowerCase();
-  if (text.includes('device is busy') && text.includes('connecting')) {
-    return 'Device is still connecting. Keep it unlocked and connected by cable until connection settles, then retry.';
-  }
-  if (text.includes('coredeviceservice') && text.includes('timed out')) {
-    return 'CoreDevice service did not initialize in time. Reconnect device and retry; if it persists restart Xcode and the iOS device.';
-  }
   if (text.includes('timed out waiting for all destinations')) {
     return 'Xcode destination did not become available in time. Keep device unlocked and retry.';
   }
-  return 'Ensure the iOS device is unlocked, trusted, and visible in Xcode > Devices, then retry.';
+  return devicectlHint;
 }

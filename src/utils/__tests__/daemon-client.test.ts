@@ -12,14 +12,14 @@ import {
   waitForProcessExit,
 } from '../process-identity.ts';
 
-test('resolveDaemonRequestTimeoutMs defaults to 45000', () => {
-  assert.equal(resolveDaemonRequestTimeoutMs(undefined), 45000);
+test('resolveDaemonRequestTimeoutMs defaults to 90000', () => {
+  assert.equal(resolveDaemonRequestTimeoutMs(undefined), 90000);
 });
 
 test('resolveDaemonRequestTimeoutMs enforces minimum timeout', () => {
   assert.equal(resolveDaemonRequestTimeoutMs('100'), 1000);
   assert.equal(resolveDaemonRequestTimeoutMs('2500'), 2500);
-  assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 45000);
+  assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 90000);
 });
 
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {

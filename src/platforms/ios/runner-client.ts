@@ -10,6 +10,7 @@ import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
+import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 
 export type RunnerCommand = {
   command:
@@ -101,20 +102,6 @@ const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
-
-function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
-}
-
-function resolveTimeoutSeconds(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
-}
 
 export type RunnerSnapshotNode = {
   index: number;
