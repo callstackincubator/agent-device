@@ -689,6 +689,52 @@ test('open --relaunch fails without app when no session exists', async () => {
   }
 });
 
+test('open on in-use device returns DEVICE_IN_USE before readiness checks', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'busy-session',
+    makeSession('busy-session', {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  let ensureReadyCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['settings'],
+      flags: { platform: 'ios' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {
+      ensureReadyCalls += 1;
+    },
+    resolveTargetDevice: async () => ({
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'DEVICE_IN_USE');
+  }
+  assert.equal(ensureReadyCalls, 0);
+});
+
 test('replay parses open --relaunch flag and replays open with relaunch semantics', async () => {
   const sessionStore = makeSessionStore();
   const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-relaunch-'));

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { isDeepLinkTarget, isWebUrl } from '../../core/open-target.ts';
+import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
@@ -105,7 +105,7 @@ async function resolveIosBundleIdForOpen(
   if (device.platform !== 'ios' || !openTarget) return undefined;
   if (isDeepLinkTarget(openTarget)) {
     if (device.kind === 'device') {
-      return currentAppBundleId ?? (isWebUrl(openTarget) ? 'com.apple.mobilesafari' : undefined);
+      return resolveIosDeviceDeepLinkBundleId(currentAppBundleId, openTarget);
     }
     return undefined;
   }
@@ -482,7 +482,6 @@ export async function handleSessionCommands(params: {
       };
     }
     const device = await resolveDevice(req.flags ?? {});
-    await ensureReady(device);
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {
@@ -494,6 +493,7 @@ export async function handleSessionCommands(params: {
         },
       };
     }
+    await ensureReady(device);
     const appBundleId = await resolveIosBundleIdForOpen(device, openTarget);
     if (shouldRelaunch && openTarget) {
       const closeTarget = appBundleId ?? openTarget;

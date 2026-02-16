@@ -2,7 +2,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS } from './config.ts';
 import { listIosDeviceApps, runIosDevicectl, type IosAppInfo } from './devicectl.ts';
@@ -39,12 +39,20 @@ export async function openIosApp(
 ): Promise<void> {
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
-    if (device.kind !== 'simulator') {
-      throw new AppError('UNSUPPORTED_OPERATION', 'Deep link open is only supported on iOS simulators');
+    if (device.kind === 'simulator') {
+      await ensureBootedSimulator(device);
+      await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+      await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+      return;
     }
-    await ensureBootedSimulator(device);
-    await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-    await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+    const bundleId = resolveIosDeviceDeepLinkBundleId(options?.appBundleId, deepLinkTarget);
+    if (!bundleId) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'Deep link open on iOS devices requires an active app bundle ID. Open the app first, then open the URL.',
+      );
+    }
+    await launchIosDeviceProcess(device, bundleId, { payloadUrl: deepLinkTarget });
     return;
   }
 
@@ -54,10 +62,7 @@ export async function openIosApp(
     return;
   }
 
-  await runIosDevicectl(['device', 'process', 'launch', '--device', device.id, bundleId], {
-    action: 'launch iOS app',
-    deviceId: device.id,
-  });
+  await launchIosDeviceProcess(device, bundleId);
 }
 
 export async function openIosDevice(device: DeviceInfo): Promise<void> {
@@ -308,6 +313,18 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
     },
     { deadline: launchDeadline },
   );
+}
+
+async function launchIosDeviceProcess(
+  device: DeviceInfo,
+  bundleId: string,
+  options?: { payloadUrl?: string },
+): Promise<void> {
+  const args = ['device', 'process', 'launch', '--device', device.id, bundleId];
+  if (options?.payloadUrl) {
+    args.push('--payload-url', options.payloadUrl);
+  }
+  await runIosDevicectl(args, { action: 'launch iOS app', deviceId: device.id });
 }
 
 function filterIosAppsByBundlePrefix(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
