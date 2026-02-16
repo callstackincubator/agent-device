@@ -1,5 +1,6 @@
 import { AppError } from './errors.ts';
 import {
+  buildCommandUsageText,
   buildUsageText,
   getCommandSchema,
   getFlagDefinition,
@@ -200,4 +201,8 @@ export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' |
 
 export function usage(): string {
   return buildUsageText();
+}
+
+export function usageForCommand(command: string): string | null {
+  return buildCommandUsageText(command);
 }

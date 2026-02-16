@@ -569,18 +569,12 @@ CLI to control iOS and Android devices for AI agents.
 
   const helpFlags = FLAG_DEFINITIONS
     .filter((definition) => definition.usageLabel && definition.usageDescription);
-  const maxFlagLabel = Math.max(...helpFlags.map((flag) => (flag.usageLabel ?? '').length)) + 2;
-  const flagLines: string[] = ['Flags:'];
-  for (const flag of helpFlags) {
-    flagLines.push(
-      `  ${(flag.usageLabel ?? '').padEnd(maxFlagLabel)}${flag.usageDescription ?? ''}`,
-    );
-  }
+  const flagsSection = renderFlagSection('Flags:', helpFlags);
 
   return `${header}
 ${commandLines.join('\n')}
 
-${flagLines.join('\n')}
+${flagsSection}
 `;
 }
 
@@ -588,4 +582,45 @@ const USAGE_TEXT = renderUsageText();
 
 export function buildUsageText(): string {
   return USAGE_TEXT;
+}
+
+function listHelpFlags(keys: ReadonlySet<FlagKey>): FlagDefinition[] {
+  return FLAG_DEFINITIONS.filter(
+    (definition) =>
+      keys.has(definition.key) &&
+      definition.usageLabel !== undefined &&
+      definition.usageDescription !== undefined,
+  );
+}
+
+function renderFlagSection(title: string, definitions: FlagDefinition[]): string {
+  if (definitions.length === 0) {
+    return `${title}\n  (none)`;
+  }
+  const maxFlagLabel = Math.max(...definitions.map((flag) => (flag.usageLabel ?? '').length)) + 2;
+  const lines = [title];
+  for (const flag of definitions) {
+    lines.push(`  ${(flag.usageLabel ?? '').padEnd(maxFlagLabel)}${flag.usageDescription ?? ''}`);
+  }
+  return lines.join('\n');
+}
+
+export function buildCommandUsageText(commandName: string): string | null {
+  const schema = getCommandSchema(commandName);
+  if (!schema) return null;
+  const usage = buildCommandUsage(commandName, schema);
+  const commandFlags = listHelpFlags(new Set<FlagKey>(schema.allowedFlags));
+  const globalFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
+
+  return `agent-device ${usage}
+
+${schema.description}
+
+Usage:
+  agent-device ${usage}
+
+${renderFlagSection('Command flags:', commandFlags)}
+
+${renderFlagSection('Global flags:', globalFlags)}
+`;
 }

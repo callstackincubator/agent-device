@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, usage } from '../args.ts';
+import { parseArgs, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
@@ -172,4 +172,22 @@ test('usage includes swipe and press series options', () => {
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
+});
+
+test('command usage shows command and global flags separately', () => {
+  const help = usageForCommand('swipe');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Swipe coordinates with optional repeat pattern/);
+  assert.match(help, /Command flags:/);
+  assert.match(help, /--pattern one-way\|ping-pong/);
+  assert.match(help, /Global flags:/);
+  assert.match(help, /--platform ios\|android/);
+});
+
+test('command usage shows no command flags when unsupported', () => {
+  const help = usageForCommand('appstate');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Show foreground app\/activity/);
+  assert.match(help, /Command flags:\n  \(none\)/);
+  assert.match(help, /Global flags:/);
 });
