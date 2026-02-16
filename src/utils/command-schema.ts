@@ -611,6 +611,11 @@ export function buildCommandUsageText(commandName: string): string | null {
   const usage = buildCommandUsage(commandName, schema);
   const commandFlags = listHelpFlags(new Set<FlagKey>(schema.allowedFlags));
   const globalFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
+  const sections: string[] = [];
+  if (commandFlags.length > 0) {
+    sections.push(renderFlagSection('Command flags:', commandFlags));
+  }
+  sections.push(renderFlagSection('Global flags:', globalFlags));
 
   return `agent-device ${usage}
 
@@ -619,8 +624,6 @@ ${schema.description}
 Usage:
   agent-device ${usage}
 
-${renderFlagSection('Command flags:', commandFlags)}
-
-${renderFlagSection('Global flags:', globalFlags)}
+${sections.join('\n\n')}
 `;
 }

@@ -65,7 +65,7 @@ test('help appstate prints command help and skips daemon dispatch', async () => 
   assert.equal(result.code, 0);
   assert.equal(result.daemonCalls, 0);
   assert.match(result.stdout, /Show foreground app\/activity/);
-  assert.match(result.stdout, /Command flags:\n  \(none\)/);
+  assert.doesNotMatch(result.stdout, /Command flags:/);
   assert.match(result.stdout, /Global flags:/);
 });
 

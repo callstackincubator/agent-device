@@ -188,6 +188,6 @@ test('command usage shows no command flags when unsupported', () => {
   const help = usageForCommand('appstate');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /Show foreground app\/activity/);
-  assert.match(help, /Command flags:\n  \(none\)/);
+  assert.doesNotMatch(help, /Command flags:/);
   assert.match(help, /Global flags:/);
 });
