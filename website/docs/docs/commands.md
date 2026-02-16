@@ -28,14 +28,12 @@ agent-device app-switcher
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
+agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
 ```
 
-- `--backend xctest` works on iOS simulators and iOS devices.
-- `--backend ax` is simulator-only.
-- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
+- iOS snapshots use XCTest on simulators and physical devices.
 
 ## Interactions
 
