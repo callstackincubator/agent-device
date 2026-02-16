@@ -5,6 +5,12 @@ import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 
+const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_DEVICECTL_LIST_TIMEOUT_MS,
+  8_000,
+  500,
+);
+
 export async function listIosDevices(): Promise<DeviceInfo[]> {
   if (process.platform !== 'darwin') {
     throw new AppError('UNSUPPORTED_PLATFORM', 'iOS tools are only available on macOS');
@@ -47,7 +53,13 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
       os.tmpdir(),
       `agent-device-devicectl-${process.pid}-${Date.now()}.json`,
     );
-    await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath]);
+    const devicectlResult = await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath], {
+      allowFailure: true,
+      timeoutMs: IOS_DEVICECTL_LIST_TIMEOUT_MS,
+    });
+    if (devicectlResult.exitCode !== 0) {
+      return devices;
+    }
     const jsonText = await fs.readFile(jsonPath, 'utf8');
     const payload = JSON.parse(jsonText) as {
       result?: {
@@ -84,4 +96,11 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
   }
 
   return devices;
+}
+
+function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
 }

@@ -30,5 +30,8 @@ npx agent-device open Settings --platform ios
 - `AGENT_DEVICE_IOS_TEAM_ID`
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
-- If first-run device setup is slow, increase daemon timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
+- If device setup is slow, increase daemon timeout:
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `45000`)
+- If daemon startup reports stale metadata, remove stale files and retry:
+  - `~/.agent-device/daemon.json`
+  - `~/.agent-device/daemon.lock`

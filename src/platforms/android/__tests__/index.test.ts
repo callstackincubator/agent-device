@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { openAndroidApp, parseAndroidLaunchComponent, swipeAndroid } from '../index.ts';
+import { inferAndroidAppName, listAndroidApps, openAndroidApp, parseAndroidLaunchComponent, swipeAndroid } from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
@@ -93,6 +93,120 @@ test('parseAndroidLaunchComponent extracts final resolved component', () => {
 test('parseAndroidLaunchComponent returns null when no component is present', () => {
   const stdout = 'No activity found';
   assert.equal(parseAndroidLaunchComponent(stdout), null);
+});
+
+test('inferAndroidAppName derives readable names from package ids', () => {
+  assert.equal(inferAndroidAppName('com.android.settings'), 'Settings');
+  assert.equal(inferAndroidAppName('com.google.android.apps.maps'), 'Maps');
+  assert.equal(inferAndroidAppName('org.mozilla.firefox'), 'Firefox');
+});
+
+test('listAndroidApps returns launchable apps with inferred names', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-apps-all-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  await fs.writeFile(
+    adbPath,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "query-activities" ]; then',
+      '  echo "com.google.android.apps.maps/.MainActivity"',
+      '  echo "org.mozilla.firefox/.App"',
+      '  echo "com.android.settings/.Settings"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ] && [ "$5" = "-3" ]; then',
+      '  echo "package:com.google.android.apps.maps"',
+      '  echo "package:com.example.serviceonly"',
+      '  echo "package:org.mozilla.firefox"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    const apps = await listAndroidApps(device, 'all');
+    assert.deepEqual(apps, [
+      { package: 'com.android.settings', name: 'Settings' },
+      { package: 'com.google.android.apps.maps', name: 'Maps' },
+      { package: 'org.mozilla.firefox', name: 'Firefox' },
+    ]);
+  } finally {
+    process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('listAndroidApps user-installed excludes non-launchable packages', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-apps-user-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  await fs.writeFile(
+    adbPath,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "query-activities" ]; then',
+      '  echo "com.google.android.apps.maps/.MainActivity"',
+      '  echo "org.mozilla.firefox/.App"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ] && [ "$5" = "-3" ]; then',
+      '  echo "package:com.google.android.apps.maps"',
+      '  echo "package:com.example.serviceonly"',
+      '  echo "package:org.mozilla.firefox"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    const apps = await listAndroidApps(device, 'user-installed');
+    assert.deepEqual(apps, [
+      { package: 'com.google.android.apps.maps', name: 'Maps' },
+      { package: 'org.mozilla.firefox', name: 'Firefox' },
+    ]);
+  } finally {
+    process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('openAndroidApp rejects activity override for deep link URLs', async () => {

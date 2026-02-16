@@ -101,9 +101,11 @@ iOS settings helpers are simulator-only.
 
 ```bash
 agent-device appstate
-agent-device apps --metadata --platform ios
-agent-device apps --metadata --platform android
 ```
+
+- Android: `appstate` reports live foreground package/activity.
+- iOS: `appstate` is session-scoped and reports the app tracked by the active session on the target device.
+- For iOS `appstate`, ensure a matching session exists (for example `open --session <name> --platform ios --device "<name>" <app>`).
 
 ### Interactions (use @refs from snapshot)
 
@@ -167,9 +169,11 @@ agent-device trace stop ./trace.log    # Stop and move trace log
 
 ```bash
 agent-device devices
-agent-device apps --platform ios
-agent-device apps --platform android          # default: launchable only
-agent-device apps --platform android --all
+agent-device apps --platform ios              # iOS simulator + iOS device, includes default/system apps
+agent-device apps --platform ios --all        # explicit include-all (same as default)
+agent-device apps --platform ios --user-installed
+agent-device apps --platform android          # includes default/system apps
+agent-device apps --platform android --all    # explicit include-all (same as default)
 agent-device apps --platform android --user-installed
 ```
 
@@ -192,7 +196,8 @@ agent-device apps --platform android --user-installed
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
 - iOS deep-link opens are simulator-only.
 - iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
-- For long first-run physical-device setup/build, increase daemon timeout: `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher).
+- Default daemon request timeout is `45000`ms. For slow physical-device setup/build, increase `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (for example `120000`).
+- For daemon startup troubleshooting, follow stale metadata hints for `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock`.
 - Use `fill` when you want clear-then-type semantics.
 - Use `type` when you want to append/enter text without clearing.
 - On Android, prefer `fill` for important fields; it verifies entered text and retries once when IME reorders characters.

@@ -15,6 +15,7 @@ Sessions isolate device context. A device can only be held by one session at a t
 - Close sessions when done.
 - Use separate sessions for parallel work.
 - In iOS sessions, use `open <app>` for simulator/device. `open <url>` is simulator-only.
+- On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - For dev loops where runtime state can persist (for example React Native Fast Refresh), use `open <app> --relaunch` to restart the app process in the same session.
 - Use `--save-script [path]` to record replay scripts on `close`; path is a file path and parent directories are created automatically.
 - For ambiguous bare `--save-script` values, prefer `--save-script=workflow.ad` or `./workflow.ad`.

@@ -221,7 +221,12 @@ function formatUnsupportedFlagMessage(command: string | null, unsupported: strin
 }
 
 export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' | 'version'> {
-  const { json: _json, help: _help, version: _version, ...daemonFlags } = flags;
+  const {
+    json: _json,
+    help: _help,
+    version: _version,
+    ...daemonFlags
+  } = flags;
   return daemonFlags;
 }
 

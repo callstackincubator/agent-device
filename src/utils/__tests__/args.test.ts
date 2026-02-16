@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, usage, usageForCommand } from '../args.ts';
+import { parseArgs, toDaemonFlags, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
@@ -10,6 +10,14 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.command, 'open');
   assert.deepEqual(parsed.positionals, ['settings']);
   assert.equal(parsed.flags.relaunch, true);
+});
+
+test('toDaemonFlags strips CLI-only flags', () => {
+  const parsed = parseArgs(['open', 'settings', '--json']);
+  const daemonFlags = toDaemonFlags(parsed.flags);
+  assert.equal(Object.hasOwn(daemonFlags, 'json'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'help'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'version'), false);
 });
 
 test('parseArgs accepts --save-script with optional path value', () => {
@@ -93,7 +101,17 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
-  assert.match(usage(), /--metadata/);
+  assert.doesNotMatch(usage(), /--metadata/);
+});
+
+test('apps defaults to --all filter and allows overrides', () => {
+  const defaultFilter = parseArgs(['apps'], { strictFlags: true });
+  assert.equal(defaultFilter.command, 'apps');
+  assert.equal(defaultFilter.flags.appsFilter, 'all');
+
+  const userInstalled = parseArgs(['apps', '--user-installed'], { strictFlags: true });
+  assert.equal(userInstalled.command, 'apps');
+  assert.equal(userInstalled.flags.appsFilter, 'user-installed');
 });
 
 test('every capability command has a parser schema entry', () => {

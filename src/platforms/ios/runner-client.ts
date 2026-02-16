@@ -60,7 +60,7 @@ const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
-  120_000,
+  45_000,
   5_000,
 );
 const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
@@ -75,29 +75,41 @@ const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = resolveTimeoutMs(
 );
 const RUNNER_CONNECT_RETRY_BASE_DELAY_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_BASE_DELAY_MS,
-  100,
+  300,
   10,
 );
 const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_MAX_DELAY_MS,
-  500,
+  2_000,
   10,
 );
 const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_REQUEST_TIMEOUT_MS,
-  1_000,
-  50,
+  5_000,
+  250,
 );
 const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICE_INFO_TIMEOUT_MS,
   10_000,
   500,
 );
+const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
+  process.env.AGENT_DEVICE_RUNNER_DESTINATION_TIMEOUT_SECONDS,
+  20,
+  5,
+);
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
 
 function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
+}
+
+function resolveTimeoutSeconds(raw: string | undefined, fallback: number, min: number): number {
   if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return fallback;
@@ -156,7 +168,9 @@ async function executeRunnerCommand(
     if (
       appErr.code === 'COMMAND_FAILED' &&
       typeof appErr.message === 'string' &&
-      appErr.message.includes('Runner did not accept connection')
+      appErr.message.includes('Runner did not accept connection') &&
+      shouldRetryRunnerConnectError(appErr) &&
+      session?.ready
     ) {
       if (session) {
         await stopRunnerSession(session);
@@ -184,7 +198,7 @@ async function executeRunnerCommandWithSession(
   logPath: string | undefined,
   timeoutMs: number,
 ): Promise<Record<string, unknown>> {
-  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs);
+  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs, session);
   return await parseRunnerResponse(response, session, logPath);
 }
 
@@ -304,6 +318,8 @@ async function ensureRunnerSession(
         'NO',
         resolveRunnerMaxConcurrentDestinationsFlag(device),
         '1',
+        '-destination-timeout',
+        String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
         '-xctestrun',
         xctestrunPath,
         '-destination',
@@ -437,6 +453,10 @@ function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
   if (override) {
     return path.resolve(override);
   }
+  if (kind === 'simulator') {
+    // Keep simulator runtime path aligned with pnpm build:xcuitest/build:all.
+    return path.join(RUNNER_DERIVED_ROOT, 'derived');
+  }
   return path.join(RUNNER_DERIVED_ROOT, 'derived', kind);
 }
 
@@ -565,10 +585,12 @@ function logChunk(chunk: string, logPath?: string, traceLogPath?: string, verbos
   }
 }
 
-function isRetryableRunnerError(err: unknown): boolean {
+export function isRetryableRunnerError(err: unknown): boolean {
   if (!(err instanceof AppError)) return false;
   if (err.code !== 'COMMAND_FAILED') return false;
   const message = `${err.message ?? ''}`.toLowerCase();
+  if (message.includes('xcodebuild exited early')) return false;
+  if (message.includes('device is busy') && message.includes('connecting')) return false;
   if (message.includes('runner did not accept connection')) return true;
   if (message.includes('fetch failed')) return true;
   if (message.includes('econnrefused')) return true;
@@ -631,12 +653,56 @@ function buildRunnerConnectError(params: {
   });
 }
 
+export function resolveRunnerEarlyExitHint(message: string, stdout: string, stderr: string): string {
+  const haystack = `${message}\n${stdout}\n${stderr}`.toLowerCase();
+  if (haystack.includes('device is busy') && haystack.includes('connecting')) {
+    return 'Target iOS device is still connecting. Keep it unlocked, wait for device trust/connection to settle, then retry.';
+  }
+  return bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT');
+}
+
+export function shouldRetryRunnerConnectError(error: unknown): boolean {
+  if (!(error instanceof AppError)) return true;
+  if (error.code !== 'COMMAND_FAILED') return true;
+  const message = String(error.message ?? '').toLowerCase();
+  if (message.includes('xcodebuild exited early')) return false;
+  return true;
+}
+
+async function buildRunnerEarlyExitError(params: {
+  session: RunnerSession;
+  port: number;
+  logPath?: string;
+}): Promise<AppError> {
+  const { session, port, logPath } = params;
+  const result = await session.testPromise;
+  const message = 'Runner did not accept connection (xcodebuild exited early)';
+  const reason = classifyBootFailure({
+    message,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    context: { platform: 'ios', phase: 'connect' },
+  });
+  return new AppError('COMMAND_FAILED', message, {
+    port,
+    logPath,
+    xcodebuild: {
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    },
+    reason,
+    hint: resolveRunnerEarlyExitHint(message, result.stdout, result.stderr),
+  });
+}
+
 async function waitForRunner(
   device: DeviceInfo,
   port: number,
   command: RunnerCommand,
   logPath?: string,
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
+  session?: RunnerSession,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
   let endpoints = await resolveRunnerCommandEndpoints(device, port, deadline.remainingMs());
@@ -650,6 +716,9 @@ async function waitForRunner(
             port,
             timeoutMs,
           });
+        }
+        if (session && session.child.exitCode !== null && session.child.exitCode !== undefined) {
+          throw await buildRunnerEarlyExitError({ session, port, logPath });
         }
         if (device.kind === 'device') {
           endpoints = await resolveRunnerCommandEndpoints(device, port, attemptDeadline?.remainingMs());
@@ -688,7 +757,7 @@ async function waitForRunner(
         baseDelayMs: RUNNER_CONNECT_RETRY_BASE_DELAY_MS,
         maxDelayMs: RUNNER_CONNECT_RETRY_MAX_DELAY_MS,
         jitter: 0.2,
-        shouldRetry: () => true,
+        shouldRetry: shouldRetryRunnerConnectError,
       },
       { deadline, phase: 'ios_runner_connect' },
     );

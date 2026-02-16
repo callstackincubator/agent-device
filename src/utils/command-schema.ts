@@ -13,8 +13,7 @@ export type CliFlags = {
   snapshotScope?: string;
   snapshotRaw?: boolean;
   snapshotBackend?: 'ax' | 'xctest';
-  appsFilter?: 'launchable' | 'user-installed' | 'all';
-  appsMetadata?: boolean;
+  appsFilter?: 'user-installed' | 'all';
   count?: number;
   intervalMs?: number;
   holdMs?: number;
@@ -232,7 +231,7 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     setValue: 'user-installed',
     usageLabel: '--user-installed',
-    usageDescription: 'Apps: list user-installed packages (Android only)',
+    usageDescription: 'Apps: list user-installed apps',
   },
   {
     key: 'appsFilter',
@@ -240,14 +239,7 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     setValue: 'all',
     usageLabel: '--all',
-    usageDescription: 'Apps: list all packages (Android only)',
-  },
-  {
-    key: 'appsMetadata',
-    names: ['--metadata'],
-    type: 'boolean',
-    usageLabel: '--metadata',
-    usageDescription: 'Apps: return metadata objects',
+    usageDescription: 'Apps: list all apps (include system/default apps)',
   },
   {
     key: 'snapshotInteractiveOnly',
@@ -348,9 +340,10 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   apps: {
-    description: 'List installed apps (Android launchable by default, iOS simulator)',
+    description: 'List installed apps (includes default/system apps by default)',
     positionalArgs: [],
-    allowedFlags: ['appsFilter', 'appsMetadata'],
+    allowedFlags: ['appsFilter'],
+    defaults: { appsFilter: 'all' },
   },
   appstate: {
     description: 'Show foreground app/activity',
