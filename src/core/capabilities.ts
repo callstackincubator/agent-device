@@ -17,7 +17,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   alert: { ios: { simulator: true }, android: {} },
   pinch: { ios: { simulator: true }, android: {} },
   'app-switcher': { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
-  apps: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  apps: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   back: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   boot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   click: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },

@@ -48,60 +48,87 @@ export async function resolveAndroidApp(
 
 export async function listAndroidApps(
   device: DeviceInfo,
-  filter: 'launchable' | 'user-installed' | 'all' = 'launchable',
-): Promise<string[]> {
-  if (filter === 'launchable') {
-    const result = await runCmd(
-      'adb',
-      adbArgs(device, [
-        'shell',
-        'cmd',
-        'package',
-        'query-activities',
-        '--brief',
-        '-a',
-        'android.intent.action.MAIN',
-        '-c',
-        'android.intent.category.LAUNCHER',
-      ]),
-      { allowFailure: true },
-    );
-    if (result.exitCode === 0 && result.stdout.trim().length > 0) {
-      const packages = new Set<string>();
-      for (const line of result.stdout.split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        const firstToken = trimmed.split(/\s+/)[0];
-        const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
-        if (pkg) packages.add(pkg);
-      }
-      if (packages.size > 0) {
-        return Array.from(packages);
-      }
-    }
-    // fallback: list all if query-activities not available
-  }
-
-  const args =
+  filter: 'user-installed' | 'all' = 'all',
+): Promise<Array<{ package: string; name: string }>> {
+  const launchable = await listAndroidLaunchablePackages(device);
+  const packageIds =
     filter === 'user-installed'
-      ? ['shell', 'pm', 'list', 'packages', '-3']
-      : ['shell', 'pm', 'list', 'packages'];
-  const result = await runCmd('adb', adbArgs(device, args));
+      ? (await listAndroidUserInstalledPackages(device)).filter((pkg) => launchable.has(pkg))
+      : Array.from(launchable);
+  return packageIds
+    .sort((a, b) => a.localeCompare(b))
+    .map((pkg) => ({ package: pkg, name: inferAndroidAppName(pkg) }));
+}
+
+async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<string>> {
+  const result = await runCmd(
+    'adb',
+    adbArgs(device, [
+      'shell',
+      'cmd',
+      'package',
+      'query-activities',
+      '--brief',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.LAUNCHER',
+    ]),
+    { allowFailure: true },
+  );
+  if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
+    return new Set<string>();
+  }
+  const packages = new Set<string>();
+  for (const line of result.stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const firstToken = trimmed.split(/\s+/)[0];
+    const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
+    if (pkg) packages.add(pkg);
+  }
+  return packages;
+}
+
+async function listAndroidUserInstalledPackages(device: DeviceInfo): Promise<string[]> {
+  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages', '-3']));
   return result.stdout
     .split('\n')
     .map((line: string) => line.replace('package:', '').trim())
     .filter(Boolean);
 }
 
-export async function listAndroidAppsMetadata(
-  device: DeviceInfo,
-  filter: 'launchable' | 'user-installed' | 'all' = 'launchable',
-): Promise<Array<{ package: string; launchable: boolean }>> {
-  const apps = await listAndroidApps(device, filter);
-  const launchable = filter === 'launchable'
-    ? new Set(apps)
-    : new Set(await listAndroidApps(device, 'launchable'));
-  return apps.map((pkg) => ({ package: pkg, launchable: launchable.has(pkg) }));
+export function inferAndroidAppName(packageName: string): string {
+  const ignoredTokens = new Set([
+    'com',
+    'android',
+    'google',
+    'app',
+    'apps',
+    'service',
+    'services',
+    'mobile',
+    'client',
+  ]);
+  const tokens = packageName
+    .split('.')
+    .flatMap((segment) => segment.split(/[_-]+/))
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => token.length > 0);
+  // Fallback to last token if every token is ignored (e.g. "com.android.app.services" → "Services").
+  let chosen = tokens[tokens.length - 1] ?? packageName;
+  for (let index = tokens.length - 1; index >= 0; index -= 1) {
+    const token = tokens[index];
+    if (!ignoredTokens.has(token)) {
+      chosen = token;
+      break;
+    }
+  }
+  return chosen
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 export async function getAndroidAppState(
@@ -180,7 +207,7 @@ export async function openAndroidApp(
     if (activity) {
       throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
     }
-    await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-a', resolved.value]));
+    await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]));
     return;
   }
   if (activity) {
@@ -193,6 +220,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',
@@ -212,6 +240,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',
@@ -232,6 +261,7 @@ export async function openAndroidApp(
         'shell',
         'am',
         'start',
+        '-W',
         '-a',
         'android.intent.action.MAIN',
         '-c',

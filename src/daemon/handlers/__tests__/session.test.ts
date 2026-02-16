@@ -124,6 +124,299 @@ test('boot succeeds for supported device in session', async () => {
   }
 });
 
+test('boot prefers explicit device selector over active session device', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+
+  const ensured: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async (device) => {
+      ensured.push(device.id);
+    },
+    resolveTargetDevice: async () => selectedDevice,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(ensured, ['sim-2']);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.id, 'sim-2');
+  }
+});
+
+test('appstate on iOS requires active session on selected device', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 15',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.apple.Preferences',
+      appName: 'Settings',
+    },
+  );
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'appstate',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => selectedDevice,
+    dispatch: async () => {
+      throw new Error('snapshot dispatch should not run');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    assert.match(response.error.message, /requires an active session/i);
+  }
+});
+
+test('appstate with explicit selector matching session returns session state', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'sim';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 17 Pro',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.apple.Maps',
+      appName: 'Maps',
+    },
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'appstate',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async () => {
+      throw new Error('snapshot dispatch should not run');
+    },
+    resolveTargetDevice: async () => {
+      throw new Error('resolveTargetDevice should not run');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.appName, 'Maps');
+    assert.equal(response.data?.appBundleId, 'com.apple.Maps');
+    assert.equal(response.data?.source, 'session');
+  }
+});
+
+test('appstate returns session appName when bundle id is unavailable', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'sim';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 17 Pro',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appName: 'Maps',
+    },
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'appstate',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async () => {
+      throw new Error('snapshot dispatch should not run');
+    },
+    resolveTargetDevice: async () => {
+      throw new Error('resolveTargetDevice should not run');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.appName, 'Maps');
+    assert.equal(response.data?.appBundleId, undefined);
+    assert.equal(response.data?.source, 'session');
+  }
+});
+
+test('appstate fails when iOS session has no tracked app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'sim';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'appstate',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'COMMAND_FAILED');
+    assert.match(response.error.message, /no foreground app is tracked/i);
+  }
+});
+
+test('appstate without session on iOS selector returns SESSION_NOT_FOUND', async () => {
+  const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'appstate',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => selectedDevice,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+  }
+});
+
+test('appstate with explicit missing session returns SESSION_NOT_FOUND', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'sim',
+      command: 'appstate',
+      positionals: [],
+      flags: { session: 'sim', platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'sim',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    assert.match(response.error.message, /no active session "sim"/i);
+    assert.doesNotMatch(response.error.message, /omit --session/i);
+  }
+});
+
 test('open URL on existing iOS session clears stale app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
@@ -250,6 +543,7 @@ test('open --relaunch closes and reopens active session app', async () => {
       calls.push({ command, positionals });
       return {};
     },
+    ensureReady: async () => {},
   });
 
   assert.ok(response);

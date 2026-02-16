@@ -108,6 +108,21 @@ agent-device settings location off
 - iOS `settings` support is simulator-only.
 - Android `settings` support works on emulators and devices.
 
+## App state and app lists
+
+```bash
+agent-device appstate
+agent-device apps --platform ios
+agent-device apps --platform ios --all
+agent-device apps --platform android
+agent-device apps --platform android --all
+```
+
+- Android `appstate` reports live foreground package/activity.
+- iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
+- iOS `apps` supports simulators and physical devices.
+- `apps` includes default/system apps by default (use `--user-installed` to filter).
+
 ## Media and logs
 
 ```bash
@@ -129,4 +144,6 @@ agent-device record stop                # Stop active recording
   - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (optional)
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 - If first-run XCTest setup/build is slow, increase daemon request timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- For daemon startup troubleshooting:
+  - follow stale metadata hints for `~/.agent-device/daemon.json` and `~/.agent-device/daemon.lock`

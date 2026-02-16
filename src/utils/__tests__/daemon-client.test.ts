@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { resolveDaemonRequestTimeoutMs } from '../../daemon-client.ts';
+import { resolveDaemonRequestTimeoutMs, resolveDaemonStartupHint } from '../../daemon-client.ts';
 import {
   isProcessAlive,
   readProcessCommand,
@@ -12,14 +12,31 @@ import {
   waitForProcessExit,
 } from '../process-identity.ts';
 
-test('resolveDaemonRequestTimeoutMs defaults to 180000', () => {
-  assert.equal(resolveDaemonRequestTimeoutMs(undefined), 180000);
+test('resolveDaemonRequestTimeoutMs defaults to 90000', () => {
+  assert.equal(resolveDaemonRequestTimeoutMs(undefined), 90000);
 });
 
 test('resolveDaemonRequestTimeoutMs enforces minimum timeout', () => {
   assert.equal(resolveDaemonRequestTimeoutMs('100'), 1000);
   assert.equal(resolveDaemonRequestTimeoutMs('2500'), 2500);
-  assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 180000);
+  assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 90000);
+});
+
+test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {
+  const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true });
+  assert.match(hint, /daemon\.lock/i);
+  assert.match(hint, /delete/i);
+});
+
+test('resolveDaemonStartupHint covers stale info+lock pair', () => {
+  const hint = resolveDaemonStartupHint({ hasInfo: true, hasLock: true });
+  assert.match(hint, /daemon\.json/i);
+  assert.match(hint, /daemon\.lock/i);
+});
+
+test('resolveDaemonStartupHint falls back to daemon.json guidance', () => {
+  const hint = resolveDaemonStartupHint({ hasInfo: true, hasLock: false });
+  assert.match(hint, /daemon\.json/i);
 });
 
 test('stopDaemonProcessForTakeover terminates a matching daemon process', async (t) => {
