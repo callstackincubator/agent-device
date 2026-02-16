@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.754c2a16.js"></script>
+<script defer src="/agent-device/static/js/index.0d7793c3.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -40,9 +40,15 @@
 <li><code>AGENT_DEVICE_IOS_TEAM_ID</code></li>
 <li><code>AGENT_DEVICE_IOS_SIGNING_IDENTITY</code></li>
 <li><code>AGENT_DEVICE_IOS_PROVISIONING_PROFILE</code></li>
-<li>If first-run device setup is slow, increase daemon timeout:
+<li>If device setup is slow, increase daemon timeout:
 <ul>
-<li><code>AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000</code> (or higher)</li>
+<li><code>AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000</code> (default is <code>90000</code>)</li>
+</ul>
+</li>
+<li>If daemon startup reports stale metadata, remove stale files and retry:
+<ul>
+<li><code>~/.agent-device/daemon.json</code></li>
+<li><code>~/.agent-device/daemon.lock</code></li>
 </ul>
 </li>
 </ul><!--/$--></div><div class="container-uhcWmO"><img class="logo-IwzwG8" src="/agent-device/static/image/abstract-atom.4eca0300.avif" alt="Abstract Logo" aria-hidden="true"/><div class="content-uJxcIj"><div class="headlineContainer-NHNT4y"><h1 class="headline-iCUUUl">Need React or React Native
