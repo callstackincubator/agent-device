@@ -11,3 +11,17 @@ export function isDeepLinkTarget(input: string): boolean {
   }
   return true;
 }
+
+export function isWebUrl(input: string): boolean {
+  const scheme = input.trim().split(':')[0]?.toLowerCase();
+  return scheme === 'http' || scheme === 'https';
+}
+
+export const IOS_SAFARI_BUNDLE_ID = 'com.apple.mobilesafari';
+
+export function resolveIosDeviceDeepLinkBundleId(appBundleId: string | undefined, url: string): string | undefined {
+  const bundleId = appBundleId?.trim();
+  if (bundleId) return bundleId;
+  if (isWebUrl(url)) return IOS_SAFARI_BUNDLE_ID;
+  return undefined;
+}

@@ -27,7 +27,7 @@ npx -y agent-device
 
 ## Core workflow
 
-1. Open app or deep link: `open [app|url]` (`open` handles target selection + boot/activation in the normal flow)
+1. Open app or deep link: `open [app|url] [url]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
 3. Interact using refs (`click @ref`, `fill @ref "text"`)
 4. Re-snapshot after navigation/UI changes
@@ -39,13 +39,14 @@ npx -y agent-device
 
 ```bash
 agent-device boot                 # Ensure target is booted/ready without opening app
-agent-device boot --platform ios  # Boot iOS simulator/device target
+agent-device boot --platform ios  # Boot iOS target
 agent-device boot --platform android # Boot Android emulator/device target
-agent-device open [app|url]       # Boot device/simulator; optionally launch app or deep link URL
+agent-device open [app|url] [url] # Boot device/simulator; optionally launch app or deep link URL
 agent-device open [app] --relaunch # Terminate app process first, then launch (fresh runtime)
 agent-device open [app] --activity com.example/.MainActivity # Android: open specific activity (app targets only)
 agent-device open "myapp://home" --platform android          # Android deep link
-agent-device open "https://example.com" --platform ios       # iOS simulator deep link (device unsupported)
+agent-device open "https://example.com" --platform ios       # iOS deep link (opens in browser)
+agent-device open MyApp "myapp://screen/to" --platform ios   # iOS deep link in app context
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
 agent-device session list         # List active sessions
@@ -188,13 +189,13 @@ agent-device apps --platform android --user-installed
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, `xctest` is the default and does not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), treat it as an explicit failure and retry the flow/app state.
-- `open <app|url>` can be used within an existing session to switch apps or open deep links.
-- `open <app>` updates session app bundle context; URL opens do not set an app bundle id.
+- `open <app|url> [url]` can be used within an existing session to switch apps or open deep links.
+- `open <app>` updates session app bundle context; `open <app> <url>` opens a deep link on iOS.
 - Use `open <app> --relaunch` during React Native/Fast Refresh debugging when you need a fresh app process without ending the session.
 - If AX returns the Simulator window or empty tree, restart Simulator or use `--backend xctest`.
 - Use `--session <name>` for parallel sessions; avoid device contention.
 - Use `--activity <component>` on Android to launch a specific activity (e.g. TV apps with LEANBACK); do not combine with URL opens.
-- iOS deep-link opens are simulator-only.
+- On iOS devices, `http(s)://` URLs fall back to Safari automatically; custom scheme URLs require an active app in the session.
 - iOS physical-device runner requires Xcode signing/provisioning; optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 - Default daemon request timeout is `45000`ms. For slow physical-device setup/build, increase `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (for example `120000`).
 - For daemon startup troubleshooting, follow stale metadata hints for `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock`.

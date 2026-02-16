@@ -315,7 +315,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   open: {
     description: 'Boot device/simulator; optionally launch app or deep link URL',
-    positionalArgs: ['appOrUrl?'],
+    positionalArgs: ['appOrUrl?', 'url?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch'],
   },
   close: {
