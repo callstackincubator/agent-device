@@ -8,7 +8,7 @@ This page summarizes the primary command groups.
 agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
-agent-device open [app]
+agent-device open [app|url] [url]
 agent-device close [app]
 agent-device back
 agent-device home
@@ -18,20 +18,25 @@ agent-device app-switcher
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
-- `open [app]` already boots/activates the selected target when needed.
-- `open <url>` deep links are supported on Android; iOS deep-link open is simulator-only.
+- `open [app|url] [url]` already boots/activates the selected target when needed.
+- `open <url>` deep links are supported on Android and iOS.
+- `open <app> <url>` opens a deep link on iOS.
+- On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
+
+```bash
+agent-device open "https://example.com" --platform ios           # open link in web browser
+agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
+```
 
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
+agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
 ```
 
-- `--backend xctest` works on iOS simulators and iOS devices.
-- `--backend ax` is simulator-only.
-- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
+- iOS snapshots use XCTest on simulators and physical devices.
 
 ## Interactions
 
@@ -68,12 +73,14 @@ agent-device find role button click
 ## Replay
 
 ```bash
+agent-device open Settings --platform ios --session e2e --save-script [path]
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 - `replay` runs deterministic `.ad` scripts.
 - `replay -u` updates stale recorded actions and rewrites the same script.
+- `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 
 See [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-62/docs/replay-e2e.md) for recording and CI workflow details.
 
@@ -100,7 +107,20 @@ agent-device settings location off
 ```
 
 - iOS `settings` support is simulator-only.
-- Android `settings` support works on emulators and devices.
+
+## App state and app lists
+
+```bash
+agent-device appstate
+agent-device apps --platform ios
+agent-device apps --platform ios --all
+agent-device apps --platform android
+agent-device apps --platform android --all
+```
+
+- Android `appstate` reports live foreground package/activity.
+- iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
+- `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 ## Media and logs
 
@@ -123,4 +143,6 @@ agent-device record stop                # Stop active recording
   - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (optional)
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 - If first-run XCTest setup/build is slow, increase daemon request timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=180000` (or higher)
+  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- For daemon startup troubleshooting:
+  - follow stale metadata hints for `~/.agent-device/daemon.json` and `~/.agent-device/daemon.lock`
