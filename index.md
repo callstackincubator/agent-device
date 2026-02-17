@@ -6,9 +6,9 @@
 
 ## Features
 
-- **One CLI, many devices**: Control iOS simulators + physical devices and Android emulators + devices with consistent snapshot and interaction commands.
-- **Token-efficient UI snapshots**: XCTest accessibility trees give agents a complete view of the UI while keeping output compact.
+- **One CLI, many devices**: Control iOS simulators, Android emulators, and physical devices with consistent snapshot and interaction commands.
+- **Token-efficient UI snapshots**: Accessibility trees give agents a complete view of the UI while keeping output compact.
 - **Interactions that just work**: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
 - **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
-- **Visual verification**: Capture full-resolution screenshots for reporting and visual checks.
-- **Traceable automation**: Collect trace logs for XCTest and AX to debug flaky interactions.
+- **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
+- **Traceable automation**: Collect trace logs for XCTest to debug flaky interactions.
