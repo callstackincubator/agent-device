@@ -1,6 +1,6 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
+import { runIosRunnerCommand, stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
 import {
   attachRefs,
@@ -69,45 +69,47 @@ export async function handleSnapshotCommands(params: {
       }
       snapshotScope = resolved;
     }
-    const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
-      ...contextFromFlags(
-        logPath,
-        { ...req.flags, snapshotScope },
-        appBundleId,
-        session?.trace?.outPath,
-      ),
-    })) as {
-      nodes?: RawSnapshotNode[];
-      truncated?: boolean;
-      backend?: 'xctest' | 'android';
-    };
-    const rawNodes = data?.nodes ?? [];
-    const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
-    const snapshot: SnapshotState = {
-      nodes,
-      truncated: data?.truncated,
-      createdAt: Date.now(),
-      backend: data?.backend,
-    };
-    const nextSession: SessionState = session
-      ? { ...session, snapshot }
-      : { name: sessionName, device, createdAt: Date.now(), appBundleId, snapshot, actions: [] };
-    recordIfSession(sessionStore, nextSession, req, {
-      nodes: nodes.length,
-      truncated: data?.truncated ?? false,
-    });
-    sessionStore.set(sessionName, nextSession);
-    return {
-      ok: true,
-      data: {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+        ...contextFromFlags(
+          logPath,
+          { ...req.flags, snapshotScope },
+          appBundleId,
+          session?.trace?.outPath,
+        ),
+      })) as {
+        nodes?: RawSnapshotNode[];
+        truncated?: boolean;
+        backend?: 'xctest' | 'android';
+      };
+      const rawNodes = data?.nodes ?? [];
+      const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+      const snapshot: SnapshotState = {
         nodes,
+        truncated: data?.truncated,
+        createdAt: Date.now(),
+        backend: data?.backend,
+      };
+      const nextSession: SessionState = session
+        ? { ...session, snapshot }
+        : { name: sessionName, device, createdAt: Date.now(), appBundleId, snapshot, actions: [] };
+      recordIfSession(sessionStore, nextSession, req, {
+        nodes: nodes.length,
         truncated: data?.truncated ?? false,
-        appName: nextSession.appBundleId
-          ? (nextSession.appName ?? nextSession.appBundleId)
-          : undefined,
-        appBundleId: nextSession.appBundleId,
-      },
-    };
+      });
+      sessionStore.set(sessionName, nextSession);
+      return {
+        ok: true,
+        data: {
+          nodes,
+          truncated: data?.truncated ?? false,
+          appName: nextSession.appBundleId
+            ? (nextSession.appName ?? nextSession.appBundleId)
+            : undefined,
+          appBundleId: nextSession.appBundleId,
+        },
+      };
+    });
   }
 
   if (command === 'wait') {
@@ -131,125 +133,127 @@ export async function handleSnapshotCommands(params: {
         error: { code: 'UNSUPPORTED_OPERATION', message: 'wait is not supported on this device' },
       };
     }
-    let text: string;
-    let timeoutMs: number | null;
-    if (parsed.kind === 'selector') {
-      const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-      const start = Date.now();
-      while (Date.now() - start < timeout) {
-        const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
-          ...contextFromFlags(
-            logPath,
-            {
-              ...req.flags,
-              snapshotInteractiveOnly: false,
-              snapshotCompact: false,
-            },
-            session?.appBundleId,
-            session?.trace?.outPath,
-          ),
-        })) as {
-          nodes?: RawSnapshotNode[];
-          truncated?: boolean;
-          backend?: 'xctest' | 'android';
-        };
-        const rawNodes = data?.nodes ?? [];
-        const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
-        if (session) {
-          session.snapshot = {
-            nodes,
-            truncated: data?.truncated,
-            createdAt: Date.now(),
-            backend: data?.backend,
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      let text: string;
+      let timeoutMs: number | null;
+      if (parsed.kind === 'selector') {
+        const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+          const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+            ...contextFromFlags(
+              logPath,
+              {
+                ...req.flags,
+                snapshotInteractiveOnly: false,
+                snapshotCompact: false,
+              },
+              session?.appBundleId,
+              session?.trace?.outPath,
+            ),
+          })) as {
+            nodes?: RawSnapshotNode[];
+            truncated?: boolean;
+            backend?: 'xctest' | 'android';
           };
-          sessionStore.set(sessionName, session);
-        }
-        const match = findSelectorChainMatch(nodes, parsed.selector, { platform: device.platform });
-        if (match) {
-          recordIfSession(sessionStore, session, req, {
-            selector: match.selector.raw,
-            waitedMs: Date.now() - start,
-          });
-          return {
-            ok: true,
-            data: {
+          const rawNodes = data?.nodes ?? [];
+          const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+          if (session) {
+            session.snapshot = {
+              nodes,
+              truncated: data?.truncated,
+              createdAt: Date.now(),
+              backend: data?.backend,
+            };
+            sessionStore.set(sessionName, session);
+          }
+          const match = findSelectorChainMatch(nodes, parsed.selector, { platform: device.platform });
+          if (match) {
+            recordIfSession(sessionStore, session, req, {
               selector: match.selector.raw,
               waitedMs: Date.now() - start,
+            });
+            return {
+              ok: true,
+              data: {
+                selector: match.selector.raw,
+                waitedMs: Date.now() - start,
+              },
+            };
+          }
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `wait timed out for selector: ${parsed.selectorExpression}`,
+          },
+        };
+      } else if (parsed.kind === 'ref') {
+        if (!session?.snapshot) {
+          return {
+            ok: false,
+            error: {
+              code: 'INVALID_ARGS',
+              message: 'Ref wait requires an existing snapshot in session.',
             },
           };
+        }
+        const ref = normalizeRef(parsed.rawRef);
+        if (!ref) {
+          return {
+            ok: false,
+            error: { code: 'INVALID_ARGS', message: `Invalid ref: ${parsed.rawRef}` },
+          };
+        }
+        const node = findNodeByRef(session.snapshot.nodes, ref);
+        const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
+        if (!resolved) {
+          return {
+            ok: false,
+            error: {
+              code: 'COMMAND_FAILED',
+              message: `Ref ${parsed.rawRef} not found or has no label`,
+            },
+          };
+        }
+        text = resolved;
+        timeoutMs = parsed.timeoutMs;
+      } else {
+        text = parsed.text;
+        timeoutMs = parsed.timeoutMs;
+      }
+      if (!text) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'wait requires text' } };
+      }
+      const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        if (device.platform === 'ios') {
+          const result = (await runIosRunnerCommand(
+            device,
+            { command: 'findText', text, appBundleId: session?.appBundleId },
+            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+          )) as { found?: boolean };
+          if (result?.found) {
+            recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
+            return { ok: true, data: { text, waitedMs: Date.now() - start } };
+          }
+        } else if (device.platform === 'android') {
+          const androidResult = await snapshotAndroid(device, { scope: text });
+          if (findNodeByLabel(attachRefs(androidResult.nodes ?? []), text)) {
+            recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
+            return { ok: true, data: { text, waitedMs: Date.now() - start } };
+          }
         }
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
       return {
         ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `wait timed out for selector: ${parsed.selectorExpression}`,
-        },
+        error: { code: 'COMMAND_FAILED', message: `wait timed out for text: ${text}` },
       };
-    } else if (parsed.kind === 'ref') {
-      if (!session?.snapshot) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'Ref wait requires an existing snapshot in session.',
-          },
-        };
-      }
-      const ref = normalizeRef(parsed.rawRef);
-      if (!ref) {
-        return {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: `Invalid ref: ${parsed.rawRef}` },
-        };
-      }
-      const node = findNodeByRef(session.snapshot.nodes, ref);
-      const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
-      if (!resolved) {
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${parsed.rawRef} not found or has no label`,
-          },
-        };
-      }
-      text = resolved;
-      timeoutMs = parsed.timeoutMs;
-    } else {
-      text = parsed.text;
-      timeoutMs = parsed.timeoutMs;
-    }
-    if (!text) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'wait requires text' } };
-    }
-    const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    const start = Date.now();
-    while (Date.now() - start < timeout) {
-      if (device.platform === 'ios') {
-        const result = (await runIosRunnerCommand(
-          device,
-          { command: 'findText', text, appBundleId: session?.appBundleId },
-          { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-        )) as { found?: boolean };
-        if (result?.found) {
-          recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
-          return { ok: true, data: { text, waitedMs: Date.now() - start } };
-        }
-      } else if (device.platform === 'android') {
-        const androidResult = await snapshotAndroid(device, { scope: text });
-        if (findNodeByLabel(attachRefs(androidResult.nodes ?? []), text)) {
-          recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
-          return { ok: true, data: { text, waitedMs: Date.now() - start } };
-        }
-      }
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    }
-    return {
-      ok: false,
-      error: { code: 'COMMAND_FAILED', message: `wait timed out for text: ${text}` },
-    };
+    });
   }
 
   if (command === 'alert') {
@@ -264,37 +268,39 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    if (action === 'wait') {
-      const timeout = parseTimeout(req.positionals?.[1]) ?? DEFAULT_TIMEOUT_MS;
-      const start = Date.now();
-      while (Date.now() - start < timeout) {
-        try {
-          const data = await runIosRunnerCommand(
-            device,
-            { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-          );
-          recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
-          return { ok: true, data };
-        } catch {
-          // keep waiting
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      if (action === 'wait') {
+        const timeout = parseTimeout(req.positionals?.[1]) ?? DEFAULT_TIMEOUT_MS;
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+          try {
+            const data = await runIosRunnerCommand(
+              device,
+              { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
+              { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+            );
+            recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
+            return { ok: true, data };
+          } catch {
+            // keep waiting
+          }
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'alert wait timed out' } };
       }
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'alert wait timed out' } };
-    }
-    const data = await runIosRunnerCommand(
-      device,
-      {
-        command: 'alert',
-        action:
-          action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get',
-        appBundleId: session?.appBundleId,
-      },
-      { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
-    );
-    recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
-    return { ok: true, data };
+      const data = await runIosRunnerCommand(
+        device,
+        {
+          command: 'alert',
+          action:
+            action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get',
+          appBundleId: session?.appBundleId,
+        },
+        { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+      );
+      recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
+      return { ok: true, data };
+    });
   }
 
   if (command === 'settings') {
@@ -319,18 +325,20 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    const appBundleId = session?.appBundleId;
-    const data = await dispatchCommand(
-      device,
-      'settings',
-      [setting, state, appBundleId ?? ''],
-      req.flags?.out,
-      {
-        ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
-      },
-    );
-    recordIfSession(sessionStore, session, req, data ?? { setting, state });
-    return { ok: true, data: data ?? { setting, state } };
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      const appBundleId = session?.appBundleId;
+      const data = await dispatchCommand(
+        device,
+        'settings',
+        [setting, state, appBundleId ?? ''],
+        req.flags?.out,
+        {
+          ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
+        },
+      );
+      recordIfSession(sessionStore, session, req, data ?? { setting, state });
+      return { ok: true, data: data ?? { setting, state } };
+    });
   }
 
   return null;
@@ -387,6 +395,23 @@ async function resolveSessionDevice(
   const device = session?.device ?? (await resolveTargetDevice(flags ?? {}));
   if (!session) await ensureDeviceReady(device);
   return { session, device };
+}
+
+async function withSessionlessRunnerCleanup<T>(
+  session: SessionState | undefined,
+  device: SessionState['device'],
+  task: () => Promise<T>,
+): Promise<T> {
+  const shouldCleanupSessionlessIosRunner = !session && device.platform === 'ios';
+  try {
+    return await task();
+  } finally {
+    // Sessionless iOS commands intentionally stop the runner to avoid leaked xcodebuild processes.
+    // For multi-command flows, keep an active session via `open` so the runner can be reused.
+    if (shouldCleanupSessionlessIosRunner) {
+      await stopIosRunnerSession(device.id);
+    }
+  }
 }
 
 function recordIfSession(

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs, usage } from '../args.ts';
+import { parseArgs, toDaemonFlags, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
@@ -10,6 +10,41 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.command, 'open');
   assert.deepEqual(parsed.positionals, ['settings']);
   assert.equal(parsed.flags.relaunch, true);
+});
+
+test('toDaemonFlags strips CLI-only flags', () => {
+  const parsed = parseArgs(['open', 'settings', '--json']);
+  const daemonFlags = toDaemonFlags(parsed.flags);
+  assert.equal(Object.hasOwn(daemonFlags, 'json'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'help'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'version'), false);
+});
+
+test('parseArgs accepts --save-script with optional path value', () => {
+  const withoutPath = parseArgs(['open', 'settings', '--save-script']);
+  assert.equal(withoutPath.command, 'open');
+  assert.deepEqual(withoutPath.positionals, ['settings']);
+  assert.equal(withoutPath.flags.saveScript, true);
+
+  const withPath = parseArgs(['open', 'settings', '--save-script', './workflows/my-flow.ad']);
+  assert.equal(withPath.command, 'open');
+  assert.deepEqual(withPath.positionals, ['settings']);
+  assert.equal(withPath.flags.saveScript, './workflows/my-flow.ad');
+
+  const nonPathPositional = parseArgs(['open', '--save-script', 'settings']);
+  assert.equal(nonPathPositional.command, 'open');
+  assert.deepEqual(nonPathPositional.positionals, ['settings']);
+  assert.equal(nonPathPositional.flags.saveScript, true);
+
+  const inlineValue = parseArgs(['open', 'settings', '--save-script=my-flow.ad']);
+  assert.equal(inlineValue.command, 'open');
+  assert.deepEqual(inlineValue.positionals, ['settings']);
+  assert.equal(inlineValue.flags.saveScript, 'my-flow.ad');
+
+  const ambiguousBareValue = parseArgs(['open', '--save-script', 'my-flow.ad']);
+  assert.equal(ambiguousBareValue.command, 'open');
+  assert.deepEqual(ambiguousBareValue.positionals, ['my-flow.ad']);
+  assert.equal(ambiguousBareValue.flags.saveScript, true);
 });
 
 test('parseArgs recognizes press series flags', () => {
@@ -64,8 +99,19 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
-  assert.match(usage(), /--metadata/);
+  assert.doesNotMatch(usage(), /--metadata/);
+});
+
+test('apps defaults to --all filter and allows overrides', () => {
+  const defaultFilter = parseArgs(['apps'], { strictFlags: true });
+  assert.equal(defaultFilter.command, 'apps');
+  assert.equal(defaultFilter.flags.appsFilter, 'all');
+
+  const userInstalled = parseArgs(['apps', '--user-installed'], { strictFlags: true });
+  assert.equal(userInstalled.command, 'apps');
+  assert.equal(userInstalled.flags.appsFilter, 'user-installed');
 });
 
 test('every capability command has a parser schema entry', () => {
@@ -172,4 +218,22 @@ test('usage includes swipe and press series options', () => {
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
+});
+
+test('command usage shows command and global flags separately', () => {
+  const help = usageForCommand('swipe');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Swipe coordinates with optional repeat pattern/);
+  assert.match(help, /Command flags:/);
+  assert.match(help, /--pattern one-way\|ping-pong/);
+  assert.match(help, /Global flags:/);
+  assert.match(help, /--platform ios\|android/);
+});
+
+test('command usage shows no command flags when unsupported', () => {
+  const help = usageForCommand('appstate');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Show foreground app\/activity/);
+  assert.doesNotMatch(help, /Command flags:/);
+  assert.match(help, /Global flags:/);
 });

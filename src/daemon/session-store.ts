@@ -49,6 +49,9 @@ export class SessionStore {
     if (entry.flags?.noRecord) return;
     if (entry.flags?.saveScript) {
       session.recordSession = true;
+      if (typeof entry.flags.saveScript === 'string') {
+        session.saveScriptPath = SessionStore.expandHome(entry.flags.saveScript);
+      }
     }
     session.actions.push({
       ts: Date.now(),
@@ -62,10 +65,9 @@ export class SessionStore {
   writeSessionLog(session: SessionState): void {
     try {
       if (!session.recordSession) return;
-      if (!fs.existsSync(this.sessionsDir)) fs.mkdirSync(this.sessionsDir, { recursive: true });
-      const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const timestamp = new Date(session.createdAt).toISOString().replace(/[:.]/g, '-');
-      const scriptPath = path.join(this.sessionsDir, `${safeName}-${timestamp}.ad`);
+      const scriptPath = this.resolveScriptPath(session);
+      const scriptDir = path.dirname(scriptPath);
+      if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
       const script = formatScript(session, this.buildOptimizedActions(session));
       fs.writeFileSync(scriptPath, script);
     } catch {
@@ -84,6 +86,16 @@ export class SessionStore {
       return path.join(os.homedir(), filePath.slice(2));
     }
     return path.resolve(filePath);
+  }
+
+  private resolveScriptPath(session: SessionState): string {
+    if (session.saveScriptPath) {
+      return SessionStore.expandHome(session.saveScriptPath);
+    }
+    if (!fs.existsSync(this.sessionsDir)) fs.mkdirSync(this.sessionsDir, { recursive: true });
+    const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = new Date(session.createdAt).toISOString().replace(/[:.]/g, '-');
+    return path.join(this.sessionsDir, `${safeName}-${timestamp}.ad`);
   }
 
   private buildOptimizedActions(session: SessionState): SessionAction[] {
@@ -164,7 +176,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
-    appsMetadata,
     relaunch,
     saveScript,
     noRecord,
@@ -181,7 +192,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
-    appsMetadata,
     relaunch,
     saveScript,
     noRecord,

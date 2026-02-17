@@ -6,8 +6,11 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd, runCmdStreaming, runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { Deadline, isEnvTruthy, retryWithPolicy, withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { withKeyedLock } from '../../utils/keyed-lock.ts';
+import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
+import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 
 export type RunnerCommand = {
   command:
@@ -55,9 +58,10 @@ export type RunnerSession = {
 };
 
 const runnerSessions = new Map<string, RunnerSession>();
+const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
-  120_000,
+  45_000,
   5_000,
 );
 const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
@@ -72,34 +76,32 @@ const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = resolveTimeoutMs(
 );
 const RUNNER_CONNECT_RETRY_BASE_DELAY_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_BASE_DELAY_MS,
-  100,
+  300,
   10,
 );
 const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_MAX_DELAY_MS,
-  500,
+  2_000,
   10,
 );
 const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_REQUEST_TIMEOUT_MS,
-  1_000,
-  50,
+  5_000,
+  250,
 );
 const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICE_INFO_TIMEOUT_MS,
   10_000,
   500,
 );
+const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
+  process.env.AGENT_DEVICE_RUNNER_DESTINATION_TIMEOUT_SECONDS,
+  20,
+  5,
+);
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
-
-function resolveTimeoutMs(raw: string | undefined, fallback: number, min: number): number {
-  if (!raw) return fallback;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.floor(parsed));
-}
 
 export type RunnerSnapshotNode = {
   index: number;
@@ -128,13 +130,18 @@ export async function runIosRunnerCommand(
   return executeRunnerCommand(device, command, options);
 }
 
+function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {
+  return withKeyedLock(runnerSessionLocks, deviceId, task);
+}
+
 async function executeRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
 ): Promise<Record<string, unknown>> {
+  let session: RunnerSession | undefined;
   try {
-    const session = await ensureRunnerSession(device, options);
+    session = await ensureRunnerSession(device, options);
     const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
     return await executeRunnerCommandWithSession(
       device,
@@ -148,10 +155,16 @@ async function executeRunnerCommand(
     if (
       appErr.code === 'COMMAND_FAILED' &&
       typeof appErr.message === 'string' &&
-      appErr.message.includes('Runner did not accept connection')
+      appErr.message.includes('Runner did not accept connection') &&
+      shouldRetryRunnerConnectError(appErr) &&
+      session?.ready
     ) {
-      await stopIosRunnerSession(device.id);
-      const session = await ensureRunnerSession(device, options);
+      if (session) {
+        await stopRunnerSession(session);
+      } else {
+        await stopIosRunnerSession(device.id);
+      }
+      session = await ensureRunnerSession(device, options);
       const response = await waitForRunner(
         session.device,
         session.port,
@@ -172,7 +185,7 @@ async function executeRunnerCommandWithSession(
   logPath: string | undefined,
   timeoutMs: number,
 ): Promise<Record<string, unknown>> {
-  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs);
+  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs, session);
   return await parseRunnerResponse(response, session, logPath);
 }
 
@@ -204,7 +217,27 @@ async function parseRunnerResponse(
 }
 
 export async function stopIosRunnerSession(deviceId: string): Promise<void> {
-  const session = runnerSessions.get(deviceId);
+  await withRunnerSessionLock(deviceId, async () => {
+    await stopRunnerSessionInternal(deviceId);
+  });
+}
+
+export async function stopAllIosRunnerSessions(): Promise<void> {
+  // Shutdown cleanup drains the sessions known at invocation time; daemon shutdown closes intake.
+  const pending = Array.from(runnerSessions.keys());
+  await Promise.allSettled(pending.map(async (deviceId) => {
+    await stopIosRunnerSession(deviceId);
+  }));
+}
+
+async function stopRunnerSession(session: RunnerSession): Promise<void> {
+  await withRunnerSessionLock(session.deviceId, async () => {
+    await stopRunnerSessionInternal(session.deviceId, session);
+  });
+}
+
+async function stopRunnerSessionInternal(deviceId: string, sessionOverride?: RunnerSession): Promise<void> {
+  const session = sessionOverride ?? runnerSessions.get(deviceId);
   if (!session) return;
   try {
     await waitForRunner(session.device, session.port, {
@@ -227,7 +260,9 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
-  runnerSessions.delete(deviceId);
+  if (runnerSessions.get(deviceId) === session) {
+    runnerSessions.delete(deviceId);
+  }
 }
 
 async function ensureBooted(udid: string): Promise<void> {
@@ -241,58 +276,72 @@ async function ensureRunnerSession(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<RunnerSession> {
-  const existing = runnerSessions.get(device.id);
-  if (existing) return existing;
+  return await withRunnerSessionLock(device.id, async () => {
+    const existing = runnerSessions.get(device.id);
+    if (existing) {
+      if (isRunnerProcessAlive(existing.child.pid)) {
+        return existing;
+      }
+      await stopRunnerSessionInternal(device.id, existing);
+    }
 
-  await ensureBootedIfNeeded(device);
-  const xctestrun = await ensureXctestrun(device, options);
-  const port = await getFreePort();
-  const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
-    xctestrun,
-    { AGENT_DEVICE_RUNNER_PORT: String(port) },
-    `session-${device.id}-${port}`,
-  );
-  const { child, wait: testPromise } = runCmdBackground(
-    'xcodebuild',
-    [
-      'test-without-building',
-      '-only-testing',
-      'AgentDeviceRunnerUITests/RunnerTests/testCommand',
-      '-parallel-testing-enabled',
-      'NO',
-      '-test-timeouts-enabled',
-      'NO',
-      resolveRunnerMaxConcurrentDestinationsFlag(device),
-      '1',
-      '-xctestrun',
+    await ensureBootedIfNeeded(device);
+    const xctestrun = await ensureXctestrun(device, options);
+    const port = await getFreePort();
+    const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
+      xctestrun,
+      { AGENT_DEVICE_RUNNER_PORT: String(port) },
+      `session-${device.id}-${port}`,
+    );
+    const { child, wait: testPromise } = runCmdBackground(
+      'xcodebuild',
+      [
+        'test-without-building',
+        '-only-testing',
+        'AgentDeviceRunnerUITests/RunnerTests/testCommand',
+        '-parallel-testing-enabled',
+        'NO',
+        '-test-timeouts-enabled',
+        'NO',
+        resolveRunnerMaxConcurrentDestinationsFlag(device),
+        '1',
+        '-destination-timeout',
+        String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
+        '-xctestrun',
+        xctestrunPath,
+        '-destination',
+        resolveRunnerDestination(device),
+      ],
+      {
+        allowFailure: true,
+        env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
+      },
+    );
+    child.stdout?.on('data', (chunk: string) => {
+      logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+    });
+    child.stderr?.on('data', (chunk: string) => {
+      logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+    });
+
+    const session: RunnerSession = {
+      device,
+      deviceId: device.id,
+      port,
       xctestrunPath,
-      '-destination',
-      resolveRunnerDestination(device),
-    ],
-    {
-      allowFailure: true,
-      env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
-    },
-  );
-  child.stdout?.on('data', (chunk: string) => {
-    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+      jsonPath,
+      testPromise,
+      child,
+      ready: false,
+    };
+    runnerSessions.set(device.id, session);
+    return session;
   });
-  child.stderr?.on('data', (chunk: string) => {
-    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-  });
+}
 
-  const session: RunnerSession = {
-    device,
-    deviceId: device.id,
-    port,
-    xctestrunPath,
-    jsonPath,
-    testPromise,
-    child,
-    ready: false,
-  };
-  runnerSessions.set(device.id, session);
-  return session;
+function isRunnerProcessAlive(pid: number | undefined): boolean {
+  if (!pid) return false;
+  return isProcessAlive(pid);
 }
 
 async function killRunnerProcessTree(
@@ -390,6 +439,10 @@ function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
   const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
   if (override) {
     return path.resolve(override);
+  }
+  if (kind === 'simulator') {
+    // Keep simulator runtime path aligned with pnpm build:xcuitest/build:all.
+    return path.join(RUNNER_DERIVED_ROOT, 'derived');
   }
   return path.join(RUNNER_DERIVED_ROOT, 'derived', kind);
 }
@@ -519,10 +572,12 @@ function logChunk(chunk: string, logPath?: string, traceLogPath?: string, verbos
   }
 }
 
-function isRetryableRunnerError(err: unknown): boolean {
+export function isRetryableRunnerError(err: unknown): boolean {
   if (!(err instanceof AppError)) return false;
   if (err.code !== 'COMMAND_FAILED') return false;
   const message = `${err.message ?? ''}`.toLowerCase();
+  if (message.includes('xcodebuild exited early')) return false;
+  if (message.includes('device is busy') && message.includes('connecting')) return false;
   if (message.includes('runner did not accept connection')) return true;
   if (message.includes('fetch failed')) return true;
   if (message.includes('econnrefused')) return true;
@@ -585,12 +640,56 @@ function buildRunnerConnectError(params: {
   });
 }
 
+export function resolveRunnerEarlyExitHint(message: string, stdout: string, stderr: string): string {
+  const haystack = `${message}\n${stdout}\n${stderr}`.toLowerCase();
+  if (haystack.includes('device is busy') && haystack.includes('connecting')) {
+    return 'Target iOS device is still connecting. Keep it unlocked, wait for device trust/connection to settle, then retry.';
+  }
+  return bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT');
+}
+
+export function shouldRetryRunnerConnectError(error: unknown): boolean {
+  if (!(error instanceof AppError)) return true;
+  if (error.code !== 'COMMAND_FAILED') return true;
+  const message = String(error.message ?? '').toLowerCase();
+  if (message.includes('xcodebuild exited early')) return false;
+  return true;
+}
+
+async function buildRunnerEarlyExitError(params: {
+  session: RunnerSession;
+  port: number;
+  logPath?: string;
+}): Promise<AppError> {
+  const { session, port, logPath } = params;
+  const result = await session.testPromise;
+  const message = 'Runner did not accept connection (xcodebuild exited early)';
+  const reason = classifyBootFailure({
+    message,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    context: { platform: 'ios', phase: 'connect' },
+  });
+  return new AppError('COMMAND_FAILED', message, {
+    port,
+    logPath,
+    xcodebuild: {
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    },
+    reason,
+    hint: resolveRunnerEarlyExitHint(message, result.stdout, result.stderr),
+  });
+}
+
 async function waitForRunner(
   device: DeviceInfo,
   port: number,
   command: RunnerCommand,
   logPath?: string,
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
+  session?: RunnerSession,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
   let endpoints = await resolveRunnerCommandEndpoints(device, port, deadline.remainingMs());
@@ -604,6 +703,9 @@ async function waitForRunner(
             port,
             timeoutMs,
           });
+        }
+        if (session && session.child.exitCode !== null && session.child.exitCode !== undefined) {
+          throw await buildRunnerEarlyExitError({ session, port, logPath });
         }
         if (device.kind === 'device') {
           endpoints = await resolveRunnerCommandEndpoints(device, port, attemptDeadline?.remainingMs());
@@ -642,7 +744,7 @@ async function waitForRunner(
         baseDelayMs: RUNNER_CONNECT_RETRY_BASE_DELAY_MS,
         maxDelayMs: RUNNER_CONNECT_RETRY_MAX_DELAY_MS,
         jitter: 0.2,
-        shouldRetry: () => true,
+        shouldRetry: shouldRetryRunnerConnectError,
       },
       { deadline, phase: 'ios_runner_connect' },
     );

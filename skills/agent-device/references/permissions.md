@@ -13,9 +13,14 @@ Use Automatic Signing in Xcode, or provide optional overrides:
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 
-If first-run setup/build takes long, increase:
+If setup/build takes long, increase:
 
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (for example `180000`)
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (default `45000`, for example `120000`)
+
+If daemon startup fails with stale metadata hints, clean stale files and retry:
+
+- `~/.agent-device/daemon.json`
+- `~/.agent-device/daemon.lock`
 
 ## Simulator troubleshooting
 

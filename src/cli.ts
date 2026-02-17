@@ -1,4 +1,4 @@
-import { parseArgs, toDaemonFlags, usage } from './utils/args.ts';
+import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError } from './utils/errors.ts';
 import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
@@ -8,7 +8,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export async function runCli(argv: string[]): Promise<void> {
+type CliDeps = {
+  sendToDaemon: typeof sendToDaemon;
+};
+
+const DEFAULT_CLI_DEPS: CliDeps = {
+  sendToDaemon,
+};
+
+export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const parsed = parseArgs(argv);
   for (const warning of parsed.warnings) {
     process.stderr.write(`Warning: ${warning}\n`);
@@ -19,9 +27,31 @@ export async function runCli(argv: string[]): Promise<void> {
     process.exit(0);
   }
 
-  if (parsed.flags.help || !parsed.command) {
+  const isHelpAlias = parsed.command === 'help';
+  const isHelpFlag = parsed.flags.help;
+  if (isHelpAlias || isHelpFlag) {
+    if (isHelpAlias && parsed.positionals.length > 1) {
+      printHumanError(new AppError('INVALID_ARGS', 'help accepts at most one command.'));
+      process.exit(1);
+    }
+    const helpTarget = isHelpAlias ? parsed.positionals[0] : parsed.command;
+    if (!helpTarget) {
+      process.stdout.write(`${usage()}\n`);
+      process.exit(0);
+    }
+    const commandHelp = usageForCommand(helpTarget);
+    if (commandHelp) {
+      process.stdout.write(commandHelp);
+      process.exit(0);
+    }
+    printHumanError(new AppError('INVALID_ARGS', `Unknown command: ${helpTarget}`));
     process.stdout.write(`${usage()}\n`);
-    process.exit(parsed.flags.help ? 0 : 1);
+    process.exit(1);
+  }
+
+  if (!parsed.command) {
+    process.stdout.write(`${usage()}\n`);
+    process.exit(1);
   }
 
   const { command, positionals, flags } = parsed;
@@ -34,7 +64,7 @@ export async function runCli(argv: string[]): Promise<void> {
       if (sub !== 'list') {
         throw new AppError('INVALID_ARGS', 'session only supports list');
       }
-      const response = await sendToDaemon({
+      const response = await deps.sendToDaemon({
         session: sessionName,
         command: 'session_list',
         positionals: [],
@@ -47,7 +77,7 @@ export async function runCli(argv: string[]): Promise<void> {
       return;
     }
 
-    const response = await sendToDaemon({
+    const response = await deps.sendToDaemon({
       session: sessionName,
       command: command!,
       positionals,
@@ -149,9 +179,6 @@ export async function runCli(argv: string[]): Promise<void> {
               const bundleId = app.bundleId ?? app.package;
               const name = app.name ?? app.label;
               if (name && bundleId) return `${name} (${bundleId})`;
-              if (bundleId && typeof app.launchable === 'boolean') {
-                return `${bundleId} (launchable=${app.launchable})`;
-              }
               if (bundleId) return String(bundleId);
               return JSON.stringify(app);
             }
@@ -169,7 +196,7 @@ export async function runCli(argv: string[]): Promise<void> {
           const pkg = (data as any)?.package;
           const activity = (data as any)?.activity;
           if (platform === 'ios') {
-            process.stdout.write(`Foreground app: ${appName ?? appBundleId}\n`);
+            process.stdout.write(`Foreground app: ${appName ?? appBundleId ?? 'unknown'}\n`);
             if (appBundleId) process.stdout.write(`Bundle: ${appBundleId}\n`);
             if (source) process.stdout.write(`Source: ${source}\n`);
             if (logTailStopper) logTailStopper();
@@ -190,6 +217,13 @@ export async function runCli(argv: string[]): Promise<void> {
     throw new AppError(response.error.code as any, response.error.message, response.error.details);
   } catch (err) {
     const appErr = asAppError(err);
+    if (command === 'close' && isDaemonStartupFailure(appErr)) {
+      if (flags.json) {
+        printJson({ success: true, data: { closed: 'session', source: 'no-daemon' } });
+      }
+      if (logTailStopper) logTailStopper();
+      return;
+    }
     if (flags.json) {
       printJson({
         success: false,
@@ -199,9 +233,6 @@ export async function runCli(argv: string[]): Promise<void> {
       printHumanError(appErr);
       if (flags.verbose) {
         try {
-          const fs = await import('node:fs');
-          const os = await import('node:os');
-          const path = await import('node:path');
           const logPath = path.join(os.homedir(), '.agent-device', 'daemon.log');
           if (fs.existsSync(logPath)) {
             const content = fs.readFileSync(logPath, 'utf8');
@@ -221,6 +252,13 @@ export async function runCli(argv: string[]): Promise<void> {
   }
 }
 
+function isDaemonStartupFailure(error: AppError): boolean {
+  if (error.code !== 'COMMAND_FAILED') return false;
+  if (error.details?.kind === 'daemon_startup_failed') return true;
+  if (!error.message.toLowerCase().includes('failed to start daemon')) return false;
+  return typeof error.details?.infoPath === 'string' || typeof error.details?.lockPath === 'string';
+}
+
 const isDirectRun = pathToFileURL(process.argv[1] ?? '').href === import.meta.url;
 if (isDirectRun) {
   runCli(process.argv.slice(2)).catch((err) => {
@@ -238,15 +276,23 @@ function startDaemonLogTail(): (() => void) | null {
     const interval = setInterval(() => {
       if (stopped) return;
       if (!fs.existsSync(logPath)) return;
-      const stats = fs.statSync(logPath);
-      if (stats.size <= offset) return;
-      const fd = fs.openSync(logPath, 'r');
-      const buffer = Buffer.alloc(stats.size - offset);
-      fs.readSync(fd, buffer, 0, buffer.length, offset);
-      fs.closeSync(fd);
-      offset = stats.size;
-      if (buffer.length > 0) {
-        process.stdout.write(buffer.toString('utf8'));
+      try {
+        const stats = fs.statSync(logPath);
+        if (stats.size < offset) offset = 0;
+        if (stats.size <= offset) return;
+        const fd = fs.openSync(logPath, 'r');
+        try {
+          const buffer = Buffer.alloc(stats.size - offset);
+          fs.readSync(fd, buffer, 0, buffer.length, offset);
+          offset = stats.size;
+          if (buffer.length > 0) {
+            process.stdout.write(buffer.toString('utf8'));
+          }
+        } finally {
+          fs.closeSync(fd);
+        }
+      } catch {
+        // Best-effort tailing should not crash CLI flow.
       }
     }, 200);
     return () => {

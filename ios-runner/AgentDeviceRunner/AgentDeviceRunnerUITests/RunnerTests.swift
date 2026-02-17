@@ -216,14 +216,20 @@ final class RunnerTests: XCTestCase {
   }
 
   private func executeOnMain(command: Command) throws -> Response {
-    let bundleId = command.appBundleId ?? currentBundleId ?? "com.apple.Preferences"
-    if currentBundleId != bundleId {
+    let normalizedBundleId = command.appBundleId?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
+    if let bundleId = requestedBundleId, currentBundleId != bundleId {
       let target = XCUIApplication(bundleIdentifier: bundleId)
       NSLog("AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d", bundleId, target.state.rawValue)
       // activate avoids terminating and relaunching the target app
       target.activate()
       currentApp = target
       currentBundleId = bundleId
+    } else if requestedBundleId == nil {
+      // Do not reuse stale bundle targets when the caller does not explicitly request one.
+      currentApp = nil
+      currentBundleId = nil
     }
     let activeApp = currentApp ?? app
     _ = activeApp.waitForExistence(timeout: 5)

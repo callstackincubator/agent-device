@@ -1,14 +1,13 @@
 import fs from 'node:fs';
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
-import { resolveIosAppStateFromSnapshots } from '../app-state.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { extractNodeText, normalizeType, pruneGroupNodes } from '../snapshot-processing.ts';
@@ -26,17 +25,61 @@ type ReinstallOps = {
   android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package: string }>;
 };
 
+const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
+  'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
+
+function requireSessionOrExplicitSelector(
+  command: string,
+  session: SessionState | undefined,
+  flags: DaemonRequest['flags'] | undefined,
+): DaemonResponse | null {
+  if (session || hasExplicitDeviceSelector(flags)) {
+    return null;
+  }
+  return {
+    ok: false,
+    error: {
+      code: 'INVALID_ARGS',
+      message: `${command} requires an active session or an explicit device selector (e.g. --platform ios).`,
+    },
+  };
+}
+
 function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {
   return Boolean(flags?.platform || flags?.device || flags?.udid || flags?.serial);
+}
+
+function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
+  return typeof flags?.session === 'string' && flags.session.trim().length > 0;
+}
+
+function selectorTargetsSessionDevice(
+  flags: DaemonRequest['flags'] | undefined,
+  session: SessionState | undefined,
+): boolean {
+  if (!session) return false;
+  if (!hasExplicitDeviceSelector(flags)) return true;
+  if (flags?.platform && flags.platform !== session.device.platform) return false;
+  if (flags?.udid && flags.udid !== session.device.id) return false;
+  if (flags?.serial && flags.serial !== session.device.id) return false;
+  if (flags?.device) {
+    return flags.device.trim().toLowerCase() === session.device.name.trim().toLowerCase();
+  }
+  return true;
 }
 
 async function resolveCommandDevice(params: {
   session: SessionState | undefined;
   flags: DaemonRequest['flags'] | undefined;
   ensureReadyFn: typeof ensureDeviceReady;
+  resolveTargetDeviceFn: typeof resolveTargetDevice;
   ensureReady?: boolean;
 }): Promise<DeviceInfo> {
-  const device = params.session?.device ?? (await resolveTargetDevice(params.flags ?? {}));
+  const shouldUseExplicitSelector = hasExplicitDeviceSelector(params.flags);
+  const device =
+    shouldUseExplicitSelector || !params.session
+      ? await params.resolveTargetDeviceFn(params.flags ?? {})
+      : params.session.device;
   if (params.ensureReady !== false) {
     await params.ensureReadyFn(device);
   }
@@ -54,16 +97,114 @@ const defaultReinstallOps: ReinstallOps = {
   },
 };
 
-async function resolveIosBundleIdForOpen(device: DeviceInfo, openTarget: string | undefined): Promise<string | undefined> {
-  if (device.platform !== 'ios' || !openTarget || isDeepLinkTarget(openTarget)) {
+async function resolveIosBundleIdForOpen(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+  currentAppBundleId?: string,
+): Promise<string | undefined> {
+  if (device.platform !== 'ios' || !openTarget) return undefined;
+  if (isDeepLinkTarget(openTarget)) {
+    if (device.kind === 'device') {
+      return resolveIosDeviceDeepLinkBundleId(currentAppBundleId, openTarget);
+    }
     return undefined;
   }
+  return await tryResolveIosAppBundleId(device, openTarget);
+}
+
+async function tryResolveIosAppBundleId(device: DeviceInfo, openTarget: string): Promise<string | undefined> {
   try {
     const { resolveIosApp } = await import('../../platforms/ios/index.ts');
     return await resolveIosApp(device, openTarget);
   } catch {
     return undefined;
   }
+}
+
+async function handleAppStateCommand(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  sessionStore: SessionStore;
+  ensureReady: typeof ensureDeviceReady;
+  resolveDevice: typeof resolveTargetDevice;
+}): Promise<DaemonResponse> {
+  const { req, sessionName, sessionStore, ensureReady, resolveDevice } = params;
+  const session = sessionStore.get(sessionName);
+  const flags = req.flags ?? {};
+  if (!session && hasExplicitSessionFlag(flags)) {
+    const iOSSessionHint =
+      flags.platform === 'ios'
+        ? `No active session "${sessionName}". Run open with --session ${sessionName} first.`
+        : `No active session "${sessionName}". Run open with --session ${sessionName} first, or omit --session to query by device selector.`;
+    return {
+      ok: false,
+      error: {
+        code: 'SESSION_NOT_FOUND',
+        message: iOSSessionHint,
+      },
+    };
+  }
+  const guard = requireSessionOrExplicitSelector('appstate', session, flags);
+  if (guard) return guard;
+
+  const shouldUseSessionStateForIos = session?.device.platform === 'ios' && selectorTargetsSessionDevice(flags, session);
+  const targetsIos = flags.platform === 'ios';
+  if (targetsIos && !shouldUseSessionStateForIos) {
+    return {
+      ok: false,
+      error: {
+        code: 'SESSION_NOT_FOUND',
+        message: IOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
+      },
+    };
+  }
+  if (shouldUseSessionStateForIos) {
+    const appName = session.appName ?? session.appBundleId;
+    if (!session.appName && !session.appBundleId) {
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: 'No foreground app is tracked for this iOS session. Open an app in the session, then retry appstate.',
+        },
+      };
+    }
+    return {
+      ok: true,
+      data: {
+        platform: 'ios',
+        appName: appName ?? 'unknown',
+        appBundleId: session.appBundleId,
+        source: 'session',
+      },
+    };
+  }
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReadyFn: ensureReady,
+    resolveTargetDeviceFn: resolveDevice,
+    ensureReady: true,
+  });
+  if (device.platform === 'ios') {
+    return {
+      ok: false,
+      error: {
+        code: 'SESSION_NOT_FOUND',
+        message: IOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
+      },
+    };
+  }
+  const { getAndroidAppState } = await import('../../platforms/android/index.ts');
+  const state = await getAndroidAppState(device);
+  return {
+    ok: true,
+    data: {
+      platform: 'android',
+      package: state.package,
+      activity: state.activity,
+    },
+  };
 }
 
 export async function handleSessionCommands(params: {
@@ -74,6 +215,7 @@ export async function handleSessionCommands(params: {
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   dispatch?: typeof dispatchCommand;
   ensureReady?: typeof ensureDeviceReady;
+  resolveTargetDevice?: typeof resolveTargetDevice;
   reinstallOps?: ReinstallOps;
 }): Promise<DaemonResponse | null> {
   const {
@@ -84,10 +226,12 @@ export async function handleSessionCommands(params: {
     invoke,
     dispatch: dispatchOverride,
     ensureReady: ensureReadyOverride,
+    resolveTargetDevice: resolveTargetDeviceOverride,
     reinstallOps = defaultReinstallOps,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
+  const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -136,56 +280,50 @@ export async function handleSessionCommands(params: {
   if (command === 'apps') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    if (!session && !hasExplicitDeviceSelector(flags)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'apps requires an active session or an explicit device selector (e.g. --platform ios).',
-        },
-      };
-    }
-    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: true });
+    const guard = requireSessionOrExplicitSelector(command, session, flags);
+    if (guard) return guard;
+    const device = await resolveCommandDevice({
+      session,
+      flags,
+      ensureReadyFn: ensureReady,
+      resolveTargetDeviceFn: resolveDevice,
+      ensureReady: true,
+    });
     if (!isCommandSupportedOnDevice('apps', device)) {
       return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' } };
     }
+    const appsFilter = req.flags?.appsFilter ?? 'all';
     if (device.platform === 'ios') {
-      const { listSimulatorApps } = await import('../../platforms/ios/index.ts');
-      const apps = await listSimulatorApps(device);
-      if (req.flags?.appsMetadata) {
-        return { ok: true, data: { apps } };
-      }
+      const { listIosApps } = await import('../../platforms/ios/index.ts');
+      const apps = await listIosApps(device, appsFilter);
       const formatted = apps.map((app) =>
         app.name && app.name !== app.bundleId ? `${app.name} (${app.bundleId})` : app.bundleId,
       );
       return { ok: true, data: { apps: formatted } };
     }
-    const { listAndroidApps, listAndroidAppsMetadata } = await import('../../platforms/android/index.ts');
-    if (req.flags?.appsMetadata) {
-      const apps = await listAndroidAppsMetadata(device, req.flags?.appsFilter);
-      return { ok: true, data: { apps } };
-    }
-    const apps = await listAndroidApps(device, req.flags?.appsFilter);
-    return { ok: true, data: { apps } };
+    const { listAndroidApps } = await import('../../platforms/android/index.ts');
+    const apps = await listAndroidApps(device, appsFilter);
+    const formatted = apps.map((app) =>
+      app.name && app.name !== app.package ? `${app.name} (${app.package})` : app.package,
+    );
+    return { ok: true, data: { apps: formatted } };
   }
 
   if (command === 'boot') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    if (!session && !hasExplicitDeviceSelector(flags)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'boot requires an active session or an explicit device selector (e.g. --platform ios).',
-        },
-      };
-    }
-    const device = session?.device ?? (await resolveTargetDevice(flags));
+    const guard = requireSessionOrExplicitSelector(command, session, flags);
+    if (guard) return guard;
+    const device = await resolveCommandDevice({
+      session,
+      flags,
+      ensureReadyFn: ensureReady,
+      resolveTargetDeviceFn: resolveDevice,
+      ensureReady: true,
+    });
     if (!isCommandSupportedOnDevice('boot', device)) {
       return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' } };
     }
-    await ensureReady(device);
     return {
       ok: true,
       data: {
@@ -199,61 +337,20 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'appstate') {
-    const session = sessionStore.get(sessionName);
-    const flags = req.flags ?? {};
-    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: true });
-    if (device.platform === 'ios') {
-      if (session?.appBundleId) {
-        return {
-          ok: true,
-          data: {
-            platform: 'ios',
-            appBundleId: session.appBundleId,
-            appName: session.appName ?? session.appBundleId,
-            source: 'session',
-          },
-        };
-      }
-      const snapshotResult = await resolveIosAppStateFromSnapshots(
-        device,
-        logPath,
-        session?.trace?.outPath,
-        req.flags,
-      );
-      return {
-        ok: true,
-        data: {
-          platform: 'ios',
-          appName: snapshotResult.appName,
-          appBundleId: snapshotResult.appBundleId,
-          source: snapshotResult.source,
-        },
-      };
-    }
-    const { getAndroidAppState } = await import('../../platforms/android/index.ts');
-    const state = await getAndroidAppState(device);
-    return {
-      ok: true,
-      data: {
-        platform: 'android',
-        package: state.package,
-        activity: state.activity,
-      },
-    };
+    return await handleAppStateCommand({
+      req,
+      sessionName,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+    });
   }
 
   if (command === 'reinstall') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    if (!session && !hasExplicitDeviceSelector(flags)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'reinstall requires an active session or an explicit device selector (e.g. --platform ios).',
-        },
-      };
-    }
+    const guard = requireSessionOrExplicitSelector(command, session, flags);
+    if (guard) return guard;
     const app = req.positionals?.[0]?.trim();
     const appPathInput = req.positionals?.[1]?.trim();
     if (!app || !appPathInput) {
@@ -269,7 +366,13 @@ export async function handleSessionCommands(params: {
         error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
       };
     }
-    const device = await resolveCommandDevice({ session, flags, ensureReadyFn: ensureReady, ensureReady: false });
+    const device = await resolveCommandDevice({
+      session,
+      flags,
+      ensureReadyFn: ensureReady,
+      resolveTargetDeviceFn: resolveDevice,
+      ensureReady: false,
+    });
     if (!isCommandSupportedOnDevice('reinstall', device)) {
       return {
         ok: false,
@@ -331,7 +434,8 @@ export async function handleSessionCommands(params: {
           },
         };
       }
-      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget);
+      await ensureReady(session.device);
+      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId);
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
         const closeTarget = appBundleId ?? openTarget;
@@ -346,7 +450,7 @@ export async function handleSessionCommands(params: {
         ...session,
         appBundleId,
         appName: openTarget,
-        recordSession: session.recordSession || req.flags?.saveScript === true,
+        recordSession: session.recordSession || Boolean(req.flags?.saveScript),
         snapshot: undefined,
       };
       sessionStore.recordAction(nextSession, {
@@ -377,7 +481,7 @@ export async function handleSessionCommands(params: {
         },
       };
     }
-    const device = await resolveTargetDevice(req.flags ?? {});
+    const device = await resolveDevice(req.flags ?? {});
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {
@@ -389,6 +493,7 @@ export async function handleSessionCommands(params: {
         },
       };
     }
+    await ensureReady(device);
     const appBundleId = await resolveIosBundleIdForOpen(device, openTarget);
     if (shouldRelaunch && openTarget) {
       const closeTarget = appBundleId ?? openTarget;
@@ -405,7 +510,7 @@ export async function handleSessionCommands(params: {
       createdAt: Date.now(),
       appBundleId,
       appName: openTarget,
-      recordSession: req.flags?.saveScript === true,
+      recordSession: Boolean(req.flags?.saveScript),
       actions: [],
     };
     sessionStore.recordAction(session, {

@@ -94,6 +94,29 @@ test('saveScript flag enables .ad session log writing', () => {
   assert.equal(files.filter((file) => file.endsWith('.ad')).length, 1);
 });
 
+test('saveScript path writes session log to custom location', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-custom-path-'));
+  const store = new SessionStore(path.join(root, 'sessions'));
+  const session = makeSession('default');
+  const customPath = path.join(root, 'workflows', 'my-flow.ad');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: customPath },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'close',
+    positionals: [],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  assert.equal(fs.existsSync(customPath), true);
+  assert.equal(fs.existsSync(path.join(root, 'sessions')), false);
+});
+
 test('writeSessionLog persists open --relaunch in script output', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-relaunch-'));
   const store = new SessionStore(root);

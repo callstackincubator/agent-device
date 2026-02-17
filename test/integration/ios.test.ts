@@ -37,6 +37,16 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     detail: 'expected snapshot to include a nodes array',
   });
 
+  const appStateArgs = ['appstate', '--json', ...session];
+  const appState = integration.runStep('appstate', appStateArgs);
+  integration.assertResult(
+    appState.json?.data?.source === 'session',
+    'appstate source is session',
+    appStateArgs,
+    appState,
+    { detail: `expected appstate source=session, received ${JSON.stringify(appState.json?.data?.source)}` },
+  );
+
   const openGeneralArgs = ['click', 'role=cell', 'label=General', '--json', ...session];
   const openGeneral = integration.runStep('open general', openGeneralArgs);
   integration.assertResult(

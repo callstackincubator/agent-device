@@ -1,6 +1,6 @@
 {
   "name": "agent-device",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Unified control plane for physical and virtual devices via an agent-driven CLI.",
   "license": "MIT",
   "author": "Callstack",
@@ -24,7 +24,7 @@
     "prepack": "pnpm build:node",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test",
-    "test:unit": "node --test src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts src/utils/**/__tests__/*.test.ts",
+    "test:unit": "node --test src/__tests__/*.test.ts src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts src/utils/**/__tests__/*.test.ts",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts"
   },

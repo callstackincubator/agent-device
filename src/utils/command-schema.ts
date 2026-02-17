@@ -12,8 +12,7 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
-  appsFilter?: 'launchable' | 'user-installed' | 'all';
-  appsMetadata?: boolean;
+  appsFilter?: 'user-installed' | 'all';
   count?: number;
   intervalMs?: number;
   holdMs?: number;
@@ -21,7 +20,7 @@ export type CliFlags = {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
-  saveScript?: boolean;
+  saveScript?: boolean | string;
   relaunch?: boolean;
   noRecord?: boolean;
   replayUpdate?: boolean;
@@ -30,7 +29,7 @@ export type CliFlags = {
 };
 
 export type FlagKey = keyof CliFlags;
-export type FlagType = 'boolean' | 'int' | 'enum' | 'string';
+export type FlagType = 'boolean' | 'int' | 'enum' | 'string' | 'booleanOrString';
 
 export type FlagDefinition = {
   key: FlagKey;
@@ -198,9 +197,9 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
     key: 'saveScript',
     names: ['--save-script'],
-    type: 'boolean',
-    usageLabel: '--save-script',
-    usageDescription: 'Save session script (.ad) on close',
+    type: 'booleanOrString',
+    usageLabel: '--save-script [path]',
+    usageDescription: 'Save session script (.ad) on close; optional custom output path',
   },
   {
     key: 'relaunch',
@@ -229,7 +228,7 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     setValue: 'user-installed',
     usageLabel: '--user-installed',
-    usageDescription: 'Apps: list user-installed packages (Android only)',
+    usageDescription: 'Apps: list user-installed apps',
   },
   {
     key: 'appsFilter',
@@ -237,14 +236,7 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     setValue: 'all',
     usageLabel: '--all',
-    usageDescription: 'Apps: list all packages (Android only)',
-  },
-  {
-    key: 'appsMetadata',
-    names: ['--metadata'],
-    type: 'boolean',
-    usageLabel: '--metadata',
-    usageDescription: 'Apps: return metadata objects',
+    usageDescription: 'Apps: list all apps (include system/default apps)',
   },
   {
     key: 'snapshotInteractiveOnly',
@@ -312,7 +304,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   open: {
     description: 'Boot device/simulator; optionally launch app or deep link URL',
-    positionalArgs: ['appOrUrl?'],
+    positionalArgs: ['appOrUrl?', 'url?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch'],
   },
   close: {
@@ -337,9 +329,10 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   apps: {
-    description: 'List installed apps (Android launchable by default, iOS simulator)',
+    description: 'List installed apps (includes default/system apps by default)',
     positionalArgs: [],
-    allowedFlags: ['appsFilter', 'appsMetadata'],
+    allowedFlags: ['appsFilter'],
+    defaults: { appsFilter: 'all' },
   },
   appstate: {
     description: 'Show foreground app/activity',
@@ -558,18 +551,12 @@ CLI to control iOS and Android devices for AI agents.
 
   const helpFlags = FLAG_DEFINITIONS
     .filter((definition) => definition.usageLabel && definition.usageDescription);
-  const maxFlagLabel = Math.max(...helpFlags.map((flag) => (flag.usageLabel ?? '').length)) + 2;
-  const flagLines: string[] = ['Flags:'];
-  for (const flag of helpFlags) {
-    flagLines.push(
-      `  ${(flag.usageLabel ?? '').padEnd(maxFlagLabel)}${flag.usageDescription ?? ''}`,
-    );
-  }
+  const flagsSection = renderFlagSection('Flags:', helpFlags);
 
   return `${header}
 ${commandLines.join('\n')}
 
-${flagLines.join('\n')}
+${flagsSection}
 `;
 }
 
@@ -577,4 +564,48 @@ const USAGE_TEXT = renderUsageText();
 
 export function buildUsageText(): string {
   return USAGE_TEXT;
+}
+
+function listHelpFlags(keys: ReadonlySet<FlagKey>): FlagDefinition[] {
+  return FLAG_DEFINITIONS.filter(
+    (definition) =>
+      keys.has(definition.key) &&
+      definition.usageLabel !== undefined &&
+      definition.usageDescription !== undefined,
+  );
+}
+
+function renderFlagSection(title: string, definitions: FlagDefinition[]): string {
+  if (definitions.length === 0) {
+    return `${title}\n  (none)`;
+  }
+  const maxFlagLabel = Math.max(...definitions.map((flag) => (flag.usageLabel ?? '').length)) + 2;
+  const lines = [title];
+  for (const flag of definitions) {
+    lines.push(`  ${(flag.usageLabel ?? '').padEnd(maxFlagLabel)}${flag.usageDescription ?? ''}`);
+  }
+  return lines.join('\n');
+}
+
+export function buildCommandUsageText(commandName: string): string | null {
+  const schema = getCommandSchema(commandName);
+  if (!schema) return null;
+  const usage = buildCommandUsage(commandName, schema);
+  const commandFlags = listHelpFlags(new Set<FlagKey>(schema.allowedFlags));
+  const globalFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
+  const sections: string[] = [];
+  if (commandFlags.length > 0) {
+    sections.push(renderFlagSection('Command flags:', commandFlags));
+  }
+  sections.push(renderFlagSection('Global flags:', globalFlags));
+
+  return `agent-device ${usage}
+
+${schema.description}
+
+Usage:
+  agent-device ${usage}
+
+${sections.join('\n\n')}
+`;
 }

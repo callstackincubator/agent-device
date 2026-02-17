@@ -15,7 +15,7 @@ The project is in early development and considered experimental. Pull requests a
 ## Features
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
-- Inspection commands: `snapshot` (accessibility tree).
+- Inspection commands: `snapshot` (accessibility tree), `appstate`, `apps`, `devices`.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
 
@@ -138,24 +138,31 @@ Sessions:
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
 - Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
+- `--save-script` accepts an optional path: `--save-script ./workflows/my-flow.ad`.
+- For ambiguous bare values, use an explicit form: `--save-script=workflow.ad` or a path-like value such as `./workflow.ad`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
+- On iOS, `appstate` is session-scoped and requires an active session on the target device.
 
 Navigation helpers:
 - `boot --platform ios|android` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
-- `open [app|url]` already boots/activates the selected target when needed.
+- `open [app|url] [url]` already boots/activates the selected target when needed.
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator).
 - `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
+- `open <app> <url>` opens a deep link on iOS.
 - Android opens deep links via `VIEW` intent.
-- iOS deep link open is simulator-only.
+- iOS simulator opens deep links via `simctl openurl`.
+- iOS device opens deep links via `devicectl --payload-url`.
+- On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs (`myapp://`) require an active app in the session.
 - `--activity` cannot be combined with URL opens.
 
 ```bash
 agent-device open "myapp://home" --platform android
-agent-device open "https://example.com" --platform ios
+agent-device open "https://example.com" --platform ios          # open link in web browser
+agent-device open MyApp "myapp://screen/to" --platform ios      # open deep link to MyApp
 ```
 
 Find (semantic):
@@ -208,8 +215,9 @@ Settings helpers:
 Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 
 App state:
-- `appstate` shows the foreground app/activity (Android). On iOS it uses the current session app when available, otherwise it resolves via XCTest snapshot.
-- `apps --metadata` returns app list with minimal metadata.
+- `appstate` shows the foreground app/activity (Android).
+- On iOS, `appstate` returns the currently tracked session app (`source: session`) and requires an active session on the selected device.
+- `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 ## Debug
 
@@ -218,6 +226,7 @@ App state:
 - The trace log includes snapshot logs and XCTest runner logs for the session.
 - Built-in retries cover transient runner connection failures and Android UI dumps.
 - For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
+- If startup fails with stale metadata hints, remove stale `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock` and retry.
 
 Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
@@ -232,9 +241,8 @@ Boot diagnostics:
 - Built-in aliases include `Settings` for both platforms.
 
 ## iOS notes
-- Core runner commands (`snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`) support iOS simulators and iOS devices.
-- Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `apps`, `settings`.
-- iOS deep link open (`open <url>`) is simulator-only.
+- Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
+- Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
@@ -261,11 +269,11 @@ Environment selectors:
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to increase daemon request timeout for slow first-run iOS device setup (for example `180000`).
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
-- `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH=<path>` optional override for iOS runner derived data root. By default, agent-device separates caches by target kind (`.../derived/simulator` and `.../derived/device`). If you set this override, use separate paths per kind to avoid simulator/device artifact collisions.
+- `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH=<path>` optional override for iOS runner derived data root. By default, simulator uses `~/.agent-device/ios-runner/derived` and physical device uses `~/.agent-device/ios-runner/derived/device`. If you set this override, use separate paths per kind to avoid simulator/device artifact collisions.
 - `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` rebuild iOS runner artifacts from scratch. When `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` is set, cleanup is blocked by default; set `AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN=1` only for trusted custom paths.
 
 Test screenshots are written to:
