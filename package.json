@@ -1,6 +1,6 @@
 {
   "name": "agent-device",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Unified control plane for physical and virtual devices via an agent-driven CLI.",
   "license": "MIT",
   "author": "Callstack",
