@@ -14,7 +14,8 @@
   "scripts": {
     "lint": "node --eval \"console.log('no lint')\"",
     "build": "rslib build",
-    "build:node": "pnpm build && rm -f ~/.agent-device/daemon.json",
+    "clean:daemon": "rm -f ~/.agent-device/daemon.json && rm -f ~/.agent-device/daemon.lock",
+    "build:node": "pnpm build && pnpm clean:daemon",
     "build:xcuitest": "AGENT_DEVICE_IOS_CLEAN_DERIVED=1 xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=iOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived",
     "build:clis": "pnpm build:node",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
