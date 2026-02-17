@@ -81,7 +81,7 @@ test('reinstall validates required args before device operations', async () => {
   }
 });
 
-test('reinstall reports unsupported operation on iOS physical devices', async () => {
+test('reinstall succeeds on active iOS physical device session', async () => {
   const sessionStore = makeStore();
   sessionStore.set(
     'default',
@@ -109,12 +109,24 @@ test('reinstall reports unsupported operation on iOS physical devices', async ()
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
+    reinstallOps: {
+      ios: async (_device, app, pathToBinary) => {
+        assert.equal(app, 'com.example.app');
+        assert.equal(pathToBinary, appPath);
+        return { bundleId: 'com.example.app' };
+      },
+      android: async () => {
+        throw new Error('unexpected android reinstall');
+      },
+    },
   });
   assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(response.error.message, /reinstall is not supported/i);
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.appId, 'com.example.app');
+    assert.equal(response.data?.bundleId, 'com.example.app');
+    assert.equal(response.data?.appPath, appPath);
   }
 });
 

@@ -33,11 +33,17 @@ test('iOS simulator-only commands reject iOS devices and Android', () => {
 });
 
 test('simulator-only iOS commands with Android support reject iOS devices', () => {
-  for (const cmd of ['reinstall', 'record', 'settings', 'swipe']) {
+  for (const cmd of ['record', 'settings', 'swipe']) {
     assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
     assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
     assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
   }
+});
+
+test('reinstall supports iOS simulator, iOS device, and Android', () => {
+  assert.equal(isCommandSupportedOnDevice('reinstall', iosSimulator), true, 'reinstall on iOS sim');
+  assert.equal(isCommandSupportedOnDevice('reinstall', iosDevice), true, 'reinstall on iOS device');
+  assert.equal(isCommandSupportedOnDevice('reinstall', androidDevice), true, 'reinstall on Android');
 });
 
 test('core commands support iOS simulator, iOS device, and Android', () => {

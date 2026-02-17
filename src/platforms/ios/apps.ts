@@ -5,7 +5,13 @@ import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS } from './config.ts';
-import { listIosDeviceApps, runIosDevicectl, type IosAppInfo } from './devicectl.ts';
+import {
+  IOS_DEVICECTL_DEFAULT_HINT,
+  listIosDeviceApps,
+  resolveIosDevicectlHint,
+  runIosDevicectl,
+  type IosAppInfo,
+} from './devicectl.ts';
 import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './simulator.ts';
 
 const ALIASES: Record<string, string> = {
@@ -125,8 +131,29 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
 }
 
 export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<{ bundleId: string }> {
-  ensureSimulator(device, 'reinstall');
   const bundleId = await resolveIosApp(device, app);
+  if (device.kind !== 'simulator') {
+    const args = ['devicectl', 'device', 'uninstall', 'app', '--device', device.id, bundleId];
+    const result = await runCmd('xcrun', args, { allowFailure: true });
+    if (result.exitCode !== 0) {
+      const stdout = String(result.stdout ?? '');
+      const stderr = String(result.stderr ?? '');
+      const output = `${stdout}\n${stderr}`.toLowerCase();
+      if (!output.includes('not installed') && !output.includes('not found') && !output.includes('no such file')) {
+        throw new AppError('COMMAND_FAILED', `Failed to uninstall iOS app ${bundleId}`, {
+          cmd: 'xcrun',
+          args,
+          exitCode: result.exitCode,
+          stdout,
+          stderr,
+          deviceId: device.id,
+          hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
+        });
+      }
+    }
+    return { bundleId };
+  }
+
   await ensureBootedSimulator(device);
 
   const result = await runCmd('xcrun', ['simctl', 'uninstall', device.id, bundleId], {
@@ -147,7 +174,14 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
 }
 
 export async function installIosApp(device: DeviceInfo, appPath: string): Promise<void> {
-  ensureSimulator(device, 'reinstall');
+  if (device.kind !== 'simulator') {
+    await runIosDevicectl(['device', 'install', 'app', '--device', device.id, appPath], {
+      action: 'install iOS app',
+      deviceId: device.id,
+    });
+    return;
+  }
+
   await ensureBootedSimulator(device);
   await runCmd('xcrun', ['simctl', 'install', device.id, appPath]);
 }

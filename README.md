@@ -147,7 +147,7 @@ Navigation helpers:
 - `boot --platform ios|android` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
-- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator).
+- `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `reinstall` accepts package/bundle id style app names and supports `~` in paths.
 
 Deep links:
@@ -242,7 +242,7 @@ Boot diagnostics:
 
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
-- Simulator-only commands: `alert`, `pinch`, `record`, `reinstall`, `settings`.
+- Simulator-only commands: `alert`, `pinch`, `record`, `settings`.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
