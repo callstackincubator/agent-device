@@ -53,10 +53,7 @@ agent-device snapshot -i -s @e3
 ## Troubleshooting
 
 - Ref not found: re-snapshot.
-- AX returns Simulator window: restart Simulator and re-run.
-- AX empty: verify Accessibility permission or use `--backend xctest` (XCTest is more complete).
-- AX backend is simulator-only; use `--backend xctest` on iOS devices.
-- agent-device does not automatically fall back to AX when XCTest fails.
+- If XCTest returns 0 nodes, foreground app state may have changed. Re-open the app or retry after state is stable.
 
 ## Replay note
 

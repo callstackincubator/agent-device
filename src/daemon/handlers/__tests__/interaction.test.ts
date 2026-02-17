@@ -7,9 +7,8 @@ test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref fl
     snapshotDepth: 2,
     snapshotScope: 'Login',
     snapshotRaw: true,
-    snapshotBackend: 'ax',
   });
-  assert.deepEqual(unsupported, ['--depth', '--scope', '--raw', '--backend']);
+  assert.deepEqual(unsupported, ['--depth', '--scope', '--raw']);
 });
 
 test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags are present', () => {

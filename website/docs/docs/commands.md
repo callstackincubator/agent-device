@@ -35,14 +35,12 @@ agent-device open MyApp "myapp://screen/to" --platform ios       # open deep lin
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--backend ax|xctest]
+agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
 ```
 
-- `--backend xctest` is the default backend.
-- `--backend ax` is simulator-only.
-- agent-device does not automatically switch from XCTest to AX; choose AX explicitly only for diagnostics.
+- iOS snapshots use XCTest on simulators and physical devices.
 
 ## Interactions
 

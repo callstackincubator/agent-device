@@ -176,7 +176,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
-    snapshotBackend,
     relaunch,
     saveScript,
     noRecord,
@@ -193,7 +192,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
-    snapshotBackend,
     relaunch,
     saveScript,
     noRecord,
@@ -268,9 +266,6 @@ function formatActionLine(action: SessionAction): string {
       parts.push('-s', formatArg(action.flags.snapshotScope));
     }
     if (action.flags?.snapshotRaw) parts.push('--raw');
-    if (action.flags?.snapshotBackend) {
-      parts.push(`--backend`, action.flags.snapshotBackend);
-    }
     return parts.join(' ');
   }
   if (action.command === 'open') {

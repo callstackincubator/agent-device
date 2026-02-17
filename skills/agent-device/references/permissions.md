@@ -1,19 +1,8 @@
 # Permissions and Setup
 
-## iOS AX snapshot
+## iOS snapshots
 
-AX snapshot is available for manual diagnostics when needed; it is not used as an automatic fallback. It uses macOS Accessibility APIs and requires permission:
-
-System Settings > Privacy & Security > Accessibility
-
-If permission is missing, use XCTest backend:
-
-```bash
-agent-device snapshot --backend xctest --platform ios
-```
-
-Hybrid/AX is fast; XCTest is equally fast but does not require permissions.
-AX backend is simulator-only.
+iOS snapshots use XCTest and do not require macOS Accessibility permissions.
 
 ## iOS physical device runner
 
@@ -35,5 +24,4 @@ If daemon startup fails with stale metadata hints, clean stale files and retry:
 
 ## Simulator troubleshooting
 
-- If AX shows the Simulator chrome instead of app, restart Simulator.
-- If AX returns empty, restart Simulator and re-open app.
+- If snapshots return 0 nodes, restart Simulator and re-open the app.

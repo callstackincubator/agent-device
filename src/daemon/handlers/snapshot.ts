@@ -37,15 +37,6 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    if (device.platform === 'ios' && device.kind === 'device' && req.flags?.snapshotBackend === 'ax') {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'AX snapshot backend is not supported on iOS physical devices; use --backend xctest',
-        },
-      };
-    }
     const appBundleId = session?.appBundleId;
     let snapshotScope = req.flags?.snapshotScope;
     if (snapshotScope && snapshotScope.trim().startsWith('@')) {
@@ -89,7 +80,7 @@ export async function handleSnapshotCommands(params: {
       })) as {
         nodes?: RawSnapshotNode[];
         truncated?: boolean;
-        backend?: 'ax' | 'xctest' | 'android';
+        backend?: 'xctest' | 'android';
       };
       const rawNodes = data?.nodes ?? [];
       const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
@@ -163,7 +154,7 @@ export async function handleSnapshotCommands(params: {
           })) as {
             nodes?: RawSnapshotNode[];
             truncated?: boolean;
-            backend?: 'ax' | 'xctest' | 'android';
+            backend?: 'xctest' | 'android';
           };
           const rawNodes = data?.nodes ?? [];
           const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));

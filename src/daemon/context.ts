@@ -10,7 +10,6 @@ export type DaemonCommandContext = {
   snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
-  snapshotBackend?: 'ax' | 'xctest';
   snapshotRaw?: boolean;
   count?: number;
   intervalMs?: number;
@@ -37,7 +36,6 @@ export function contextFromFlags(
     snapshotDepth: flags?.snapshotDepth,
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
-    snapshotBackend: flags?.snapshotBackend,
     count: flags?.count,
     intervalMs: flags?.intervalMs,
     holdMs: flags?.holdMs,

@@ -201,11 +201,11 @@ test('all commands participate in strict command-flag validation', () => {
   );
 });
 
-test('invalid enum/range errors are deterministic', () => {
+test('invalid range errors are deterministic', () => {
   assert.throws(
-    () => parseArgs(['snapshot', '--backend', 'foo'], { strictFlags: true }),
+    () => parseArgs(['snapshot', '--backend', 'xctest'], { strictFlags: true }),
     (error) =>
-      error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Invalid backend: foo',
+      error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Unknown flag: --backend',
   );
   assert.throws(
     () => parseArgs(['snapshot', '--depth', '-1'], { strictFlags: true }),

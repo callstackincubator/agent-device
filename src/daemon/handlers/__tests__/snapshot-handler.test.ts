@@ -21,16 +21,16 @@ function makeSession(name: string, device: SessionState['device']): SessionState
   };
 }
 
-test('snapshot rejects AX backend on iOS physical devices', async () => {
+test('snapshot rejects @ref scope without existing session snapshot', async () => {
   const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device';
+  const sessionName = 'ios-sim';
   sessionStore.set(
     sessionName,
     makeSession(sessionName, {
       platform: 'ios',
-      id: 'ios-device-1',
-      name: 'My iPhone',
-      kind: 'device',
+      id: 'sim-1',
+      name: 'My iPhone Simulator',
+      kind: 'simulator',
       booted: true,
     }),
   );
@@ -41,7 +41,7 @@ test('snapshot rejects AX backend on iOS physical devices', async () => {
       session: sessionName,
       command: 'snapshot',
       positionals: [],
-      flags: { snapshotBackend: 'ax' },
+      flags: { snapshotScope: '@e1' },
     },
     sessionName,
     logPath: '/tmp/daemon.log',
@@ -51,8 +51,8 @@ test('snapshot rejects AX backend on iOS physical devices', async () => {
   assert.ok(response);
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(response.error.message, /AX snapshot backend is not supported/i);
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /requires an existing snapshot/i);
   }
 });
 

@@ -175,6 +175,78 @@ test('replay --update heals selector and rewrites replay file', async () => {
   assert.ok(!rewrittenSelector.includes('old_continue'));
 });
 
+test('replay tolerates legacy snapshot --backend and strips it on rewrite', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-legacy-backend-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'legacy-backend-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+  fs.writeFileSync(
+    replayPath,
+    [
+      'snapshot -i --backend xctest',
+      'click "id=\\"old_continue\\" || label=\\"Continue\\""',
+      '',
+    ].join('\n'),
+  );
+
+  const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
+    if (request.command === 'snapshot') {
+      return { ok: true, data: { nodes: [] } };
+    }
+    if (request.command === 'click') {
+      const selector = request.positionals?.[0] ?? '';
+      if (selector.includes('old_continue')) {
+        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector no longer exists' } };
+      }
+      if (selector.includes('auth_continue')) {
+        return { ok: true, data: { clicked: true } };
+      }
+    }
+    return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+  };
+
+  const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    return {
+      nodes: [
+        {
+          index: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Continue',
+          identifier: 'auth_continue',
+          rect: { x: 10, y: 10, width: 100, height: 44 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      backend: 'xctest',
+    };
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: { replayUpdate: true },
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke,
+    dispatch,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true, JSON.stringify(response));
+  const rewritten = fs.readFileSync(replayPath, 'utf8');
+  assert.match(rewritten, /^snapshot -i$/m);
+  assert.doesNotMatch(rewritten, /--backend/);
+});
+
 test('replay without --update does not heal or rewrite', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-noheal-'));
   const sessionsDir = path.join(tempRoot, 'sessions');

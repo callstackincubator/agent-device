@@ -14,7 +14,6 @@ import {
 import { listIosDevices } from '../platforms/ios/devices.ts';
 import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { snapshotAx } from '../platforms/ios/ax-snapshot.ts';
 import { setIosSetting } from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
@@ -71,7 +70,6 @@ export async function dispatchCommand(
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotBackend?: 'ax' | 'xctest';
     count?: number;
     intervalMs?: number;
     holdMs?: number;
@@ -303,19 +301,7 @@ export async function dispatchCommand(
       return { setting, state };
     }
     case 'snapshot': {
-      const backend = context?.snapshotBackend ?? 'xctest';
       if (device.platform === 'ios') {
-        // Keep this guard for non-daemon callers that invoke dispatch directly.
-        if (backend === 'ax' && device.kind !== 'simulator') {
-          throw new AppError(
-            'UNSUPPORTED_OPERATION',
-            'AX snapshot backend is not supported on iOS physical devices; use --backend xctest',
-          );
-        }
-        if (backend === 'ax') {
-          const ax = await snapshotAx(device, { traceLogPath: context?.traceLogPath });
-          return { nodes: ax.nodes ?? [], truncated: false, backend: 'ax' };
-        }
         const result = (await runIosRunnerCommand(
           device,
           {
@@ -333,7 +319,7 @@ export async function dispatchCommand(
         if (nodes.length === 0 && device.kind === 'simulator') {
           throw new AppError(
             'COMMAND_FAILED',
-            'XCTest snapshot returned 0 nodes on iOS simulator. You can try --backend ax for diagnostics, but AX snapshots are not recommended.',
+            'XCTest snapshot returned 0 nodes on iOS simulator.',
           );
         }
         return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
