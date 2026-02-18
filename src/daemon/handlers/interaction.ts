@@ -6,7 +6,6 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../is-predicates.ts';
 import { extractNodeText, findNodeByLabel, isFillableType, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
-import { isClickLikeCommand } from '../script-utils.ts';
 import {
   buildSelectorChainForNode,
   findSelectorChainMatch,
@@ -34,7 +33,7 @@ export async function handleInteractionCommands(params: {
   const dispatch = params.dispatch ?? dispatchCommand;
   const command = req.command;
 
-  if (isClickLikeCommand(command)) {
+  if (command === 'press') {
     const session = sessionStore.get(sessionName);
     if (!session) {
       return {
@@ -44,8 +43,6 @@ export async function handleInteractionCommands(params: {
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
-      // Coordinate-only press is handled by daemon fallback to preserve legacy passthrough semantics.
-      if (command === 'press') return null;
       const data = await dispatch(
         session.device,
         'press',
@@ -67,7 +64,7 @@ export async function handleInteractionCommands(params: {
     const selectorAction = 'click';
     const refInput = req.positionals?.[0] ?? '';
     if (refInput.startsWith('@')) {
-      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse(command, req.flags);
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('press', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
@@ -575,7 +572,7 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
 ];
 
 function refSnapshotFlagGuardResponse(
-  command: 'click' | 'press' | 'fill' | 'get',
+  command: 'press' | 'fill' | 'get',
   flags: CommandFlags | undefined,
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
@@ -591,7 +588,6 @@ function refSnapshotFlagGuardResponse(
 
 function parseCoordinateTarget(positionals: string[]): { x: number; y: number } | null {
   if (positionals.length < 2) return null;
-  // Keep legacy "first two numeric tokens win" behavior for coordinate targets.
   const x = Number(positionals[0]);
   const y = Number(positionals[1]);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;

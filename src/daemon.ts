@@ -55,15 +55,16 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } };
   }
 
-  const command = req.command;
-  const sessionName = resolveEffectiveSessionName(req, sessionStore);
+  const normalizedReq = normalizeAliasedCommands(req);
+  const command = normalizedReq.command;
+  const sessionName = resolveEffectiveSessionName(normalizedReq, sessionStore);
   const existingSession = sessionStore.get(sessionName);
   if (existingSession && !selectorValidationExemptCommands.has(command)) {
-    assertSessionSelectorMatches(existingSession, req.flags);
+    assertSessionSelectorMatches(existingSession, normalizedReq.flags);
   }
 
   const sessionResponse = await handleSessionCommands({
-    req,
+    req: normalizedReq,
     sessionName,
     logPath,
     sessionStore,
@@ -72,7 +73,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   if (sessionResponse) return sessionResponse;
 
   const snapshotResponse = await handleSnapshotCommands({
-    req,
+    req: normalizedReq,
     sessionName,
     logPath,
     sessionStore,
@@ -80,14 +81,14 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   if (snapshotResponse) return snapshotResponse;
 
   const recordTraceResponse = await handleRecordTraceCommands({
-    req,
+    req: normalizedReq,
     sessionName,
     sessionStore,
   });
   if (recordTraceResponse) return recordTraceResponse;
 
   const findResponse = await handleFindCommands({
-    req,
+    req: normalizedReq,
     sessionName,
     logPath,
     sessionStore,
@@ -96,7 +97,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   if (findResponse) return findResponse;
 
   const interactionResponse = await handleInteractionCommands({
-    req,
+    req: normalizedReq,
     sessionName,
     sessionStore,
     contextFromFlags,
@@ -119,16 +120,21 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     };
   }
 
-  const data = await dispatchCommand(session.device, command, req.positionals ?? [], req.flags?.out, {
-    ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+  const data = await dispatchCommand(session.device, command, normalizedReq.positionals ?? [], normalizedReq.flags?.out, {
+    ...contextFromFlags(normalizedReq.flags, session.appBundleId, session.trace?.outPath),
   });
   sessionStore.recordAction(session, {
     command,
-    positionals: req.positionals ?? [],
-    flags: req.flags ?? {},
+    positionals: normalizedReq.positionals ?? [],
+    flags: normalizedReq.flags ?? {},
     result: data ?? {},
   });
   return { ok: true, data: data ?? {} };
+}
+
+function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
+  if (req.command !== 'click') return req;
+  return { ...req, command: 'press' };
 }
 
 function writeInfo(port: number): void {

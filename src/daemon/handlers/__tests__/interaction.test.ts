@@ -56,7 +56,7 @@ test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags ar
   assert.deepEqual(unsupported, []);
 });
 
-test('click coordinates dispatches press and records as click', async () => {
+test('press coordinates dispatches press and records as press', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   sessionStore.set(sessionName, makeSession(sessionName));
@@ -67,7 +67,7 @@ test('click coordinates dispatches press and records as click', async () => {
     req: {
       token: 't',
       session: sessionName,
-      command: 'click',
+      command: 'press',
       positionals: ['100', '200'],
       flags: { count: 3, intervalMs: 1, doubleTap: true },
     },
@@ -92,7 +92,7 @@ test('click coordinates dispatches press and records as click', async () => {
   const session = sessionStore.get(sessionName);
   assert.ok(session);
   assert.equal(session?.actions.length, 1);
-  assert.equal(session?.actions[0]?.command, 'click');
+  assert.equal(session?.actions[0]?.command, 'press');
   assert.deepEqual(session?.actions[0]?.positionals, ['100', '200']);
 });
 
@@ -155,30 +155,33 @@ test('press @ref resolves snapshot node and records press action', async () => {
   assert.ok(Array.isArray(result.selectorChain));
 });
 
-test('press coordinates returns null to allow daemon passthrough', async () => {
+test('press coordinates does not treat extra trailing args as selector', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   sessionStore.set(sessionName, makeSession(sessionName));
 
-  let dispatchCalls = 0;
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
   const response = await handleInteractionCommands({
     req: {
       token: 't',
       session: sessionName,
       command: 'press',
-      positionals: ['100', '200'],
+      positionals: ['100', '200', 'extra'],
       flags: { count: 2 },
     },
     sessionName,
     sessionStore,
     contextFromFlags,
-    dispatch: async () => {
-      dispatchCalls += 1;
-      return {};
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return { ok: true };
     },
   });
 
-  assert.equal(response, null);
-  assert.equal(dispatchCalls, 0);
-  assert.equal(sessionStore.get(sessionName)?.actions.length, 0);
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'press');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['100', '200']);
+  assert.equal(sessionStore.get(sessionName)?.actions.length, 1);
 });

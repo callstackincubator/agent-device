@@ -25,7 +25,6 @@ test('shouldUseIosTapSeries enables fast path for repeated plain iOS taps', () =
 
 test('shouldUseIosTapSeries disables fast path for single press or modified gestures', () => {
   assert.equal(shouldUseIosTapSeries(iosDevice, 1, 0, 0), false);
-  assert.equal(shouldUseIosTapSeries(iosDevice, 1, 0, 0, true), true);
   assert.equal(shouldUseIosTapSeries(iosDevice, 5, 100, 0), false);
   assert.equal(shouldUseIosTapSeries(iosDevice, 5, 0, 1), false);
 });

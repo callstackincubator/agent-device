@@ -141,7 +141,7 @@ export async function dispatchCommand(
         throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with jitter-px');
       }
 
-      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx, doubleTap)) {
+      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
         await runIosRunnerCommand(
           device,
           {
@@ -421,9 +421,8 @@ export function shouldUseIosTapSeries(
   count: number,
   holdMs: number,
   jitterPx: number,
-  doubleTap = false,
 ): boolean {
-  return device.platform === 'ios' && (count > 1 || doubleTap) && holdMs === 0 && jitterPx === 0;
+  return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
 }
 
 export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {

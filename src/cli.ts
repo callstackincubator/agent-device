@@ -146,12 +146,12 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
-      if (command === 'click') {
+      if (command === 'click' || command === 'press') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;
         const y = (response.data as any)?.y;
         if (ref && typeof x === 'number' && typeof y === 'number') {
-          process.stdout.write(`Clicked @${ref} (${x}, ${y})\n`);
+          process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
         }
         if (logTailStopper) logTailStopper();
         return;

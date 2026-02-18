@@ -12,7 +12,7 @@ For agent-driven exploration: use refs. For deterministic replay scripts: use se
 ```bash
 agent-device open Settings --platform ios
 agent-device snapshot -i
-agent-device click @e3
+agent-device press @e3
 agent-device wait text "Camera"
 agent-device alert wait 10000
 agent-device fill @e5 "test"

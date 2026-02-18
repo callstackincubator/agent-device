@@ -39,10 +39,10 @@ Use `press` as the canonical tap command; `click` is an equivalent alias.
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
 agent-device snapshot
-agent-device click @e5
+agent-device press @e5
 agent-device fill @e6 "John"
 agent-device fill @e7 "Doe"
-agent-device click @e3
+agent-device press @e3
 agent-device close
 ```
 
@@ -82,7 +82,7 @@ Gesture series examples:
 ```bash
 agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
-agent-device click @e5 --count 5 --interval-ms 1 --double-tap
+agent-device press @e5 --count 5 --double-tap
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 ```
 
