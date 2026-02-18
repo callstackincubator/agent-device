@@ -15,6 +15,7 @@ import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts
 export type RunnerCommand = {
   command:
     | 'tap'
+    | 'tapSeries'
     | 'longPress'
     | 'drag'
     | 'type'
@@ -33,6 +34,8 @@ export type RunnerCommand = {
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
+  count?: number;
+  intervalMs?: number;
   x2?: number;
   y2?: number;
   durationMs?: number;

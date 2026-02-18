@@ -132,6 +132,22 @@ export async function dispatchCommand(
       const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
       const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
 
+      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
+        await runIosRunnerCommand(
+          device,
+          {
+            command: 'tapSeries',
+            x,
+            y,
+            count,
+            intervalMs,
+            appBundleId: context?.appBundleId,
+          },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+        );
+        return { x, y, count, intervalMs, holdMs, jitterPx, timingMode: 'runner-series' };
+      }
+
       for (let index = 0; index < count; index += 1) {
         const [dx, dy] = computeDeterministicJitter(index, jitterPx);
         const targetX = x + dx;
@@ -355,6 +371,10 @@ function requireIntInRange(value: number, name: string, min: number, max: number
     throw new AppError('INVALID_ARGS', `${name} must be an integer between ${min} and ${max}`);
   }
   return value;
+}
+
+export function shouldUseIosTapSeries(device: DeviceInfo, count: number, holdMs: number, jitterPx: number): boolean {
+  return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
 }
 
 function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {

@@ -257,6 +257,19 @@ final class RunnerTests: XCTestCase {
         return Response(ok: true, data: DataPayload(message: "tapped"))
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
+    case .tapSeries:
+      guard let x = command.x, let y = command.y else {
+        return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
+      }
+      let count = max(Int(command.count ?? 1), 1)
+      let intervalMs = max(command.intervalMs ?? 0, 0)
+      for idx in 0..<count {
+        tapAt(app: activeApp, x: x, y: y)
+        if idx < count - 1 && intervalMs > 0 {
+          Thread.sleep(forTimeInterval: intervalMs / 1000.0)
+        }
+      }
+      return Response(ok: true, data: DataPayload(message: "tap series"))
     case .longPress:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "longPress requires x and y"))
@@ -989,6 +1002,7 @@ private func resolveRunnerPort() -> UInt16 {
 
 enum CommandType: String, Codable {
   case tap
+  case tapSeries
   case longPress
   case drag
   case type
@@ -1019,6 +1033,8 @@ struct Command: Codable {
   let action: String?
   let x: Double?
   let y: Double?
+  let count: Double?
+  let intervalMs: Double?
   let x2: Double?
   let y2: Double?
   let durationMs: Double?
