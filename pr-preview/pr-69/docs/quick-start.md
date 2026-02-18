@@ -50,7 +50,7 @@ agent-device batch \
   --json
 ```
 
-See [Batching for Agents](/agent-device/pr-preview/pr-69/docs/batching.md) for payload format, failure handling, and best practices.
+See [Batching](/agent-device/pr-preview/pr-69/docs/batching.md) for payload format, failure handling, and best practices.
 
 ## Semantic discovery
 

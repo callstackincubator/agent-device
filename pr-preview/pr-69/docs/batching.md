@@ -1,4 +1,4 @@
-# Batching for Agents
+# Batching
 
 Use `batch` to run multiple commands in a single daemon request.
 
