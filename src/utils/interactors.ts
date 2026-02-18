@@ -34,6 +34,7 @@ export type Interactor = {
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
   tap(x: number, y: number): Promise<void>;
+  doubleTap(x: number, y: number): Promise<void>;
   swipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<void>;
   longPress(x: number, y: number, durationMs?: number): Promise<void>;
   focus(x: number, y: number): Promise<void>;
@@ -52,6 +53,10 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         openDevice: () => openAndroidDevice(device),
         close: (app) => closeAndroidApp(device, app),
         tap: (x, y) => pressAndroid(device, x, y),
+        doubleTap: async (x, y) => {
+          await pressAndroid(device, x, y);
+          await pressAndroid(device, x, y);
+        },
         swipe: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
         longPress: (x, y, durationMs) => longPressAndroid(device, x, y, durationMs),
         focus: (x, y) => focusAndroid(device, x, y),
@@ -74,7 +79,10 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
   }
 }
 
-type IoRunnerOverrides = Pick<Interactor, 'tap' | 'swipe' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll' | 'scrollIntoView'>;
+type IoRunnerOverrides = Pick<
+  Interactor,
+  'tap' | 'doubleTap' | 'swipe' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll' | 'scrollIntoView'
+>;
 
 function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
   const runnerOpts = { verbose: ctx.verbose, logPath: ctx.logPath, traceLogPath: ctx.traceLogPath };
@@ -84,6 +92,13 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
       await runIosRunnerCommand(
         device,
         { command: 'tap', x, y, appBundleId: ctx.appBundleId },
+        runnerOpts,
+      );
+    },
+    doubleTap: async (x, y) => {
+      await runIosRunnerCommand(
+        device,
+        { command: 'tapSeries', x, y, count: 1, intervalMs: 0, doubleTap: true, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
     },

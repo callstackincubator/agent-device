@@ -3,6 +3,7 @@
 ## Purpose
 
 Refs are useful for discovery/debugging. For deterministic scripts, use selectors.
+For tap interactions, `press` is canonical; `click` is an equivalent alias.
 
 ## Snapshot
 
@@ -24,14 +25,14 @@ App: com.apple.Preferences
 ## Using refs (discovery/debug)
 
 ```bash
-agent-device click @e2
+agent-device press @e2
 agent-device fill @e5 "test"
 ```
 
 ## Using selectors (deterministic)
 
 ```bash
-agent-device click 'id="camera_row" || label="Camera" role=button'
+agent-device press 'id="camera_row" || label="Camera" role=button'
 agent-device fill 'id="search_input" editable=true' "test"
 agent-device is visible 'id="camera_settings_anchor"'
 ```

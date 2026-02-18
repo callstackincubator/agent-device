@@ -34,6 +34,7 @@ npx agent-device open SampleApp
 ## Quick Start
 
 Use refs for agent-driven exploration and normal automation flows.
+Use `press` as the canonical tap command; `click` is an equivalent alias.
 
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
@@ -56,7 +57,7 @@ Basic flow:
 ```bash
 agent-device open SampleApp
 agent-device snapshot
-agent-device click @e7
+agent-device press @e7
 agent-device fill @e8 "hello"
 agent-device close SampleApp
 ```
@@ -73,7 +74,8 @@ agent-device trace stop ./trace.log
 Coordinates:
 - All coordinate-based commands (`press`, `long-press`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
-- `click` and `press` both accept `x y`, `@ref`, and selector targets.
+- `press` is the canonical tap command.
+- `click` is an equivalent alias and accepts the same targets (`x y`, `@ref`, selector) and flags.
 
 Gesture series examples:
 
@@ -87,7 +89,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `snapshot`, `find`, `get`
-- `click`, `focus`, `type`, `fill`, `press`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
+- `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`

@@ -29,7 +29,7 @@ npx -y agent-device
 
 1. Open app or deep link: `open [app|url] [url]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
-3. Interact using refs (`click @ref`, `fill @ref "text"`)
+3. Interact using refs (`press @ref`, `fill @ref "text"`; `click` is an alias of `press`)
 4. Re-snapshot after navigation/UI changes
 5. Close session when done
 
@@ -109,14 +109,15 @@ agent-device appstate
 ### Interactions (use @refs from snapshot)
 
 ```bash
-agent-device click @e1
+agent-device press @e1                # Canonical tap command (`click` is an alias)
 agent-device focus @e2
 agent-device fill @e2 "text"           # Clear then type (Android: verifies value and retries once on mismatch)
 agent-device type "text"               # Type into focused field without clearing
 agent-device press 300 500             # Tap by coordinates
 agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
-agent-device click @e1 --count 5 --interval-ms 1 --double-tap
+agent-device press @e1 --count 5             # Repeat taps on the same target
+agent-device press @e1 --count 5 --double-tap # Use double-tap gesture per iteration
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800    # Long press (where supported)
@@ -179,7 +180,8 @@ agent-device apps --platform android --user-installed
 
 ## Best practices
 
-- `click` and `press` both accept `x y`, `@ref`, and selector targets.
+- `press` is the canonical tap command; `click` is an alias with the same behavior.
+- `press` (and `click`) accepts `x y`, `@ref`, and selector targets.
 - `press`/`click` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
 - `--double-tap` cannot be combined with `--hold-ms` or `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.

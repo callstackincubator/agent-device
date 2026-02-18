@@ -163,8 +163,7 @@ export async function dispatchCommand(
         const targetX = x + dx;
         const targetY = y + dy;
         if (doubleTap) {
-          await interactor.tap(targetX, targetY);
-          await interactor.tap(targetX, targetY);
+          await interactor.doubleTap(targetX, targetY);
           return;
         }
         if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
