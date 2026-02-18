@@ -18,6 +18,10 @@ const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
 
+function isMissingAppErrorOutput(output: string): boolean {
+  return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
+}
+
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();
   if (trimmed.includes('.')) return trimmed;
@@ -142,7 +146,7 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
       const stdout = String(result.stdout ?? '');
       const stderr = String(result.stderr ?? '');
       const output = `${stdout}\n${stderr}`.toLowerCase();
-      if (!output.includes('not installed') && !output.includes('not found') && !output.includes('no such file')) {
+      if (!isMissingAppErrorOutput(output)) {
         throw new AppError('COMMAND_FAILED', `Failed to uninstall iOS app ${bundleId}`, {
           cmd: 'xcrun',
           args,
@@ -164,7 +168,7 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
   });
   if (result.exitCode !== 0) {
     const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-    if (!output.includes('not installed') && !output.includes('not found') && !output.includes('no such file')) {
+    if (!isMissingAppErrorOutput(output)) {
       throw new AppError('COMMAND_FAILED', `simctl uninstall failed for ${bundleId}`, {
         stdout: result.stdout,
         stderr: result.stderr,

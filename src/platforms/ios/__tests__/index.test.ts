@@ -7,6 +7,43 @@ import { listIosApps, openIosApp, parseIosDeviceAppsPayload, reinstallIosApp, re
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
+const IOS_TEST_DEVICE: DeviceInfo = {
+  platform: 'ios',
+  id: 'ios-device-1',
+  name: 'iPhone Device',
+  kind: 'device',
+  booted: true,
+};
+
+async function withMockedXcrun(
+  tempPrefix: string,
+  script: string,
+  run: (ctx: { tmpDir: string; argsLogPath: string; device: DeviceInfo }) => Promise<void>,
+): Promise<void> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(xcrunPath, script, 'utf8');
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await run({ tmpDir, argsLogPath, device: IOS_TEST_DEVICE });
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
 test('openIosApp custom scheme deep links on iOS devices require app bundle context', async () => {
   const device: DeviceInfo = {
     platform: 'ios',
@@ -131,49 +168,27 @@ test('openIosApp custom scheme on iOS device uses active app context', async () 
 });
 
 test('reinstallIosApp on iOS physical device uses devicectl uninstall + install', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-reinstall-device-test-'));
-  const xcrunPath = path.join(tmpDir, 'xcrun');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    xcrunPath,
-    [
-      '#!/bin/sh',
-      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      'if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "info" ] && [ "$4" = "apps" ]; then',
-      '  out=""',
-      '  while [ "$#" -gt 0 ]; do',
-      '    if [ "$1" = "--json-output" ]; then',
-      '      out="$2"',
-      '      shift 2',
-      '      continue',
-      '    fi',
-      '    shift',
-      '  done',
-      "  cat > \"$out\" <<'JSON'",
-      '{"result":{"apps":[{"bundleIdentifier":"com.example.demo","name":"Demo"}]}}',
-      'JSON',
-      'fi',
-      'exit 0',
-      '',
-    ].join('\n'),
-    'utf8',
-  );
-  await fs.chmod(xcrunPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'iPhone Device',
-    kind: 'device',
-    booted: true,
-  };
-
-  try {
+  await withMockedXcrun(
+    'agent-device-ios-reinstall-device-test-',
+    `#!/bin/sh
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "info" ] && [ "$4" = "apps" ]; then
+  out=""
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--json-output" ]; then
+      out="$2"
+      shift 2
+      continue
+    fi
+    shift
+  done
+  cat > "$out" <<'JSON'
+{"result":{"apps":[{"bundleIdentifier":"com.example.demo","name":"Demo"}]}}
+JSON
+fi
+exit 0
+`,
+    async ({ tmpDir, argsLogPath, device }) => {
     const appPath = path.join(tmpDir, 'Sample.app');
     await fs.writeFile(appPath, 'placeholder', 'utf8');
     const result = await reinstallIosApp(device, 'Demo', appPath);
@@ -207,70 +222,41 @@ test('reinstallIosApp on iOS physical device uses devicectl uninstall + install'
       'ios-device-1',
       appPath,
     ]);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+    },
+  );
 });
 
 test('reinstallIosApp on iOS physical device proceeds when uninstall reports app not installed', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-reinstall-device-missing-app-test-'));
-  const xcrunPath = path.join(tmpDir, 'xcrun');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    xcrunPath,
-    [
-      '#!/bin/sh',
-      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      'if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "info" ] && [ "$4" = "apps" ]; then',
-      '  out=""',
-      '  while [ "$#" -gt 0 ]; do',
-      '    if [ "$1" = "--json-output" ]; then',
-      '      out="$2"',
-      '      shift 2',
-      '      continue',
-      '    fi',
-      '    shift',
-      '  done',
-      "  cat > \"$out\" <<'JSON'",
-      '{"result":{"apps":[{"bundleIdentifier":"com.example.demo","name":"Demo"}]}}',
-      'JSON',
-      '  exit 0',
-      'fi',
-      'if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "uninstall" ] && [ "$4" = "app" ]; then',
-      '  echo "app not installed" >&2',
-      '  exit 1',
-      'fi',
-      'if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "install" ] && [ "$4" = "app" ]; then',
-      '  exit 0',
-      'fi',
-      'echo "unexpected xcrun args: $@" >&2',
-      'exit 1',
-      '',
-    ].join('\n'),
-    'utf8',
-  );
-  await fs.chmod(xcrunPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'iPhone Device',
-    kind: 'device',
-    booted: true,
-  };
-
-  try {
+  await withMockedXcrun(
+    'agent-device-ios-reinstall-device-missing-app-test-',
+    `#!/bin/sh
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "info" ] && [ "$4" = "apps" ]; then
+  out=""
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--json-output" ]; then
+      out="$2"
+      shift 2
+      continue
+    fi
+    shift
+  done
+  cat > "$out" <<'JSON'
+{"result":{"apps":[{"bundleIdentifier":"com.example.demo","name":"Demo"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "uninstall" ] && [ "$4" = "app" ]; then
+  echo "app not installed" >&2
+  exit 1
+fi
+if [ "$1" = "devicectl" ] && [ "$2" = "device" ] && [ "$3" = "install" ] && [ "$4" = "app" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ tmpDir, argsLogPath, device }) => {
     const appPath = path.join(tmpDir, 'Sample.app');
     await fs.writeFile(appPath, 'placeholder', 'utf8');
     const result = await reinstallIosApp(device, 'Demo', appPath);
@@ -282,15 +268,8 @@ test('reinstallIosApp on iOS physical device proceeds when uninstall reports app
       .filter(Boolean);
     assert.equal(args.includes('uninstall'), true);
     assert.equal(args.includes('install'), true);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+    },
+  );
 });
 
 test('openIosApp with app and URL on iOS device launches app bundle with payload URL', async () => {
