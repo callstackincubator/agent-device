@@ -4,7 +4,7 @@ import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 
-import { IOS_APP_LAUNCH_TIMEOUT_MS } from './config.ts';
+import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
   IOS_DEVICECTL_DEFAULT_HINT,
   listIosDeviceApps,
@@ -134,7 +134,10 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
   const bundleId = await resolveIosApp(device, app);
   if (device.kind !== 'simulator') {
     const args = ['devicectl', 'device', 'uninstall', 'app', '--device', device.id, bundleId];
-    const result = await runCmd('xcrun', args, { allowFailure: true });
+    const result = await runCmd('xcrun', args, {
+      allowFailure: true,
+      timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
+    });
     if (result.exitCode !== 0) {
       const stdout = String(result.stdout ?? '');
       const stderr = String(result.stderr ?? '');
