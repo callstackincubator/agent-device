@@ -33,6 +33,11 @@ final class RunnerTests: XCTestCase {
   private let maxSnapshotElements = 600
   private let fastSnapshotLimit = 300
   private let mainThreadExecutionTimeout: TimeInterval = 30
+  private let retryCooldown: TimeInterval = 0.2
+  private let postSnapshotInteractionDelay: TimeInterval = 0.2
+  private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
+  private var needsPostSnapshotInteractionDelay = false
+  private var needsFirstInteractionDelay = false
   private let interactiveTypes: Set<XCUIElement.ElementType> = [
     .button,
     .cell,
@@ -241,36 +246,51 @@ final class RunnerTests: XCTestCase {
   }
 
   private func executeOnMainSafely(command: Command) throws -> Response {
-    var response: Response?
-    var swiftError: Error?
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      do {
-        response = try self.executeOnMain(command: command)
-      } catch {
-        swiftError = error
-      }
-    })
+    var hasRetried = false
+    while true {
+      var response: Response?
+      var swiftError: Error?
+      let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+        do {
+          response = try self.executeOnMain(command: command)
+        } catch {
+          swiftError = error
+        }
+      })
 
-    if let exceptionMessage {
-      currentApp = nil
-      currentBundleId = nil
-      throw NSError(
-        domain: RunnerErrorDomain.exception,
-        code: RunnerErrorCode.objcException,
-        userInfo: [NSLocalizedDescriptionKey: exceptionMessage]
-      )
+      if let exceptionMessage {
+        currentApp = nil
+        currentBundleId = nil
+        if !hasRetried, shouldRetryCommand(command.command) {
+          hasRetried = true
+          sleepFor(retryCooldown)
+          continue
+        }
+        throw NSError(
+          domain: RunnerErrorDomain.exception,
+          code: RunnerErrorCode.objcException,
+          userInfo: [NSLocalizedDescriptionKey: exceptionMessage]
+        )
+      }
+      if let swiftError {
+        throw swiftError
+      }
+      guard let response else {
+        throw NSError(
+          domain: RunnerErrorDomain.general,
+          code: RunnerErrorCode.commandReturnedNoResponse,
+          userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
+        )
+      }
+      if !hasRetried, shouldRetryCommand(command.command), shouldRetryResponse(response) {
+        hasRetried = true
+        currentApp = nil
+        currentBundleId = nil
+        sleepFor(retryCooldown)
+        continue
+      }
+      return response
     }
-    if let swiftError {
-      throw swiftError
-    }
-    guard let response else {
-      throw NSError(
-        domain: RunnerErrorDomain.general,
-        code: RunnerErrorCode.commandReturnedNoResponse,
-        userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
-      )
-    }
-    return response
   }
 
   private func executeOnMain(command: Command) throws -> Response {
@@ -308,6 +328,22 @@ final class RunnerTests: XCTestCase {
       } else {
         return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
       }
+    }
+
+    if isInteractionCommand(command.command) {
+      if let bundleId = requestedBundleId, activeApp.state != .runningForeground {
+        activeApp = activateTarget(bundleId: bundleId, reason: "interaction_foreground_guard")
+      } else if requestedBundleId == nil, activeApp.state != .runningForeground {
+        app.activate()
+        activeApp = app
+      }
+      if !activeApp.waitForExistence(timeout: 2) {
+        if let bundleId = requestedBundleId {
+          return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+        }
+        return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
+      }
+      applyInteractionStabilizationIfNeeded()
     }
 
     switch command.command {
@@ -427,8 +463,10 @@ final class RunnerTests: XCTestCase {
         raw: command.raw ?? false,
       )
       if options.raw {
+        needsPostSnapshotInteractionDelay = true
         return Response(ok: true, data: snapshotRaw(app: activeApp, options: options))
       }
+      needsPostSnapshotInteractionDelay = true
       return Response(ok: true, data: snapshotFast(app: activeApp, options: options))
     case .back:
       if tapNavigationBack(app: activeApp) {
@@ -490,7 +528,48 @@ final class RunnerTests: XCTestCase {
     target.activate()
     currentApp = target
     currentBundleId = bundleId
+    needsFirstInteractionDelay = true
     return target
+  }
+
+  private func shouldRetryCommand(_ command: CommandType) -> Bool {
+    switch command {
+    case .tap, .longPress, .drag:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func shouldRetryResponse(_ response: Response) -> Bool {
+    guard response.ok == false else { return false }
+    guard let message = response.error?.message.lowercased() else { return false }
+    return message.contains("is not available")
+  }
+
+  private func isInteractionCommand(_ command: CommandType) -> Bool {
+    switch command {
+    case .tap, .longPress, .drag, .type, .swipe, .back, .appSwitcher, .pinch:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func applyInteractionStabilizationIfNeeded() {
+    if needsPostSnapshotInteractionDelay {
+      sleepFor(postSnapshotInteractionDelay)
+      needsPostSnapshotInteractionDelay = false
+    }
+    if needsFirstInteractionDelay {
+      sleepFor(firstInteractionAfterActivateDelay)
+      needsFirstInteractionDelay = false
+    }
+  }
+
+  private func sleepFor(_ delay: TimeInterval) {
+    guard delay > 0 else { return }
+    usleep(useconds_t(delay * 1_000_000))
   }
 
   private func tapNavigationBack(app: XCUIApplication) -> Bool {
