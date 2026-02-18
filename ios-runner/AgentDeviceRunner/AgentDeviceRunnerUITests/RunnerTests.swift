@@ -288,6 +288,29 @@ final class RunnerTests: XCTestCase {
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
       return Response(ok: true, data: DataPayload(message: "dragged"))
+    case .dragSeries:
+      guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
+        return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))
+      }
+      let count = max(Int(command.count ?? 1), 1)
+      let pauseMs = max(command.pauseMs ?? 0, 0)
+      let pattern = command.pattern ?? "one-way"
+      if pattern != "one-way" && pattern != "ping-pong" {
+        return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
+      }
+      let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      for idx in 0..<count {
+        let reverse = pattern == "ping-pong" && (idx % 2 == 1)
+        if reverse {
+          dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+        } else {
+          dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+        }
+        if idx < count - 1 && pauseMs > 0 {
+          Thread.sleep(forTimeInterval: pauseMs / 1000.0)
+        }
+      }
+      return Response(ok: true, data: DataPayload(message: "drag series"))
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -1022,6 +1045,7 @@ enum CommandType: String, Codable {
   case tapSeries
   case longPress
   case drag
+  case dragSeries
   case type
   case swipe
   case findText
@@ -1053,6 +1077,8 @@ struct Command: Codable {
   let count: Double?
   let intervalMs: Double?
   let tapBatch: Bool?
+  let pauseMs: Double?
+  let pattern: String?
   let x2: Double?
   let y2: Double?
   let durationMs: Double?

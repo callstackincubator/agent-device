@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldUseIosTapSeries } from '../dispatch.ts';
+import { shouldUseIosDragSeries, shouldUseIosTapSeries } from '../dispatch.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 
 const iosDevice: DeviceInfo = {
@@ -31,4 +31,13 @@ test('shouldUseIosTapSeries disables fast path for single press or modified gest
 
 test('shouldUseIosTapSeries disables fast path for non-iOS devices', () => {
   assert.equal(shouldUseIosTapSeries(androidDevice, 5, 0, 0), false);
+});
+
+test('shouldUseIosDragSeries enables fast path for repeated iOS swipes', () => {
+  assert.equal(shouldUseIosDragSeries(iosDevice, 3), true);
+});
+
+test('shouldUseIosDragSeries disables fast path for single swipe and non-iOS', () => {
+  assert.equal(shouldUseIosDragSeries(iosDevice, 1), false);
+  assert.equal(shouldUseIosDragSeries(androidDevice, 3), false);
 });

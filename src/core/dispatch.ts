@@ -180,6 +180,37 @@ export async function dispatchCommand(
         throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
       }
 
+      if (shouldUseIosDragSeries(device, count)) {
+        await runIosRunnerCommand(
+          device,
+          {
+            command: 'dragSeries',
+            x: x1,
+            y: y1,
+            x2,
+            y2,
+            durationMs: effectiveDurationMs,
+            count,
+            pauseMs,
+            pattern,
+            appBundleId: context?.appBundleId,
+          },
+          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+        );
+        return {
+          x1,
+          y1,
+          x2,
+          y2,
+          durationMs,
+          effectiveDurationMs,
+          timingMode: 'runner-series',
+          count,
+          pauseMs,
+          pattern,
+        };
+      }
+
       for (let index = 0; index < count; index += 1) {
         const reverse = pattern === 'ping-pong' && index % 2 === 1;
         if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
@@ -377,6 +408,10 @@ function requireIntInRange(value: number, name: string, min: number, max: number
 
 export function shouldUseIosTapSeries(device: DeviceInfo, count: number, holdMs: number, jitterPx: number): boolean {
   return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
+}
+
+export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {
+  return device.platform === 'ios' && count > 1;
 }
 
 function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {

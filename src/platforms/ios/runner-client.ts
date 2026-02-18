@@ -18,6 +18,7 @@ export type RunnerCommand = {
     | 'tapSeries'
     | 'longPress'
     | 'drag'
+    | 'dragSeries'
     | 'type'
     | 'swipe'
     | 'findText'
@@ -37,6 +38,8 @@ export type RunnerCommand = {
   count?: number;
   intervalMs?: number;
   tapBatch?: boolean;
+  pauseMs?: number;
+  pattern?: 'one-way' | 'ping-pong';
   x2?: number;
   y2?: number;
   durationMs?: number;
