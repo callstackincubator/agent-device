@@ -185,10 +185,10 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   },
   {
     key: 'verbose',
-    names: ['--verbose', '-v'],
+    names: ['--debug', '--verbose', '-v'],
     type: 'boolean',
-    usageLabel: '--verbose',
-    usageDescription: 'Stream daemon/runner logs',
+    usageLabel: '--debug, --verbose, -v',
+    usageDescription: 'Enable debug diagnostics and stream daemon/runner logs',
   },
   {
     key: 'json',

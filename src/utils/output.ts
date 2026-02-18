@@ -1,16 +1,41 @@
-import { AppError } from './errors.ts';
+import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 
 export type JsonResult =
   | { success: true; data?: Record<string, unknown> }
-  | { success: false; error: { code: string; message: string; details?: Record<string, unknown> } };
+  | {
+    success: false;
+    error: {
+      code: string;
+      message: string;
+      hint?: string;
+      diagnosticId?: string;
+      logPath?: string;
+      details?: Record<string, unknown>;
+    };
+  };
 
 export function printJson(result: JsonResult): void {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
-export function printHumanError(err: AppError): void {
-  const details = err.details ? `\n${JSON.stringify(err.details, null, 2)}` : '';
-  process.stderr.write(`Error (${err.code}): ${err.message}${details}\n`);
+export function printHumanError(
+  err: AppError | NormalizedError,
+  options: { showDetails?: boolean } = {},
+): void {
+  const normalized = err instanceof AppError ? normalizeError(err) : err;
+  process.stderr.write(`Error (${normalized.code}): ${normalized.message}\n`);
+  if (normalized.hint) {
+    process.stderr.write(`Hint: ${normalized.hint}\n`);
+  }
+  if (normalized.diagnosticId) {
+    process.stderr.write(`Diagnostic ID: ${normalized.diagnosticId}\n`);
+  }
+  if (normalized.logPath) {
+    process.stderr.write(`Diagnostics Log: ${normalized.logPath}\n`);
+  }
+  if (options.showDetails && normalized.details) {
+    process.stderr.write(`${JSON.stringify(normalized.details, null, 2)}\n`);
+  }
 }
 
 type SnapshotRect = { x: number; y: number; width: number; height: number };

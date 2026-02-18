@@ -3,25 +3,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
-import type { CommandFlags } from './core/dispatch.ts';
+import type { DaemonRequest as SharedDaemonRequest, DaemonResponse as SharedDaemonResponse } from './daemon/types.ts';
 import { runCmdDetached } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
+import { createRequestId, emitDiagnostic, withDiagnosticTimer } from './utils/diagnostics.ts';
 import {
   isAgentDeviceDaemonProcess,
   stopProcessForTakeover,
 } from './utils/process-identity.ts';
 
-export type DaemonRequest = {
-  token: string;
-  session: string;
-  command: string;
-  positionals: string[];
-  flags?: CommandFlags;
-};
-
-export type DaemonResponse =
-  | { ok: true; data?: Record<string, unknown> }
-  | { ok: false; error: { code: string; message: string; details?: Record<string, unknown> } };
+export type DaemonRequest = SharedDaemonRequest;
+export type DaemonResponse = SharedDaemonResponse;
 
 type DaemonInfo = {
   port: number;
@@ -51,9 +43,35 @@ const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
 
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
-  const info = await ensureDaemon();
-  const request = { ...req, token: info.token };
-  return await sendRequest(info, request);
+  const requestId = req.meta?.requestId ?? createRequestId();
+  const debug = Boolean(req.meta?.debug || req.flags?.verbose);
+  const info = await withDiagnosticTimer(
+    'daemon_startup',
+    async () => await ensureDaemon(),
+    { requestId, session: req.session },
+  );
+  const request = {
+    ...req,
+    token: info.token,
+    meta: {
+      requestId,
+      debug,
+    },
+  };
+  emitDiagnostic({
+    level: 'info',
+    phase: 'daemon_request_prepare',
+    data: {
+      requestId,
+      command: req.command,
+      session: req.session,
+    },
+  });
+  return await withDiagnosticTimer(
+    'daemon_request',
+    async () => await sendRequest(info, request),
+    { requestId, command: req.command },
+  );
 }
 
 async function ensureDaemon(): Promise<DaemonInfo> {
@@ -223,8 +241,21 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
     });
     const timeout = setTimeout(() => {
       socket.destroy();
+      emitDiagnostic({
+        level: 'error',
+        phase: 'daemon_request_timeout',
+        data: {
+          timeoutMs: REQUEST_TIMEOUT_MS,
+          requestId: req.meta?.requestId,
+          command: req.command,
+        },
+      });
       reject(
-        new AppError('COMMAND_FAILED', 'Daemon request timed out', { timeoutMs: REQUEST_TIMEOUT_MS }),
+        new AppError('COMMAND_FAILED', 'Daemon request timed out', {
+          timeoutMs: REQUEST_TIMEOUT_MS,
+          requestId: req.meta?.requestId,
+          hint: 'Retry with --debug and check daemon diagnostics logs.',
+        }),
       );
     }, REQUEST_TIMEOUT_MS);
 
@@ -243,13 +274,34 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
         resolve(response);
       } catch (err) {
         clearTimeout(timeout);
-        reject(err);
+        reject(new AppError('COMMAND_FAILED', 'Invalid daemon response', {
+          requestId: req.meta?.requestId,
+          line,
+        }, err instanceof Error ? err : undefined));
       }
     });
 
     socket.on('error', (err) => {
       clearTimeout(timeout);
-      reject(err);
+      emitDiagnostic({
+        level: 'error',
+        phase: 'daemon_request_socket_error',
+        data: {
+          requestId: req.meta?.requestId,
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
+      reject(
+        new AppError(
+          'COMMAND_FAILED',
+          'Failed to communicate with daemon',
+          {
+            requestId: req.meta?.requestId,
+            hint: 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
+          },
+          err,
+        ),
+      );
     });
   });
 }

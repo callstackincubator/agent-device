@@ -18,6 +18,7 @@ import { setIosSetting } from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
+import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 
 export type BatchStep = {
   command: string;
@@ -30,36 +31,44 @@ export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSt
 };
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
-  const selector = {
-    platform: flags.platform,
-    deviceName: flags.device,
-    udid: flags.udid,
-    serial: flags.serial,
-  };
+  return await withDiagnosticTimer(
+    'resolve_target_device',
+    async () => {
+      const selector = {
+        platform: flags.platform,
+        deviceName: flags.device,
+        udid: flags.udid,
+        serial: flags.serial,
+      };
 
-  if (selector.platform === 'android') {
-    await ensureAdb();
-    const devices = await listAndroidDevices();
-    return await selectDevice(devices, selector);
-  }
+      if (selector.platform === 'android') {
+        await ensureAdb();
+        const devices = await listAndroidDevices();
+        return await selectDevice(devices, selector);
+      }
 
-  if (selector.platform === 'ios') {
-    const devices = await listIosDevices();
-    return await selectDevice(devices, selector);
-  }
+      if (selector.platform === 'ios') {
+        const devices = await listIosDevices();
+        return await selectDevice(devices, selector);
+      }
 
-  const devices: DeviceInfo[] = [];
-  try {
-    devices.push(...(await listAndroidDevices()));
-  } catch {
-    // ignore
-  }
-  try {
-    devices.push(...(await listIosDevices()));
-  } catch {
-    // ignore
-  }
-  return await selectDevice(devices, selector);
+      const devices: DeviceInfo[] = [];
+      try {
+        devices.push(...(await listAndroidDevices()));
+      } catch {
+        // ignore
+      }
+      try {
+        devices.push(...(await listIosDevices()));
+      } catch {
+        // ignore
+      }
+      return await selectDevice(devices, selector);
+    },
+    {
+      platform: flags.platform,
+    },
+  );
 }
 
 export async function dispatchCommand(
@@ -94,7 +103,19 @@ export async function dispatchCommand(
     traceLogPath: context?.traceLogPath,
   };
   const interactor = getInteractor(device, runnerCtx);
-  switch (command) {
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'platform_command_prepare',
+    data: {
+      command,
+      platform: device.platform,
+      kind: device.kind,
+    },
+  });
+  return await withDiagnosticTimer(
+    'platform_command',
+    async () => {
+      switch (command) {
     case 'open': {
       const app = positionals[0];
       const url = positionals[1];
@@ -360,6 +381,15 @@ export async function dispatchCommand(
     }
     case 'settings': {
       const [setting, state, appBundleId] = positionals;
+      emitDiagnostic({
+        level: 'debug',
+        phase: 'settings_apply',
+        data: {
+          setting,
+          state,
+          platform: device.platform,
+        },
+      });
       if (device.platform === 'ios') {
         await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId);
         return { setting, state };
@@ -369,18 +399,25 @@ export async function dispatchCommand(
     }
     case 'snapshot': {
       if (device.platform === 'ios') {
-        const result = (await runIosRunnerCommand(
-          device,
+        const result = (await withDiagnosticTimer(
+          'snapshot_capture',
+          async () =>
+            await runIosRunnerCommand(
+              device,
+              {
+                command: 'snapshot',
+                appBundleId: context?.appBundleId,
+                interactiveOnly: context?.snapshotInteractiveOnly,
+                compact: context?.snapshotCompact,
+                depth: context?.snapshotDepth,
+                scope: context?.snapshotScope,
+                raw: context?.snapshotRaw,
+              },
+              { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+            ),
           {
-            command: 'snapshot',
-            appBundleId: context?.appBundleId,
-            interactiveOnly: context?.snapshotInteractiveOnly,
-            compact: context?.snapshotCompact,
-            depth: context?.snapshotDepth,
-            scope: context?.snapshotScope,
-            raw: context?.snapshotRaw,
+            backend: 'xctest',
           },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
         const nodes = result.nodes ?? [];
         if (nodes.length === 0 && device.kind === 'simulator') {
@@ -391,18 +428,31 @@ export async function dispatchCommand(
         }
         return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
       }
-      const androidResult = await snapshotAndroid(device, {
-        interactiveOnly: context?.snapshotInteractiveOnly,
-        compact: context?.snapshotCompact,
-        depth: context?.snapshotDepth,
-        scope: context?.snapshotScope,
-        raw: context?.snapshotRaw,
-      });
+      const androidResult = await withDiagnosticTimer(
+        'snapshot_capture',
+        async () =>
+          await snapshotAndroid(device, {
+            interactiveOnly: context?.snapshotInteractiveOnly,
+            compact: context?.snapshotCompact,
+            depth: context?.snapshotDepth,
+            scope: context?.snapshotScope,
+            raw: context?.snapshotRaw,
+          }),
+        {
+          backend: 'android',
+        },
+      );
       return { nodes: androidResult.nodes ?? [], truncated: androidResult.truncated ?? false, backend: 'android' };
     }
     default:
       throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
-  }
+      }
+    },
+    {
+      command,
+      platform: device.platform,
+    },
+  );
 }
 
 const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [

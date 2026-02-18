@@ -678,6 +678,9 @@ async function runBatchCommands(
           error: {
             code: stepResponse.error.code,
             message: `Batch failed at step ${stepResponse.step} (${step.command}): ${stepResponse.error.message}`,
+            hint: stepResponse.error.hint,
+            diagnosticId: stepResponse.error.diagnosticId,
+            logPath: stepResponse.error.logPath,
             details: {
               ...(stepResponse.error.details ?? {}),
               step: stepResponse.step,
@@ -718,7 +721,18 @@ async function runBatchStep(
   stepNumber: number,
 ): Promise<
   | { ok: true; step: number; result: BatchStepResult }
-  | { ok: false; step: number; error: { code: string; message: string; details?: Record<string, unknown> } }
+  | {
+    ok: false;
+    step: number;
+    error: {
+      code: string;
+      message: string;
+      hint?: string;
+      diagnosticId?: string;
+      logPath?: string;
+      details?: Record<string, unknown>;
+    };
+  }
 > {
   const stepStartedAt = Date.now();
   const response = await invoke({
@@ -727,6 +741,7 @@ async function runBatchStep(
     command: step.command,
     positionals: step.positionals,
     flags: buildBatchStepFlags(req.flags, step.flags),
+    meta: req.meta,
   });
   const durationMs = Date.now() - stepStartedAt;
   if (!response.ok) {
@@ -779,14 +794,17 @@ function withReplayFailureContext(
     action: action.command,
     positionals: action.positionals ?? [],
   };
-  return {
-    ok: false,
-    error: {
-      code: response.error.code,
-      message: `Replay failed at step ${step} (${summary}): ${response.error.message}`,
-      details,
-    },
-  };
+    return {
+      ok: false,
+      error: {
+        code: response.error.code,
+        message: `Replay failed at step ${step} (${summary}): ${response.error.message}`,
+        hint: response.error.hint,
+        diagnosticId: response.error.diagnosticId,
+        logPath: response.error.logPath,
+        details,
+      },
+    };
 }
 
 function formatReplayActionSummary(action: SessionAction): string {

@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
-import { asAppError, AppError } from './utils/errors.ts';
+import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { readVersion } from './utils/version.ts';
 import { stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
@@ -22,6 +22,7 @@ import {
   isAgentDeviceDaemonProcess,
   readProcessStartTime,
 } from './utils/process-identity.ts';
+import { emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 
 const baseDir = path.join(os.homedir(), '.agent-device');
 const infoPath = path.join(baseDir, 'daemon.json');
@@ -51,85 +52,154 @@ function contextFromFlags(
 }
 
 async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
-  if (req.token !== token) {
-    return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } };
+  const debug = Boolean(req.meta?.debug || req.flags?.verbose);
+  return await withDiagnosticsScope(
+    {
+      session: req.session,
+      requestId: req.meta?.requestId,
+      command: req.command,
+      debug,
+      logPath,
+    },
+    async () => {
+      if (req.token !== token) {
+        const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
+        return { ok: false, error: unauthorizedError };
+      }
+
+      emitDiagnostic({
+        level: 'info',
+        phase: 'request_start',
+        data: {
+          session: req.session,
+          command: req.command,
+        },
+      });
+
+      try {
+        const normalizedReq = normalizeAliasedCommands(req);
+        const command = normalizedReq.command;
+        const sessionName = resolveEffectiveSessionName(normalizedReq, sessionStore);
+        const existingSession = sessionStore.get(sessionName);
+        if (existingSession && !selectorValidationExemptCommands.has(command)) {
+          assertSessionSelectorMatches(existingSession, normalizedReq.flags);
+        }
+
+        const sessionResponse = await handleSessionCommands({
+          req: normalizedReq,
+          sessionName,
+          logPath,
+          sessionStore,
+          invoke: handleRequest,
+        });
+        if (sessionResponse) return finalizeDaemonResponse(sessionResponse);
+
+        const snapshotResponse = await handleSnapshotCommands({
+          req: normalizedReq,
+          sessionName,
+          logPath,
+          sessionStore,
+        });
+        if (snapshotResponse) return finalizeDaemonResponse(snapshotResponse);
+
+        const recordTraceResponse = await handleRecordTraceCommands({
+          req,
+          sessionName,
+          sessionStore,
+        });
+        if (recordTraceResponse) return finalizeDaemonResponse(recordTraceResponse);
+
+        const findResponse = await handleFindCommands({
+          req: normalizedReq,
+          sessionName,
+          logPath,
+          sessionStore,
+          invoke: handleRequest,
+        });
+        if (findResponse) return finalizeDaemonResponse(findResponse);
+
+        const interactionResponse = await handleInteractionCommands({
+          req: normalizedReq,
+          sessionName,
+          sessionStore,
+          contextFromFlags,
+        });
+        if (interactionResponse) return finalizeDaemonResponse(interactionResponse);
+
+        const session = sessionStore.get(sessionName);
+        if (!session) {
+          return finalizeDaemonResponse({
+            ok: false,
+            error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+          });
+        }
+
+        if (!isCommandSupportedOnDevice(command, session.device)) {
+          return finalizeDaemonResponse({
+            ok: false,
+            error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
+          });
+        }
+
+        const data = await dispatchCommand(session.device, command, normalizedReq.positionals ?? [], normalizedReq.flags?.out, {
+          ...contextFromFlags(normalizedReq.flags, session.appBundleId, session.trace?.outPath),
+        });
+        sessionStore.recordAction(session, {
+          command,
+          positionals: normalizedReq.positionals ?? [],
+          flags: normalizedReq.flags ?? {},
+          result: data ?? {},
+        });
+        return finalizeDaemonResponse({ ok: true, data: data ?? {} });
+      } catch (error) {
+        emitDiagnostic({
+          level: 'error',
+          phase: 'request_failed',
+          data: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        const details = getDiagnosticsMeta();
+        const logPathOnFailure = flushDiagnosticsToSessionFile({ force: true }) ?? undefined;
+        const normalizedError = normalizeError(error, {
+          diagnosticId: details.diagnosticId,
+          logPath: logPathOnFailure,
+        });
+        return { ok: false, error: normalizedError };
+      }
+    },
+  );
+}
+
+function finalizeDaemonResponse(response: DaemonResponse): DaemonResponse {
+  const details = getDiagnosticsMeta();
+  if (!response.ok) {
+    emitDiagnostic({
+      level: 'error',
+      phase: 'request_failed',
+      data: {
+        code: response.error.code,
+        message: response.error.message,
+      },
+    });
+    const logPathOnFailure = flushDiagnosticsToSessionFile({ force: true }) ?? undefined;
+    const normalizedError = normalizeError(
+      new AppError(response.error.code as any, response.error.message, {
+        ...(response.error.details ?? {}),
+        hint: response.error.hint,
+        diagnosticId: response.error.diagnosticId,
+        logPath: response.error.logPath,
+      }),
+      {
+        diagnosticId: details.diagnosticId,
+        logPath: logPathOnFailure,
+      },
+    );
+    return { ok: false, error: normalizedError };
   }
-
-  const normalizedReq = normalizeAliasedCommands(req);
-  const command = normalizedReq.command;
-  const sessionName = resolveEffectiveSessionName(normalizedReq, sessionStore);
-  const existingSession = sessionStore.get(sessionName);
-  if (existingSession && !selectorValidationExemptCommands.has(command)) {
-    assertSessionSelectorMatches(existingSession, normalizedReq.flags);
-  }
-
-  const sessionResponse = await handleSessionCommands({
-    req: normalizedReq,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke: handleRequest,
-  });
-  if (sessionResponse) return sessionResponse;
-
-  const snapshotResponse = await handleSnapshotCommands({
-    req: normalizedReq,
-    sessionName,
-    logPath,
-    sessionStore,
-  });
-  if (snapshotResponse) return snapshotResponse;
-
-  const recordTraceResponse = await handleRecordTraceCommands({
-    req: normalizedReq,
-    sessionName,
-    sessionStore,
-  });
-  if (recordTraceResponse) return recordTraceResponse;
-
-  const findResponse = await handleFindCommands({
-    req: normalizedReq,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke: handleRequest,
-  });
-  if (findResponse) return findResponse;
-
-  const interactionResponse = await handleInteractionCommands({
-    req: normalizedReq,
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-  if (interactionResponse) return interactionResponse;
-
-
-  const session = sessionStore.get(sessionName);
-  if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
-  }
-
-  if (!isCommandSupportedOnDevice(command, session.device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
-    };
-  }
-
-  const data = await dispatchCommand(session.device, command, normalizedReq.positionals ?? [], normalizedReq.flags?.out, {
-    ...contextFromFlags(normalizedReq.flags, session.appBundleId, session.trace?.outPath),
-  });
-  sessionStore.recordAction(session, {
-    command,
-    positionals: normalizedReq.positionals ?? [],
-    flags: normalizedReq.flags ?? {},
-    result: data ?? {},
-  });
-  return { ok: true, data: data ?? {} };
+  emitDiagnostic({ level: 'info', phase: 'request_success' });
+  flushDiagnosticsToSessionFile();
+  return response;
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
@@ -238,11 +308,7 @@ function start(): void {
           const req = JSON.parse(line) as DaemonRequest;
           response = await handleRequest(req);
         } catch (err) {
-          const appErr = asAppError(err);
-          response = {
-            ok: false,
-            error: { code: appErr.code, message: appErr.message, details: appErr.details },
-          };
+          response = { ok: false, error: normalizeError(err) };
         }
         socket.write(`${JSON.stringify(response)}\n`);
         idx = buffer.indexOf('\n');

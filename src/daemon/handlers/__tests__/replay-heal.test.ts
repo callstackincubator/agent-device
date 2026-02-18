@@ -265,7 +265,16 @@ test('replay without --update does not heal or rewrite', async () => {
   const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
   const invoke = async (_request: DaemonRequest): Promise<DaemonResponse> => {
-    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector no longer exists' } };
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: 'selector no longer exists',
+        hint: 'update selector',
+        diagnosticId: 'diag-replay-1',
+        logPath: '/tmp/diag-replay-1.ndjson',
+      },
+    };
   };
 
   let snapshotDispatchCalls = 0;
@@ -301,6 +310,9 @@ test('replay without --update does not heal or rewrite', async () => {
     assert.match(response.error.message, /Replay failed at step 1/);
     assert.equal(response.error.details?.step, 1);
     assert.equal(response.error.details?.action, 'click');
+    assert.equal(response.error.hint, 'update selector');
+    assert.equal(response.error.diagnosticId, 'diag-replay-1');
+    assert.equal(response.error.logPath, '/tmp/diag-replay-1.ndjson');
   }
   assert.equal(snapshotDispatchCalls, 0);
   assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);

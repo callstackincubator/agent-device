@@ -1,4 +1,5 @@
 import { AppError } from './errors.ts';
+import { emitDiagnostic } from './diagnostics.ts';
 
 type RetryOptions = {
   attempts?: number;
@@ -38,6 +39,8 @@ export type RetryTelemetryEvent = {
   remainingMs?: number;
   reason?: string;
 };
+
+const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 export function isEnvTruthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes((value ?? '').toLowerCase());
@@ -112,11 +115,19 @@ export async function retryWithPolicy<T>(
         elapsedMs: options.deadline?.elapsedMs(),
         remainingMs: options.deadline?.remainingMs(),
       });
+      publishRetryEvent({
+        phase: options.phase,
+        event: 'succeeded',
+        attempt,
+        maxAttempts: merged.maxAttempts,
+        elapsedMs: options.deadline?.elapsedMs(),
+        remainingMs: options.deadline?.remainingMs(),
+      });
       return result;
     } catch (err) {
       lastError = err;
       const reason = options.classifyReason?.(err);
-      options.onEvent?.({
+      const failedEvent: RetryTelemetryEvent = {
         phase: options.phase,
         event: 'attempt_failed',
         attempt,
@@ -124,13 +135,15 @@ export async function retryWithPolicy<T>(
         elapsedMs: options.deadline?.elapsedMs(),
         remainingMs: options.deadline?.remainingMs(),
         reason,
-      });
+      };
+      options.onEvent?.(failedEvent);
+      publishRetryEvent(failedEvent);
       if (attempt >= merged.maxAttempts) break;
       if (merged.shouldRetry && !merged.shouldRetry(err, attempt)) break;
       const delay = computeDelay(merged.baseDelayMs, merged.maxDelayMs, merged.jitter, attempt);
       const boundedDelay = options.deadline ? Math.min(delay, options.deadline.remainingMs()) : delay;
       if (boundedDelay <= 0) break;
-      options.onEvent?.({
+      const retryEvent: RetryTelemetryEvent = {
         phase: options.phase,
         event: 'retry_scheduled',
         attempt,
@@ -139,11 +152,13 @@ export async function retryWithPolicy<T>(
         elapsedMs: options.deadline?.elapsedMs(),
         remainingMs: options.deadline?.remainingMs(),
         reason,
-      });
+      };
+      options.onEvent?.(retryEvent);
+      publishRetryEvent(retryEvent);
       await sleep(boundedDelay);
     }
   }
-  options.onEvent?.({
+  const exhaustedEvent: RetryTelemetryEvent = {
     phase: options.phase,
     event: 'exhausted',
     attempt: merged.maxAttempts,
@@ -151,7 +166,9 @@ export async function retryWithPolicy<T>(
     elapsedMs: options.deadline?.elapsedMs(),
     remainingMs: options.deadline?.remainingMs(),
     reason: options.classifyReason?.(lastError),
-  });
+  };
+  options.onEvent?.(exhaustedEvent);
+  publishRetryEvent(exhaustedEvent);
   if (lastError) throw lastError;
   throw new AppError('COMMAND_FAILED', 'retry failed');
 }
@@ -177,4 +194,16 @@ function computeDelay(base: number, max: number, jitter: number, attempt: number
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function publishRetryEvent(event: RetryTelemetryEvent): void {
+  emitDiagnostic({
+    level: event.event === 'attempt_failed' || event.event === 'exhausted' ? 'warn' : 'debug',
+    phase: 'retry',
+    data: {
+      ...event,
+    },
+  });
+  if (!RETRY_LOGS_ENABLED) return;
+  process.stderr.write(`[agent-device][retry] ${JSON.stringify(event)}\n`);
 }

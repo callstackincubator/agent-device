@@ -1,10 +1,10 @@
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
-import { Deadline, retryWithPolicy, type RetryTelemetryEvent } from '../../utils/retry.ts';
+import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
-import { IOS_BOOT_TIMEOUT_MS, IOS_SIMCTL_LIST_TIMEOUT_MS, RETRY_LOGS_ENABLED } from './config.ts';
+import { IOS_BOOT_TIMEOUT_MS, IOS_SIMCTL_LIST_TIMEOUT_MS } from './config.ts';
 
 export function ensureSimulator(device: DeviceInfo, command: string): void {
   if (device.kind !== 'simulator') {
@@ -114,10 +114,6 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
             stderr: bootStatusResult?.stderr ?? bootResult?.stderr,
             context: { platform: 'ios', phase: 'boot' },
           }),
-        onEvent: (event: RetryTelemetryEvent) => {
-          if (!RETRY_LOGS_ENABLED) return;
-          process.stderr.write(`[agent-device][retry] ${JSON.stringify(event)}\n`);
-        },
       },
     );
   } catch (error) {

@@ -48,6 +48,20 @@ Minimal operating guide for AI coding agents in this repo.
 - Use `inferFillText` and `uniqueStrings` from `src/daemon/action-utils.ts`. Do not duplicate.
 - Use `evaluateIsPredicate` from `src/daemon/is-predicates.ts` for assertion logic. Do not inline.
 
+## Diagnostics & Errors
+
+- Use `src/utils/diagnostics.ts` as the diagnostics source of truth:
+  - `withDiagnosticsScope`
+  - `emitDiagnostic`
+  - `withDiagnosticTimer`
+  - `flushDiagnosticsToSessionFile`
+- Do not add ad-hoc stderr/file logging in handlers/platform modules when diagnostics helpers can be used.
+- Normalize user-facing failures through `src/utils/errors.ts` (`normalizeError`).
+- Failure payload contract should include: `code`, `message`, `hint`, `diagnosticId`, `logPath`, `details`.
+- When wrapping/rethrowing daemon errors (batch/replay/handler wrappers), preserve `hint`, `diagnosticId`, and `logPath` from inner errors.
+- `--debug` is canonical; `--verbose` remains backward-compatible alias.
+- Keep redaction centralized in `src/utils/diagnostics.ts`; do not duplicate redaction logic in handlers/CLI.
+
 ## Key Files
 - CLI parse + formatting: `src/bin.ts`, `src/cli.ts`, `src/utils/args.ts`
 - Daemon client transport: `src/daemon-client.ts`
@@ -56,7 +70,7 @@ Minimal operating guide for AI coding agents in this repo.
 - `is` predicate evaluation: `src/daemon/is-predicates.ts`
 - Shared action helpers: `src/daemon/action-utils.ts`
 - Snapshot shaping + labels: `src/daemon/snapshot-processing.ts`
-- Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`, `src/daemon/app-state.ts`
+- Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`
 - Dispatcher and capability source of truth: `src/core/dispatch.ts`, `src/core/capabilities.ts`
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
@@ -93,16 +107,12 @@ Run integration tests when behavior crosses platform boundaries:
 - `pnpm test:integration`
 
 ## Measurement
-- Use `docs/daemon-refactor-impact.md`.
 - Track files touched per fix, cycle time, and iOS/Android regressions.
 
 ## Local Commands
 
 - Run CLI: `pnpm ad <command>`
-- Typecheck: `pnpm typecheck`
-- Unit tests: `pnpm test:unit`
-- Smoke tests: `pnpm test:smoke`
-- Integration tests: `pnpm test:integration`
+- For verification commands, use the **Testing** section above.
 
 ## Pull Requests
 - Before opening PR: ensure no conflict markers and no unmerged paths.
