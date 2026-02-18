@@ -74,6 +74,7 @@ export async function dispatchCommand(
     intervalMs?: number;
     holdMs?: number;
     jitterPx?: number;
+    tapBatch?: boolean;
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
   },
@@ -141,6 +142,7 @@ export async function dispatchCommand(
             y,
             count,
             intervalMs,
+            tapBatch: context?.tapBatch,
             appBundleId: context?.appBundleId,
           },
           { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },

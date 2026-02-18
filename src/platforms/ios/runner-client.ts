@@ -36,6 +36,7 @@ export type RunnerCommand = {
   y?: number;
   count?: number;
   intervalMs?: number;
+  tapBatch?: boolean;
   x2?: number;
   y2?: number;
   durationMs?: number;

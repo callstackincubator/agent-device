@@ -15,6 +15,7 @@ export type DaemonCommandContext = {
   intervalMs?: number;
   holdMs?: number;
   jitterPx?: number;
+  tapBatch?: boolean;
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
 };
@@ -40,6 +41,7 @@ export function contextFromFlags(
     intervalMs: flags?.intervalMs,
     holdMs: flags?.holdMs,
     jitterPx: flags?.jitterPx,
+    tapBatch: flags?.tapBatch,
     pauseMs: flags?.pauseMs,
     pattern: flags?.pattern,
   };
