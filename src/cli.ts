@@ -23,6 +23,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
   const requestId = createRequestId();
   const debugEnabled = argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
   const jsonRequested = argv.includes('--json');
+  // Best-effort session guess used only for pre-parse diagnostics scope.
+  // After parse succeeds, request dispatch uses parsed flags/session resolution.
   const sessionGuess = guessSessionFromArgv(argv) ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
 
   await withDiagnosticsScope(
