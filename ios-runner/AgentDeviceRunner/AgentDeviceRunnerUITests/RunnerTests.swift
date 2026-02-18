@@ -9,6 +9,18 @@ import XCTest
 import Network
 
 final class RunnerTests: XCTestCase {
+  private enum RunnerErrorDomain {
+    static let general = "AgentDeviceRunner"
+    static let exception = "AgentDeviceRunner.NSException"
+  }
+
+  private enum RunnerErrorCode {
+    static let noResponseFromMainThread = 1
+    static let commandReturnedNoResponse = 2
+    static let mainThreadExecutionTimedOut = 3
+    static let objcException = 1
+  }
+
   private static let springboardBundleId = "com.apple.springboard"
   private var listener: NWListener?
   private var port: UInt16 = 0
@@ -207,9 +219,10 @@ final class RunnerTests: XCTestCase {
     }
     let waitResult = semaphore.wait(timeout: .now() + mainThreadExecutionTimeout)
     if waitResult == .timedOut {
+      // The main queue work may still be running; we stop waiting and report timeout.
       throw NSError(
-        domain: "AgentDeviceRunner",
-        code: 3,
+        domain: RunnerErrorDomain.general,
+        code: RunnerErrorCode.mainThreadExecutionTimedOut,
         userInfo: [NSLocalizedDescriptionKey: "main thread execution timed out"]
       )
     }
@@ -219,7 +232,11 @@ final class RunnerTests: XCTestCase {
     case .failure(let error):
       throw error
     case .none:
-      throw NSError(domain: "AgentDeviceRunner", code: 1, userInfo: [NSLocalizedDescriptionKey: "no response from main thread"])
+      throw NSError(
+        domain: RunnerErrorDomain.general,
+        code: RunnerErrorCode.noResponseFromMainThread,
+        userInfo: [NSLocalizedDescriptionKey: "no response from main thread"]
+      )
     }
   }
 
@@ -238,8 +255,8 @@ final class RunnerTests: XCTestCase {
       currentApp = nil
       currentBundleId = nil
       throw NSError(
-        domain: "AgentDeviceRunner.NSException",
-        code: 1,
+        domain: RunnerErrorDomain.exception,
+        code: RunnerErrorCode.objcException,
         userInfo: [NSLocalizedDescriptionKey: exceptionMessage]
       )
     }
@@ -248,8 +265,8 @@ final class RunnerTests: XCTestCase {
     }
     guard let response else {
       throw NSError(
-        domain: "AgentDeviceRunner",
-        code: 2,
+        domain: RunnerErrorDomain.general,
+        code: RunnerErrorCode.commandReturnedNoResponse,
         userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
       )
     }

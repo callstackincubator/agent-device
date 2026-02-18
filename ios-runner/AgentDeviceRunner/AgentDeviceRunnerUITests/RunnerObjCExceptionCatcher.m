@@ -7,8 +7,9 @@
     tryBlock();
     return nil;
   } @catch (NSException *exception) {
+    NSString *name = exception.name ?: @"NSException";
     NSString *reason = exception.reason ?: @"Unhandled XCTest exception";
-    return [NSString stringWithFormat:@"%@: %@", exception.name, reason];
+    return [NSString stringWithFormat:@"%@: %@", name, reason];
   }
 }
 
