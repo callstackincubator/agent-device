@@ -88,7 +88,6 @@ See [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-69/docs/replay-e2e
 
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
-agent-device batch --steps-stdin --json
 agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 ```
 

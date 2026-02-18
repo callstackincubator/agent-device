@@ -17,17 +17,6 @@ agent-device batch \
   --json
 ```
 
-From stdin:
-
-```bash
-cat /tmp/batch-steps.json | agent-device batch \
-  --session sim \
-  --platform ios \
-  --udid 00008150-001849640CF8401C \
-  --steps-stdin \
-  --json
-```
-
 Inline for small payloads:
 
 ```bash
@@ -103,7 +92,7 @@ Failure:
 - Batch only one related screen flow at a time.
 - After mutating steps (`open`, `click`, `fill`, `swipe`), add a sync guard (`wait`, `is exists`) before critical reads.
 - Treat prior refs/snapshots as stale after UI changes.
-- Prefer `--steps-file` or `--steps-stdin` over inline JSON.
+- Prefer `--steps-file` over inline JSON.
 - Keep batches moderate (about 5-20 steps).
 - Replan from the failing step using `details.step` and `details.partialResults`.
 
