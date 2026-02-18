@@ -7,6 +7,7 @@ import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { BatchStep } from './core/dispatch.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -59,6 +60,34 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
   const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
   const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
   try {
+    if (command === 'batch') {
+      if (positionals.length > 0) {
+        throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
+      }
+      const batchSteps = await readBatchSteps(flags);
+      const batchFlags = { ...daemonFlags, batchSteps };
+      delete (batchFlags as Record<string, unknown>).steps;
+      delete (batchFlags as Record<string, unknown>).stepsFile;
+      delete (batchFlags as Record<string, unknown>).stepsStdin;
+
+      const response = await deps.sendToDaemon({
+        session: sessionName,
+        command: 'batch',
+        positionals,
+        flags: batchFlags,
+      });
+      if (!response.ok) {
+        throw new AppError(response.error.code as any, response.error.message, response.error.details);
+      }
+      if (flags.json) {
+        printJson({ success: true, data: response.data ?? {} });
+      } else {
+        renderBatchSummary(response.data ?? {});
+      }
+      if (logTailStopper) logTailStopper();
+      return;
+    }
+
     if (command === 'session') {
       const sub = positionals[0] ?? 'list';
       if (sub !== 'list') {
@@ -250,6 +279,73 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
     if (logTailStopper) logTailStopper();
     process.exit(1);
   }
+}
+
+function renderBatchSummary(data: Record<string, unknown>): void {
+  const total = typeof data.total === 'number' ? data.total : 0;
+  const executed = typeof data.executed === 'number' ? data.executed : 0;
+  const durationMs = typeof data.totalDurationMs === 'number' ? data.totalDurationMs : undefined;
+  process.stdout.write(
+    `Batch completed: ${executed}/${total} steps${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
+  );
+}
+
+async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Promise<BatchStep[]> {
+  let raw = '';
+  if (flags.steps) {
+    raw = flags.steps;
+  } else if (flags.stepsFile) {
+    raw = fs.readFileSync(flags.stepsFile, 'utf8');
+  } else if (flags.stepsStdin) {
+    if (process.stdin.isTTY) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'batch --steps-stdin requires piped JSON input on stdin.',
+      );
+    }
+    raw = await readStdin();
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
+  }
+  const steps: BatchStep[] = [];
+  for (const [index, step] of parsed.entries()) {
+    if (!step || typeof step !== 'object') {
+      throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}.`);
+    }
+    const record = step as Record<string, unknown>;
+    const command = typeof record.command === 'string' ? record.command.trim() : '';
+    if (!command) {
+      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} requires a command string.`);
+    }
+    const positionals = record.positionals;
+    if (positionals !== undefined && (!Array.isArray(positionals) || positionals.some((v) => typeof v !== 'string'))) {
+      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} positionals must be a string array.`);
+    }
+    if (record.flags !== undefined && (typeof record.flags !== 'object' || Array.isArray(record.flags) || !record.flags)) {
+      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} flags must be an object.`);
+    }
+    steps.push({
+      command,
+      positionals: (positionals as string[] | undefined) ?? [],
+      flags: (record.flags as BatchStep['flags'] | undefined) ?? {},
+    });
+  }
+  return steps;
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 function isDaemonStartupFailure(error: AppError): boolean {

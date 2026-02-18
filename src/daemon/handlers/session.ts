@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
+import { dispatchCommand, resolveTargetDevice, type BatchStep, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
@@ -27,6 +27,8 @@ type ReinstallOps = {
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
+const DEFAULT_BATCH_MAX_STEPS = 100;
+const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'session', 'verbose', 'out'];
 
 function requireSessionOrExplicitSelector(
   command: string,
@@ -592,6 +594,82 @@ export async function handleSessionCommands(params: {
     }
   }
 
+  if (command === 'batch') {
+    const batchOnError = req.flags?.batchOnError ?? 'stop';
+    if (batchOnError !== 'stop') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Unsupported batch on-error mode: ${batchOnError}.`,
+        },
+      };
+    }
+    const batchMaxSteps = req.flags?.batchMaxSteps ?? DEFAULT_BATCH_MAX_STEPS;
+    if (!Number.isInteger(batchMaxSteps) || batchMaxSteps < 1 || batchMaxSteps > 1000) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`,
+        },
+      };
+    }
+    const stepsValidationError = validateBatchSteps(req.flags?.batchSteps, batchMaxSteps);
+    if (stepsValidationError) return stepsValidationError;
+    const steps = req.flags?.batchSteps as BatchStep[];
+    const startedAt = Date.now();
+    const partialResults: Record<string, unknown>[] = [];
+    for (let index = 0; index < steps.length; index += 1) {
+      const step = steps[index];
+      const commandName = step.command.trim();
+      const stepStartedAt = Date.now();
+      const response = await invoke({
+        token: req.token,
+        session: sessionName,
+        command: commandName,
+        positionals: step.positionals ?? [],
+        flags: buildBatchStepFlags(req.flags, step.flags),
+      });
+      const stepNumber = index + 1;
+      const durationMs = Date.now() - stepStartedAt;
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: {
+            code: response.error.code,
+            message: `Batch failed at step ${stepNumber} (${step.command}): ${response.error.message}`,
+            details: {
+              ...(response.error.details ?? {}),
+              step: stepNumber,
+              command: step.command,
+              positionals: step.positionals ?? [],
+              executed: index,
+              total: steps.length,
+              partialResults,
+            },
+          },
+        };
+      }
+      partialResults.push({
+        step: stepNumber,
+        command: step.command,
+        ok: true,
+        data: response.data ?? {},
+        durationMs,
+      });
+    }
+    return {
+      ok: true,
+      data: {
+        total: steps.length,
+        executed: steps.length,
+        totalDurationMs: Date.now() - startedAt,
+        results: partialResults,
+      },
+    };
+  }
+
   if (command === 'close') {
     const session = sessionStore.get(sessionName);
     if (!session) {
@@ -620,6 +698,101 @@ export async function handleSessionCommands(params: {
   }
 
   return null;
+}
+
+function validateBatchSteps(steps: CommandFlags['batchSteps'], maxSteps: number): DaemonResponse | null {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: 'batch requires a non-empty batchSteps array.',
+      },
+    };
+  }
+  if (steps.length > maxSteps) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: `batch has ${steps.length} steps; max allowed is ${maxSteps}.`,
+      },
+    };
+  }
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
+    if (!step || typeof step !== 'object') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Invalid batch step at index ${index}.`,
+        },
+      };
+    }
+    const command = typeof step.command === 'string' ? step.command.trim().toLowerCase() : '';
+    if (!command) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Batch step ${index + 1} requires command.`,
+        },
+      };
+    }
+    if (command === 'batch' || command === 'replay') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Batch step ${index + 1} cannot run ${command}.`,
+        },
+      };
+    }
+    if (step.positionals !== undefined && !Array.isArray(step.positionals)) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Batch step ${index + 1} positionals must be an array.`,
+        },
+      };
+    }
+    if (Array.isArray(step.positionals) && step.positionals.some((value) => typeof value !== 'string')) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Batch step ${index + 1} positionals must contain only strings.`,
+        },
+      };
+    }
+    if (step.flags !== undefined && (typeof step.flags !== 'object' || Array.isArray(step.flags))) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: `Batch step ${index + 1} flags must be an object.`,
+        },
+      };
+    }
+  }
+  return null;
+}
+
+function buildBatchStepFlags(
+  parentFlags: CommandFlags | undefined,
+  stepFlags: BatchStep['flags'] | undefined,
+): CommandFlags {
+  const merged: CommandFlags = { ...(stepFlags ?? {}) };
+  const mergedRecord = merged as Record<string, unknown>;
+  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
+  for (const key of BATCH_PARENT_FLAG_KEYS) {
+    if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
+      mergedRecord[key] = parentRecord[key];
+    }
+  }
+  return merged;
 }
 
 function withReplayFailureContext(

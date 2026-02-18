@@ -23,6 +23,137 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 
 const noopInvoke = async (_req: DaemonRequest): Promise<DaemonResponse> => ({ ok: true, data: {} });
 
+test('batch executes steps sequentially and returns structured results', async () => {
+  const sessionStore = makeSessionStore();
+  const seenCommands: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        platform: 'ios',
+        udid: 'sim-1',
+        out: '/tmp/batch-artifact.json',
+        batchSteps: [
+          { command: 'open', positionals: ['settings'] },
+          { command: 'wait', positionals: ['100'] },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      seenCommands.push(stepReq.command);
+      assert.equal(stepReq.flags?.platform, 'ios');
+      assert.equal(stepReq.flags?.udid, 'sim-1');
+      assert.equal(stepReq.flags?.out, '/tmp/batch-artifact.json');
+      return { ok: true, data: { command: stepReq.command } };
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(seenCommands, ['open', 'wait']);
+  if (response && response.ok) {
+    assert.equal(response.data?.total, 2);
+    assert.equal(response.data?.executed, 2);
+    assert.ok(Array.isArray(response.data?.results));
+  }
+});
+
+test('batch stops on first failing step with partial results', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchSteps: [
+          { command: 'open', positionals: ['settings'] },
+          { command: 'click', positionals: ['@e1'] },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      if (stepReq.command === 'click') {
+        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'missing target' } };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'COMMAND_FAILED');
+    assert.match(response.error.message, /Batch failed at step 2/);
+    assert.equal(response.error.details?.step, 2);
+    assert.equal(response.error.details?.executed, 1);
+    const partial = response.error.details?.partialResults;
+    assert.ok(Array.isArray(partial));
+    assert.equal(partial.length, 1);
+  }
+});
+
+test('batch rejects nested replay and batch commands', async () => {
+  const sessionStore = makeSessionStore();
+  const nestedReplay = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchSteps: [{ command: 'replay', positionals: ['./flow.ad'] }],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(nestedReplay);
+  assert.equal(nestedReplay?.ok, false);
+  if (nestedReplay && !nestedReplay.ok) {
+    assert.equal(nestedReplay.error.code, 'INVALID_ARGS');
+  }
+});
+
+test('batch enforces max step guard', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchMaxSteps: 1,
+        batchSteps: [
+          { command: 'open', positionals: ['settings'] },
+          { command: 'wait', positionals: ['100'] },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /max allowed is 1/);
+  }
+});
+
 test('boot requires session or explicit selector', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSessionCommands({

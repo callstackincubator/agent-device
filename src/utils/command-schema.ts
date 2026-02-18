@@ -24,6 +24,16 @@ export type CliFlags = {
   relaunch?: boolean;
   noRecord?: boolean;
   replayUpdate?: boolean;
+  steps?: string;
+  stepsFile?: string;
+  stepsStdin?: boolean;
+  batchOnError?: 'stop';
+  batchMaxSteps?: number;
+  batchSteps?: Array<{
+    command: string;
+    positionals?: string[];
+    flags?: Record<string, unknown>;
+  }>;
   help: boolean;
   version: boolean;
 };
@@ -223,6 +233,44 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Replay: update selectors and rewrite replay file in place',
   },
   {
+    key: 'steps',
+    names: ['--steps'],
+    type: 'string',
+    usageLabel: '--steps <json>',
+    usageDescription: 'Batch: JSON array of steps',
+  },
+  {
+    key: 'stepsFile',
+    names: ['--steps-file'],
+    type: 'string',
+    usageLabel: '--steps-file <path>',
+    usageDescription: 'Batch: read steps JSON from file',
+  },
+  {
+    key: 'stepsStdin',
+    names: ['--steps-stdin'],
+    type: 'boolean',
+    usageLabel: '--steps-stdin',
+    usageDescription: 'Batch: read steps JSON from stdin',
+  },
+  {
+    key: 'batchOnError',
+    names: ['--on-error'],
+    type: 'enum',
+    enumValues: ['stop'],
+    usageLabel: '--on-error stop',
+    usageDescription: 'Batch: stop when a step fails',
+  },
+  {
+    key: 'batchMaxSteps',
+    names: ['--max-steps'],
+    type: 'int',
+    min: 1,
+    max: 1000,
+    usageLabel: '--max-steps <n>',
+    usageDescription: 'Batch: maximum number of allowed steps',
+  },
+  {
     key: 'appsFilter',
     names: ['--user-installed'],
     type: 'enum',
@@ -384,6 +432,13 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Replay a recorded session',
     positionalArgs: ['path'],
     allowedFlags: ['replayUpdate'],
+    skipCapabilityCheck: true,
+  },
+  batch: {
+    usageOverride: 'batch [--steps <json> | --steps-file <path> | --steps-stdin]',
+    description: 'Execute multiple commands in one daemon request',
+    positionalArgs: [],
+    allowedFlags: ['steps', 'stepsFile', 'stepsStdin', 'batchOnError', 'batchMaxSteps', 'out'],
     skipCapabilityCheck: true,
   },
   press: {
