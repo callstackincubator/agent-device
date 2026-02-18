@@ -43,5 +43,10 @@
     "name": "snapshots",
     "type": "file",
     "label": "Snapshots"
+  },
+  {
+    "name": "known-limitations",
+    "type": "file",
+    "label": "Known Limitations"
   }
 ]
