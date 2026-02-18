@@ -90,3 +90,27 @@ test('settings rejects unsupported iOS physical devices', async () => {
     assert.match(response.error.message, /settings is not supported/i);
   }
 });
+
+test('settings usage hint documents canonical faceid states', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'settings',
+      positionals: [],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /match\|nonmatch\|enroll\|unenroll/);
+    assert.doesNotMatch(response.error.message, /validate\|unvalidate/);
+  }
+});

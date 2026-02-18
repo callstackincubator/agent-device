@@ -261,6 +261,7 @@ test('usage includes swipe and press series options', () => {
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
+  assert.match(help, /settings <wifi\|airplane\|location\|faceid>/);
 });
 
 test('command usage shows command and global flags separately', () => {
@@ -279,4 +280,11 @@ test('command usage shows no command flags when unsupported', () => {
   assert.match(help, /Show foreground app\/activity/);
   assert.doesNotMatch(help, /Command flags:/);
   assert.match(help, /Global flags:/);
+});
+
+test('settings usage documents canonical faceid states', () => {
+  const help = usageForCommand('settings');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
+  assert.doesNotMatch(help, /validate\|unvalidate/);
 });

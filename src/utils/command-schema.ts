@@ -524,7 +524,9 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   settings: {
-    description: 'Toggle OS settings (simulators)',
+    usageOverride:
+      'settings <wifi|airplane|location|faceid> <on|off|match|nonmatch|enroll|unenroll>',
+    description: 'Toggle OS settings (simulators), including Face ID on iOS simulators',
     positionalArgs: ['setting', 'state'],
     allowedFlags: [],
   },

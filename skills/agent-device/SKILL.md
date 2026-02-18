@@ -90,11 +90,17 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings faceid match
+agent-device settings faceid nonmatch
+agent-device settings faceid enroll
+agent-device settings faceid unenroll
 ```
 
 Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
 Airplane off clears status bar overrides.
 iOS settings helpers are simulator-only.
+Use `match`/`nonmatch` as the canonical command values.
+Think of them as validate/invalidate outcomes when describing intent.
 
 ### App state
 

@@ -225,15 +225,16 @@ export async function setIosSetting(
   ensureSimulator(device, 'settings');
   await ensureBootedSimulator(device);
   const normalized = setting.toLowerCase();
-  const enabled = parseSettingState(state);
 
   switch (normalized) {
     case 'wifi': {
+      const enabled = parseSettingState(state);
       const mode = enabled ? 'active' : 'failed';
       await runCmd('xcrun', ['simctl', 'status_bar', device.id, 'override', '--wifiMode', mode]);
       return;
     }
     case 'airplane': {
+      const enabled = parseSettingState(state);
       if (enabled) {
         await runCmd('xcrun', [
           'simctl',
@@ -259,11 +260,17 @@ export async function setIosSetting(
       return;
     }
     case 'location': {
+      const enabled = parseSettingState(state);
       if (!appBundleId) {
         throw new AppError('INVALID_ARGS', 'location setting requires an active app in session');
       }
       const action = enabled ? 'grant' : 'revoke';
       await runCmd('xcrun', ['simctl', 'privacy', device.id, action, 'location', appBundleId]);
+      return;
+    }
+    case 'faceid': {
+      const action = parseFaceIdAction(state);
+      await runFaceIdSimctlCommand(device.id, action);
       return;
     }
     default:
@@ -326,6 +333,81 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
+
+function parseFaceIdAction(state: string): FaceIdAction {
+  const normalized = state.trim().toLowerCase();
+  if (normalized === 'match') return 'match';
+  if (normalized === 'nonmatch') return 'nonmatch';
+  if (normalized === 'enroll') return 'enroll';
+  if (normalized === 'unenroll') return 'unenroll';
+  throw new AppError(
+    'INVALID_ARGS',
+    `Invalid faceid state: ${state}. Use match|nonmatch|enroll|unenroll.`,
+  );
+}
+
+async function runFaceIdSimctlCommand(deviceId: string, action: FaceIdAction): Promise<void> {
+  const attempts = biometricCommandAttempts(deviceId, action);
+  const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
+
+  for (const args of attempts) {
+    const result = await runCmd('xcrun', args, { allowFailure: true });
+    if (result.exitCode === 0) return;
+    failures.push({
+      args,
+      stderr: result.stderr,
+      stdout: result.stdout,
+      exitCode: result.exitCode,
+    });
+  }
+
+  throw new AppError(
+    'COMMAND_FAILED',
+    'simctl biometric command failed. Ensure your Xcode Simulator runtime supports Face ID control.',
+    {
+      deviceId,
+      action,
+      attempts: failures.map((failure) => ({
+        args: failure.args.join(' '),
+        exitCode: failure.exitCode,
+        stderr: failure.stderr.slice(0, 400),
+      })),
+    },
+  );
+}
+
+function biometricCommandAttempts(deviceId: string, action: FaceIdAction): string[][] {
+  switch (action) {
+    case 'match':
+      return [
+        ['simctl', 'biometric', deviceId, 'match', 'face'],
+        ['simctl', 'biometric', 'match', deviceId, 'face'],
+      ];
+    case 'nonmatch':
+      return [
+        ['simctl', 'biometric', deviceId, 'nonmatch', 'face'],
+        ['simctl', 'biometric', deviceId, 'nomatch', 'face'],
+        ['simctl', 'biometric', 'nonmatch', deviceId, 'face'],
+        ['simctl', 'biometric', 'nomatch', deviceId, 'face'],
+      ];
+    case 'enroll':
+      return [
+        ['simctl', 'biometric', deviceId, 'enroll', 'yes'],
+        ['simctl', 'biometric', deviceId, 'enroll', '1'],
+        ['simctl', 'biometric', 'enroll', deviceId, 'yes'],
+        ['simctl', 'biometric', 'enroll', deviceId, '1'],
+      ];
+    case 'unenroll':
+      return [
+        ['simctl', 'biometric', deviceId, 'enroll', 'no'],
+        ['simctl', 'biometric', deviceId, 'enroll', '0'],
+        ['simctl', 'biometric', 'enroll', deviceId, 'no'],
+        ['simctl', 'biometric', 'enroll', deviceId, '0'],
+      ];
+  }
 }
 
 function isTransientSimulatorLaunchFailure(error: unknown): boolean {
