@@ -91,9 +91,12 @@ export class SessionStore {
     return path.join(this.sessionsDir, `${safeName}-${timestamp}.trace.log`);
   }
 
-  static expandHome(filePath: string): string {
+  static expandHome(filePath: string, cwd?: string): string {
     if (filePath.startsWith('~/')) {
       return path.join(os.homedir(), filePath.slice(2));
+    }
+    if (cwd && !path.isAbsolute(filePath)) {
+      return path.resolve(cwd, filePath);
     }
     return path.resolve(filePath);
   }

@@ -108,6 +108,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           meta: {
             requestId,
             debug: Boolean(flags.verbose),
+            cwd: process.cwd(),
           },
         });
       try {

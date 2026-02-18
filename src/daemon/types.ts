@@ -12,6 +12,7 @@ export type DaemonRequest = {
   meta?: {
     requestId?: string;
     debug?: boolean;
+    cwd?: string;
   };
 };
 

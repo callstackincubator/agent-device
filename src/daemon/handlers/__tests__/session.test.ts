@@ -1014,6 +1014,39 @@ test('replay parses open --relaunch flag and replays open with relaunch semantic
   assert.equal(invoked[0]?.flags?.relaunch, true);
 });
 
+test('replay resolves relative script path against request cwd', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-cwd-'));
+  const replayDir = path.join(replayRoot, 'workflows');
+  fs.mkdirSync(replayDir, { recursive: true });
+  fs.writeFileSync(path.join(replayDir, 'flow.ad'), 'open "Settings"\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: ['workflows/flow.ad'],
+      flags: {},
+      meta: { cwd: replayRoot },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(invoked.length, 1);
+  assert.equal(invoked[0]?.command, 'open');
+  assert.deepEqual(invoked[0]?.positionals, ['Settings']);
+});
+
 test('replay parses press series flags and passes them to invoke', async () => {
   const sessionStore = makeSessionStore();
   const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-press-series-'));

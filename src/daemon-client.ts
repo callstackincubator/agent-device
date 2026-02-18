@@ -56,6 +56,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     meta: {
       requestId,
       debug,
+      cwd: req.meta?.cwd,
     },
   };
   emitDiagnostic({

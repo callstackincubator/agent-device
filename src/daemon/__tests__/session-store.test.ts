@@ -21,6 +21,19 @@ function makeSession(name: string): SessionState {
   };
 }
 
+test('expandHome resolves tilde, relative-with-cwd, and absolute paths', () => {
+  const homePath = SessionStore.expandHome('~/flows/replay.ad');
+  assert.equal(homePath.startsWith(os.homedir()), true);
+  assert.equal(homePath.endsWith(path.join('flows', 'replay.ad')), true);
+
+  const relativePath = SessionStore.expandHome('workflows/replay.ad', '/tmp/agent-device-cwd');
+  assert.equal(relativePath, path.resolve('/tmp/agent-device-cwd', 'workflows/replay.ad'));
+
+  const absoluteInput = path.resolve('/tmp', 'agent-device-absolute.ad');
+  const absolutePath = SessionStore.expandHome(absoluteInput, '/tmp/ignored-cwd');
+  assert.equal(absolutePath, absoluteInput);
+});
+
 test('recordAction stores normalized action entries', () => {
   const store = new SessionStore(path.join(os.tmpdir(), 'agent-device-tests'));
   const session = makeSession('default');

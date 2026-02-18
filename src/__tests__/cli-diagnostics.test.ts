@@ -72,6 +72,7 @@ test('cli forwards --debug as verbose/debug metadata', async () => {
   assert.equal(result.calls.length, 1);
   assert.equal(result.calls[0]?.flags?.verbose, true);
   assert.equal(result.calls[0]?.meta?.debug, true);
+  assert.equal(result.calls[0]?.meta?.cwd, process.cwd());
   assert.equal(typeof result.calls[0]?.meta?.requestId, 'string');
 });
 

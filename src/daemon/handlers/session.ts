@@ -544,7 +544,7 @@ export async function handleSessionCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
     }
     try {
-      const resolved = SessionStore.expandHome(filePath);
+      const resolved = SessionStore.expandHome(filePath, req.meta?.cwd);
       const script = fs.readFileSync(resolved, 'utf8');
       const firstNonWhitespace = script.trimStart()[0];
       if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
