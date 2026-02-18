@@ -122,9 +122,14 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings faceid match
+agent-device settings faceid nonmatch
+agent-device settings faceid enroll
+agent-device settings faceid unenroll
 ```
 
 - iOS `settings` support is simulator-only.
+- Face ID controls are iOS simulator-only and support aliases: `validate` = `match`, `unvalidate` = `nonmatch`.
 
 ## App state and app lists
 

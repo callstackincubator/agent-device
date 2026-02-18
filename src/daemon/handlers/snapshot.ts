@@ -311,7 +311,8 @@ export async function handleSnapshotCommands(params: {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
-          message: 'settings requires <wifi|airplane|location> <on|off>',
+          message:
+            'settings requires <wifi|airplane|location> <on|off> or faceid <match|nonmatch|enroll|unenroll|validate|unvalidate>',
         },
       };
     }

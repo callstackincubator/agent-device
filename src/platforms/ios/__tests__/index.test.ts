@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { listIosApps, openIosApp, parseIosDeviceAppsPayload, reinstallIosApp, resolveIosApp } from '../index.ts';
+import {
+  listIosApps,
+  openIosApp,
+  parseIosDeviceAppsPayload,
+  reinstallIosApp,
+  resolveIosApp,
+  setIosSetting,
+} from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -451,4 +458,82 @@ test('listIosApps applies user-installed filter on simulator', async () => {
     process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('setIosSetting faceid validate uses simctl biometric match', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-faceid-match-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "sim-1" ] && [ "$4" = "match" ] && [ "$5" = "face" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'faceid', 'validate');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl biometric sim-1 match face/);
+    },
+  );
+});
+
+test('setIosSetting faceid retries alternate biometric argument order', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-faceid-fallback-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "sim-1" ] && [ "$4" = "match" ] && [ "$5" = "face" ]; then
+  exit 2
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "match" ] && [ "$4" = "sim-1" ] && [ "$5" = "face" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'faceid', 'match');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl biometric sim-1 match face/);
+      assert.match(logged, /simctl biometric match sim-1 face/);
+    },
+  );
 });

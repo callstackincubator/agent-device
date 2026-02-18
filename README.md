@@ -140,6 +140,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
+- `settings faceid match|nonmatch|enroll|unenroll` (aliases: `validate|unvalidate`, iOS simulator only)
 - `appstate`, `apps`, `devices`, `session list`
 
 ## iOS Snapshots
