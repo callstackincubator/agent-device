@@ -381,6 +381,15 @@ export async function dispatchCommand(
     }
     case 'settings': {
       const [setting, state, appBundleId] = positionals;
+      emitDiagnostic({
+        level: 'debug',
+        phase: 'settings_apply',
+        data: {
+          setting,
+          state,
+          platform: device.platform,
+        },
+      });
       if (device.platform === 'ios') {
         await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId);
         return { setting, state };
