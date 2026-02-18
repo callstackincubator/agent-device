@@ -27,8 +27,10 @@ export async function handleInteractionCommands(params: {
   sessionName: string;
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
+  dispatch?: typeof dispatchCommand;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, sessionStore, contextFromFlags } = params;
+  const dispatch = params.dispatch ?? dispatchCommand;
   const command = req.command;
 
   if (command === 'click' || command === 'press') {
@@ -41,8 +43,9 @@ export async function handleInteractionCommands(params: {
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
+      // Coordinate-only press is handled by daemon fallback to preserve legacy passthrough semantics.
       if (command === 'press') return null;
-      const data = await dispatchCommand(
+      const data = await dispatch(
         session.device,
         'press',
         [String(directCoordinates.x), String(directCoordinates.y)],
@@ -91,7 +94,7 @@ export async function handleInteractionCommands(params: {
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
       const { x, y } = centerOfRect(node.rect);
-      const data = await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
+      const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
       sessionStore.recordAction(session, {
@@ -130,7 +133,7 @@ export async function handleInteractionCommands(params: {
       };
     }
     const { x, y } = centerOfRect(resolved.node.rect);
-    const data = await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
+    const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, { action: selectorAction });
