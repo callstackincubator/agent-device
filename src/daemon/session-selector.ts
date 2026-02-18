@@ -23,6 +23,10 @@ export function assertSessionSelectorMatches(
     mismatches.push(`--serial=${flags.serial}`);
   }
 
+  if (flags.device && flags.device.trim().toLowerCase() !== device.name.trim().toLowerCase()) {
+    mismatches.push(`--device=${flags.device}`);
+  }
+
   if (mismatches.length === 0) return;
 
   throw new AppError(

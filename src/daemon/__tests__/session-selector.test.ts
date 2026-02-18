@@ -62,3 +62,23 @@ test('rejects udid selector for android session', () => {
       err.message.includes('--udid=ABC-123'),
   );
 });
+
+test('accepts matching device selector (case-insensitive)', () => {
+  const session = makeSession();
+  assert.doesNotThrow(() =>
+    assertSessionSelectorMatches(session, {
+      device: 'pixel 9',
+    }),
+  );
+});
+
+test('rejects mismatched device selector', () => {
+  const session = makeSession();
+  assert.throws(
+    () => assertSessionSelectorMatches(session, { device: 'thymikee-iphone' }),
+    (err: unknown) =>
+      err instanceof AppError &&
+      err.code === 'INVALID_ARGS' &&
+      err.message.includes('--device=thymikee-iphone'),
+  );
+});
