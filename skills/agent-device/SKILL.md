@@ -99,7 +99,8 @@ agent-device settings faceid unenroll
 Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
 Airplane off clears status bar overrides.
 iOS settings helpers are simulator-only.
-Face ID aliases: `validate` = `match`, `unvalidate` = `nonmatch`.
+Use `match`/`nonmatch` as the canonical command values.
+Think of them as validate/invalidate outcomes when describing intent.
 
 ### App state
 

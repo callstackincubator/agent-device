@@ -339,15 +339,13 @@ type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
 
 function parseFaceIdAction(state: string): FaceIdAction {
   const normalized = state.trim().toLowerCase();
-  if (normalized === 'match' || normalized === 'validate') return 'match';
-  if (normalized === 'nonmatch' || normalized === 'nomatch' || normalized === 'unvalidate') {
-    return 'nonmatch';
-  }
+  if (normalized === 'match') return 'match';
+  if (normalized === 'nonmatch') return 'nonmatch';
   if (normalized === 'enroll') return 'enroll';
   if (normalized === 'unenroll') return 'unenroll';
   throw new AppError(
     'INVALID_ARGS',
-    `Invalid faceid state: ${state}. Use match|nonmatch|enroll|unenroll (aliases: validate|unvalidate).`,
+    `Invalid faceid state: ${state}. Use match|nonmatch|enroll|unenroll.`,
   );
 }
 

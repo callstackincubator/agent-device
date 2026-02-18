@@ -460,7 +460,7 @@ test('listIosApps applies user-installed filter on simulator', async () => {
   }
 });
 
-test('setIosSetting faceid validate uses simctl biometric match', async () => {
+test('setIosSetting faceid match uses simctl biometric match', async () => {
   await withMockedXcrun(
     'agent-device-ios-faceid-match-test-',
     `#!/bin/sh
@@ -486,7 +486,7 @@ exit 1
         kind: 'simulator',
         booted: true,
       };
-      await setIosSetting(device, 'faceid', 'validate');
+      await setIosSetting(device, 'faceid', 'match');
       const lines = (await fs.readFile(argsLogPath, 'utf8'))
         .trim()
         .split('\n')

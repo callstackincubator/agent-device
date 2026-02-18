@@ -91,7 +91,7 @@ test('settings rejects unsupported iOS physical devices', async () => {
   }
 });
 
-test('settings validates faceid aliases in usage hint', async () => {
+test('settings usage hint documents canonical faceid states', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSnapshotCommands({
     req: {
@@ -110,6 +110,7 @@ test('settings validates faceid aliases in usage hint', async () => {
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /validate\|unvalidate/);
+    assert.match(response.error.message, /match\|nonmatch\|enroll\|unenroll/);
+    assert.doesNotMatch(response.error.message, /validate\|unvalidate/);
   }
 });

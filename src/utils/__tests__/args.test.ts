@@ -282,8 +282,9 @@ test('command usage shows no command flags when unsupported', () => {
   assert.match(help, /Global flags:/);
 });
 
-test('settings usage documents faceid aliases', () => {
+test('settings usage documents canonical faceid states', () => {
   const help = usageForCommand('settings');
   if (help === null) throw new Error('Expected command help text');
-  assert.match(help, /match\|nonmatch\|enroll\|unenroll\|validate\|unvalidate/);
+  assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
+  assert.doesNotMatch(help, /validate\|unvalidate/);
 });
