@@ -24,7 +24,6 @@ type RunResult = {
 
 async function runCliCapture(
   argv: string[],
-  options: { forceStdinTty?: boolean } = {},
 ): Promise<RunResult> {
   let stdout = '';
   let stderr = '';
@@ -34,7 +33,6 @@ async function runCliCapture(
   const originalExit = process.exit;
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
 
   (process as any).exit = ((nextCode?: number) => {
     throw new ExitSignal(nextCode ?? 0);
@@ -47,12 +45,6 @@ async function runCliCapture(
     stderr += String(chunk);
     return true;
   }) as typeof process.stderr.write;
-  if (options.forceStdinTty !== undefined) {
-    Object.defineProperty(process.stdin, 'isTTY', {
-      configurable: true,
-      value: options.forceStdinTty,
-    });
-  }
 
   const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
     calls.push(req);
@@ -68,13 +60,6 @@ async function runCliCapture(
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
-    if (options.forceStdinTty !== undefined) {
-      if (stdinDescriptor) {
-        Object.defineProperty(process.stdin, 'isTTY', stdinDescriptor);
-      } else {
-        delete (process.stdin as any).isTTY;
-      }
-    }
   }
 
   return { code, stdout, stderr, calls };
@@ -112,11 +97,4 @@ test('batch --steps-file parses file payload', async () => {
   const req = result.calls[0];
   assert.equal(req.command, 'batch');
   assert.equal((req.flags?.batchSteps ?? [])[0]?.command, 'wait');
-});
-
-test('batch --steps-stdin fails fast when stdin is TTY', async () => {
-  const result = await runCliCapture(['batch', '--steps-stdin'], { forceStdinTty: true });
-  assert.equal(result.code, 1);
-  assert.equal(result.calls.length, 0);
-  assert.match(result.stderr, /--steps-stdin requires piped JSON input/);
 });

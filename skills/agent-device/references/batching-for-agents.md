@@ -20,12 +20,6 @@ From file:
 agent-device batch --session sim --platform ios --steps-file /tmp/batch-steps.json --json
 ```
 
-From stdin:
-
-```bash
-cat /tmp/batch-steps.json | agent-device batch --session sim --platform ios --steps-stdin --json
-```
-
 Inline (small payloads only):
 
 ```bash

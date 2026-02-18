@@ -26,7 +26,6 @@ export type CliFlags = {
   replayUpdate?: boolean;
   steps?: string;
   stepsFile?: string;
-  stepsStdin?: boolean;
   batchOnError?: 'stop';
   batchMaxSteps?: number;
   batchSteps?: Array<{
@@ -247,13 +246,6 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Batch: read steps JSON from file',
   },
   {
-    key: 'stepsStdin',
-    names: ['--steps-stdin'],
-    type: 'boolean',
-    usageLabel: '--steps-stdin',
-    usageDescription: 'Batch: read steps JSON from stdin',
-  },
-  {
     key: 'batchOnError',
     names: ['--on-error'],
     type: 'enum',
@@ -435,10 +427,10 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   batch: {
-    usageOverride: 'batch [--steps <json> | --steps-file <path> | --steps-stdin]',
+    usageOverride: 'batch [--steps <json> | --steps-file <path>]',
     description: 'Execute multiple commands in one daemon request',
     positionalArgs: [],
-    allowedFlags: ['steps', 'stepsFile', 'stepsStdin', 'batchOnError', 'batchMaxSteps', 'out'],
+    allowedFlags: ['steps', 'stepsFile', 'batchOnError', 'batchMaxSteps', 'out'],
     skipCapabilityCheck: true,
   },
   press: {

@@ -68,7 +68,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const batchFlags = { ...daemonFlags, batchSteps };
       delete (batchFlags as Record<string, unknown>).steps;
       delete (batchFlags as Record<string, unknown>).stepsFile;
-      delete (batchFlags as Record<string, unknown>).stepsStdin;
 
       const response = await deps.sendToDaemon({
         session: sessionName,
@@ -296,14 +295,6 @@ async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Pro
     raw = flags.steps;
   } else if (flags.stepsFile) {
     raw = fs.readFileSync(flags.stepsFile, 'utf8');
-  } else if (flags.stepsStdin) {
-    if (process.stdin.isTTY) {
-      throw new AppError(
-        'INVALID_ARGS',
-        'batch --steps-stdin requires piped JSON input on stdin.',
-      );
-    }
-    raw = await readStdin();
   }
   let parsed: unknown;
   try {
@@ -338,14 +329,6 @@ async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Pro
     });
   }
   return steps;
-}
-
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks).toString('utf8');
 }
 
 function isDaemonStartupFailure(error: AppError): boolean {

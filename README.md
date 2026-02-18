@@ -60,15 +60,6 @@ agent-device batch \
   --json
 ```
 
-```bash
-cat /tmp/batch-steps.json | agent-device batch \
-  --session sim \
-  --platform ios \
-  --udid 00008150-001849640CF8401C \
-  --steps-stdin \
-  --json
-```
-
 Small inline payloads are also supported:
 
 ```bash
@@ -97,7 +88,7 @@ Agent usage guidelines:
 - Keep each batch to one screen-local workflow.
 - Add sync guards (`wait`, `is exists`) after mutating steps (`open`, `click`, `fill`, `swipe`).
 - Treat refs/snapshot assumptions as stale after UI mutations.
-- Prefer `--steps-file` or `--steps-stdin` over inline JSON for reliability.
+- Prefer `--steps-file` over inline JSON for reliability.
 - Keep batches moderate (about 5-20 steps) and stop on first error.
 
 ## CLI Usage
@@ -172,7 +163,6 @@ Flags:
 - `--json` for structured output
 - `--steps <json>` batch: JSON array of steps
 - `--steps-file <path>` batch: read step JSON from file
-- `--steps-stdin` batch: read step JSON from stdin
 - `--on-error stop` batch: stop when a step fails
 - `--max-steps <n>` batch: max allowed steps per request
 

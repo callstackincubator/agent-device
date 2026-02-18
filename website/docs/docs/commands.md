@@ -92,7 +92,6 @@ See [Replay & E2E (Experimental)](/docs/replay-e2e) for recording and CI workflo
 
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
-agent-device batch --steps-stdin --json
 agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 ```
 
