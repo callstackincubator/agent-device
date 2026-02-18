@@ -39,6 +39,19 @@ agent-device close
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 
+## Fast batching
+
+When an agent already knows a short sequence of actions, batch them:
+
+```bash
+agent-device batch \
+  --platform ios \
+  --steps-file /tmp/batch-steps.json \
+  --json
+```
+
+See [Batching](/agent-device/docs/batching.md) for payload format, failure handling, and best practices.
+
 ## Semantic discovery
 
 Use `find` for human-readable targeting without refs:

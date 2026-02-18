@@ -9,6 +9,7 @@
 ## Others
 
 - [](/agent-device/404.md)
+- [Batching](/agent-device/docs/batching.md): Use batch to run multiple commands in a single daemon request. This is useful for agent workflows that already know the next sequence of actions and want to reduce orchestration overhead.
 - [Commands](/agent-device/docs/commands.md): This page summarizes the primary command groups.
 - [Installation](/agent-device/docs/installation.md)
 - [Quick Start](/agent-device/docs/quick-start.md): Every device automation follows this pattern: Boot target if there is no ready device/simulator:
