@@ -20,6 +20,11 @@
     "label": "Commands"
   },
   {
+    "name": "batching",
+    "type": "file",
+    "label": "Batching for Agents"
+  },
+  {
     "name": "selectors",
     "type": "file",
     "label": "Selectors"

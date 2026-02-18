@@ -88,6 +88,21 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 
 See [Replay & E2E (Experimental)](/docs/replay-e2e) for recording and CI workflow details.
 
+## Batch
+
+```bash
+agent-device batch --steps-file /tmp/batch-steps.json --json
+agent-device batch --steps-stdin --json
+agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
+```
+
+- `batch` runs a JSON array of steps in a single daemon request.
+- each step has `command`, optional `positionals`, and optional `flags`.
+- stop-on-first-error is the supported behavior (`--on-error stop`).
+- use `--max-steps <n>` to tighten per-request safety limits.
+
+See [Batching for Agents](/docs/batching) for payload format, response shape, and agent guidelines.
+
 ## App reinstall (fresh state)
 
 ```bash

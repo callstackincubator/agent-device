@@ -155,6 +155,59 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 `--save-script` path is a file path; parent directories are created automatically.
 For ambiguous bare values, use `--save-script=workflow.ad` or `./workflow.ad`.
 
+### Fast batching for agents (JSON steps)
+
+Use `batch` when an agent already has a known short sequence and wants fewer orchestration round trips.
+
+```bash
+agent-device batch \
+  --session sim \
+  --platform ios \
+  --udid 00008150-001849640CF8401C \
+  --steps-file /tmp/batch-steps.json \
+  --json
+```
+
+```bash
+cat /tmp/batch-steps.json | agent-device batch \
+  --session sim \
+  --platform ios \
+  --udid 00008150-001849640CF8401C \
+  --steps-stdin \
+  --json
+```
+
+Inline JSON works for small payloads:
+
+```bash
+agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"command":"wait","positionals":["100"]}]'
+```
+
+Step format:
+
+```json
+[
+  { "command": "open", "positionals": ["settings"], "flags": {} },
+  { "command": "wait", "positionals": ["label=\"Privacy & Security\"", "3000"], "flags": {} },
+  { "command": "click", "positionals": ["label=\"Privacy & Security\""], "flags": {} },
+  { "command": "get", "positionals": ["text", "label=\"Tracking\""], "flags": {} }
+]
+```
+
+Batch best practices for agents:
+
+- Batch one screen-local flow at a time.
+- Add sync guards (`wait`, `is exists`) after mutating steps (`open`, `click`, `fill`, `swipe`).
+- Treat prior refs/snapshot assumptions as stale after UI mutations.
+- Prefer `--steps-file` or `--steps-stdin` over inline JSON.
+- Keep batches moderate (about 5-20 steps).
+- Use failure context (`step`, `partialResults`) to replan from the failed step.
+
+Stale accessibility tree note:
+
+- Rapid mutations can outrun accessibility tree updates.
+- Mitigate with explicit waits and phase splitting (navigate, verify/extract, cleanup).
+
 ### Trace logs (XCTest)
 
 ```bash
@@ -208,3 +261,4 @@ agent-device apps --platform android --user-installed
 - [references/permissions.md](references/permissions.md)
 - [references/video-recording.md](references/video-recording.md)
 - [references/coordinate-system.md](references/coordinate-system.md)
+- [references/batching-for-agents.md](references/batching-for-agents.md)

@@ -45,6 +45,61 @@ agent-device click @e3
 agent-device close
 ```
 
+## Fast batching for agents (JSON steps)
+
+Use `batch` to execute multiple commands in a single daemon request.
+
+CLI examples:
+
+```bash
+agent-device batch \
+  --session sim \
+  --platform ios \
+  --udid 00008150-001849640CF8401C \
+  --steps-file /tmp/batch-steps.json \
+  --json
+```
+
+```bash
+cat /tmp/batch-steps.json | agent-device batch \
+  --session sim \
+  --platform ios \
+  --udid 00008150-001849640CF8401C \
+  --steps-stdin \
+  --json
+```
+
+Small inline payloads are also supported:
+
+```bash
+agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"command":"wait","positionals":["100"]}]'
+```
+
+Batch payload format:
+
+```json
+[
+  { "command": "open", "positionals": ["settings"], "flags": {} },
+  { "command": "wait", "positionals": ["label=\"Privacy & Security\"", "3000"], "flags": {} },
+  { "command": "click", "positionals": ["label=\"Privacy & Security\""], "flags": {} },
+  { "command": "get", "positionals": ["text", "label=\"Tracking\""], "flags": {} }
+]
+```
+
+Batch response includes:
+
+- `total`, `executed`, `totalDurationMs`
+- per-step `results[]` with `durationMs`
+- failure context with failing `step` and `partialResults`
+
+Agent usage guidelines:
+
+- Keep each batch to one screen-local workflow.
+- Add sync guards (`wait`, `is exists`) after mutating steps (`open`, `click`, `fill`, `swipe`).
+- Treat refs/snapshot assumptions as stale after UI mutations.
+- Prefer `--steps-file` or `--steps-stdin` over inline JSON for reliability.
+- Keep batches moderate (about 5-20 steps) and stop on first error.
+
 ## CLI Usage
 
 ```bash
@@ -84,6 +139,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
+- `batch`
 - `snapshot`, `find`, `get`
 - `click`, `focus`, `type`, `fill`, `press`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
@@ -114,6 +170,11 @@ Flags:
 - `--pattern one-way|ping-pong` repeat pattern for `swipe`
 - `--verbose` for daemon and runner logs
 - `--json` for structured output
+- `--steps <json>` batch: JSON array of steps
+- `--steps-file <path>` batch: read step JSON from file
+- `--steps-stdin` batch: read step JSON from stdin
+- `--on-error stop` batch: stop when a step fails
+- `--max-steps <n>` batch: max allowed steps per request
 
 Pinch:
 - `pinch` is supported on iOS simulators.
