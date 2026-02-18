@@ -20,6 +20,7 @@ final class RunnerTests: XCTestCase {
   private let maxRequestBytes = 2 * 1024 * 1024
   private let maxSnapshotElements = 600
   private let fastSnapshotLimit = 300
+  private let mainThreadExecutionTimeout: TimeInterval = 30
   private let interactiveTypes: Set<XCUIElement.ElementType> = [
     .button,
     .cell,
@@ -49,7 +50,7 @@ final class RunnerTests: XCTestCase {
   ]
 
   override func setUp() {
-    continueAfterFailure = false
+    continueAfterFailure = true
   }
 
   @MainActor
@@ -192,19 +193,26 @@ final class RunnerTests: XCTestCase {
 
   private func execute(command: Command) throws -> Response {
     if Thread.isMainThread {
-      return try executeOnMain(command: command)
+      return try executeOnMainSafely(command: command)
     }
     var result: Result<Response, Error>?
     let semaphore = DispatchSemaphore(value: 0)
     DispatchQueue.main.async {
       do {
-        result = .success(try self.executeOnMain(command: command))
+        result = .success(try self.executeOnMainSafely(command: command))
       } catch {
         result = .failure(error)
       }
       semaphore.signal()
     }
-    semaphore.wait()
+    let waitResult = semaphore.wait(timeout: .now() + mainThreadExecutionTimeout)
+    if waitResult == .timedOut {
+      throw NSError(
+        domain: "AgentDeviceRunner",
+        code: 3,
+        userInfo: [NSLocalizedDescriptionKey: "main thread execution timed out"]
+      )
+    }
     switch result {
     case .success(let response):
       return response
@@ -215,30 +223,74 @@ final class RunnerTests: XCTestCase {
     }
   }
 
+  private func executeOnMainSafely(command: Command) throws -> Response {
+    var response: Response?
+    var swiftError: Error?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      do {
+        response = try self.executeOnMain(command: command)
+      } catch {
+        swiftError = error
+      }
+    })
+
+    if let exceptionMessage {
+      currentApp = nil
+      currentBundleId = nil
+      throw NSError(
+        domain: "AgentDeviceRunner.NSException",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: exceptionMessage]
+      )
+    }
+    if let swiftError {
+      throw swiftError
+    }
+    guard let response else {
+      throw NSError(
+        domain: "AgentDeviceRunner",
+        code: 2,
+        userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
+      )
+    }
+    return response
+  }
+
   private func executeOnMain(command: Command) throws -> Response {
+    if command.command == .shutdown {
+      return Response(ok: true, data: DataPayload(message: "shutdown"))
+    }
+
     let normalizedBundleId = command.appBundleId?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
-    let switchedApp: Bool
-    if let bundleId = requestedBundleId, currentBundleId != bundleId {
-      let target = XCUIApplication(bundleIdentifier: bundleId)
-      NSLog("AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d", bundleId, target.state.rawValue)
-      // activate avoids terminating and relaunching the target app
-      target.activate()
-      currentApp = target
-      currentBundleId = bundleId
-      switchedApp = true
-    } else if requestedBundleId == nil {
+    if let bundleId = requestedBundleId {
+      if currentBundleId != bundleId || currentApp == nil {
+        _ = activateTarget(bundleId: bundleId, reason: "bundle_changed")
+      }
+    } else {
       // Do not reuse stale bundle targets when the caller does not explicitly request one.
       currentApp = nil
       currentBundleId = nil
-      switchedApp = false
-    } else {
-      switchedApp = false
     }
-    let activeApp = currentApp ?? app
-    if switchedApp {
-      _ = activeApp.waitForExistence(timeout: 5)
+
+    var activeApp = currentApp ?? app
+    if let bundleId = requestedBundleId, targetNeedsActivation(activeApp) {
+      activeApp = activateTarget(bundleId: bundleId, reason: "stale_target")
+    } else if requestedBundleId == nil, targetNeedsActivation(activeApp) {
+      app.activate()
+      activeApp = app
+    }
+
+    if !activeApp.waitForExistence(timeout: 5) {
+      if let bundleId = requestedBundleId {
+        activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
+        guard activeApp.waitForExistence(timeout: 5) else {
+          return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+        }
+      } else {
+        return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
+      }
     }
 
     switch command.command {
@@ -398,6 +450,30 @@ final class RunnerTests: XCTestCase {
       pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
       return Response(ok: true, data: DataPayload(message: "pinched"))
     }
+  }
+
+  private func targetNeedsActivation(_ target: XCUIApplication) -> Bool {
+    switch target.state {
+    case .unknown, .notRunning, .runningBackground, .runningBackgroundSuspended:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func activateTarget(bundleId: String, reason: String) -> XCUIApplication {
+    let target = XCUIApplication(bundleIdentifier: bundleId)
+    NSLog(
+      "AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d reason=%@",
+      bundleId,
+      target.state.rawValue,
+      reason
+    )
+    // activate avoids terminating and relaunching the target app
+    target.activate()
+    currentApp = target
+    currentBundleId = bundleId
+    return target
   }
 
   private func tapNavigationBack(app: XCUIApplication) -> Bool {
