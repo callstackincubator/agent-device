@@ -314,7 +314,8 @@ agent-device settings faceid unenroll
 ```
 
 - iOS `settings` support is simulator-only.
-- Face ID controls are iOS simulator-only and support aliases: `validate` = `match`, `unvalidate` = `nonmatch`.
+- Face ID controls are iOS simulator-only.
+- Use `match`/`nonmatch` to simulate valid/invalid Face ID outcomes.
 
 ## App state and app lists
 
