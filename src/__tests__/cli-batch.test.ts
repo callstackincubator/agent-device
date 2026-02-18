@@ -98,3 +98,20 @@ test('batch --steps-file parses file payload', async () => {
   assert.equal(req.command, 'batch');
   assert.equal((req.flags?.batchSteps ?? [])[0]?.command, 'wait');
 });
+
+test('batch --steps-file returns clear error for missing file', async () => {
+  const result = await runCliCapture(['batch', '--steps-file', '/tmp/definitely-missing-batch-steps.json']);
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stderr, /Failed to read --steps-file/);
+});
+
+test('batch --steps-file rejects invalid JSON payload', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-batch-invalid-'));
+  const stepsPath = path.join(tmpDir, 'steps.json');
+  fs.writeFileSync(stepsPath, '{"command":"open"', 'utf8');
+  const result = await runCliCapture(['batch', '--steps-file', stepsPath]);
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stderr, /Batch steps must be valid JSON/);
+});

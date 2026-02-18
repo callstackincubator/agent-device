@@ -622,7 +622,7 @@ export async function handleSessionCommands(params: {
     const partialResults: Record<string, unknown>[] = [];
     for (let index = 0; index < steps.length; index += 1) {
       const step = steps[index];
-      const commandName = step.command.trim();
+      const commandName = step.command.trim().toLowerCase();
       const stepStartedAt = Date.now();
       const response = await invoke({
         token: req.token,
@@ -786,6 +786,9 @@ function buildBatchStepFlags(
 ): CommandFlags {
   const merged: CommandFlags = { ...(stepFlags ?? {}) };
   const mergedRecord = merged as Record<string, unknown>;
+  delete mergedRecord.batchSteps;
+  delete mergedRecord.batchOnError;
+  delete mergedRecord.batchMaxSteps;
   const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
   for (const key of BATCH_PARENT_FLAG_KEYS) {
     if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {

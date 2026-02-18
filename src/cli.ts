@@ -294,7 +294,12 @@ async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Pro
   if (flags.steps) {
     raw = flags.steps;
   } else if (flags.stepsFile) {
-    raw = fs.readFileSync(flags.stepsFile, 'utf8');
+    try {
+      raw = fs.readFileSync(flags.stepsFile, 'utf8');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AppError('INVALID_ARGS', `Failed to read --steps-file ${flags.stepsFile}: ${message}`);
+    }
   }
   let parsed: unknown;
   try {

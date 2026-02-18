@@ -123,6 +123,27 @@ test('batch rejects nested replay and batch commands', async () => {
   if (nestedReplay && !nestedReplay.ok) {
     assert.equal(nestedReplay.error.code, 'INVALID_ARGS');
   }
+
+  const nestedBatch = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchSteps: [{ command: 'batch', positionals: [] }],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(nestedBatch);
+  assert.equal(nestedBatch?.ok, false);
+  if (nestedBatch && !nestedBatch.ok) {
+    assert.equal(nestedBatch.error.code, 'INVALID_ARGS');
+  }
 });
 
 test('batch enforces max step guard', async () => {
@@ -152,6 +173,37 @@ test('batch enforces max step guard', async () => {
     assert.equal(response.error.code, 'INVALID_ARGS');
     assert.match(response.error.message, /max allowed is 1/);
   }
+});
+
+test('batch step flags override parent selector flags', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        platform: 'ios',
+        batchSteps: [
+          {
+            command: 'open',
+            positionals: ['settings'],
+            flags: { platform: 'android' },
+          },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      assert.equal(stepReq.flags?.platform, 'android');
+      return { ok: true, data: {} };
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
 });
 
 test('boot requires session or explicit selector', async () => {
