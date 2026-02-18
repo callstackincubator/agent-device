@@ -74,7 +74,7 @@ export async function dispatchCommand(
     intervalMs?: number;
     holdMs?: number;
     jitterPx?: number;
-    tapBatch?: boolean;
+    doubleTap?: boolean;
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
   },
@@ -132,8 +132,16 @@ export async function dispatchCommand(
       const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
       const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
       const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
+      const doubleTap = context?.doubleTap === true;
 
-      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
+      if (doubleTap && holdMs > 0) {
+        throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with hold-ms');
+      }
+      if (doubleTap && jitterPx > 0) {
+        throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with jitter-px');
+      }
+
+      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx, doubleTap)) {
         await runIosRunnerCommand(
           device,
           {
@@ -142,23 +150,28 @@ export async function dispatchCommand(
             y,
             count,
             intervalMs,
-            tapBatch: context?.tapBatch,
+            doubleTap,
             appBundleId: context?.appBundleId,
           },
           { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
         );
-        return { x, y, count, intervalMs, holdMs, jitterPx, timingMode: 'runner-series' };
+        return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, timingMode: 'runner-series' };
       }
 
       await runRepeatedSeries(count, intervalMs, async (index) => {
         const [dx, dy] = computeDeterministicJitter(index, jitterPx);
         const targetX = x + dx;
         const targetY = y + dy;
+        if (doubleTap) {
+          await interactor.tap(targetX, targetY);
+          await interactor.tap(targetX, targetY);
+          return;
+        }
         if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
         else await interactor.tap(targetX, targetY);
       });
 
-      return { x, y, count, intervalMs, holdMs, jitterPx };
+      return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap };
     }
     case 'swipe': {
       const x1 = Number(positionals[0]);
@@ -404,8 +417,14 @@ function requireIntInRange(value: number, name: string, min: number, max: number
   return value;
 }
 
-export function shouldUseIosTapSeries(device: DeviceInfo, count: number, holdMs: number, jitterPx: number): boolean {
-  return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
+export function shouldUseIosTapSeries(
+  device: DeviceInfo,
+  count: number,
+  holdMs: number,
+  jitterPx: number,
+  doubleTap = false,
+): boolean {
+  return device.platform === 'ios' && (count > 1 || doubleTap) && holdMs === 0 && jitterPx === 0;
 }
 
 export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {

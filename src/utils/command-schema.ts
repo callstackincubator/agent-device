@@ -17,7 +17,7 @@ export type CliFlags = {
   intervalMs?: number;
   holdMs?: number;
   jitterPx?: number;
-  tapBatch?: boolean;
+  doubleTap?: boolean;
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
@@ -151,11 +151,11 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Deterministic coordinate jitter radius for press',
   },
   {
-    key: 'tapBatch',
-    names: ['--tap-batch'],
+    key: 'doubleTap',
+    names: ['--double-tap'],
     type: 'boolean',
-    usageLabel: '--tap-batch',
-    usageDescription: 'iOS click/press: batch repeated taps in XCTest (faster, may alter gesture semantics)',
+    usageLabel: '--double-tap',
+    usageDescription: 'Use double-tap gesture per press iteration',
   },
   {
     key: 'pauseMs',
@@ -381,7 +381,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/click by coordinates, snapshot ref, or selector',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'tapBatch', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
   },
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
@@ -400,7 +400,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/press by coordinates, snapshot ref, or selector (supports repeated series)',
     positionalArgs: ['targetOrX', 'y?'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'tapBatch', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
   },
   'long-press': {
     description: 'Long press (where supported)',

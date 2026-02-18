@@ -263,8 +263,11 @@ final class RunnerTests: XCTestCase {
       }
       let count = max(Int(command.count ?? 1), 1)
       let intervalMs = max(command.intervalMs ?? 0, 0)
-      if command.tapBatch == true && intervalMs == 0 {
-        tapAt(app: activeApp, x: x, y: y, count: count)
+      let doubleTap = command.doubleTap ?? false
+      if doubleTap {
+        runSeries(count: count, pauseMs: intervalMs) { _ in
+          doubleTapAt(app: activeApp, x: x, y: y)
+        }
         return Response(ok: true, data: DataPayload(message: "tap series"))
       }
       runSeries(count: count, pauseMs: intervalMs) { _ in
@@ -484,17 +487,10 @@ final class RunnerTests: XCTestCase {
     coordinate.tap()
   }
 
-  private func tapAt(app: XCUIApplication, x: Double, y: Double, count: Int) {
+  private func doubleTapAt(app: XCUIApplication, x: Double, y: Double) {
     let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
-    var remaining = max(count, 1)
-    while remaining >= 2 {
-      coordinate.doubleTap()
-      remaining -= 2
-    }
-    if remaining == 1 {
-      coordinate.tap()
-    }
+    coordinate.doubleTap()
   }
 
   private func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) {
@@ -1081,7 +1077,7 @@ struct Command: Codable {
   let y: Double?
   let count: Double?
   let intervalMs: Double?
-  let tapBatch: Bool?
+  let doubleTap: Bool?
   let pauseMs: Double?
   let pattern: String?
   let x2: Double?

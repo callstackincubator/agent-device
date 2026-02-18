@@ -116,6 +116,7 @@ agent-device type "text"               # Type into focused field without clearin
 agent-device press 300 500             # Tap by coordinates
 agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
+agent-device click @e1 --count 5 --interval-ms 1 --double-tap
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800    # Long press (where supported)
@@ -178,7 +179,9 @@ agent-device apps --platform android --user-installed
 
 ## Best practices
 
-- `press` supports gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`.
+- `click` and `press` both accept `x y`, `@ref`, and selector targets.
+- `press`/`click` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
+- `--double-tap` cannot be combined with `--hold-ms` or `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
 - `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
 - Pinch (`pinch <scale> [x y]`) is iOS simulator-only; scale > 1 zooms in, < 1 zooms out.

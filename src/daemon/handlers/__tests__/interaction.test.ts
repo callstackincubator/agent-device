@@ -35,7 +35,7 @@ const contextFromFlags = (flags: CommandFlags | undefined) => ({
   intervalMs: flags?.intervalMs,
   holdMs: flags?.holdMs,
   jitterPx: flags?.jitterPx,
-  tapBatch: flags?.tapBatch,
+  doubleTap: flags?.doubleTap,
 });
 
 test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
@@ -69,7 +69,7 @@ test('click coordinates dispatches press and records as click', async () => {
       session: sessionName,
       command: 'click',
       positionals: ['100', '200'],
-      flags: { count: 3, intervalMs: 1, tapBatch: true },
+      flags: { count: 3, intervalMs: 1, doubleTap: true },
     },
     sessionName,
     sessionStore,
@@ -87,7 +87,7 @@ test('click coordinates dispatches press and records as click', async () => {
   assert.deepEqual(dispatchCalls[0]?.positionals, ['100', '200']);
   assert.equal(dispatchCalls[0]?.context?.count, 3);
   assert.equal(dispatchCalls[0]?.context?.intervalMs, 1);
-  assert.equal(dispatchCalls[0]?.context?.tapBatch, true);
+  assert.equal(dispatchCalls[0]?.context?.doubleTap, true);
 
   const session = sessionStore.get(sessionName);
   assert.ok(session);

@@ -37,7 +37,7 @@ export function appendScriptSeriesFlags(parts: string[], action: Pick<SessionAct
     if (typeof flags.intervalMs === 'number') parts.push('--interval-ms', String(flags.intervalMs));
     if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
     if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
-    if (flags.tapBatch === true) parts.push('--tap-batch');
+    if (flags.doubleTap === true) parts.push('--double-tap');
     return;
   }
   if (action.command === 'swipe') {
@@ -62,8 +62,8 @@ export function parseReplaySeriesFlags(command: string, args: string[]): { posit
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
 
-    if (isClickLikeCommand(command) && token === '--tap-batch') {
-      flags.tapBatch = true;
+    if (isClickLikeCommand(command) && token === '--double-tap') {
+      flags.doubleTap = true;
       continue;
     }
 

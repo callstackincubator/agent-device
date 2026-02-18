@@ -527,7 +527,7 @@ test('replay --update heals selector in press command and preserves press series
   sessionStore.set(sessionName, makeSession(sessionName));
   fs.writeFileSync(
     replayPath,
-    'press "id=\\"old_continue\\" || label=\\"Continue\\"" --count 3 --interval-ms 1 --tap-batch\n',
+    'press "id=\\"old_continue\\" || label=\\"Continue\\"" --count 3 --interval-ms 1 --double-tap\n',
   );
 
   const invokeCalls: DaemonRequest[] = [];
@@ -588,7 +588,7 @@ test('replay --update heals selector in press command and preserves press series
   assert.equal(invokeCalls.length, 2);
   assert.equal(invokeCalls[0]?.flags?.count, 3);
   assert.equal(invokeCalls[0]?.flags?.intervalMs, 1);
-  assert.equal(invokeCalls[0]?.flags?.tapBatch, true);
+  assert.equal(invokeCalls[0]?.flags?.doubleTap, true);
   const updatedLine = fs
     .readFileSync(replayPath, 'utf8')
     .split(/\r?\n/)
@@ -596,7 +596,7 @@ test('replay --update heals selector in press command and preserves press series
   assert.ok(updatedLine);
   const tokens = tokenizeReplayLine(updatedLine!);
   assert.ok(tokens[1]?.includes('auth_continue'));
-  assert.deepEqual(tokens.slice(2), ['--count', '3', '--interval-ms', '1', '--tap-batch']);
+  assert.deepEqual(tokens.slice(2), ['--count', '3', '--interval-ms', '1', '--double-tap']);
 });
 
 test('replay rejects legacy JSON payload files', async () => {

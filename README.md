@@ -73,12 +73,14 @@ agent-device trace stop ./trace.log
 Coordinates:
 - All coordinate-based commands (`press`, `long-press`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
+- `click` and `press` both accept `x y`, `@ref`, and selector targets.
 
 Gesture series examples:
 
 ```bash
 agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
+agent-device click @e5 --count 5 --interval-ms 1 --double-tap
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 ```
 
@@ -110,6 +112,7 @@ Flags:
 - `--interval-ms <ms>` delay between `press` iterations
 - `--hold-ms <ms>` hold duration per `press` iteration
 - `--jitter-px <n>` deterministic coordinate jitter for `press`
+- `--double-tap` use a double-tap gesture per `press`/`click` iteration (cannot be combined with `--hold-ms` or `--jitter-px`)
 - `--pause-ms <ms>` delay between `swipe` iterations
 - `--pattern one-way|ping-pong` repeat pattern for `swipe`
 - `--verbose` for daemon and runner logs

@@ -187,7 +187,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     intervalMs,
     holdMs,
     jitterPx,
-    tapBatch,
+    doubleTap,
     pauseMs,
     pattern,
   } = flags;
@@ -210,7 +210,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     intervalMs,
     holdMs,
     jitterPx,
-    tapBatch,
+    doubleTap,
     pauseMs,
     pattern,
   };

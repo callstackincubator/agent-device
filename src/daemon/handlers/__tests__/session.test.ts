@@ -823,7 +823,7 @@ test('replay parses press series flags and passes them to invoke', async () => {
   const sessionStore = makeSessionStore();
   const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-press-series-'));
   const replayPath = path.join(replayRoot, 'press-series.ad');
-  fs.writeFileSync(replayPath, 'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --tap-batch\n');
+  fs.writeFileSync(replayPath, 'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap\n');
 
   const invoked: DaemonRequest[] = [];
   const response = await handleSessionCommands({
@@ -852,5 +852,5 @@ test('replay parses press series flags and passes them to invoke', async () => {
   assert.equal(invoked[0]?.flags?.intervalMs, 1);
   assert.equal(invoked[0]?.flags?.holdMs, 2);
   assert.equal(invoked[0]?.flags?.jitterPx, 3);
-  assert.equal(invoked[0]?.flags?.tapBatch, true);
+  assert.equal(invoked[0]?.flags?.doubleTap, true);
 });

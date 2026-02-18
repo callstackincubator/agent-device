@@ -160,7 +160,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
       intervalMs: 1,
       holdMs: 2,
       jitterPx: 3,
-      tapBatch: true,
+      doubleTap: true,
     },
     result: {},
   });
@@ -196,7 +196,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
   const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
   assert.ok(scriptFile);
   const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
-  assert.match(script, /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --tap-batch/);
+  assert.match(script, /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/);
   assert.match(script, /press 201 545 --count 4 --interval-ms 8/);
   assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
 });

@@ -85,12 +85,12 @@ test('parseArgs recognizes click series flags', () => {
   assert.equal(parsed.flags.intervalMs, 10);
 });
 
-test('parseArgs recognizes tap batching flag for repeated press', () => {
-  const parsed = parseArgs(['press', '201', '545', '--count', '5', '--tap-batch'], { strictFlags: true });
+test('parseArgs recognizes double-tap flag for repeated press', () => {
+  const parsed = parseArgs(['press', '201', '545', '--count', '5', '--double-tap'], { strictFlags: true });
   assert.equal(parsed.command, 'press');
   assert.deepEqual(parsed.positionals, ['201', '545']);
   assert.equal(parsed.flags.count, 5);
-  assert.equal(parsed.flags.tapBatch, true);
+  assert.equal(parsed.flags.doubleTap, true);
 });
 
 test('parseArgs recognizes swipe positional + pattern flags', () => {
