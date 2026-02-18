@@ -15,6 +15,7 @@ import {
   splitIsSelectorArgs,
   splitSelectorFromArgs,
 } from '../selectors.ts';
+import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 
 type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -120,12 +121,17 @@ export async function handleInteractionCommands(params: {
       { interactiveOnly: true },
       dispatch,
     );
-    const resolved = resolveSelectorChain(snapshot.nodes, chain, {
-      platform: session.device.platform,
-      requireRect: true,
-      requireUnique: true,
-      disambiguateAmbiguous: true,
-    });
+    const resolved = await withDiagnosticTimer(
+      'selector_resolve',
+      () =>
+        resolveSelectorChain(snapshot.nodes, chain, {
+          platform: session.device.platform,
+          requireRect: true,
+          requireUnique: true,
+          disambiguateAmbiguous: true,
+        }),
+      { command },
+    );
     if (!resolved || !resolved.node.rect) {
       return {
         ok: false,
@@ -235,12 +241,17 @@ export async function handleInteractionCommands(params: {
         { interactiveOnly: true },
         dispatch,
       );
-      const resolved = resolveSelectorChain(snapshot.nodes, chain, {
-        platform: session.device.platform,
-        requireRect: true,
-        requireUnique: true,
-        disambiguateAmbiguous: true,
-      });
+      const resolved = await withDiagnosticTimer(
+        'selector_resolve',
+        () =>
+          resolveSelectorChain(snapshot.nodes, chain, {
+            platform: session.device.platform,
+            requireRect: true,
+            requireUnique: true,
+            disambiguateAmbiguous: true,
+          }),
+        { command },
+      );
       if (!resolved || !resolved.node.rect) {
         return {
           ok: false,
@@ -353,12 +364,17 @@ export async function handleInteractionCommands(params: {
       { interactiveOnly: false },
       dispatch,
     );
-    const resolved = resolveSelectorChain(snapshot.nodes, chain, {
-      platform: session.device.platform,
-      requireRect: false,
-      requireUnique: true,
-      disambiguateAmbiguous: sub === 'text',
-    });
+    const resolved = await withDiagnosticTimer(
+      'selector_resolve',
+      () =>
+        resolveSelectorChain(snapshot.nodes, chain, {
+          platform: session.device.platform,
+          requireRect: false,
+          requireUnique: true,
+          disambiguateAmbiguous: sub === 'text',
+        }),
+      { command },
+    );
     if (!resolved) {
       return {
         ok: false,
@@ -484,10 +500,15 @@ export async function handleInteractionCommands(params: {
       return { ok: true, data: { predicate, pass: true, selector: matched.selector.raw, matches: matched.matches } };
     }
 
-    const resolved = resolveSelectorChain(snapshot.nodes, chain, {
-      platform: session.device.platform,
-      requireUnique: true,
-    });
+    const resolved = await withDiagnosticTimer(
+      'selector_resolve',
+      () =>
+        resolveSelectorChain(snapshot.nodes, chain, {
+          platform: session.device.platform,
+          requireUnique: true,
+        }),
+      { command: 'is', predicate },
+    );
     if (!resolved) {
       return {
         ok: false,

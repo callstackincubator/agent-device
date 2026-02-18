@@ -9,11 +9,25 @@ export type DaemonRequest = {
   command: string;
   positionals: string[];
   flags?: CommandFlags;
+  meta?: {
+    requestId?: string;
+    debug?: boolean;
+  };
 };
 
 export type DaemonResponse =
   | { ok: true; data?: Record<string, unknown> }
-  | { ok: false; error: { code: string; message: string; details?: Record<string, unknown> } };
+  | {
+    ok: false;
+    error: {
+      code: string;
+      message: string;
+      hint?: string;
+      diagnosticId?: string;
+      logPath?: string;
+      details?: Record<string, unknown>;
+    };
+  };
 
 export type SessionState = {
   name: string;

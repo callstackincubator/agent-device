@@ -12,6 +12,13 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.flags.relaunch, true);
 });
 
+test('parseArgs recognizes --debug alias for verbose mode', () => {
+  const parsed = parseArgs(['open', 'settings', '--debug']);
+  assert.equal(parsed.command, 'open');
+  assert.deepEqual(parsed.positionals, ['settings']);
+  assert.equal(parsed.flags.verbose, true);
+});
+
 test('batch requires exactly one step source', () => {
   assert.throws(
     () => parseArgs(['batch'], { strictFlags: true }),

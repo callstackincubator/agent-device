@@ -5,6 +5,7 @@ import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
 import { appendScriptSeriesFlags, formatScriptArg, isClickLikeCommand } from './script-utils.ts';
+import { emitDiagnostic } from '../utils/diagnostics.ts';
 
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
@@ -60,6 +61,14 @@ export class SessionStore {
       positionals: entry.positionals,
       flags: sanitizeFlags(entry.flags),
       result: entry.result,
+    });
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'record_action',
+      data: {
+        command: entry.command,
+        session: session.name,
+      },
     });
   }
 

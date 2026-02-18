@@ -1,5 +1,5 @@
 import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
-import { asAppError, AppError } from './utils/errors.ts';
+import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
+import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -19,48 +20,95 @@ const DEFAULT_CLI_DEPS: CliDeps = {
 };
 
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
-  const parsed = parseArgs(argv);
-  for (const warning of parsed.warnings) {
-    process.stderr.write(`Warning: ${warning}\n`);
-  }
+  const requestId = createRequestId();
+  const debugEnabled = argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
+  const jsonRequested = argv.includes('--json');
+  const sessionGuess = guessSessionFromArgv(argv) ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
 
-  if (parsed.flags.version) {
-    process.stdout.write(`${readVersion()}\n`);
-    process.exit(0);
-  }
+  await withDiagnosticsScope(
+    {
+      session: sessionGuess,
+      requestId,
+      command: argv[0],
+      debug: debugEnabled,
+    },
+    async () => {
+      let parsed: ReturnType<typeof parseArgs>;
+      try {
+        parsed = parseArgs(argv);
+      } catch (error) {
+        emitDiagnostic({
+          level: 'error',
+          phase: 'cli_parse_failed',
+          data: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        const normalized = normalizeError(error, {
+          diagnosticId: getDiagnosticsMeta().diagnosticId,
+          logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
+        });
+        if (jsonRequested) {
+          printJson({ success: false, error: normalized });
+        } else {
+          printHumanError(normalized, { showDetails: debugEnabled });
+        }
+        process.exit(1);
+        return;
+      }
 
-  const isHelpAlias = parsed.command === 'help';
-  const isHelpFlag = parsed.flags.help;
-  if (isHelpAlias || isHelpFlag) {
-    if (isHelpAlias && parsed.positionals.length > 1) {
-      printHumanError(new AppError('INVALID_ARGS', 'help accepts at most one command.'));
-      process.exit(1);
-    }
-    const helpTarget = isHelpAlias ? parsed.positionals[0] : parsed.command;
-    if (!helpTarget) {
-      process.stdout.write(`${usage()}\n`);
-      process.exit(0);
-    }
-    const commandHelp = usageForCommand(helpTarget);
-    if (commandHelp) {
-      process.stdout.write(commandHelp);
-      process.exit(0);
-    }
-    printHumanError(new AppError('INVALID_ARGS', `Unknown command: ${helpTarget}`));
-    process.stdout.write(`${usage()}\n`);
-    process.exit(1);
-  }
+      for (const warning of parsed.warnings) {
+        process.stderr.write(`Warning: ${warning}\n`);
+      }
 
-  if (!parsed.command) {
-    process.stdout.write(`${usage()}\n`);
-    process.exit(1);
-  }
+      if (parsed.flags.version) {
+        process.stdout.write(`${readVersion()}\n`);
+        process.exit(0);
+      }
 
-  const { command, positionals, flags } = parsed;
-  const daemonFlags = toDaemonFlags(flags);
-  const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
-  const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
-  try {
+      const isHelpAlias = parsed.command === 'help';
+      const isHelpFlag = parsed.flags.help;
+      if (isHelpAlias || isHelpFlag) {
+        if (isHelpAlias && parsed.positionals.length > 1) {
+          printHumanError(new AppError('INVALID_ARGS', 'help accepts at most one command.'));
+          process.exit(1);
+        }
+        const helpTarget = isHelpAlias ? parsed.positionals[0] : parsed.command;
+        if (!helpTarget) {
+          process.stdout.write(`${usage()}\n`);
+          process.exit(0);
+        }
+        const commandHelp = usageForCommand(helpTarget);
+        if (commandHelp) {
+          process.stdout.write(commandHelp);
+          process.exit(0);
+        }
+        printHumanError(new AppError('INVALID_ARGS', `Unknown command: ${helpTarget}`));
+        process.stdout.write(`${usage()}\n`);
+        process.exit(1);
+      }
+
+      if (!parsed.command) {
+        process.stdout.write(`${usage()}\n`);
+        process.exit(1);
+      }
+
+      const { command, positionals, flags } = parsed;
+      const daemonFlags = toDaemonFlags(flags);
+      const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
+      const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
+      const sendDaemonRequest = async (payload: { command: string; positionals: string[]; flags?: Record<string, unknown> }) =>
+        await deps.sendToDaemon({
+          session: sessionName,
+          command: payload.command,
+          positionals: payload.positionals,
+          flags: payload.flags as any,
+          meta: {
+            requestId,
+            debug: Boolean(flags.verbose),
+          },
+        });
+      try {
     if (command === 'batch') {
       if (positionals.length > 0) {
         throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
@@ -70,14 +118,18 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       delete (batchFlags as Record<string, unknown>).steps;
       delete (batchFlags as Record<string, unknown>).stepsFile;
 
-      const response = await deps.sendToDaemon({
-        session: sessionName,
+      const response = await sendDaemonRequest({
         command: 'batch',
         positionals,
         flags: batchFlags,
       });
       if (!response.ok) {
-        throw new AppError(response.error.code as any, response.error.message, response.error.details);
+        throw new AppError(response.error.code as any, response.error.message, {
+          ...(response.error.details ?? {}),
+          hint: response.error.hint,
+          diagnosticId: response.error.diagnosticId,
+          logPath: response.error.logPath,
+        });
       }
       if (flags.json) {
         printJson({ success: true, data: response.data ?? {} });
@@ -93,21 +145,26 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       if (sub !== 'list') {
         throw new AppError('INVALID_ARGS', 'session only supports list');
       }
-      const response = await deps.sendToDaemon({
-        session: sessionName,
+      const response = await sendDaemonRequest({
         command: 'session_list',
         positionals: [],
         flags: daemonFlags,
       });
-      if (!response.ok) throw new AppError(response.error.code as any, response.error.message);
+      if (!response.ok) {
+        throw new AppError(response.error.code as any, response.error.message, {
+          ...(response.error.details ?? {}),
+          hint: response.error.hint,
+          diagnosticId: response.error.diagnosticId,
+          logPath: response.error.logPath,
+        });
+      }
       if (flags.json) printJson({ success: true, data: response.data ?? {} });
       else process.stdout.write(`${JSON.stringify(response.data ?? {}, null, 2)}\n`);
       if (logTailStopper) logTailStopper();
       return;
     }
 
-    const response = await deps.sendToDaemon({
-      session: sessionName,
+    const response = await sendDaemonRequest({
       command: command!,
       positionals,
       flags: daemonFlags,
@@ -243,42 +300,53 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       return;
     }
 
-    throw new AppError(response.error.code as any, response.error.message, response.error.details);
-  } catch (err) {
-    const appErr = asAppError(err);
-    if (command === 'close' && isDaemonStartupFailure(appErr)) {
-      if (flags.json) {
-        printJson({ success: true, data: { closed: 'session', source: 'no-daemon' } });
-      }
-      if (logTailStopper) logTailStopper();
-      return;
-    }
-    if (flags.json) {
-      printJson({
-        success: false,
-        error: { code: appErr.code, message: appErr.message, details: appErr.details },
-      });
-    } else {
-      printHumanError(appErr);
-      if (flags.verbose) {
-        try {
-          const logPath = path.join(os.homedir(), '.agent-device', 'daemon.log');
-          if (fs.existsSync(logPath)) {
-            const content = fs.readFileSync(logPath, 'utf8');
-            const lines = content.split('\n');
-            const tail = lines.slice(Math.max(0, lines.length - 200)).join('\n');
-            if (tail.trim().length > 0) {
-              process.stderr.write(`\n[daemon log]\n${tail}\n`);
+    throw new AppError(response.error.code as any, response.error.message, {
+      ...(response.error.details ?? {}),
+      hint: response.error.hint,
+      diagnosticId: response.error.diagnosticId,
+      logPath: response.error.logPath,
+    });
+      } catch (err) {
+        const appErr = asAppError(err);
+        const normalized = normalizeError(appErr, {
+          diagnosticId: getDiagnosticsMeta().diagnosticId,
+          logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
+        });
+        if (command === 'close' && isDaemonStartupFailure(appErr)) {
+          if (flags.json) {
+            printJson({ success: true, data: { closed: 'session', source: 'no-daemon' } });
+          }
+          if (logTailStopper) logTailStopper();
+          return;
+        }
+        if (flags.json) {
+          printJson({
+            success: false,
+            error: normalized,
+          });
+        } else {
+          printHumanError(normalized, { showDetails: flags.verbose });
+          if (flags.verbose) {
+            try {
+              const logPath = path.join(os.homedir(), '.agent-device', 'daemon.log');
+              if (fs.existsSync(logPath)) {
+                const content = fs.readFileSync(logPath, 'utf8');
+                const lines = content.split('\n');
+                const tail = lines.slice(Math.max(0, lines.length - 200)).join('\n');
+                if (tail.trim().length > 0) {
+                  process.stderr.write(`\n[daemon log]\n${tail}\n`);
+                }
+              }
+            } catch {
+              // ignore
             }
           }
-        } catch {
-          // ignore
         }
+        if (logTailStopper) logTailStopper();
+        process.exit(1);
       }
-    }
-    if (logTailStopper) logTailStopper();
-    process.exit(1);
-  }
+    },
+  );
 }
 
 function renderBatchSummary(data: Record<string, unknown>): void {
@@ -312,11 +380,27 @@ function isDaemonStartupFailure(error: AppError): boolean {
   return typeof error.details?.infoPath === 'string' || typeof error.details?.lockPath === 'string';
 }
 
+function guessSessionFromArgv(argv: string[]): string | null {
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i];
+    if (token.startsWith('--session=')) {
+      const inline = token.slice('--session='.length).trim();
+      return inline.length > 0 ? inline : null;
+    }
+    if (token === '--session') {
+      const value = argv[i + 1]?.trim();
+      if (value && !value.startsWith('-')) return value;
+      return null;
+    }
+  }
+  return null;
+}
+
 const isDirectRun = pathToFileURL(process.argv[1] ?? '').href === import.meta.url;
 if (isDirectRun) {
   runCli(process.argv.slice(2)).catch((err) => {
     const appErr = asAppError(err);
-    printHumanError(appErr);
+    printHumanError(normalizeError(appErr), { showDetails: true });
     process.exit(1);
   });
 }

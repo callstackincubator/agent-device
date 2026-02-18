@@ -83,7 +83,16 @@ test('batch stops on first failing step with partial results', async () => {
     sessionStore,
     invoke: async (stepReq) => {
       if (stepReq.command === 'click') {
-        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'missing target' } };
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: 'missing target',
+            hint: 'refresh selector',
+            diagnosticId: 'diag-step-2',
+            logPath: '/tmp/diag-step-2.ndjson',
+          },
+        };
       }
       return { ok: true, data: {} };
     },
@@ -95,6 +104,9 @@ test('batch stops on first failing step with partial results', async () => {
     assert.match(response.error.message, /Batch failed at step 2/);
     assert.equal(response.error.details?.step, 2);
     assert.equal(response.error.details?.executed, 1);
+    assert.equal(response.error.hint, 'refresh selector');
+    assert.equal(response.error.diagnosticId, 'diag-step-2');
+    assert.equal(response.error.logPath, '/tmp/diag-step-2.ndjson');
     const partial = response.error.details?.partialResults;
     assert.ok(Array.isArray(partial));
     assert.equal(partial.length, 1);
