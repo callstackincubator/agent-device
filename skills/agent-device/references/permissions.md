@@ -22,6 +22,10 @@ If daemon startup fails with stale metadata hints, clean stale files and retry:
 - `~/.agent-device/daemon.json`
 - `~/.agent-device/daemon.lock`
 
+## iOS: "Allow Paste" dialog
+
+iOS 16+ shows an "Allow Paste" prompt when an app reads the system pasteboard. Under XCUITest (which `agent-device` uses), this prompt is suppressed by the testing runtime. Use `xcrun simctl pbcopy booted` to set clipboard content directly on the simulator instead.
+
 ## Simulator troubleshooting
 
 - If snapshots return 0 nodes, restart Simulator and re-open the app.
