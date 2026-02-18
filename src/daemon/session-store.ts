@@ -109,9 +109,12 @@ export class SessionStore {
         action.result?.selectorChain.every((entry) => typeof entry === 'string')
           ? (action.result.selectorChain as string[])
           : [];
-      if (selectorChain.length > 0 && (action.command === 'click' || action.command === 'fill' || action.command === 'get')) {
+      if (
+        selectorChain.length > 0 &&
+        (action.command === 'click' || action.command === 'press' || action.command === 'fill' || action.command === 'get')
+      ) {
         const selectorExpr = selectorChain.join(' || ');
-        if (action.command === 'click') {
+        if (action.command === 'click' || action.command === 'press') {
           optimized.push({
             ...action,
             positionals: [selectorExpr],
@@ -139,7 +142,7 @@ export class SessionStore {
           }
         }
       }
-      if (action.command === 'click' || action.command === 'fill' || action.command === 'get') {
+      if (action.command === 'click' || action.command === 'press' || action.command === 'fill' || action.command === 'get') {
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
           optimized.push({
@@ -179,6 +182,13 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     relaunch,
     saveScript,
     noRecord,
+    count,
+    intervalMs,
+    holdMs,
+    jitterPx,
+    tapBatch,
+    pauseMs,
+    pattern,
   } = flags;
   return {
     platform,
@@ -195,6 +205,13 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     relaunch,
     saveScript,
     noRecord,
+    count,
+    intervalMs,
+    holdMs,
+    jitterPx,
+    tapBatch,
+    pauseMs,
+    pattern,
   };
 }
 
@@ -213,17 +230,23 @@ function formatScript(session: SessionState, actions: SessionAction[]): string {
 
 function formatActionLine(action: SessionAction): string {
   const parts: string[] = [action.command];
-  if (action.command === 'click') {
-    const ref = action.positionals?.[0];
-    if (ref) {
-      parts.push(formatArg(ref));
-      if (ref.startsWith('@')) {
+  if (action.command === 'click' || action.command === 'press') {
+    const first = action.positionals?.[0];
+    if (first) {
+      if (first.startsWith('@')) {
+        parts.push(formatArg(first));
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
           parts.push(formatArg(refLabel));
         }
+        appendSeriesFlags(parts, action);
+        return parts.join(' ');
       }
-      return parts.join(' ');
+      if (action.positionals.length === 1) {
+        parts.push(formatArg(first));
+        appendSeriesFlags(parts, action);
+        return parts.join(' ');
+      }
     }
   }
   if (action.command === 'fill') {
@@ -280,7 +303,27 @@ function formatActionLine(action: SessionAction): string {
   for (const positional of action.positionals ?? []) {
     parts.push(formatArg(positional));
   }
+  appendSeriesFlags(parts, action);
   return parts.join(' ');
+}
+
+function appendSeriesFlags(parts: string[], action: SessionAction): void {
+  const flags = action.flags ?? {};
+  if (action.command === 'click' || action.command === 'press') {
+    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
+    if (typeof flags.intervalMs === 'number') parts.push('--interval-ms', String(flags.intervalMs));
+    if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
+    if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
+    if (flags.tapBatch === true) parts.push('--tap-batch');
+    return;
+  }
+  if (action.command === 'swipe') {
+    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
+    if (typeof flags.pauseMs === 'number') parts.push('--pause-ms', String(flags.pauseMs));
+    if (flags.pattern === 'one-way' || flags.pattern === 'ping-pong') {
+      parts.push('--pattern', flags.pattern);
+    }
+  }
 }
 
 function formatArg(value: string): string {

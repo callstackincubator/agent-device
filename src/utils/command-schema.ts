@@ -155,7 +155,7 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--tap-batch'],
     type: 'boolean',
     usageLabel: '--tap-batch',
-    usageDescription: 'iOS press: batch repeated taps in XCTest (faster, may alter gesture semantics)',
+    usageDescription: 'iOS click/press: batch repeated taps in XCTest (faster, may alter gesture semantics)',
   },
   {
     key: 'pauseMs',

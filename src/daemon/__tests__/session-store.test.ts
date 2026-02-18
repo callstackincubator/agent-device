@@ -140,3 +140,63 @@ test('writeSessionLog persists open --relaunch in script output', () => {
   const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
   assert.match(script, /open "Settings" --relaunch/);
 });
+
+test('writeSessionLog preserves interaction series flags for click/press/swipe', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-series-flags-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'click',
+    positionals: ['id="continue_button"'],
+    flags: {
+      platform: 'ios',
+      count: 5,
+      intervalMs: 1,
+      holdMs: 2,
+      jitterPx: 3,
+      tapBatch: true,
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'press',
+    positionals: ['201', '545'],
+    flags: {
+      platform: 'ios',
+      count: 4,
+      intervalMs: 8,
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'swipe',
+    positionals: ['10', '20', '30', '40'],
+    flags: {
+      platform: 'ios',
+      count: 3,
+      pauseMs: 12,
+      pattern: 'ping-pong',
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'close',
+    positionals: [],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(script, /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --tap-batch/);
+  assert.match(script, /press 201 545 --count 4 --interval-ms 8/);
+  assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
+});

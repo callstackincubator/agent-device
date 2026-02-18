@@ -518,6 +518,87 @@ test('replay --update heals numeric get text drift when numeric candidate value 
   assert.equal(invokeCalls.length, 2);
 });
 
+test('replay --update heals selector in press command and preserves press series flags', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-press-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-press-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+  fs.writeFileSync(
+    replayPath,
+    'press "id=\\"old_continue\\" || label=\\"Continue\\"" --count 3 --interval-ms 1 --tap-batch\n',
+  );
+
+  const invokeCalls: DaemonRequest[] = [];
+  const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
+    if (request.command !== 'press') {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+    }
+    invokeCalls.push(request);
+    const selector = request.positionals?.[0] ?? '';
+    if (selector.includes('old_continue')) {
+      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector no longer exists' } };
+    }
+    if (selector.includes('auth_continue')) {
+      return { ok: true, data: { pressed: true } };
+    }
+    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'unexpected selector' } };
+  };
+
+  const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    return {
+      nodes: [
+        {
+          index: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Continue',
+          identifier: 'auth_continue',
+          rect: { x: 10, y: 10, width: 100, height: 44 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      backend: 'xctest',
+    };
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: { replayUpdate: true },
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke,
+    dispatch,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true, JSON.stringify(response));
+  if (response.ok) {
+    assert.equal(response.data?.healed, 1);
+    assert.equal(response.data?.replayed, 1);
+  }
+  assert.equal(invokeCalls.length, 2);
+  assert.equal(invokeCalls[0]?.flags?.count, 3);
+  assert.equal(invokeCalls[0]?.flags?.intervalMs, 1);
+  assert.equal(invokeCalls[0]?.flags?.tapBatch, true);
+  const updatedLine = fs
+    .readFileSync(replayPath, 'utf8')
+    .split(/\r?\n/)
+    .find((line) => line.startsWith('press '));
+  assert.ok(updatedLine);
+  const tokens = tokenizeReplayLine(updatedLine!);
+  assert.ok(tokens[1]?.includes('auth_continue'));
+  assert.deepEqual(tokens.slice(2), ['--count', '3', '--interval-ms', '1', '--tap-batch']);
+});
+
 test('replay rejects legacy JSON payload files', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-json-rejected-'));
   const sessionsDir = path.join(tempRoot, 'sessions');

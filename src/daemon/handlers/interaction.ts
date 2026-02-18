@@ -52,15 +52,14 @@ export async function handleInteractionCommands(params: {
         },
       );
       sessionStore.recordAction(session, {
-        command: 'press',
-        positionals: [String(directCoordinates.x), String(directCoordinates.y)],
+        command,
+        positionals: req.positionals ?? [String(directCoordinates.x), String(directCoordinates.y)],
         flags: req.flags ?? {},
         result: data ?? { x: directCoordinates.x, y: directCoordinates.y },
       });
       return { ok: true, data: data ?? { x: directCoordinates.x, y: directCoordinates.y } };
     }
 
-    const recordCommand = 'click';
     const selectorAction = 'click';
     const refInput = req.positionals?.[0] ?? '';
     if (refInput.startsWith('@')) {
@@ -96,7 +95,7 @@ export async function handleInteractionCommands(params: {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
       sessionStore.recordAction(session, {
-        command: recordCommand,
+        command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
         result: { ref, x, y, refLabel, selectorChain },
@@ -137,7 +136,7 @@ export async function handleInteractionCommands(params: {
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, { action: selectorAction });
     const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
     sessionStore.recordAction(session, {
-      command: recordCommand,
+      command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
       result: {

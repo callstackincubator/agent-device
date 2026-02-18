@@ -666,12 +666,13 @@ async function healReplayAction(params: {
   dispatch: typeof dispatchCommand;
 }): Promise<SessionAction | null> {
   const { action, sessionName, logPath, sessionStore, dispatch } = params;
-  if (!['click', 'fill', 'get', 'is', 'wait'].includes(action.command)) return null;
+  if (!['click', 'press', 'fill', 'get', 'is', 'wait'].includes(action.command)) return null;
   const session = sessionStore.get(sessionName);
   if (!session) return null;
-  const requiresRect = action.command === 'click' || action.command === 'fill';
+  const requiresRect = action.command === 'click' || action.command === 'press' || action.command === 'fill';
   const allowDisambiguation =
     action.command === 'click' ||
+    action.command === 'press' ||
     action.command === 'fill' ||
     (action.command === 'get' && action.positionals?.[0] === 'text');
   const snapshot = await captureSnapshotForReplay(session, action, logPath, requiresRect, dispatch, sessionStore);
@@ -687,10 +688,15 @@ async function healReplayAction(params: {
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
-      action: action.command === 'click' ? 'click' : action.command === 'fill' ? 'fill' : 'get',
+      action:
+        action.command === 'click' || action.command === 'press'
+          ? 'click'
+          : action.command === 'fill'
+            ? 'fill'
+            : 'get',
     });
     const selectorExpression = selectorChain.join(' || ');
-    if (action.command === 'click') {
+    if (action.command === 'click' || action.command === 'press') {
       return {
         ...action,
         positionals: [selectorExpression],
@@ -790,7 +796,7 @@ function collectReplaySelectorCandidates(action: SessionAction): string[] {
       : [];
   result.push(...explicitChain);
 
-  if (action.command === 'click') {
+  if (action.command === 'click' || action.command === 'press') {
     const first = action.positionals?.[0] ?? '';
     if (first && !first.startsWith('@')) {
       result.push(action.positionals.join(' '));
@@ -986,17 +992,25 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     return action;
   }
 
-  if (command === 'click') {
-    if (args.length === 0) return action;
-    const target = args[0];
+  if (command === 'click' || command === 'press') {
+    const parsed = parseReplayPressFlags(args);
+    Object.assign(action.flags, parsed.flags);
+    if (parsed.positionals.length === 0) return action;
+    const target = parsed.positionals[0];
     if (target.startsWith('@')) {
       action.positionals = [target];
-      if (args[1]) {
-        action.result = { refLabel: args[1] };
+      if (parsed.positionals[1]) {
+        action.result = { refLabel: parsed.positionals[1] };
       }
       return action;
     }
-    action.positionals = [args.join(' ')];
+    const maybeX = parsed.positionals[0];
+    const maybeY = parsed.positionals[1];
+    if (isNumericToken(maybeX) && isNumericToken(maybeY) && parsed.positionals.length >= 2) {
+      action.positionals = [maybeX, maybeY];
+      return action;
+    }
+    action.positionals = [parsed.positionals.join(' ')];
     return action;
   }
 
@@ -1037,8 +1051,95 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     return action;
   }
 
+  if (command === 'swipe') {
+    const parsed = parseReplaySwipeFlags(args);
+    Object.assign(action.flags, parsed.flags);
+    action.positionals = parsed.positionals;
+    return action;
+  }
+
   action.positionals = args;
   return action;
+}
+
+function parseReplayPressFlags(args: string[]): { positionals: string[]; flags: SessionAction['flags'] } {
+  const positionals: string[] = [];
+  const flags: SessionAction['flags'] = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--tap-batch') {
+      flags.tapBatch = true;
+      continue;
+    }
+    if (token === '--count' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.count = parsed;
+      index += 1;
+      continue;
+    }
+    if (token === '--interval-ms' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.intervalMs = parsed;
+      index += 1;
+      continue;
+    }
+    if (token === '--hold-ms' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.holdMs = parsed;
+      index += 1;
+      continue;
+    }
+    if (token === '--jitter-px' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.jitterPx = parsed;
+      index += 1;
+      continue;
+    }
+    positionals.push(token);
+  }
+  return { positionals, flags };
+}
+
+function parseReplaySwipeFlags(args: string[]): { positionals: string[]; flags: SessionAction['flags'] } {
+  const positionals: string[] = [];
+  const flags: SessionAction['flags'] = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--count' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.count = parsed;
+      index += 1;
+      continue;
+    }
+    if (token === '--pause-ms' && index + 1 < args.length) {
+      const parsed = parseNonNegativeIntToken(args[index + 1]);
+      if (parsed !== null) flags.pauseMs = parsed;
+      index += 1;
+      continue;
+    }
+    if (token === '--pattern' && index + 1 < args.length) {
+      const pattern = args[index + 1];
+      if (pattern === 'one-way' || pattern === 'ping-pong') {
+        flags.pattern = pattern;
+      }
+      index += 1;
+      continue;
+    }
+    positionals.push(token);
+  }
+  return { positionals, flags };
+}
+
+function parseNonNegativeIntToken(token: string | undefined): number | null {
+  if (!token) return null;
+  const value = Number(token);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
+}
+
+function isNumericToken(token: string | undefined): token is string {
+  if (!token) return false;
+  return !Number.isNaN(Number(token));
 }
 
 function tokenizeReplayLine(line: string): string[] {
@@ -1121,7 +1222,27 @@ function formatReplayActionLine(action: SessionAction): string {
   for (const positional of action.positionals ?? []) {
     parts.push(formatReplayArg(positional));
   }
+  appendReplaySeriesFlags(parts, action);
   return parts.join(' ');
+}
+
+function appendReplaySeriesFlags(parts: string[], action: SessionAction): void {
+  const flags = action.flags ?? {};
+  if (action.command === 'click' || action.command === 'press') {
+    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
+    if (typeof flags.intervalMs === 'number') parts.push('--interval-ms', String(flags.intervalMs));
+    if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
+    if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
+    if (flags.tapBatch === true) parts.push('--tap-batch');
+    return;
+  }
+  if (action.command === 'swipe') {
+    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
+    if (typeof flags.pauseMs === 'number') parts.push('--pause-ms', String(flags.pauseMs));
+    if (flags.pattern === 'one-way' || flags.pattern === 'ping-pong') {
+      parts.push('--pattern', flags.pattern);
+    }
+  }
 }
 
 function formatReplayArg(value: string): string {

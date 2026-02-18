@@ -267,11 +267,8 @@ final class RunnerTests: XCTestCase {
         tapAt(app: activeApp, x: x, y: y, count: count)
         return Response(ok: true, data: DataPayload(message: "tap series"))
       }
-      for idx in 0..<count {
+      runSeries(count: count, pauseMs: intervalMs) { _ in
         tapAt(app: activeApp, x: x, y: y)
-        if idx < count - 1 && intervalMs > 0 {
-          Thread.sleep(forTimeInterval: intervalMs / 1000.0)
-        }
       }
       return Response(ok: true, data: DataPayload(message: "tap series"))
     case .longPress:
@@ -299,15 +296,12 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
-      for idx in 0..<count {
+      runSeries(count: count, pauseMs: pauseMs) { idx in
         let reverse = pattern == "ping-pong" && (idx % 2 == 1)
         if reverse {
           dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
         } else {
           dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
-        }
-        if idx < count - 1 && pauseMs > 0 {
-          Thread.sleep(forTimeInterval: pauseMs / 1000.0)
         }
       }
       return Response(ok: true, data: DataPayload(message: "drag series"))
@@ -521,6 +515,17 @@ final class RunnerTests: XCTestCase {
     let start = origin.withOffset(CGVector(dx: x, dy: y))
     let end = origin.withOffset(CGVector(dx: x2, dy: y2))
     start.press(forDuration: holdDuration, thenDragTo: end)
+  }
+
+  private func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {
+    let total = max(count, 1)
+    let pause = max(pauseMs, 0)
+    for idx in 0..<total {
+      operation(idx)
+      if idx < total - 1 && pause > 0 {
+        Thread.sleep(forTimeInterval: pause / 1000.0)
+      }
+    }
   }
 
   private func swipe(app: XCUIApplication, direction: SwipeDirection) {

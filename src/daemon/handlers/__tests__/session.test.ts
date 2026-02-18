@@ -818,3 +818,39 @@ test('replay parses open --relaunch flag and replays open with relaunch semantic
   assert.deepEqual(invoked[0]?.positionals, ['Settings']);
   assert.equal(invoked[0]?.flags?.relaunch, true);
 });
+
+test('replay parses press series flags and passes them to invoke', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-press-series-'));
+  const replayPath = path.join(replayRoot, 'press-series.ad');
+  fs.writeFileSync(replayPath, 'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --tap-batch\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(invoked.length, 1);
+  assert.equal(invoked[0]?.command, 'press');
+  assert.deepEqual(invoked[0]?.positionals, ['201', '545']);
+  assert.equal(invoked[0]?.flags?.count, 5);
+  assert.equal(invoked[0]?.flags?.intervalMs, 1);
+  assert.equal(invoked[0]?.flags?.holdMs, 2);
+  assert.equal(invoked[0]?.flags?.jitterPx, 3);
+  assert.equal(invoked[0]?.flags?.tapBatch, true);
+});
