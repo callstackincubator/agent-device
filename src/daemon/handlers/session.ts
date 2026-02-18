@@ -41,6 +41,7 @@ type ReinstallOps = {
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
+const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
 
 function requireSessionOrExplicitSelector(
   command: string,
@@ -566,7 +567,8 @@ export async function handleSessionCommands(params: {
           session: sessionName,
           command: action.command,
           positionals: action.positionals ?? [],
-          flags: action.flags ?? {},
+          flags: buildReplayActionFlags(req.flags, action.flags),
+          meta: req.meta,
         });
         if (response.ok) continue;
         if (!shouldUpdate) {
@@ -588,7 +590,8 @@ export async function handleSessionCommands(params: {
           session: sessionName,
           command: nextAction.command,
           positionals: nextAction.positionals ?? [],
-          flags: nextAction.flags ?? {},
+          flags: buildReplayActionFlags(req.flags, nextAction.flags),
+          meta: req.meta,
         });
         if (!response.ok) {
           return withReplayFailureContext(response, nextAction, index, resolved);
@@ -805,6 +808,21 @@ function withReplayFailureContext(
         details,
       },
     };
+}
+
+function buildReplayActionFlags(
+  parentFlags: CommandFlags | undefined,
+  actionFlags: SessionAction['flags'] | undefined,
+): CommandFlags {
+  const merged: CommandFlags = { ...(actionFlags ?? {}) };
+  const mergedRecord = merged as Record<string, unknown>;
+  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
+  for (const key of REPLAY_PARENT_FLAG_KEYS) {
+    if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
+      mergedRecord[key] = parentRecord[key];
+    }
+  }
+  return merged;
 }
 
 function formatReplayActionSummary(action: SessionAction): string {

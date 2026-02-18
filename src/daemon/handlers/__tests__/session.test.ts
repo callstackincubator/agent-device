@@ -1049,3 +1049,39 @@ test('replay parses press series flags and passes them to invoke', async () => {
   assert.equal(invoked[0]?.flags?.jitterPx, 3);
   assert.equal(invoked[0]?.flags?.doubleTap, true);
 });
+
+test('replay inherits parent device selectors for each invoked step', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-parent-selectors-'));
+  const replayPath = path.join(replayRoot, 'selectors.ad');
+  fs.writeFileSync(replayPath, 'open "com.whoop.iphone"\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {
+        platform: 'ios',
+        device: 'thymikee-iphone',
+        udid: '00008150-001849640CF8401C',
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(invoked.length, 1);
+  assert.equal(invoked[0]?.flags?.platform, 'ios');
+  assert.equal(invoked[0]?.flags?.device, 'thymikee-iphone');
+  assert.equal(invoked[0]?.flags?.udid, '00008150-001849640CF8401C');
+});
