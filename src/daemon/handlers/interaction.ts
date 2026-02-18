@@ -31,7 +31,7 @@ export async function handleInteractionCommands(params: {
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const command = req.command;
 
-  if (command === 'click') {
+  if (command === 'click' || command === 'press') {
     const session = sessionStore.get(sessionName);
     if (!session) {
       return {
@@ -39,16 +39,42 @@ export async function handleInteractionCommands(params: {
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
       };
     }
+    const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
+    if (directCoordinates) {
+      if (command === 'press') return null;
+      const data = await dispatchCommand(
+        session.device,
+        'press',
+        [String(directCoordinates.x), String(directCoordinates.y)],
+        req.flags?.out,
+        {
+          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        },
+      );
+      sessionStore.recordAction(session, {
+        command: 'press',
+        positionals: [String(directCoordinates.x), String(directCoordinates.y)],
+        flags: req.flags ?? {},
+        result: data ?? { x: directCoordinates.x, y: directCoordinates.y },
+      });
+      return { ok: true, data: data ?? { x: directCoordinates.x, y: directCoordinates.y } };
+    }
+
+    const recordCommand = 'click';
+    const selectorAction = 'click';
     const refInput = req.positionals?.[0] ?? '';
     if (refInput.startsWith('@')) {
-      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('click', req.flags);
+      const invalidRefFlagsResponse = refSnapshotFlagGuardResponse(command, req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       if (!session.snapshot) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
       }
       const ref = normalizeRef(refInput);
       if (!ref) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'click requires a ref like @e2' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: `${command} requires a ref like @e2` },
+        };
       }
       let node = findNodeByRef(session.snapshot.nodes, ref);
       if (!node?.rect && req.positionals.length > 1) {
@@ -64,25 +90,25 @@ export async function handleInteractionCommands(params: {
         };
       }
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
-      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'click' });
+      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
       const { x, y } = centerOfRect(node.rect);
-      await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
+      const data = await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
       sessionStore.recordAction(session, {
-        command,
+        command: recordCommand,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
         result: { ref, x, y, refLabel, selectorChain },
       });
-      return { ok: true, data: { ref, x, y } };
+      return { ok: true, data: { ...(data ?? {}), ref, x, y } };
     }
 
     const selectorExpression = (req.positionals ?? []).join(' ').trim();
     if (!selectorExpression) {
       return {
         ok: false,
-        error: { code: 'INVALID_ARGS', message: 'click requires @ref or selector expression' },
+        error: { code: 'INVALID_ARGS', message: `${command} requires @ref, selector expression, or x y coordinates` },
       };
     }
     const chain = parseSelectorChain(selectorExpression);
@@ -105,13 +131,13 @@ export async function handleInteractionCommands(params: {
       };
     }
     const { x, y } = centerOfRect(resolved.node.rect);
-    await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
+    const data = await dispatchCommand(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
-    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, { action: 'click' });
+    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, { action: selectorAction });
     const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
     sessionStore.recordAction(session, {
-      command,
+      command: recordCommand,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
       result: {
@@ -122,7 +148,7 @@ export async function handleInteractionCommands(params: {
         refLabel,
       },
     });
-    return { ok: true, data: { selector: resolved.selector.raw, x, y } };
+    return { ok: true, data: { ...(data ?? {}), selector: resolved.selector.raw, x, y } };
   }
 
   if (command === 'fill') {
@@ -525,7 +551,7 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
 ];
 
 function refSnapshotFlagGuardResponse(
-  command: 'click' | 'fill' | 'get',
+  command: 'click' | 'press' | 'fill' | 'get',
   flags: CommandFlags | undefined,
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
@@ -537,6 +563,14 @@ function refSnapshotFlagGuardResponse(
       message: `${command} @ref does not support ${unsupported.join(', ')}.`,
     },
   };
+}
+
+function parseCoordinateTarget(positionals: string[]): { x: number; y: number } | null {
+  if (positionals.length < 2) return null;
+  const x = Number(positionals[0]);
+  const y = Number(positionals[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
 }
 
 export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): string[] {

@@ -219,6 +219,7 @@ final class RunnerTests: XCTestCase {
     let normalizedBundleId = command.appBundleId?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
+    let switchedApp: Bool
     if let bundleId = requestedBundleId, currentBundleId != bundleId {
       let target = XCUIApplication(bundleIdentifier: bundleId)
       NSLog("AGENT_DEVICE_RUNNER_ACTIVATE bundle=%@ state=%d", bundleId, target.state.rawValue)
@@ -226,13 +227,19 @@ final class RunnerTests: XCTestCase {
       target.activate()
       currentApp = target
       currentBundleId = bundleId
+      switchedApp = true
     } else if requestedBundleId == nil {
       // Do not reuse stale bundle targets when the caller does not explicitly request one.
       currentApp = nil
       currentBundleId = nil
+      switchedApp = false
+    } else {
+      switchedApp = false
     }
     let activeApp = currentApp ?? app
-    _ = activeApp.waitForExistence(timeout: 5)
+    if switchedApp {
+      _ = activeApp.waitForExistence(timeout: 5)
+    }
 
     switch command.command {
     case .shutdown:

@@ -369,10 +369,11 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   click: {
-    usageOverride: 'click <@ref|selector>',
-    description: 'Click element by snapshot ref or selector',
+    usageOverride: 'click <x y|@ref|selector>',
+    description: 'Tap/click by coordinates, snapshot ref, or selector',
     positionalArgs: ['target'],
-    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+    allowsExtraPositionals: true,
+    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', ...SELECTOR_SNAPSHOT_FLAGS],
   },
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
@@ -387,9 +388,11 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   press: {
-    description: 'Tap/press at coordinates (supports repeated gesture series)',
-    positionalArgs: ['x', 'y'],
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx'],
+    usageOverride: 'press <x y|@ref|selector>',
+    description: 'Tap/press by coordinates, snapshot ref, or selector (supports repeated series)',
+    positionalArgs: ['targetOrX', 'y?'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', ...SELECTOR_SNAPSHOT_FLAGS],
   },
   'long-press': {
     description: 'Long press (where supported)',
