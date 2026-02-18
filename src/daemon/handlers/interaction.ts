@@ -6,6 +6,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../is-predicates.ts';
 import { extractNodeText, findNodeByLabel, isFillableType, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import { isClickLikeCommand } from '../script-utils.ts';
 import {
   buildSelectorChainForNode,
   findSelectorChainMatch,
@@ -33,7 +34,7 @@ export async function handleInteractionCommands(params: {
   const dispatch = params.dispatch ?? dispatchCommand;
   const command = req.command;
 
-  if (command === 'click' || command === 'press') {
+  if (isClickLikeCommand(command)) {
     const session = sessionStore.get(sessionName);
     if (!session) {
       return {
@@ -114,9 +115,14 @@ export async function handleInteractionCommands(params: {
       };
     }
     const chain = parseSelectorChain(selectorExpression);
-    const snapshot = await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
-      interactiveOnly: true,
-    });
+    const snapshot = await captureSnapshotForSession(
+      session,
+      req.flags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: true },
+      dispatch,
+    );
     const resolved = resolveSelectorChain(snapshot.nodes, chain, {
       platform: session.device.platform,
       requireRect: true,
@@ -185,7 +191,7 @@ export async function handleInteractionCommands(params: {
       const refLabel = resolveRefLabel(node, session.snapshot.nodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
       const { x, y } = centerOfRect(node.rect);
-      const data = await dispatchCommand(
+      const data = await dispatch(
         session.device,
         'fill',
         [String(x), String(y), text],
@@ -224,9 +230,14 @@ export async function handleInteractionCommands(params: {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' } };
       }
       const chain = parseSelectorChain(selectorArgs.selectorExpression);
-      const snapshot = await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
-        interactiveOnly: true,
-      });
+      const snapshot = await captureSnapshotForSession(
+        session,
+        req.flags,
+        sessionStore,
+        contextFromFlags,
+        { interactiveOnly: true },
+        dispatch,
+      );
       const resolved = resolveSelectorChain(snapshot.nodes, chain, {
         platform: session.device.platform,
         requireRect: true,
@@ -249,7 +260,7 @@ export async function handleInteractionCommands(params: {
           ? `fill target ${resolved.selector.raw} resolved to "${nodeType}", attempting fill anyway.`
           : undefined;
       const { x, y } = centerOfRect(resolved.node.rect);
-      const data = await dispatchCommand(session.device, 'fill', [String(x), String(y), text], req.flags?.out, {
+      const data = await dispatch(session.device, 'fill', [String(x), String(y), text], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
@@ -337,9 +348,14 @@ export async function handleInteractionCommands(params: {
       };
     }
     const chain = parseSelectorChain(selectorExpression);
-    const snapshot = await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
-      interactiveOnly: false,
-    });
+    const snapshot = await captureSnapshotForSession(
+      session,
+      req.flags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: false },
+      dispatch,
+    );
     const resolved = resolveSelectorChain(snapshot.nodes, chain, {
       platform: session.device.platform,
       requireRect: false,
@@ -435,9 +451,14 @@ export async function handleInteractionCommands(params: {
       };
     }
     const chain = parseSelectorChain(split.selectorExpression);
-    const snapshot = await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
-      interactiveOnly: false,
-    });
+    const snapshot = await captureSnapshotForSession(
+      session,
+      req.flags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: false },
+      dispatch,
+    );
     if (predicate === 'exists') {
       const matched = findSelectorChainMatch(snapshot.nodes, chain, {
         platform: session.device.platform,
@@ -518,8 +539,9 @@ async function captureSnapshotForSession(
   sessionStore: SessionStore,
   contextFromFlags: ContextFromFlags,
   options: { interactiveOnly: boolean },
+  dispatch: typeof dispatchCommand = dispatchCommand,
 ) {
-  const data = (await dispatchCommand(session.device, 'snapshot', [], flags?.out, {
+  const data = (await dispatch(session.device, 'snapshot', [], flags?.out, {
     ...contextFromFlags(
       {
         ...(flags ?? {}),

@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
+import { appendScriptSeriesFlags, formatScriptArg, isClickLikeCommand } from './script-utils.ts';
 
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
@@ -111,10 +112,10 @@ export class SessionStore {
           : [];
       if (
         selectorChain.length > 0 &&
-        (action.command === 'click' || action.command === 'press' || action.command === 'fill' || action.command === 'get')
+        (isClickLikeCommand(action.command) || action.command === 'fill' || action.command === 'get')
       ) {
         const selectorExpr = selectorChain.join(' || ');
-        if (action.command === 'click' || action.command === 'press') {
+        if (isClickLikeCommand(action.command)) {
           optimized.push({
             ...action,
             positionals: [selectorExpr],
@@ -142,7 +143,7 @@ export class SessionStore {
           }
         }
       }
-      if (action.command === 'click' || action.command === 'press' || action.command === 'fill' || action.command === 'get') {
+      if (isClickLikeCommand(action.command) || action.command === 'fill' || action.command === 'get') {
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
           optimized.push({
@@ -230,21 +231,21 @@ function formatScript(session: SessionState, actions: SessionAction[]): string {
 
 function formatActionLine(action: SessionAction): string {
   const parts: string[] = [action.command];
-  if (action.command === 'click' || action.command === 'press') {
+  if (isClickLikeCommand(action.command)) {
     const first = action.positionals?.[0];
     if (first) {
       if (first.startsWith('@')) {
-        parts.push(formatArg(first));
+        parts.push(formatScriptArg(first));
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
-          parts.push(formatArg(refLabel));
+          parts.push(formatScriptArg(refLabel));
         }
-        appendSeriesFlags(parts, action);
+        appendScriptSeriesFlags(parts, action);
         return parts.join(' ');
       }
       if (action.positionals.length === 1) {
-        parts.push(formatArg(first));
-        appendSeriesFlags(parts, action);
+        parts.push(formatScriptArg(first));
+        appendScriptSeriesFlags(parts, action);
         return parts.join(' ');
       }
     }
@@ -252,14 +253,14 @@ function formatActionLine(action: SessionAction): string {
   if (action.command === 'fill') {
     const ref = action.positionals?.[0];
     if (ref && ref.startsWith('@')) {
-      parts.push(formatArg(ref));
+      parts.push(formatScriptArg(ref));
       const refLabel = action.result?.refLabel;
       const text = action.positionals.slice(1).join(' ');
       if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
-        parts.push(formatArg(refLabel));
+        parts.push(formatScriptArg(refLabel));
       }
       if (text) {
-        parts.push(formatArg(text));
+        parts.push(formatScriptArg(text));
       }
       return parts.join(' ');
     }
@@ -268,12 +269,12 @@ function formatActionLine(action: SessionAction): string {
     const sub = action.positionals?.[0];
     const ref = action.positionals?.[1];
     if (sub && ref) {
-      parts.push(formatArg(sub));
-      parts.push(formatArg(ref));
+      parts.push(formatScriptArg(sub));
+      parts.push(formatScriptArg(ref));
       if (ref.startsWith('@')) {
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
-          parts.push(formatArg(refLabel));
+          parts.push(formatScriptArg(refLabel));
         }
       }
       return parts.join(' ');
@@ -286,14 +287,14 @@ function formatActionLine(action: SessionAction): string {
       parts.push('-d', String(action.flags.snapshotDepth));
     }
     if (action.flags?.snapshotScope) {
-      parts.push('-s', formatArg(action.flags.snapshotScope));
+      parts.push('-s', formatScriptArg(action.flags.snapshotScope));
     }
     if (action.flags?.snapshotRaw) parts.push('--raw');
     return parts.join(' ');
   }
   if (action.command === 'open') {
     for (const positional of action.positionals ?? []) {
-      parts.push(formatArg(positional));
+      parts.push(formatScriptArg(positional));
     }
     if (action.flags?.relaunch) {
       parts.push('--relaunch');
@@ -301,34 +302,8 @@ function formatActionLine(action: SessionAction): string {
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {
-    parts.push(formatArg(positional));
+    parts.push(formatScriptArg(positional));
   }
-  appendSeriesFlags(parts, action);
+  appendScriptSeriesFlags(parts, action);
   return parts.join(' ');
-}
-
-function appendSeriesFlags(parts: string[], action: SessionAction): void {
-  const flags = action.flags ?? {};
-  if (action.command === 'click' || action.command === 'press') {
-    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
-    if (typeof flags.intervalMs === 'number') parts.push('--interval-ms', String(flags.intervalMs));
-    if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
-    if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
-    if (flags.tapBatch === true) parts.push('--tap-batch');
-    return;
-  }
-  if (action.command === 'swipe') {
-    if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
-    if (typeof flags.pauseMs === 'number') parts.push('--pause-ms', String(flags.pauseMs));
-    if (flags.pattern === 'one-way' || flags.pattern === 'ping-pong') {
-      parts.push('--pattern', flags.pattern);
-    }
-  }
-}
-
-function formatArg(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('@')) return trimmed;
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return trimmed;
-  return JSON.stringify(trimmed);
 }
