@@ -22,7 +22,7 @@
   {
     "name": "batching",
     "type": "file",
-    "label": "Batching for Agents"
+    "label": "Batching"
   },
   {
     "name": "selectors",

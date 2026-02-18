@@ -54,7 +54,7 @@ agent-device batch \
   --json
 ```
 
-See [Batching for Agents](/docs/batching) for payload format, failure handling, and best practices.
+See [Batching](/docs/batching) for payload format, failure handling, and best practices.
 
 ## Semantic discovery
 

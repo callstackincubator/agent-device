@@ -155,7 +155,7 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 `--save-script` path is a file path; parent directories are created automatically.
 For ambiguous bare values, use `--save-script=workflow.ad` or `./workflow.ad`.
 
-### Fast batching for agents (JSON steps)
+### Fast batching (JSON steps)
 
 Use `batch` when an agent already has a known short sequence and wants fewer orchestration round trips.
 
@@ -185,7 +185,7 @@ Step format:
 ]
 ```
 
-Batch best practices for agents:
+Batch best practices:
 
 - Batch one screen-local flow at a time.
 - Add sync guards (`wait`, `is exists`) after mutating steps (`open`, `click`, `fill`, `swipe`).

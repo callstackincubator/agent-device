@@ -45,7 +45,7 @@ agent-device click @e3
 agent-device close
 ```
 
-## Fast batching for agents (JSON steps)
+## Fast batching (JSON steps)
 
 Use `batch` to execute multiple commands in a single daemon request.
 

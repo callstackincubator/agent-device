@@ -100,7 +100,7 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 - stop-on-first-error is the supported behavior (`--on-error stop`).
 - use `--max-steps <n>` to tighten per-request safety limits.
 
-See [Batching for Agents](/docs/batching) for payload format, response shape, and agent guidelines.
+See [Batching](/docs/batching) for payload format, response shape, and usage guidelines.
 
 ## App reinstall (fresh state)
 
