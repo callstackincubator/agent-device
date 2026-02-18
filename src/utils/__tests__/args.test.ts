@@ -12,6 +12,24 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.flags.relaunch, true);
 });
 
+test('batch requires exactly one step source', () => {
+  assert.throws(
+    () => parseArgs(['batch'], { strictFlags: true }),
+    /requires exactly one step source/,
+  );
+  assert.throws(
+    () => parseArgs(['batch', '--steps', '[]', '--steps-file', './steps.json'], { strictFlags: true }),
+    /requires exactly one step source/,
+  );
+  const inline = parseArgs(['batch', '--steps', '[]'], { strictFlags: true });
+  assert.equal(inline.command, 'batch');
+  assert.equal(inline.flags.steps, '[]');
+  assert.throws(
+    () => parseArgs(['batch', '--steps', '[]', '--on-error', 'continue'], { strictFlags: true }),
+    /Invalid on-error: continue/,
+  );
+});
+
 test('toDaemonFlags strips CLI-only flags', () => {
   const parsed = parseArgs(['open', 'settings', '--json']);
   const daemonFlags = toDaemonFlags(parsed.flags);

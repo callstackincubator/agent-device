@@ -19,7 +19,15 @@ import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 
-export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version'>;
+export type BatchStep = {
+  command: string;
+  positionals?: string[];
+  flags?: Partial<CommandFlags>;
+};
+
+export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSteps'> & {
+  batchSteps?: BatchStep[];
+};
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
   const selector = {

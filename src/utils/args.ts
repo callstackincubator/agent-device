@@ -96,6 +96,17 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
       }
     }
   }
+  if (command === 'batch') {
+    const stepSourceCount =
+      (flags.steps ? 1 : 0) +
+      (flags.stepsFile ? 1 : 0);
+    if (stepSourceCount !== 1) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'batch requires exactly one step source: --steps or --steps-file.',
+      );
+    }
+  }
   return { command, positionals, flags, warnings };
 }
 
