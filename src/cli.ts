@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { BatchStep } from './core/dispatch.ts';
+import { parseBatchStepsJson } from './core/batch.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -64,7 +65,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       if (positionals.length > 0) {
         throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
       }
-      const batchSteps = await readBatchSteps(flags);
+      const batchSteps = readBatchSteps(flags);
       const batchFlags = { ...daemonFlags, batchSteps };
       delete (batchFlags as Record<string, unknown>).steps;
       delete (batchFlags as Record<string, unknown>).stepsFile;
@@ -289,7 +290,7 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   );
 }
 
-async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Promise<BatchStep[]> {
+function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): BatchStep[] {
   let raw = '';
   if (flags.steps) {
     raw = flags.steps;
@@ -301,39 +302,7 @@ async function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): Pro
       throw new AppError('INVALID_ARGS', `Failed to read --steps-file ${flags.stepsFile}: ${message}`);
     }
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
-  }
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
-  }
-  const steps: BatchStep[] = [];
-  for (const [index, step] of parsed.entries()) {
-    if (!step || typeof step !== 'object') {
-      throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}.`);
-    }
-    const record = step as Record<string, unknown>;
-    const command = typeof record.command === 'string' ? record.command.trim() : '';
-    if (!command) {
-      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} requires a command string.`);
-    }
-    const positionals = record.positionals;
-    if (positionals !== undefined && (!Array.isArray(positionals) || positionals.some((v) => typeof v !== 'string'))) {
-      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} positionals must be a string array.`);
-    }
-    if (record.flags !== undefined && (typeof record.flags !== 'object' || Array.isArray(record.flags) || !record.flags)) {
-      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} flags must be an object.`);
-    }
-    steps.push({
-      command,
-      positionals: (positionals as string[] | undefined) ?? [],
-      flags: (record.flags as BatchStep['flags'] | undefined) ?? {},
-    });
-  }
-  return steps;
+  return parseBatchStepsJson(raw);
 }
 
 function isDaemonStartupFailure(error: AppError): boolean {

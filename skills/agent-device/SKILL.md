@@ -252,4 +252,4 @@ agent-device apps --platform android --user-installed
 - [references/permissions.md](references/permissions.md)
 - [references/video-recording.md](references/video-recording.md)
 - [references/coordinate-system.md](references/coordinate-system.md)
-- [references/batching-for-agents.md](references/batching-for-agents.md)
+- [references/batching.md](references/batching.md)

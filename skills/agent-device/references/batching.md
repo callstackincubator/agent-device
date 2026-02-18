@@ -1,4 +1,4 @@
-# Batching for agents
+# Batching
 
 ## When to use batch
 
