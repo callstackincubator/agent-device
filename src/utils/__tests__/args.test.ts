@@ -117,6 +117,13 @@ test('parseArgs treats dblclick alias as parser-level command without implicit d
   assert.equal(parsed.flags.doubleTap, undefined);
 });
 
+test('usageForCommand resolves longpress alias to long-press help', () => {
+  const help = usageForCommand('longpress');
+  assert.ok(help);
+  assert.match(help, /Long press \(iOS \+ Android/);
+  assert.match(help, /agent-device long-press <x> <y> \[durationMs\]/);
+});
+
 test('parseArgs recognizes double-tap flag for repeated press', () => {
   const parsed = parseArgs(['press', '201', '545', '--count', '5', '--double-tap'], { strictFlags: true });
   assert.equal(parsed.command, 'press');

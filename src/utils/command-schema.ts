@@ -475,7 +475,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...CLICK_LIKE_FLAGS],
   },
   'long-press': {
-    description: 'Long press (where supported)',
+    description: 'Long press (iOS + Android; aliases: longpress, longPress)',
     positionalArgs: ['x', 'y', 'durationMs?'],
     allowedFlags: [],
   },
