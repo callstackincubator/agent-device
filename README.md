@@ -130,6 +130,8 @@ agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
 agent-device press @e5 --count 5 --double-tap
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
+agent-device scrollintoview "Sign in"
+agent-device scrollintoview @e42
 ```
 
 ## Command Index
@@ -180,6 +182,7 @@ Swipe timing:
 - `swipe` accepts optional `durationMs` (default `250`, range `16..10000`).
 - Android uses requested swipe duration directly.
 - iOS uses a safe normalized duration to avoid longpress side effects.
+- `scrollintoview` accepts either plain text or a snapshot ref (`@eN`); ref mode uses geometry-based scrolling.
 
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).

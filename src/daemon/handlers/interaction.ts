@@ -1,6 +1,13 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { attachRefs, centerOfRect, findNodeByRef, normalizeRef, type RawSnapshotNode } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  centerOfRect,
+  findNodeByRef,
+  normalizeRef,
+  type RawSnapshotNode,
+  type SnapshotNode,
+} from '../../utils/snapshot.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -16,6 +23,7 @@ import {
   splitSelectorFromArgs,
 } from '../selectors.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
+import { buildScrollIntoViewPlan, isRectWithinSafeViewportBand, resolveViewportRect } from '../scroll-planner.ts';
 
 type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -67,30 +75,24 @@ export async function handleInteractionCommands(params: {
     if (refInput.startsWith('@')) {
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('press', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-      if (!session.snapshot) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
-      }
-      const ref = normalizeRef(refInput);
-      if (!ref) {
-        return {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: `${command} requires a ref like @e2` },
-        };
-      }
-      let node = findNodeByRef(session.snapshot.nodes, ref);
-      if (!node?.rect && req.positionals.length > 1) {
-        const fallbackLabel = req.positionals.slice(1).join(' ').trim();
-        if (fallbackLabel.length > 0) {
-          node = findNodeByLabel(session.snapshot.nodes, fallbackLabel);
-        }
-      }
-      if (!node?.rect) {
+      const fallbackLabel = req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
+      const resolvedRefTarget = resolveRefTarget({
+        session,
+        refInput,
+        fallbackLabel,
+        requireRect: true,
+        invalidRefMessage: `${command} requires a ref like @e2`,
+        notFoundMessage: `Ref ${refInput} not found or has no bounds`,
+      });
+      if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
+      const { ref, node, snapshotNodes } = resolvedRefTarget.target;
+      if (!node.rect) {
         return {
           ok: false,
           error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has no bounds` },
         };
       }
-      const refLabel = resolveRefLabel(node, session.snapshot.nodes);
+      const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
@@ -165,25 +167,30 @@ export async function handleInteractionCommands(params: {
   if (command === 'fill') {
     const session = sessionStore.get(sessionName);
     if (req.positionals?.[0]?.startsWith('@')) {
+      if (!session) {
+        return {
+          ok: false,
+          error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+        };
+      }
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-      if (!session?.snapshot) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
-      }
-      const ref = normalizeRef(req.positionals[0]);
-      if (!ref) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires a ref like @e2' } };
-      }
       const labelCandidate = req.positionals.length >= 3 ? req.positionals[1] : '';
       const text = req.positionals.length >= 3 ? req.positionals.slice(2).join(' ') : req.positionals.slice(1).join(' ');
       if (!text) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' } };
       }
-      let node = findNodeByRef(session.snapshot.nodes, ref);
-      if (!node?.rect && labelCandidate) {
-        node = findNodeByLabel(session.snapshot.nodes, labelCandidate);
-      }
-      if (!node?.rect) {
+      const resolvedRefTarget = resolveRefTarget({
+        session,
+        refInput: req.positionals[0],
+        fallbackLabel: labelCandidate,
+        requireRect: true,
+        invalidRefMessage: 'fill requires a ref like @e2',
+        notFoundMessage: `Ref ${req.positionals[0]} not found or has no bounds`,
+      });
+      if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
+      const { ref, node, snapshotNodes } = resolvedRefTarget.target;
+      if (!node.rect) {
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
       }
       const nodeType = node.type ?? '';
@@ -191,7 +198,7 @@ export async function handleInteractionCommands(params: {
         nodeType && !isFillableType(nodeType, session.device.platform)
           ? `fill target ${req.positionals[0]} resolved to "${nodeType}", attempting fill anyway.`
           : undefined;
-      const refLabel = resolveRefLabel(node, session.snapshot.nodes);
+      const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
       const { x, y } = centerOfRect(node.rect);
       const data = await dispatch(
@@ -311,23 +318,17 @@ export async function handleInteractionCommands(params: {
     if (refInput.startsWith('@')) {
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('get', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-      if (!session.snapshot) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
-      }
-      const ref = normalizeRef(refInput ?? '');
-      if (!ref) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'get text requires a ref like @e2' } };
-      }
-      let node = findNodeByRef(session.snapshot.nodes, ref);
-      if (!node && req.positionals.length > 2) {
-        const labelCandidate = req.positionals.slice(2).join(' ').trim();
-        if (labelCandidate.length > 0) {
-          node = findNodeByLabel(session.snapshot.nodes, labelCandidate);
-        }
-      }
-      if (!node) {
-        return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found` } };
-      }
+      const labelCandidate = req.positionals.length > 2 ? req.positionals.slice(2).join(' ').trim() : '';
+      const resolvedRefTarget = resolveRefTarget({
+        session,
+        refInput,
+        fallbackLabel: labelCandidate,
+        requireRect: false,
+        invalidRefMessage: 'get text requires a ref like @e2',
+        notFoundMessage: `Ref ${refInput} not found`,
+      });
+      if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
+      const { ref, node } = resolvedRefTarget.target;
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
       if (sub === 'attrs') {
         sessionStore.recordAction(session, {
@@ -548,6 +549,108 @@ export async function handleInteractionCommands(params: {
     return { ok: true, data: { predicate, pass: true, selector: resolved.selector.raw } };
   }
 
+  if (command === 'scrollintoview') {
+    const session = sessionStore.get(sessionName);
+    if (!session) {
+      return {
+        ok: false,
+        error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+      };
+    }
+    const targetInput = req.positionals?.[0] ?? '';
+    if (!targetInput.startsWith('@')) {
+      return null;
+    }
+    const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('scrollintoview', req.flags);
+    if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
+    const fallbackLabel = req.positionals && req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
+    const resolvedRefTarget = resolveRefTarget({
+      session,
+      refInput: targetInput,
+      fallbackLabel,
+      requireRect: true,
+      invalidRefMessage: 'scrollintoview requires a ref like @e2',
+      notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
+    });
+    if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
+    const { ref, node, snapshotNodes } = resolvedRefTarget.target;
+    if (!node.rect) {
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: `Ref ${targetInput} not found or has no bounds` },
+      };
+    }
+    const viewportRect = resolveViewportRect(snapshotNodes, node.rect);
+    if (!viewportRect) {
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `scrollintoview could not infer viewport for ${targetInput}`,
+        },
+      };
+    }
+    const plan = buildScrollIntoViewPlan(node.rect, viewportRect);
+    const refLabel = resolveRefLabel(node, snapshotNodes);
+    const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
+    if (!plan) {
+      sessionStore.recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry', refLabel, selectorChain },
+      });
+      return { ok: true, data: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry' } };
+    }
+    const data = await dispatch(
+      session.device,
+      'swipe',
+      [String(plan.x), String(plan.startY), String(plan.x), String(plan.endY), '60'],
+      req.flags?.out,
+      {
+        ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        count: plan.count,
+        pauseMs: 0,
+        pattern: 'one-way',
+      },
+    );
+    const verification = await verifyRefTargetInViewport({
+      session,
+      flags: req.flags,
+      sessionStore,
+      contextFromFlags,
+      dispatch,
+      selectorChain,
+    });
+    if (!verification.ok) return verification.response;
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: {
+        ...(data ?? {}),
+        ref,
+        attempts: plan.count,
+        direction: plan.direction,
+        strategy: 'ref-geometry',
+        verified: true,
+        refLabel,
+        selectorChain,
+      },
+    });
+    return {
+      ok: true,
+      data: {
+        ...(data ?? {}),
+        ref,
+        attempts: plan.count,
+        direction: plan.direction,
+        strategy: 'ref-geometry',
+        verified: true,
+      },
+    };
+  }
+
   return null;
 }
 
@@ -593,7 +696,7 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
 ];
 
 function refSnapshotFlagGuardResponse(
-  command: 'press' | 'fill' | 'get',
+  command: 'press' | 'fill' | 'get' | 'scrollintoview',
   flags: CommandFlags | undefined,
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
@@ -622,4 +725,110 @@ export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): st
     if (flags[key] !== undefined) unsupported.push(label);
   }
   return unsupported;
+}
+
+function resolveRefTarget(params: {
+  session: SessionState;
+  refInput: string;
+  fallbackLabel: string;
+  requireRect: boolean;
+  invalidRefMessage: string;
+  notFoundMessage: string;
+}): { ok: true; target: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] } } | { ok: false; response: DaemonResponse } {
+  const { session, refInput, fallbackLabel, requireRect, invalidRefMessage, notFoundMessage } = params;
+  if (!session.snapshot) {
+    return {
+      ok: false,
+      response: { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } },
+    };
+  }
+  const ref = normalizeRef(refInput);
+  if (!ref) {
+    return {
+      ok: false,
+      response: { ok: false, error: { code: 'INVALID_ARGS', message: invalidRefMessage } },
+    };
+  }
+  let node = findNodeByRef(session.snapshot.nodes, ref);
+  if ((!node || (requireRect && !node.rect)) && fallbackLabel.length > 0) {
+    node = findNodeByLabel(session.snapshot.nodes, fallbackLabel);
+  }
+  if (!node || (requireRect && !node.rect)) {
+    return {
+      ok: false,
+      response: { ok: false, error: { code: 'COMMAND_FAILED', message: notFoundMessage } },
+    };
+  }
+  return { ok: true, target: { ref, node, snapshotNodes: session.snapshot.nodes } };
+}
+
+async function verifyRefTargetInViewport(params: {
+  session: SessionState;
+  flags: CommandFlags | undefined;
+  sessionStore: SessionStore;
+  contextFromFlags: ContextFromFlags;
+  dispatch: typeof dispatchCommand;
+  selectorChain: string[];
+}): Promise<{ ok: true } | { ok: false; response: DaemonResponse }> {
+  const { session, flags, sessionStore, contextFromFlags, dispatch, selectorChain } = params;
+  if (selectorChain.length === 0) {
+    return {
+      ok: false,
+      response: { ok: false, error: { code: 'COMMAND_FAILED', message: 'scrollintoview verification selector is empty' } },
+    };
+  }
+  let chainExpression = '';
+  try {
+    chainExpression = selectorChain.join(' || ');
+    parseSelectorChain(chainExpression);
+  } catch {
+    return {
+      ok: false,
+      response: { ok: false, error: { code: 'COMMAND_FAILED', message: 'scrollintoview verification selector is invalid' } },
+    };
+  }
+  const snapshot = await captureSnapshotForSession(
+    session,
+    flags,
+    sessionStore,
+    contextFromFlags,
+    { interactiveOnly: true },
+    dispatch,
+  );
+  const chain = parseSelectorChain(chainExpression);
+  const resolved = resolveSelectorChain(snapshot.nodes, chain, {
+    platform: session.device.platform,
+    requireRect: true,
+    requireUnique: false,
+    disambiguateAmbiguous: true,
+  });
+  if (!resolved?.node.rect) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'scrollintoview target could not be verified after scrolling' },
+      },
+    };
+  }
+  const viewportRect = resolveViewportRect(snapshot.nodes, resolved.node.rect);
+  if (!viewportRect) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'scrollintoview could not infer viewport during verification' },
+      },
+    };
+  }
+  if (!isRectWithinSafeViewportBand(resolved.node.rect, viewportRect)) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'scrollintoview target is still outside viewport after scrolling' },
+      },
+    };
+  }
+  return { ok: true };
 }
