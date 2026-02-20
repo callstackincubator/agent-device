@@ -286,6 +286,46 @@ test('record start returns structured error when iOS runner start fails', async 
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
+test('record start recovers from stale iOS runner recording state', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-runner-desync';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const commands: string[] = [];
+  let startAttempts = 0;
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be used for iOS devices');
+      },
+      runIosRunnerCommand: async (_device, command) => {
+        commands.push(command.command);
+        if (command.command === 'recordStart') {
+          startAttempts += 1;
+          if (startAttempts === 1) {
+            throw new Error('recording already in progress');
+          }
+        }
+        return {};
+      },
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(commands, ['recordStart', 'recordStop', 'recordStart']);
+  assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'ios-device-runner');
+});
+
 test('record stop clears iOS runner recording state when runner stop fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-stop-fail';

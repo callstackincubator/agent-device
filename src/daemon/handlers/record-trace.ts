@@ -31,6 +31,14 @@ const IOS_RUNNER_CONTAINER_BUNDLE_IDS = uniqueNonEmpty([
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRunnerRecordingAlreadyInProgressError(error: unknown): boolean {
+  return errorMessage(error).toLowerCase().includes('recording already in progress');
+}
+
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
   return {
     verbose: req.flags?.verbose,
@@ -104,15 +112,44 @@ export async function handleRecordTraceCommands(params: {
       if (device.platform === 'ios' && device.kind === 'device') {
         const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
         const remotePath = `tmp/${recordingFileName}`;
-        try {
+        const startRunnerRecording = async () => {
           await deps.runIosRunnerCommand(
             device,
             { command: 'recordStart', outPath: recordingFileName, fps: fpsFlag },
             runnerOptions,
           );
+        };
+        try {
+          await startRunnerRecording();
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
+          if (isRunnerRecordingAlreadyInProgressError(error)) {
+            emitDiagnostic({
+              level: 'warn',
+              phase: 'record_start_runner_desynced',
+              data: {
+                platform: device.platform,
+                kind: device.kind,
+                deviceId: device.id,
+                session: activeSession.name,
+                error: errorMessage(error),
+              },
+            });
+            try {
+              await deps.runIosRunnerCommand(device, { command: 'recordStop' }, runnerOptions);
+            } catch {
+              // best effort: stop stale runner recording and retry start
+            }
+            try {
+              await startRunnerRecording();
+            } catch (retryError) {
+              return {
+                ok: false,
+                error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(retryError)}` },
+              };
+            }
+          } else {
+            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(error)}` } };
+          }
         }
         activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, remotePath };
       } else if (device.platform === 'ios') {
@@ -157,7 +194,7 @@ export async function handleRecordTraceCommands(params: {
             kind: device.kind,
             deviceId: device.id,
             session: activeSession.name,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage(error),
           },
         });
         // best effort: clear runner-backed recording state even if runner stop fails
