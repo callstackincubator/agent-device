@@ -625,6 +625,12 @@ final class RunnerTests: XCTestCase {
       else {
         return Response(ok: false, error: ErrorPayload(message: "recordStart requires outPath"))
       }
+      let hasAppBundleId = !(command.appBundleId?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .isEmpty ?? true)
+      guard hasAppBundleId else {
+        return Response(ok: false, error: ErrorPayload(message: "recordStart requires appBundleId"))
+      }
       if activeRecording != nil {
         return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
       }

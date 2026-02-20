@@ -39,6 +39,11 @@ function isRunnerRecordingAlreadyInProgressError(error: unknown): boolean {
   return errorMessage(error).toLowerCase().includes('recording already in progress');
 }
 
+function normalizeAppBundleId(session: SessionState): string | undefined {
+  const trimmed = session.appBundleId?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
 function findOtherActiveIosRunnerRecording(
   sessionStore: SessionStore,
   deviceId: string,
@@ -114,27 +119,28 @@ export async function handleRecordTraceCommands(params: {
         };
       }
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
-      const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
-      const outDir = path.dirname(resolvedOut);
-      fs.mkdirSync(outDir, { recursive: true });
       if (!isCommandSupportedOnDevice('record', device)) {
         return {
           ok: false,
           error: { code: 'UNSUPPORTED_OPERATION', message: 'record is not supported on this device' },
         };
       }
+      const iosDeviceAppBundleId =
+        device.platform === 'ios' && device.kind === 'device' ? normalizeAppBundleId(activeSession) : undefined;
+      if (device.platform === 'ios' && device.kind === 'device' && !iosDeviceAppBundleId) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'record on physical iOS devices requires an active app session; run open <app> first',
+          },
+        };
+      }
+      const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
+      fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
-        const appBundleId = activeSession.appBundleId?.trim();
-        if (!appBundleId) {
-          return {
-            ok: false,
-            error: {
-              code: 'INVALID_ARGS',
-              message: 'record on physical iOS devices requires an active app session; run open <app> first',
-            },
-          };
-        }
+        const appBundleId = iosDeviceAppBundleId;
         const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
         const remotePath = `tmp/${recordingFileName}`;
         const startRunnerRecording = async () => {
@@ -223,10 +229,11 @@ export async function handleRecordTraceCommands(params: {
     }
     const recording = activeSession.recording;
     if (recording.platform === 'ios-device-runner') {
+      const appBundleId = normalizeAppBundleId(activeSession);
       try {
         await deps.runIosRunnerCommand(
           device,
-          { command: 'recordStop', appBundleId: activeSession.appBundleId },
+          { command: 'recordStop', appBundleId },
           getRunnerOptions(req, logPath, activeSession),
         );
       } catch (error) {

@@ -8,6 +8,14 @@ import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 
 type RecordTraceDeps = NonNullable<Parameters<typeof handleRecordTraceCommands>[0]['deps']>;
+type RunnerCall = {
+  command: string;
+  outPath?: string;
+  fps?: number;
+  appBundleId?: string;
+  logPath?: string;
+  traceLogPath?: string;
+};
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-trace-'));
@@ -21,6 +29,20 @@ function makeSession(name: string, device: SessionState['device']): SessionState
     createdAt: Date.now(),
     actions: [],
   };
+}
+
+function makeIosDeviceSession(name: string, appBundleId?: string): SessionState {
+  const session = makeSession(name, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  });
+  if (appBundleId) {
+    session.appBundleId = appBundleId;
+  }
+  return session;
 }
 
 async function runRecordCommand(params: {
@@ -49,7 +71,7 @@ async function runRecordCommand(params: {
 }
 
 function makeIosDeviceRunnerDeps(
-  runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }>,
+  runnerCalls: RunnerCall[],
   runCmdCalls: Array<{ cmd: string; args: string[] }>,
 ): RecordTraceDeps {
   const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
@@ -78,17 +100,10 @@ function makeIosDeviceRunnerDeps(
 test('record start/stop uses iOS runner on physical iOS devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  session.appBundleId = 'com.atebits.Tweetie2';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
@@ -153,17 +168,10 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
 test('record start resolves relative output path from request cwd', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-cwd';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  session.appBundleId = 'com.atebits.Tweetie2';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const cwd = '/tmp/agent-device-cwd-test';
@@ -198,17 +206,10 @@ test('record start resolves relative output path from request cwd', async () => 
 test('record start forwards explicit fps to iOS runner', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-fps';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  session.appBundleId = 'com.atebits.Tweetie2';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const response = await runRecordCommand({
@@ -228,13 +229,7 @@ test('record start forwards explicit fps to iOS runner', async () => {
 test('record start rejects invalid fps value', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-invalid-fps';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  }));
+  sessionStore.set(sessionName, makeIosDeviceSession(sessionName));
 
   const response = await runRecordCommand({
     sessionStore,
@@ -260,13 +255,7 @@ test('record start rejects invalid fps value', async () => {
 test('record start on iOS device requires active app session context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-no-app';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  }));
+  sessionStore.set(sessionName, makeIosDeviceSession(sessionName));
 
   const response = await runRecordCommand({
     sessionStore,
@@ -291,14 +280,7 @@ test('record start on iOS device requires active app session context', async () 
 test('record start returns structured error when iOS runner start fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-start-fail';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  session.appBundleId = 'com.atebits.Tweetie2';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
   sessionStore.set(sessionName, session);
 
   const response = await runRecordCommand({
@@ -325,14 +307,7 @@ test('record start returns structured error when iOS runner start fails', async 
 test('record start recovers from stale iOS runner recording state', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-runner-desync';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  session.appBundleId = 'com.atebits.Tweetie2';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
   sessionStore.set(sessionName, session);
 
   const commands: string[] = [];
@@ -367,14 +342,7 @@ test('record start recovers from stale iOS runner recording state', async () => 
 test('record start does not stop recording owned by another session during desync recovery', async () => {
   const sessionStore = makeSessionStore();
   const ownerSessionName = 'ios-device-owner';
-  const ownerSession = makeSession(ownerSessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  ownerSession.appBundleId = 'com.example.owner';
+  const ownerSession = makeIosDeviceSession(ownerSessionName, 'com.example.owner');
   ownerSession.recording = {
     platform: 'ios-device-runner',
     outPath: '/tmp/owner.mp4',
@@ -383,14 +351,7 @@ test('record start does not stop recording owned by another session during desyn
   sessionStore.set(ownerSessionName, ownerSession);
 
   const sessionName = 'ios-device-requester';
-  const requesterSession = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  });
-  requesterSession.appBundleId = 'com.example.requester';
+  const requesterSession = makeIosDeviceSession(sessionName, 'com.example.requester');
   sessionStore.set(sessionName, requesterSession);
 
   const commands: string[] = [];
@@ -424,13 +385,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-stop-fail';
   sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'ios-device-1',
-      name: 'My iPhone',
-      kind: 'device',
-      booted: true,
-    }),
+    ...makeIosDeviceSession(sessionName),
     recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4', remotePath: 'tmp/device.mp4' },
   });
 
