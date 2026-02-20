@@ -19,7 +19,7 @@ test('formatSnapshotDiffText renders unified diff lines with summary', () => {
   });
 
   assert.doesNotMatch(text, /^@e0 \[application\]$/m);
-  assert.match(text, /^@e2 \[window\]/m);
+  assert.match(text, /^  @e2 \[window\]/m);
   assert.match(text, /^- @e3 \[other\] "67"$/m);
   assert.match(text, /^\+ @e3 \[other\] "134"$/m);
   assert.match(text, /^  @e5 \[button\] "Increment"$/m);

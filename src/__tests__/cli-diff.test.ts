@@ -76,7 +76,7 @@ test('diff snapshot renders human-readable unified diff text', async () => {
   const result = await runCliCapture(['diff', 'snapshot']);
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
-  assert.match(result.stdout, /^@e2 \[window\]/m);
+  assert.match(result.stdout, /^  @e2 \[window\]/m);
   assert.match(result.stdout, /^- @e3 \[text\] "67"$/m);
   assert.match(result.stdout, /^\+ @e3 \[text\] "134"$/m);
   assert.match(result.stdout, /1 additions, 1 removals, 1 unchanged/);
