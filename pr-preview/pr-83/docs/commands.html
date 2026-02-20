@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-83/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-83/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-83/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-83/static/js/index.3ee999ff.js"></script>
+<script defer src="/agent-device/pr-preview/pr-83/static/js/index.bde147c8.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -140,6 +140,7 @@ On iOS, swipe timing uses a safe normalized duration to avoid longpress side eff
 <li>iOS <code>record</code> works on simulators and physical devices.</li>
 <li>iOS simulator recording uses native <code>simctl io ... recordVideo</code>.</li>
 <li>Physical iOS device capture is runner-based and built from repeated <code>XCUIScreen.main.screenshot()</code> frames (no native video stream/audio capture).</li>
+<li>Physical iOS device recording requires an active app session context (<code>open &lt;app&gt;</code> first).</li>
 <li>Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with <code>--fps 60</code>.</li>
 <li>Physical-device capture defaults to uncapped (max available) FPS.</li>
 <li><code>--fps &lt;n&gt;</code> (1-120) applies to physical iOS device recording as an explicit FPS cap.</li>

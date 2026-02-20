@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-83/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-83/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-83/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-83/static/js/index.3ee999ff.js"></script>
+<script defer src="/agent-device/pr-preview/pr-83/static/js/index.bde147c8.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -44,6 +44,7 @@
 <ul>
 <li>Simulators use native <code>simctl io ... recordVideo</code>.</li>
 <li>Physical devices use runner screenshot capture (<code>XCUIScreen.main.screenshot()</code> frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with <code>--fps 60</code>).</li>
+<li>Physical-device recording requires an active app session context (<code>open &lt;app&gt;</code> first).</li>
 <li>Physical-device recording defaults to uncapped (max available) FPS and supports <code>--fps</code> caps.</li>
 </ul>
 </li>
