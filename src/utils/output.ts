@@ -1,6 +1,7 @@
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode } from './snapshot.ts';
+import { styleText } from 'node:util';
 
 type JsonResult =
   | { success: true; data?: Record<string, unknown> }
@@ -80,6 +81,7 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const additions = toNumber(summaryRaw.additions);
   const removals = toNumber(summaryRaw.removals);
   const unchanged = toNumber(summaryRaw.unchanged);
+  const useColor = supportsColor();
   if (baselineInitialized) {
     return `Baseline initialized (${unchanged} lines).\n`;
   }
@@ -87,12 +89,26 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const contextLines = applyContextWindow(rawLines, 1);
   const lines = contextLines.map((line) => {
     const text = typeof line.text === 'string' ? line.text : '';
-    if (line.kind === 'added') return text.startsWith(' ') ? `+${text}` : `+ ${text}`;
-    if (line.kind === 'removed') return text.startsWith(' ') ? `-${text}` : `- ${text}`;
-    return text;
+    if (line.kind === 'added') {
+      const prefix = text.startsWith(' ') ? `+${text}` : `+ ${text}`;
+      return useColor ? colorize(prefix, 'green') : prefix;
+    }
+    if (line.kind === 'removed') {
+      const prefix = text.startsWith(' ') ? `-${text}` : `- ${text}`;
+      return useColor ? colorize(prefix, 'red') : prefix;
+    }
+    return useColor ? colorize(text, 'dim') : text;
   });
   const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
-  return `${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+  if (!useColor) {
+    return `${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+  }
+  const summary = [
+    `${colorize(String(additions), 'green')} additions`,
+    `${colorize(String(removals), 'red')} removals`,
+    `${colorize(String(unchanged), 'dim')} unchanged`,
+  ].join(', ');
+  return `${body}${summary}\n`;
 }
 
 function toNumber(value: unknown): number {
@@ -116,4 +132,19 @@ function applyContextWindow(lines: SnapshotDiffLine[], contextWindow: number): S
     }
   }
   return lines.filter((_, index) => keep[index]);
+}
+
+function supportsColor(): boolean {
+  const forceColor = process.env.FORCE_COLOR;
+  if (typeof forceColor === 'string') {
+    return forceColor !== '0';
+  }
+  if (typeof process.env.NO_COLOR === 'string') {
+    return false;
+  }
+  return Boolean(process.stdout.isTTY);
+}
+
+function colorize(text: string, format: Parameters<typeof styleText>[0]): string {
+  return styleText(format, text);
 }
