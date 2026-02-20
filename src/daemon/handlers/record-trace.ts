@@ -115,7 +115,12 @@ export async function handleRecordTraceCommands(params: {
         const startRunnerRecording = async () => {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: recordingFileName, fps: fpsFlag },
+            {
+              command: 'recordStart',
+              outPath: recordingFileName,
+              fps: fpsFlag,
+              appBundleId: activeSession.appBundleId,
+            },
             runnerOptions,
           );
         };
@@ -135,7 +140,11 @@ export async function handleRecordTraceCommands(params: {
               },
             });
             try {
-              await deps.runIosRunnerCommand(device, { command: 'recordStop' }, runnerOptions);
+              await deps.runIosRunnerCommand(
+                device,
+                { command: 'recordStop', appBundleId: activeSession.appBundleId },
+                runnerOptions,
+              );
             } catch {
               // best effort: stop stale runner recording and retry start
             }
@@ -182,7 +191,7 @@ export async function handleRecordTraceCommands(params: {
       try {
         await deps.runIosRunnerCommand(
           device,
-          { command: 'recordStop' },
+          { command: 'recordStop', appBundleId: activeSession.appBundleId },
           getRunnerOptions(req, logPath, activeSession),
         );
       } catch (error) {

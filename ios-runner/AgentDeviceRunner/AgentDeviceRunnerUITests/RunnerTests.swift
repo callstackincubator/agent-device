@@ -927,7 +927,7 @@ final class RunnerTests: XCTestCase {
 
   private func isRunnerLifecycleCommand(_ command: CommandType) -> Bool {
     switch command {
-    case .shutdown, .recordStart, .recordStop:
+    case .shutdown, .recordStop:
       return true
     default:
       return false

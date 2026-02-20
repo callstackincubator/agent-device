@@ -106,7 +106,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls[0]?.command, 'recordStart');
   assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
   assert.equal(runnerCalls[0]?.fps, undefined);
-  assert.equal(runnerCalls[0]?.appBundleId, undefined);
+  assert.equal(runnerCalls[0]?.appBundleId, 'com.atebits.Tweetie2');
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
   const startedRecording = sessionStore.get(sessionName)?.recording;
@@ -128,7 +128,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStop?.ok, true);
   assert.equal(runnerCalls.length, 2);
   assert.equal(runnerCalls[1]?.command, 'recordStop');
-  assert.equal(runnerCalls[1]?.appBundleId, undefined);
+  assert.equal(runnerCalls[1]?.appBundleId, 'com.atebits.Tweetie2');
   assert.equal(runCmdCalls.length, 1);
   assert.equal(runCmdCalls[0]?.cmd, 'xcrun');
   assert.deepEqual(runCmdCalls[0]?.args, [
