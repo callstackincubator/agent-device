@@ -66,6 +66,7 @@ export type RunnerSession = {
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
+const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
 const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
   45_000,
@@ -235,6 +236,7 @@ export async function stopAllIosRunnerSessions(): Promise<void> {
   await Promise.allSettled(pending.map(async (deviceId) => {
     await stopIosRunnerSession(deviceId);
   }));
+  await stopAllRunnerPrepProcesses();
 }
 
 async function stopRunnerSession(session: RunnerSession): Promise<void> {
@@ -416,6 +418,12 @@ async function ensureXctestrun(
         ...signingBuildSettings,
       ],
       {
+        onSpawn: (child) => {
+          runnerPrepProcesses.add(child);
+          child.on('close', () => {
+            runnerPrepProcesses.delete(child);
+          });
+        },
         onStdoutChunk: (chunk) => {
           logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
         },
@@ -440,6 +448,16 @@ async function ensureXctestrun(
     throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
   }
   return built;
+}
+
+async function stopAllRunnerPrepProcesses(): Promise<void> {
+  const prepProcesses = Array.from(runnerPrepProcesses);
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGTERM');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGKILL');
+  }));
 }
 
 function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {

@@ -20,6 +20,7 @@ export type ExecOptions = {
 export type ExecStreamOptions = ExecOptions & {
   onStdoutChunk?: (chunk: string) => void;
   onStderrChunk?: (chunk: string) => void;
+  onSpawn?: (child: ReturnType<typeof spawn>) => void;
 };
 
 export type ExecBackgroundResult = {
@@ -200,6 +201,7 @@ export async function runCmdStreaming(
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+    options.onSpawn?.(child);
 
     let stdout = '';
     let stderr = '';
