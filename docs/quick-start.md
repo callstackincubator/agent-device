@@ -17,6 +17,9 @@ agent-device click @e2
 
 # 4. Re-snapshot before next interactions
 agent-device snapshot -i
+
+# 5. Optional: see structural changes since last baseline
+agent-device diff snapshot
 ```
 
 Boot target if there is no ready device/simulator:
@@ -30,6 +33,7 @@ agent-device boot --platform ios # or android
 ```bash
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
+agent-device diff snapshot               # First run initializes baseline; next runs show structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
 agent-device get text @e1                # Get text content
