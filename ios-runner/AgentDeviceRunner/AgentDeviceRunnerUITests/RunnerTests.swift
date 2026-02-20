@@ -1039,13 +1039,16 @@ final class RunnerTests: XCTestCase {
   }
 
   private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
-    let alerts: [XCUIElement]
-    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE") {
-      alerts = springboard.alerts.allElementsBoundByIndex
-    } else {
-      alerts = safeElementsQuery {
-        springboard.alerts.allElementsBoundByIndex
+    let disableSafeProbe = isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE")
+    let queryElements: (() -> [XCUIElement]) -> [XCUIElement] = { fetch in
+      if disableSafeProbe {
+        return fetch()
       }
+      return safeElementsQuery(fetch)
+    }
+
+    let alerts = queryElements {
+      springboard.alerts.allElementsBoundByIndex
     }
     for alert in alerts {
       if safeIsBlockingSystemModal(alert, in: springboard) {
@@ -1053,13 +1056,8 @@ final class RunnerTests: XCTestCase {
       }
     }
 
-    let sheets: [XCUIElement]
-    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE") {
-      sheets = springboard.sheets.allElementsBoundByIndex
-    } else {
-      sheets = safeElementsQuery {
-        springboard.sheets.allElementsBoundByIndex
-      }
+    let sheets = queryElements {
+      springboard.sheets.allElementsBoundByIndex
     }
     for sheet in sheets {
       if safeIsBlockingSystemModal(sheet, in: springboard) {

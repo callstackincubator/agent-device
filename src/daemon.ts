@@ -329,7 +329,7 @@ function start(): void {
         } catch (err) {
           response = { ok: false, error: normalizeError(err) };
         } finally {
-          inFlightRequests = Math.max(0, inFlightRequests - 1);
+          inFlightRequests -= 1;
         }
         if (!socket.destroyed) {
           socket.write(`${JSON.stringify(response)}\n`);

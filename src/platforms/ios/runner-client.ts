@@ -453,10 +453,12 @@ async function ensureXctestrun(
 async function stopAllRunnerPrepProcesses(): Promise<void> {
   const prepProcesses = Array.from(runnerPrepProcesses);
   await Promise.allSettled(prepProcesses.map(async (child) => {
-    await killRunnerProcessTree(child.pid, 'SIGTERM');
-  }));
-  await Promise.allSettled(prepProcesses.map(async (child) => {
-    await killRunnerProcessTree(child.pid, 'SIGKILL');
+    try {
+      await killRunnerProcessTree(child.pid, 'SIGTERM');
+      await killRunnerProcessTree(child.pid, 'SIGKILL');
+    } finally {
+      runnerPrepProcesses.delete(child);
+    }
   }));
 }
 
