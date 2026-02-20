@@ -75,3 +75,25 @@ test('buildSnapshotDiff preserves surrounding context ordering', () => {
   assert.equal(diff.lines[3]?.kind, 'added');
   assert.equal(diff.lines[4]?.kind, 'unchanged');
 });
+
+test('buildSnapshotDiff flatten option uses flat snapshot line shape', () => {
+  const previous = nodes([
+    { index: 0, depth: 0, type: 'XCUIElementTypeWindow' },
+    { index: 1, depth: 1, type: 'XCUIElementTypeOther', label: '335' },
+    { index: 2, depth: 2, type: 'XCUIElementTypeStaticText', label: '335' },
+  ]);
+  const current = nodes([
+    { index: 0, depth: 0, type: 'XCUIElementTypeWindow' },
+    { index: 1, depth: 1, type: 'XCUIElementTypeOther', label: '402' },
+    { index: 2, depth: 2, type: 'XCUIElementTypeStaticText', label: '402' },
+  ]);
+
+  const diff = buildSnapshotDiff(previous, current, { flatten: true });
+  assert.equal(diff.summary.additions, 2);
+  assert.equal(diff.summary.removals, 2);
+  const changed = diff.lines.filter((line) => line.kind !== 'unchanged');
+  assert.equal(changed.length, 4);
+  for (const line of changed) {
+    assert.equal(line.text.startsWith('  '), false);
+  }
+});

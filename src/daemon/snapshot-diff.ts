@@ -1,5 +1,5 @@
 import type { SnapshotNode } from '../utils/snapshot.ts';
-import { buildSnapshotDisplayLines, displayLabel, formatRole } from '../utils/snapshot-lines.ts';
+import { buildSnapshotDisplayLines, displayLabel, formatRole, formatSnapshotLine } from '../utils/snapshot-lines.ts';
 
 export type SnapshotDiffLine = {
   kind: 'added' | 'removed' | 'unchanged';
@@ -17,6 +17,10 @@ export type SnapshotDiffResult = {
   lines: SnapshotDiffLine[];
 };
 
+export type SnapshotDiffOptions = {
+  flatten?: boolean;
+};
+
 type SnapshotComparableLine = {
   text: string;
   comparable: string;
@@ -32,9 +36,13 @@ export function snapshotNodeToComparableLine(node: SnapshotNode, depthOverride?:
   return [depthPart, role, textPart, enabledPart, selectedPart, hittablePart].join('|');
 }
 
-export function buildSnapshotDiff(previousNodes: SnapshotNode[], currentNodes: SnapshotNode[]): SnapshotDiffResult {
-  const previous = snapshotNodesToLines(previousNodes);
-  const current = snapshotNodesToLines(currentNodes);
+export function buildSnapshotDiff(
+  previousNodes: SnapshotNode[],
+  currentNodes: SnapshotNode[],
+  options: SnapshotDiffOptions = {},
+): SnapshotDiffResult {
+  const previous = snapshotNodesToLines(previousNodes, options);
+  const current = snapshotNodesToLines(currentNodes, options);
   const lines = diffComparableLinesMyers(previous, current);
   const summary: SnapshotDiffSummary = { additions: 0, removals: 0, unchanged: 0 };
   for (const line of lines) {
@@ -45,11 +53,20 @@ export function buildSnapshotDiff(previousNodes: SnapshotNode[], currentNodes: S
   return { summary, lines };
 }
 
-export function countSnapshotComparableLines(nodes: SnapshotNode[]): number {
-  return snapshotNodesToLines(nodes).length;
+export function countSnapshotComparableLines(
+  nodes: SnapshotNode[],
+  options: SnapshotDiffOptions = {},
+): number {
+  return snapshotNodesToLines(nodes, options).length;
 }
 
-function snapshotNodesToLines(nodes: SnapshotNode[]): SnapshotComparableLine[] {
+function snapshotNodesToLines(nodes: SnapshotNode[], options: SnapshotDiffOptions): SnapshotComparableLine[] {
+  if (options.flatten) {
+    return nodes.map((node) => ({
+      text: formatSnapshotLine(node, 0, false),
+      comparable: snapshotNodeToComparableLine(node, 0),
+    }));
+  }
   return buildSnapshotDisplayLines(nodes).map((line) => ({
     text: line.text,
     comparable: snapshotNodeToComparableLine(line.node, line.depth),
