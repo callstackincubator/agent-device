@@ -78,6 +78,23 @@ test('buildSnapshotDiff keeps stable order with unchanged context', () => {
   assert.equal(diff.lines.filter((line) => line.kind === 'removed').length, 1);
 });
 
+test('buildSnapshotDiff renders snapshot-style lines with refs and mapped roles', () => {
+  const previous = nodes([
+    { index: 0, type: 'XCUIElementTypeOther', label: '67', depth: 1 },
+    { index: 1, type: 'XCUIElementTypeStaticText', label: '67', depth: 2 },
+    { index: 2, type: 'XCUIElementTypeButton', label: 'Increment', depth: 1 },
+  ]);
+  const current = nodes([
+    { index: 0, type: 'XCUIElementTypeOther', label: '134', depth: 1 },
+    { index: 1, type: 'XCUIElementTypeStaticText', label: '134', depth: 2 },
+    { index: 2, type: 'XCUIElementTypeButton', label: 'Increment', depth: 1 },
+  ]);
+  const diff = buildSnapshotDiff(previous, current);
+  assert.equal(diff.lines.find((line) => line.kind === 'removed')?.text, '  @e1 [other] "67"');
+  assert.equal(diff.lines.find((line) => line.kind === 'added')?.text, '  @e1 [other] "134"');
+  assert.ok(diff.lines.some((line) => line.text === '    @e2 [text] "134"'));
+});
+
 test('buildSnapshotDiff uses linear fallback for very large snapshots', () => {
   const previousRaw: RawSnapshotNode[] = [];
   const currentRaw: RawSnapshotNode[] = [];

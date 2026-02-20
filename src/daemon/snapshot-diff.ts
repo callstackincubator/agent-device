@@ -1,4 +1,5 @@
 import type { SnapshotNode } from '../utils/snapshot.ts';
+import { renderSnapshotEntries, snapshotNodeToComparableLine } from '../utils/snapshot-render.ts';
 
 export type SnapshotDiffLine = {
   kind: 'added' | 'removed' | 'unchanged';
@@ -16,44 +17,39 @@ export type SnapshotDiffResult = {
   summary: SnapshotDiffSummary;
 };
 
-export function snapshotNodeToComparableLine(node: SnapshotNode): string {
-  const type = normalizeType(node.type);
-  const label = cleanText(node.label);
-  const value = cleanText(node.value);
-  const identifier = cleanText(node.identifier);
-  const depth = typeof node.depth === 'number' && Number.isFinite(node.depth) ? Math.max(0, Math.floor(node.depth)) : 0;
-  const tokens: string[] = [];
-  if (label) {
-    tokens.push(`label="${label}"`);
-  }
-  if (value) {
-    tokens.push(`value="${value}"`);
-  }
-  if (identifier) {
-    tokens.push(`id="${identifier}"`);
-  }
-  if (node.enabled === false) tokens.push('disabled');
-  if (node.selected === true) tokens.push('selected');
-  if (node.hittable === false) tokens.push('not-hittable');
-  return `${'  '.repeat(depth)}${type}${tokens.length > 0 ? ` ${tokens.join(' ')}` : ''}`;
-}
+export { snapshotNodeToComparableLine };
 
 export function buildSnapshotDiff(previousNodes: SnapshotNode[], currentNodes: SnapshotNode[]): SnapshotDiffResult {
-  const previousLines = previousNodes.map(snapshotNodeToComparableLine);
-  const currentLines = currentNodes.map(snapshotNodeToComparableLine);
-  const operations = diffLines(previousLines, currentLines);
-  const lines: SnapshotDiffLine[] = operations.map((operation) => ({ kind: operation.kind, text: operation.text }));
-  const summary: SnapshotDiffSummary = {
-    additions: lines.filter((line) => line.kind === 'added').length,
-    removals: lines.filter((line) => line.kind === 'removed').length,
-    unchanged: lines.filter((line) => line.kind === 'unchanged').length,
-  };
+  const previousLines = toDiffEntries(previousNodes);
+  const currentLines = toDiffEntries(currentNodes);
+  const lines = diffLines(previousLines, currentLines);
+  const summary = lines.reduce<SnapshotDiffSummary>(
+    (acc, line) => {
+      if (line.kind === 'added') acc.additions += 1;
+      else if (line.kind === 'removed') acc.removals += 1;
+      else acc.unchanged += 1;
+      return acc;
+    },
+    { additions: 0, removals: 0, unchanged: 0 },
+  );
   return { lines, summary };
 }
 
-function diffLines(previous: string[], current: string[]): Array<{ kind: 'added' | 'removed' | 'unchanged'; text: string }> {
+type DiffEntry = {
+  compare: string;
+  text: string;
+};
+
+type DiffOp = {
+  kind: SnapshotDiffLine['kind'];
+  text: string;
+};
+
+const DIFF_LINEAR_FALLBACK_MAX_LINES = 4_000;
+
+function diffLines(previous: DiffEntry[], current: DiffEntry[]): DiffOp[] {
   // Guard against pathological traces for very large snapshots by using a linear fallback.
-  if (previous.length + current.length > 4_000) {
+  if (previous.length + current.length > DIFF_LINEAR_FALLBACK_MAX_LINES) {
     return buildLinearFallbackDiff(previous, current);
   }
 
@@ -73,7 +69,7 @@ function diffLines(previous: string[], current: string[]): Array<{ kind: 'added'
       const prevK = wentDown ? k + 1 : k - 1;
       let x = wentDown ? getOrDefault(v, prevK, 0) : getOrDefault(v, prevK, 0) + 1;
       let y = x - k;
-      while (x < n && y < m && previous[x] === current[y]) {
+      while (x < n && y < m && previous[x]?.compare === current[y]?.compare) {
         x += 1;
         y += 1;
       }
@@ -92,10 +88,10 @@ function diffLines(previous: string[], current: string[]): Array<{ kind: 'added'
 
 function backtrackMyers(
   trace: Array<Map<number, number>>,
-  previous: string[],
-  current: string[],
-): Array<{ kind: 'added' | 'removed' | 'unchanged'; text: string }> {
-  const resultReversed: Array<{ kind: 'added' | 'removed' | 'unchanged'; text: string }> = [];
+  previous: DiffEntry[],
+  current: DiffEntry[],
+): DiffOp[] {
+  const resultReversed: DiffOp[] = [];
   let x = previous.length;
   let y = current.length;
 
@@ -110,7 +106,7 @@ function backtrackMyers(
     const prevY = prevX - prevK;
 
     while (x > prevX && y > prevY) {
-      resultReversed.push({ kind: 'unchanged', text: previous[x - 1] });
+      resultReversed.push({ kind: 'unchanged', text: current[y - 1]?.text ?? '' });
       x -= 1;
       y -= 1;
     }
@@ -118,10 +114,10 @@ function backtrackMyers(
       break;
     }
     if (x === prevX) {
-      resultReversed.push({ kind: 'added', text: current[y - 1] });
+      resultReversed.push({ kind: 'added', text: current[y - 1]?.text ?? '' });
       y -= 1;
     } else {
-      resultReversed.push({ kind: 'removed', text: previous[x - 1] });
+      resultReversed.push({ kind: 'removed', text: previous[x - 1]?.text ?? '' });
       x -= 1;
     }
   }
@@ -130,12 +126,12 @@ function backtrackMyers(
 }
 
 function buildLinearFallbackDiff(
-  previous: string[],
-  current: string[],
-): Array<{ kind: 'added' | 'removed' | 'unchanged'; text: string }> {
+  previous: DiffEntry[],
+  current: DiffEntry[],
+): DiffOp[] {
   let prefix = 0;
   const min = Math.min(previous.length, current.length);
-  while (prefix < min && previous[prefix] === current[prefix]) {
+  while (prefix < min && previous[prefix]?.compare === current[prefix]?.compare) {
     prefix += 1;
   }
 
@@ -144,24 +140,24 @@ function buildLinearFallbackDiff(
   while (
     previousSuffix >= prefix &&
     currentSuffix >= prefix &&
-    previous[previousSuffix] === current[currentSuffix]
+    previous[previousSuffix]?.compare === current[currentSuffix]?.compare
   ) {
     previousSuffix -= 1;
     currentSuffix -= 1;
   }
 
-  const lines: Array<{ kind: 'added' | 'removed' | 'unchanged'; text: string }> = [];
+  const lines: DiffOp[] = [];
   for (let i = 0; i < prefix; i += 1) {
-    lines.push({ kind: 'unchanged', text: previous[i] });
+    lines.push({ kind: 'unchanged', text: current[i]?.text ?? '' });
   }
   for (let i = prefix; i <= previousSuffix; i += 1) {
-    lines.push({ kind: 'removed', text: previous[i] });
+    lines.push({ kind: 'removed', text: previous[i]?.text ?? '' });
   }
   for (let i = prefix; i <= currentSuffix; i += 1) {
-    lines.push({ kind: 'added', text: current[i] });
+    lines.push({ kind: 'added', text: current[i]?.text ?? '' });
   }
   for (let i = previousSuffix + 1; i < previous.length; i += 1) {
-    lines.push({ kind: 'unchanged', text: previous[i] });
+    lines.push({ kind: 'unchanged', text: current[i]?.text ?? '' });
   }
   return lines;
 }
@@ -171,12 +167,9 @@ function getOrDefault(map: Map<number, number>, key: number, fallback: number): 
   return value === undefined ? fallback : value;
 }
 
-function cleanText(value: string | undefined): string {
-  return (value ?? '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizeType(type: string | undefined): string {
-  const raw = cleanText(type);
-  if (!raw) return 'element';
-  return raw.replace(/XCUIElementType/g, '').toLowerCase();
+function toDiffEntries(nodes: SnapshotNode[]): DiffEntry[] {
+  return renderSnapshotEntries(nodes).map((entry) => ({
+    compare: entry.compareKey,
+    text: entry.displayLine,
+  }));
 }
