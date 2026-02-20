@@ -16,7 +16,7 @@
     "build": "rslib build",
     "clean:daemon": "rm -f ~/.agent-device/daemon.json && rm -f ~/.agent-device/daemon.lock",
     "build:node": "pnpm build && pnpm clean:daemon",
-    "build:xcuitest": "rm -rf ~/.agent-device/ios-runner/derived/device && AGENT_DEVICE_IOS_CLEAN_DERIVED=1 xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=iOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived",
+    "build:xcuitest": "rm -rf ~/.agent-device/ios-runner/derived/device && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=iOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
     "format": "prettier --write .",
