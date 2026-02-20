@@ -87,9 +87,9 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const contextLines = applyContextWindow(rawLines, 1);
   const lines = contextLines.map((line) => {
     const text = typeof line.text === 'string' ? line.text : '';
-    if (line.kind === 'added') return `+ ${text.trimStart()}`;
-    if (line.kind === 'removed') return `- ${text.trimStart()}`;
-    return `  ${text.trimStart()}`;
+    if (line.kind === 'added') return text.startsWith(' ') ? `+${text}` : `+ ${text}`;
+    if (line.kind === 'removed') return text.startsWith(' ') ? `-${text}` : `- ${text}`;
+    return text;
   });
   const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
   return `${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;

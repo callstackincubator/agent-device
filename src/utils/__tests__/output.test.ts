@@ -19,9 +19,9 @@ test('formatSnapshotDiffText renders unified diff lines with summary', () => {
   });
 
   assert.doesNotMatch(text, /^@e0 \[application\]$/m);
-  assert.match(text, /^  @e2 \[window\]/m);
-  assert.match(text, /^- @e3 \[other\] "67"$/m);
-  assert.match(text, /^\+ @e3 \[other\] "134"$/m);
+  assert.match(text, /^@e2 \[window\]/m);
+  assert.match(text, /^-  @e3 \[other\] "67"$/m);
+  assert.match(text, /^\+  @e3 \[other\] "134"$/m);
   assert.match(text, /^  @e5 \[button\] "Increment"$/m);
   assert.doesNotMatch(text, /^  @e6 \[text\] "Footer"$/m);
   assert.match(text, /2 additions, 2 removals, 4 unchanged/);
