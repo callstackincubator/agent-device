@@ -545,52 +545,55 @@ final class RunnerTests: XCTestCase {
   }
 
   private func executeOnMain(command: Command) throws -> Response {
-    let normalizedBundleId = command.appBundleId?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
-    if let bundleId = requestedBundleId {
-      if currentBundleId != bundleId || currentApp == nil {
-        _ = activateTarget(bundleId: bundleId, reason: "bundle_changed")
-      }
-    } else {
-      // Do not reuse stale bundle targets when the caller does not explicitly request one.
-      currentApp = nil
-      currentBundleId = nil
-    }
-
     var activeApp = currentApp ?? app
-    if let bundleId = requestedBundleId, targetNeedsActivation(activeApp) {
-      activeApp = activateTarget(bundleId: bundleId, reason: "stale_target")
-    } else if requestedBundleId == nil, targetNeedsActivation(activeApp) {
-      app.activate()
-      activeApp = app
-    }
-
-    if !activeApp.waitForExistence(timeout: appExistenceTimeout) {
+    if !isRunnerLifecycleCommand(command.command) {
+      let normalizedBundleId = command.appBundleId?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
       if let bundleId = requestedBundleId {
-        activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
-        guard activeApp.waitForExistence(timeout: appExistenceTimeout) else {
-          return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+        if currentBundleId != bundleId || currentApp == nil {
+          _ = activateTarget(bundleId: bundleId, reason: "bundle_changed")
         }
       } else {
-        return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
+        // Do not reuse stale bundle targets when the caller does not explicitly request one.
+        currentApp = nil
+        currentBundleId = nil
       }
-    }
 
-    if isInteractionCommand(command.command) {
-      if let bundleId = requestedBundleId, activeApp.state != .runningForeground {
-        activeApp = activateTarget(bundleId: bundleId, reason: "interaction_foreground_guard")
-      } else if requestedBundleId == nil, activeApp.state != .runningForeground {
+      activeApp = currentApp ?? app
+      if let bundleId = requestedBundleId, targetNeedsActivation(activeApp) {
+        activeApp = activateTarget(bundleId: bundleId, reason: "stale_target")
+      } else if requestedBundleId == nil, targetNeedsActivation(activeApp) {
         app.activate()
         activeApp = app
       }
-      if !activeApp.waitForExistence(timeout: 2) {
+
+      if !activeApp.waitForExistence(timeout: appExistenceTimeout) {
         if let bundleId = requestedBundleId {
-          return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+          activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
+          guard activeApp.waitForExistence(timeout: appExistenceTimeout) else {
+            return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+          }
+        } else {
+          return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
         }
-        return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
       }
-      applyInteractionStabilizationIfNeeded()
+
+      if isInteractionCommand(command.command) {
+        if let bundleId = requestedBundleId, activeApp.state != .runningForeground {
+          activeApp = activateTarget(bundleId: bundleId, reason: "interaction_foreground_guard")
+        } else if requestedBundleId == nil, activeApp.state != .runningForeground {
+          app.activate()
+          activeApp = app
+        }
+        if !activeApp.waitForExistence(timeout: 2) {
+          if let bundleId = requestedBundleId {
+            return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
+          }
+          return Response(ok: false, error: ErrorPayload(message: "runner app is not available"))
+        }
+        applyInteractionStabilizationIfNeeded()
+      }
     }
 
     switch command.command {
@@ -877,6 +880,15 @@ final class RunnerTests: XCTestCase {
   private func isInteractionCommand(_ command: CommandType) -> Bool {
     switch command {
     case .tap, .longPress, .drag, .type, .swipe, .back, .appSwitcher, .pinch:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func isRunnerLifecycleCommand(_ command: CommandType) -> Bool {
+    switch command {
+    case .shutdown, .recordStart, .recordStop:
       return true
     default:
       return false

@@ -57,21 +57,8 @@ export async function handleRecordTraceCommands(params: {
       }
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
-      emitDiagnostic({
-        level: 'debug',
-        phase: 'record_start_path_resolved',
-        data: {
-          rawOutPath: outPath,
-          requestCwd: req.meta?.cwd,
-          resolvedOutPath: resolvedOut,
-          platform: device.platform,
-          kind: device.kind,
-        },
-      });
       const outDir = path.dirname(resolvedOut);
-      if (!fs.existsSync(outDir)) {
-        fs.mkdirSync(outDir, { recursive: true });
-      }
+      fs.mkdirSync(outDir, { recursive: true });
       if (!isCommandSupportedOnDevice('record', device)) {
         return {
           ok: false,
