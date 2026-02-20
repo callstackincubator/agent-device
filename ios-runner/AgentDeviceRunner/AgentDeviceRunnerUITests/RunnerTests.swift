@@ -601,14 +601,23 @@ final class RunnerTests: XCTestCase {
       stopRecordingIfNeeded()
       return Response(ok: true, data: DataPayload(message: "shutdown"))
     case .recordStart:
-      guard let outPath = command.outPath?.trimmingCharacters(in: .whitespacesAndNewlines), !outPath.isEmpty else {
+      guard
+        let requestedOutPath = command.outPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !requestedOutPath.isEmpty
+      else {
         return Response(ok: false, error: ErrorPayload(message: "recordStart requires outPath"))
       }
       if activeRecording != nil {
         return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
       }
       do {
-        let recorder = ScreenRecorder(outputPath: outPath, fps: recordingFps)
+        let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
+        NSLog(
+          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@",
+          requestedOutPath,
+          resolvedOutPath
+        )
+        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: recordingFps)
         try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }
@@ -810,6 +819,13 @@ final class RunnerTests: XCTestCase {
       NSLog("AGENT_DEVICE_RUNNER_RECORD_STOP_FAILED=%@", String(describing: error))
     }
     activeRecording = nil
+  }
+
+  private func resolveRecordingOutPath(_ requestedOutPath: String) -> String {
+    let fileName = URL(fileURLWithPath: requestedOutPath).lastPathComponent
+    let fallbackName = "agent-device-recording-\(Int(Date().timeIntervalSince1970 * 1000)).mp4"
+    let safeFileName = fileName.isEmpty ? fallbackName : fileName
+    return (NSTemporaryDirectory() as NSString).appendingPathComponent(safeFileName)
   }
 
   private func targetNeedsActivation(_ target: XCUIApplication) -> Bool {

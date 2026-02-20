@@ -9,6 +9,8 @@ import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
+const IOS_RUNNER_BUNDLE_ID = process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID?.trim() || 'com.myapp.AgentDeviceRunner';
+
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
   return {
     verbose: req.flags?.verbose,
@@ -67,17 +69,19 @@ export async function handleRecordTraceCommands(params: {
       }
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
+        const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
+        const remotePath = `tmp/${recordingFileName}`;
         try {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: resolvedOut },
+            { command: 'recordStart', outPath: recordingFileName },
             runnerOptions,
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
         }
-        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut };
+        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, remotePath };
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
           allowFailure: true,
@@ -125,6 +129,31 @@ export async function handleRecordTraceCommands(params: {
         });
         // best effort: clear runner-backed recording state even if runner stop fails
       }
+      const copyResult = await deps.runCmd(
+        'xcrun',
+        [
+          'devicectl',
+          'device',
+          'copy',
+          'from',
+          '--device',
+          device.id,
+          '--source',
+          recording.remotePath,
+          '--destination',
+          recording.outPath,
+          '--domain-type',
+          'appDataContainer',
+          '--domain-identifier',
+          IOS_RUNNER_BUNDLE_ID,
+        ],
+        { allowFailure: true },
+      );
+      activeSession.recording = undefined;
+      if (copyResult.exitCode !== 0) {
+        const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
+        return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to copy recording from device: ${copyError}` } };
+      }
     } else {
       recording.child.kill('SIGINT');
       try {
@@ -140,8 +169,8 @@ export async function handleRecordTraceCommands(params: {
           // ignore
         }
       }
+      activeSession.recording = undefined;
     }
-    activeSession.recording = undefined;
     sessionStore.recordAction(activeSession, {
       command,
       positionals: req.positionals ?? [],

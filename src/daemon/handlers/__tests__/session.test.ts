@@ -898,7 +898,11 @@ test('close on iOS session with recording stops runner session before delete', a
         kind: 'device',
         booted: true,
       }),
-      recording: { platform: 'ios-device-runner', outPath: '/tmp/device-recording.mp4' },
+      recording: {
+        platform: 'ios-device-runner',
+        outPath: '/tmp/device-recording.mp4',
+        remotePath: 'tmp/device-recording.mp4',
+      },
     },
   );
 

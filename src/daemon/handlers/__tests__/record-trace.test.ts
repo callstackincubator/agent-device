@@ -49,6 +49,7 @@ async function runRecordCommand(params: {
 
 function makeIosDeviceRunnerDeps(
   runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }>,
+  runCmdCalls: Array<{ cmd: string; args: string[] }>,
 ): RecordTraceDeps {
   const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
     runnerCalls.push({
@@ -58,13 +59,13 @@ function makeIosDeviceRunnerDeps(
       logPath: options?.logPath,
       traceLogPath: options?.traceLogPath,
     });
-    if (command.command === 'recordStart' && command.outPath) {
-      fs.writeFileSync(command.outPath, 'test');
-    }
     return {};
   };
   return {
-    runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+    runCmd: async (cmd, args) => {
+      runCmdCalls.push({ cmd, args });
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
     runCmdBackground: () => {
       throw new Error('runCmdBackground should not be used for iOS devices');
     },
@@ -86,7 +87,8 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   sessionStore.set(sessionName, session);
 
   const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls);
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
+  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
   const responseStart = await runRecordCommand({
     sessionStore,
@@ -100,11 +102,16 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStart?.ok, true);
   assert.equal(runnerCalls.length, 1);
   assert.equal(runnerCalls[0]?.command, 'recordStart');
-  assert.equal(runnerCalls[0]?.outPath, finalOut);
+  assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
   assert.equal(runnerCalls[0]?.appBundleId, undefined);
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
-  assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'ios-device-runner');
+  const startedRecording = sessionStore.get(sessionName)?.recording;
+  assert.equal(startedRecording?.platform, 'ios-device-runner');
+  const stagedRemotePath = startedRecording && startedRecording.platform === 'ios-device-runner'
+    ? startedRecording.remotePath
+    : undefined;
+  assert.match(stagedRemotePath ?? '', /^tmp\/agent-device-recording-\d+\.mp4$/);
 
   const responseStop = await runRecordCommand({
     sessionStore,
@@ -119,9 +126,25 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls.length, 2);
   assert.equal(runnerCalls[1]?.command, 'recordStop');
   assert.equal(runnerCalls[1]?.appBundleId, undefined);
-  assert.equal(fs.existsSync(finalOut), true);
+  assert.equal(runCmdCalls.length, 1);
+  assert.equal(runCmdCalls[0]?.cmd, 'xcrun');
+  assert.deepEqual(runCmdCalls[0]?.args, [
+    'devicectl',
+    'device',
+    'copy',
+    'from',
+    '--device',
+    'ios-device-1',
+    '--source',
+    stagedRemotePath ?? '',
+    '--destination',
+    finalOut,
+    '--domain-type',
+    'appDataContainer',
+    '--domain-identifier',
+    'com.myapp.AgentDeviceRunner',
+  ]);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
-  fs.rmSync(finalOut, { force: true });
 });
 
 test('record start resolves relative output path from request cwd', async () => {
@@ -137,7 +160,8 @@ test('record start resolves relative output path from request cwd', async () => 
   sessionStore.set(sessionName, session);
 
   const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls);
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
+  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const cwd = '/tmp/agent-device-cwd-test';
   const responseStart = await runRecordCommand({
     sessionStore,
@@ -148,7 +172,13 @@ test('record start resolves relative output path from request cwd', async () => 
   });
 
   assert.equal(responseStart?.ok, true);
-  assert.equal(runnerCalls[0]?.outPath, path.join(cwd, 'device.mp4'));
+  assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
+  const startedRecording = sessionStore.get(sessionName)?.recording;
+  assert.equal(startedRecording?.platform, 'ios-device-runner');
+  if (startedRecording?.platform === 'ios-device-runner') {
+    assert.equal(startedRecording.outPath, path.join(cwd, 'device.mp4'));
+    assert.match(startedRecording.remotePath, /^tmp\/agent-device-recording-\d+\.mp4$/);
+  }
 
   await runRecordCommand({
     sessionStore,
@@ -157,6 +187,7 @@ test('record start resolves relative output path from request cwd', async () => 
     cwd,
     deps,
   });
+  assert.equal(runCmdCalls.length, 1);
 });
 
 test('record start returns structured error when iOS runner start fails', async () => {
@@ -202,15 +233,19 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       kind: 'device',
       booted: true,
     }),
-    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4' },
+    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4', remotePath: 'tmp/device.mp4' },
   });
 
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const response = await runRecordCommand({
     sessionStore,
     sessionName,
     positionals: ['stop'],
     deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmd: async (cmd, args) => {
+        runCmdCalls.push({ cmd, args });
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
       runCmdBackground: () => {
         throw new Error('runCmdBackground should not be used for iOS devices');
       },
@@ -222,6 +257,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
 
   assert.equal(response?.ok, true);
   assert.equal(response?.data?.recording, 'stopped');
+  assert.equal(runCmdCalls.length, 1);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
