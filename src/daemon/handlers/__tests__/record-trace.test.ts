@@ -105,7 +105,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls.length, 1);
   assert.equal(runnerCalls[0]?.command, 'recordStart');
   assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
-  assert.equal(runnerCalls[0]?.fps, 60);
+  assert.equal(runnerCalls[0]?.fps, undefined);
   assert.equal(runnerCalls[0]?.appBundleId, undefined);
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
@@ -176,7 +176,7 @@ test('record start resolves relative output path from request cwd', async () => 
 
   assert.equal(responseStart?.ok, true);
   assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
-  assert.equal(runnerCalls[0]?.fps, 60);
+  assert.equal(runnerCalls[0]?.fps, undefined);
   const startedRecording = sessionStore.get(sessionName)?.recording;
   assert.equal(startedRecording?.platform, 'ios-device-runner');
   if (startedRecording?.platform === 'ios-device-runner') {

@@ -40,7 +40,6 @@ final class RunnerTests: XCTestCase {
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
-  private let defaultRecordingFps: Int32 = 60
   private let minRecordingFps = 1
   private let maxRecordingFps = 120
   private var needsPostSnapshotInteractionDelay = false
@@ -76,9 +75,12 @@ final class RunnerTests: XCTestCase {
 
   private final class ScreenRecorder {
     private let outputPath: String
-    private let fps: Int32
+    private let fps: Int32?
+    private let uncappedFrameInterval: TimeInterval = 0.001
+    private let timestampTimescaleUncapped: Int32 = 600
     private var frameInterval: TimeInterval {
-      1.0 / Double(fps)
+      guard let fps else { return uncappedFrameInterval }
+      return 1.0 / Double(fps)
     }
     private let queue = DispatchQueue(label: "agent-device.runner.recorder")
     private let lock = NSLock()
@@ -92,7 +94,7 @@ final class RunnerTests: XCTestCase {
     private var startedSession = false
     private var startError: Error?
 
-    init(outputPath: String, fps: Int32) {
+    init(outputPath: String, fps: Int32?) {
       self.outputPath = outputPath
       self.fps = fps
     }
@@ -271,11 +273,12 @@ final class RunnerTests: XCTestCase {
         recordingStartUptime = nowUptime
       }
       let elapsed = max(0, nowUptime - (recordingStartUptime ?? nowUptime))
-      var timestampValue = Int64((elapsed * Double(fps)).rounded(.down))
+      let timescale = fps ?? timestampTimescaleUncapped
+      var timestampValue = Int64((elapsed * Double(timescale)).rounded(.down))
       if timestampValue <= lastTimestampValue {
         timestampValue = lastTimestampValue + 1
       }
-      let timestamp = CMTime(value: timestampValue, timescale: fps)
+      let timestamp = CMTime(value: timestampValue, timescale: timescale)
       if !adaptor.append(pixelBuffer, withPresentationTime: timestamp) {
         startError = writer.error ?? NSError(
           domain: "AgentDeviceRunner.Record",
@@ -625,19 +628,19 @@ final class RunnerTests: XCTestCase {
       if activeRecording != nil {
         return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
       }
-      let requestedFps = command.fps ?? Int(defaultRecordingFps)
-      if requestedFps < minRecordingFps || requestedFps > maxRecordingFps {
+      if let requestedFps = command.fps, (requestedFps < minRecordingFps || requestedFps > maxRecordingFps) {
         return Response(ok: false, error: ErrorPayload(message: "recordStart fps must be between \(minRecordingFps) and \(maxRecordingFps)"))
       }
       do {
         let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
+        let fpsLabel = command.fps.map(String.init) ?? "max"
         NSLog(
-          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%d",
+          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%@",
           requestedOutPath,
           resolvedOutPath,
-          requestedFps
+          fpsLabel
         )
-        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: Int32(requestedFps))
+        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: command.fps.map { Int32($0) })
         try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }

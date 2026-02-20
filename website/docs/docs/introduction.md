@@ -23,7 +23,7 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 - iOS core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS simulator-only: `alert`, `pinch`, `reinstall`, `settings`.
-- iOS `record` supports simulators and physical devices (runner-based on devices, 60 FPS default, configurable via `--fps`).
+- iOS `record` supports simulators and physical devices (runner-based on devices, uncapped max-available FPS by default, configurable via `--fps`).
 - Android support remains unchanged.
 
 ## Architecture (high level)

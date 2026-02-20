@@ -159,8 +159,8 @@ agent-device record stop                # Stop active recording
 ```
 
 - iOS `record` works on simulators and physical devices.
-- Physical-device capture is runner-based and defaults to 60 FPS.
-- `--fps <n>` (1-120) applies to physical iOS device recording.
+- Physical-device capture is runner-based and defaults to uncapped (max available) FPS.
+- `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
 
 ## iOS device prerequisites
 

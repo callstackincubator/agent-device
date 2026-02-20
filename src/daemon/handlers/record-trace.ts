@@ -28,7 +28,6 @@ const IOS_RUNNER_CONTAINER_BUNDLE_IDS = uniqueNonEmpty([
   'com.myapp.AgentDeviceRunnerUITests.xctrunner',
   'com.myapp.AgentDeviceRunner',
 ]);
-const IOS_DEVICE_RECORD_DEFAULT_FPS = 60;
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
 
@@ -108,7 +107,7 @@ export async function handleRecordTraceCommands(params: {
         try {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: recordingFileName, fps: fpsFlag ?? IOS_DEVICE_RECORD_DEFAULT_FPS },
+            { command: 'recordStart', outPath: recordingFileName, fps: fpsFlag },
             runnerOptions,
           );
         } catch (error) {
