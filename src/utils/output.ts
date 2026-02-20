@@ -84,10 +84,11 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
     return `Baseline initialized (${unchanged} lines).\n`;
   }
   const rawLines = Array.isArray(data.lines) ? (data.lines as SnapshotDiffLine[]) : [];
-  const lines = rawLines.map((line) => {
+  const contextLines = applyContextWindow(rawLines, 1);
+  const lines = contextLines.map((line) => {
     const text = typeof line.text === 'string' ? line.text : '';
-    if (line.kind === 'added') return `+${text}`;
-    if (line.kind === 'removed') return `-${text}`;
+    if (line.kind === 'added') return `+ ${text.trimStart()}`;
+    if (line.kind === 'removed') return `- ${text.trimStart()}`;
     return text;
   });
   const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
@@ -96,4 +97,23 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
 
 function toNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function applyContextWindow(lines: SnapshotDiffLine[], contextWindow: number): SnapshotDiffLine[] {
+  if (lines.length === 0) return lines;
+  const changedIndices = lines
+    .map((line, index) => ({ index, kind: line.kind }))
+    .filter((entry) => entry.kind === 'added' || entry.kind === 'removed')
+    .map((entry) => entry.index);
+  if (changedIndices.length === 0) return lines;
+
+  const keep = new Array<boolean>(lines.length).fill(false);
+  for (const index of changedIndices) {
+    const start = Math.max(0, index - contextWindow);
+    const end = Math.min(lines.length - 1, index + contextWindow);
+    for (let i = start; i <= end; i += 1) {
+      keep[i] = true;
+    }
+  }
+  return lines.filter((_, index) => keep[index]);
 }
