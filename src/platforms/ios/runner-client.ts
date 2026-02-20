@@ -23,7 +23,6 @@ export type RunnerCommand = {
     | 'type'
     | 'swipe'
     | 'findText'
-    | 'listTappables'
     | 'snapshot'
     | 'back'
     | 'home'
@@ -664,7 +663,7 @@ export function isRetryableRunnerError(err: unknown): boolean {
 }
 
 function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
-  return command === 'snapshot' || command === 'findText' || command === 'listTappables' || command === 'alert';
+  return command === 'snapshot' || command === 'findText' || command === 'alert';
 }
 
 function assertRunnerRequestActive(requestId: string | undefined): void {
