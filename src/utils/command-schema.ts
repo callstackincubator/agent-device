@@ -449,8 +449,8 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowsExtraPositionals: true,
     allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
   },
-  'long-press': {
-    description: 'Long press (where supported)',
+  longpress: {
+    description: 'Long press by coordinates (iOS and Android)',
     positionalArgs: ['x', 'y', 'durationMs?'],
     allowedFlags: [],
   },

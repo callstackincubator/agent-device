@@ -270,12 +270,12 @@ export async function dispatchCommand(
         pattern,
       };
     }
-    case 'long-press': {
+    case 'longpress': {
       const x = Number(positionals[0]);
       const y = Number(positionals[1]);
       const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
       if (Number.isNaN(x) || Number.isNaN(y)) {
-        throw new AppError('INVALID_ARGS', 'long-press requires x y [durationMs]');
+        throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
       }
       await interactor.longPress(x, y, durationMs);
       return { x, y, durationMs };

@@ -69,6 +69,13 @@ test('help appstate prints command help and skips daemon dispatch', async () => 
   assert.match(result.stdout, /Global flags:/);
 });
 
+test('help longpress prints command help and skips daemon dispatch', async () => {
+  const result = await runCliCapture(['help', 'longpress']);
+  assert.equal(result.code, 0);
+  assert.equal(result.daemonCalls, 0);
+  assert.match(result.stdout, /Usage:\n  agent-device longpress <x> <y> \[durationMs\]/);
+});
+
 test('appstate --help prints command help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['appstate', '--help']);
   assert.equal(result.code, 0);

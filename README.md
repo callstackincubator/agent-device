@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `longpress`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree), `appstate`, `apps`, `devices`.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -118,7 +118,7 @@ agent-device trace stop ./trace.log
 ```
 
 Coordinates:
-- All coordinate-based commands (`press`, `long-press`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
+- All coordinate-based commands (`press`, `longpress`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
 - `press` is the canonical tap command.
 - `click` is an equivalent alias and accepts the same targets (`x y`, `@ref`, selector) and flags.
@@ -136,7 +136,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `batch`
 - `snapshot`, `find`, `get`
-- `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
+- `press` (alias: `click`), `focus`, `type`, `fill`, `longpress`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
@@ -179,7 +179,7 @@ Pinch:
 Swipe timing:
 - `swipe` accepts optional `durationMs` (default `250`, range `16..10000`).
 - Android uses requested swipe duration directly.
-- iOS uses a safe normalized duration to avoid long-press side effects.
+- iOS uses a safe normalized duration to avoid longpress side effects.
 
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).
@@ -304,7 +304,7 @@ Diagnostics files:
 - Built-in aliases include `Settings` for both platforms.
 
 ## iOS notes
-- Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
+- Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `record`, `settings`.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 

@@ -140,6 +140,18 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
   assert.equal(parsed.flags.pattern, 'ping-pong');
 });
 
+test('parseArgs recognizes longpress command', () => {
+  const parsed = parseArgs(['longpress', '300', '500', '800'], { strictFlags: true });
+  assert.equal(parsed.command, 'longpress');
+  assert.deepEqual(parsed.positionals, ['300', '500', '800']);
+});
+
+test('usageForCommand resolves longpress help', () => {
+  const help = usageForCommand('longpress');
+  assert.equal(help === null, false);
+  assert.match(help ?? '', /agent-device longpress <x> <y> \[durationMs\]/);
+});
+
 test('parseArgs rejects invalid swipe pattern', () => {
   assert.throws(
     () => parseArgs(['swipe', '0', '0', '10', '10', '--pattern', 'diagonal']),

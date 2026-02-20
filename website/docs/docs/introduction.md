@@ -20,7 +20,7 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
+- iOS core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS simulator-only: `alert`, `pinch`, `record`, `reinstall`, `settings`.
 - Android support remains unchanged.
