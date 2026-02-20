@@ -64,9 +64,15 @@ agent-device snapshot -c               # Compact output
 agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
+agent-device diff snapshot             # Structural diff against previous session baseline
 ```
 
 XCTest is the iOS snapshot engine: fast, complete, and no Accessibility permission required.
+
+Snapshot diff notes:
+- First `diff snapshot` call initializes baseline for the current session.
+- Subsequent `diff snapshot` calls compare current UI to prior baseline and then update baseline.
+- Use this for compact change tracking between adjacent UI states.
 
 ### Find (semantic)
 
@@ -241,6 +247,11 @@ agent-device apps --platform android --user-installed
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
+- Prefer scoped snapshots (`-s "<label>"` or `-s @ref`) for screen-local tasks.
+- Add `-d <depth>` when only upper tree levels matter; avoid full-tree snapshots by default.
+- Use `diff snapshot` after mutations to detect structural changes with less output than full re-read.
+- Refresh refs immediately after navigation/modal/list mutations before issuing next ref-targeted action.
+- Use `--raw` only for debugging parser/tree edge-cases; avoid it for normal agent loops due to size.
 - On iOS, snapshots use XCTest and do not require Accessibility permission.
 - If XCTest returns 0 nodes (foreground app changed), treat it as an explicit failure and retry the flow/app state.
 - `open <app|url> [url]` can be used within an existing session to switch apps or open deep links.

@@ -16,14 +16,17 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { findSelectorChainMatch, splitSelectorFromArgs, tryParseSelectorChain, type SelectorChain } from '../selectors.ts';
 import { parseTimeout, POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS } from './parse-utils.ts';
+import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
 
 export async function handleSnapshotCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
+  dispatchSnapshotCommand?: typeof dispatchCommand;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore } = params;
+  const dispatchSnapshotCommand = params.dispatchSnapshotCommand ?? dispatchCommand;
   const command = req.command;
 
   if (command === 'snapshot') {
@@ -37,76 +40,135 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    const appBundleId = session?.appBundleId;
-    let snapshotScope = req.flags?.snapshotScope;
-    if (snapshotScope && snapshotScope.trim().startsWith('@')) {
-      if (!session?.snapshot) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'Ref scope requires an existing snapshot in session.',
-          },
-        };
-      }
-      const ref = normalizeRef(snapshotScope.trim());
-      if (!ref) {
-        return {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: `Invalid ref scope: ${snapshotScope}` },
-        };
-      }
-      const node = findNodeByRef(session.snapshot.nodes, ref);
-      const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
-      if (!resolved) {
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${snapshotScope} not found or has no label`,
-          },
-        };
-      }
-      snapshotScope = resolved;
-    }
+    const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
+    if (!resolvedScope.ok) return resolvedScope.response;
+
     return await withSessionlessRunnerCleanup(session, device, async () => {
-      const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
-        ...contextFromFlags(
-          logPath,
-          { ...req.flags, snapshotScope },
-          appBundleId,
-          session?.trace?.outPath,
-        ),
-      })) as {
-        nodes?: RawSnapshotNode[];
-        truncated?: boolean;
-        backend?: 'xctest' | 'android';
-      };
-      const rawNodes = data?.nodes ?? [];
-      const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
-      const snapshot: SnapshotState = {
-        nodes,
-        truncated: data?.truncated,
-        createdAt: Date.now(),
-        backend: data?.backend,
-      };
+      const appBundleId = session?.appBundleId;
+      const capture = await captureSnapshot({
+        dispatchSnapshotCommand,
+        device,
+        session,
+        req,
+        logPath,
+        snapshotScope: resolvedScope.scope,
+      });
       const nextSession: SessionState = session
-        ? { ...session, snapshot }
-        : { name: sessionName, device, createdAt: Date.now(), appBundleId, snapshot, actions: [] };
+        ? { ...session, snapshot: capture.snapshot }
+        : {
+          name: sessionName,
+          device,
+          createdAt: Date.now(),
+          appBundleId,
+          snapshot: capture.snapshot,
+          actions: [],
+        };
       recordIfSession(sessionStore, nextSession, req, {
-        nodes: nodes.length,
-        truncated: data?.truncated ?? false,
+        nodes: capture.snapshot.nodes.length,
+        truncated: capture.snapshot.truncated ?? false,
       });
       sessionStore.set(sessionName, nextSession);
       return {
         ok: true,
         data: {
-          nodes,
-          truncated: data?.truncated ?? false,
+          nodes: capture.snapshot.nodes,
+          truncated: capture.snapshot.truncated ?? false,
           appName: nextSession.appBundleId
             ? (nextSession.appName ?? nextSession.appBundleId)
             : undefined,
           appBundleId: nextSession.appBundleId,
+        },
+      };
+    });
+  }
+
+  if (command === 'diff') {
+    if (req.positionals?.[0] !== 'snapshot') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'diff currently supports only: diff snapshot',
+        },
+      };
+    }
+    const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
+    if (!isCommandSupportedOnDevice('diff', device)) {
+      return {
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'diff is not supported on this device',
+        },
+      };
+    }
+    const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
+    if (!resolvedScope.ok) return resolvedScope.response;
+
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      const appBundleId = session?.appBundleId;
+      const capture = await captureSnapshot({
+        dispatchSnapshotCommand,
+        device,
+        session,
+        req,
+        logPath,
+        snapshotScope: resolvedScope.scope,
+      });
+      const currentSnapshot = capture.snapshot;
+
+      if (!session?.snapshot) {
+        const unchanged = countSnapshotComparableLines(currentSnapshot.nodes);
+        const nextSession: SessionState = session
+          ? { ...session, snapshot: currentSnapshot }
+          : {
+            name: sessionName,
+            device,
+            createdAt: Date.now(),
+            appBundleId,
+            snapshot: currentSnapshot,
+            actions: [],
+          };
+        recordIfSession(sessionStore, nextSession, req, {
+          mode: 'snapshot',
+          baselineInitialized: true,
+          summary: {
+            additions: 0,
+            removals: 0,
+            unchanged,
+          },
+        });
+        sessionStore.set(sessionName, nextSession);
+        return {
+          ok: true,
+          data: {
+            mode: 'snapshot',
+            baselineInitialized: true,
+            summary: {
+              additions: 0,
+              removals: 0,
+              unchanged,
+            },
+            lines: [],
+          },
+        };
+      }
+
+      const diff = buildSnapshotDiff(session.snapshot.nodes, currentSnapshot.nodes);
+      const nextSession: SessionState = { ...session, snapshot: currentSnapshot };
+      recordIfSession(sessionStore, nextSession, req, {
+        mode: 'snapshot',
+        baselineInitialized: false,
+        summary: diff.summary,
+      });
+      sessionStore.set(sessionName, nextSession);
+      return {
+        ok: true,
+        data: {
+          mode: 'snapshot',
+          baselineInitialized: false,
+          summary: diff.summary,
+          lines: diff.lines,
         },
       };
     });
@@ -140,7 +202,7 @@ export async function handleSnapshotCommands(params: {
         const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         const start = Date.now();
         while (Date.now() - start < timeout) {
-          const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+          const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
             ...contextFromFlags(
               logPath,
               {
@@ -343,6 +405,87 @@ export async function handleSnapshotCommands(params: {
   }
 
   return null;
+}
+
+type CaptureSnapshotParams = {
+  dispatchSnapshotCommand: typeof dispatchCommand;
+  device: SessionState['device'];
+  session: SessionState | undefined;
+  req: DaemonRequest;
+  logPath: string;
+  snapshotScope?: string;
+};
+
+async function captureSnapshot(params: CaptureSnapshotParams): Promise<{ snapshot: SnapshotState }> {
+  const { dispatchSnapshotCommand, device, session, req, logPath, snapshotScope } = params;
+  const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
+    ...contextFromFlags(
+      logPath,
+      { ...req.flags, snapshotScope },
+      session?.appBundleId,
+      session?.trace?.outPath,
+    ),
+  })) as {
+    nodes?: RawSnapshotNode[];
+    truncated?: boolean;
+    backend?: 'xctest' | 'android';
+  };
+  const rawNodes = data?.nodes ?? [];
+  const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+  return {
+    snapshot: {
+      nodes,
+      truncated: data?.truncated,
+      createdAt: Date.now(),
+      backend: data?.backend,
+    },
+  };
+}
+
+function resolveSnapshotScope(
+  snapshotScope: string | undefined,
+  session: SessionState | undefined,
+): { ok: true; scope?: string } | { ok: false; response: DaemonResponse } {
+  if (!snapshotScope || !snapshotScope.trim().startsWith('@')) {
+    return { ok: true, scope: snapshotScope };
+  }
+  if (!session?.snapshot) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'Ref scope requires an existing snapshot in session.',
+        },
+      },
+    };
+  }
+  const ref = normalizeRef(snapshotScope.trim());
+  if (!ref) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `Invalid ref scope: ${snapshotScope}` },
+      },
+    };
+  }
+  const node = findNodeByRef(session.snapshot.nodes, ref);
+  const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
+  if (!resolved) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `Ref ${snapshotScope} not found or has no label`,
+        },
+      },
+    };
+  }
+  return { ok: true, scope: resolved };
 }
 
 type WaitParsed =

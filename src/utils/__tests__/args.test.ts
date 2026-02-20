@@ -227,6 +227,16 @@ test('snapshot command accepts command-specific flags', () => {
   assert.equal(parsed.flags.snapshotScope, 'Login');
 });
 
+test('diff snapshot command accepts snapshot flags', () => {
+  const parsed = parseArgs(['diff', 'snapshot', '-i', '--depth', '4', '--scope', 'Counter', '--raw'], { strictFlags: true });
+  assert.equal(parsed.command, 'diff');
+  assert.deepEqual(parsed.positionals, ['snapshot']);
+  assert.equal(parsed.flags.snapshotInteractiveOnly, true);
+  assert.equal(parsed.flags.snapshotDepth, 4);
+  assert.equal(parsed.flags.snapshotScope, 'Counter');
+  assert.equal(parsed.flags.snapshotRaw, true);
+});
+
 test('unknown short flags are rejected', () => {
   assert.throws(
     () => parseArgs(['press', '10', '20', '-x'], { strictFlags: true }),
@@ -290,6 +300,7 @@ test('invalid range errors are deterministic', () => {
 
 test('usage includes swipe and press series options', () => {
   const help = usage();
+  assert.match(help, /diff snapshot/);
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
