@@ -36,7 +36,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   screenshot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   scroll: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   scrollintoview: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
-  swipe: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  swipe: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   settings: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   snapshot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   type: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
