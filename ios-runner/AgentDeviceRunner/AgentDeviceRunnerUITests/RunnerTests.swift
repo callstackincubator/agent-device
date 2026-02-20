@@ -40,6 +40,7 @@ final class RunnerTests: XCTestCase {
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
+  private let scrollInteractionIdleTimeoutDefault: TimeInterval = 1.0
   private let minRecordingFps = 1
   private let maxRecordingFps = 120
   private var needsPostSnapshotInteractionDelay = false
@@ -712,7 +713,9 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
-      dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      }
       return Response(ok: true, data: DataPayload(message: "dragged"))
     case .dragSeries:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
@@ -725,12 +728,14 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
-      runSeries(count: count, pauseMs: pauseMs) { idx in
-        let reverse = pattern == "ping-pong" && (idx % 2 == 1)
-        if reverse {
-          dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
-        } else {
-          dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        runSeries(count: count, pauseMs: pauseMs) { idx in
+          let reverse = pattern == "ping-pong" && (idx % 2 == 1)
+          if reverse {
+            dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+          } else {
+            dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+          }
         }
       }
       return Response(ok: true, data: DataPayload(message: "drag series"))
@@ -756,7 +761,9 @@ final class RunnerTests: XCTestCase {
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
       }
-      swipe(app: activeApp, direction: direction)
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        swipe(app: activeApp, direction: direction)
+      }
       return Response(ok: true, data: DataPayload(message: "swiped"))
     case .findText:
       guard let text = command.text else {
@@ -882,6 +889,38 @@ final class RunnerTests: XCTestCase {
     currentBundleId = bundleId
     needsFirstInteractionDelay = true
     return target
+  }
+
+  private func withTemporaryScrollIdleTimeoutIfSupported(
+    _ target: XCUIApplication,
+    operation: () -> Void
+  ) {
+    let setter = NSSelectorFromString("setWaitForIdleTimeout:")
+    guard target.responds(to: setter) else {
+      operation()
+      return
+    }
+    let previous = target.value(forKey: "waitForIdleTimeout") as? NSNumber
+    target.setValue(resolveScrollInteractionIdleTimeout(), forKey: "waitForIdleTimeout")
+    defer {
+      if let previous {
+        target.setValue(previous.doubleValue, forKey: "waitForIdleTimeout")
+      }
+    }
+    operation()
+  }
+
+  private func resolveScrollInteractionIdleTimeout() -> TimeInterval {
+    guard
+      let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_IOS_INTERACTION_IDLE_TIMEOUT"],
+      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      return scrollInteractionIdleTimeoutDefault
+    }
+    guard let parsed = Double(raw), parsed >= 0 else {
+      return scrollInteractionIdleTimeoutDefault
+    }
+    return min(parsed, 30)
   }
 
   private func shouldRetryCommand(_ command: Command) -> Bool {

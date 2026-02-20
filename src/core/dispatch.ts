@@ -219,7 +219,7 @@ export async function dispatchCommand(
 
       const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
       const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
-      const effectiveDurationMs = device.platform === 'ios' ? 60 : durationMs;
+      const effectiveDurationMs = device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
       const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
       const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
       const pattern = context?.pattern ?? 'one-way';
@@ -509,6 +509,11 @@ function requireIntInRange(value: number, name: string, min: number, max: number
     throw new AppError('INVALID_ARGS', `${name} must be an integer between ${min} and ${max}`);
   }
   return value;
+}
+
+function clampIosSwipeDuration(durationMs: number): number {
+  // Keep iOS swipes stable while allowing explicit fast durations for scroll-heavy flows.
+  return Math.min(60, Math.max(16, Math.round(durationMs)));
 }
 
 export function shouldUseIosTapSeries(

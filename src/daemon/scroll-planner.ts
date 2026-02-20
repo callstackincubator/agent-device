@@ -38,22 +38,27 @@ export function resolveViewportRect(nodes: RawSnapshotNode[], targetRect: Rect):
 
 export function buildScrollIntoViewPlan(targetRect: Rect, viewportRect: Rect): ScrollIntoViewPlan | null {
   const viewportHeight = Math.max(1, viewportRect.height);
+  const viewportWidth = Math.max(1, viewportRect.width);
   const viewportTop = viewportRect.y;
   const viewportBottom = viewportRect.y + viewportHeight;
+  const viewportLeft = viewportRect.x;
+  const viewportRight = viewportRect.x + viewportWidth;
   const safeTop = viewportTop + viewportHeight * 0.25;
   const safeBottom = viewportBottom - viewportHeight * 0.25;
+  const lanePaddingPx = Math.max(8, viewportWidth * 0.1);
   const targetCenterY = targetRect.y + targetRect.height / 2;
+  const targetCenterX = targetRect.x + targetRect.width / 2;
 
   if (targetCenterY >= safeTop && targetCenterY <= safeBottom) {
     return null;
   }
 
-  const x = Math.round(viewportRect.x + viewportRect.width / 2);
-  const dragUpStartY = Math.round(viewportTop + viewportHeight * 0.78);
-  const dragUpEndY = Math.round(viewportTop + viewportHeight * 0.22);
+  const x = Math.round(clamp(targetCenterX, viewportLeft + lanePaddingPx, viewportRight - lanePaddingPx));
+  const dragUpStartY = Math.round(viewportTop + viewportHeight * 0.86);
+  const dragUpEndY = Math.round(viewportTop + viewportHeight * 0.14);
   const dragDownStartY = dragUpEndY;
   const dragDownEndY = dragUpStartY;
-  const swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY) * 0.9);
+  const swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY));
 
   if (targetCenterY > safeBottom) {
     const delta = targetCenterY - safeBottom;
@@ -110,4 +115,8 @@ function pickLargestRect(rects: Rect[]): Rect | null {
 
 function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
