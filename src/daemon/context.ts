@@ -1,6 +1,8 @@
 import type { CommandFlags } from '../core/dispatch.ts';
+import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
 export type DaemonCommandContext = {
+  requestId?: string;
   appBundleId?: string;
   activity?: string;
   verbose?: boolean;
@@ -25,8 +27,11 @@ export function contextFromFlags(
   flags: CommandFlags | undefined,
   appBundleId?: string,
   traceLogPath?: string,
+  requestId?: string,
 ): DaemonCommandContext {
+  const effectiveRequestId = requestId ?? getDiagnosticsMeta().requestId;
   return {
+    requestId: effectiveRequestId,
     appBundleId,
     activity: flags?.activity,
     verbose: flags?.verbose,

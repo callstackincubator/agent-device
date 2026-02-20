@@ -21,8 +21,10 @@ import {
   screenshotIos,
 } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
+import { isRequestCanceled } from '../daemon/request-cancel.ts';
 
 export type RunnerContext = {
+  requestId?: string;
   appBundleId?: string;
   verbose?: boolean;
   logPath?: string;
@@ -85,7 +87,16 @@ type IoRunnerOverrides = Pick<
 >;
 
 function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
-  const runnerOpts = { verbose: ctx.verbose, logPath: ctx.logPath, traceLogPath: ctx.traceLogPath };
+  const runnerOpts = {
+    verbose: ctx.verbose,
+    logPath: ctx.logPath,
+    traceLogPath: ctx.traceLogPath,
+    requestId: ctx.requestId,
+  };
+  const throwIfCanceled = () => {
+    if (!isRequestCanceled(ctx.requestId)) return;
+    throw new AppError('COMMAND_FAILED', 'request canceled');
+  };
 
   return {
     tap: async (x, y) => {
@@ -154,20 +165,34 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
       );
     },
     scrollIntoView: async (text) => {
-      const maxAttempts = 8;
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.
+      const initial = (await runIosRunnerCommand(
+        device,
+        { command: 'findText', text, appBundleId: ctx.appBundleId },
+        runnerOpts,
+      )) as { found?: boolean };
+      if (initial?.found) return { attempts: 1 };
+
+      const maxBursts = 12;
+      const swipesPerBurst = 4;
+      for (let burst = 0; burst < maxBursts; burst += 1) {
+        for (let i = 0; i < swipesPerBurst; i += 1) {
+          throwIfCanceled();
+          await runIosRunnerCommand(
+            device,
+            { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
+            runnerOpts,
+          );
+          // Small settle keeps gesture chain stable without long visible pauses.
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        throwIfCanceled();
         const found = (await runIosRunnerCommand(
           device,
           { command: 'findText', text, appBundleId: ctx.appBundleId },
           runnerOpts,
         )) as { found?: boolean };
-        if (found?.found) return { attempts: attempt + 1 };
-        await runIosRunnerCommand(
-          device,
-          { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        if (found?.found) return { attempts: burst + 2 };
       }
       throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`);
     },

@@ -11,6 +11,7 @@ import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
+import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 
 export type RunnerCommand = {
   command:
@@ -66,6 +67,7 @@ export type RunnerSession = {
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
+const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
 const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
   45_000,
@@ -73,7 +75,7 @@ const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
 );
 const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_COMMAND_TIMEOUT_MS,
-  15_000,
+  45_000,
   1_000,
 );
 const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = resolveTimeoutMs(
@@ -93,7 +95,7 @@ const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = resolveTimeoutMs(
 );
 const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_REQUEST_TIMEOUT_MS,
-  5_000,
+  20_000,
   250,
 );
 const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
@@ -125,13 +127,22 @@ export type RunnerSnapshotNode = {
 export async function runIosRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
   validateRunnerDevice(device);
+  assertRunnerRequestActive(options.requestId);
   if (isReadOnlyRunnerCommand(command.command)) {
     return withRetry(
-      () => executeRunnerCommand(device, command, options),
-      { shouldRetry: isRetryableRunnerError },
+      () => {
+        assertRunnerRequestActive(options.requestId);
+        return executeRunnerCommand(device, command, options);
+      },
+      {
+        shouldRetry: (error) => {
+          assertRunnerRequestActive(options.requestId);
+          return isRetryableRunnerError(error);
+        },
+      },
     );
   }
   return executeRunnerCommand(device, command, options);
@@ -144,8 +155,9 @@ function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Pro
 async function executeRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
+  assertRunnerRequestActive(options.requestId);
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);
@@ -166,6 +178,7 @@ async function executeRunnerCommand(
       shouldRetryRunnerConnectError(appErr) &&
       session?.ready
     ) {
+      assertRunnerRequestActive(options.requestId);
       if (session) {
         await stopRunnerSession(session);
       } else {
@@ -229,12 +242,38 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   });
 }
 
+export async function abortAllIosRunnerSessions(): Promise<void> {
+  const activeSessions = Array.from(runnerSessions.values());
+  const prepProcesses = Array.from(runnerPrepProcesses);
+  await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGINT');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGINT');
+  }));
+  await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGTERM');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGTERM');
+  }));
+  await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGKILL');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGKILL');
+    runnerPrepProcesses.delete(child);
+  }));
+}
+
 export async function stopAllIosRunnerSessions(): Promise<void> {
+  await abortAllIosRunnerSessions();
   // Shutdown cleanup drains the sessions known at invocation time; daemon shutdown closes intake.
   const pending = Array.from(runnerSessions.keys());
   await Promise.allSettled(pending.map(async (deviceId) => {
     await stopIosRunnerSession(deviceId);
   }));
+  await stopAllRunnerPrepProcesses();
 }
 
 async function stopRunnerSession(session: RunnerSession): Promise<void> {
@@ -322,6 +361,7 @@ async function ensureRunnerSession(
       {
         allowFailure: true,
         env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
+        detached: true,
       },
     );
     child.stdout?.on('data', (chunk: string) => {
@@ -353,15 +393,21 @@ function isRunnerProcessAlive(pid: number | undefined): boolean {
 
 async function killRunnerProcessTree(
   pid: number | undefined,
-  signal: 'SIGTERM' | 'SIGKILL',
+  signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL',
 ): Promise<void> {
   if (!pid || pid <= 0) return;
+  // xcodebuild is spawned detached for runner flows, so negative PID targets its process group.
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // ignore
+  }
   try {
     process.kill(pid, signal);
   } catch {
     // ignore
   }
-  const pkillSignal = signal === 'SIGTERM' ? 'TERM' : 'KILL';
+  const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
   try {
     await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
   } catch {
@@ -416,6 +462,13 @@ async function ensureXctestrun(
         ...signingBuildSettings,
       ],
       {
+        detached: true,
+        onSpawn: (child) => {
+          runnerPrepProcesses.add(child);
+          child.on('close', () => {
+            runnerPrepProcesses.delete(child);
+          });
+        },
         onStdoutChunk: (chunk) => {
           logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
         },
@@ -440,6 +493,18 @@ async function ensureXctestrun(
     throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
   }
   return built;
+}
+
+async function stopAllRunnerPrepProcesses(): Promise<void> {
+  const prepProcesses = Array.from(runnerPrepProcesses);
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    try {
+      await killRunnerProcessTree(child.pid, 'SIGTERM');
+      await killRunnerProcessTree(child.pid, 'SIGKILL');
+    } finally {
+      runnerPrepProcesses.delete(child);
+    }
+  }));
 }
 
 function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
@@ -594,6 +659,11 @@ export function isRetryableRunnerError(err: unknown): boolean {
 
 function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return command === 'snapshot' || command === 'findText' || command === 'listTappables' || command === 'alert';
+}
+
+function assertRunnerRequestActive(requestId: string | undefined): void {
+  if (!isRequestCanceled(requestId)) return;
+  throw new AppError('COMMAND_FAILED', 'request canceled');
 }
 
 function shouldCleanDerived(): boolean {
