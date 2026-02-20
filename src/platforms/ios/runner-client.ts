@@ -74,7 +74,7 @@ const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
 );
 const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_COMMAND_TIMEOUT_MS,
-  15_000,
+  45_000,
   1_000,
 );
 const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = resolveTimeoutMs(
@@ -94,7 +94,7 @@ const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = resolveTimeoutMs(
 );
 const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_CONNECT_REQUEST_TIMEOUT_MS,
-  5_000,
+  20_000,
   250,
 );
 const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
