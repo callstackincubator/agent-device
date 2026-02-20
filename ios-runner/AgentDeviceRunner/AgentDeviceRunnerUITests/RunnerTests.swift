@@ -86,7 +86,8 @@ final class RunnerTests: XCTestCase {
     private var writerInput: AVAssetWriterInput?
     private var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
     private var timer: DispatchSourceTimer?
-    private var frameCount: Int64 = 0
+    private var recordingStartUptime: TimeInterval?
+    private var lastTimestampValue: Int64 = -1
     private var isStopping = false
     private var startedSession = false
     private var startError: Error?
@@ -164,7 +165,8 @@ final class RunnerTests: XCTestCase {
       assetWriter = writer
       writerInput = input
       pixelBufferAdaptor = adaptor
-      frameCount = 0
+      recordingStartUptime = nil
+      lastTimestampValue = -1
       isStopping = false
       startedSession = false
       startError = nil
@@ -234,6 +236,8 @@ final class RunnerTests: XCTestCase {
       assetWriter = nil
       writerInput = nil
       pixelBufferAdaptor = nil
+      recordingStartUptime = nil
+      lastTimestampValue = -1
       startedSession = false
       startError = nil
       lock.unlock()
@@ -262,7 +266,16 @@ final class RunnerTests: XCTestCase {
       }
       guard input.isReadyForMoreMediaData else { return }
       guard let pixelBuffer = makePixelBuffer(from: cgImage) else { return }
-      let timestamp = CMTime(value: frameCount, timescale: fps)
+      let nowUptime = ProcessInfo.processInfo.systemUptime
+      if recordingStartUptime == nil {
+        recordingStartUptime = nowUptime
+      }
+      let elapsed = max(0, nowUptime - (recordingStartUptime ?? nowUptime))
+      var timestampValue = Int64((elapsed * Double(fps)).rounded(.down))
+      if timestampValue <= lastTimestampValue {
+        timestampValue = lastTimestampValue + 1
+      }
+      let timestamp = CMTime(value: timestampValue, timescale: fps)
       if !adaptor.append(pixelBuffer, withPresentationTime: timestamp) {
         startError = writer.error ?? NSError(
           domain: "AgentDeviceRunner.Record",
@@ -271,7 +284,7 @@ final class RunnerTests: XCTestCase {
         )
         return
       }
-      frameCount += 1
+      lastTimestampValue = timestampValue
     }
 
     private func shouldStop() -> Bool {
