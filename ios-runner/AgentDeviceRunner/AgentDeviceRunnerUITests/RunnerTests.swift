@@ -7,6 +7,9 @@
 
 import XCTest
 import Network
+import AVFoundation
+import CoreVideo
+import UIKit
 
 final class RunnerTests: XCTestCase {
   private enum RunnerErrorDomain {
@@ -37,8 +40,11 @@ final class RunnerTests: XCTestCase {
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
+  private let recordingFps: Int32 = 8
+  private let recordingFrameInterval: TimeInterval = 1.0 / 8.0
   private var needsPostSnapshotInteractionDelay = false
   private var needsFirstInteractionDelay = false
+  private var activeRecording: ScreenRecorder?
   private let interactiveTypes: Set<XCUIElement.ElementType> = [
     .button,
     .cell,
@@ -66,6 +72,236 @@ final class RunnerTests: XCTestCase {
     .checkBox,
     .switch,
   ]
+
+  private final class ScreenRecorder {
+    private let outputPath: String
+    private let fps: Int32
+    private let frameInterval: TimeInterval
+    private let queue = DispatchQueue(label: "agent-device.runner.recorder")
+    private let lock = NSLock()
+    private var assetWriter: AVAssetWriter?
+    private var writerInput: AVAssetWriterInput?
+    private var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
+    private var timer: DispatchSourceTimer?
+    private var frameCount: Int64 = 0
+    private var isStopping = false
+    private var startedSession = false
+    private var startError: Error?
+
+    init(outputPath: String, fps: Int32, frameInterval: TimeInterval) {
+      self.outputPath = outputPath
+      self.fps = fps
+      self.frameInterval = frameInterval
+    }
+
+    func start(captureFrame: @escaping () -> UIImage?) throws {
+      let url = URL(fileURLWithPath: outputPath)
+      let directory = url.deletingLastPathComponent()
+      try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true,
+        attributes: nil
+      )
+      if FileManager.default.fileExists(atPath: outputPath) {
+        try FileManager.default.removeItem(atPath: outputPath)
+      }
+
+      var dimensions: CGSize = .zero
+      var bootstrapImage: UIImage?
+      let bootstrapDeadline = Date().addingTimeInterval(2.0)
+      while Date() < bootstrapDeadline {
+        if let image = captureFrame(), let cgImage = image.cgImage {
+          bootstrapImage = image
+          dimensions = CGSize(width: cgImage.width, height: cgImage.height)
+          break
+        }
+        Thread.sleep(forTimeInterval: 0.05)
+      }
+      guard dimensions.width > 0, dimensions.height > 0 else {
+        throw NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "failed to capture initial frame"]
+        )
+      }
+
+      let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+      let outputSettings: [String: Any] = [
+        AVVideoCodecKey: AVVideoCodecType.h264,
+        AVVideoWidthKey: Int(dimensions.width),
+        AVVideoHeightKey: Int(dimensions.height),
+      ]
+      let input = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
+      input.expectsMediaDataInRealTime = true
+      let attributes: [String: Any] = [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
+        kCVPixelBufferWidthKey as String: Int(dimensions.width),
+        kCVPixelBufferHeightKey as String: Int(dimensions.height),
+      ]
+      let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+        assetWriterInput: input,
+        sourcePixelBufferAttributes: attributes
+      )
+      guard writer.canAdd(input) else {
+        throw NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 2,
+          userInfo: [NSLocalizedDescriptionKey: "failed to add video input"]
+        )
+      }
+      writer.add(input)
+      guard writer.startWriting() else {
+        throw writer.error ?? NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 3,
+          userInfo: [NSLocalizedDescriptionKey: "failed to start writing"]
+        )
+      }
+
+      lock.lock()
+      assetWriter = writer
+      writerInput = input
+      pixelBufferAdaptor = adaptor
+      frameCount = 0
+      isStopping = false
+      startedSession = false
+      startError = nil
+      lock.unlock()
+
+      if let firstImage = bootstrapImage {
+        append(image: firstImage)
+      }
+
+      let timer = DispatchSource.makeTimerSource(queue: queue)
+      timer.schedule(deadline: .now() + frameInterval, repeating: frameInterval)
+      timer.setEventHandler { [weak self] in
+        guard let self else { return }
+        if self.isStopping { return }
+        guard let image = captureFrame() else { return }
+        self.append(image: image)
+      }
+      self.timer = timer
+      timer.resume()
+    }
+
+    func stop() throws {
+      var writer: AVAssetWriter?
+      var input: AVAssetWriterInput?
+      var appendError: Error?
+      lock.lock()
+      if isStopping {
+        lock.unlock()
+        return
+      }
+      isStopping = true
+      let activeTimer = timer
+      timer = nil
+      writer = assetWriter
+      input = writerInput
+      appendError = startError
+      lock.unlock()
+
+      activeTimer?.cancel()
+      input?.markAsFinished()
+      guard let writer else { return }
+
+      let semaphore = DispatchSemaphore(value: 0)
+      writer.finishWriting {
+        semaphore.signal()
+      }
+      var stopFailure: Error?
+      let waitResult = semaphore.wait(timeout: .now() + 10)
+      if waitResult == .timedOut {
+        writer.cancelWriting()
+        stopFailure = NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 6,
+          userInfo: [NSLocalizedDescriptionKey: "recording finalization timed out"]
+        )
+      } else if let appendError {
+        stopFailure = appendError
+      } else if writer.status == .failed {
+        stopFailure = writer.error ?? NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 4,
+          userInfo: [NSLocalizedDescriptionKey: "failed to finalize recording"]
+        )
+      }
+
+      lock.lock()
+      assetWriter = nil
+      writerInput = nil
+      pixelBufferAdaptor = nil
+      startedSession = false
+      startError = nil
+      lock.unlock()
+
+      if let stopFailure {
+        throw stopFailure
+      }
+    }
+
+    private func append(image: UIImage) {
+      guard let cgImage = image.cgImage else { return }
+      lock.lock()
+      defer { lock.unlock() }
+      if isStopping { return }
+      if let startError { return }
+      guard
+        let writer = assetWriter,
+        let input = writerInput,
+        let adaptor = pixelBufferAdaptor
+      else {
+        return
+      }
+      if !startedSession {
+        writer.startSession(atSourceTime: .zero)
+        startedSession = true
+      }
+      guard input.isReadyForMoreMediaData else { return }
+      guard let pixelBuffer = makePixelBuffer(from: cgImage) else { return }
+      let timestamp = CMTime(value: frameCount, timescale: fps)
+      if !adaptor.append(pixelBuffer, withPresentationTime: timestamp) {
+        startError = writer.error ?? NSError(
+          domain: "AgentDeviceRunner.Record",
+          code: 5,
+          userInfo: [NSLocalizedDescriptionKey: "failed to append frame"]
+        )
+        return
+      }
+      frameCount += 1
+    }
+
+    private func makePixelBuffer(from image: CGImage) -> CVPixelBuffer? {
+      guard let adaptor = pixelBufferAdaptor else { return nil }
+      var pixelBuffer: CVPixelBuffer?
+      guard let pool = adaptor.pixelBufferPool else { return nil }
+      let status = CVPixelBufferPoolCreatePixelBuffer(
+        nil,
+        pool,
+        &pixelBuffer
+      )
+      guard status == kCVReturnSuccess, let pixelBuffer else { return nil }
+
+      CVPixelBufferLockBaseAddress(pixelBuffer, [])
+      defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+      guard
+        let context = CGContext(
+          data: CVPixelBufferGetBaseAddress(pixelBuffer),
+          width: image.width,
+          height: image.height,
+          bitsPerComponent: 8,
+          bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+          space: CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+        )
+      else {
+        return nil
+      }
+      context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+      return pixelBuffer
+    }
+  }
 
   override func setUp() {
     continueAfterFailure = true
@@ -304,6 +540,7 @@ final class RunnerTests: XCTestCase {
 
   private func executeOnMain(command: Command) throws -> Response {
     if command.command == .shutdown {
+      stopRecordingIfNeeded()
       return Response(ok: true, data: DataPayload(message: "shutdown"))
     }
 
@@ -357,7 +594,38 @@ final class RunnerTests: XCTestCase {
 
     switch command.command {
     case .shutdown:
+      stopRecordingIfNeeded()
       return Response(ok: true, data: DataPayload(message: "shutdown"))
+    case .recordStart:
+      guard let outPath = command.outPath?.trimmingCharacters(in: .whitespacesAndNewlines), !outPath.isEmpty else {
+        return Response(ok: false, error: ErrorPayload(message: "recordStart requires outPath"))
+      }
+      if activeRecording != nil {
+        return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
+      }
+      do {
+        let recorder = ScreenRecorder(outputPath: outPath, fps: recordingFps, frameInterval: recordingFrameInterval)
+        try recorder.start { [weak self] in
+          return self?.captureRunnerFrame()
+        }
+        activeRecording = recorder
+        return Response(ok: true, data: DataPayload(message: "recording started"))
+      } catch {
+        activeRecording = nil
+        return Response(ok: false, error: ErrorPayload(message: "failed to start recording: \(error.localizedDescription)"))
+      }
+    case .recordStop:
+      guard let recorder = activeRecording else {
+        return Response(ok: false, error: ErrorPayload(message: "no active recording"))
+      }
+      do {
+        try recorder.stop()
+        activeRecording = nil
+        return Response(ok: true, data: DataPayload(message: "recording stopped"))
+      } catch {
+        activeRecording = nil
+        return Response(ok: false, error: ErrorPayload(message: "failed to stop recording: \(error.localizedDescription)"))
+      }
     case .tap:
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
@@ -514,6 +782,30 @@ final class RunnerTests: XCTestCase {
       pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
       return Response(ok: true, data: DataPayload(message: "pinched"))
     }
+  }
+
+  private func captureRunnerFrame() -> UIImage? {
+    var image: UIImage?
+    let capture = {
+      let screenshot = XCUIScreen.main.screenshot()
+      image = UIImage(data: screenshot.pngRepresentation)
+    }
+    if Thread.isMainThread {
+      capture()
+    } else {
+      DispatchQueue.main.sync(execute: capture)
+    }
+    return image
+  }
+
+  private func stopRecordingIfNeeded() {
+    guard let recorder = activeRecording else { return }
+    do {
+      try recorder.stop()
+    } catch {
+      NSLog("AGENT_DEVICE_RUNNER_RECORD_STOP_FAILED=%@", String(describing: error))
+    }
+    activeRecording = nil
   }
 
   private func targetNeedsActivation(_ target: XCUIApplication) -> Bool {
@@ -1369,6 +1661,8 @@ enum CommandType: String, Codable {
   case appSwitcher
   case alert
   case pinch
+  case recordStart
+  case recordStop
   case shutdown
 }
 
@@ -1397,6 +1691,7 @@ struct Command: Codable {
   let durationMs: Double?
   let direction: SwipeDirection?
   let scale: Double?
+  let outPath: String?
   let interactiveOnly: Bool?
   let compact: Bool?
   let depth: Int?

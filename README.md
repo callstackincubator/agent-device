@@ -305,7 +305,8 @@ Diagnostics files:
 
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
-- Simulator-only commands: `alert`, `pinch`, `record`, `settings`.
+- Simulator-only commands: `alert`, `pinch`, `settings`.
+- `record` supports iOS simulators and physical iOS devices (runner-based on devices; lower FPS than simulator-native capture).
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing

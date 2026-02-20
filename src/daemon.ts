@@ -113,6 +113,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           req,
           sessionName,
           sessionStore,
+          logPath,
         });
         if (recordTraceResponse) return finalizeDaemonResponse(recordTraceResponse);
 

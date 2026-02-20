@@ -44,13 +44,18 @@ export type SessionState = {
   recordSession?: boolean;
   saveScriptPath?: string;
   actions: SessionAction[];
-  recording?: {
-    platform: 'ios' | 'android';
-    outPath: string;
-    remotePath?: string;
-    child: ReturnType<typeof import('node:child_process').spawn>;
-    wait: Promise<ExecResult>;
-  };
+  recording?:
+    | {
+      platform: 'ios' | 'android';
+      outPath: string;
+      remotePath?: string;
+      child: ReturnType<typeof import('node:child_process').spawn>;
+      wait: Promise<ExecResult>;
+    }
+    | {
+      platform: 'ios-device-runner';
+      outPath: string;
+    };
 };
 
 export type SessionAction = {

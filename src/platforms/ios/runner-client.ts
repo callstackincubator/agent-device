@@ -30,6 +30,8 @@ export type RunnerCommand = {
     | 'appSwitcher'
     | 'alert'
     | 'pinch'
+    | 'recordStart'
+    | 'recordStop'
     | 'shutdown';
   appBundleId?: string;
   text?: string;
@@ -46,6 +48,7 @@ export type RunnerCommand = {
   durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   scale?: number;
+  outPath?: string;
   interactiveOnly?: boolean;
   compact?: boolean;
   depth?: number;

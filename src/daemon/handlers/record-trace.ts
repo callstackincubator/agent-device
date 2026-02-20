@@ -3,6 +3,7 @@ import path from 'node:path';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -11,8 +12,15 @@ export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
+  logPath?: string;
+  deps?: {
+    runCmd: typeof runCmd;
+    runCmdBackground: typeof runCmdBackground;
+    runIosRunnerCommand: typeof runIosRunnerCommand;
+  };
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, sessionStore } = params;
+  const { req, sessionName, sessionStore, logPath } = params;
+  const deps = params.deps ?? { runCmd, runCmdBackground, runIosRunnerCommand };
   const command = req.command;
 
   if (command === 'record') {
@@ -47,17 +55,29 @@ export async function handleRecordTraceCommands(params: {
       if (!isCommandSupportedOnDevice('record', device)) {
         return {
           ok: false,
-          error: { code: 'UNSUPPORTED_OPERATION', message: 'record is only supported on iOS simulators' },
+          error: { code: 'UNSUPPORTED_OPERATION', message: 'record is not supported on this device' },
         };
       }
-      if (device.platform === 'ios') {
-        const { child, wait } = runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
+      const runnerOptions = {
+        verbose: req.flags?.verbose,
+        logPath,
+        traceLogPath: activeSession.trace?.outPath,
+      };
+      if (device.platform === 'ios' && device.kind === 'device') {
+        await deps.runIosRunnerCommand(
+          device,
+          { command: 'recordStart', outPath: resolvedOut, appBundleId: activeSession.appBundleId },
+          runnerOptions,
+        );
+        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut };
+      } else if (device.platform === 'ios') {
+        const { child, wait } = deps.runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
           allowFailure: true,
         });
         activeSession.recording = { platform: 'ios', outPath: resolvedOut, child, wait };
       } else {
         const remotePath = `/sdcard/agent-device-recording-${Date.now()}.mp4`;
-        const { child, wait } = runCmdBackground('adb', ['-s', device.id, 'shell', 'screenrecord', remotePath], {
+        const { child, wait } = deps.runCmdBackground('adb', ['-s', device.id, 'shell', 'screenrecord', remotePath], {
           allowFailure: true,
         });
         activeSession.recording = { platform: 'android', outPath: resolvedOut, remotePath, child, wait };
@@ -76,18 +96,31 @@ export async function handleRecordTraceCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active recording' } };
     }
     const recording = activeSession.recording;
-    recording.child.kill('SIGINT');
-    try {
-      await recording.wait;
-    } catch {
-      // ignore
-    }
-    if (recording.platform === 'android' && recording.remotePath) {
+    const runnerOptions = {
+      verbose: req.flags?.verbose,
+      logPath,
+      traceLogPath: activeSession.trace?.outPath,
+    };
+    if (recording.platform === 'ios-device-runner') {
+      await deps.runIosRunnerCommand(
+        device,
+        { command: 'recordStop', appBundleId: activeSession.appBundleId },
+        runnerOptions,
+      );
+    } else {
+      recording.child.kill('SIGINT');
       try {
-        await runCmd('adb', ['-s', device.id, 'pull', recording.remotePath, recording.outPath], { allowFailure: true });
-        await runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], { allowFailure: true });
+        await recording.wait;
       } catch {
         // ignore
+      }
+      if (recording.platform === 'android' && recording.remotePath) {
+        try {
+          await deps.runCmd('adb', ['-s', device.id, 'pull', recording.remotePath, recording.outPath], { allowFailure: true });
+          await deps.runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], { allowFailure: true });
+        } catch {
+          // ignore
+        }
       }
     }
     activeSession.recording = undefined;

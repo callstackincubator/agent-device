@@ -157,7 +157,7 @@ agent-device record start session.mp4   # Start recording to explicit path
 agent-device record stop                # Stop active recording
 ```
 
-- iOS `record` is simulator-only.
+- iOS `record` works on simulators and physical devices. Physical-device capture is runner-based and may have lower FPS than simulator-native recording.
 
 ## iOS device prerequisites
 

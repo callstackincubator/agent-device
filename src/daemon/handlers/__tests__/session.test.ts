@@ -885,6 +885,47 @@ test('open --relaunch closes and reopens active session app', async () => {
   assert.deepEqual(calls[1], { command: 'open', positionals: ['com.example.app'] });
 });
 
+test('close on iOS session with recording stops runner session before delete', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'ios-device-1',
+        name: 'My iPhone',
+        kind: 'device',
+        booted: true,
+      }),
+      recording: { platform: 'ios-device-runner', outPath: '/tmp/device-recording.mp4' },
+    },
+  );
+
+  const stopCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async (deviceId) => {
+      stopCalls.push(deviceId);
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(stopCalls, ['ios-device-1']);
+  assert.equal(sessionStore.get(sessionName), undefined);
+});
+
 test('open --relaunch rejects URL targets', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSessionCommands({

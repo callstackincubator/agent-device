@@ -232,6 +232,7 @@ export async function handleSessionCommands(params: {
   ensureReady?: typeof ensureDeviceReady;
   resolveTargetDevice?: typeof resolveTargetDevice;
   reinstallOps?: ReinstallOps;
+  stopIosRunner?: typeof stopIosRunnerSession;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -243,10 +244,12 @@ export async function handleSessionCommands(params: {
     ensureReady: ensureReadyOverride,
     resolveTargetDevice: resolveTargetDeviceOverride,
     reinstallOps = defaultReinstallOps,
+    stopIosRunner: stopIosRunnerOverride,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
+  const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -624,7 +627,7 @@ export async function handleSessionCommands(params: {
       });
     }
     if (session.device.platform === 'ios') {
-      await stopIosRunnerSession(session.device.id);
+      await stopIosRunner(session.device.id);
     }
     sessionStore.recordAction(session, {
       command,
