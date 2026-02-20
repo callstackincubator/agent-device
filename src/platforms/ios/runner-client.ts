@@ -234,6 +234,12 @@ export async function abortAllIosRunnerSessions(): Promise<void> {
   const activeSessions = Array.from(runnerSessions.values());
   const prepProcesses = Array.from(runnerPrepProcesses);
   await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGINT');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGINT');
+  }));
+  await Promise.allSettled(activeSessions.map(async (session) => {
     await killRunnerProcessTree(session.child.pid, 'SIGTERM');
   }));
   await Promise.allSettled(prepProcesses.map(async (child) => {
@@ -375,7 +381,7 @@ function isRunnerProcessAlive(pid: number | undefined): boolean {
 
 async function killRunnerProcessTree(
   pid: number | undefined,
-  signal: 'SIGTERM' | 'SIGKILL',
+  signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL',
 ): Promise<void> {
   if (!pid || pid <= 0) return;
   // xcodebuild is spawned detached for runner flows, so negative PID targets its process group.
@@ -389,7 +395,7 @@ async function killRunnerProcessTree(
   } catch {
     // ignore
   }
-  const pkillSignal = signal === 'SIGTERM' ? 'TERM' : 'KILL';
+  const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
   try {
     await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
   } catch {

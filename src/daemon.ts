@@ -33,6 +33,8 @@ const sessionStore = new SessionStore(sessionsDir);
 const version = readVersion();
 const token = crypto.randomBytes(24).toString('hex');
 const selectorValidationExemptCommands = new Set(['session_list', 'devices']);
+const disconnectAbortPollIntervalMs = 200;
+const disconnectAbortMaxWindowMs = 15_000;
 
 type DaemonLockInfo = {
   pid: number;
@@ -305,8 +307,15 @@ function start(): void {
         },
       });
       // Best effort: if client disconnects mid-request (for example on Ctrl+C),
-      // immediately abort runner sessions so xcodebuild/log streaming stops fast.
-      void abortAllIosRunnerSessions();
+      // repeatedly abort runner sessions while request work is still in-flight.
+      void (async () => {
+        const deadline = Date.now() + disconnectAbortMaxWindowMs;
+        while (inFlightRequests > 0 && Date.now() < deadline) {
+          await abortAllIosRunnerSessions();
+          if (inFlightRequests <= 0) break;
+          await sleep(disconnectAbortPollIntervalMs);
+        }
+      })();
     };
     socket.setEncoding('utf8');
     socket.on('close', cancelInFlightRunnerSessions);
@@ -385,6 +394,10 @@ function start(): void {
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
     void shutdown();
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 start();
