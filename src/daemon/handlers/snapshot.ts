@@ -234,7 +234,12 @@ export async function handleSnapshotCommands(params: {
           const result = (await runIosRunnerCommand(
             device,
             { command: 'findText', text, appBundleId: session?.appBundleId },
-            { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+            {
+              verbose: req.flags?.verbose,
+              logPath,
+              traceLogPath: session?.trace?.outPath,
+              requestId: req.meta?.requestId,
+            },
           )) as { found?: boolean };
           if (result?.found) {
             recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
@@ -277,7 +282,12 @@ export async function handleSnapshotCommands(params: {
             const data = await runIosRunnerCommand(
               device,
               { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
-              { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+              {
+                verbose: req.flags?.verbose,
+                logPath,
+                traceLogPath: session?.trace?.outPath,
+                requestId: req.meta?.requestId,
+              },
             );
             recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
             return { ok: true, data };
@@ -296,7 +306,12 @@ export async function handleSnapshotCommands(params: {
             action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get',
           appBundleId: session?.appBundleId,
         },
-        { verbose: req.flags?.verbose, logPath, traceLogPath: session?.trace?.outPath },
+        {
+          verbose: req.flags?.verbose,
+          logPath,
+          traceLogPath: session?.trace?.outPath,
+          requestId: req.meta?.requestId,
+        },
       );
       recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
       return { ok: true, data };

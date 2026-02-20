@@ -33,6 +33,7 @@ final class RunnerTests: XCTestCase {
   private let maxSnapshotElements = 600
   private let fastSnapshotLimit = 300
   private let mainThreadExecutionTimeout: TimeInterval = 30
+  private let appExistenceTimeout: TimeInterval = 30
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
@@ -261,7 +262,11 @@ final class RunnerTests: XCTestCase {
       if let exceptionMessage {
         currentApp = nil
         currentBundleId = nil
-        if !hasRetried, shouldRetryCommand(command.command) {
+        if !hasRetried, shouldRetryException(command, message: exceptionMessage) {
+          NSLog(
+            "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=objc_exception",
+            command.command.rawValue
+          )
           hasRetried = true
           sleepFor(retryCooldown)
           continue
@@ -282,7 +287,11 @@ final class RunnerTests: XCTestCase {
           userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
         )
       }
-      if !hasRetried, shouldRetryCommand(command.command), shouldRetryResponse(response) {
+      if !hasRetried, shouldRetryCommand(command), shouldRetryResponse(response) {
+        NSLog(
+          "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=response_unavailable",
+          command.command.rawValue
+        )
         hasRetried = true
         currentApp = nil
         currentBundleId = nil
@@ -319,10 +328,10 @@ final class RunnerTests: XCTestCase {
       activeApp = app
     }
 
-    if !activeApp.waitForExistence(timeout: 5) {
+    if !activeApp.waitForExistence(timeout: appExistenceTimeout) {
       if let bundleId = requestedBundleId {
         activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
-        guard activeApp.waitForExistence(timeout: 5) else {
+        guard activeApp.waitForExistence(timeout: appExistenceTimeout) else {
           return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
         }
       } else {
@@ -532,10 +541,35 @@ final class RunnerTests: XCTestCase {
     return target
   }
 
-  private func shouldRetryCommand(_ command: CommandType) -> Bool {
-    switch command {
-    case .tap, .longPress, .drag:
+  private func shouldRetryCommand(_ command: Command) -> Bool {
+    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_READONLY_RETRY") {
+      return false
+    }
+    return isReadOnlyCommand(command)
+  }
+
+  private func shouldRetryException(_ command: Command, message: String) -> Bool {
+    guard shouldRetryCommand(command) else { return false }
+    let normalized = message.lowercased()
+    if normalized.contains("kaxerrorservernotfound") {
       return true
+    }
+    if normalized.contains("main thread execution timed out") {
+      return true
+    }
+    if normalized.contains("timed out") && command.command == .snapshot {
+      return true
+    }
+    return false
+  }
+
+  private func isReadOnlyCommand(_ command: Command) -> Bool {
+    switch command.command {
+    case .findText, .listTappables, .snapshot:
+      return true
+    case .alert:
+      let action = (command.action ?? "get").lowercased()
+      return action == "get"
     default:
       return false
     }
@@ -977,48 +1011,93 @@ final class RunnerTests: XCTestCase {
     }
 
     let title = preferredSystemModalTitle(modal)
-
-    var nodes: [SnapshotNode] = [
-      makeSnapshotNode(
-        element: modal,
-        index: 0,
-        type: "Alert",
-        labelOverride: title,
-        identifierOverride: modal.identifier,
-        depth: 0,
-        hittableOverride: true
-      )
-    ]
+    guard let modalNode = safeMakeSnapshotNode(
+      element: modal,
+      index: 0,
+      type: "Alert",
+      labelOverride: title,
+      identifierOverride: modal.identifier,
+      depth: 0,
+      hittableOverride: true
+    ) else {
+      return nil
+    }
+    var nodes: [SnapshotNode] = [modalNode]
 
     for action in actions {
-      nodes.append(
-        makeSnapshotNode(
-          element: action,
-          index: nodes.count,
-          type: elementTypeName(action.elementType),
-          depth: 1,
-          hittableOverride: true
-        )
-      )
+      guard let actionNode = safeMakeSnapshotNode(
+        element: action,
+        index: nodes.count,
+        type: elementTypeName(action.elementType),
+        depth: 1,
+        hittableOverride: true
+      ) else {
+        continue
+      }
+      nodes.append(actionNode)
     }
 
     return DataPayload(nodes: nodes, truncated: false)
   }
 
   private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
-    for alert in springboard.alerts.allElementsBoundByIndex {
-      if isBlockingSystemModal(alert, in: springboard) {
+    let disableSafeProbe = isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE")
+    let queryElements: (() -> [XCUIElement]) -> [XCUIElement] = { fetch in
+      if disableSafeProbe {
+        return fetch()
+      }
+      return self.safeElementsQuery(fetch)
+    }
+
+    let alerts = queryElements {
+      springboard.alerts.allElementsBoundByIndex
+    }
+    for alert in alerts {
+      if safeIsBlockingSystemModal(alert, in: springboard) {
         return alert
       }
     }
 
-    for sheet in springboard.sheets.allElementsBoundByIndex {
-      if isBlockingSystemModal(sheet, in: springboard) {
+    let sheets = queryElements {
+      springboard.sheets.allElementsBoundByIndex
+    }
+    for sheet in sheets {
+      if safeIsBlockingSystemModal(sheet, in: springboard) {
         return sheet
       }
     }
 
     return nil
+  }
+
+  private func safeElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
+    var elements: [XCUIElement] = []
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      elements = fetch()
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_QUERY_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return []
+    }
+    return elements
+  }
+
+  private func safeIsBlockingSystemModal(_ element: XCUIElement, in springboard: XCUIApplication) -> Bool {
+    var isBlocking = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      isBlocking = isBlockingSystemModal(element, in: springboard)
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_CHECK_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return false
+    }
+    return isBlocking
   }
 
   private func isBlockingSystemModal(_ element: XCUIElement, in springboard: XCUIApplication) -> Bool {
@@ -1038,18 +1117,36 @@ final class RunnerTests: XCTestCase {
   private func actionableElements(in element: XCUIElement) -> [XCUIElement] {
     var seen = Set<String>()
     var actions: [XCUIElement] = []
-    let descendants = element.descendants(matching: .any).allElementsBoundByIndex
+    let descendants = safeElementsQuery {
+      element.descendants(matching: .any).allElementsBoundByIndex
+    }
     for candidate in descendants {
-      if !candidate.exists || !candidate.isHittable { continue }
-      if !actionableTypes.contains(candidate.elementType) { continue }
-      let frame = candidate.frame
-      if frame.isNull || frame.isEmpty { continue }
-      let key = "\(candidate.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(candidate.label)"
-      if seen.contains(key) { continue }
-      seen.insert(key)
+      if !safeIsActionableCandidate(candidate, seen: &seen) { continue }
       actions.append(candidate)
     }
     return actions
+  }
+
+  private func safeIsActionableCandidate(_ candidate: XCUIElement, seen: inout Set<String>) -> Bool {
+    var include = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      if !candidate.exists || !candidate.isHittable { return }
+      if !actionableTypes.contains(candidate.elementType) { return }
+      let frame = candidate.frame
+      if frame.isNull || frame.isEmpty { return }
+      let key = "\(candidate.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(candidate.label)"
+      if seen.contains(key) { return }
+      seen.insert(key)
+      include = true
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_ACTION_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return false
+    }
+    return include
   }
 
   private func preferredSystemModalTitle(_ element: XCUIElement) -> String {
@@ -1086,6 +1183,37 @@ final class RunnerTests: XCTestCase {
       hittable: hittableOverride ?? element.isHittable,
       depth: depth
     )
+  }
+
+  private func safeMakeSnapshotNode(
+    element: XCUIElement,
+    index: Int,
+    type: String,
+    labelOverride: String? = nil,
+    identifierOverride: String? = nil,
+    depth: Int,
+    hittableOverride: Bool? = nil
+  ) -> SnapshotNode? {
+    var node: SnapshotNode?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      node = makeSnapshotNode(
+        element: element,
+        index: index,
+        type: type,
+        labelOverride: labelOverride,
+        identifierOverride: identifierOverride,
+        depth: depth,
+        hittableOverride: hittableOverride
+      )
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_NODE_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return nil
+    }
+    return node
   }
 
   private func snapshotRect(from frame: CGRect) -> SnapshotRect {
@@ -1211,6 +1339,18 @@ private func resolveRunnerPort() -> UInt16 {
     }
   }
   return 0
+}
+
+private func isEnvTruthy(_ name: String) -> Bool {
+  guard let raw = ProcessInfo.processInfo.environment[name] else {
+    return false
+  }
+  switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+  case "1", "true", "yes", "on":
+    return true
+  default:
+    return false
+  }
 }
 
 enum CommandType: String, Codable {

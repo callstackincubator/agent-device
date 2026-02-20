@@ -15,11 +15,13 @@ export type ExecOptions = {
   binaryStdout?: boolean;
   stdin?: string | Buffer;
   timeoutMs?: number;
+  detached?: boolean;
 };
 
 export type ExecStreamOptions = ExecOptions & {
   onStdoutChunk?: (chunk: string) => void;
   onStderrChunk?: (chunk: string) => void;
+  onSpawn?: (child: ReturnType<typeof spawn>) => void;
 };
 
 export type ExecBackgroundResult = {
@@ -37,6 +39,7 @@ export async function runCmd(
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: options.detached,
     });
 
     let stdout = '';
@@ -199,7 +202,9 @@ export async function runCmdStreaming(
       cwd: options.cwd,
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: options.detached,
     });
+    options.onSpawn?.(child);
 
     let stdout = '';
     let stderr = '';
@@ -269,6 +274,7 @@ export function runCmdBackground(
     cwd: options.cwd,
     env: options.env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: options.detached,
   });
 
   let stdout = '';

@@ -7,7 +7,7 @@ import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { readVersion } from './utils/version.ts';
-import { stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
+import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
 import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './daemon/context.ts';
@@ -18,6 +18,7 @@ import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
 import { resolveEffectiveSessionName } from './daemon/session-routing.ts';
+import { clearRequestCanceled, isRequestCanceled, markRequestCanceled } from './daemon/request-cancel.ts';
 import {
   isAgentDeviceDaemonProcess,
   readProcessStartTime,
@@ -33,6 +34,8 @@ const sessionStore = new SessionStore(sessionsDir);
 const version = readVersion();
 const token = crypto.randomBytes(24).toString('hex');
 const selectorValidationExemptCommands = new Set(['session_list', 'devices']);
+const disconnectAbortPollIntervalMs = 200;
+const disconnectAbortMaxWindowMs = 15_000;
 
 type DaemonLockInfo = {
   pid: number;
@@ -48,7 +51,11 @@ function contextFromFlags(
   appBundleId?: string,
   traceLogPath?: string,
 ): DaemonCommandContext {
-  return contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath);
+  const requestId = getDiagnosticsMeta().requestId;
+  return {
+    ...contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath, requestId),
+    requestId,
+  };
 }
 
 async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
@@ -292,7 +299,36 @@ function start(): void {
 
   const server = net.createServer((socket) => {
     let buffer = '';
+    let inFlightRequests = 0;
+    const activeRequestIds = new Set<string>();
+    let canceledInFlight = false;
+    const cancelInFlightRunnerSessions = () => {
+      if (canceledInFlight || inFlightRequests === 0) return;
+      canceledInFlight = true;
+      for (const requestId of activeRequestIds) {
+        markRequestCanceled(requestId);
+      }
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'request_client_disconnected',
+        data: {
+          inFlightRequests,
+        },
+      });
+      // Best effort: if client disconnects mid-request (for example on Ctrl+C),
+      // repeatedly abort runner sessions while request work is still in-flight.
+      void (async () => {
+        const deadline = Date.now() + disconnectAbortMaxWindowMs;
+        while (inFlightRequests > 0 && Date.now() < deadline) {
+          await abortAllIosRunnerSessions();
+          if (inFlightRequests <= 0) break;
+          await sleep(disconnectAbortPollIntervalMs);
+        }
+      })();
+    };
     socket.setEncoding('utf8');
+    socket.on('close', cancelInFlightRunnerSessions);
+    socket.on('error', cancelInFlightRunnerSessions);
     socket.on('data', async (chunk) => {
       buffer += chunk;
       let idx = buffer.indexOf('\n');
@@ -304,13 +340,30 @@ function start(): void {
           continue;
         }
         let response: DaemonResponse;
+        inFlightRequests += 1;
+        let requestIdForCleanup: string | undefined;
         try {
           const req = JSON.parse(line) as DaemonRequest;
+          requestIdForCleanup = req.meta?.requestId;
+          if (requestIdForCleanup) {
+            activeRequestIds.add(requestIdForCleanup);
+            if (isRequestCanceled(requestIdForCleanup)) {
+              throw new AppError('COMMAND_FAILED', 'request canceled');
+            }
+          }
           response = await handleRequest(req);
         } catch (err) {
           response = { ok: false, error: normalizeError(err) };
+        } finally {
+          inFlightRequests -= 1;
+          if (requestIdForCleanup) {
+            activeRequestIds.delete(requestIdForCleanup);
+            clearRequestCanceled(requestIdForCleanup);
+          }
         }
-        socket.write(`${JSON.stringify(response)}\n`);
+        if (!socket.destroyed) {
+          socket.write(`${JSON.stringify(response)}\n`);
+        }
         idx = buffer.indexOf('\n');
       }
     });
@@ -362,6 +415,10 @@ function start(): void {
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
     void shutdown();
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 start();
