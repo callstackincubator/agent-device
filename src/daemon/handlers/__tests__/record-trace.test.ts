@@ -142,7 +142,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     '--domain-type',
     'appDataContainer',
     '--domain-identifier',
-    'com.myapp.AgentDeviceRunner',
+    'com.myapp.AgentDeviceRunnerUITests.xctrunner',
   ]);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });

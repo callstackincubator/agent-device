@@ -9,7 +9,25 @@ import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
-const IOS_RUNNER_BUNDLE_ID = process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID?.trim() || 'com.myapp.AgentDeviceRunner';
+function uniqueNonEmpty(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    if (!value) continue;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+const IOS_RUNNER_CONTAINER_BUNDLE_IDS = uniqueNonEmpty([
+  process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
+  process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID,
+  'com.myapp.AgentDeviceRunnerUITests.xctrunner',
+  'com.myapp.AgentDeviceRunner',
+]);
 
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
   return {
@@ -129,26 +147,32 @@ export async function handleRecordTraceCommands(params: {
         });
         // best effort: clear runner-backed recording state even if runner stop fails
       }
-      const copyResult = await deps.runCmd(
-        'xcrun',
-        [
-          'devicectl',
-          'device',
-          'copy',
-          'from',
-          '--device',
-          device.id,
-          '--source',
-          recording.remotePath,
-          '--destination',
-          recording.outPath,
-          '--domain-type',
-          'appDataContainer',
-          '--domain-identifier',
-          IOS_RUNNER_BUNDLE_ID,
-        ],
-        { allowFailure: true },
-      );
+      let copyResult = { stdout: '', stderr: '', exitCode: 1 };
+      for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
+        copyResult = await deps.runCmd(
+          'xcrun',
+          [
+            'devicectl',
+            'device',
+            'copy',
+            'from',
+            '--device',
+            device.id,
+            '--source',
+            recording.remotePath,
+            '--destination',
+            recording.outPath,
+            '--domain-type',
+            'appDataContainer',
+            '--domain-identifier',
+            bundleId,
+          ],
+          { allowFailure: true },
+        );
+        if (copyResult.exitCode === 0) {
+          break;
+        }
+      }
       activeSession.recording = undefined;
       if (copyResult.exitCode !== 0) {
         const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
