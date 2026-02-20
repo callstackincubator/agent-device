@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
 import type { DaemonRequest as SharedDaemonRequest, DaemonResponse as SharedDaemonResponse } from './daemon/types.ts';
-import { runCmdDetached } from './utils/exec.ts';
+import { runCmdDetached, runCmdSync } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { createRequestId, emitDiagnostic, withDiagnosticTimer } from './utils/diagnostics.ts';
 import {
@@ -41,6 +41,11 @@ const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
 const DAEMON_STARTUP_TIMEOUT_MS = 5000;
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
+const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
+  'xcodebuild .*AgentDeviceRunnerUITests/RunnerTests/testCommand',
+  'xcodebuild .*AgentDeviceRunner\\.env\\.session-',
+  'xcodebuild build-for-testing .*ios-runner/AgentDeviceRunner/AgentDeviceRunner\\.xcodeproj',
+];
 
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
   const requestId = req.meta?.requestId ?? createRequestId();
@@ -242,6 +247,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
     });
     const timeout = setTimeout(() => {
       socket.destroy();
+      const cleanup = cleanupTimedOutIosRunnerBuilds();
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -249,13 +255,15 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
           timeoutMs: REQUEST_TIMEOUT_MS,
           requestId: req.meta?.requestId,
           command: req.command,
+          timedOutRunnerPidsTerminated: cleanup.terminated,
+          timedOutRunnerCleanupError: cleanup.error,
         },
       });
       reject(
         new AppError('COMMAND_FAILED', 'Daemon request timed out', {
           timeoutMs: REQUEST_TIMEOUT_MS,
           requestId: req.meta?.requestId,
-          hint: 'Retry with --debug and check daemon diagnostics logs.',
+          hint: 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
         }),
       );
     }, REQUEST_TIMEOUT_MS);
@@ -305,6 +313,22 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
       );
     });
   });
+}
+
+function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string } {
+  let terminated = 0;
+  try {
+    for (const pattern of IOS_RUNNER_XCODEBUILD_KILL_PATTERNS) {
+      const result = runCmdSync('pkill', ['-f', pattern], { allowFailure: true });
+      if (result.exitCode === 0) terminated += 1;
+    }
+    return { terminated };
+  } catch (error) {
+    return {
+      terminated,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
