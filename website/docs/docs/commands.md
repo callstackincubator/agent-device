@@ -56,6 +56,8 @@ agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
+agent-device scrollintoview "Sign in"
+agent-device scrollintoview @e42
 agent-device pinch 2.0          # zoom in 2x (iOS simulator)
 agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 ```
@@ -64,6 +66,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe timing uses a safe normalized duration to avoid longpress side effects.
+`scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses geometry-based scrolling.
 `longpress` is supported on iOS and Android.
 `pinch` is iOS simulator-only.
 

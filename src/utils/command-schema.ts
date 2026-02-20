@@ -483,8 +483,10 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   scrollintoview: {
-    description: 'Scroll until text appears',
-    positionalArgs: ['text'],
+    usageOverride: 'scrollintoview <text|@ref>',
+    description: 'Scroll until text appears or a snapshot ref is brought into view',
+    positionalArgs: ['target'],
+    allowsExtraPositionals: true,
     allowedFlags: [],
   },
   pinch: {

@@ -1,6 +1,13 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { attachRefs, centerOfRect, findNodeByRef, normalizeRef, type RawSnapshotNode } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  centerOfRect,
+  findNodeByRef,
+  normalizeRef,
+  type RawSnapshotNode,
+  type Rect,
+} from '../../utils/snapshot.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -548,6 +555,94 @@ export async function handleInteractionCommands(params: {
     return { ok: true, data: { predicate, pass: true, selector: resolved.selector.raw } };
   }
 
+  if (command === 'scrollintoview') {
+    const session = sessionStore.get(sessionName);
+    if (!session) {
+      return {
+        ok: false,
+        error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+      };
+    }
+    const targetInput = req.positionals?.[0] ?? '';
+    if (!targetInput.startsWith('@')) {
+      return null;
+    }
+    const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('scrollintoview', req.flags);
+    if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
+    if (!session.snapshot) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } };
+    }
+    const ref = normalizeRef(targetInput);
+    if (!ref) {
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: 'scrollintoview requires a ref like @e2' },
+      };
+    }
+    let node = findNodeByRef(session.snapshot.nodes, ref);
+    if (!node?.rect && req.positionals && req.positionals.length > 1) {
+      const fallbackLabel = req.positionals.slice(1).join(' ').trim();
+      if (fallbackLabel.length > 0) {
+        node = findNodeByLabel(session.snapshot.nodes, fallbackLabel);
+      }
+    }
+    if (!node?.rect) {
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: `Ref ${targetInput} not found or has no bounds` },
+      };
+    }
+    const viewportRect = resolveViewportRect(session.snapshot.nodes, node.rect);
+    const plan = buildScrollIntoViewPlan(node.rect, viewportRect);
+    const refLabel = resolveRefLabel(node, session.snapshot.nodes);
+    const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
+    if (!plan) {
+      sessionStore.recordAction(session, {
+        command,
+        positionals: req.positionals ?? [],
+        flags: req.flags ?? {},
+        result: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry', refLabel, selectorChain },
+      });
+      return { ok: true, data: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry' } };
+    }
+    const data = await dispatch(
+      session.device,
+      'swipe',
+      [String(plan.x), String(plan.startY), String(plan.x), String(plan.endY), '60'],
+      req.flags?.out,
+      {
+        ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        count: plan.count,
+        pauseMs: 0,
+        pattern: 'one-way',
+      },
+    );
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: {
+        ...(data ?? {}),
+        ref,
+        attempts: plan.count,
+        direction: plan.direction,
+        strategy: 'ref-geometry',
+        refLabel,
+        selectorChain,
+      },
+    });
+    return {
+      ok: true,
+      data: {
+        ...(data ?? {}),
+        ref,
+        attempts: plan.count,
+        direction: plan.direction,
+        strategy: 'ref-geometry',
+      },
+    };
+  }
+
   return null;
 }
 
@@ -593,7 +688,7 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
 ];
 
 function refSnapshotFlagGuardResponse(
-  command: 'press' | 'fill' | 'get',
+  command: 'press' | 'fill' | 'get' | 'scrollintoview',
   flags: CommandFlags | undefined,
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
@@ -622,4 +717,101 @@ export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): st
     if (flags[key] !== undefined) unsupported.push(label);
   }
   return unsupported;
+}
+
+function resolveViewportRect(nodes: RawSnapshotNode[], targetRect: Rect): Rect {
+  const targetCenter = centerOfRect(targetRect);
+  const rectNodes = nodes.filter((node) => hasValidRect(node.rect));
+  const viewportNodes = rectNodes.filter((node) => {
+    const type = (node.type ?? '').toLowerCase();
+    return type.includes('application') || type.includes('window');
+  });
+
+  const containingViewport = pickLargestRect(
+    viewportNodes
+      .map((node) => node.rect as Rect)
+      .filter((rect) => containsPoint(rect, targetCenter.x, targetCenter.y)),
+  );
+  if (containingViewport) return containingViewport;
+
+  const viewportFallback = pickLargestRect(viewportNodes.map((node) => node.rect as Rect));
+  if (viewportFallback) return viewportFallback;
+
+  const genericContaining = pickLargestRect(
+    rectNodes
+      .map((node) => node.rect as Rect)
+      .filter((rect) => containsPoint(rect, targetCenter.x, targetCenter.y)),
+  );
+  if (genericContaining) return genericContaining;
+
+  return targetRect;
+}
+
+function buildScrollIntoViewPlan(
+  targetRect: Rect,
+  viewportRect: Rect,
+): { x: number; startY: number; endY: number; count: number; direction: 'up' | 'down' } | null {
+  const viewportHeight = Math.max(1, viewportRect.height);
+  const viewportTop = viewportRect.y;
+  const viewportBottom = viewportRect.y + viewportHeight;
+  const safeTop = viewportTop + viewportHeight * 0.25;
+  const safeBottom = viewportBottom - viewportHeight * 0.25;
+  const targetCenterY = targetRect.y + targetRect.height / 2;
+
+  if (targetCenterY >= safeTop && targetCenterY <= safeBottom) {
+    return null;
+  }
+
+  const x = Math.round(viewportRect.x + viewportRect.width / 2);
+  const dragUpStartY = Math.round(viewportTop + viewportHeight * 0.78);
+  const dragUpEndY = Math.round(viewportTop + viewportHeight * 0.22);
+  const dragDownStartY = dragUpEndY;
+  const dragDownEndY = dragUpStartY;
+  const swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY) * 0.9);
+
+  if (targetCenterY > safeBottom) {
+    const delta = targetCenterY - safeBottom;
+    return {
+      x,
+      startY: dragUpStartY,
+      endY: dragUpEndY,
+      count: clampInt(Math.ceil(delta / swipeStepPx), 1, 50),
+      direction: 'down',
+    };
+  }
+
+  const delta = safeTop - targetCenterY;
+  return {
+    x,
+    startY: dragDownStartY,
+    endY: dragDownEndY,
+    count: clampInt(Math.ceil(delta / swipeStepPx), 1, 50),
+    direction: 'up',
+  };
+}
+
+function hasValidRect(rect: Rect | undefined): rect is Rect {
+  if (!rect) return false;
+  return Number.isFinite(rect.x) && Number.isFinite(rect.y) && Number.isFinite(rect.width) && Number.isFinite(rect.height);
+}
+
+function containsPoint(rect: Rect, x: number, y: number): boolean {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function pickLargestRect(rects: Rect[]): Rect | null {
+  let best: Rect | null = null;
+  let bestArea = -1;
+  for (const rect of rects) {
+    const area = rect.width * rect.height;
+    if (area > bestArea) {
+      best = rect;
+      bestArea = area;
+    }
+  }
+  return best;
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
 }
