@@ -56,15 +56,15 @@ agent-device snapshot -i -s @e3
 Use `diff snapshot` when you need compact state-change visibility between nearby UI states:
 
 ```bash
-agent-device diff snapshot           # First run initializes baseline
+agent-device snapshot -i           # First snapshot initializes baseline
 agent-device press @e5
-agent-device diff snapshot           # Shows +/− structural lines vs prior baseline
+agent-device diff snapshot -i           # Shows +/− structural lines vs prior snapshot
 ```
 
 Efficient pattern:
 - Initialize once at a stable point.
 - Mutate UI (`press`, `fill`, `swipe`).
-- Run `diff snapshot` to confirm expected change shape.
+- Run `diff snapshot` to confirm expected change shape. Prefer `diff snapshot` before interactions for smaller token usage.
 - Re-run full/scoped `snapshot` only when you need fresh refs for next step selection.
 
 ## Troubleshooting

@@ -15,6 +15,7 @@ agent-device snapshot -i
 agent-device press @e3
 agent-device wait text "Camera"
 agent-device alert wait 10000
+agent-device diff snapshot -i
 agent-device fill @e5 "test"
 agent-device close
 ```

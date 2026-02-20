@@ -39,11 +39,10 @@ Use `press` as the canonical tap command; `click` is an equivalent alias.
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
 agent-device snapshot
-agent-device diff snapshot # first run initializes baseline
 agent-device press @e5
+agent-device diff snapshot # subsequent runs compare against previous baseline
 agent-device fill @e6 "John"
 agent-device fill @e7 "Doe"
-agent-device diff snapshot # subsequent runs compare against previous baseline
 agent-device press @e3
 agent-device close
 ```
