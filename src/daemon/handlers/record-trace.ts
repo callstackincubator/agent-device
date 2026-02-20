@@ -72,6 +72,7 @@ export async function handleRecordTraceCommands(params: {
       if (activeSession.recording) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'recording already in progress' } };
       }
+      const outPathProvided = Boolean(req.positionals?.[1]);
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
       const resolvedOut = path.resolve(outPath);
       const outDir = path.dirname(resolvedOut);
@@ -95,7 +96,7 @@ export async function handleRecordTraceCommands(params: {
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          if (!shouldFallbackToRunnerStagingPath(message)) {
+          if (outPathProvided || !shouldFallbackToRunnerStagingPath(message)) {
             return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
           }
           runnerOutPath = resolveRunnerStagingPath();
