@@ -36,11 +36,13 @@ agent-device open MyApp "myapp://screen/to" --platform ios       # open deep lin
 
 ```bash
 agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
+agent-device diff snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
 ```
 
 - iOS snapshots use XCTest on simulators and physical devices.
+- `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 
 ## Interactions
 

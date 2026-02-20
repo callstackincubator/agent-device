@@ -23,6 +23,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   click: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   close: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   fill: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
+  diff: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   find: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   focus: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   get: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },

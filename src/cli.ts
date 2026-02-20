@@ -1,6 +1,6 @@
 import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
-import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
+import { formatSnapshotDiffText, formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
@@ -186,6 +186,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             flatten: flags.snapshotInteractiveOnly,
           }),
         );
+        if (logTailStopper) logTailStopper();
+        return;
+      }
+      if (command === 'diff' && positionals[0] === 'snapshot') {
+        process.stdout.write(formatSnapshotDiffText((response.data ?? {}) as Record<string, unknown>));
         if (logTailStopper) logTailStopper();
         return;
       }

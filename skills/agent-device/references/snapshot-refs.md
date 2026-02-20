@@ -51,6 +51,22 @@ agent-device snapshot -i -s "Camera"
 agent-device snapshot -i -s @e3
 ```
 
+## Diff snapshots (structural)
+
+Use `diff snapshot` when you need compact state-change visibility between nearby UI states:
+
+```bash
+agent-device diff snapshot           # First run initializes baseline
+agent-device press @e5
+agent-device diff snapshot           # Shows +/− structural lines vs prior baseline
+```
+
+Efficient pattern:
+- Initialize once at a stable point.
+- Mutate UI (`press`, `fill`, `swipe`).
+- Run `diff snapshot` to confirm expected change shape.
+- Re-run full/scoped `snapshot` only when you need fresh refs for next step selection.
+
 ## Troubleshooting
 
 - Ref not found: re-snapshot.

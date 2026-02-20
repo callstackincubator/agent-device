@@ -14,8 +14,8 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `longpress`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
-- Inspection commands: `snapshot` (accessibility tree), `appstate`, `apps`, `devices`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
+- Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
 
@@ -39,9 +39,11 @@ Use `press` as the canonical tap command; `click` is an equivalent alias.
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
 agent-device snapshot
+agent-device diff snapshot # first run initializes baseline
 agent-device press @e5
 agent-device fill @e6 "John"
 agent-device fill @e7 "Doe"
+agent-device diff snapshot # subsequent runs compare against previous baseline
 agent-device press @e3
 agent-device close
 ```
@@ -135,8 +137,8 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `batch`
-- `snapshot`, `find`, `get`
-- `press` (alias: `click`), `focus`, `type`, `fill`, `longpress`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
+- `snapshot`, `diff snapshot`, `find`, `get`
+- `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
@@ -149,6 +151,20 @@ Notes:
 - iOS snapshots use XCTest on simulators and physical devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
+- `diff snapshot` uses the same snapshot flags and compares the current capture with the previous session baseline, then updates baseline.
+
+Diff snapshots:
+- Run `diff snapshot` once to initialize baseline for the current session.
+- Run `diff snapshot` again after UI changes to get unified-style output (`-` removed, `+` added, unchanged context).
+- Use `--json` to get `{ mode, baselineInitialized, summary, lines }`.
+
+Efficient snapshot usage:
+- Default to `snapshot -i` for iterative agent loops.
+- Add `-s "<label>"` (or `-s @ref`) for screen-local work to reduce payload size.
+- Add `-d <depth>` when lower tree levels are not needed.
+- Re-snapshot after UI mutations before reusing refs.
+- Use `diff snapshot` for low-noise structural change verification between adjacent states.
+- Reserve `--raw` for troubleshooting and parser/debug investigations.
 
 Flags:
 - `--version, -V` print version and exit

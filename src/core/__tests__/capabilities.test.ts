@@ -60,6 +60,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     'boot',
     'click',
     'close',
+    'diff',
     'fill',
     'find',
     'focus',
