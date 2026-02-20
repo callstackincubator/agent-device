@@ -41,7 +41,6 @@ final class RunnerTests: XCTestCase {
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
   private let recordingFps: Int32 = 8
-  private let recordingFrameInterval: TimeInterval = 1.0 / 8.0
   private var needsPostSnapshotInteractionDelay = false
   private var needsFirstInteractionDelay = false
   private var activeRecording: ScreenRecorder?
@@ -76,7 +75,9 @@ final class RunnerTests: XCTestCase {
   private final class ScreenRecorder {
     private let outputPath: String
     private let fps: Int32
-    private let frameInterval: TimeInterval
+    private var frameInterval: TimeInterval {
+      1.0 / Double(fps)
+    }
     private let queue = DispatchQueue(label: "agent-device.runner.recorder")
     private let lock = NSLock()
     private var assetWriter: AVAssetWriter?
@@ -88,10 +89,9 @@ final class RunnerTests: XCTestCase {
     private var startedSession = false
     private var startError: Error?
 
-    init(outputPath: String, fps: Int32, frameInterval: TimeInterval) {
+    init(outputPath: String, fps: Int32) {
       self.outputPath = outputPath
       self.fps = fps
-      self.frameInterval = frameInterval
     }
 
     func start(captureFrame: @escaping () -> UIImage?) throws {
@@ -176,7 +176,7 @@ final class RunnerTests: XCTestCase {
       timer.schedule(deadline: .now() + frameInterval, repeating: frameInterval)
       timer.setEventHandler { [weak self] in
         guard let self else { return }
-        if self.isStopping { return }
+        if self.shouldStop() { return }
         guard let image = captureFrame() else { return }
         self.append(image: image)
       }
@@ -270,6 +270,12 @@ final class RunnerTests: XCTestCase {
         return
       }
       frameCount += 1
+    }
+
+    private func shouldStop() -> Bool {
+      lock.lock()
+      defer { lock.unlock() }
+      return isStopping
     }
 
     private func makePixelBuffer(from image: CGImage) -> CVPixelBuffer? {
@@ -599,7 +605,7 @@ final class RunnerTests: XCTestCase {
         return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
       }
       do {
-        let recorder = ScreenRecorder(outputPath: outPath, fps: recordingFps, frameInterval: recordingFrameInterval)
+        let recorder = ScreenRecorder(outputPath: outPath, fps: recordingFps)
         try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }
@@ -783,7 +789,7 @@ final class RunnerTests: XCTestCase {
     var image: UIImage?
     let capture = {
       let screenshot = XCUIScreen.main.screenshot()
-      image = UIImage(data: screenshot.pngRepresentation)
+      image = screenshot.image
     }
     if Thread.isMainThread {
       capture()

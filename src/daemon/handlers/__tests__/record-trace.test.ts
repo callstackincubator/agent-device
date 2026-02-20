@@ -112,6 +112,72 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
+test('record start returns structured error when iOS runner start fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-start-fail';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be used for iOS devices');
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runner disconnected');
+      },
+    },
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(response?.error?.code, 'COMMAND_FAILED');
+  assert.match(response?.error?.message ?? '', /failed to start recording: runner disconnected/);
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
+test('record stop clears iOS runner recording state when runner stop fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-stop-fail';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4' },
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be used for iOS devices');
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runner disconnected');
+      },
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(response?.data?.recording, 'stopped');
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
 test('record uses simctl recordVideo for iOS simulators', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';

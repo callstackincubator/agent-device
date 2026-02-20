@@ -68,11 +68,16 @@ export async function handleRecordTraceCommands(params: {
       }
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
-        await deps.runIosRunnerCommand(
-          device,
-          { command: 'recordStart', outPath: resolvedOut, appBundleId: activeSession.appBundleId },
-          runnerOptions,
-        );
+        try {
+          await deps.runIosRunnerCommand(
+            device,
+            { command: 'recordStart', outPath: resolvedOut, appBundleId: activeSession.appBundleId },
+            runnerOptions,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
+        }
         activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut };
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
@@ -101,11 +106,15 @@ export async function handleRecordTraceCommands(params: {
     }
     const recording = activeSession.recording;
     if (recording.platform === 'ios-device-runner') {
-      await deps.runIosRunnerCommand(
-        device,
-        { command: 'recordStop', appBundleId: activeSession.appBundleId },
-        getRunnerOptions(req, logPath, activeSession),
-      );
+      try {
+        await deps.runIosRunnerCommand(
+          device,
+          { command: 'recordStop', appBundleId: activeSession.appBundleId },
+          getRunnerOptions(req, logPath, activeSession),
+        );
+      } catch {
+        // best effort: clear runner-backed recording state even if runner stop fails
+      }
     } else {
       recording.child.kill('SIGINT');
       try {
