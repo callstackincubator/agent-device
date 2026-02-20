@@ -27,6 +27,11 @@ type ParsedFlagRecord = {
   token: string;
 };
 
+function normalizeCommandAlias(command: string): string {
+  if (command === 'longpress' || command === 'longPress') return 'long-press';
+  return command;
+}
+
 export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArgs {
   const strictFlags = options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
   const flags: CliFlags = { json: false, help: false, version: false };
@@ -246,5 +251,5 @@ export function usage(): string {
 }
 
 export function usageForCommand(command: string): string | null {
-  return buildCommandUsageText(command);
+  return buildCommandUsageText(normalizeCommandAlias(command));
 }
