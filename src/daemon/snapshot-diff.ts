@@ -57,6 +57,7 @@ function snapshotNodesToLines(nodes: SnapshotNode[]): SnapshotComparableLine[] {
 }
 
 function diffComparableLinesMyers(previous: SnapshotComparableLine[], current: SnapshotComparableLine[]): SnapshotDiffLine[] {
+  // Myers diff is efficient for normal UI snapshots; very large trees may still be expensive.
   const n = previous.length;
   const m = current.length;
   const max = n + m;

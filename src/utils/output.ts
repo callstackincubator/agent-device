@@ -81,7 +81,7 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const removals = toNumber(summaryRaw.removals);
   const unchanged = toNumber(summaryRaw.unchanged);
   if (baselineInitialized) {
-    return `Baseline initialized (${unchanged} lines).\n${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+    return `Baseline initialized (${unchanged} lines).\n`;
   }
   const rawLines = Array.isArray(data.lines) ? (data.lines as SnapshotDiffLine[]) : [];
   const lines = rawLines.map((line) => {

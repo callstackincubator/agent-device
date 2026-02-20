@@ -30,5 +30,5 @@ test('formatSnapshotDiffText renders baseline initialization text', () => {
   });
 
   assert.match(text, /Baseline initialized \(5 lines\)\./);
-  assert.match(text, /0 additions, 0 removals, 5 unchanged/);
+  assert.doesNotMatch(text, /additions|removals|unchanged/);
 });
