@@ -370,6 +370,12 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [...SNAPSHOT_FLAGS],
   },
+  diff: {
+    usageOverride: 'diff snapshot',
+    description: 'Compare current snapshot against previous session snapshot',
+    positionalArgs: ['kind'],
+    allowedFlags: [...SNAPSHOT_FLAGS],
+  },
   devices: {
     description: 'List available devices',
     positionalArgs: [],
