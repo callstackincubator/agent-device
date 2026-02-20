@@ -77,7 +77,9 @@ final class RunnerTests: XCTestCase {
     private let outputPath: String
     private let fps: Int32?
     private let uncappedFrameInterval: TimeInterval = 0.001
-    private let timestampTimescaleUncapped: Int32 = 600
+    private var uncappedTimestampTimescale: Int32 {
+      Int32(max(1, Int((1.0 / uncappedFrameInterval).rounded())))
+    }
     private var frameInterval: TimeInterval {
       guard let fps else { return uncappedFrameInterval }
       return 1.0 / Double(fps)
@@ -273,7 +275,7 @@ final class RunnerTests: XCTestCase {
         recordingStartUptime = nowUptime
       }
       let elapsed = max(0, nowUptime - (recordingStartUptime ?? nowUptime))
-      let timescale = fps ?? timestampTimescaleUncapped
+      let timescale = fps ?? uncappedTimestampTimescale
       var timestampValue = Int64((elapsed * Double(timescale)).rounded(.down))
       if timestampValue <= lastTimestampValue {
         timestampValue = lastTimestampValue + 1
