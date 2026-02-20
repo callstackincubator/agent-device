@@ -7,7 +7,7 @@ import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { readVersion } from './utils/version.ts';
-import { stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
+import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
 import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './daemon/context.ts';
@@ -305,8 +305,8 @@ function start(): void {
         },
       });
       // Best effort: if client disconnects mid-request (for example on Ctrl+C),
-      // stop runner sessions so xcodebuild/log streaming does not continue detached.
-      void stopAllIosRunnerSessions();
+      // immediately abort runner sessions so xcodebuild/log streaming stops fast.
+      void abortAllIosRunnerSessions();
     };
     socket.setEncoding('utf8');
     socket.on('close', cancelInFlightRunnerSessions);

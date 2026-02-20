@@ -230,7 +230,26 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   });
 }
 
+export async function abortAllIosRunnerSessions(): Promise<void> {
+  const activeSessions = Array.from(runnerSessions.values());
+  const prepProcesses = Array.from(runnerPrepProcesses);
+  await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGTERM');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGTERM');
+  }));
+  await Promise.allSettled(activeSessions.map(async (session) => {
+    await killRunnerProcessTree(session.child.pid, 'SIGKILL');
+  }));
+  await Promise.allSettled(prepProcesses.map(async (child) => {
+    await killRunnerProcessTree(child.pid, 'SIGKILL');
+    runnerPrepProcesses.delete(child);
+  }));
+}
+
 export async function stopAllIosRunnerSessions(): Promise<void> {
+  await abortAllIosRunnerSessions();
   // Shutdown cleanup drains the sessions known at invocation time; daemon shutdown closes intake.
   const pending = Array.from(runnerSessions.keys());
   await Promise.allSettled(pending.map(async (deviceId) => {
@@ -324,6 +343,7 @@ async function ensureRunnerSession(
       {
         allowFailure: true,
         env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
+        detached: true,
       },
     );
     child.stdout?.on('data', (chunk: string) => {
@@ -358,6 +378,12 @@ async function killRunnerProcessTree(
   signal: 'SIGTERM' | 'SIGKILL',
 ): Promise<void> {
   if (!pid || pid <= 0) return;
+  // xcodebuild is spawned detached for runner flows, so negative PID targets its process group.
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    // ignore
+  }
   try {
     process.kill(pid, signal);
   } catch {
@@ -418,6 +444,7 @@ async function ensureXctestrun(
         ...signingBuildSettings,
       ],
       {
+        detached: true,
         onSpawn: (child) => {
           runnerPrepProcesses.add(child);
           child.on('close', () => {
