@@ -9,7 +9,7 @@ type RetryOptions = {
   shouldRetry?: (error: unknown, attempt: number) => boolean;
 };
 
-export type RetryPolicy = {
+type RetryPolicy = {
   maxAttempts: number;
   baseDelayMs: number;
   maxDelayMs: number;
@@ -17,19 +17,19 @@ export type RetryPolicy = {
   shouldRetry?: (error: unknown, attempt: number) => boolean;
 };
 
-export type RetryAttemptContext = {
+type RetryAttemptContext = {
   attempt: number;
   maxAttempts: number;
   deadline?: Deadline;
 };
 
-export type TimeoutProfile = {
+type TimeoutProfile = {
   startupMs: number;
   operationMs: number;
   totalMs: number;
 };
 
-export type RetryTelemetryEvent = {
+type RetryTelemetryEvent = {
   phase?: string;
   event: 'attempt_failed' | 'retry_scheduled' | 'succeeded' | 'exhausted';
   attempt: number;

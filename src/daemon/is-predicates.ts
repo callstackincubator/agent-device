@@ -2,7 +2,7 @@ import type { SnapshotState } from '../utils/snapshot.ts';
 import { extractNodeText } from './snapshot-processing.ts';
 import { isNodeEditable, isNodeVisible } from './selectors.ts';
 
-export type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
+type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
 
 export function isSupportedPredicate(input: string): input is IsPredicate {
   return ['visible', 'hidden', 'exists', 'editable', 'selected', 'text'].includes(input);

@@ -31,7 +31,7 @@ export type RunnerContext = {
   traceLogPath?: string;
 };
 
-export type Interactor = {
+type Interactor = {
   open(app: string, options?: { activity?: string; appBundleId?: string; url?: string }): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;

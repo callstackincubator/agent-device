@@ -2,7 +2,7 @@ import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode } from './snapshot.ts';
 
-export type JsonResult =
+type JsonResult =
   | { success: true; data?: Record<string, unknown> }
   | {
     success: false;

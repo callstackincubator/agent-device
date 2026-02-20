@@ -1,23 +1,23 @@
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { buildSnapshotDisplayLines, displayLabel, formatRole, formatSnapshotLine } from '../utils/snapshot-lines.ts';
 
-export type SnapshotDiffLine = {
+type SnapshotDiffLine = {
   kind: 'added' | 'removed' | 'unchanged';
   text: string;
 };
 
-export type SnapshotDiffSummary = {
+type SnapshotDiffSummary = {
   additions: number;
   removals: number;
   unchanged: number;
 };
 
-export type SnapshotDiffResult = {
+type SnapshotDiffResult = {
   summary: SnapshotDiffSummary;
   lines: SnapshotDiffLine[];
 };
 
-export type SnapshotDiffOptions = {
+type SnapshotDiffOptions = {
   flatten?: boolean;
 };
 
@@ -26,7 +26,7 @@ type SnapshotComparableLine = {
   comparable: string;
 };
 
-export function snapshotNodeToComparableLine(node: SnapshotNode, depthOverride?: number): string {
+function snapshotNodeToComparableLine(node: SnapshotNode, depthOverride?: number): string {
   const role = formatRole(node.type ?? 'Element');
   const textPart = displayLabel(node, role);
   const enabledPart = node.enabled === false ? 'disabled' : 'enabled';

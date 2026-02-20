@@ -1,6 +1,6 @@
 import type { SnapshotNode } from './snapshot.ts';
 
-export type SnapshotDisplayLine = {
+type SnapshotDisplayLine = {
   node: SnapshotNode;
   depth: number;
   type: string;

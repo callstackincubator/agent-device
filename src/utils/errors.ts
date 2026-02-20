@@ -1,6 +1,6 @@
 import { redactDiagnosticData } from './diagnostics.ts';
 
-export type ErrorCode =
+type ErrorCode =
   | 'INVALID_ARGS'
   | 'DEVICE_NOT_FOUND'
   | 'TOOL_MISSING'
@@ -12,7 +12,7 @@ export type ErrorCode =
   | 'UNAUTHORIZED'
   | 'UNKNOWN';
 
-export type AppErrorDetails = Record<string, unknown> & {
+type AppErrorDetails = Record<string, unknown> & {
   hint?: string;
   diagnosticId?: string;
   logPath?: string;

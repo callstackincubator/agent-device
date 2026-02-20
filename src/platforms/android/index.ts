@@ -16,7 +16,7 @@ function adbArgs(device: DeviceInfo, args: string[]): string[] {
   return ['-s', device.id, ...args];
 }
 
-export async function resolveAndroidApp(
+async function resolveAndroidApp(
   device: DeviceInfo,
   app: string,
 ): Promise<{ type: 'intent' | 'package'; value: string }> {
@@ -320,7 +320,7 @@ export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<
   await runCmd('adb', adbArgs(device, ['shell', 'am', 'force-stop', resolved.value]));
 }
 
-export async function uninstallAndroidApp(
+async function uninstallAndroidApp(
   device: DeviceInfo,
   app: string,
 ): Promise<{ package: string }> {
@@ -342,7 +342,7 @@ export async function uninstallAndroidApp(
   return { package: resolved.value };
 }
 
-export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
   await runCmd('adb', adbArgs(device, ['install', appPath]));
 }
 

@@ -1,6 +1,6 @@
 import { asAppError } from '../utils/errors.ts';
 
-export type BootFailureReason =
+type BootFailureReason =
   | 'IOS_BOOT_TIMEOUT'
   | 'IOS_RUNNER_CONNECT_TIMEOUT'
   | 'IOS_TOOL_MISSING'

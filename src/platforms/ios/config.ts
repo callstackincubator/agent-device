@@ -1,4 +1,4 @@
-import { isEnvTruthy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
+import { TIMEOUT_PROFILES } from '../../utils/retry.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 
 export const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
@@ -24,5 +24,3 @@ export const IOS_DEVICECTL_TIMEOUT_MS = resolveTimeoutMs(
   20_000,
   1_000,
 );
-
-export const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);

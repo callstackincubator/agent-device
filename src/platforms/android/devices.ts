@@ -76,7 +76,7 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
   return devices;
 }
 
-export async function isAndroidBooted(serial: string): Promise<boolean> {
+async function isAndroidBooted(serial: string): Promise<boolean> {
   try {
     const result = await readAndroidBootProp(serial);
     return result.stdout.trim() === '1';

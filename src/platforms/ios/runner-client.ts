@@ -13,7 +13,7 @@ import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 
-export type RunnerCommand = {
+type RunnerCommand = {
   command:
     | 'tap'
     | 'tapSeries'
@@ -58,7 +58,7 @@ export type RunnerCommand = {
   clearFirst?: boolean;
 };
 
-export type RunnerSession = {
+type RunnerSession = {
   device: DeviceInfo;
   deviceId: string;
   port: number;
@@ -115,18 +115,6 @@ const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
-
-export type RunnerSnapshotNode = {
-  index: number;
-  type?: string;
-  label?: string;
-  value?: string;
-  identifier?: string;
-  rect?: { x: number; y: number; width: number; height: number };
-  enabled?: boolean;
-  hittable?: boolean;
-  depth?: number;
-};
 
 export async function runIosRunnerCommand(
   device: DeviceInfo,

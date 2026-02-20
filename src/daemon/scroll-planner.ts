@@ -1,6 +1,6 @@
 import { centerOfRect, type RawSnapshotNode, type Rect } from '../utils/snapshot.ts';
 
-export type ScrollIntoViewPlan = {
+type ScrollIntoViewPlan = {
   x: number;
   startY: number;
   endY: number;

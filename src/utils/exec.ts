@@ -8,7 +8,7 @@ export type ExecResult = {
   stdoutBuffer?: Buffer;
 };
 
-export type ExecOptions = {
+type ExecOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   allowFailure?: boolean;
@@ -18,7 +18,7 @@ export type ExecOptions = {
   detached?: boolean;
 };
 
-export type ExecStreamOptions = ExecOptions & {
+type ExecStreamOptions = ExecOptions & {
   onStdoutChunk?: (chunk: string) => void;
   onStderrChunk?: (chunk: string) => void;
   onSpawn?: (child: ReturnType<typeof spawn>) => void;
@@ -318,16 +318,6 @@ export function runCmdBackground(
   });
 
   return { child, wait };
-}
-
-export function whichCmdSync(cmd: string): boolean {
-  try {
-    const { shell, args } = resolveWhichArgs(cmd);
-    const result = runCmdSync(shell, args, { allowFailure: true });
-    return result.exitCode === 0 && result.stdout.trim().length > 0;
-  } catch {
-    return false;
-  }
 }
 
 function resolveWhichArgs(cmd: string): { shell: string; args: string[] } {

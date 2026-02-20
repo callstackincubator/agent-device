@@ -2,8 +2,8 @@ import { AppError } from './errors.ts';
 import { isInteractive } from './interactive.ts';
 import { isCancel, select } from '@clack/prompts';
 
-export type Platform = 'ios' | 'android';
-export type DeviceKind = 'simulator' | 'emulator' | 'device';
+type Platform = 'ios' | 'android';
+type DeviceKind = 'simulator' | 'emulator' | 'device';
 
 export type DeviceInfo = {
   platform: Platform;
@@ -13,7 +13,7 @@ export type DeviceInfo = {
   booted?: boolean;
 };
 
-export type DeviceSelector = {
+type DeviceSelector = {
   platform?: Platform;
   deviceName?: string;
   udid?: string;

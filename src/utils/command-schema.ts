@@ -40,7 +40,7 @@ export type CliFlags = {
 };
 
 export type FlagKey = keyof CliFlags;
-export type FlagType = 'boolean' | 'int' | 'enum' | 'string' | 'booleanOrString';
+type FlagType = 'boolean' | 'int' | 'enum' | 'string' | 'booleanOrString';
 
 export type FlagDefinition = {
   key: FlagKey;
@@ -54,7 +54,7 @@ export type FlagDefinition = {
   usageDescription?: string;
 };
 
-export type CommandSchema = {
+type CommandSchema = {
   description: string;
   positionalArgs: readonly string[];
   allowsExtraPositionals?: boolean;
@@ -80,7 +80,7 @@ const SELECTOR_SNAPSHOT_FLAGS = [
 
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
 
-export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
+const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
     key: 'platform',
     names: ['--platform'],
@@ -354,7 +354,7 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'noRecord',
 ]);
 
-export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
+const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   boot: {
     description: 'Ensure target device/simulator is booted and ready',
     positionalArgs: [],

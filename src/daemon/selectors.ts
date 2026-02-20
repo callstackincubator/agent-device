@@ -21,7 +21,7 @@ type SelectorTerm = {
   value: string | boolean;
 };
 
-export type Selector = {
+type Selector = {
   raw: string;
   terms: SelectorTerm[];
 };
@@ -31,12 +31,12 @@ export type SelectorChain = {
   selectors: Selector[];
 };
 
-export type SelectorDiagnostics = {
+type SelectorDiagnostics = {
   selector: string;
   matches: number;
 };
 
-export type SelectorResolution = {
+type SelectorResolution = {
   node: SnapshotNode;
   selector: Selector;
   selectorIndex: number;
@@ -233,7 +233,7 @@ export function isNodeEditable(node: SnapshotNode, platform: 'ios' | 'android'):
 
 export function buildSelectorChainForNode(
   node: SnapshotNode,
-  platform: 'ios' | 'android',
+  _platform: 'ios' | 'android',
   options: { action?: 'click' | 'fill' | 'get' } = {},
 ): string[] {
   const chain: string[] = [];

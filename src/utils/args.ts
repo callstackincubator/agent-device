@@ -11,7 +11,7 @@ import {
   type FlagKey,
 } from './command-schema.ts';
 
-export type ParsedArgs = {
+type ParsedArgs = {
   command: string | null;
   positionals: string[];
   flags: CliFlags;

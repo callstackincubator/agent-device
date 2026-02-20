@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export type DiagnosticLevel = 'info' | 'warn' | 'error' | 'debug';
+type DiagnosticLevel = 'info' | 'warn' | 'error' | 'debug';
 
-export type DiagnosticEvent = {
+type DiagnosticEvent = {
   ts: string;
   level: DiagnosticLevel;
   phase: string;
@@ -17,7 +17,7 @@ export type DiagnosticEvent = {
   data?: Record<string, unknown>;
 };
 
-export type DiagnosticsScopeOptions = {
+type DiagnosticsScopeOptions = {
   session?: string;
   requestId?: string;
   command?: string;
@@ -40,7 +40,7 @@ export function createRequestId(): string {
   return crypto.randomBytes(8).toString('hex');
 }
 
-export function createDiagnosticId(): string {
+function createDiagnosticId(): string {
   return `${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;
 }
 

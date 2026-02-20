@@ -2,11 +2,11 @@ import type { SnapshotNode } from './snapshot.ts';
 
 export type FindLocator = 'any' | 'text' | 'label' | 'value' | 'role' | 'id';
 
-export type FindMatchOptions = {
+type FindMatchOptions = {
   requireRect?: boolean;
 };
 
-export type FindBestMatches = {
+type FindBestMatches = {
   matches: SnapshotNode[];
   score: number;
 };

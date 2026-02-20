@@ -2,7 +2,7 @@ import { AppError } from '../utils/errors.ts';
 import type { BatchStep, CommandFlags } from './dispatch.ts';
 
 export const DEFAULT_BATCH_MAX_STEPS = 100;
-export const BATCH_BLOCKED_COMMANDS = new Set(['batch', 'replay']);
+const BATCH_BLOCKED_COMMANDS = new Set(['batch', 'replay']);
 
 export type NormalizedBatchStep = {
   command: string;
