@@ -248,6 +248,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
     const timeout = setTimeout(() => {
       socket.destroy();
       const cleanup = cleanupTimedOutIosRunnerBuilds();
+      resetDaemonAfterTimeout(info);
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -257,6 +258,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
           command: req.command,
           timedOutRunnerPidsTerminated: cleanup.terminated,
           timedOutRunnerCleanupError: cleanup.error,
+          daemonPidReset: info.pid,
         },
       });
       reject(
@@ -329,6 +331,17 @@ function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string 
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function resetDaemonAfterTimeout(info: DaemonInfo): void {
+  void stopProcessForTakeover(info.pid, {
+    termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
+    killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
+    expectedStartTime: info.processStartTime,
+  }).finally(() => {
+    removeDaemonInfo();
+    removeDaemonLock();
+  });
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
