@@ -21,8 +21,10 @@ import {
   screenshotIos,
 } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
+import { isRequestCanceled } from '../daemon/request-cancel.ts';
 
 export type RunnerContext = {
+  requestId?: string;
   appBundleId?: string;
   verbose?: boolean;
   logPath?: string;
@@ -86,6 +88,10 @@ type IoRunnerOverrides = Pick<
 
 function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
   const runnerOpts = { verbose: ctx.verbose, logPath: ctx.logPath, traceLogPath: ctx.traceLogPath };
+  const throwIfCanceled = () => {
+    if (!isRequestCanceled(ctx.requestId)) return;
+    throw new AppError('COMMAND_FAILED', 'request canceled');
+  };
 
   return {
     tap: async (x, y) => {
@@ -156,17 +162,24 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
     scrollIntoView: async (text) => {
       const maxAttempts = 8;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        throwIfCanceled();
         const found = (await runIosRunnerCommand(
           device,
           { command: 'findText', text, appBundleId: ctx.appBundleId },
           runnerOpts,
         )) as { found?: boolean };
         if (found?.found) return { attempts: attempt + 1 };
-        await runIosRunnerCommand(
-          device,
-          { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
+        // Increase traversal speed on long lists while still checking visibility between chunks.
+        const swipesPerAttempt = Math.min(4, 1 + Math.floor(attempt / 2));
+        for (let i = 0; i < swipesPerAttempt; i += 1) {
+          throwIfCanceled();
+          await runIosRunnerCommand(
+            device,
+            { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
+            runnerOpts,
+          );
+        }
+        throwIfCanceled();
         await new Promise((resolve) => setTimeout(resolve, 300));
       }
       throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`);

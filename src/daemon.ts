@@ -18,6 +18,7 @@ import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
 import { resolveEffectiveSessionName } from './daemon/session-routing.ts';
+import { clearRequestCanceled, isRequestCanceled, markRequestCanceled } from './daemon/request-cancel.ts';
 import {
   isAgentDeviceDaemonProcess,
   readProcessStartTime,
@@ -50,7 +51,11 @@ function contextFromFlags(
   appBundleId?: string,
   traceLogPath?: string,
 ): DaemonCommandContext {
-  return contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath);
+  const requestId = getDiagnosticsMeta().requestId;
+  return {
+    ...contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath, requestId),
+    requestId,
+  };
 }
 
 async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
@@ -295,10 +300,14 @@ function start(): void {
   const server = net.createServer((socket) => {
     let buffer = '';
     let inFlightRequests = 0;
+    const activeRequestIds = new Set<string>();
     let canceledInFlight = false;
     const cancelInFlightRunnerSessions = () => {
       if (canceledInFlight || inFlightRequests === 0) return;
       canceledInFlight = true;
+      for (const requestId of activeRequestIds) {
+        markRequestCanceled(requestId);
+      }
       emitDiagnostic({
         level: 'warn',
         phase: 'request_client_disconnected',
@@ -332,13 +341,25 @@ function start(): void {
         }
         let response: DaemonResponse;
         inFlightRequests += 1;
+        let requestIdForCleanup: string | undefined;
         try {
           const req = JSON.parse(line) as DaemonRequest;
+          requestIdForCleanup = req.meta?.requestId;
+          if (requestIdForCleanup) {
+            activeRequestIds.add(requestIdForCleanup);
+            if (isRequestCanceled(requestIdForCleanup)) {
+              throw new AppError('COMMAND_FAILED', 'request canceled');
+            }
+          }
           response = await handleRequest(req);
         } catch (err) {
           response = { ok: false, error: normalizeError(err) };
         } finally {
           inFlightRequests -= 1;
+          if (requestIdForCleanup) {
+            activeRequestIds.delete(requestIdForCleanup);
+            clearRequestCanceled(requestIdForCleanup);
+          }
         }
         if (!socket.destroyed) {
           socket.write(`${JSON.stringify(response)}\n`);

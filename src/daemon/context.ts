@@ -1,6 +1,7 @@
 import type { CommandFlags } from '../core/dispatch.ts';
 
 export type DaemonCommandContext = {
+  requestId?: string;
   appBundleId?: string;
   activity?: string;
   verbose?: boolean;
@@ -25,8 +26,10 @@ export function contextFromFlags(
   flags: CommandFlags | undefined,
   appBundleId?: string,
   traceLogPath?: string,
+  requestId?: string,
 ): DaemonCommandContext {
   return {
+    requestId,
     appBundleId,
     activity: flags?.activity,
     verbose: flags?.verbose,

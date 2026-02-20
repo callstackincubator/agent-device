@@ -77,6 +77,7 @@ export async function dispatchCommand(
   positionals: string[],
   outPath?: string,
   context?: {
+    requestId?: string;
     appBundleId?: string;
     activity?: string;
     verbose?: boolean;
@@ -97,6 +98,7 @@ export async function dispatchCommand(
   },
 ): Promise<Record<string, unknown> | void> {
   const runnerCtx: RunnerContext = {
+    requestId: context?.requestId,
     appBundleId: context?.appBundleId,
     verbose: context?.verbose,
     logPath: context?.logPath,
