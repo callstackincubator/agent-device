@@ -150,105 +150,9 @@ test('record start returns structured error when iOS runner start fails', async 
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
-test('record start retries iOS runner with staging path when direct output is not permitted', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-start-permission-fallback';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  }));
-  const runnerCalls: string[] = [];
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start'],
-    deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      runCmdBackground: () => {
-        throw new Error('runCmdBackground should not be used for iOS devices');
-      },
-      runIosRunnerCommand: async (_device, command) => {
-        if (command.command !== 'recordStart') return {};
-        runnerCalls.push(command.outPath ?? '');
-        if (runnerCalls.length === 1) {
-          throw new Error('You don’t have permission to save the file');
-        }
-        return {};
-      },
-    },
-  });
-
-  assert.equal(response?.ok, true);
-  assert.equal(runnerCalls.length, 2);
-  assert.ok(runnerCalls[0] && runnerCalls[0] !== runnerCalls[1]);
-  assert.match(runnerCalls[1] ?? '', /\/\.agent-device\/recordings\/recording-.*\.mp4$/);
-
-  const finalOut = sessionStore.get(sessionName)?.recording?.outPath;
-  assert.ok(finalOut);
-
-  await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-    deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      runCmdBackground: () => {
-        throw new Error('runCmdBackground should not be used for iOS devices');
-      },
-      runIosRunnerCommand: async () => ({}),
-    },
-  });
-  if (typeof finalOut === 'string') {
-    fs.rmSync(finalOut, { force: true });
-  }
-});
-
-test('record start does not fallback when explicit output path is provided', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-explicit-no-fallback';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  }));
-  const requestedOut = path.join(os.tmpdir(), `agent-device-test-explicit-${Date.now()}.mp4`);
-  const runnerCalls: string[] = [];
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', requestedOut],
-    deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      runCmdBackground: () => {
-        throw new Error('runCmdBackground should not be used for iOS devices');
-      },
-      runIosRunnerCommand: async (_device, command) => {
-        if (command.command !== 'recordStart') return {};
-        runnerCalls.push(command.outPath ?? '');
-        throw new Error('You don’t have permission to save the file');
-      },
-    },
-  });
-
-  assert.equal(response?.ok, false);
-  assert.equal(response?.error?.code, 'COMMAND_FAILED');
-  assert.match(response?.error?.message ?? '', /failed to start recording: You don’t have permission to save the file/);
-  assert.deepEqual(runnerCalls, [requestedOut]);
-});
-
 test('record stop clears iOS runner recording state when runner stop fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-stop-fail';
-  const finalOut = path.join(os.tmpdir(), `agent-device-test-stop-final-${Date.now()}.mp4`);
-  const runnerOut = path.join(os.tmpdir(), `agent-device-test-stop-runner-${Date.now()}.mp4`);
-  fs.writeFileSync(runnerOut, 'runner-data');
   sessionStore.set(sessionName, {
     ...makeSession(sessionName, {
       platform: 'ios',
@@ -257,7 +161,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       kind: 'device',
       booted: true,
     }),
-    recording: { platform: 'ios-device-runner', outPath: finalOut, runnerOutPath: runnerOut },
+    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4' },
   });
 
   const response = await runRecordCommand({
@@ -277,9 +181,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
 
   assert.equal(response?.ok, true);
   assert.equal(response?.data?.recording, 'stopped');
-  assert.equal(fs.existsSync(finalOut), true);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
-  fs.rmSync(finalOut, { force: true });
 });
 
 test('record uses simctl recordVideo for iOS simulators', async () => {

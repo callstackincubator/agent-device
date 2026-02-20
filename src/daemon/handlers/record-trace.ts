@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
@@ -16,22 +15,6 @@ function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, sessi
     logPath,
     traceLogPath: session.trace?.outPath,
   };
-}
-
-function resolveRunnerStagingPath(): string {
-  const stagingDir = path.join(os.homedir(), '.agent-device', 'recordings');
-  fs.mkdirSync(stagingDir, { recursive: true });
-  return path.join(stagingDir, `recording-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
-}
-
-function shouldFallbackToRunnerStagingPath(message: string): boolean {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes('permission') ||
-    normalized.includes('operation not permitted') ||
-    normalized.includes('you don’t have permission') ||
-    normalized.includes("you don't have permission")
-  );
 }
 
 export async function handleRecordTraceCommands(params: {
@@ -72,7 +55,6 @@ export async function handleRecordTraceCommands(params: {
       if (activeSession.recording) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'recording already in progress' } };
       }
-      const outPathProvided = Boolean(req.positionals?.[1]);
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
       const resolvedOut = path.resolve(outPath);
       const outDir = path.dirname(resolvedOut);
@@ -87,31 +69,17 @@ export async function handleRecordTraceCommands(params: {
       }
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
-        let runnerOutPath = resolvedOut;
         try {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: runnerOutPath, appBundleId: activeSession.appBundleId },
+            { command: 'recordStart', outPath: resolvedOut, appBundleId: activeSession.appBundleId },
             runnerOptions,
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          if (outPathProvided || !shouldFallbackToRunnerStagingPath(message)) {
-            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
-          }
-          runnerOutPath = resolveRunnerStagingPath();
-          try {
-            await deps.runIosRunnerCommand(
-              device,
-              { command: 'recordStart', outPath: runnerOutPath, appBundleId: activeSession.appBundleId },
-              runnerOptions,
-            );
-          } catch (retryError) {
-            const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
-            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${retryMessage}` } };
-          }
+          return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
         }
-        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, runnerOutPath };
+        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut };
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
           allowFailure: true,
@@ -138,7 +106,6 @@ export async function handleRecordTraceCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active recording' } };
     }
     const recording = activeSession.recording;
-    let runnerCopyError: string | undefined;
     if (recording.platform === 'ios-device-runner') {
       try {
         await deps.runIosRunnerCommand(
@@ -160,20 +127,6 @@ export async function handleRecordTraceCommands(params: {
         });
         // best effort: clear runner-backed recording state even if runner stop fails
       }
-      const runnerOutPath = recording.runnerOutPath ?? recording.outPath;
-      try {
-        fs.copyFileSync(runnerOutPath, recording.outPath);
-        if (runnerOutPath !== recording.outPath) {
-          try {
-            fs.unlinkSync(runnerOutPath);
-          } catch {
-            // ignore cleanup failure
-          }
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        runnerCopyError = `failed to persist recording output: ${message}`;
-      }
     } else {
       recording.child.kill('SIGINT');
       try {
@@ -191,9 +144,6 @@ export async function handleRecordTraceCommands(params: {
       }
     }
     activeSession.recording = undefined;
-    if (runnerCopyError) {
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: runnerCopyError } };
-    }
     sessionStore.recordAction(activeSession, {
       command,
       positionals: req.positionals ?? [],

@@ -55,7 +55,6 @@ export type SessionState = {
     | {
       platform: 'ios-device-runner';
       outPath: string;
-      runnerOutPath?: string;
     };
 };
 
