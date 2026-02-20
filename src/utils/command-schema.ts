@@ -71,10 +71,21 @@ const SNAPSHOT_FLAGS = [
   'snapshotRaw',
 ] as const satisfies readonly FlagKey[];
 
+const DIFF_SNAPSHOT_FLAGS = [...SNAPSHOT_FLAGS] as const satisfies readonly FlagKey[];
+
 const SELECTOR_SNAPSHOT_FLAGS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
+] as const satisfies readonly FlagKey[];
+
+const CLICK_LIKE_FLAGS = [
+  'count',
+  'intervalMs',
+  'holdMs',
+  'jitterPx',
+  'doubleTap',
+  ...SELECTOR_SNAPSHOT_FLAGS,
 ] as const satisfies readonly FlagKey[];
 
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
@@ -370,6 +381,12 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [...SNAPSHOT_FLAGS],
   },
+  diff: {
+    usageOverride: 'diff snapshot',
+    description: 'Compare current snapshot against previous session snapshot',
+    positionalArgs: ['kind'],
+    allowedFlags: [...DIFF_SNAPSHOT_FLAGS],
+  },
   devices: {
     description: 'List available devices',
     positionalArgs: [],
@@ -421,7 +438,15 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/click by coordinates, snapshot ref, or selector',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: [...CLICK_LIKE_FLAGS],
+  },
+  dblclick: {
+    usageOverride: 'dblclick <x y|@ref|selector>',
+    description: 'Alias for click --double-tap',
+    positionalArgs: ['target'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...CLICK_LIKE_FLAGS],
+    skipCapabilityCheck: true,
   },
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
@@ -447,7 +472,7 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/press by coordinates, snapshot ref, or selector (supports repeated series)',
     positionalArgs: ['targetOrX', 'y?'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: [...CLICK_LIKE_FLAGS],
   },
   'long-press': {
     description: 'Long press (where supported)',

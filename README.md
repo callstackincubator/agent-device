@@ -15,7 +15,7 @@ The project is in early development and considered experimental. Pull requests a
 ## Features
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
-- Inspection commands: `snapshot` (accessibility tree), `appstate`, `apps`, `devices`.
+- Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (snapshot diffs), `appstate`, `apps`, `devices`.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
 
@@ -34,13 +34,14 @@ npx agent-device open SampleApp
 ## Quick Start
 
 Use refs for agent-driven exploration and normal automation flows.
-Use `press` as the canonical tap command; `click` is an equivalent alias.
+Use `press` as the canonical tap command; `click` is an equivalent alias; `dblclick` is an alias for `click --double-tap`.
 
 ```bash
 agent-device open Contacts --platform ios # creates session on iOS Simulator
 agent-device snapshot
 agent-device press @e5
 agent-device fill @e6 "John"
+agent-device diff snapshot
 agent-device fill @e7 "Doe"
 agent-device press @e3
 agent-device close
@@ -105,6 +106,7 @@ agent-device open SampleApp
 agent-device snapshot
 agent-device press @e7
 agent-device fill @e8 "hello"
+agent-device diff snapshot
 agent-device close SampleApp
 ```
 
@@ -122,6 +124,7 @@ Coordinates:
 - X increases to the right, Y increases downward.
 - `press` is the canonical tap command.
 - `click` is an equivalent alias and accepts the same targets (`x y`, `@ref`, selector) and flags.
+- `dblclick` is shorthand for `click --double-tap`.
 
 Gesture series examples:
 
@@ -135,8 +138,8 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `batch`
-- `snapshot`, `find`, `get`
-- `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
+- `snapshot`, `diff`, `find`, `get`
+- `press` (aliases: `click`, `dblclick`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`
@@ -149,6 +152,7 @@ Notes:
 - iOS snapshots use XCTest on simulators and physical devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
+- `diff snapshot` compares the current snapshot against the previous snapshot in the same session and then updates the baseline.
 
 Flags:
 - `--version, -V` print version and exit
@@ -162,7 +166,7 @@ Flags:
 - `--interval-ms <ms>` delay between `press` iterations
 - `--hold-ms <ms>` hold duration per `press` iteration
 - `--jitter-px <n>` deterministic coordinate jitter for `press`
-- `--double-tap` use a double-tap gesture per `press`/`click` iteration (cannot be combined with `--hold-ms` or `--jitter-px`)
+- `--double-tap` use a double-tap gesture per `press`/`click`/`dblclick` iteration (cannot be combined with `--hold-ms` or `--jitter-px`)
 - `--pause-ms <ms>` delay between `swipe` iterations
 - `--pattern one-way|ping-pong` repeat pattern for `swipe`
 - `--debug` (alias: `--verbose`) for debug diagnostics + daemon/runner logs
@@ -235,7 +239,7 @@ Replay update:
 - `replay <path>` runs deterministic replay from `.ad` scripts.
 - `replay -u <path>` attempts selector updates on failures and atomically rewrites the same file.
 - Refs are the default/core mechanism for interactive agent flows.
-- Update targets: `click`, `fill`, `get`, `is`, `wait`.
+- Update targets: `click`, `dblclick`, `fill`, `get`, `is`, `wait`.
 - Selector matching is a replay-update internal: replay parses `.ad` lines into actions, tries them, snapshots on failure, resolves a better selector, then rewrites that failing line.
 
 Update examples:

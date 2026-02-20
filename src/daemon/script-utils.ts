@@ -14,8 +14,8 @@ const SWIPE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'pauseMs'>([
   ['--pause-ms', 'pauseMs'],
 ]);
 
-export function isClickLikeCommand(command: string): command is 'click' | 'press' {
-  return command === 'click' || command === 'press';
+export function isClickLikeCommand(command: string): command is 'click' | 'press' | 'dblclick' {
+  return command === 'click' || command === 'press' || command === 'dblclick';
 }
 
 export function formatScriptArg(value: string): string {

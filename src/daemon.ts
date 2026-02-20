@@ -203,8 +203,15 @@ function finalizeDaemonResponse(response: DaemonResponse): DaemonResponse {
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
-  if (req.command !== 'click') return req;
-  return { ...req, command: 'press' };
+  if (req.command === 'dblclick') {
+    return {
+      ...req,
+      command: 'press',
+      flags: { ...(req.flags ?? {}), doubleTap: true },
+    };
+  }
+  if (req.command === 'click') return { ...req, command: 'press' };
+  return req;
 }
 
 function writeInfo(port: number): void {
