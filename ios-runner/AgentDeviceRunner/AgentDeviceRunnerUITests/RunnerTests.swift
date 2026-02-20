@@ -261,7 +261,11 @@ final class RunnerTests: XCTestCase {
       if let exceptionMessage {
         currentApp = nil
         currentBundleId = nil
-        if !hasRetried, shouldRetryCommand(command.command) {
+        if !hasRetried, shouldRetryException(command, message: exceptionMessage) {
+          NSLog(
+            "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=objc_exception",
+            command.command.rawValue
+          )
           hasRetried = true
           sleepFor(retryCooldown)
           continue
@@ -282,7 +286,11 @@ final class RunnerTests: XCTestCase {
           userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
         )
       }
-      if !hasRetried, shouldRetryCommand(command.command), shouldRetryResponse(response) {
+      if !hasRetried, shouldRetryCommand(command), shouldRetryResponse(response) {
+        NSLog(
+          "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=response_unavailable",
+          command.command.rawValue
+        )
         hasRetried = true
         currentApp = nil
         currentBundleId = nil
@@ -532,10 +540,35 @@ final class RunnerTests: XCTestCase {
     return target
   }
 
-  private func shouldRetryCommand(_ command: CommandType) -> Bool {
-    switch command {
-    case .tap, .longPress, .drag:
+  private func shouldRetryCommand(_ command: Command) -> Bool {
+    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_READONLY_RETRY") {
+      return false
+    }
+    return isReadOnlyCommand(command)
+  }
+
+  private func shouldRetryException(_ command: Command, message: String) -> Bool {
+    guard shouldRetryCommand(command) else { return false }
+    let normalized = message.lowercased()
+    if normalized.contains("kaxerrorservernotfound") {
       return true
+    }
+    if normalized.contains("main thread execution timed out") {
+      return true
+    }
+    if normalized.contains("timed out") && command.command == .snapshot {
+      return true
+    }
+    return false
+  }
+
+  private func isReadOnlyCommand(_ command: Command) -> Bool {
+    switch command.command {
+    case .findText, .listTappables, .snapshot:
+      return true
+    case .alert:
+      let action = (command.action ?? "get").lowercased()
+      return action == "get"
     default:
       return false
     }
@@ -1006,19 +1039,65 @@ final class RunnerTests: XCTestCase {
   }
 
   private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
-    for alert in springboard.alerts.allElementsBoundByIndex {
-      if isBlockingSystemModal(alert, in: springboard) {
+    let alerts: [XCUIElement]
+    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE") {
+      alerts = springboard.alerts.allElementsBoundByIndex
+    } else {
+      alerts = safeElementsQuery {
+        springboard.alerts.allElementsBoundByIndex
+      }
+    }
+    for alert in alerts {
+      if safeIsBlockingSystemModal(alert, in: springboard) {
         return alert
       }
     }
 
-    for sheet in springboard.sheets.allElementsBoundByIndex {
-      if isBlockingSystemModal(sheet, in: springboard) {
+    let sheets: [XCUIElement]
+    if isEnvTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE") {
+      sheets = springboard.sheets.allElementsBoundByIndex
+    } else {
+      sheets = safeElementsQuery {
+        springboard.sheets.allElementsBoundByIndex
+      }
+    }
+    for sheet in sheets {
+      if safeIsBlockingSystemModal(sheet, in: springboard) {
         return sheet
       }
     }
 
     return nil
+  }
+
+  private func safeElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
+    var elements: [XCUIElement] = []
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      elements = fetch()
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_QUERY_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return []
+    }
+    return elements
+  }
+
+  private func safeIsBlockingSystemModal(_ element: XCUIElement, in springboard: XCUIApplication) -> Bool {
+    var isBlocking = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      isBlocking = isBlockingSystemModal(element, in: springboard)
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_CHECK_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return false
+    }
+    return isBlocking
   }
 
   private func isBlockingSystemModal(_ element: XCUIElement, in springboard: XCUIApplication) -> Bool {
@@ -1211,6 +1290,18 @@ private func resolveRunnerPort() -> UInt16 {
     }
   }
   return 0
+}
+
+private func isEnvTruthy(_ name: String) -> Bool {
+  guard let raw = ProcessInfo.processInfo.environment[name] else {
+    return false
+  }
+  switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+  case "1", "true", "yes", "on":
+    return true
+  default:
+    return false
+  }
 }
 
 enum CommandType: String, Codable {
