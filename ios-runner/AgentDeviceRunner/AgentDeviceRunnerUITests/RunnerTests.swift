@@ -33,6 +33,7 @@ final class RunnerTests: XCTestCase {
   private let maxSnapshotElements = 600
   private let fastSnapshotLimit = 300
   private let mainThreadExecutionTimeout: TimeInterval = 30
+  private let appExistenceTimeout: TimeInterval = 30
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
@@ -327,10 +328,10 @@ final class RunnerTests: XCTestCase {
       activeApp = app
     }
 
-    if !activeApp.waitForExistence(timeout: 5) {
+    if !activeApp.waitForExistence(timeout: appExistenceTimeout) {
       if let bundleId = requestedBundleId {
         activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
-        guard activeApp.waitForExistence(timeout: 5) else {
+        guard activeApp.waitForExistence(timeout: appExistenceTimeout) else {
           return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
         }
       } else {
