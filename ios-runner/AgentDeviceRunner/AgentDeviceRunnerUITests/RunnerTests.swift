@@ -1044,7 +1044,7 @@ final class RunnerTests: XCTestCase {
       if disableSafeProbe {
         return fetch()
       }
-      return safeElementsQuery(fetch)
+      return self.safeElementsQuery(fetch)
     }
 
     let alerts = queryElements {
