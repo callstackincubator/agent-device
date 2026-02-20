@@ -55,6 +55,9 @@ function makeIosDeviceRunnerDeps(
       logPath: options?.logPath,
       traceLogPath: options?.traceLogPath,
     });
+    if (command.command === 'recordStart' && command.outPath) {
+      fs.writeFileSync(command.outPath, 'test');
+    }
     return {};
   };
   return {
@@ -80,10 +83,11 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
 
   const runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls);
+  const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
   const responseStart = await runRecordCommand({
     sessionStore,
     sessionName,
-    positionals: ['start', './device.mp4'],
+    positionals: ['start', finalOut],
     logPath: '/tmp/daemon.log',
     deps,
   });
@@ -92,7 +96,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStart?.ok, true);
   assert.equal(runnerCalls.length, 1);
   assert.equal(runnerCalls[0]?.command, 'recordStart');
-  assert.match(runnerCalls[0]?.outPath ?? '', /device\.mp4$/);
+  assert.match(runnerCalls[0]?.outPath ?? '', /agent-device-recording-.*\.mp4$/);
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
   assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'ios-device-runner');
@@ -109,7 +113,9 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStop?.ok, true);
   assert.equal(runnerCalls.length, 2);
   assert.equal(runnerCalls[1]?.command, 'recordStop');
+  assert.equal(fs.existsSync(finalOut), true);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+  fs.rmSync(finalOut, { force: true });
 });
 
 test('record start returns structured error when iOS runner start fails', async () => {
@@ -147,6 +153,9 @@ test('record start returns structured error when iOS runner start fails', async 
 test('record stop clears iOS runner recording state when runner stop fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-stop-fail';
+  const finalOut = path.join(os.tmpdir(), `agent-device-test-stop-final-${Date.now()}.mp4`);
+  const runnerOut = path.join(os.tmpdir(), `agent-device-test-stop-runner-${Date.now()}.mp4`);
+  fs.writeFileSync(runnerOut, 'runner-data');
   sessionStore.set(sessionName, {
     ...makeSession(sessionName, {
       platform: 'ios',
@@ -155,7 +164,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       kind: 'device',
       booted: true,
     }),
-    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4' },
+    recording: { platform: 'ios-device-runner', outPath: finalOut, runnerOutPath: runnerOut },
   });
 
   const response = await runRecordCommand({
@@ -175,7 +184,9 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
 
   assert.equal(response?.ok, true);
   assert.equal(response?.data?.recording, 'stopped');
+  assert.equal(fs.existsSync(finalOut), true);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+  fs.rmSync(finalOut, { force: true });
 });
 
 test('record uses simctl recordVideo for iOS simulators', async () => {
