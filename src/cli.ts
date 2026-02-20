@@ -19,11 +19,6 @@ const DEFAULT_CLI_DEPS: CliDeps = {
   sendToDaemon,
 };
 
-function normalizeCliCommand(command: string): string {
-  if (command === 'longpress' || command === 'longPress') return 'long-press';
-  return command;
-}
-
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
   const debugEnabled = argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
@@ -80,8 +75,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           printHumanError(new AppError('INVALID_ARGS', 'help accepts at most one command.'));
           process.exit(1);
         }
-        const helpTargetRaw = isHelpAlias ? parsed.positionals[0] : parsed.command;
-        const helpTarget = helpTargetRaw ? normalizeCliCommand(helpTargetRaw) : helpTargetRaw;
+        const helpTarget = isHelpAlias ? parsed.positionals[0] : parsed.command;
         if (!helpTarget) {
           process.stdout.write(`${usage()}\n`);
           process.exit(0);
@@ -102,14 +96,13 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       const { command, positionals, flags } = parsed;
-      const normalizedCommand = normalizeCliCommand(command);
       const daemonFlags = toDaemonFlags(flags);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
       const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
       const sendDaemonRequest = async (payload: { command: string; positionals: string[]; flags?: Record<string, unknown> }) =>
         await deps.sendToDaemon({
           session: sessionName,
-      command: normalizeCliCommand(payload.command),
+          command: payload.command,
           positionals: payload.positionals,
           flags: payload.flags as any,
           meta: {
@@ -175,7 +168,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
     }
 
     const response = await sendDaemonRequest({
-      command: normalizedCommand,
+      command: command!,
       positionals,
       flags: daemonFlags,
     });

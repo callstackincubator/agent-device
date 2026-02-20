@@ -125,15 +125,6 @@ Coordinates:
 - `press` is the canonical tap command.
 - `click` is an equivalent alias and accepts the same targets (`x y`, `@ref`, selector) and flags.
 - `dblclick` is shorthand for `click --double-tap`.
-- `long-press` works on both iOS and Android; `longpress` and `longPress` are aliases.
-
-Long-press examples:
-
-```bash
-agent-device long-press 300 500
-agent-device long-press 300 500 800
-agent-device longpress 300 500 800
-```
 
 Gesture series examples:
 
@@ -148,7 +139,7 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
 - `batch`
 - `snapshot`, `diff`, `find`, `get`
-- `press` (aliases: `click`, `dblclick`), `focus`, `type`, `fill`, `long-press` (aliases: `longpress`, `longPress`), `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
+- `press` (aliases: `click`, `dblclick`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `settings wifi|airplane|location on|off`

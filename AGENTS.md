@@ -18,12 +18,6 @@ Minimal operating guide for AI coding agents in this repo.
 - Transform tasks into verifiable goals with clear success criteria.
 - For multi-step tasks, state a brief plan with verification checkpoints.
 
-## Docs & Skills
-- For every project change, explicitly evaluate docs impact before finishing.
-- If behavior, command surface, flags, examples, or workflows changed, update relevant docs in the same change set (at least `README.md`, plus `website/docs/**` when applicable).
-- If agent workflow guidance changed, update related skill docs (`skills/**/SKILL.md`) in the same change set when applicable.
-- If no docs/skills update is needed, state that explicitly in the final summary.
-
 ## Scope
 - Solve issues with the smallest context read.
 - Keep changes scoped to one command family or module group.

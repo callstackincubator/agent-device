@@ -129,8 +129,7 @@ agent-device press @e1 --count 5             # Repeat taps on the same target
 agent-device press @e1 --count 5 --double-tap # Use double-tap gesture per iteration
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
-agent-device long-press 300 500 800    # Long press on iOS + Android
-agent-device longpress 300 500 800     # Alias of long-press
+agent-device long-press 300 500 800    # Long press (where supported)
 agent-device scroll down 0.5
 agent-device pinch 2.0              # Zoom in 2x (iOS simulator only)
 agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator only)
@@ -237,7 +236,6 @@ agent-device apps --platform android --user-installed
 - `press` is the canonical tap command; `click` is an alias with the same behavior; `dblclick` is shorthand for `click --double-tap`.
 - `press`, `click`, and `dblclick` accept `x y`, `@ref`, and selector targets.
 - `press`/`click`/`dblclick` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
-- `long-press` works on both iOS and Android. `longpress` and `longPress` are CLI aliases.
 - `--double-tap` cannot be combined with `--hold-ms` or `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
 - `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
