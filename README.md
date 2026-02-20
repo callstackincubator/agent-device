@@ -307,8 +307,11 @@ Diagnostics files:
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `settings`.
 - `record` supports iOS simulators and physical iOS devices.
-  - Physical iOS device capture is runner-based and defaults to uncapped (max available) FPS.
-  - Use `agent-device record start [path] --fps <n>` (1-120) to cap FPS on physical iOS devices.
+  - iOS simulator recording uses native `simctl io ... recordVideo`.
+  - Physical iOS device recording is runner-based and built from repeated `XCUIScreen.main.screenshot()` frames (no native video stream/audio capture).
+  - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
+  - Physical iOS device recording defaults to uncapped (max available) FPS.
+  - Use `agent-device record start [path] --fps <n>` (1-120) to set an explicit FPS cap on physical iOS devices.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
 
 ## Testing
