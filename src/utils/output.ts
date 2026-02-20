@@ -51,6 +51,17 @@ type SnapshotNode = {
   enabled?: boolean;
 };
 
+type SnapshotDiffKind = 'added' | 'removed' | 'unchanged';
+type SnapshotDiffLine = {
+  kind?: SnapshotDiffKind;
+  text?: string;
+};
+type SnapshotDiffSummary = {
+  additions?: number;
+  removals?: number;
+  unchanged?: number;
+};
+
 export function formatSnapshotText(
   data: Record<string, unknown>,
   options: { raw?: boolean; flatten?: boolean } = {},
@@ -95,6 +106,27 @@ export function formatSnapshotText(
     lines.push(formatSnapshotLine(node, adjustedDepth, isHiddenGroup));
   }
   return `${prefix}${header}\n${lines.join('\n')}\n`;
+}
+
+export function formatSnapshotDiffText(data: Record<string, unknown>): string {
+  const mode = typeof data.mode === 'string' ? data.mode : 'snapshot';
+  const baselineInitialized = data.baselineInitialized === true;
+  const summary = (data.summary ?? {}) as SnapshotDiffSummary;
+  const additions = toCount(summary.additions);
+  const removals = toCount(summary.removals);
+  const unchanged = toCount(summary.unchanged);
+  const linesRaw = Array.isArray(data.lines) ? (data.lines as SnapshotDiffLine[]) : [];
+  const header = `Diff (${mode})${baselineInitialized ? ': baseline initialized' : ''}`;
+  if (baselineInitialized) {
+    return `${header}\nRun diff snapshot again after UI changes.\n${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+  }
+  const rendered = linesRaw.map((line) => {
+    const text = String(line.text ?? '');
+    if (line.kind === 'added') return `+ ${text}`;
+    if (line.kind === 'removed') return `- ${text}`;
+    return text;
+  });
+  return `${header}\n${rendered.join('\n')}\n\n${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
 }
 
 function formatSnapshotLine(node: SnapshotNode, depth: number, hiddenGroup: boolean): string {
@@ -223,4 +255,8 @@ function formatRole(type: string): string {
     default:
       return normalized || 'element';
   }
+}
+
+function toCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }

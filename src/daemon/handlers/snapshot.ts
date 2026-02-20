@@ -14,6 +14,7 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import { buildSnapshotDiff, type SnapshotDiffLine, type SnapshotDiffSummary } from '../snapshot-diff.ts';
 import { findSelectorChainMatch, splitSelectorFromArgs, tryParseSelectorChain, type SelectorChain } from '../selectors.ts';
 import { parseTimeout, POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS } from './parse-utils.ts';
 
@@ -38,75 +39,102 @@ export async function handleSnapshotCommands(params: {
       };
     }
     const appBundleId = session?.appBundleId;
-    let snapshotScope = req.flags?.snapshotScope;
-    if (snapshotScope && snapshotScope.trim().startsWith('@')) {
-      if (!session?.snapshot) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'Ref scope requires an existing snapshot in session.',
-          },
-        };
-      }
-      const ref = normalizeRef(snapshotScope.trim());
-      if (!ref) {
-        return {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: `Invalid ref scope: ${snapshotScope}` },
-        };
-      }
-      const node = findNodeByRef(session.snapshot.nodes, ref);
-      const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
-      if (!resolved) {
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${snapshotScope} not found or has no label`,
-          },
-        };
-      }
-      snapshotScope = resolved;
+    const resolvedScope = resolveSnapshotScopeFromRef(req.flags?.snapshotScope, session);
+    if (resolvedScope.error) {
+      return resolvedScope.error;
     }
+    const snapshotScope = resolvedScope.snapshotScope;
     return await withSessionlessRunnerCleanup(session, device, async () => {
-      const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
-        ...contextFromFlags(
-          logPath,
-          { ...req.flags, snapshotScope },
-          appBundleId,
-          session?.trace?.outPath,
-        ),
-      })) as {
-        nodes?: RawSnapshotNode[];
-        truncated?: boolean;
-        backend?: 'xctest' | 'android';
-      };
-      const rawNodes = data?.nodes ?? [];
-      const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
-      const snapshot: SnapshotState = {
-        nodes,
-        truncated: data?.truncated,
-        createdAt: Date.now(),
-        backend: data?.backend,
-      };
+      const snapshot = await captureSnapshotState({
+        device,
+        req,
+        logPath,
+        session,
+        snapshotScope,
+      });
       const nextSession: SessionState = session
         ? { ...session, snapshot }
         : { name: sessionName, device, createdAt: Date.now(), appBundleId, snapshot, actions: [] };
       recordIfSession(sessionStore, nextSession, req, {
-        nodes: nodes.length,
-        truncated: data?.truncated ?? false,
+        nodes: snapshot.nodes.length,
+        truncated: snapshot.truncated ?? false,
       });
       sessionStore.set(sessionName, nextSession);
       return {
         ok: true,
         data: {
-          nodes,
-          truncated: data?.truncated ?? false,
+          nodes: snapshot.nodes,
+          truncated: snapshot.truncated ?? false,
           appName: nextSession.appBundleId
             ? (nextSession.appName ?? nextSession.appBundleId)
             : undefined,
           appBundleId: nextSession.appBundleId,
+        },
+      };
+    });
+  }
+
+  if (command === 'diff') {
+    const kind = req.positionals?.[0]?.toLowerCase();
+    if (kind !== 'snapshot') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'diff currently supports only: snapshot',
+        },
+      };
+    }
+
+    const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
+    if (!isCommandSupportedOnDevice('snapshot', device)) {
+      return {
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'snapshot is not supported on this device',
+        },
+      };
+    }
+    const appBundleId = session?.appBundleId;
+    const resolvedScope = resolveSnapshotScopeFromRef(req.flags?.snapshotScope, session);
+    if (resolvedScope.error) {
+      return resolvedScope.error;
+    }
+    const snapshotScope = resolvedScope.snapshotScope;
+    return await withSessionlessRunnerCleanup(session, device, async () => {
+      const currentSnapshot = await captureSnapshotState({
+        device,
+        req,
+        logPath,
+        session,
+        snapshotScope,
+      });
+      const nextSession: SessionState = session
+        ? { ...session, snapshot: currentSnapshot }
+        : {
+          name: sessionName,
+          device,
+          createdAt: Date.now(),
+          appBundleId,
+          snapshot: currentSnapshot,
+          actions: [],
+        };
+
+      const diffData = buildDiffSnapshotResponse(session?.snapshot, currentSnapshot);
+      recordIfSession(sessionStore, nextSession, req, {
+        mode: 'snapshot',
+        baselineInitialized: diffData.baselineInitialized,
+        summary: diffData.summary,
+      });
+      sessionStore.set(sessionName, nextSession);
+      return {
+        ok: true,
+        data: {
+          mode: 'snapshot',
+          baselineInitialized: diffData.baselineInitialized,
+          summary: diffData.summary,
+          lines: diffData.lines,
         },
       };
     });
@@ -428,4 +456,107 @@ function recordIfSession(
     flags: req.flags ?? {},
     result,
   });
+}
+
+async function captureSnapshotState(params: {
+  device: SessionState['device'];
+  req: DaemonRequest;
+  logPath: string;
+  session?: SessionState;
+  snapshotScope?: string;
+}): Promise<SnapshotState> {
+  const { device, req, logPath, session, snapshotScope } = params;
+  const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+    ...contextFromFlags(
+      logPath,
+      { ...req.flags, snapshotScope },
+      session?.appBundleId,
+      session?.trace?.outPath,
+    ),
+  })) as {
+    nodes?: RawSnapshotNode[];
+    truncated?: boolean;
+    backend?: 'xctest' | 'android';
+  };
+  const rawNodes = data?.nodes ?? [];
+  const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+  return {
+    nodes,
+    truncated: data?.truncated,
+    createdAt: Date.now(),
+    backend: data?.backend,
+  };
+}
+
+function resolveSnapshotScopeFromRef(
+  snapshotScope: string | undefined,
+  session: SessionState | undefined,
+): { snapshotScope: string | undefined; error?: DaemonResponse } {
+  if (!snapshotScope || !snapshotScope.trim().startsWith('@')) {
+    return { snapshotScope };
+  }
+  if (!session?.snapshot) {
+    return {
+      snapshotScope,
+      error: {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'Ref scope requires an existing snapshot in session.',
+        },
+      },
+    };
+  }
+  const ref = normalizeRef(snapshotScope.trim());
+  if (!ref) {
+    return {
+      snapshotScope,
+      error: {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `Invalid ref scope: ${snapshotScope}` },
+      },
+    };
+  }
+  const node = findNodeByRef(session.snapshot.nodes, ref);
+  const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
+  if (!resolved) {
+    return {
+      snapshotScope,
+      error: {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `Ref ${snapshotScope} not found or has no label`,
+        },
+      },
+    };
+  }
+  return { snapshotScope: resolved };
+}
+
+export function buildDiffSnapshotResponse(
+  previousSnapshot: SnapshotState | undefined,
+  currentSnapshot: SnapshotState,
+): {
+  baselineInitialized: boolean;
+  summary: SnapshotDiffSummary;
+  lines: SnapshotDiffLine[];
+} {
+  if (!previousSnapshot) {
+    return {
+      baselineInitialized: true,
+      summary: {
+        additions: 0,
+        removals: 0,
+        unchanged: currentSnapshot.nodes.length,
+      },
+      lines: [],
+    };
+  }
+  const diff = buildSnapshotDiff(previousSnapshot.nodes, currentSnapshot.nodes);
+  return {
+    baselineInitialized: false,
+    summary: diff.summary,
+    lines: diff.lines,
+  };
 }

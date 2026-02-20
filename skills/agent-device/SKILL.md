@@ -30,7 +30,7 @@ npx -y agent-device
 1. Open app or deep link: `open [app|url] [url]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
 3. Interact using refs (`press @ref`, `fill @ref "text"`; `click` is an alias of `press`, `dblclick` is an alias of `click --double-tap`)
-4. Re-snapshot after navigation/UI changes
+4. Use `diff snapshot` to compare current UI against the previous snapshot baseline in-session
 5. Close session when done
 
 ## Commands
@@ -64,9 +64,11 @@ agent-device snapshot -c               # Compact output
 agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
+agent-device diff snapshot             # Compare current snapshot against previous in-session baseline
 ```
 
 XCTest is the iOS snapshot engine: fast, complete, and no Accessibility permission required.
+`diff snapshot` is useful in exploration loops where only UI changes should be inspected.
 
 ### Find (semantic)
 
@@ -239,6 +241,7 @@ agent-device apps --platform android --user-installed
 - `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
 - Pinch (`pinch <scale> [x y]`) is iOS simulator-only; scale > 1 zooms in, < 1 zooms out.
 - Snapshot refs are the core mechanism for interactive agent flows.
+- Prefer `diff snapshot` after UI mutations when you only need the delta from the prior snapshot.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, snapshots use XCTest and do not require Accessibility permission.

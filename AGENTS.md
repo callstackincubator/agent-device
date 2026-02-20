@@ -34,7 +34,7 @@ Minimal operating guide for AI coding agents in this repo.
 - Put command logic in handler modules:
   - session/apps/appstate/open/close/replay: `src/daemon/handlers/session.ts`
   - click/fill/get/is: `src/daemon/handlers/interaction.ts`
-  - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
+  - snapshot/diff/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
   - find: `src/daemon/handlers/find.ts`
   - record/trace: `src/daemon/handlers/record-trace.ts`
 - Generic passthrough (press/scroll/type) is daemon fallback only after handlers return null.
