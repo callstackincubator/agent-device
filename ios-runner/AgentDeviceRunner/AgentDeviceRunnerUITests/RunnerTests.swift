@@ -40,7 +40,9 @@ final class RunnerTests: XCTestCase {
   private let retryCooldown: TimeInterval = 0.2
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
-  private let recordingFps: Int32 = 8
+  private let defaultRecordingFps: Int32 = 60
+  private let minRecordingFps = 1
+  private let maxRecordingFps = 120
   private var needsPostSnapshotInteractionDelay = false
   private var needsFirstInteractionDelay = false
   private var activeRecording: ScreenRecorder?
@@ -610,14 +612,19 @@ final class RunnerTests: XCTestCase {
       if activeRecording != nil {
         return Response(ok: false, error: ErrorPayload(message: "recording already in progress"))
       }
+      let requestedFps = command.fps ?? Int(defaultRecordingFps)
+      if requestedFps < minRecordingFps || requestedFps > maxRecordingFps {
+        return Response(ok: false, error: ErrorPayload(message: "recordStart fps must be between \(minRecordingFps) and \(maxRecordingFps)"))
+      }
       do {
         let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
         NSLog(
-          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@",
+          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%d",
           requestedOutPath,
-          resolvedOutPath
+          resolvedOutPath,
+          requestedFps
         )
-        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: recordingFps)
+        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: Int32(requestedFps))
         try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }
@@ -1721,6 +1728,7 @@ struct Command: Codable {
   let direction: SwipeDirection?
   let scale: Double?
   let outPath: String?
+  let fps: Int?
   let interactiveOnly: Bool?
   let compact: Bool?
   let depth: Int?

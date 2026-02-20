@@ -30,6 +30,7 @@ async function runRecordCommand(params: {
   deps: RecordTraceDeps;
   logPath?: string;
   cwd?: string;
+  flags?: { fps?: number };
 }) {
   return handleRecordTraceCommands({
     req: {
@@ -37,7 +38,7 @@ async function runRecordCommand(params: {
       session: params.sessionName,
       command: 'record',
       positionals: params.positionals,
-      flags: {},
+      flags: params.flags ?? {},
       meta: params.cwd ? { cwd: params.cwd } : undefined,
     },
     sessionName: params.sessionName,
@@ -48,13 +49,14 @@ async function runRecordCommand(params: {
 }
 
 function makeIosDeviceRunnerDeps(
-  runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }>,
+  runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }>,
   runCmdCalls: Array<{ cmd: string; args: string[] }>,
 ): RecordTraceDeps {
   const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
     runnerCalls.push({
       command: command.command,
       outPath: command.outPath,
+      fps: command.fps,
       appBundleId: command.appBundleId,
       logPath: options?.logPath,
       traceLogPath: options?.traceLogPath,
@@ -86,7 +88,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   session.appBundleId = 'com.atebits.Tweetie2';
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
@@ -103,6 +105,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls.length, 1);
   assert.equal(runnerCalls[0]?.command, 'recordStart');
   assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
+  assert.equal(runnerCalls[0]?.fps, 60);
   assert.equal(runnerCalls[0]?.appBundleId, undefined);
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
@@ -159,7 +162,7 @@ test('record start resolves relative output path from request cwd', async () => 
   });
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
   const cwd = '/tmp/agent-device-cwd-test';
@@ -173,6 +176,7 @@ test('record start resolves relative output path from request cwd', async () => 
 
   assert.equal(responseStart?.ok, true);
   assert.match(runnerCalls[0]?.outPath ?? '', /^agent-device-recording-\d+\.mp4$/);
+  assert.equal(runnerCalls[0]?.fps, 60);
   const startedRecording = sessionStore.get(sessionName)?.recording;
   assert.equal(startedRecording?.platform, 'ios-device-runner');
   if (startedRecording?.platform === 'ios-device-runner') {
@@ -188,6 +192,66 @@ test('record start resolves relative output path from request cwd', async () => 
     deps,
   });
   assert.equal(runCmdCalls.length, 1);
+});
+
+test('record start forwards explicit fps to iOS runner', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-fps';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const runnerCalls: Array<{ command: string; outPath?: string; fps?: number; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
+  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
+    flags: { fps: 30 },
+    deps,
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(runnerCalls[0]?.command, 'recordStart');
+  assert.equal(runnerCalls[0]?.fps, 30);
+  assert.equal(runCmdCalls.length, 0);
+});
+
+test('record start rejects invalid fps value', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-invalid-fps';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
+    flags: { fps: 0 },
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be used for invalid args');
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runIosRunnerCommand should not be used for invalid args');
+      },
+    },
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(response?.error?.code, 'INVALID_ARGS');
+  assert.match(response?.error?.message ?? '', /fps must be an integer between 1 and 120/);
 });
 
 test('record start returns structured error when iOS runner start fails', async () => {

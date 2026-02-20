@@ -49,6 +49,7 @@ export type RunnerCommand = {
   direction?: 'up' | 'down' | 'left' | 'right';
   scale?: number;
   outPath?: string;
+  fps?: number;
   interactiveOnly?: boolean;
   compact?: boolean;
   depth?: number;

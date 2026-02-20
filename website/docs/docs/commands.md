@@ -154,10 +154,13 @@ agent-device screenshot                 # Auto filename
 agent-device screenshot page.png        # Explicit screenshot path
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
+agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
 agent-device record stop                # Stop active recording
 ```
 
-- iOS `record` works on simulators and physical devices. Physical-device capture is runner-based and may have lower FPS than simulator-native recording.
+- iOS `record` works on simulators and physical devices.
+- Physical-device capture is runner-based and defaults to 60 FPS.
+- `--fps <n>` (1-120) applies to physical iOS device recording.
 
 ## iOS device prerequisites
 

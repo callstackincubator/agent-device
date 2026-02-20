@@ -28,6 +28,9 @@ const IOS_RUNNER_CONTAINER_BUNDLE_IDS = uniqueNonEmpty([
   'com.myapp.AgentDeviceRunnerUITests.xctrunner',
   'com.myapp.AgentDeviceRunner',
 ]);
+const IOS_DEVICE_RECORD_DEFAULT_FPS = 60;
+const IOS_DEVICE_RECORD_MIN_FPS = 1;
+const IOS_DEVICE_RECORD_MAX_FPS = 120;
 
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
   return {
@@ -75,6 +78,19 @@ export async function handleRecordTraceCommands(params: {
       if (activeSession.recording) {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'recording already in progress' } };
       }
+      const fpsFlag = req.flags?.fps;
+      if (
+        fpsFlag !== undefined &&
+        (!Number.isInteger(fpsFlag) || fpsFlag < IOS_DEVICE_RECORD_MIN_FPS || fpsFlag > IOS_DEVICE_RECORD_MAX_FPS)
+      ) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: `fps must be an integer between ${IOS_DEVICE_RECORD_MIN_FPS} and ${IOS_DEVICE_RECORD_MAX_FPS}`,
+          },
+        };
+      }
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
       const outDir = path.dirname(resolvedOut);
@@ -92,7 +108,7 @@ export async function handleRecordTraceCommands(params: {
         try {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: recordingFileName },
+            { command: 'recordStart', outPath: recordingFileName, fps: fpsFlag ?? IOS_DEVICE_RECORD_DEFAULT_FPS },
             runnerOptions,
           );
         } catch (error) {

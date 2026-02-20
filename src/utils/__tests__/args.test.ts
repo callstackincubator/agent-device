@@ -140,6 +140,20 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
   assert.equal(parsed.flags.pattern, 'ping-pong');
 });
 
+test('parseArgs recognizes record --fps flag', () => {
+  const parsed = parseArgs(['record', 'start', './capture.mp4', '--fps', '30'], { strictFlags: true });
+  assert.equal(parsed.command, 'record');
+  assert.deepEqual(parsed.positionals, ['start', './capture.mp4']);
+  assert.equal(parsed.flags.fps, 30);
+});
+
+test('parseArgs rejects invalid record --fps range', () => {
+  assert.throws(
+    () => parseArgs(['record', 'start', './capture.mp4', '--fps', '0'], { strictFlags: true }),
+    /Invalid fps: 0/,
+  );
+});
+
 test('parseArgs recognizes longpress command', () => {
   const parsed = parseArgs(['longpress', '300', '500', '800'], { strictFlags: true });
   assert.equal(parsed.command, 'longpress');
@@ -174,6 +188,7 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /--fps <n>/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.doesNotMatch(usage(), /--metadata/);

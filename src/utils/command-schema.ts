@@ -14,6 +14,7 @@ export type CliFlags = {
   snapshotRaw?: boolean;
   appsFilter?: 'user-installed' | 'all';
   count?: number;
+  fps?: number;
   intervalMs?: number;
   holdMs?: number;
   jitterPx?: number;
@@ -131,6 +132,15 @@ export const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 200,
     usageLabel: '--count <n>',
     usageDescription: 'Repeat count for press/swipe series',
+  },
+  {
+    key: 'fps',
+    names: ['--fps'],
+    type: 'int',
+    min: 1,
+    max: 120,
+    usageLabel: '--fps <n>',
+    usageDescription: 'Record: target frames per second (iOS physical device runner)',
   },
   {
     key: 'intervalMs',
@@ -498,10 +508,10 @@ export const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['out'],
   },
   record: {
-    usageOverride: 'record start [path] | record stop',
+    usageOverride: 'record start [path] [--fps <n>] | record stop',
     description: 'Start/stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
-    allowedFlags: [],
+    allowedFlags: ['fps'],
   },
   trace: {
     usageOverride: 'trace start [path] | trace stop [path]',
