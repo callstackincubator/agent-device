@@ -258,8 +258,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
-On iOS, swipe timing uses a safe normalized duration to avoid longpress side effects.
-`scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses geometry-based scrolling.
+On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
+`scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.
 `longpress` is supported on iOS and Android.
 `pinch` is iOS simulator-only.
 
