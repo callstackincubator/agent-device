@@ -43,14 +43,14 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
       continue;
     }
     if (!parseFlags) {
-      if (!command) command = arg;
+      if (!command) command = normalizeCommandAlias(arg);
       else positionals.push(arg);
       continue;
     }
     const isLongFlag = arg.startsWith('--');
     const isShortFlag = arg.startsWith('-') && arg.length > 1;
     if (!isLongFlag && !isShortFlag) {
-      if (!command) command = arg;
+      if (!command) command = normalizeCommandAlias(arg);
       else positionals.push(arg);
       continue;
     }
@@ -246,5 +246,10 @@ export function usage(): string {
 }
 
 export function usageForCommand(command: string): string | null {
-  return buildCommandUsageText(command);
+  return buildCommandUsageText(normalizeCommandAlias(command));
+}
+
+function normalizeCommandAlias(command: string): string {
+  if (command === 'long-press') return 'longpress';
+  return command;
 }

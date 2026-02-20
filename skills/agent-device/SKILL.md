@@ -126,7 +126,7 @@ agent-device press @e1 --count 5             # Repeat taps on the same target
 agent-device press @e1 --count 5 --double-tap # Use double-tap gesture per iteration
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
-agent-device long-press 300 500 800    # Long press (where supported)
+agent-device longpress 300 500 800     # Long press on iOS and Android
 agent-device scroll down 0.5
 agent-device pinch 2.0              # Zoom in 2x (iOS simulator only)
 agent-device pinch 0.5 200 400     # Zoom out at coordinates (iOS simulator only)
@@ -235,7 +235,8 @@ agent-device apps --platform android --user-installed
 - `press`/`click` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
 - `--double-tap` cannot be combined with `--hold-ms` or `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
-- `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
+- `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid longpress side effects.
+- `longpress` is coordinate-based and supported on iOS and Android.
 - Pinch (`pinch <scale> [x y]`) is iOS simulator-only; scale > 1 zooms in, < 1 zooms out.
 - Snapshot refs are the core mechanism for interactive agent flows.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
