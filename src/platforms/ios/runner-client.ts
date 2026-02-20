@@ -353,6 +353,8 @@ async function ensureRunnerSession(
         'NO',
         '-test-timeouts-enabled',
         'NO',
+        '-collect-test-diagnostics',
+        'never',
         resolveRunnerMaxConcurrentDestinationsFlag(device),
         '1',
         '-destination-timeout',
