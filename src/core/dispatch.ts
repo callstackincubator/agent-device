@@ -184,7 +184,12 @@ export async function dispatchCommand(
             doubleTap,
             appBundleId: context?.appBundleId,
           },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+          {
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
+            requestId: context?.requestId,
+          },
         );
         return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, timingMode: 'runner-series' };
       }
@@ -237,7 +242,12 @@ export async function dispatchCommand(
             pattern,
             appBundleId: context?.appBundleId,
           },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+          {
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
+            requestId: context?.requestId,
+          },
         );
         return {
           x1,
@@ -334,7 +344,12 @@ export async function dispatchCommand(
       await runIosRunnerCommand(
         device,
         { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
-        { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+        {
+          verbose: context?.verbose,
+          logPath: context?.logPath,
+          traceLogPath: context?.traceLogPath,
+          requestId: context?.requestId,
+        },
       );
       return { scale, x, y };
     }
@@ -350,7 +365,12 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'back', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+          {
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
+            requestId: context?.requestId,
+          },
         );
         return { action: 'back' };
       }
@@ -362,7 +382,12 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'home', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+          {
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
+            requestId: context?.requestId,
+          },
         );
         return { action: 'home' };
       }
@@ -374,7 +399,12 @@ export async function dispatchCommand(
         await runIosRunnerCommand(
           device,
           { command: 'appSwitcher', appBundleId: context?.appBundleId },
-          { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+          {
+            verbose: context?.verbose,
+            logPath: context?.logPath,
+            traceLogPath: context?.traceLogPath,
+            requestId: context?.requestId,
+          },
         );
         return { action: 'app-switcher' };
       }
@@ -415,7 +445,12 @@ export async function dispatchCommand(
                 scope: context?.snapshotScope,
                 raw: context?.snapshotRaw,
               },
-              { verbose: context?.verbose, logPath: context?.logPath, traceLogPath: context?.traceLogPath },
+              {
+                verbose: context?.verbose,
+                logPath: context?.logPath,
+                traceLogPath: context?.traceLogPath,
+                requestId: context?.requestId,
+              },
             ),
           {
             backend: 'xctest',

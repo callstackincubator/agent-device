@@ -11,6 +11,7 @@ import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
+import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 
 export type RunnerCommand = {
   command:
@@ -126,13 +127,22 @@ export type RunnerSnapshotNode = {
 export async function runIosRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
   validateRunnerDevice(device);
+  assertRunnerRequestActive(options.requestId);
   if (isReadOnlyRunnerCommand(command.command)) {
     return withRetry(
-      () => executeRunnerCommand(device, command, options),
-      { shouldRetry: isRetryableRunnerError },
+      () => {
+        assertRunnerRequestActive(options.requestId);
+        return executeRunnerCommand(device, command, options);
+      },
+      {
+        shouldRetry: (error) => {
+          assertRunnerRequestActive(options.requestId);
+          return isRetryableRunnerError(error);
+        },
+      },
     );
   }
   return executeRunnerCommand(device, command, options);
@@ -145,8 +155,9 @@ function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Pro
 async function executeRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string } = {},
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
+  assertRunnerRequestActive(options.requestId);
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);
@@ -167,6 +178,7 @@ async function executeRunnerCommand(
       shouldRetryRunnerConnectError(appErr) &&
       session?.ready
     ) {
+      assertRunnerRequestActive(options.requestId);
       if (session) {
         await stopRunnerSession(session);
       } else {
@@ -647,6 +659,11 @@ export function isRetryableRunnerError(err: unknown): boolean {
 
 function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return command === 'snapshot' || command === 'findText' || command === 'listTappables' || command === 'alert';
+}
+
+function assertRunnerRequestActive(requestId: string | undefined): void {
+  if (!isRequestCanceled(requestId)) return;
+  throw new AppError('COMMAND_FAILED', 'request canceled');
 }
 
 function shouldCleanDerived(): boolean {

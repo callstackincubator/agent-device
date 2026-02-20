@@ -248,7 +248,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
     const timeout = setTimeout(() => {
       socket.destroy();
       const cleanup = cleanupTimedOutIosRunnerBuilds();
-      resetDaemonAfterTimeout(info);
+      const daemonReset = resetDaemonAfterTimeout(info);
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -259,6 +259,7 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
           timedOutRunnerPidsTerminated: cleanup.terminated,
           timedOutRunnerCleanupError: cleanup.error,
           daemonPidReset: info.pid,
+          daemonPidForceKilled: daemonReset.forcedKill,
         },
       });
       reject(
@@ -333,15 +334,24 @@ function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string 
   }
 }
 
-function resetDaemonAfterTimeout(info: DaemonInfo): void {
-  void stopProcessForTakeover(info.pid, {
-    termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
-    killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
-    expectedStartTime: info.processStartTime,
-  }).finally(() => {
+function resetDaemonAfterTimeout(info: DaemonInfo): { forcedKill: boolean } {
+  let forcedKill = false;
+  try {
+    if (isAgentDeviceDaemonProcess(info.pid, info.processStartTime)) {
+      process.kill(info.pid, 'SIGKILL');
+      forcedKill = true;
+    }
+  } catch {
+    void stopProcessForTakeover(info.pid, {
+      termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
+      killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
+      expectedStartTime: info.processStartTime,
+    });
+  } finally {
     removeDaemonInfo();
     removeDaemonLock();
-  });
+  }
+  return { forcedKill };
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {

@@ -87,7 +87,12 @@ type IoRunnerOverrides = Pick<
 >;
 
 function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
-  const runnerOpts = { verbose: ctx.verbose, logPath: ctx.logPath, traceLogPath: ctx.traceLogPath };
+  const runnerOpts = {
+    verbose: ctx.verbose,
+    logPath: ctx.logPath,
+    traceLogPath: ctx.traceLogPath,
+    requestId: ctx.requestId,
+  };
   const throwIfCanceled = () => {
     if (!isRequestCanceled(ctx.requestId)) return;
     throw new AppError('COMMAND_FAILED', 'request canceled');
