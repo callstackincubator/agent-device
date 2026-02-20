@@ -56,7 +56,7 @@ export async function handleRecordTraceCommands(params: {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'recording already in progress' } };
       }
       const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
-      const resolvedOut = path.resolve(outPath);
+      const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
       const outDir = path.dirname(resolvedOut);
       if (!fs.existsSync(outDir)) {
         fs.mkdirSync(outDir, { recursive: true });

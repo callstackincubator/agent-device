@@ -29,6 +29,7 @@ async function runRecordCommand(params: {
   positionals: string[];
   deps: RecordTraceDeps;
   logPath?: string;
+  cwd?: string;
 }) {
   return handleRecordTraceCommands({
     req: {
@@ -37,6 +38,7 @@ async function runRecordCommand(params: {
       command: 'record',
       positionals: params.positionals,
       flags: {},
+      meta: params.cwd ? { cwd: params.cwd } : undefined,
     },
     sessionName: params.sessionName,
     sessionStore: params.sessionStore,
@@ -116,6 +118,41 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(fs.existsSync(finalOut), true);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
   fs.rmSync(finalOut, { force: true });
+});
+
+test('record start resolves relative output path from request cwd', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-cwd';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  });
+  sessionStore.set(sessionName, session);
+
+  const runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }> = [];
+  const deps = makeIosDeviceRunnerDeps(runnerCalls);
+  const cwd = '/tmp/agent-device-cwd-test';
+  const responseStart = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
+    cwd,
+    deps,
+  });
+
+  assert.equal(responseStart?.ok, true);
+  assert.equal(runnerCalls[0]?.outPath, path.join(cwd, 'device.mp4'));
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    cwd,
+    deps,
+  });
 });
 
 test('record start returns structured error when iOS runner start fails', async () => {
