@@ -51,7 +51,6 @@ agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device long-press 300 500 800
-agent-device longpress 300 500 800
 agent-device scroll down 0.5
 agent-device pinch 2.0          # zoom in 2x (iOS simulator)
 agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
@@ -61,7 +60,6 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe timing uses a safe normalized duration to avoid long-press side effects.
-`long-press` works on both iOS and Android. `longpress` and `longPress` are aliases.
 `pinch` is iOS simulator-only.
 
 ## Find (semantic)
