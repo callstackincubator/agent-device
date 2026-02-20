@@ -83,7 +83,7 @@ export async function handleRecordTraceCommands(params: {
         try {
           await deps.runIosRunnerCommand(
             device,
-            { command: 'recordStart', outPath: resolvedOut, appBundleId: activeSession.appBundleId },
+            { command: 'recordStart', outPath: resolvedOut },
             runnerOptions,
           );
         } catch (error) {
@@ -121,7 +121,7 @@ export async function handleRecordTraceCommands(params: {
       try {
         await deps.runIosRunnerCommand(
           device,
-          { command: 'recordStop', appBundleId: activeSession.appBundleId },
+          { command: 'recordStop' },
           getRunnerOptions(req, logPath, activeSession),
         );
       } catch (error) {

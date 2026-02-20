@@ -48,12 +48,13 @@ async function runRecordCommand(params: {
 }
 
 function makeIosDeviceRunnerDeps(
-  runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }>,
+  runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }>,
 ): RecordTraceDeps {
   const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
     runnerCalls.push({
       command: command.command,
       outPath: command.outPath,
+      appBundleId: command.appBundleId,
       logPath: options?.logPath,
       traceLogPath: options?.traceLogPath,
     });
@@ -81,9 +82,10 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     kind: 'device',
     booted: true,
   });
+  session.appBundleId = 'com.atebits.Tweetie2';
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
   const responseStart = await runRecordCommand({
@@ -99,6 +101,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls.length, 1);
   assert.equal(runnerCalls[0]?.command, 'recordStart');
   assert.equal(runnerCalls[0]?.outPath, finalOut);
+  assert.equal(runnerCalls[0]?.appBundleId, undefined);
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
   assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'ios-device-runner');
@@ -115,6 +118,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStop?.ok, true);
   assert.equal(runnerCalls.length, 2);
   assert.equal(runnerCalls[1]?.command, 'recordStop');
+  assert.equal(runnerCalls[1]?.appBundleId, undefined);
   assert.equal(fs.existsSync(finalOut), true);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
   fs.rmSync(finalOut, { force: true });
@@ -132,7 +136,7 @@ test('record start resolves relative output path from request cwd', async () => 
   });
   sessionStore.set(sessionName, session);
 
-  const runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }> = [];
+  const runnerCalls: Array<{ command: string; outPath?: string; appBundleId?: string; logPath?: string; traceLogPath?: string }> = [];
   const deps = makeIosDeviceRunnerDeps(runnerCalls);
   const cwd = '/tmp/agent-device-cwd-test';
   const responseStart = await runRecordCommand({
