@@ -214,7 +214,6 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
     positionals: string[];
     context: Record<string, unknown> | undefined;
   }> = [];
-  let snapshotCallCount = 0;
   const response = await handleInteractionCommands({
     req: {
       token: 't',
@@ -227,16 +226,6 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
     sessionStore,
     contextFromFlags,
     dispatch: async (_device, command, positionals, _out, context) => {
-      if (command === 'snapshot') {
-        snapshotCallCount += 1;
-        return {
-          nodes: [
-            { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-            { index: 1, type: 'XCUIElementTypeStaticText', label: 'Far item', rect: { x: 20, y: 320, width: 120, height: 40 } },
-          ],
-          backend: 'xctest',
-        };
-      }
       dispatchCalls.push({ command, positionals, context: context as Record<string, unknown> | undefined });
       return { ok: true };
     },
@@ -244,7 +233,6 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
 
   assert.ok(response);
   assert.equal(response.ok, true);
-  assert.equal(snapshotCallCount, 1);
   assert.equal(dispatchCalls.length, 1);
   assert.equal(dispatchCalls[0]?.command, 'swipe');
   assert.equal(dispatchCalls[0]?.positionals.length, 5);
@@ -259,8 +247,6 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
   assert.equal(stored?.actions[0]?.command, 'scrollintoview');
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   assert.equal(result.ref, 'e2');
-  assert.equal(result.strategy, 'ref-geometry');
-  assert.equal(result.verified, true);
 });
 
 test('scrollintoview @ref returns immediately when target is already in viewport safe band', async () => {
@@ -313,7 +299,7 @@ test('scrollintoview @ref returns immediately when target is already in viewport
   }
 });
 
-test('scrollintoview @ref fails if target remains outside viewport after scroll', async () => {
+test('scrollintoview @ref does not run post-scroll verification snapshot', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const session = makeSession(sessionName);
@@ -335,6 +321,7 @@ test('scrollintoview @ref fails if target remains outside viewport after scroll'
     backend: 'xctest',
   };
   sessionStore.set(sessionName, session);
+  let snapshotCallCount = 0;
 
   const response = await handleInteractionCommands({
     req: {
@@ -349,6 +336,7 @@ test('scrollintoview @ref fails if target remains outside viewport after scroll'
     contextFromFlags,
     dispatch: async (_device, command) => {
       if (command === 'snapshot') {
+        snapshotCallCount += 1;
         return {
           nodes: [
             { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
@@ -362,9 +350,6 @@ test('scrollintoview @ref fails if target remains outside viewport after scroll'
   });
 
   assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error?.code, 'COMMAND_FAILED');
-    assert.match(response.error?.message ?? '', /outside viewport/i);
-  }
+  assert.equal(response.ok, true);
+  assert.equal(snapshotCallCount, 0);
 });

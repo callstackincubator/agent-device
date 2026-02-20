@@ -197,8 +197,8 @@ Pinch:
 Swipe timing:
 - `swipe` accepts optional `durationMs` (default `250`, range `16..10000`).
 - Android uses requested swipe duration directly.
-- iOS uses a safe normalized duration to avoid longpress side effects.
-- `scrollintoview` accepts either plain text or a snapshot ref (`@eN`); ref mode uses geometry-based scrolling.
+- iOS clamps swipe duration to a safe range (`16..60ms`) to avoid longpress side effects.
+- `scrollintoview` accepts either plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.
 
 ## Skills
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).

@@ -36,6 +36,9 @@ test('buildScrollIntoViewPlan computes downward content scroll when target is be
   assert.ok(plan);
   assert.equal(plan?.direction, 'down');
   assert.ok((plan?.count ?? 0) > 1);
+  assert.equal(plan?.x, 80);
+  assert.equal(plan?.startY, 726);
+  assert.equal(plan?.endY, 118);
 });
 
 test('buildScrollIntoViewPlan returns null when already in safe viewport band', () => {
@@ -44,4 +47,12 @@ test('buildScrollIntoViewPlan returns null when already in safe viewport band', 
   const plan = buildScrollIntoViewPlan(targetRect, viewportRect);
   assert.equal(plan, null);
   assert.equal(isRectWithinSafeViewportBand(targetRect, viewportRect), true);
+});
+
+test('buildScrollIntoViewPlan keeps swipe lane inside viewport when target center is out of bounds', () => {
+  const targetRect = { x: 1000, y: 2100, width: 120, height: 40 };
+  const viewportRect = { x: 0, y: 0, width: 390, height: 844 };
+  const plan = buildScrollIntoViewPlan(targetRect, viewportRect);
+  assert.ok(plan);
+  assert.equal(plan?.x, 351);
 });

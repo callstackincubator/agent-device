@@ -23,7 +23,7 @@ import {
   splitSelectorFromArgs,
 } from '../selectors.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
-import { buildScrollIntoViewPlan, isRectWithinSafeViewportBand, resolveViewportRect } from '../scroll-planner.ts';
+import { buildScrollIntoViewPlan, resolveViewportRect } from '../scroll-planner.ts';
 
 type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -598,14 +598,14 @@ export async function handleInteractionCommands(params: {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry', refLabel, selectorChain },
+        result: { ref, attempts: 0, alreadyVisible: true, refLabel, selectorChain },
       });
-      return { ok: true, data: { ref, attempts: 0, alreadyVisible: true, strategy: 'ref-geometry' } };
+      return { ok: true, data: { ref, attempts: 0, alreadyVisible: true } };
     }
     const data = await dispatch(
       session.device,
       'swipe',
-      [String(plan.x), String(plan.startY), String(plan.x), String(plan.endY), '60'],
+      [String(plan.x), String(plan.startY), String(plan.x), String(plan.endY), '16'],
       req.flags?.out,
       {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
@@ -614,15 +614,6 @@ export async function handleInteractionCommands(params: {
         pattern: 'one-way',
       },
     );
-    const verification = await verifyRefTargetInViewport({
-      session,
-      flags: req.flags,
-      sessionStore,
-      contextFromFlags,
-      dispatch,
-      selectorChain,
-    });
-    if (!verification.ok) return verification.response;
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
@@ -632,8 +623,6 @@ export async function handleInteractionCommands(params: {
         ref,
         attempts: plan.count,
         direction: plan.direction,
-        strategy: 'ref-geometry',
-        verified: true,
         refLabel,
         selectorChain,
       },
@@ -645,8 +634,6 @@ export async function handleInteractionCommands(params: {
         ref,
         attempts: plan.count,
         direction: plan.direction,
-        strategy: 'ref-geometry',
-        verified: true,
       },
     };
   }
@@ -760,75 +747,4 @@ function resolveRefTarget(params: {
     };
   }
   return { ok: true, target: { ref, node, snapshotNodes: session.snapshot.nodes } };
-}
-
-async function verifyRefTargetInViewport(params: {
-  session: SessionState;
-  flags: CommandFlags | undefined;
-  sessionStore: SessionStore;
-  contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
-  selectorChain: string[];
-}): Promise<{ ok: true } | { ok: false; response: DaemonResponse }> {
-  const { session, flags, sessionStore, contextFromFlags, dispatch, selectorChain } = params;
-  if (selectorChain.length === 0) {
-    return {
-      ok: false,
-      response: { ok: false, error: { code: 'COMMAND_FAILED', message: 'scrollintoview verification selector is empty' } },
-    };
-  }
-  let chainExpression = '';
-  try {
-    chainExpression = selectorChain.join(' || ');
-    parseSelectorChain(chainExpression);
-  } catch {
-    return {
-      ok: false,
-      response: { ok: false, error: { code: 'COMMAND_FAILED', message: 'scrollintoview verification selector is invalid' } },
-    };
-  }
-  const snapshot = await captureSnapshotForSession(
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly: true },
-    dispatch,
-  );
-  const chain = parseSelectorChain(chainExpression);
-  const resolved = resolveSelectorChain(snapshot.nodes, chain, {
-    platform: session.device.platform,
-    requireRect: true,
-    requireUnique: false,
-    disambiguateAmbiguous: true,
-  });
-  if (!resolved?.node.rect) {
-    return {
-      ok: false,
-      response: {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'scrollintoview target could not be verified after scrolling' },
-      },
-    };
-  }
-  const viewportRect = resolveViewportRect(snapshot.nodes, resolved.node.rect);
-  if (!viewportRect) {
-    return {
-      ok: false,
-      response: {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'scrollintoview could not infer viewport during verification' },
-      },
-    };
-  }
-  if (!isRectWithinSafeViewportBand(resolved.node.rect, viewportRect)) {
-    return {
-      ok: false,
-      response: {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'scrollintoview target is still outside viewport after scrolling' },
-      },
-    };
-  }
-  return { ok: true };
 }
