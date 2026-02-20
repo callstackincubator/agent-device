@@ -1011,29 +1011,30 @@ final class RunnerTests: XCTestCase {
     }
 
     let title = preferredSystemModalTitle(modal)
-
-    var nodes: [SnapshotNode] = [
-      makeSnapshotNode(
-        element: modal,
-        index: 0,
-        type: "Alert",
-        labelOverride: title,
-        identifierOverride: modal.identifier,
-        depth: 0,
-        hittableOverride: true
-      )
-    ]
+    guard let modalNode = safeMakeSnapshotNode(
+      element: modal,
+      index: 0,
+      type: "Alert",
+      labelOverride: title,
+      identifierOverride: modal.identifier,
+      depth: 0,
+      hittableOverride: true
+    ) else {
+      return nil
+    }
+    var nodes: [SnapshotNode] = [modalNode]
 
     for action in actions {
-      nodes.append(
-        makeSnapshotNode(
-          element: action,
-          index: nodes.count,
-          type: elementTypeName(action.elementType),
-          depth: 1,
-          hittableOverride: true
-        )
-      )
+      guard let actionNode = safeMakeSnapshotNode(
+        element: action,
+        index: nodes.count,
+        type: elementTypeName(action.elementType),
+        depth: 1,
+        hittableOverride: true
+      ) else {
+        continue
+      }
+      nodes.append(actionNode)
     }
 
     return DataPayload(nodes: nodes, truncated: false)
@@ -1116,18 +1117,36 @@ final class RunnerTests: XCTestCase {
   private func actionableElements(in element: XCUIElement) -> [XCUIElement] {
     var seen = Set<String>()
     var actions: [XCUIElement] = []
-    let descendants = element.descendants(matching: .any).allElementsBoundByIndex
+    let descendants = safeElementsQuery {
+      element.descendants(matching: .any).allElementsBoundByIndex
+    }
     for candidate in descendants {
-      if !candidate.exists || !candidate.isHittable { continue }
-      if !actionableTypes.contains(candidate.elementType) { continue }
-      let frame = candidate.frame
-      if frame.isNull || frame.isEmpty { continue }
-      let key = "\(candidate.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(candidate.label)"
-      if seen.contains(key) { continue }
-      seen.insert(key)
+      if !safeIsActionableCandidate(candidate, seen: &seen) { continue }
       actions.append(candidate)
     }
     return actions
+  }
+
+  private func safeIsActionableCandidate(_ candidate: XCUIElement, seen: inout Set<String>) -> Bool {
+    var include = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      if !candidate.exists || !candidate.isHittable { return }
+      if !actionableTypes.contains(candidate.elementType) { return }
+      let frame = candidate.frame
+      if frame.isNull || frame.isEmpty { return }
+      let key = "\(candidate.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(candidate.label)"
+      if seen.contains(key) { return }
+      seen.insert(key)
+      include = true
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_ACTION_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return false
+    }
+    return include
   }
 
   private func preferredSystemModalTitle(_ element: XCUIElement) -> String {
@@ -1164,6 +1183,37 @@ final class RunnerTests: XCTestCase {
       hittable: hittableOverride ?? element.isHittable,
       depth: depth
     )
+  }
+
+  private func safeMakeSnapshotNode(
+    element: XCUIElement,
+    index: Int,
+    type: String,
+    labelOverride: String? = nil,
+    identifierOverride: String? = nil,
+    depth: Int,
+    hittableOverride: Bool? = nil
+  ) -> SnapshotNode? {
+    var node: SnapshotNode?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      node = makeSnapshotNode(
+        element: element,
+        index: index,
+        type: type,
+        labelOverride: labelOverride,
+        identifierOverride: identifierOverride,
+        depth: depth,
+        hittableOverride: hittableOverride
+      )
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_MODAL_NODE_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return nil
+    }
+    return node
   }
 
   private func snapshotRect(from frame: CGRect) -> SnapshotRect {
