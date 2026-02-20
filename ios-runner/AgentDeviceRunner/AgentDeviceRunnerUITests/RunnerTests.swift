@@ -26,7 +26,6 @@ final class RunnerTests: XCTestCase {
 
   private static let springboardBundleId = "com.apple.springboard"
   private var listener: NWListener?
-  private var port: UInt16 = 0
   private var doneExpectation: XCTestExpectation?
   private let app = XCUIApplication()
   private lazy var springboard = XCUIApplication(bundleIdentifier: Self.springboardBundleId)
@@ -351,7 +350,6 @@ final class RunnerTests: XCTestCase {
       case .ready:
         NSLog("AGENT_DEVICE_RUNNER_LISTENER_READY")
         if let listenerPort = self?.listener?.port {
-          self?.port = listenerPort.rawValue
           NSLog("AGENT_DEVICE_RUNNER_PORT=%d", listenerPort.rawValue)
         } else {
           NSLog("AGENT_DEVICE_RUNNER_PORT_NOT_SET")
@@ -764,17 +762,6 @@ final class RunnerTests: XCTestCase {
       }
       let found = findElement(app: activeApp, text: text) != nil
       return Response(ok: true, data: DataPayload(found: found))
-    case .listTappables:
-      let elements = activeApp.descendants(matching: .any).allElementsBoundByIndex
-      let labels = elements.compactMap { element -> String? in
-        guard element.isHittable else { return nil }
-        let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
-        if label.isEmpty { return nil }
-        let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-        return identifier.isEmpty ? label : "\(label) [\(identifier)]"
-      }
-      let unique = Array(Set(labels)).sorted()
-      return Response(ok: true, data: DataPayload(items: unique))
     case .snapshot:
       let options = SnapshotOptions(
         interactiveOnly: command.interactiveOnly ?? false,
@@ -908,7 +895,7 @@ final class RunnerTests: XCTestCase {
 
   private func isReadOnlyCommand(_ command: Command) -> Bool {
     switch command.command {
-    case .findText, .listTappables, .snapshot:
+    case .findText, .snapshot:
       return true
     case .alert:
       let action = (command.action ?? "get").lowercased()
@@ -1714,7 +1701,6 @@ enum CommandType: String, Codable {
   case type
   case swipe
   case findText
-  case listTappables
   case snapshot
   case back
   case home
