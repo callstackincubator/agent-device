@@ -29,8 +29,8 @@ npx -y agent-device
 
 1. Open app or deep link: `open [app|url] [url]` (`open` handles target selection + boot/activation in the normal flow)
 2. Snapshot: `snapshot` to get refs from accessibility tree
-3. Interact using refs (`press @ref`, `fill @ref "text"`; `click` is an alias of `press`, `dblclick` is an alias of `click --double-tap`)
-4. Use `diff snapshot` to compare current UI against the previous snapshot baseline in-session
+3. Interact using refs (`press @ref`, `fill @ref "text"`; `click` is an alias of `press`)
+4. Re-snapshot after navigation/UI changes
 5. Close session when done
 
 ## Commands
@@ -64,11 +64,9 @@ agent-device snapshot -c               # Compact output
 agent-device snapshot -d 3             # Limit depth
 agent-device snapshot -s "Camera"      # Scope to label/identifier
 agent-device snapshot --raw            # Raw node output
-agent-device diff snapshot             # Compare current snapshot against previous in-session baseline
 ```
 
 XCTest is the iOS snapshot engine: fast, complete, and no Accessibility permission required.
-`diff snapshot` is useful in exploration loops where only UI changes should be inspected.
 
 ### Find (semantic)
 
@@ -117,8 +115,7 @@ agent-device appstate
 ### Interactions (use @refs from snapshot)
 
 ```bash
-agent-device press @e1                # Canonical tap command (`click` is an alias, `dblclick` is a double-tap alias)
-agent-device dblclick @e1             # Equivalent to: click @e1 --double-tap
+agent-device press @e1                # Canonical tap command (`click` is an alias)
 agent-device focus @e2
 agent-device fill @e2 "text"           # Clear then type (Android: verifies value and retries once on mismatch)
 agent-device type "text"               # Type into focused field without clearing
@@ -233,15 +230,14 @@ agent-device apps --platform android --user-installed
 
 ## Best practices
 
-- `press` is the canonical tap command; `click` is an alias with the same behavior; `dblclick` is shorthand for `click --double-tap`.
-- `press`, `click`, and `dblclick` accept `x y`, `@ref`, and selector targets.
-- `press`/`click`/`dblclick` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
+- `press` is the canonical tap command; `click` is an alias with the same behavior.
+- `press` (and `click`) accepts `x y`, `@ref`, and selector targets.
+- `press`/`click` support gesture series controls: `--count`, `--interval-ms`, `--hold-ms`, `--jitter-px`, `--double-tap`.
 - `--double-tap` cannot be combined with `--hold-ms` or `--jitter-px`.
 - `swipe` supports coordinate + timing controls and repeat patterns: `swipe x1 y1 x2 y2 [durationMs] --count --pause-ms --pattern`.
 - `swipe` timing is platform-safe: Android uses requested duration; iOS uses normalized safe timing to avoid long-press side effects.
 - Pinch (`pinch <scale> [x y]`) is iOS simulator-only; scale > 1 zooms in, < 1 zooms out.
 - Snapshot refs are the core mechanism for interactive agent flows.
-- Prefer `diff snapshot` after UI mutations when you only need the delta from the prior snapshot.
 - Use selectors for deterministic replay artifacts and assertions (e.g. in e2e test workflows).
 - Prefer `snapshot -i` to reduce output size.
 - On iOS, snapshots use XCTest and do not require Accessibility permission.

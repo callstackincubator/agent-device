@@ -110,13 +110,6 @@ test('parseArgs recognizes click series flags', () => {
   assert.equal(parsed.flags.intervalMs, 10);
 });
 
-test('parseArgs treats dblclick alias as parser-level command without implicit defaults', () => {
-  const parsed = parseArgs(['dblclick', '@e5'], { strictFlags: true });
-  assert.equal(parsed.command, 'dblclick');
-  assert.deepEqual(parsed.positionals, ['@e5']);
-  assert.equal(parsed.flags.doubleTap, undefined);
-});
-
 test('parseArgs recognizes double-tap flag for repeated press', () => {
   const parsed = parseArgs(['press', '201', '545', '--count', '5', '--double-tap'], { strictFlags: true });
   assert.equal(parsed.command, 'press');
@@ -156,7 +149,6 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
-  assert.match(usage(), /dblclick <x y\|@ref\|selector>/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.doesNotMatch(usage(), /--metadata/);
@@ -208,14 +200,6 @@ test('snapshot command accepts command-specific flags', () => {
   assert.equal(parsed.flags.snapshotCompact, true);
   assert.equal(parsed.flags.snapshotDepth, 3);
   assert.equal(parsed.flags.snapshotScope, 'Login');
-});
-
-test('diff snapshot command accepts snapshot flags', () => {
-  const parsed = parseArgs(['diff', 'snapshot', '--depth', '2', '--raw'], { strictFlags: true });
-  assert.equal(parsed.command, 'diff');
-  assert.deepEqual(parsed.positionals, ['snapshot']);
-  assert.equal(parsed.flags.snapshotDepth, 2);
-  assert.equal(parsed.flags.snapshotRaw, true);
 });
 
 test('unknown short flags are rejected', () => {
@@ -282,7 +266,6 @@ test('invalid range errors are deterministic', () => {
 test('usage includes swipe and press series options', () => {
   const help = usage();
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
-  assert.match(help, /diff snapshot/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
   assert.match(help, /settings <wifi\|airplane\|location\|faceid>/);

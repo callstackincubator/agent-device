@@ -1,6 +1,6 @@
 import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
-import { formatSnapshotDiffText, formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
+import { formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
@@ -189,11 +189,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
-      if (command === 'diff' && positionals[0]?.toLowerCase() === 'snapshot') {
-        process.stdout.write(formatSnapshotDiffText((response.data ?? {}) as Record<string, unknown>));
-        if (logTailStopper) logTailStopper();
-        return;
-      }
       if (command === 'get') {
         const sub = positionals[0];
         if (sub === 'text') {
@@ -240,7 +235,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
-      if (command === 'click' || command === 'press' || command === 'dblclick') {
+      if (command === 'click' || command === 'press') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;
         const y = (response.data as any)?.y;
