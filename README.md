@@ -309,6 +309,7 @@ Diagnostics files:
 - `record` supports iOS simulators and physical iOS devices.
   - iOS simulator recording uses native `simctl io ... recordVideo`.
   - Physical iOS device recording is runner-based and built from repeated `XCUIScreen.main.screenshot()` frames (no native video stream/audio capture).
+  - Physical iOS device recording requires an active app session context (`open <app>` first) so capture targets your app instead of the runner host app.
   - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
   - Physical iOS device recording defaults to uncapped (max available) FPS.
   - Use `agent-device record start [path] --fps <n>` (1-120) to set an explicit FPS cap on physical iOS devices.
