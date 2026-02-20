@@ -18,6 +18,22 @@ function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, sessi
   };
 }
 
+function resolveRunnerStagingPath(): string {
+  const stagingDir = path.join(os.homedir(), '.agent-device', 'recordings');
+  fs.mkdirSync(stagingDir, { recursive: true });
+  return path.join(stagingDir, `recording-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
+}
+
+function shouldFallbackToRunnerStagingPath(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('permission') ||
+    normalized.includes('operation not permitted') ||
+    normalized.includes('you don’t have permission') ||
+    normalized.includes("you don't have permission")
+  );
+}
+
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -70,10 +86,7 @@ export async function handleRecordTraceCommands(params: {
       }
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
-        const runnerOutPath = path.join(
-          os.tmpdir(),
-          `agent-device-recording-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
-        );
+        let runnerOutPath = resolvedOut;
         try {
           await deps.runIosRunnerCommand(
             device,
@@ -82,7 +95,20 @@ export async function handleRecordTraceCommands(params: {
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
+          if (!shouldFallbackToRunnerStagingPath(message)) {
+            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${message}` } };
+          }
+          runnerOutPath = resolveRunnerStagingPath();
+          try {
+            await deps.runIosRunnerCommand(
+              device,
+              { command: 'recordStart', outPath: runnerOutPath, appBundleId: activeSession.appBundleId },
+              runnerOptions,
+            );
+          } catch (retryError) {
+            const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${retryMessage}` } };
+          }
         }
         activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, runnerOutPath };
       } else if (device.platform === 'ios') {
