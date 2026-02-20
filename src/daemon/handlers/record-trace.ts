@@ -7,6 +7,7 @@ import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
   return {
@@ -112,7 +113,18 @@ export async function handleRecordTraceCommands(params: {
           { command: 'recordStop', appBundleId: activeSession.appBundleId },
           getRunnerOptions(req, logPath, activeSession),
         );
-      } catch {
+      } catch (error) {
+        emitDiagnostic({
+          level: 'warn',
+          phase: 'record_stop_runner_failed',
+          data: {
+            platform: device.platform,
+            kind: device.kind,
+            deviceId: device.id,
+            session: activeSession.name,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
         // best effort: clear runner-backed recording state even if runner stop fails
       }
     } else {
