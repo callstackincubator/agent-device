@@ -292,7 +292,25 @@ function start(): void {
 
   const server = net.createServer((socket) => {
     let buffer = '';
+    let inFlightRequests = 0;
+    let canceledInFlight = false;
+    const cancelInFlightRunnerSessions = () => {
+      if (canceledInFlight || inFlightRequests === 0) return;
+      canceledInFlight = true;
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'request_client_disconnected',
+        data: {
+          inFlightRequests,
+        },
+      });
+      // Best effort: if client disconnects mid-request (for example on Ctrl+C),
+      // stop runner sessions so xcodebuild/log streaming does not continue detached.
+      void stopAllIosRunnerSessions();
+    };
     socket.setEncoding('utf8');
+    socket.on('close', cancelInFlightRunnerSessions);
+    socket.on('error', cancelInFlightRunnerSessions);
     socket.on('data', async (chunk) => {
       buffer += chunk;
       let idx = buffer.indexOf('\n');
@@ -304,13 +322,18 @@ function start(): void {
           continue;
         }
         let response: DaemonResponse;
+        inFlightRequests += 1;
         try {
           const req = JSON.parse(line) as DaemonRequest;
           response = await handleRequest(req);
         } catch (err) {
           response = { ok: false, error: normalizeError(err) };
+        } finally {
+          inFlightRequests = Math.max(0, inFlightRequests - 1);
         }
-        socket.write(`${JSON.stringify(response)}\n`);
+        if (!socket.destroyed) {
+          socket.write(`${JSON.stringify(response)}\n`);
+        }
         idx = buffer.indexOf('\n');
       }
     });
