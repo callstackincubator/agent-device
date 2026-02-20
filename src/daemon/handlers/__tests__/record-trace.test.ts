@@ -7,6 +7,8 @@ import { handleRecordTraceCommands } from '../record-trace.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 
+type RecordTraceDeps = NonNullable<Parameters<typeof handleRecordTraceCommands>[0]['deps']>;
+
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-trace-'));
   return new SessionStore(path.join(root, 'sessions'));
@@ -18,6 +20,49 @@ function makeSession(name: string, device: SessionState['device']): SessionState
     device,
     createdAt: Date.now(),
     actions: [],
+  };
+}
+
+async function runRecordCommand(params: {
+  sessionStore: SessionStore;
+  sessionName: string;
+  positionals: string[];
+  deps: RecordTraceDeps;
+  logPath?: string;
+}) {
+  return handleRecordTraceCommands({
+    req: {
+      token: 't',
+      session: params.sessionName,
+      command: 'record',
+      positionals: params.positionals,
+      flags: {},
+    },
+    sessionName: params.sessionName,
+    sessionStore: params.sessionStore,
+    logPath: params.logPath,
+    deps: params.deps,
+  });
+}
+
+function makeIosDeviceRunnerDeps(
+  runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }>,
+): RecordTraceDeps {
+  const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
+    runnerCalls.push({
+      command: command.command,
+      outPath: command.outPath,
+      logPath: options?.logPath,
+      traceLogPath: options?.traceLogPath,
+    });
+    return {};
+  };
+  return {
+    runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+    runCmdBackground: () => {
+      throw new Error('runCmdBackground should not be used for iOS devices');
+    },
+    runIosRunnerCommand,
   };
 }
 
@@ -34,32 +79,13 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   sessionStore.set(sessionName, session);
 
   const runnerCalls: Array<{ command: string; outPath?: string; logPath?: string; traceLogPath?: string }> = [];
-  const responseStart = await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['start', './device.mp4'],
-      flags: {},
-    },
-    sessionName,
+  const deps = makeIosDeviceRunnerDeps(runnerCalls);
+  const responseStart = await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['start', './device.mp4'],
     logPath: '/tmp/daemon.log',
-    deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      runCmdBackground: () => {
-        throw new Error('runCmdBackground should not be used for iOS devices');
-      },
-      runIosRunnerCommand: async (_device, command, options) => {
-        runnerCalls.push({
-          command: command.command,
-          outPath: command.outPath,
-          logPath: options?.logPath,
-          traceLogPath: options?.traceLogPath,
-        });
-        return {};
-      },
-    },
+    deps,
   });
 
   assert.ok(responseStart);
@@ -71,32 +97,12 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
   assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'ios-device-runner');
 
-  const responseStop = await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['stop'],
-      flags: {},
-    },
-    sessionName,
+  const responseStop = await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['stop'],
     logPath: '/tmp/daemon.log',
-    deps: {
-      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      runCmdBackground: () => {
-        throw new Error('runCmdBackground should not be used for iOS devices');
-      },
-      runIosRunnerCommand: async (_device, command, options) => {
-        runnerCalls.push({
-          command: command.command,
-          outPath: command.outPath,
-          logPath: options?.logPath,
-          traceLogPath: options?.traceLogPath,
-        });
-        return {};
-      },
-    },
+    deps,
   });
 
   assert.ok(responseStop);
@@ -119,16 +125,10 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
 
   let started = false;
   let stopped = false;
-  const responseStart = await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['start', './sim.mp4'],
-      flags: {},
-    },
-    sessionName,
+  const responseStart = await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['start', './sim.mp4'],
     deps: {
       runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
       runCmdBackground: (cmd, args) => {
@@ -136,7 +136,11 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
         assert.deepEqual(args.slice(0, 4), ['simctl', 'io', 'sim-1', 'recordVideo']);
         started = true;
         return {
-          child: { kill: () => { stopped = true; } } as any,
+          child: {
+            kill: () => {
+              stopped = true;
+            },
+          } as any,
           wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
         };
       },
@@ -149,16 +153,10 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
   assert.equal(responseStart?.ok, true);
   assert.equal(started, true);
 
-  const responseStop = await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['stop'],
-      flags: {},
-    },
-    sessionName,
+  const responseStop = await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['stop'],
     deps: {
       runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
       runCmdBackground: () => {
@@ -186,16 +184,10 @@ test('record keeps android pull + cleanup flow', async () => {
   }));
 
   const adbCalls: Array<string[]> = [];
-  await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['start', './android.mp4'],
-      flags: {},
-    },
-    sessionName,
+  await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
     deps: {
       runCmd: async (_cmd, args) => {
         adbCalls.push(args);
@@ -215,16 +207,10 @@ test('record keeps android pull + cleanup flow', async () => {
     },
   });
 
-  await handleRecordTraceCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'record',
-      positionals: ['stop'],
-      flags: {},
-    },
-    sessionName,
+  await runRecordCommand({
     sessionStore,
+    sessionName,
+    positionals: ['stop'],
     deps: {
       runCmd: async (_cmd, args) => {
         adbCalls.push(args);

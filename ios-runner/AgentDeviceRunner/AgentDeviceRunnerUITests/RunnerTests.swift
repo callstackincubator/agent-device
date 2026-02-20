@@ -539,11 +539,6 @@ final class RunnerTests: XCTestCase {
   }
 
   private func executeOnMain(command: Command) throws -> Response {
-    if command.command == .shutdown {
-      stopRecordingIfNeeded()
-      return Response(ok: true, data: DataPayload(message: "shutdown"))
-    }
-
     let normalizedBundleId = command.appBundleId?
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId

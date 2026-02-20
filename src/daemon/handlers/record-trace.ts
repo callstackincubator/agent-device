@@ -8,6 +8,14 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 
+function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
+  return {
+    verbose: req.flags?.verbose,
+    logPath,
+    traceLogPath: session.trace?.outPath,
+  };
+}
+
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -58,11 +66,7 @@ export async function handleRecordTraceCommands(params: {
           error: { code: 'UNSUPPORTED_OPERATION', message: 'record is not supported on this device' },
         };
       }
-      const runnerOptions = {
-        verbose: req.flags?.verbose,
-        logPath,
-        traceLogPath: activeSession.trace?.outPath,
-      };
+      const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
         await deps.runIosRunnerCommand(
           device,
@@ -96,16 +100,11 @@ export async function handleRecordTraceCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active recording' } };
     }
     const recording = activeSession.recording;
-    const runnerOptions = {
-      verbose: req.flags?.verbose,
-      logPath,
-      traceLogPath: activeSession.trace?.outPath,
-    };
     if (recording.platform === 'ios-device-runner') {
       await deps.runIosRunnerCommand(
         device,
         { command: 'recordStop', appBundleId: activeSession.appBundleId },
-        runnerOptions,
+        getRunnerOptions(req, logPath, activeSession),
       );
     } else {
       recording.child.kill('SIGINT');
