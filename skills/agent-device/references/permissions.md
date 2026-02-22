@@ -13,6 +13,14 @@ Use Automatic Signing in Xcode, or provide optional overrides:
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 
+Security guidance for these overrides:
+
+- These variables are optional and only needed for physical-device XCTest setup.
+- Treat values as sensitive host configuration; do not share in chat logs or commit to source control.
+- Do not provide private keys or unrelated secrets; use the minimum values required for signing.
+- Prefer Xcode Automatic Signing when possible to reduce manual secret/config handling.
+- For autonomous/CI runs, keep these unset by default and require explicit opt-in for physical-device workflows.
+
 If setup/build takes long, increase:
 
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (default `45000`, for example `120000`)

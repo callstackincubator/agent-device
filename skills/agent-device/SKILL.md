@@ -108,15 +108,20 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - iOS settings helpers are simulator-only; use faceid `match|nonmatch|enroll|unenroll`.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
 
+## Security and Trust Notes
+
+- Prefer a preinstalled `agent-device` binary over on-demand package execution.
+- If install is required, pin an exact version (for example: `npx --yes agent-device@<exact-version> --help`).
+- Signing/provisioning environment variables are optional, sensitive, and only for iOS physical-device setup.
+- Logs/artifacts are written under `~/.agent-device`; replay scripts write to explicit paths you provide.
+- Keep logging off unless debugging and use least-privilege/isolated environments for autonomous runs.
+
 ## Common Mistakes
 
 - Mixing debug flow into normal runs (keep logs off unless debugging).
 - Continuing to use stale refs after screen transitions.
 - Using URL opens with Android `--activity` (unsupported combination).
 - Treating `boot` as default first step instead of fallback.
-
-If the CLI is not installed in environment, use:
-`npx -y agent-device`
 
 ## References
 

@@ -2,6 +2,22 @@
 
 Logging is off by default in normal flows. Enable it on demand for debugging windows. App output is written to a session-scoped file so agents can grep it instead of loading full logs into context.
 
+## Data Handling
+
+- Default app logs are stored under `~/.agent-device/sessions/<session>/app.log`.
+- Replay scripts saved with `--save-script` are written to the explicit path you provide.
+- Log files may contain sensitive runtime data; review before sharing and clean up when finished.
+- Use `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to redact sensitive patterns at write time when needed.
+
+## Retention and Cleanup
+
+- Keep logging scoped to active debug windows (`logs clear --restart` before repro, `logs stop` after repro).
+- Prefer bounded inspection (`grep -n`, `tail -50`) instead of reading full logs into context.
+- Clear session logs when finished:
+  `agent-device logs clear`
+- Close session to stop background logging state:
+  `agent-device close`
+
 ## Quick Flow
 
 ```bash
