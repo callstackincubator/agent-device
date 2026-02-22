@@ -3,7 +3,11 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
-import { parsePermissionAction } from '../permission-utils.ts';
+import {
+  parsePermissionAction,
+  parsePermissionTarget,
+  type PermissionSettingOptions,
+} from '../permission-utils.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
@@ -222,10 +226,7 @@ export async function setIosSetting(
   setting: string,
   state: string,
   appBundleId?: string,
-  options?: {
-    permissionTarget?: string;
-    permissionMode?: string;
-  },
+  options?: PermissionSettingOptions,
 ): Promise<void> {
   ensureSimulator(device, 'settings');
   await ensureBootedSimulator(device);
@@ -360,13 +361,7 @@ function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | '
 }
 
 function parseIosPermissionTarget(permissionTarget: string | undefined, permissionMode: string | undefined): string {
-  const normalized = permissionTarget?.trim().toLowerCase();
-  if (!normalized) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'permission setting requires a target: camera|microphone|photos|contacts|notifications',
-    );
-  }
+  const normalized = parsePermissionTarget(permissionTarget);
   if (normalized !== 'photos' && permissionMode?.trim()) {
     throw new AppError(
       'INVALID_ARGS',

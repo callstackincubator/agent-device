@@ -7,7 +7,11 @@ import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { findBounds, parseBounds, parseUiHierarchy, readNodeAttributes } from './ui-hierarchy.ts';
-import { parsePermissionAction } from '../permission-utils.ts';
+import {
+  parsePermissionAction,
+  parsePermissionTarget,
+  type PermissionSettingOptions,
+} from '../permission-utils.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -553,10 +557,7 @@ export async function setAndroidSetting(
   setting: string,
   state: string,
   appPackage?: string,
-  options?: {
-    permissionTarget?: string;
-    permissionMode?: string;
-  },
+  options?: PermissionSettingOptions,
 ): Promise<void> {
   const normalized = setting.toLowerCase();
   switch (normalized) {
@@ -713,17 +714,11 @@ function parseAndroidPermissionTarget(
 ):
   | { kind: 'pm'; value: string; type: 'camera' | 'microphone' | 'photos' | 'contacts' }
   | { kind: 'appops'; value: string } {
-  const normalized = permissionTarget?.trim().toLowerCase();
-  if (!normalized) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'permission setting requires a target: camera|microphone|photos|contacts|notifications',
-    );
-  }
+  const normalized = parsePermissionTarget(permissionTarget);
   if (permissionMode?.trim()) {
     throw new AppError(
       'INVALID_ARGS',
-      `Permission mode is only supported for iOS photos. Received: ${permissionMode}.`,
+      `Permission mode is only supported for photos. Received: ${permissionMode}.`,
     );
   }
   if (normalized === 'camera') return { kind: 'pm', value: 'android.permission.CAMERA', type: 'camera' };
