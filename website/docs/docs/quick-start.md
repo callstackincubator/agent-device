@@ -91,6 +91,7 @@ Toggle device settings directly:
 agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings location off
+agent-device settings permission grant camera
 ```
 
 Note: iOS `settings` commands are simulator-only.

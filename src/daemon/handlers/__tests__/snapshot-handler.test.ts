@@ -111,6 +111,7 @@ test('settings usage hint documents canonical faceid states', async () => {
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
     assert.match(response.error.message, /match\|nonmatch\|enroll\|unenroll/);
+    assert.match(response.error.message, /grant\|deny\|reset/);
     assert.doesNotMatch(response.error.message, /validate\|unvalidate/);
   }
 });

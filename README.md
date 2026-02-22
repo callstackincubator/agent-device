@@ -146,6 +146,7 @@ agent-device scrollintoview @e42
 - `logs path`, `logs start`, `logs stop`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
 - `settings wifi|airplane|location on|off`
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
+- `settings permission grant|deny|reset camera|microphone|photos|contacts|notifications [full|limited]`
 - `appstate`, `apps`, `devices`, `session list`
 
 ## iOS Snapshots
@@ -289,7 +290,11 @@ Settings helpers:
 - `settings wifi on|off`
 - `settings airplane on|off`
 - `settings location on|off` (iOS uses per-app permission for the current session app)
+- `settings permission grant|deny|reset <camera|microphone|photos|contacts|notifications> [full|limited]` (session app required)
 Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
+- iOS permission targets map to `simctl privacy`: `camera`, `microphone`, `photos` (`full` => `photos`, `limited` => `photos-add`), `contacts`, `notifications`.
+- Android permission targets: `camera`, `microphone`, `photos`, `contacts` use `pm grant|revoke` (`reset` maps to `pm revoke`); `notifications` uses `appops set POST_NOTIFICATION allow|deny|default`.
+- `full|limited` mode is valid only for iOS `photos`; other targets reject mode.
 
 App state:
 - `appstate` shows the foreground app/activity (Android).

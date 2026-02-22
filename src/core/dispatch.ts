@@ -412,21 +412,30 @@ export async function dispatchCommand(
       return { action: 'app-switcher' };
     }
     case 'settings': {
-      const [setting, state, appBundleId] = positionals;
+      const [setting, state, target, mode, appBundleId] = positionals;
+      const permissionOptions =
+        setting === 'permission'
+          ? {
+              permissionTarget: target,
+              permissionMode: mode,
+            }
+          : undefined;
       emitDiagnostic({
         level: 'debug',
         phase: 'settings_apply',
         data: {
           setting,
           state,
+          target,
+          mode,
           platform: device.platform,
         },
       });
       if (device.platform === 'ios') {
-        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId);
+        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
         return { setting, state };
       }
-      await setAndroidSetting(device, setting, state);
+      await setAndroidSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
       return { setting, state };
     }
     case 'snapshot': {

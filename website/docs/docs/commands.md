@@ -132,10 +132,19 @@ agent-device settings faceid match
 agent-device settings faceid nonmatch
 agent-device settings faceid enroll
 agent-device settings faceid unenroll
+agent-device settings permission grant camera
+agent-device settings permission deny microphone
+agent-device settings permission grant photos limited
+agent-device settings permission reset notifications
 ```
 
 - iOS `settings` support is simulator-only.
 - Face ID controls are iOS simulator-only.
+- Permission actions are scoped to the active session app.
+- iOS permission targets: `camera`, `microphone`, `photos` (`full` or `limited`), `contacts`, `notifications`.
+- Android permission targets: `camera`, `microphone`, `photos`, `contacts`, `notifications`.
+- Android uses `pm grant|revoke` for runtime permissions (`reset` maps to revoke) and `appops` for notifications.
+- `full|limited` mode is supported only for iOS `photos`; other targets reject mode.
 - Use `match`/`nonmatch` to simulate valid/invalid Face ID outcomes.
 
 ## App state and app lists

@@ -550,9 +550,9 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   settings: {
     usageOverride:
-      'settings <wifi|airplane|location|faceid> <on|off|match|nonmatch|enroll|unenroll>',
-    description: 'Toggle OS settings (simulators), including Face ID on iOS simulators',
-    positionalArgs: ['setting', 'state'],
+      'settings <wifi|airplane|location> <on|off> | settings faceid <match|nonmatch|enroll|unenroll> | settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]',
+    description: 'Toggle OS settings and app permissions (session app scope for permission actions)',
+    positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],
   },
   session: {

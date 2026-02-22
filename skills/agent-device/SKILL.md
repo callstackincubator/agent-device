@@ -101,11 +101,19 @@ agent-device settings faceid match
 agent-device settings faceid nonmatch
 agent-device settings faceid enroll
 agent-device settings faceid unenroll
+agent-device settings permission grant camera
+agent-device settings permission deny microphone
+agent-device settings permission grant photos limited
+agent-device settings permission reset notifications
 ```
 
 Note: iOS wifi/airplane toggles status bar indicators, not actual network state.
 Airplane off clears status bar overrides.
 iOS settings helpers are simulator-only.
+iOS permission helpers use `simctl privacy` and require an active session app.
+Android permission helpers require an active session app.
+Android `reset` maps to `pm revoke` for runtime permissions and `appops default` for notifications.
+`full|limited` mode is valid only for iOS `photos`; other targets reject mode.
 Use `match`/`nonmatch` as the canonical command values.
 Think of them as validate/invalidate outcomes when describing intent.
 
