@@ -88,6 +88,8 @@ agent-device is visible 'id="anchor"'
 agent-device appstate
 agent-device get text @e1
 agent-device screenshot out.png
+agent-device settings permission grant notifications
+agent-device settings permission reset camera
 agent-device trace start
 agent-device trace stop ./trace.log
 ```
@@ -106,6 +108,9 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - iOS settings helpers are simulator-only; use faceid `match|nonmatch|enroll|unenroll`.
+- Permission settings are app-scoped and require an active session app:
+  `settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]`
+- `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
 
 ## Security and Trust Notes

@@ -7,6 +7,7 @@ import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { findBounds, parseBounds, parseUiHierarchy, readNodeAttributes } from './ui-hierarchy.ts';
+import { parsePermissionAction } from '../permission-utils.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -551,15 +552,21 @@ export async function setAndroidSetting(
   device: DeviceInfo,
   setting: string,
   state: string,
+  appPackage?: string,
+  options?: {
+    permissionTarget?: string;
+    permissionMode?: string;
+  },
 ): Promise<void> {
   const normalized = setting.toLowerCase();
-  const enabled = parseSettingState(state);
   switch (normalized) {
     case 'wifi': {
+      const enabled = parseSettingState(state);
       await runCmd('adb', adbArgs(device, ['shell', 'svc', 'wifi', enabled ? 'enable' : 'disable']));
       return;
     }
     case 'airplane': {
+      const enabled = parseSettingState(state);
       const flag = enabled ? '1' : '0';
       const bool = enabled ? 'true' : 'false';
       await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'global', 'airplane_mode_on', flag]));
@@ -567,8 +574,31 @@ export async function setAndroidSetting(
       return;
     }
     case 'location': {
+      const enabled = parseSettingState(state);
       const mode = enabled ? '3' : '0';
       await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]));
+      return;
+    }
+    case 'permission': {
+      if (!appPackage) {
+        throw new AppError(
+          'INVALID_ARGS',
+          'permission setting requires an active app in session',
+        );
+      }
+      const action = parsePermissionAction(state);
+      const target = parseAndroidPermissionTarget(options?.permissionTarget, options?.permissionMode);
+      if (target.kind === 'appops') {
+        const appOpsMode = action === 'grant' ? 'allow' : action === 'deny' ? 'deny' : 'default';
+        await runCmd('adb', adbArgs(device, ['shell', 'appops', 'set', appPackage, target.value, appOpsMode]));
+        return;
+      }
+      const pmAction = action === 'grant' ? 'grant' : 'revoke';
+      if (target.type === 'photos') {
+        await setAndroidPhotoPermission(device, appPackage, pmAction);
+        return;
+      }
+      await runCmd('adb', adbArgs(device, ['shell', 'pm', pmAction, appPackage, target.value]));
       return;
     }
     default:
@@ -675,6 +705,81 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function parseAndroidPermissionTarget(
+  permissionTarget: string | undefined,
+  permissionMode: string | undefined,
+):
+  | { kind: 'pm'; value: string; type: 'camera' | 'microphone' | 'photos' | 'contacts' }
+  | { kind: 'appops'; value: string } {
+  const normalized = permissionTarget?.trim().toLowerCase();
+  if (!normalized) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'permission setting requires a target: camera|microphone|photos|contacts|notifications',
+    );
+  }
+  if (permissionMode?.trim()) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Permission mode is only supported for iOS photos. Received: ${permissionMode}.`,
+    );
+  }
+  if (normalized === 'camera') return { kind: 'pm', value: 'android.permission.CAMERA', type: 'camera' };
+  if (normalized === 'microphone') {
+    return { kind: 'pm', value: 'android.permission.RECORD_AUDIO', type: 'microphone' };
+  }
+  if (normalized === 'photos') {
+    return { kind: 'pm', value: 'android.permission.READ_MEDIA_IMAGES', type: 'photos' };
+  }
+  if (normalized === 'contacts') {
+    return { kind: 'pm', value: 'android.permission.READ_CONTACTS', type: 'contacts' };
+  }
+  if (normalized === 'notifications') return { kind: 'appops', value: 'POST_NOTIFICATION' };
+  throw new AppError(
+    'INVALID_ARGS',
+    `Unsupported permission target: ${permissionTarget}. Use camera|microphone|photos|contacts|notifications.`,
+  );
+}
+
+async function setAndroidPhotoPermission(
+  device: DeviceInfo,
+  appPackage: string,
+  pmAction: 'grant' | 'revoke',
+): Promise<void> {
+  const sdkInt = await getAndroidSdkInt(device);
+  const candidates =
+    sdkInt !== null && sdkInt >= 33
+      ? ['android.permission.READ_MEDIA_IMAGES', 'android.permission.READ_EXTERNAL_STORAGE']
+      : ['android.permission.READ_EXTERNAL_STORAGE', 'android.permission.READ_MEDIA_IMAGES'];
+
+  const failures: Array<{ permission: string; stderr: string; exitCode: number }> = [];
+  for (const permission of candidates) {
+    const result = await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'pm', pmAction, appPackage, permission]),
+      { allowFailure: true },
+    );
+    if (result.exitCode === 0) return;
+    failures.push({ permission, stderr: result.stderr, exitCode: result.exitCode });
+  }
+
+  throw new AppError('COMMAND_FAILED', `Failed to ${pmAction} Android photos permission`, {
+    appPackage,
+    sdkInt,
+    attempts: failures,
+  });
+}
+
+async function getAndroidSdkInt(device: DeviceInfo): Promise<number | null> {
+  const result = await runCmd('adb', adbArgs(device, ['shell', 'getprop', 'ro.build.version.sdk']), {
+    allowFailure: true,
+  });
+  if (result.exitCode !== 0) return null;
+  const value = Number.parseInt(result.stdout.trim(), 10);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 async function typeAndroidChunked(

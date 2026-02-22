@@ -537,3 +537,112 @@ exit 1
     },
   );
 });
+
+test('setIosSetting permission grant camera uses simctl privacy', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-camera-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "grant" ] && [ "$5" = "camera" ] && [ "$6" = "com.example.app" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'camera',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nsim-1\ngrant\ncamera\ncom\.example\.app/);
+    },
+  );
+});
+
+test('setIosSetting permission grant photos limited maps to photos-add', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-photos-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "grant" ] && [ "$5" = "photos-add" ] && [ "$6" = "com.example.app" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'photos',
+        permissionMode: 'limited',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nsim-1\ngrant\nphotos-add\ncom\.example\.app/);
+    },
+  );
+});
+
+test('setIosSetting permission rejects mode for non-photos target', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-mode-validation-test-',
+    `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async () => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () =>
+          setIosSetting(device, 'permission', 'grant', 'com.example.app', {
+            permissionTarget: 'camera',
+            permissionMode: 'limited',
+          }),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'INVALID_ARGS');
+          assert.match((error as AppError).message, /mode is only supported for photos/i);
+          return true;
+        },
+      );
+    },
+  );
+});
