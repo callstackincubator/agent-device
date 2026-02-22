@@ -15,6 +15,43 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
 
+async function withMockedAdb(
+  tempPrefix: string,
+  script: string,
+  run: (ctx: { argsLogPath: string; device: DeviceInfo }) => Promise<void>,
+): Promise<void> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(adbPath, script, 'utf8');
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await run({ argsLogPath, device });
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
   const xml =
     '<hierarchy><node class="android.widget.TextView" text="Hello" content-desc="Greeting" resource-id="com.demo:id/title" bounds="[10,20][110,60]" clickable="true" enabled="true"/></hierarchy>';
@@ -281,126 +318,45 @@ test('swipeAndroid invokes adb input swipe with duration', async () => {
 });
 
 test('setAndroidSetting permission grant camera uses pm grant', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-camera-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    adbPath,
+  await withMockedAdb(
+    'agent-device-android-permission-camera-',
     '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    'utf8',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'camera',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.CAMERA/);
+    },
   );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
-      permissionTarget: 'camera',
-    });
-    const logged = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.CAMERA/);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });
 
 test('setAndroidSetting permission deny notifications uses appops', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-notifications-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    adbPath,
+  await withMockedAdb(
+    'agent-device-android-permission-notifications-',
     '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    'utf8',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'permission', 'deny', 'com.example.app', {
+        permissionTarget: 'notifications',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndeny/);
+    },
   );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    await setAndroidSetting(device, 'permission', 'deny', 'com.example.app', {
-      permissionTarget: 'notifications',
-    });
-    const logged = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndeny/);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });
 
 test('setAndroidSetting permission reset camera maps to pm revoke', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-reset-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    adbPath,
+  await withMockedAdb(
+    'agent-device-android-permission-reset-',
     '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    'utf8',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'permission', 'reset', 'com.example.app', {
+        permissionTarget: 'camera',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.CAMERA/);
+    },
   );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    await setAndroidSetting(device, 'permission', 'reset', 'com.example.app', {
-      permissionTarget: 'camera',
-    });
-    const logged = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.CAMERA/);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });
 
 test('setAndroidSetting permission rejects mode argument', async () => {
@@ -420,18 +376,15 @@ test('setAndroidSetting permission rejects mode argument', async () => {
     (error: unknown) => {
       assert.equal(error instanceof AppError, true);
       assert.equal((error as AppError).code, 'INVALID_ARGS');
-      assert.match((error as AppError).message, /mode is only supported for iOS photos/i);
+      assert.match((error as AppError).message, /mode is only supported for photos/i);
       return true;
     },
   );
 });
 
 test('setAndroidSetting permission grant photos falls back to legacy permission on older SDK', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-photos-fallback-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(
-    adbPath,
+  await withMockedAdb(
+    'agent-device-android-permission-photos-fallback-',
     [
       '#!/bin/sh',
       'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
@@ -451,37 +404,13 @@ test('setAndroidSetting permission grant photos falls back to legacy permission 
       'exit 1',
       '',
     ].join('\n'),
-    'utf8',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'photos',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ngetprop\nro\.build\.version\.sdk/);
+      assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.READ_EXTERNAL_STORAGE/);
+    },
   );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
-      permissionTarget: 'photos',
-    });
-    const logged = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(logged, /shell\ngetprop\nro\.build\.version\.sdk/);
-    assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.READ_EXTERNAL_STORAGE/);
-  } finally {
-    process.env.PATH = previousPath;
-    if (previousArgsFile === undefined) {
-      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-    } else {
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    }
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });

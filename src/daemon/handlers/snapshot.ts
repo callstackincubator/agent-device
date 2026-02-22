@@ -411,6 +411,7 @@ export async function handleSnapshotCommands(params: {
     }
     return await withSessionlessRunnerCleanup(session, device, async () => {
       const appBundleId = session?.appBundleId;
+      // Settings positional layout for dispatch: setting, state, [target, mode], appBundleId.
       const positionals =
         setting === 'permission'
           ? [setting, state, permissionTarget, req.positionals?.[3] ?? '', appBundleId ?? '']

@@ -413,6 +413,13 @@ export async function dispatchCommand(
     }
     case 'settings': {
       const [setting, state, target, mode, appBundleId] = positionals;
+      const permissionOptions =
+        setting === 'permission'
+          ? {
+              permissionTarget: target,
+              permissionMode: mode,
+            }
+          : undefined;
       emitDiagnostic({
         level: 'debug',
         phase: 'settings_apply',
@@ -425,16 +432,10 @@ export async function dispatchCommand(
         },
       });
       if (device.platform === 'ios') {
-        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId, {
-          permissionTarget: target,
-          permissionMode: mode,
-        });
+        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
         return { setting, state };
       }
-      await setAndroidSetting(device, setting, state, appBundleId ?? context?.appBundleId, {
-        permissionTarget: target,
-        permissionMode: mode,
-      });
+      await setAndroidSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
       return { setting, state };
     }
     case 'snapshot': {
