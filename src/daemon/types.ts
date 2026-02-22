@@ -57,6 +57,16 @@ export type SessionState = {
       outPath: string;
       remotePath: string;
     };
+  /** Session-scoped app log stream; logs written to outPath for agent to grep */
+  appLog?: {
+    platform: 'ios' | 'android';
+    backend: 'ios-simulator' | 'ios-device' | 'android';
+    outPath: string;
+    startedAt: number;
+    getState: () => 'active' | 'failed';
+    stop: () => Promise<void>;
+    wait: Promise<ExecResult>;
+  };
 };
 
 export type SessionAction = {

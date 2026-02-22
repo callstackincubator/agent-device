@@ -67,6 +67,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     'get',
     'home',
     'longpress',
+    'logs',
     'open',
     'press',
     'record',

@@ -38,7 +38,7 @@ Minimal operating guide for AI coding agents in this repo.
 ## Routing
 - Keep `src/daemon.ts` as a thin router.
 - Put command logic in handler modules:
-  - session/apps/appstate/open/close/replay: `src/daemon/handlers/session.ts`
+  - session/apps/appstate/open/close/replay/logs: `src/daemon/handlers/session.ts`
   - click/fill/get/is: `src/daemon/handlers/interaction.ts`
   - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
   - find: `src/daemon/handlers/find.ts`

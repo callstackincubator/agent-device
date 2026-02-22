@@ -86,9 +86,22 @@ export class SessionStore {
   }
 
   defaultTracePath(session: SessionState): string {
-    const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = SessionStore.safeSessionName(session.name);
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     return path.join(this.sessionsDir, `${safeName}-${timestamp}.trace.log`);
+  }
+
+  /** Path to session-scoped app log file. Agent can grep this for token-efficient debugging. */
+  resolveAppLogPath(sessionName: string): string {
+    return path.join(this.sessionsDir, SessionStore.safeSessionName(sessionName), 'app.log');
+  }
+
+  resolveAppLogPidPath(sessionName: string): string {
+    return path.join(this.sessionsDir, SessionStore.safeSessionName(sessionName), 'app-log.pid');
+  }
+
+  static safeSessionName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 
   static expandHome(filePath: string, cwd?: string): string {
@@ -106,7 +119,7 @@ export class SessionStore {
       return SessionStore.expandHome(session.saveScriptPath);
     }
     if (!fs.existsSync(this.sessionsDir)) fs.mkdirSync(this.sessionsDir, { recursive: true });
-    const safeName = session.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = SessionStore.safeSessionName(session.name);
     const timestamp = new Date(session.createdAt).toISOString().replace(/[:.]/g, '-');
     return path.join(this.sessionsDir, `${safeName}-${timestamp}.ad`);
   }

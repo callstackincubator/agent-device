@@ -163,6 +163,40 @@ agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
 agent-device record stop                # Stop active recording
 ```
 
+**Session app logs (token-efficient debugging):** Logs are written to a file so agents can grep instead of loading full output into context.
+
+```bash
+agent-device logs path                  # Print session log file path (e.g. ~/.agent-device/sessions/default/app.log)
+agent-device logs start                 # Start streaming app stdout/stderr to that file (requires open first)
+agent-device logs stop                  # Stop streaming
+agent-device logs doctor                # Show logs backend/tool checks and readiness hints
+agent-device logs mark "before submit"  # Insert timeline marker into app.log
+```
+
+- Supported on iOS simulator, iOS physical device, and Android.
+- `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
+- Android log streaming automatically rebinds to the app PID after process restarts.
+- iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
+- Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
+- Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.
+
+**Grepping app logs:** Use `logs path` to get the file path, then run `grep` (or `grep -E`) on that path so only matching lines enter context—keeping token use low.
+
+```bash
+# Get path first (e.g. ~/.agent-device/sessions/default/app.log)
+agent-device logs path
+
+# Then grep the path; -n adds line numbers for reference
+grep -n "Error\|Exception\|Fatal" ~/.agent-device/sessions/default/app.log
+grep -n -E "Error|Exception|Fatal|crash" ~/.agent-device/sessions/default/app.log
+
+# Last 50 lines only (bounded context)
+tail -50 ~/.agent-device/sessions/default/app.log
+```
+
+- Use `-n` to include line numbers. Use `-E` for extended regex and `|` without escaping in the pattern.
+- Prefer targeted patterns (e.g. `Error`, `Exception`, your log tags) over reading the whole file.
+
 - iOS `record` works on simulators and physical devices.
 - iOS simulator recording uses native `simctl io ... recordVideo`.
 - Physical iOS device capture is runner-based and built from repeated `XCUIScreen.main.screenshot()` frames (no native video stream/audio capture).

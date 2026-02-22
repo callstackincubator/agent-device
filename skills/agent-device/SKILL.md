@@ -109,6 +109,19 @@ iOS settings helpers are simulator-only.
 Use `match`/`nonmatch` as the canonical command values.
 Think of them as validate/invalidate outcomes when describing intent.
 
+### Logs (token-efficient debugging)
+
+Use the detailed logs workflow reference:
+`skills/agent-device/references/logs.md`
+
+Recommended minimum:
+
+```bash
+agent-device logs doctor
+agent-device logs start
+agent-device logs path
+```
+
 ### App state
 
 ```bash
