@@ -16,7 +16,7 @@ The project is in early development and considered experimental. Pull requests a
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
-- App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs doctor` checks readiness; `logs mark` writes timeline markers.
+- App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs clear` truncates session app logs; `logs clear --restart` resets and restarts stream in one step; `logs doctor` checks readiness; `logs mark` writes timeline markers.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
 
@@ -145,7 +145,7 @@ agent-device scrollintoview @e42
 - `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
-- `logs path`, `logs start`, `logs stop`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
+- `logs path`, `logs start`, `logs stop`, `logs clear`, `logs clear --restart`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
 - `settings wifi|airplane|location on|off`
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
 - `appstate`, `apps`, `devices`, `session list`
@@ -300,9 +300,11 @@ App state:
 
 ## Debug
 
-- **App logs (token-efficient):** With an active session, run `logs path` to get path + state metadata (e.g. `~/.agent-device/sessions/<session>/app.log`). Run `logs start` to stream app output to that file; use `logs stop` to stop. Run `logs doctor` for tool/runtime checks and `logs mark "step"` to insert timeline markers. Grep the file when you need to inspect errors (e.g. `grep -n "Error\|Exception" <path>`) instead of pulling full logs into context. Supported on iOS simulator, iOS physical device, and Android.
+- **App logs (token-efficient):** Logging is off by default in normal flows. Enable it on demand when debugging. With an active session, run `logs path` to get path + state metadata (e.g. `~/.agent-device/sessions/<session>/app.log`). Run `logs start` to stream app output to that file; use `logs stop` to stop. Run `logs clear` to truncate `app.log` (and remove rotated `app.log.N` files) before a new repro window. Run `logs doctor` for tool/runtime checks and `logs mark "step"` to insert timeline markers. Grep the file when you need to inspect errors (e.g. `grep -n "Error\|Exception" <path>`) instead of pulling full logs into context. Supported on iOS simulator, iOS physical device, and Android.
+- Use `logs clear --restart` when you want one command to stop an active stream, clear current logs, and immediately resume streaming.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
 - Android log streaming automatically rebinds to the app PID after process restarts.
+- Detailed playbook: `skills/agent-device/references/logs-and-debug.md`
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
 - Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.

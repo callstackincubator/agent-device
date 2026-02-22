@@ -32,7 +32,14 @@ import {
   isClickLikeCommand,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
-import { appendAppLogMarker, getAppLogPathMetadata, runAppLogDoctor, startAppLog, stopAppLog } from '../app-log.ts';
+import {
+  appendAppLogMarker,
+  clearAppLogFiles,
+  getAppLogPathMetadata,
+  runAppLogDoctor,
+  startAppLog,
+  stopAppLog,
+} from '../app-log.ts';
 
 type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -43,6 +50,8 @@ const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
+const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
+const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 
 function requireSessionOrExplicitSelector(
   command: string,
@@ -627,8 +636,12 @@ export async function handleSessionCommands(params: {
       return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'logs requires an active session' } };
     }
     const action = (req.positionals?.[0] ?? 'path').toLowerCase();
-    if (!['path', 'start', 'stop', 'doctor', 'mark'].includes(action)) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs requires path, start, stop, doctor, or mark' } };
+    const restart = Boolean(req.flags?.restart);
+    if (!LOG_ACTIONS.includes(action as (typeof LOG_ACTIONS)[number])) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: LOG_ACTIONS_MESSAGE } };
+    }
+    if (restart && action !== 'clear') {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs --restart is only supported with logs clear' } };
     }
     if (action === 'path') {
       const logPath = sessionStore.resolveAppLogPath(sessionName);
@@ -673,6 +686,57 @@ export async function handleSessionCommands(params: {
       const logPath = sessionStore.resolveAppLogPath(sessionName);
       appendAppLogMarker(logPath, marker);
       return { ok: true, data: { path: logPath, marked: true } };
+    }
+    if (action === 'clear') {
+      if (session.appLog && !restart) {
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'logs clear requires logs to be stopped first; run logs stop' },
+        };
+      }
+      if (restart) {
+        if (!session.appBundleId) {
+          return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs clear --restart requires an app session; run open <app> first' } };
+        }
+        if (!isCommandSupportedOnDevice('logs', session.device)) {
+          const unsupportedError = normalizeError(new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'));
+          return {
+            ok: false,
+            error: unsupportedError,
+          };
+        }
+      }
+      const logPath = sessionStore.resolveAppLogPath(sessionName);
+      if (restart) {
+        if (session.appLog) {
+          await appLogOps.stop(session.appLog);
+        }
+        const cleared = clearAppLogFiles(logPath);
+        const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
+        try {
+          const appLogStream = await appLogOps.start(session.device, session.appBundleId as string, logPath, appLogPidPath);
+          const nextSession: SessionState = {
+            ...session,
+            appLog: {
+              platform: session.device.platform,
+              backend: appLogStream.backend,
+              outPath: logPath,
+              startedAt: appLogStream.startedAt,
+              getState: appLogStream.getState,
+              stop: appLogStream.stop,
+              wait: appLogStream.wait,
+            },
+          };
+          sessionStore.set(sessionName, nextSession);
+          return { ok: true, data: { ...cleared, restarted: true } };
+        } catch (err) {
+          const normalizedError = normalizeError(err);
+          sessionStore.set(sessionName, { ...session, appLog: undefined });
+          return { ok: false, error: normalizedError };
+        }
+      }
+      const cleared = clearAppLogFiles(logPath);
+      return { ok: true, data: cleared };
     }
     if (action === 'start') {
       if (session.appLog) {

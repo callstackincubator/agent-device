@@ -24,6 +24,7 @@ export type CliFlags = {
   activity?: string;
   saveScript?: boolean | string;
   relaunch?: boolean;
+  restart?: boolean;
   noRecord?: boolean;
   replayUpdate?: boolean;
   steps?: string;
@@ -234,6 +235,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--relaunch',
     usageDescription: 'open: terminate app process before launching it',
+  },
+  {
+    key: 'restart',
+    names: ['--restart'],
+    type: 'boolean',
+    usageLabel: '--restart',
+    usageDescription: 'logs clear: stop active stream, clear logs, then start streaming again',
   },
   {
     key: 'noRecord',
@@ -529,11 +537,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   logs: {
-    usageOverride: 'logs path | logs start | logs stop | logs doctor | logs mark [message...]',
+    usageOverride: 'logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]',
     description: 'Session app log info, start/stop streaming, diagnostics, and markers',
-    positionalArgs: ['path|start|stop|doctor|mark', 'message?'],
+    positionalArgs: ['path|start|stop|clear|doctor|mark', 'message?'],
     allowsExtraPositionals: true,
-    allowedFlags: [],
+    allowedFlags: ['restart'],
   },
   find: {
     usageOverride: 'find <locator|text> <action> [value]',

@@ -12,6 +12,13 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.flags.relaunch, true);
 });
 
+test('parseArgs recognizes logs clear --restart', () => {
+  const parsed = parseArgs(['logs', 'clear', '--restart'], { strictFlags: true });
+  assert.equal(parsed.command, 'logs');
+  assert.deepEqual(parsed.positionals, ['clear']);
+  assert.equal(parsed.flags.restart, true);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');
@@ -188,6 +195,7 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /--restart/);
   assert.match(usage(), /--fps <n>/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);

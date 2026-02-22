@@ -249,6 +249,13 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           const state = typeof data?.state === 'string' ? data.state : undefined;
           const backend = typeof data?.backend === 'string' ? data.backend : undefined;
           const sizeBytes = typeof data?.sizeBytes === 'number' ? data.sizeBytes : undefined;
+          const started = data?.started === true;
+          const stopped = data?.stopped === true;
+          const marked = data?.marked === true;
+          const cleared = data?.cleared === true;
+          const restarted = data?.restarted === true;
+          const removedRotatedFiles =
+            typeof data?.removedRotatedFiles === 'number' ? data.removedRotatedFiles : undefined;
           if (!flags.json && (active !== undefined || state || backend || sizeBytes !== undefined)) {
             const meta = [
               active !== undefined ? `active=${active}` : '',
@@ -257,6 +264,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               sizeBytes !== undefined ? `sizeBytes=${sizeBytes}` : '',
             ].filter(Boolean).join(' ');
             if (meta) process.stderr.write(`${meta}\n`);
+          }
+          if (!flags.json && (started || stopped || marked || cleared || restarted || removedRotatedFiles !== undefined)) {
+            const actionMeta = [
+              started ? 'started=true' : '',
+              stopped ? 'stopped=true' : '',
+              marked ? 'marked=true' : '',
+              cleared ? 'cleared=true' : '',
+              restarted ? 'restarted=true' : '',
+              removedRotatedFiles !== undefined ? `removedRotatedFiles=${removedRotatedFiles}` : '',
+            ].filter(Boolean).join(' ');
+            if (actionMeta) process.stderr.write(`${actionMeta}\n`);
           }
           if (data?.hint && !flags.json) {
             process.stderr.write(`${data.hint}\n`);

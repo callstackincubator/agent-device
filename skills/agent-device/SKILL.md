@@ -112,15 +112,17 @@ Think of them as validate/invalidate outcomes when describing intent.
 ### Logs (token-efficient debugging)
 
 Use the detailed logs workflow reference:
-`skills/agent-device/references/logs.md`
+`skills/agent-device/references/logs-and-debug.md`
 
 Recommended minimum:
 
 ```bash
 agent-device logs doctor
-agent-device logs start
+agent-device logs clear --restart
 agent-device logs path
 ```
+
+Logging is off by default for normal flows. Turn it on only for debugging windows.
 
 ### App state
 

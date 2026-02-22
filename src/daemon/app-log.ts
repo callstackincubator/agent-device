@@ -496,4 +496,28 @@ export function appendAppLogMarker(outPath: string, marker: string): void {
   fs.appendFileSync(outPath, line, 'utf8');
 }
 
+export function clearAppLogFiles(outPath: string): { path: string; cleared: boolean; removedRotatedFiles: number } {
+  const dir = path.dirname(outPath);
+  const base = path.basename(outPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (fs.existsSync(outPath)) {
+    fs.truncateSync(outPath, 0);
+  } else {
+    fs.writeFileSync(outPath, '', 'utf8');
+  }
+  let removedRotatedFiles = 0;
+  for (const entry of fs.readdirSync(dir)) {
+    if (!entry.startsWith(`${base}.`)) continue;
+    const suffix = entry.slice(base.length + 1);
+    if (!/^\d+$/.test(suffix)) continue;
+    try {
+      fs.unlinkSync(path.join(dir, entry));
+      removedRotatedFiles += 1;
+    } catch {
+      // best-effort cleanup
+    }
+  }
+  return { path: outPath, cleared: true, removedRotatedFiles };
+}
+
 export const APP_LOG_PID_FILENAME = APP_LOG_PID_FILE;

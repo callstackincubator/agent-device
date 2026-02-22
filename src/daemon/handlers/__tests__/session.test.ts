@@ -1252,7 +1252,7 @@ test('logs rejects invalid action', async () => {
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /path, start, stop, doctor, or mark/);
+    assert.match(response.error.message, /path, start, stop, doctor, mark, or clear/);
   }
 });
 
@@ -1517,6 +1517,246 @@ test('logs mark appends marker and returns path', async () => {
     assert.equal(response.data?.marked, true);
     const outPath = String(response.data?.path ?? '');
     assert.match(fs.readFileSync(outPath, 'utf8'), /checkpoint/);
+  }
+});
+
+test('logs clear truncates log file and removes rotated files', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Simulator',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  const outPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, 'before-clear');
+  fs.writeFileSync(`${outPath}.1`, 'older');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['clear'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.path, outPath);
+    assert.equal(response.data?.cleared, true);
+  }
+  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
+  assert.equal(fs.existsSync(`${outPath}.1`), false);
+});
+
+test('logs clear requires stream to be stopped first', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+      appLog: {
+        platform: 'android',
+        backend: 'android',
+        outPath: '/tmp/app.log',
+        startedAt: Date.now(),
+        getState: () => 'active',
+        stop: async () => {},
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      },
+    },
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['clear'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /logs stop/i);
+  }
+});
+
+test('logs --restart is only supported with logs clear', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Simulator',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['path'],
+      flags: { restart: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /only supported with logs clear/i);
+  }
+});
+
+test('logs clear --restart stops active stream, clears logs, and restarts stream', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const outPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, 'before-restart');
+  fs.writeFileSync(`${outPath}.1`, 'older');
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+      appLog: {
+        platform: 'android',
+        backend: 'android',
+        outPath,
+        startedAt: Date.now(),
+        getState: () => 'active',
+        stop: async () => {},
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      },
+    },
+  );
+  let stopCalls = 0;
+  let startCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['clear'],
+      flags: { restart: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    appLogOps: {
+      start: async () => {
+        startCalls += 1;
+        return {
+          backend: 'android',
+          startedAt: 321,
+          getState: () => 'active' as const,
+          stop: async () => {},
+          wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+        };
+      },
+      stop: async () => {
+        stopCalls += 1;
+      },
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.path, outPath);
+    assert.equal(response.data?.cleared, true);
+    assert.equal(response.data?.restarted, true);
+  }
+  assert.equal(stopCalls, 1);
+  assert.equal(startCalls, 1);
+  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
+  assert.equal(fs.existsSync(`${outPath}.1`), false);
+  const session = sessionStore.get(sessionName);
+  assert.ok(session?.appLog);
+  assert.equal(session?.appLog?.startedAt, 321);
+});
+
+test('logs clear --restart requires app session bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['clear'],
+      flags: { restart: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /app session|open <app>/i);
   }
 });
 

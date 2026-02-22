@@ -9,6 +9,7 @@ import {
   assertAndroidPackageArgSafe,
   buildIosDeviceLogStreamArgs,
   buildIosLogPredicate,
+  clearAppLogFiles,
   cleanupStaleAppLogProcesses,
   getAppLogPathMetadata,
   runAppLogDoctor,
@@ -109,6 +110,23 @@ test('appendAppLogMarker writes marker lines and metadata reflects file', () => 
   const metadata = getAppLogPathMetadata(outPath);
   assert.equal(metadata.exists, true);
   assert.ok(metadata.sizeBytes > 0);
+});
+
+test('clearAppLogFiles truncates current log and removes rotated log files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-app-log-clear-'));
+  const outPath = path.join(root, 'app.log');
+  fs.writeFileSync(outPath, 'line1\nline2\n');
+  fs.writeFileSync(`${outPath}.1`, 'older');
+  fs.writeFileSync(`${outPath}.2`, 'oldest');
+
+  const result = clearAppLogFiles(outPath);
+
+  assert.equal(result.path, outPath);
+  assert.equal(result.cleared, true);
+  assert.equal(result.removedRotatedFiles, 2);
+  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
+  assert.equal(fs.existsSync(`${outPath}.1`), false);
+  assert.equal(fs.existsSync(`${outPath}.2`), false);
 });
 
 test('runAppLogDoctor returns note when app bundle is missing', async () => {
