@@ -19,6 +19,12 @@ test('parseArgs recognizes logs clear --restart', () => {
   assert.equal(parsed.flags.restart, true);
 });
 
+test('parseArgs accepts push with payload file', () => {
+  const parsed = parseArgs(['push', 'com.example.app', './payload.json'], { strictFlags: true });
+  assert.equal(parsed.command, 'push');
+  assert.deepEqual(parsed.positionals, ['com.example.app', './payload.json']);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');

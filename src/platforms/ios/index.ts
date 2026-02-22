@@ -5,6 +5,7 @@ export {
   listSimulatorApps,
   openIosApp,
   openIosDevice,
+  pushIosNotification,
   reinstallIosApp,
   resolveIosApp,
   screenshotIos,

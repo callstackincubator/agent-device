@@ -385,6 +385,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
   },
+  push: {
+    description: 'Simulate push notification payload delivery',
+    positionalArgs: ['bundleOrPackage', 'payloadOrJson'],
+    allowedFlags: [],
+  },
   snapshot: {
     description: 'Capture accessibility tree',
     positionalArgs: [],

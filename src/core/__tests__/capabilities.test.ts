@@ -33,7 +33,7 @@ test('iOS simulator-only commands reject iOS devices and Android', () => {
 });
 
 test('simulator-only iOS commands with Android support reject iOS devices', () => {
-  for (const cmd of ['settings']) {
+  for (const cmd of ['settings', 'push']) {
     assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
     assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
     assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);

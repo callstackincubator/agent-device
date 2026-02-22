@@ -86,6 +86,7 @@ agent-device is visible 'id="anchor"'
 
 ```bash
 agent-device appstate
+agent-device push <bundle|package> <payload.json|inline-json>
 agent-device get text @e1
 agent-device screenshot out.png
 agent-device settings permission grant notifications
@@ -107,7 +108,11 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use refs for discovery, selectors for replay/assertions.
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
+<<<<<<< HEAD
 - iOS settings helpers are simulator-only; use `appearance light|dark|toggle` and faceid `match|nonmatch|enroll|unenroll`.
+- `push` simulates notification delivery:
+  - iOS simulator uses APNs-style payload JSON.
+  - Android uses broadcast action + typed extras (string/boolean/number).
 - Permission settings are app-scoped and require an active session app:
   `settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]`
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
