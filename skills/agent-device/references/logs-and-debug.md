@@ -5,7 +5,7 @@ Logging is off by default in normal flows. Enable it on demand for debugging win
 ## Quick Flow
 
 ```bash
-agent-device open MyApp --platform ios
+agent-device open MyApp --platform ios      # or --platform android
 agent-device logs clear --restart    # Preferred: stop stream, clear logs, and start streaming again
 agent-device logs path               # Print path, e.g. ~/.agent-device/sessions/default/app.log
 agent-device logs doctor             # Check tool/runtime readiness for current session/device
@@ -13,6 +13,8 @@ agent-device logs mark "before tap"  # Insert a timeline marker into app.log
 # ... run flows; on failure, grep the path (see below)
 agent-device logs stop               # Stop streaming (optional; close also stops)
 ```
+
+Precondition: `logs clear --restart` requires an active app session (`open <app>` first).
 
 ## Command Notes
 
@@ -83,3 +85,8 @@ adb -s <serial> logcat -d | grep -n -E "FATAL EXCEPTION|Process: <package>|Abort
 - `FATAL EXCEPTION` with Java stack: uncaught Java/Kotlin exception.
 - `signal 6 (SIGABRT)` or `signal 11 (SIGSEGV)` with tombstone refs: native crash path (NDK/JNI/runtime).
 - `Low memory killer` / `Killing <pid>` entries: OS memory-pressure/process reclaim.
+
+## Stop Conditions
+
+- If no crash signature appears in app log, switch to platform-native crash sources (`.ips` on iOS, logcat/tombstone flow on Android).
+- If signatures are present and root cause class is identified (abort, native fault, memory pressure), stop collecting broad logs and focus on reproducing the specific path.

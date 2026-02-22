@@ -64,13 +64,17 @@ agent-device diff snapshot -i           # Shows +/− structural lines vs prior 
 Efficient pattern:
 - Initialize once at a stable point.
 - Mutate UI (`press`, `fill`, `swipe`).
-- Run `diff snapshot` to confirm expected change shape. Prefer `diff snapshot` before interactions for smaller token usage.
+- Run `diff snapshot` after interactions to confirm expected change shape with bounded output.
 - Re-run full/scoped `snapshot` only when you need fresh refs for next step selection.
 
 ## Troubleshooting
 
 - Ref not found: re-snapshot.
 - If XCTest returns 0 nodes, foreground app state may have changed. Re-open the app or retry after state is stable.
+
+## Stop Conditions
+
+- If refs are unstable after UI transitions, switch to selector-based targeting and stop investing in ref-only flows.
 
 ## Replay note
 
