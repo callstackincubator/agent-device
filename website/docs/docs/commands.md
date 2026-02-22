@@ -116,8 +116,23 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```
 
 - `reinstall <app> <path>` uninstalls and installs in one command.
-- Supports Android devices/emulators and iOS simulators.
+- Supports Android devices/emulators, iOS simulators, and iOS physical devices.
 - Useful for login/logout reset flows and deterministic test setup.
+
+## Push notification simulation
+
+```bash
+agent-device push com.example.app ./payload.apns --platform ios
+agent-device push com.example.app '{"aps":{"alert":"Welcome","badge":1}}' --platform ios
+agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"title":"Welcome","unread":3,"promo":true}}' --platform android
+```
+
+- `push <bundle|package> <payload.json|inline-json>` simulates push notification delivery.
+- iOS uses `xcrun simctl push` and requires an APNs-style JSON object payload.
+- Android uses `adb shell am broadcast` and accepts payload shape:
+  `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
+- Android extras support `string`, `boolean`, and `number` values.
+- `push` works with the active session device, or with explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 
 ## Settings helpers
 

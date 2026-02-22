@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs doctor` checks readiness; `logs mark` writes timeline markers.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
@@ -138,6 +138,7 @@ agent-device scrollintoview @e42
 
 ## Command Index
 - `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
+- `push`
 - `batch`
 - `snapshot`, `diff snapshot`, `find`, `get`
 - `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
@@ -147,6 +148,26 @@ agent-device scrollintoview @e42
 - `settings wifi|airplane|location on|off`
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
 - `appstate`, `apps`, `devices`, `session list`
+
+Push notification simulation:
+
+```bash
+# iOS simulator: app bundle + payload file
+agent-device push com.example.app ./payload.apns --platform ios --device "iPhone 16"
+
+# iOS simulator: inline JSON payload
+agent-device push com.example.app '{"aps":{"alert":"Welcome","badge":1}}' --platform ios
+
+# Android: package + payload (action/extras map)
+agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"title":"Welcome","unread":3,"promo":true}}' --platform android
+```
+
+Payload notes:
+- iOS uses `xcrun simctl push <device> <bundle> <payload>` and requires APNs-style JSON object (for example `{"aps":{"alert":"..."}}`).
+- Android uses `adb shell am broadcast` with payload JSON shape:
+  `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
+- Android extras support string/boolean/number values.
+- `push` works with session context (uses session device) or explicit device selectors.
 
 ## iOS Snapshots
 
