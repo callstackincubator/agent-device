@@ -12,6 +12,12 @@ test('parseArgs recognizes --relaunch', () => {
   assert.equal(parsed.flags.relaunch, true);
 });
 
+test('parseArgs accepts push with payload file', () => {
+  const parsed = parseArgs(['push', 'com.example.app', './payload.json'], { strictFlags: true });
+  assert.equal(parsed.command, 'push');
+  assert.deepEqual(parsed.positionals, ['com.example.app', './payload.json']);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');
@@ -191,6 +197,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--fps <n>/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
+  assert.match(usage(), /push <bundleOrPackage> <payloadOrJson>/);
   assert.doesNotMatch(usage(), /--metadata/);
 });
 

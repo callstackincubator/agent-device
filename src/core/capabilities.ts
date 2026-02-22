@@ -33,6 +33,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   open: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   reinstall: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   press: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
+  push: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   record: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   screenshot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   scroll: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },

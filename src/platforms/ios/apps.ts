@@ -1,3 +1,6 @@
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
@@ -214,6 +217,23 @@ export async function screenshotIos(device: DeviceInfo, outPath: string): Promis
     action: 'capture iOS screenshot',
     deviceId: device.id,
   });
+}
+
+export async function pushIosNotification(
+  device: DeviceInfo,
+  bundleId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  ensureSimulator(device, 'push');
+  await ensureBootedSimulator(device);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-push-'));
+  const payloadPath = path.join(tempDir, 'payload.apns');
+  try {
+    await fs.writeFile(payloadPath, `${JSON.stringify(payload)}\n`, 'utf8');
+    await runCmd('xcrun', ['simctl', 'push', device.id, bundleId, payloadPath]);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 export async function setIosSetting(

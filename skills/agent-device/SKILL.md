@@ -50,11 +50,18 @@ agent-device open "https://example.com" --platform ios       # iOS deep link (op
 agent-device open MyApp "myapp://screen/to" --platform ios   # iOS deep link in app context
 agent-device close [app]          # Close app or just end session
 agent-device reinstall <app> <path> # Uninstall + install app in one command
+agent-device push <bundle|package> <payload.json|inline-json> # Simulate push notification delivery
 agent-device session list         # List active sessions
 ```
 
 `boot` requires either an active session or an explicit selector (`--platform`, `--device`, `--udid`, or `--serial`).
 `boot` is a fallback, not a regular step: use it when starting a new session only if `open` cannot find/connect to an available target.
+
+Push payloads:
+- iOS simulator (`simctl push`) expects APNs-style JSON, e.g. `{"aps":{"alert":"Welcome","badge":1}}`.
+- Android (`adb shell am broadcast`) expects:
+  `{"action":"com.example.app.PUSH","receiver":"com.example.app/.PushReceiver","extras":{"title":"Welcome","unread":3,"promo":true}}`.
+- Android extras support string/boolean/number values.
 
 ### Snapshot (page analysis)
 

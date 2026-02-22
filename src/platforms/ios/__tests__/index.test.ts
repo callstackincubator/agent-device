@@ -7,6 +7,7 @@ import {
   listIosApps,
   openIosApp,
   parseIosDeviceAppsPayload,
+  pushIosNotification,
   reinstallIosApp,
   resolveIosApp,
   setIosSetting,
@@ -327,6 +328,68 @@ test('openIosApp with app and URL on iOS device launches app bundle with payload
     } else {
       process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
     }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('pushIosNotification uses simctl push with temporary payload file', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-push-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const payloadCapturePath = path.join(tmpDir, 'payload.json');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then',
+      '  echo \'{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "simctl" ] && [ "$2" = "push" ]; then',
+      '  cat "$5" > "$AGENT_DEVICE_TEST_PAYLOAD_FILE"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  const previousPayloadFile = process.env.AGENT_DEVICE_TEST_PAYLOAD_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+  process.env.AGENT_DEVICE_TEST_PAYLOAD_FILE = payloadCapturePath;
+
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone',
+    kind: 'simulator',
+    booted: true,
+  };
+
+  try {
+    await pushIosNotification(device, 'com.example.app', { aps: { alert: 'hello', badge: 4 } });
+    const args = (await fs.readFile(argsLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    assert.equal(args[0], 'simctl');
+    assert.equal(args[1], 'push');
+    assert.equal(args[2], 'sim-1');
+    assert.equal(args[3], 'com.example.app');
+    assert.match(args[4] ?? '', /payload\.apns$/);
+    const payload = JSON.parse(await fs.readFile(payloadCapturePath, 'utf8')) as { aps: { alert: string; badge: number } };
+    assert.deepEqual(payload, { aps: { alert: 'hello', badge: 4 } });
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    if (previousPayloadFile === undefined) delete process.env.AGENT_DEVICE_TEST_PAYLOAD_FILE;
+    else process.env.AGENT_DEVICE_TEST_PAYLOAD_FILE = previousPayloadFile;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });

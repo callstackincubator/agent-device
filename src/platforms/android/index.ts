@@ -12,6 +12,12 @@ const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
 };
 
+type AndroidBroadcastPayload = {
+  action?: string;
+  receiver?: string;
+  extras?: Record<string, unknown>;
+};
+
 function adbArgs(device: DeviceInfo, args: string[]): string[] {
   return ['-s', device.id, ...args];
 }
@@ -576,6 +582,34 @@ export async function setAndroidSetting(
   }
 }
 
+export async function pushAndroidNotification(
+  device: DeviceInfo,
+  packageName: string,
+  payload: AndroidBroadcastPayload,
+): Promise<{ action: string; extrasCount: number }> {
+  const action = typeof payload.action === 'string' && payload.action.trim()
+    ? payload.action.trim()
+    : `${packageName}.TEST_PUSH`;
+  const args = ['shell', 'am', 'broadcast', '-a', action, '-p', packageName];
+  const receiver = typeof payload.receiver === 'string' ? payload.receiver.trim() : '';
+  if (receiver) {
+    args.push('-n', receiver);
+  }
+  const extras = payload.extras ?? {};
+  let extrasCount = 0;
+  if (extras && typeof extras === 'object' && !Array.isArray(extras)) {
+    for (const [key, rawValue] of Object.entries(extras)) {
+      if (!key) continue;
+      appendBroadcastExtra(args, key, rawValue);
+      extrasCount += 1;
+    }
+  } else if (payload.extras !== undefined) {
+    throw new AppError('INVALID_ARGS', 'Android push payload extras must be an object');
+  }
+  await runCmd('adb', adbArgs(device, args));
+  return { action, extrasCount };
+}
+
 export async function snapshotAndroid(
   device: DeviceInfo,
   options: SnapshotOptions = {},
@@ -675,6 +709,29 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function appendBroadcastExtra(args: string[], key: string, value: unknown): void {
+  if (typeof value === 'string') {
+    args.push('--es', key, value);
+    return;
+  }
+  if (typeof value === 'boolean') {
+    args.push('--ez', key, value ? 'true' : 'false');
+    return;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (Number.isInteger(value)) {
+      args.push('--ei', key, String(value));
+      return;
+    }
+    args.push('--ef', key, String(value));
+    return;
+  }
+  throw new AppError(
+    'INVALID_ARGS',
+    `Unsupported Android broadcast extra type for "${key}". Use string, boolean, or number.`,
+  );
 }
 
 async function typeAndroidChunked(
