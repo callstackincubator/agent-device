@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.65c33eda.js"></script>
+<script defer src="/agent-device/static/js/index.bf86045b.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -141,14 +141,58 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> record</span><span style="color:var(--shiki-token-string)"> start</span><span style="color:var(--shiki-token-string)"> session.mp4</span><span style="color:var(--shiki-token-comment)">   # Start recording to explicit path</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> record</span><span style="color:var(--shiki-token-string)"> start</span><span style="color:var(--shiki-token-string)"> session.mp4</span><span style="color:var(--shiki-token-string)"> --fps</span><span style="color:var(--shiki-token-constant)"> 30</span><span style="color:var(--shiki-token-comment)">  # Override iOS device runner FPS</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> record</span><span style="color:var(--shiki-token-string)"> stop</span><span style="color:var(--shiki-token-comment)">                # Stop active recording</span></span></code></pre></div><div class="rp-code-button-group"><button class="rp-code-button-group__button rp-code-wrap-button" title="Toggle code wrap"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrapped"><path fill="#22a041" d="M21 5H3v2h18zM3 19h7v-2H3zm0-6h15c1 0 2 .43 2 2s-1 2-2 2h-2v-2l-4 3 4 3v-2h2c2.95 0 4-1.27 4-4 0-2.72-1-4-4-4H3z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrap"><path fill="currentColor" d="M16 7H3V5h13zM3 19h13v-2H3zm19-7-4-3v2H3v2h15v2z"></path></svg></button><button class="rp-code-button-group__button rp-code-copy-button" title="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="272" height="272" viewBox="0 0 272 272" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--copy"><path fill="currentColor" fill-rule="evenodd" d="M45.883 23.368h123.823v22.514H68.396v146.336H45.883zm45.026 45.027H225.99v180.107H90.91zm22.514 22.513v135.08h90.053V90.908z" clip-rule="evenodd"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="271" height="271" viewBox="0 0 271 271" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--success"><path fill="currentColor" d="M112.687 203.223H90.174v-22.514h22.512v-22.514h22.512v22.514h-22.511zm-22.514-22.514H67.66v-22.514h22.513zm-22.514-22.514H45.146v-22.512H67.66zm90.054 0h-22.514v-22.512h22.514zm22.514-22.512h-22.514v-22.514h22.514zm22.513-22.514h-22.513V90.655h22.513zm22.514-22.514H202.74V68.143h22.514z"></path></svg></button></div></div></div>
+<p><strong>Session app logs (token-efficient debugging):</strong> Logs are written to a file so agents can grep instead of loading full output into context.</p>
+<div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> path</span><span style="color:var(--shiki-token-comment)">                  # Print session log file path (e.g. ~/.agent-device/sessions/default/app.log)</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> start</span><span style="color:var(--shiki-token-comment)">                 # Start streaming app stdout/stderr to that file (requires open first)</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> stop</span><span style="color:var(--shiki-token-comment)">                  # Stop streaming</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> doctor</span><span style="color:var(--shiki-token-comment)">                # Show logs backend/tool checks and readiness hints</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> mark</span><span style="color:var(--shiki-token-string-expression)"> &quot;before submit&quot;</span><span style="color:var(--shiki-token-comment)">  # Insert timeline marker into app.log</span></span></code></pre></div><div class="rp-code-button-group"><button class="rp-code-button-group__button rp-code-wrap-button" title="Toggle code wrap"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrapped"><path fill="#22a041" d="M21 5H3v2h18zM3 19h7v-2H3zm0-6h15c1 0 2 .43 2 2s-1 2-2 2h-2v-2l-4 3 4 3v-2h2c2.95 0 4-1.27 4-4 0-2.72-1-4-4-4H3z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrap"><path fill="currentColor" d="M16 7H3V5h13zM3 19h13v-2H3zm19-7-4-3v2H3v2h15v2z"></path></svg></button><button class="rp-code-button-group__button rp-code-copy-button" title="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="272" height="272" viewBox="0 0 272 272" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--copy"><path fill="currentColor" fill-rule="evenodd" d="M45.883 23.368h123.823v22.514H68.396v146.336H45.883zm45.026 45.027H225.99v180.107H90.91zm22.514 22.513v135.08h90.053V90.908z" clip-rule="evenodd"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="271" height="271" viewBox="0 0 271 271" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--success"><path fill="currentColor" d="M112.687 203.223H90.174v-22.514h22.512v-22.514h22.512v22.514h-22.511zm-22.514-22.514H67.66v-22.514h22.513zm-22.514-22.514H45.146v-22.512H67.66zm90.054 0h-22.514v-22.512h22.514zm22.514-22.512h-22.514v-22.514h22.514zm22.513-22.514h-22.513V90.655h22.513zm22.514-22.514H202.74V68.143h22.514z"></path></svg></button></div></div></div>
 <ul>
-<li>iOS <code>record</code> works on simulators and physical devices.</li>
-<li>iOS simulator recording uses native <code>simctl io ... recordVideo</code>.</li>
-<li>Physical iOS device capture is runner-based and built from repeated <code>XCUIScreen.main.screenshot()</code> frames (no native video stream/audio capture).</li>
-<li>Physical iOS device recording requires an active app session context (<code>open &lt;app&gt;</code> first).</li>
-<li>Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with <code>--fps 60</code>.</li>
-<li>Physical-device capture defaults to uncapped (max available) FPS.</li>
-<li><code>--fps &lt;n&gt;</code> (1-120) applies to physical iOS device recording as an explicit FPS cap.</li>
+<li>Supported on iOS simulator, iOS physical device, and Android.</li>
+<li><code>logs start</code> appends to <code>app.log</code> and rotates to <code>app.log.1</code> when the file exceeds 5 MB.</li>
+<li>Android log streaming automatically rebinds to the app PID after process restarts.</li>
+<li>iOS log capture relies on Unified Logging signals (for example <code>os_log</code>); plain stdout/stderr output may be limited depending on app/runtime.</li>
+<li>Retention knobs: set <code>AGENT_DEVICE_APP_LOG_MAX_BYTES</code> and <code>AGENT_DEVICE_APP_LOG_MAX_FILES</code> to override rotation limits.</li>
+<li>Optional write-time redaction patterns: set <code>AGENT_DEVICE_APP_LOG_REDACT_PATTERNS</code> to a comma-separated regex list.</li>
+</ul>
+<p><strong>Grepping app logs:</strong> Use <code>logs path</code> to get the file path, then run <code>grep</code> (or <code>grep -E</code>) on that path so only matching lines enter context—keeping token use low.</p>
+<div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-comment)"># Get path first (e.g. ~/.agent-device/sessions/default/app.log)</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> logs</span><span style="color:var(--shiki-token-string)"> path</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:var(--shiki-token-comment)"># Then grep the path; -n adds line numbers for reference</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">grep</span><span style="color:var(--shiki-token-string)"> -n</span><span style="color:var(--shiki-token-string-expression)"> &quot;Error\|Exception\|Fatal&quot;</span><span style="color:var(--shiki-token-string)"> ~/.agent-device/sessions/default/app.log</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">grep</span><span style="color:var(--shiki-token-string)"> -n</span><span style="color:var(--shiki-token-string)"> -E</span><span style="color:var(--shiki-token-string-expression)"> &quot;Error|Exception|Fatal|crash&quot;</span><span style="color:var(--shiki-token-string)"> ~/.agent-device/sessions/default/app.log</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:var(--shiki-token-comment)"># Last 50 lines only (bounded context)</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">tail</span><span style="color:var(--shiki-token-string)"> -50</span><span style="color:var(--shiki-token-string)"> ~/.agent-device/sessions/default/app.log</span></span></code></pre></div><div class="rp-code-button-group"><button class="rp-code-button-group__button rp-code-wrap-button" title="Toggle code wrap"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrapped"><path fill="#22a041" d="M21 5H3v2h18zM3 19h7v-2H3zm0-6h15c1 0 2 .43 2 2s-1 2-2 2h-2v-2l-4 3 4 3v-2h2c2.95 0 4-1.27 4-4 0-2.72-1-4-4-4H3z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrap"><path fill="currentColor" d="M16 7H3V5h13zM3 19h13v-2H3zm19-7-4-3v2H3v2h15v2z"></path></svg></button><button class="rp-code-button-group__button rp-code-copy-button" title="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="272" height="272" viewBox="0 0 272 272" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--copy"><path fill="currentColor" fill-rule="evenodd" d="M45.883 23.368h123.823v22.514H68.396v146.336H45.883zm45.026 45.027H225.99v180.107H90.91zm22.514 22.513v135.08h90.053V90.908z" clip-rule="evenodd"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="271" height="271" viewBox="0 0 271 271" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--success"><path fill="currentColor" d="M112.687 203.223H90.174v-22.514h22.512v-22.514h22.512v22.514h-22.511zm-22.514-22.514H67.66v-22.514h22.513zm-22.514-22.514H45.146v-22.512H67.66zm90.054 0h-22.514v-22.512h22.514zm22.514-22.512h-22.514v-22.514h22.514zm22.513-22.514h-22.513V90.655h22.513zm22.514-22.514H202.74V68.143h22.514z"></path></svg></button></div></div></div>
+<ul>
+<li>
+<p>Use <code>-n</code> to include line numbers. Use <code>-E</code> for extended regex and <code>|</code> without escaping in the pattern.</p>
+</li>
+<li>
+<p>Prefer targeted patterns (e.g. <code>Error</code>, <code>Exception</code>, your log tags) over reading the whole file.</p>
+</li>
+<li>
+<p>iOS <code>record</code> works on simulators and physical devices.</p>
+</li>
+<li>
+<p>iOS simulator recording uses native <code>simctl io ... recordVideo</code>.</p>
+</li>
+<li>
+<p>Physical iOS device capture is runner-based and built from repeated <code>XCUIScreen.main.screenshot()</code> frames (no native video stream/audio capture).</p>
+</li>
+<li>
+<p>Physical iOS device recording requires an active app session context (<code>open &lt;app&gt;</code> first).</p>
+</li>
+<li>
+<p>Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with <code>--fps 60</code>.</p>
+</li>
+<li>
+<p>Physical-device capture defaults to uncapped (max available) FPS.</p>
+</li>
+<li>
+<p><code>--fps &lt;n&gt;</code> (1-120) applies to physical iOS device recording as an explicit FPS cap.</p>
+</li>
 </ul>
 <h2 class="rp-toc-include" id="ios-device-prerequisites"><a href="#ios-device-prerequisites" class="rp-header-anchor rp-link" aria-hidden="true">#</a>iOS device prerequisites</h2>
 <ul>
