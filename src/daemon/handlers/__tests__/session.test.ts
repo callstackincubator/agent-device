@@ -1163,3 +1163,396 @@ test('replay inherits parent device selectors for each invoked step', async () =
   assert.equal(invoked[0]?.flags?.device, 'thymikee-iphone');
   assert.equal(invoked[0]?.flags?.udid, '00008150-001849640CF8401C');
 });
+
+test('logs requires an active session', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'logs',
+      positionals: ['path'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+  }
+});
+
+test('logs path returns path and active flag when session exists', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok && response.data) {
+    assert.equal(typeof response.data.path, 'string');
+    assert.ok((response.data.path as string).endsWith('app.log'));
+    assert.equal(response.data.active, false);
+    assert.equal(response.data.backend, 'ios-simulator');
+    assert.equal(typeof response.data.hint, 'string');
+  }
+});
+
+test('logs rejects invalid action', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'default',
+    makeSession('default', {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'logs',
+      positionals: ['invalid'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /path, start, stop, doctor, or mark/);
+  }
+});
+
+test('logs start requires app session (appBundleId)', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'default',
+    makeSession('default', {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'logs',
+      positionals: ['start'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /app session|open first/i);
+  }
+});
+
+test('logs stop requires active app log stream', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'default',
+    makeSession('default', {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'logs',
+      positionals: ['stop'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /no app log stream/i);
+  }
+});
+
+test('logs start stores session app log state on success', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  let startCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['start'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    appLogOps: {
+      start: async (_device, _bundleId, _outPath) => {
+        startCalls += 1;
+        return {
+          backend: 'android',
+          startedAt: 123,
+          getState: () => 'active' as const,
+          stop: async () => {},
+          wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+        };
+      },
+      stop: async () => {},
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(startCalls, 1);
+  const session = sessionStore.get(sessionName);
+  assert.ok(session?.appLog);
+  assert.equal(session?.appLog?.getState(), 'active');
+  assert.equal(session?.appLog?.backend, 'android');
+  assert.equal(session?.appLog?.startedAt, 123);
+});
+
+test('logs stop clears active session app log state', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+      appLog: {
+        platform: 'android',
+        backend: 'android',
+        outPath: '/tmp/app.log',
+        startedAt: Date.now(),
+        getState: () => 'active',
+        stop: async () => {},
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      },
+    },
+  );
+  let stopCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['stop'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    appLogOps: {
+      start: async () => {
+        throw new Error('should not be called');
+      },
+      stop: async () => {
+        stopCalls += 1;
+      },
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(stopCalls, 1);
+  const session = sessionStore.get(sessionName);
+  assert.equal(session?.appLog, undefined);
+});
+
+test('close auto-stops active app log stream', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+      appLog: {
+        platform: 'android',
+        backend: 'android',
+        outPath: '/tmp/app.log',
+        startedAt: Date.now(),
+        getState: () => 'active',
+        stop: async () => {},
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      },
+    },
+  );
+  let stopCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    appLogOps: {
+      start: async () => {
+        throw new Error('should not be called');
+      },
+      stop: async () => {
+        stopCalls += 1;
+      },
+    },
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(stopCalls, 1);
+  assert.equal(sessionStore.get(sessionName), undefined);
+});
+
+test('logs mark appends marker and returns path', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Simulator',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['mark', 'checkpoint'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.marked, true);
+    const outPath = String(response.data?.path ?? '');
+    assert.match(fs.readFileSync(outPath, 'utf8'), /checkpoint/);
+  }
+});
+
+test('logs doctor returns check payload', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Simulator',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: ['doctor'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(typeof response.data?.checks, 'object');
+    assert.equal(Array.isArray(response.data?.notes), true);
+  }
+});

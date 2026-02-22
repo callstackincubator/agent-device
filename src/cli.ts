@@ -240,6 +240,38 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
+      if (command === 'logs') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const pathOut = typeof data?.path === 'string' ? data.path : '';
+        if (pathOut) {
+          process.stdout.write(`${pathOut}\n`);
+          const active = typeof data?.active === 'boolean' ? data.active : undefined;
+          const state = typeof data?.state === 'string' ? data.state : undefined;
+          const backend = typeof data?.backend === 'string' ? data.backend : undefined;
+          const sizeBytes = typeof data?.sizeBytes === 'number' ? data.sizeBytes : undefined;
+          if (!flags.json && (active !== undefined || state || backend || sizeBytes !== undefined)) {
+            const meta = [
+              active !== undefined ? `active=${active}` : '',
+              state ? `state=${state}` : '',
+              backend ? `backend=${backend}` : '',
+              sizeBytes !== undefined ? `sizeBytes=${sizeBytes}` : '',
+            ].filter(Boolean).join(' ');
+            if (meta) process.stderr.write(`${meta}\n`);
+          }
+          if (data?.hint && !flags.json) {
+            process.stderr.write(`${data.hint}\n`);
+          }
+          if (Array.isArray(data?.notes) && !flags.json) {
+            for (const note of data.notes) {
+              if (typeof note === 'string' && note.length > 0) {
+                process.stderr.write(`${note}\n`);
+              }
+            }
+          }
+        }
+        if (logTailStopper) logTailStopper();
+        return;
+      }
       if (command === 'click' || command === 'press') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;

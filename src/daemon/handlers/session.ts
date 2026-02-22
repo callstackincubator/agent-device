@@ -8,7 +8,7 @@ import {
 } from '../../core/batch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
-import { AppError, asAppError } from '../../utils/errors.ts';
+import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -32,6 +32,7 @@ import {
   isClickLikeCommand,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
+import { appendAppLogMarker, getAppLogPathMetadata, runAppLogDoctor, startAppLog, stopAppLog } from '../app-log.ts';
 
 type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -233,6 +234,10 @@ export async function handleSessionCommands(params: {
   resolveTargetDevice?: typeof resolveTargetDevice;
   reinstallOps?: ReinstallOps;
   stopIosRunner?: typeof stopIosRunnerSession;
+  appLogOps?: {
+    start: typeof startAppLog;
+    stop: typeof stopAppLog;
+  };
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -245,6 +250,10 @@ export async function handleSessionCommands(params: {
     resolveTargetDevice: resolveTargetDeviceOverride,
     reinstallOps = defaultReinstallOps,
     stopIosRunner: stopIosRunnerOverride,
+    appLogOps = {
+      start: startAppLog,
+      stop: stopAppLog,
+    },
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
@@ -612,6 +621,107 @@ export async function handleSessionCommands(params: {
     }
   }
 
+  if (command === 'logs') {
+    const session = sessionStore.get(sessionName);
+    if (!session) {
+      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'logs requires an active session' } };
+    }
+    const action = (req.positionals?.[0] ?? 'path').toLowerCase();
+    if (!['path', 'start', 'stop', 'doctor', 'mark'].includes(action)) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs requires path, start, stop, doctor, or mark' } };
+    }
+    if (action === 'path') {
+      const logPath = sessionStore.resolveAppLogPath(sessionName);
+      const metadata = getAppLogPathMetadata(logPath);
+      const backend =
+        session.appLog?.backend
+        ?? (session.device.platform === 'ios'
+          ? session.device.kind === 'device'
+            ? 'ios-device'
+            : 'ios-simulator'
+          : 'android');
+      return {
+        ok: true,
+        data: {
+          path: logPath,
+          active: Boolean(session.appLog),
+          state: session.appLog?.getState() ?? 'inactive',
+          backend,
+          sizeBytes: metadata.sizeBytes,
+          modifiedAt: metadata.modifiedAt,
+          startedAt: session.appLog?.startedAt ? new Date(session.appLog.startedAt).toISOString() : undefined,
+          hint: 'Grep the file for token-efficient debugging, e.g. grep -n "Error\\|Exception" <path>',
+        },
+      };
+    }
+    if (action === 'doctor') {
+      const logPath = sessionStore.resolveAppLogPath(sessionName);
+      const doctor = await runAppLogDoctor(session.device, session.appBundleId);
+      return {
+        ok: true,
+        data: {
+          path: logPath,
+          active: Boolean(session.appLog),
+          state: session.appLog?.getState() ?? 'inactive',
+          checks: doctor.checks,
+          notes: doctor.notes,
+        },
+      };
+    }
+    if (action === 'mark') {
+      const marker = req.positionals?.slice(1).join(' ') ?? '';
+      const logPath = sessionStore.resolveAppLogPath(sessionName);
+      appendAppLogMarker(logPath, marker);
+      return { ok: true, data: { path: logPath, marked: true } };
+    }
+    if (action === 'start') {
+      if (session.appLog) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'app log already streaming; run logs stop first' } };
+      }
+      if (!session.appBundleId) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs start requires an app session; run open <app> first' } };
+      }
+      if (!isCommandSupportedOnDevice('logs', session.device)) {
+        const unsupportedError = normalizeError(new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'));
+        return {
+          ok: false,
+          error: unsupportedError,
+        };
+      }
+      const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+      const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
+      try {
+        const appLogStream = await appLogOps.start(session.device, session.appBundleId, appLogPath, appLogPidPath);
+        const nextSession: SessionState = {
+          ...session,
+          appLog: {
+            platform: session.device.platform,
+            backend: appLogStream.backend,
+            outPath: appLogPath,
+            startedAt: appLogStream.startedAt,
+            getState: appLogStream.getState,
+            stop: appLogStream.stop,
+            wait: appLogStream.wait,
+          },
+        };
+        sessionStore.set(sessionName, nextSession);
+        return { ok: true, data: { path: appLogPath, started: true } };
+      } catch (err) {
+        const normalizedError = normalizeError(err);
+        return { ok: false, error: normalizedError };
+      }
+    }
+    if (action === 'stop') {
+      if (!session.appLog) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'no app log stream active' } };
+      }
+      const outPath = session.appLog.outPath;
+      await appLogOps.stop(session.appLog);
+      sessionStore.set(sessionName, { ...session, appLog: undefined });
+      return { ok: true, data: { path: outPath, stopped: true } };
+    }
+  }
+
   if (command === 'batch') {
     return await runBatchCommands(req, sessionName, invoke);
   }
@@ -620,6 +730,9 @@ export async function handleSessionCommands(params: {
     const session = sessionStore.get(sessionName);
     if (!session) {
       return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
+    }
+    if (session.appLog) {
+      await appLogOps.stop(session.appLog);
     }
     if (req.positionals && req.positionals.length > 0) {
       await dispatch(session.device, 'close', req.positionals ?? [], req.flags?.out, {

@@ -528,6 +528,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
+  logs: {
+    usageOverride: 'logs path | logs start | logs stop | logs doctor | logs mark [message...]',
+    description: 'Session app log info, start/stop streaming, diagnostics, and markers',
+    positionalArgs: ['path|start|stop|doctor|mark', 'message?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [],
+  },
   find: {
     usageOverride: 'find <locator|text> <action> [value]',
     description: 'Find by text/label/value/role/id and run action',

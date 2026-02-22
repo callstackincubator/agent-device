@@ -29,6 +29,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   get: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   is: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   home: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
+  logs: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   longpress: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   open: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   reinstall: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
