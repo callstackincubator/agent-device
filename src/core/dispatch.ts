@@ -20,6 +20,7 @@ import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
+import { looksLikeInlineJson } from '../utils/json-input.ts';
 
 export type BatchStep = {
   command: string;
@@ -555,10 +556,6 @@ async function readNotificationPayload(payloadArg: string): Promise<Record<strin
     if (error instanceof AppError) throw error;
     throw new AppError('INVALID_ARGS', `Invalid push payload JSON: ${payloadArg}`);
   }
-}
-
-function looksLikeInlineJson(value: string): boolean {
-  return (value.startsWith('{') && value.endsWith('}')) || (value.startsWith('[') && value.endsWith(']'));
 }
 
 async function resolvePushPayloadText(payloadArg: string, trimmedArg: string): Promise<string> {

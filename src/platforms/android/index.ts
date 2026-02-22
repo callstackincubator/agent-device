@@ -595,16 +595,16 @@ export async function pushAndroidNotification(
   if (receiver) {
     args.push('-n', receiver);
   }
-  const extras = payload.extras ?? {};
-  let extrasCount = 0;
-  if (extras && typeof extras === 'object' && !Array.isArray(extras)) {
-    for (const [key, rawValue] of Object.entries(extras)) {
-      if (!key) continue;
-      appendBroadcastExtra(args, key, rawValue);
-      extrasCount += 1;
-    }
-  } else if (payload.extras !== undefined) {
+  const rawExtras = payload.extras;
+  if (rawExtras !== undefined && (typeof rawExtras !== 'object' || rawExtras === null || Array.isArray(rawExtras))) {
     throw new AppError('INVALID_ARGS', 'Android push payload extras must be an object');
+  }
+  const extras = rawExtras ?? {};
+  let extrasCount = 0;
+  for (const [key, rawValue] of Object.entries(extras)) {
+    if (!key) continue;
+    appendBroadcastExtra(args, key, rawValue);
+    extrasCount += 1;
   }
   await runCmd('adb', adbArgs(device, args));
   return { action, extrasCount };

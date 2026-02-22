@@ -32,6 +32,7 @@ import {
   isClickLikeCommand,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
+import { looksLikeInlineJson } from '../../utils/json-input.ts';
 
 type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -703,10 +704,7 @@ function maybeResolvePushPayloadPath(payloadArg: string, cwd?: string): string {
     }
     return resolvedPath;
   }
-  if (
-    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-    (trimmed.startsWith('[') && trimmed.endsWith(']'))
-  ) {
+  if (looksLikeInlineJson(trimmed)) {
     return trimmed;
   }
   throw new AppError('INVALID_ARGS', `Push payload file not found: ${resolvedPath}`);
