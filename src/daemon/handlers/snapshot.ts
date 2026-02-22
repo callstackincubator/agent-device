@@ -382,15 +382,20 @@ export async function handleSnapshotCommands(params: {
   }
 
   if (command === 'settings') {
-    const setting = req.positionals?.[0];
-    const state = req.positionals?.[1];
-    if (!setting || !state) {
+    const setting = req.positionals?.[0]?.toLowerCase();
+    const state = req.positionals?.[1]?.toLowerCase();
+    const permissionTarget = req.positionals?.[2]?.toLowerCase();
+    if (
+      !setting ||
+      !state ||
+      (setting === 'permission' && !permissionTarget)
+    ) {
       return {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
           message:
-            'settings requires <wifi|airplane|location> <on|off> or faceid <match|nonmatch|enroll|unenroll>',
+            'settings requires <wifi|airplane|location> <on|off>, faceid <match|nonmatch|enroll|unenroll>, or permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]',
         },
       };
     }
@@ -406,10 +411,14 @@ export async function handleSnapshotCommands(params: {
     }
     return await withSessionlessRunnerCleanup(session, device, async () => {
       const appBundleId = session?.appBundleId;
+      const positionals =
+        setting === 'permission'
+          ? [setting, state, permissionTarget, req.positionals?.[3] ?? '', appBundleId ?? '']
+          : [setting, state, appBundleId ?? ''];
       const data = await dispatchCommand(
         device,
         'settings',
-        [setting, state, appBundleId ?? ''],
+        positionals,
         req.flags?.out,
         {
           ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),

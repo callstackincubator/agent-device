@@ -3,6 +3,7 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
+import { parsePermissionAction } from '../permission-utils.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
@@ -221,6 +222,10 @@ export async function setIosSetting(
   setting: string,
   state: string,
   appBundleId?: string,
+  options?: {
+    permissionTarget?: string;
+    permissionMode?: string;
+  },
 ): Promise<void> {
   ensureSimulator(device, 'settings');
   await ensureBootedSimulator(device);
@@ -271,6 +276,18 @@ export async function setIosSetting(
     case 'faceid': {
       const action = parseFaceIdAction(state);
       await runFaceIdSimctlCommand(device.id, action);
+      return;
+    }
+    case 'permission': {
+      if (!appBundleId) {
+        throw new AppError(
+          'INVALID_ARGS',
+          'permission setting requires an active app in session',
+        );
+      }
+      const action = mapIosPermissionAction(parsePermissionAction(state));
+      const target = parseIosPermissionTarget(options?.permissionTarget, options?.permissionMode);
+      await runCmd('xcrun', ['simctl', 'privacy', device.id, action, target, appBundleId]);
       return;
     }
     default:
@@ -336,6 +353,41 @@ function parseSettingState(state: string): boolean {
 }
 
 type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
+
+function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | 'revoke' | 'reset' {
+  if (action === 'deny') return 'revoke';
+  return action;
+}
+
+function parseIosPermissionTarget(permissionTarget: string | undefined, permissionMode: string | undefined): string {
+  const normalized = permissionTarget?.trim().toLowerCase();
+  if (!normalized) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'permission setting requires a target: camera|microphone|photos|contacts|notifications',
+    );
+  }
+  if (normalized !== 'photos' && permissionMode?.trim()) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Permission mode is only supported for photos. Received: ${permissionMode}.`,
+    );
+  }
+  if (normalized === 'camera') return 'camera';
+  if (normalized === 'microphone') return 'microphone';
+  if (normalized === 'contacts') return 'contacts';
+  if (normalized === 'notifications') return 'notifications';
+  if (normalized === 'photos') {
+    const mode = permissionMode?.trim().toLowerCase();
+    if (!mode || mode === 'full') return 'photos';
+    if (mode === 'limited') return 'photos-add';
+    throw new AppError('INVALID_ARGS', `Invalid photos mode: ${permissionMode}. Use full|limited.`);
+  }
+  throw new AppError(
+    'INVALID_ARGS',
+    `Unsupported permission target: ${permissionTarget}. Use camera|microphone|photos|contacts|notifications.`,
+  );
+}
 
 function parseFaceIdAction(state: string): FaceIdAction {
   const normalized = state.trim().toLowerCase();

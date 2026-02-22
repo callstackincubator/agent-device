@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { inferAndroidAppName, listAndroidApps, openAndroidApp, parseAndroidLaunchComponent, swipeAndroid } from '../index.ts';
+import {
+  inferAndroidAppName,
+  listAndroidApps,
+  openAndroidApp,
+  parseAndroidLaunchComponent,
+  setAndroidSetting,
+  swipeAndroid,
+} from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
@@ -262,6 +269,212 @@ test('swipeAndroid invokes adb input swipe with duration', async () => {
       .split('\n')
       .filter(Boolean);
     assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'swipe', '10', '20', '30', '40', '250']);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setAndroidSetting permission grant camera uses pm grant', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-camera-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+      permissionTarget: 'camera',
+    });
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.CAMERA/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setAndroidSetting permission deny notifications uses appops', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-notifications-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await setAndroidSetting(device, 'permission', 'deny', 'com.example.app', {
+      permissionTarget: 'notifications',
+    });
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndeny/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setAndroidSetting permission reset camera maps to pm revoke', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-reset-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await setAndroidSetting(device, 'permission', 'reset', 'com.example.app', {
+      permissionTarget: 'camera',
+    });
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.CAMERA/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setAndroidSetting permission rejects mode argument', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  await assert.rejects(
+    () =>
+      setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'camera',
+        permissionMode: 'limited',
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /mode is only supported for iOS photos/i);
+      return true;
+    },
+  );
+});
+
+test('setAndroidSetting permission grant photos falls back to legacy permission on older SDK', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-permission-photos-fallback-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    adbPath,
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "getprop" ] && [ "$3" = "ro.build.version.sdk" ]; then',
+      '  echo "32"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "grant" ] && [ "$5" = "android.permission.READ_EXTERNAL_STORAGE" ]; then',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+      permissionTarget: 'photos',
+    });
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /shell\ngetprop\nro\.build\.version\.sdk/);
+    assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.READ_EXTERNAL_STORAGE/);
   } finally {
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) {
