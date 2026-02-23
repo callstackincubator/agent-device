@@ -129,7 +129,7 @@ agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"t
 ```
 
 - `push <bundle|package> <payload.json|inline-json>` simulates push notification delivery.
-- iOS uses `xcrun simctl push` and requires an APNs-style JSON object payload.
+- iOS push simulation is simulator-only (`xcrun simctl push`) and requires an APNs-style JSON object payload.
 - Android uses `adb shell am broadcast` and accepts payload shape:
   `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
 - Android extras support `string`, `boolean`, and `number` values.
