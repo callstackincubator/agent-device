@@ -32,6 +32,22 @@ test('normalizeError falls back to context metadata', () => {
   assert.match(normalized.hint ?? '', /help/i);
 });
 
+test('normalizeError enriches generic command-failed message with stderr excerpt', () => {
+  const err = new AppError('COMMAND_FAILED', 'xcrun exited with code 1', {
+    stderr: '\nOperation not permitted\nUnderlying error details',
+  });
+  const normalized = normalizeError(err);
+  assert.equal(normalized.message, 'xcrun exited with code 1: Operation not permitted');
+});
+
+test('normalizeError does not alter non-generic command-failed message', () => {
+  const err = new AppError('COMMAND_FAILED', 'Failed to reset access', {
+    stderr: 'Operation not permitted',
+  });
+  const normalized = normalizeError(err);
+  assert.equal(normalized.message, 'Failed to reset access');
+});
+
 test('asAppError wraps unknown errors', () => {
   const err = asAppError(new Error('unexpected'));
   assert.equal(err.code, 'UNKNOWN');
