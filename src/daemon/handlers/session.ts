@@ -32,7 +32,7 @@ import {
   isClickLikeCommand,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
-import { looksLikeInlineJson } from '../../utils/json-input.ts';
+import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import {
   appendAppLogMarker,
   clearAppLogFiles,
@@ -476,7 +476,7 @@ export async function handleSessionCommands(params: {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
-          message: 'push requires: push <bundle|package> <payload.json|inline-json>',
+          message: 'push requires <bundle|package> <payload.json|inline-json>',
         },
       };
     }
@@ -903,29 +903,12 @@ export async function handleSessionCommands(params: {
 }
 
 function maybeResolvePushPayloadPath(payloadArg: string, cwd?: string): string {
-  const trimmed = payloadArg.trim();
-  const resolvedPath = SessionStore.expandHome(trimmed, cwd);
-  try {
-    const stat = fs.statSync(resolvedPath);
-    if (!stat.isFile()) {
-      throw new AppError('INVALID_ARGS', `Push payload path is not a file: ${resolvedPath}`);
-    }
-    return resolvedPath;
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === 'EACCES' || code === 'EPERM') {
-      throw new AppError('INVALID_ARGS', `Push payload file is not readable: ${resolvedPath}`);
-    }
-    if (code && code !== 'ENOENT') {
-      throw new AppError('COMMAND_FAILED', `Unable to read push payload file: ${resolvedPath}`, {
-        cause: String(error),
-      });
-    }
-  }
-  if (looksLikeInlineJson(trimmed)) {
-    return trimmed;
-  }
-  throw new AppError('INVALID_ARGS', `Push payload file not found: ${resolvedPath}`);
+  const resolved = resolvePayloadInput(payloadArg, {
+    subject: 'Push payload',
+    cwd,
+    expandPath: (value, currentCwd) => SessionStore.expandHome(value, currentCwd),
+  });
+  return resolved.kind === 'file' ? resolved.path : resolved.text;
 }
 
 async function runBatchCommands(
