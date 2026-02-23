@@ -86,17 +86,24 @@ function maybeEnrichCommandFailedMessage(
   details: Record<string, unknown> | undefined,
 ): string {
   if (code !== 'COMMAND_FAILED') return message;
-  if (!/\bexited with code\b/i.test(message)) return message;
+  if (details?.processExitError !== true) return message;
   const stderr = typeof details?.stderr === 'string' ? details.stderr : '';
   const excerpt = firstStderrLine(stderr);
   if (!excerpt) return message;
-  return `${message}: ${excerpt}`;
+  return excerpt;
 }
 
 function firstStderrLine(stderr: string): string | null {
+  const skipPatterns = [
+    /^an error was encountered processing the command/i,
+    /^underlying error\b/i,
+    /^simulator device failed to complete the requested operation/i,
+  ];
+
   for (const rawLine of stderr.split('\n')) {
     const line = rawLine.trim();
     if (!line) continue;
+    if (skipPatterns.some((pattern) => pattern.test(line))) continue;
     return line.length > 200 ? `${line.slice(0, 200)}...` : line;
   }
   return null;

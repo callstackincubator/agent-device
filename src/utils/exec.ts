@@ -111,6 +111,7 @@ export async function runCmd(
             stdout,
             stderr,
             exitCode,
+            processExitError: true,
           }),
         );
         return;
@@ -176,6 +177,7 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
       stdout,
       stderr,
       exitCode,
+      processExitError: true,
     });
   }
 
@@ -256,6 +258,7 @@ export async function runCmdStreaming(
             stdout,
             stderr,
             exitCode,
+            processExitError: true,
           }),
         );
         return;
@@ -309,6 +312,7 @@ export function runCmdBackground(
             stdout,
             stderr,
             exitCode,
+            processExitError: true,
           }),
         );
         return;
