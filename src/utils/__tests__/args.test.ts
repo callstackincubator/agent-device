@@ -19,6 +19,12 @@ test('parseArgs recognizes logs clear --restart', () => {
   assert.equal(parsed.flags.restart, true);
 });
 
+test('parseArgs recognizes network dump arguments', () => {
+  const parsed = parseArgs(['network', 'dump', '20', 'headers'], { strictFlags: true });
+  assert.equal(parsed.command, 'network');
+  assert.deepEqual(parsed.positionals, ['dump', '20', 'headers']);
+});
+
 test('parseArgs accepts push with payload file', () => {
   const parsed = parseArgs(['push', 'com.example.app', './payload.json'], { strictFlags: true });
   assert.equal(parsed.command, 'push');
@@ -225,6 +231,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
   assert.match(usage(), /--restart/);
   assert.match(usage(), /--fps <n>/);
+  assert.match(usage(), /network dump/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /clipboard read \| clipboard write <text>/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);

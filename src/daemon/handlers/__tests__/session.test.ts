@@ -2153,3 +2153,139 @@ test('logs doctor returns check payload', async () => {
     assert.equal(Array.isArray(response.data?.notes), true);
   }
 });
+
+test('network requires an active session', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'network',
+      positionals: ['dump'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+  }
+});
+
+test('network dump returns recent parsed HTTP entries', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.app',
+    },
+  );
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    [
+      '2026-02-24T10:00:00Z GET https://api.example.com/v1/profile status=200',
+      '2026-02-24T10:00:01Z POST https://api.example.com/v1/login statusCode=401 headers={\"x-id\":\"abc\"} requestBody={\"email\":\"test@example.com\"} responseBody={\"error\":\"bad_credentials\"}',
+    ].join('\n'),
+    'utf8',
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'all'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.path, appLogPath);
+    assert.equal(response.data?.include, 'all');
+    assert.equal(response.data?.active, false);
+    assert.equal(response.data?.backend, 'android');
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    assert.equal(entries.length, 2);
+    const latest = entries[0] as Record<string, unknown>;
+    assert.equal(latest.method, 'POST');
+    assert.equal(latest.url, 'https://api.example.com/v1/login');
+    assert.equal(latest.status, 401);
+    assert.equal(typeof latest.headers, 'string');
+    assert.equal(typeof latest.requestBody, 'string');
+    assert.equal(typeof latest.responseBody, 'string');
+  }
+});
+
+test('network dump validates include mode and limit', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  const invalidLimit = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '0'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(invalidLimit);
+  assert.equal(invalidLimit?.ok, false);
+  if (invalidLimit && !invalidLimit.ok) {
+    assert.equal(invalidLimit.error.code, 'INVALID_ARGS');
+    assert.match(invalidLimit.error.message, /1\.\.200/);
+  }
+
+  const invalidMode = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'verbose'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(invalidMode);
+  assert.equal(invalidMode?.ok, false);
+  if (invalidMode && !invalidMode.ok) {
+    assert.equal(invalidMode.error.code, 'INVALID_ARGS');
+    assert.match(invalidMode.error.message, /summary, headers, body, all/);
+  }
+});

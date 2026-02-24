@@ -1,6 +1,7 @@
 # Logs (Token-Efficient Debugging)
 
 Logging is off by default in normal flows. Enable it on demand for debugging windows. App output is written to a session-scoped file so agents can grep it instead of loading full logs into context.
+`network dump` parses recent HTTP(s) entries from this same session app log file.
 
 ## Data Handling
 
@@ -23,6 +24,7 @@ Logging is off by default in normal flows. Enable it on demand for debugging win
 ```bash
 agent-device open MyApp --platform ios      # or --platform android
 agent-device logs clear --restart    # Preferred: stop stream, clear logs, and start streaming again
+agent-device network dump 25         # Parse latest HTTP(s) requests (method/url/status) from app.log
 agent-device logs path               # Print path, e.g. ~/.agent-device/sessions/default/app.log
 agent-device logs doctor             # Check tool/runtime readiness for current session/device
 agent-device logs mark "before tap"  # Insert a timeline marker into app.log
@@ -41,10 +43,13 @@ Precondition: `logs clear --restart` requires an active app session (`open <app>
 - `logs clear --restart`: convenience reset for repro loops (stop stream, clear files, restart stream).
 - `logs doctor`: reports backend/tool checks and readiness notes for troubleshooting.
 - `logs mark`: writes a timestamped marker line to the session log.
+- `network dump [limit] [summary|headers|body|all]`: parses recent HTTP(s) lines from the session app log and returns request summaries.
+- `network log ...`: alias for `network dump`.
 
 ## Behavior and Limits
 
 - `logs start` appends to `app.log` and rotates to `app.log.1` when `app.log` exceeds 5 MB.
+- `network dump` scans the last 4000 app-log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
 - Android log streaming automatically rebinds to the app PID after process restarts.
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
 - Retention knobs:

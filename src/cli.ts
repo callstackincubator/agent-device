@@ -304,6 +304,57 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           if (logTailStopper) logTailStopper();
           return;
         }
+      if (command === 'network') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const pathOut = typeof data?.path === 'string' ? data.path : '';
+        if (pathOut) {
+          process.stdout.write(`${pathOut}\n`);
+        }
+        const entries = Array.isArray(data?.entries) ? data.entries : [];
+        if (entries.length === 0) {
+          process.stdout.write('No recent HTTP(s) entries found.\n');
+        } else {
+          for (const entry of entries as Array<Record<string, unknown>>) {
+            const method = typeof entry.method === 'string' ? entry.method : 'HTTP';
+            const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
+            const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
+            const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
+            process.stdout.write(`${timestamp}${method} ${url}${status}\n`);
+            if (typeof entry.headers === 'string') {
+              process.stdout.write(`  headers: ${entry.headers}\n`);
+            }
+            if (typeof entry.requestBody === 'string') {
+              process.stdout.write(`  request: ${entry.requestBody}\n`);
+            }
+            if (typeof entry.responseBody === 'string') {
+              process.stdout.write(`  response: ${entry.responseBody}\n`);
+            }
+          }
+        }
+        const active = typeof data?.active === 'boolean' ? data.active : undefined;
+        const state = typeof data?.state === 'string' ? data.state : undefined;
+        const backend = typeof data?.backend === 'string' ? data.backend : undefined;
+        const scannedLines = typeof data?.scannedLines === 'number' ? data.scannedLines : undefined;
+        const matchedLines = typeof data?.matchedLines === 'number' ? data.matchedLines : undefined;
+        const include = typeof data?.include === 'string' ? data.include : undefined;
+        const meta = [
+          active !== undefined ? `active=${active}` : '',
+          state ? `state=${state}` : '',
+          backend ? `backend=${backend}` : '',
+          include ? `include=${include}` : '',
+          scannedLines !== undefined ? `scannedLines=${scannedLines}` : '',
+          matchedLines !== undefined ? `matchedLines=${matchedLines}` : '',
+        ].filter(Boolean).join(' ');
+        if (meta) process.stderr.write(`${meta}\n`);
+        if (Array.isArray(data?.notes)) {
+          for (const note of data.notes) {
+            if (typeof note === 'string' && note.length > 0) {
+              process.stderr.write(`${note}\n`);
+            }
+          }
+        }
+        if (logTailStopper) logTailStopper();
+        return;
       }
       if (command === 'click' || command === 'press') {
         const ref = (response.data as any)?.ref ?? '';

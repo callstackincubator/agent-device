@@ -41,6 +41,7 @@ import {
   startAppLog,
   stopAppLog,
 } from '../app-log.ts';
+import { readRecentNetworkTraffic } from '../network-log.ts';
 
 type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -159,6 +160,11 @@ function buildPerfResponseData(session: SessionState): Record<string, unknown> {
     },
   };
 }
+const NETWORK_ACTIONS = ['dump', 'log'] as const;
+const NETWORK_ACTIONS_MESSAGE = `network requires ${NETWORK_ACTIONS.join(' or ')}`;
+const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
+const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
+type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
 
 function requireSessionOrExplicitSelector(
   command: string,
@@ -1072,6 +1078,61 @@ export async function handleSessionCommands(params: {
       sessionStore.set(sessionName, { ...session, appLog: undefined });
       return { ok: true, data: { path: outPath, stopped: true } };
     }
+  }
+
+  if (command === 'network') {
+    const session = sessionStore.get(sessionName);
+    if (!session) {
+      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'network requires an active session' } };
+    }
+    const action = (req.positionals?.[0] ?? 'dump').toLowerCase();
+    if (!NETWORK_ACTIONS.includes(action as (typeof NETWORK_ACTIONS)[number])) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: NETWORK_ACTIONS_MESSAGE } };
+    }
+
+    const requestedLimit = req.positionals?.[1];
+    const maxEntries = requestedLimit ? Number.parseInt(requestedLimit, 10) : 25;
+    if (!Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 200) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: 'network dump limit must be an integer in range 1..200' } };
+    }
+
+    const requestedInclude = (req.positionals?.[2] ?? 'summary').toLowerCase();
+    if (!NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])) {
+      return { ok: false, error: { code: 'INVALID_ARGS', message: NETWORK_INCLUDE_MESSAGE } };
+    }
+    const include = requestedInclude as NetworkIncludeMode;
+
+    const networkPath = sessionStore.resolveAppLogPath(sessionName);
+    const dump = readRecentNetworkTraffic(networkPath, {
+      maxEntries,
+      include,
+      maxPayloadChars: 2048,
+      maxScanLines: 4000,
+    });
+    const backend =
+      session.appLog?.backend
+      ?? (session.device.platform === 'ios'
+        ? session.device.kind === 'device'
+          ? 'ios-device'
+          : 'ios-simulator'
+        : 'android');
+    const notes: string[] = [];
+    if (!session.appLog) {
+      notes.push('Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.');
+    }
+    if (dump.entries.length === 0) {
+      notes.push('No HTTP(s) entries were found in recent session app logs.');
+    }
+    return {
+      ok: true,
+      data: {
+        ...dump,
+        active: Boolean(session.appLog),
+        state: session.appLog?.getState() ?? 'inactive',
+        backend,
+        notes,
+      },
+    };
   }
 
   if (command === 'batch') {

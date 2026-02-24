@@ -562,6 +562,12 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowsExtraPositionals: true,
     allowedFlags: ['restart'],
   },
+  network: {
+    usageOverride: 'network dump [limit] [summary|headers|body|all] | network log [limit] [summary|headers|body|all]',
+    description: 'Dump recent HTTP(s) traffic parsed from the session app log',
+    positionalArgs: ['dump|log', 'limit?', 'include?'],
+    allowedFlags: [],
+  },
   find: {
     usageOverride: 'find <locator|text> <action> [value]',
     description: 'Find by text/label/value/role/id and run action',

@@ -22,7 +22,7 @@ Use this skill as a router, not a full manual.
 
 - No target context yet: `devices` -> pick target -> `open`.
 - Normal UI task: `open` -> `snapshot -i` -> `press/fill` -> `diff snapshot -i` -> `close`
-- Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `logs path` -> targeted `grep`
+- Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
 
 ## Canonical Flows
@@ -43,6 +43,7 @@ agent-device close
 ```bash
 agent-device open MyApp --platform ios
 agent-device logs clear --restart
+agent-device network dump 25
 agent-device logs path
 ```
 
@@ -89,6 +90,7 @@ agent-device appstate
 agent-device clipboard read
 agent-device clipboard write "token"
 agent-device perf --json
+agent-device network dump [limit] [summary|headers|body|all]
 agent-device push <bundle|package> <payload.json|inline-json>
 agent-device get text @e1
 agent-device screenshot out.png
@@ -117,6 +119,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
+- `network dump` is best-effort and parses HTTP(s) entries from the session app log file.
 - iOS settings helpers are simulator-only; use `appearance light|dark|toggle` and faceid `match|nonmatch|enroll|unenroll`.
 - `push` simulates notification delivery:
   - iOS simulator uses APNs-style payload JSON.

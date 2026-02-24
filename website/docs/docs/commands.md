@@ -232,11 +232,15 @@ agent-device logs clear                 # Truncate app.log + remove rotated app.
 agent-device logs clear --restart       # Stop stream, clear log files, and start streaming again
 agent-device logs doctor                # Show logs backend/tool checks and readiness hints
 agent-device logs mark "before submit"  # Insert timeline marker into app.log
+agent-device network dump 25            # Parse recent HTTP(s) requests (method/url/status) from session app log
+agent-device network dump 25 all        # Include parsed headers/body when available (truncated)
 ```
 
 - Supported on iOS simulator, iOS physical device, and Android.
 - Preferred debug entrypoint: `logs clear --restart` for clean-window repro loops.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
+- `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from `app.log`; `network log ...` is an alias.
+- Network dump limits: scans up to 4000 recent log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
 - Android log streaming automatically rebinds to the app PID after process restarts.
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
