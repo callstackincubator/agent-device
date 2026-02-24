@@ -368,6 +368,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             return;
           }
         }
+        if (command === 'perf') {
+          process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+          if (logTailStopper) logTailStopper();
+          return;
+        }
       }
       if (logTailStopper) logTailStopper();
       return;

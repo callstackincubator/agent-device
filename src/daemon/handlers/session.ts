@@ -53,6 +53,98 @@ const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device',
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
+const PERF_UNAVAILABLE_REASON = 'Not implemented for this platform in this release.';
+const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
+const STARTUP_SAMPLE_DESCRIPTION =
+  'Elapsed wall-clock time around dispatching the open command for the active session app target.';
+const PERF_STARTUP_SAMPLE_LIMIT = 20;
+
+type StartupPerfSample = {
+  durationMs: number;
+  measuredAt: string;
+  method: typeof STARTUP_SAMPLE_METHOD;
+  appTarget?: string;
+  appBundleId?: string;
+};
+
+function buildStartupPerfSample(
+  startedAtMs: number,
+  appTarget: string | undefined,
+  appBundleId: string | undefined,
+): StartupPerfSample {
+  return {
+    durationMs: Math.max(0, Date.now() - startedAtMs),
+    measuredAt: new Date().toISOString(),
+    method: STARTUP_SAMPLE_METHOD,
+    appTarget,
+    appBundleId,
+  };
+}
+
+function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
+  const samples: StartupPerfSample[] = [];
+  for (const action of actions) {
+    if (action.command !== 'open') continue;
+    const startup = action.result?.startup;
+    if (!startup || typeof startup !== 'object') continue;
+    const record = startup as Record<string, unknown>;
+    if (
+      typeof record.durationMs !== 'number'
+      || !Number.isFinite(record.durationMs)
+      || typeof record.measuredAt !== 'string'
+      || record.measuredAt.trim().length === 0
+      || record.method !== STARTUP_SAMPLE_METHOD
+    ) {
+      continue;
+    }
+    samples.push({
+      durationMs: Math.max(0, Math.round(record.durationMs)),
+      measuredAt: record.measuredAt,
+      method: STARTUP_SAMPLE_METHOD,
+      appTarget: typeof record.appTarget === 'string' && record.appTarget.length > 0 ? record.appTarget : undefined,
+      appBundleId: typeof record.appBundleId === 'string' && record.appBundleId.length > 0 ? record.appBundleId : undefined,
+    });
+  }
+  return samples.slice(-PERF_STARTUP_SAMPLE_LIMIT);
+}
+
+function buildPerfResponseData(session: SessionState): Record<string, unknown> {
+  const startupSamples = readStartupPerfSamples(session.actions);
+  const latestStartupSample = startupSamples.at(-1);
+  const startupMetric = latestStartupSample
+    ? {
+      available: true,
+      lastDurationMs: latestStartupSample.durationMs,
+      lastMeasuredAt: latestStartupSample.measuredAt,
+      method: STARTUP_SAMPLE_METHOD,
+      sampleCount: startupSamples.length,
+      samples: startupSamples,
+    }
+    : {
+      available: false,
+      reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
+      method: STARTUP_SAMPLE_METHOD,
+    };
+  return {
+    session: session.name,
+    platform: session.device.platform,
+    device: session.device.name,
+    deviceId: session.device.id,
+    metrics: {
+      startup: startupMetric,
+      fps: { available: false, reason: PERF_UNAVAILABLE_REASON },
+      memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
+      cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
+    },
+    sampling: {
+      startup: {
+        method: STARTUP_SAMPLE_METHOD,
+        description: STARTUP_SAMPLE_DESCRIPTION,
+        unit: 'ms',
+      },
+    },
+  };
+}
 
 function requireSessionOrExplicitSelector(
   command: string,
@@ -479,6 +571,23 @@ export async function handleSessionCommands(params: {
     });
   }
 
+  if (command === 'perf') {
+    const session = sessionStore.get(sessionName);
+    if (!session) {
+      return {
+        ok: false,
+        error: {
+          code: 'SESSION_NOT_FOUND',
+          message: 'perf requires an active session. Run open first.',
+        },
+      };
+    }
+    return {
+      ok: true,
+      data: buildPerfResponseData(session),
+    };
+  }
+
   if (command === 'reinstall') {
     const session = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
@@ -626,9 +735,11 @@ export async function handleSessionCommands(params: {
           ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
         });
       }
+      const openStartedAtMs = Date.now();
       await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
+      const startupSample = buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId);
       const nextSession: SessionState = {
         ...session,
         appBundleId,
@@ -636,14 +747,15 @@ export async function handleSessionCommands(params: {
         recordSession: session.recordSession || Boolean(req.flags?.saveScript),
         snapshot: undefined,
       };
+      const openResult = { session: sessionName, appName: openTarget, appBundleId, startup: startupSample };
       sessionStore.recordAction(nextSession, {
         command,
         positionals: openPositionals,
         flags: req.flags ?? {},
-        result: { session: sessionName, appName: openTarget, appBundleId },
+        result: openResult,
       });
       sessionStore.set(sessionName, nextSession);
-      return { ok: true, data: { session: sessionName, appName: openTarget, appBundleId } };
+      return { ok: true, data: openResult };
     }
     const openTarget = req.positionals?.[0];
     if (shouldRelaunch && !openTarget) {
@@ -686,9 +798,11 @@ export async function handleSessionCommands(params: {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
     }
+    const openStartedAtMs = Date.now();
     await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, appBundleId),
     });
+    const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
     const session: SessionState = {
       name: sessionName,
       device,
@@ -698,11 +812,15 @@ export async function handleSessionCommands(params: {
       recordSession: Boolean(req.flags?.saveScript),
       actions: [],
     };
+    const openResult: Record<string, unknown> = { session: sessionName };
+    if (openTarget) openResult.appName = openTarget;
+    if (appBundleId) openResult.appBundleId = appBundleId;
+    if (startupSample) openResult.startup = startupSample;
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
-      result: { session: sessionName },
+      result: openResult,
     });
     sessionStore.set(sessionName, session);
     return { ok: true, data: { session: sessionName } };

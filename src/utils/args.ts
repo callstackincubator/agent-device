@@ -251,5 +251,6 @@ export function usageForCommand(command: string): string | null {
 
 function normalizeCommandAlias(command: string): string {
   if (command === 'long-press') return 'longpress';
+  if (command === 'metrics') return 'perf';
   return command;
 }

@@ -426,6 +426,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowsExtraPositionals: true,
     allowedFlags: [],
   },
+  perf: {
+    description: 'Show session performance metrics (startup timing)',
+    positionalArgs: [],
+    allowedFlags: [],
+  },
   back: {
     description: 'Navigate back (where supported)',
     positionalArgs: [],

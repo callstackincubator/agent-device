@@ -189,6 +189,12 @@ test('parseArgs supports legacy long-press alias', () => {
   assert.deepEqual(parsed.positionals, ['300', '500', '800']);
 });
 
+test('parseArgs supports metrics alias for perf', () => {
+  const parsed = parseArgs(['metrics'], { strictFlags: true });
+  assert.equal(parsed.command, 'perf');
+  assert.deepEqual(parsed.positionals, []);
+});
+
 test('usageForCommand resolves longpress help', () => {
   const help = usageForCommand('longpress');
   assert.equal(help === null, false);
@@ -200,6 +206,12 @@ test('usageForCommand supports legacy long-press alias', () => {
   assert.equal(help === null, false);
   assert.match(help ?? '', /agent-device longpress <x> <y> \[durationMs\]/);
   assert.doesNotMatch(help ?? '', /agent-device long-press/);
+});
+
+test('usageForCommand supports metrics alias', () => {
+  const help = usageForCommand('metrics');
+  assert.equal(help === null, false);
+  assert.match(help ?? '', /agent-device perf/);
 });
 
 test('parseArgs rejects invalid swipe pattern', () => {

@@ -764,6 +764,118 @@ test('clipboard rejects unsupported iOS physical devices', async () => {
   }
 });
 
+test('perf requires an active session', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+  }
+});
+
+test('perf returns startup samples captured from open actions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session';
+  const measuredAt = new Date('2026-02-24T10:00:00.000Z').toISOString();
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.actions.push({
+    ts: Date.now(),
+    command: 'open',
+    positionals: ['Settings'],
+    flags: {},
+    result: {
+      startup: {
+        durationMs: 184,
+        measuredAt,
+        method: 'open-command-roundtrip',
+        appTarget: 'Settings',
+        appBundleId: 'com.apple.Preferences',
+      },
+    },
+  });
+  sessionStore.set(sessionName, session);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    const startup = (response.data?.metrics as any)?.startup;
+    assert.equal(startup?.available, true);
+    assert.equal(startup?.lastDurationMs, 184);
+    assert.equal(startup?.lastMeasuredAt, measuredAt);
+    assert.equal(startup?.method, 'open-command-roundtrip');
+    assert.equal(startup?.sampleCount, 1);
+    assert.equal(Array.isArray(startup?.samples), true);
+  }
+});
+
+test('perf reports startup metric as unavailable when no sample exists', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-empty';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    const startup = (response.data?.metrics as any)?.startup;
+    assert.equal(startup?.available, false);
+    assert.match(String(startup?.reason ?? ''), /no startup sample captured yet/i);
+  }
+});
+
 test('open URL on existing iOS session clears stale app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';

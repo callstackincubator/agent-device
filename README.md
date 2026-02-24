@@ -17,6 +17,7 @@ The project is in early development and considered experimental. Pull requests a
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
+- Performance command: `perf` (alias: `metrics`) returns a metrics JSON blob for the active session; startup timing is currently sampled.
 - App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs clear` truncates session app logs; `logs clear --restart` resets and restarts stream in one step; `logs doctor` checks readiness; `logs mark` writes timeline markers.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -154,6 +155,7 @@ agent-device scrollintoview @e42
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
 - `settings permission grant|deny|reset camera|microphone|photos|contacts|notifications [full|limited]`
 - `appstate`, `apps`, `devices`, `session list`
+- `perf` (alias: `metrics`)
 
 Push notification simulation:
 
@@ -277,6 +279,13 @@ Find (semantic):
 Assertions:
 - `is` predicates: `visible`, `hidden`, `exists`, `editable`, `selected`, `text`.
 - `is text` uses exact equality.
+
+Performance metrics:
+- `perf` (or `metrics`) requires an active session and returns a JSON metrics blob.
+- Current metric: `startup` sampled from the elapsed wall-clock time around each session `open` command dispatch (`open-command-roundtrip`), unit `ms`.
+- Startup samples are session-scoped and include sample history from recent `open` actions.
+- Platform support for current sampling: iOS simulator, iOS physical device, Android emulator/device.
+- `fps`, `memory`, and `cpu` are reported as not yet implemented in this release.
 
 Replay update:
 - `replay <path>` runs deterministic replay from `.ad` scripts.
