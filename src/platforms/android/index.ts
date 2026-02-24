@@ -286,7 +286,18 @@ async function resolveAndroidLaunchComponent(
 ): Promise<string | null> {
   const result = await runCmd(
     'adb',
-    adbArgs(device, ['shell', 'cmd', 'package', 'resolve-activity', '--brief', packageName]),
+    adbArgs(device, [
+      'shell',
+      'cmd',
+      'package',
+      'resolve-activity',
+      '--brief',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.LAUNCHER',
+      packageName,
+    ]),
     { allowFailure: true },
   );
   if (result.exitCode !== 0) return null;

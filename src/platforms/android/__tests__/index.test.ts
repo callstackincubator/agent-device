@@ -317,6 +317,95 @@ test('swipeAndroid invokes adb input swipe with duration', async () => {
   }
 });
 
+test('openAndroidApp default launch uses -p package flag', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-default-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
+      '  echo "package:com.example.app"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+      '  echo "Status: ok"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.example.app');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\nam\nstart\n-W\n-a\nandroid\.intent\.action\.MAIN/);
+      assert.match(logged, /-p\ncom\.example\.app/);
+    },
+  );
+});
+
+test('openAndroidApp fallback resolve-activity includes MAIN/LAUNCHER flags', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-fallback-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
+      '  echo "package:com.microsoft.office.outlook"',
+      '  exit 0',
+      'fi',
+      '# First am start (with -p) fails to simulate multi-entry app issue',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+      '  for arg in "$@"; do',
+      '    if [ "$arg" = "-p" ]; then',
+      '      echo "Error: Activity not started" >&2',
+      '      exit 1',
+      '    fi',
+      '  done',
+      '  echo "Status: ok"',
+      '  exit 0',
+      'fi',
+      '# resolve-activity returns correct launcher component',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "resolve-activity" ]; then',
+      '  echo "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true"',
+      '  echo "com.microsoft.office.outlook/com.microsoft.office.outlook.ui.miit.MiitLauncherActivity"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.microsoft.office.outlook');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      // Verify resolve-activity was called with MAIN/LAUNCHER flags
+      assert.match(logged, /resolve-activity\n--brief\n-a\nandroid\.intent\.action\.MAIN\n-c\nandroid\.intent\.category\.LAUNCHER\ncom\.microsoft\.office\.outlook/);
+      // Verify fallback launch used the resolved component
+      assert.match(logged, /-n\ncom\.microsoft\.office\.outlook\/com\.microsoft\.office\.outlook\.ui\.miit\.MiitLauncherActivity/);
+    },
+  );
+});
+
+test('parseAndroidLaunchComponent handles multi-entry resolve output', () => {
+  // Some devices return extra metadata lines before the component
+  const stdout = [
+    'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true',
+    'com.microsoft.office.outlook/com.microsoft.office.outlook.ui.miit.MiitLauncherActivity',
+  ].join('\n');
+  assert.equal(
+    parseAndroidLaunchComponent(stdout),
+    'com.microsoft.office.outlook/com.microsoft.office.outlook.ui.miit.MiitLauncherActivity',
+  );
+});
+
 test('setAndroidSetting permission grant camera uses pm grant', async () => {
   await withMockedAdb(
     'agent-device-android-permission-camera-',
