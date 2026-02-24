@@ -293,6 +293,49 @@ test('openAndroidApp rejects activity override for deep link URLs', async () => 
   );
 });
 
+test('setAndroidSetting appearance dark uses cmd uimode night yes', async () => {
+  await withMockedAdb(
+    'agent-device-android-appearance-dark-',
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'appearance', 'dark');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /shell cmd uimode night yes/);
+    },
+  );
+});
+
+test('setAndroidSetting appearance toggle flips current mode', async () => {
+  await withMockedAdb(
+    'agent-device-android-appearance-toggle-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ] && [ "$4" = "cmd" ] && [ "$5" = "uimode" ] && [ "$6" = "night" ] && [ -z "$7" ]; then',
+      '  echo "Night mode: yes"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'appearance', 'toggle');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /shell cmd uimode night __CMD__/);
+      assert.match(logged, /shell cmd uimode night no/);
+    },
+  );
+});
+
 test('swipeAndroid invokes adb input swipe with duration', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-swipe-test-'));
   const adbPath = path.join(tmpDir, 'adb');

@@ -571,6 +571,85 @@ exit 1
   );
 });
 
+test('setIosSetting appearance dark uses simctl ui appearance', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-appearance-dark-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "ui" ] && [ "$3" = "sim-1" ] && [ "$4" = "appearance" ] && [ "$5" = "dark" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'appearance', 'dark');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl ui sim-1 appearance dark/);
+    },
+  );
+});
+
+test('setIosSetting appearance toggle flips current simulator appearance', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-appearance-toggle-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "ui" ] && [ "$3" = "sim-1" ] && [ "$4" = "appearance" ] && [ -z "$5" ]; then
+  echo "dark"
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "ui" ] && [ "$3" = "sim-1" ] && [ "$4" = "appearance" ] && [ "$5" = "light" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'appearance', 'toggle');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl ui sim-1 appearance/);
+      assert.match(logged, /simctl ui sim-1 appearance light/);
+    },
+  );
+});
+
 test('setIosSetting permission grant camera uses simctl privacy', async () => {
   await withMockedXcrun(
     'agent-device-ios-permission-camera-test-',

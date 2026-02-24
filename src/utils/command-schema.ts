@@ -558,8 +558,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   settings: {
     usageOverride:
-      'settings <wifi|airplane|location> <on|off> | settings faceid <match|nonmatch|enroll|unenroll> | settings permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited]',
-    description: 'Toggle OS settings and app permissions (session app scope for permission actions)',
+      'settings <wifi|airplane|location> <on|off> | settings appearance <light|dark|toggle> | settings faceid <match|nonmatch|enroll|unenroll> | settings permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited]',
+    description: 'Toggle OS settings, appearance, and app permissions (session app scope for permission actions)',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],
   },

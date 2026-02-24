@@ -327,7 +327,7 @@ test('usage includes swipe and press series options', () => {
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
-  assert.match(help, /settings <wifi\|airplane\|location>/);
+  assert.match(help, /settings <wifi\|airplane\|location\|appearance>/);
   assert.match(help, /settings permission <grant\|deny\|reset>/);
 });
 
@@ -352,6 +352,7 @@ test('command usage shows no command flags when unsupported', () => {
 test('settings usage documents canonical faceid states', () => {
   const help = usageForCommand('settings');
   if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /light\|dark\|toggle/);
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
   assert.match(help, /camera\|microphone\|photos\|contacts\|contacts-limited\|notifications\|calendar\|location\|location-always\|media-library\|motion\|reminders\|siri/);
   assert.doesNotMatch(help, /validate\|unvalidate/);

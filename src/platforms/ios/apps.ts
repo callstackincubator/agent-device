@@ -281,6 +281,11 @@ export async function setIosSetting(
       await runFaceIdSimctlCommand(device.id, action);
       return;
     }
+    case 'appearance': {
+      const target = await resolveIosAppearanceTarget(device.id, state);
+      await runCmd('xcrun', ['simctl', 'ui', device.id, 'appearance', target]);
+      return;
+    }
     case 'permission': {
       if (!appBundleId) {
         throw new AppError(
@@ -353,6 +358,46 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+type AppearanceAction = 'light' | 'dark' | 'toggle';
+
+function parseAppearanceAction(state: string): AppearanceAction {
+  const normalized = state.trim().toLowerCase();
+  if (normalized === 'light') return 'light';
+  if (normalized === 'dark') return 'dark';
+  if (normalized === 'toggle') return 'toggle';
+  throw new AppError('INVALID_ARGS', `Invalid appearance state: ${state}. Use light|dark|toggle.`);
+}
+
+async function resolveIosAppearanceTarget(deviceId: string, state: string): Promise<'light' | 'dark'> {
+  const action = parseAppearanceAction(state);
+  if (action !== 'toggle') return action;
+
+  const currentResult = await runCmd('xcrun', ['simctl', 'ui', deviceId, 'appearance'], {
+    allowFailure: true,
+  });
+  if (currentResult.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to read current iOS appearance', {
+      stdout: currentResult.stdout,
+      stderr: currentResult.stderr,
+      exitCode: currentResult.exitCode,
+    });
+  }
+  const current = parseIosAppearance(currentResult.stdout, currentResult.stderr);
+  if (!current) {
+    throw new AppError('COMMAND_FAILED', 'Unable to determine current iOS appearance for toggle', {
+      stdout: currentResult.stdout,
+      stderr: currentResult.stderr,
+    });
+  }
+  return current === 'dark' ? 'light' : 'dark';
+}
+
+function parseIosAppearance(stdout: string, stderr: string): 'light' | 'dark' | null {
+  const match = /\b(light|dark)\b/i.exec(`${stdout}\n${stderr}`);
+  if (!match) return null;
+  return match[1].toLowerCase() === 'dark' ? 'dark' : 'light';
 }
 
 type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';

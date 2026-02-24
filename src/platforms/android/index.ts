@@ -601,6 +601,11 @@ export async function setAndroidSetting(
       await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]));
       return;
     }
+    case 'appearance': {
+      const target = await resolveAndroidAppearanceTarget(device, state);
+      await runCmd('adb', adbArgs(device, ['shell', 'cmd', 'uimode', 'night', target === 'dark' ? 'yes' : 'no']));
+      return;
+    }
     case 'permission': {
       if (!appPackage) {
         throw new AppError(
@@ -726,6 +731,54 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+type AppearanceAction = 'light' | 'dark' | 'toggle';
+
+function parseAppearanceAction(state: string): AppearanceAction {
+  const normalized = state.trim().toLowerCase();
+  if (normalized === 'light') return 'light';
+  if (normalized === 'dark') return 'dark';
+  if (normalized === 'toggle') return 'toggle';
+  throw new AppError('INVALID_ARGS', `Invalid appearance state: ${state}. Use light|dark|toggle.`);
+}
+
+async function resolveAndroidAppearanceTarget(
+  device: DeviceInfo,
+  state: string,
+): Promise<'light' | 'dark'> {
+  const action = parseAppearanceAction(state);
+  if (action !== 'toggle') return action;
+
+  const currentResult = await runCmd('adb', adbArgs(device, ['shell', 'cmd', 'uimode', 'night']), {
+    allowFailure: true,
+  });
+  if (currentResult.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to read current Android appearance', {
+      stdout: currentResult.stdout,
+      stderr: currentResult.stderr,
+      exitCode: currentResult.exitCode,
+    });
+  }
+  const current = parseAndroidAppearance(currentResult.stdout, currentResult.stderr);
+  if (!current) {
+    throw new AppError('COMMAND_FAILED', 'Unable to determine current Android appearance for toggle', {
+      stdout: currentResult.stdout,
+      stderr: currentResult.stderr,
+    });
+  }
+  return current === 'dark' ? 'light' : 'dark';
+}
+
+function parseAndroidAppearance(stdout: string, stderr: string): 'light' | 'dark' | null {
+  const output = `${stdout}\n${stderr}`.toLowerCase();
+  if (output.includes('night mode: yes')) return 'dark';
+  if (output.includes('night mode: no')) return 'light';
+  if (/\bdark\b/.test(output)) return 'dark';
+  if (/\blight\b/.test(output)) return 'light';
+  if (/\byes\b/.test(output)) return 'dark';
+  if (/\bno\b/.test(output)) return 'light';
+  return null;
 }
 
 function parseAndroidPermissionTarget(
