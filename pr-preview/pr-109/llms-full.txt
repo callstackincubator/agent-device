@@ -257,6 +257,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
+Some Android images cannot enter non-ASCII text over shell input; in that case use a trusted ADB keyboard IME and verify APK checksum/signature before install.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.
@@ -334,6 +335,9 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings appearance light
+agent-device settings appearance dark
+agent-device settings appearance toggle
 agent-device settings faceid match
 agent-device settings faceid nonmatch
 agent-device settings faceid enroll
@@ -345,6 +349,7 @@ agent-device settings permission reset notifications
 ```
 
 - iOS `settings` support is simulator-only.
+- `settings appearance` maps to iOS simulator appearance and Android night mode.
 - Face ID controls are iOS simulator-only.
 - Permission actions are scoped to the active session app.
 - iOS permission targets: `camera`, `microphone`, `photos` (`full` or `limited`), `contacts`, `notifications`.
@@ -507,6 +512,25 @@ This is an Apple platform constraint that affects all XCUITest-based automation 
   ```
 - **Test the dialog manually** — the "Allow Paste" UX cannot be exercised through XCUITest-based automation.
 
+## Android: non-ASCII text over `adb shell input text`
+
+Some Android system images fail to inject non-ASCII text (for example Chinese characters or emoji) through `adb shell input text`.
+
+**Workarounds:**
+
+- **Use an ADB keyboard IME for test runs**:
+  ```bash
+  adb -s <serial> install <path-to-adbkeyboard.apk>
+  adb -s <serial> shell ime enable com.android.adbkeyboard/.AdbIME
+  adb -s <serial> shell ime set com.android.adbkeyboard/.AdbIME
+  ```
+- **Use trusted APK sources only** (official project: [https://github.com/senzhk/ADBKeyBoard](https://github.com/senzhk/ADBKeyBoard) or F-Droid: [https://f-droid.org/packages/com.android.adbkeyboard/](https://f-droid.org/packages/com.android.adbkeyboard/)), and verify checksum/signature before installing.
+- **Revert to your normal IME after automation**:
+  ```bash
+  adb -s <serial> shell ime list -s
+  adb -s <serial> shell ime set <previous-ime-id>
+  ```
+
 
 
 ---
@@ -601,6 +625,7 @@ Toggle device settings directly:
 ```bash
 agent-device settings wifi on
 agent-device settings airplane on
+agent-device settings appearance toggle
 agent-device settings location off
 agent-device settings permission grant camera
 ```
