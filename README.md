@@ -287,6 +287,13 @@ Android fill reliability:
 - `fill` now verifies the entered value on Android.
 - If value does not match, agent-device clears the field and retries once with slower typing.
 - This reduces IME-related character swaps on long strings (e.g. emails and IDs).
+- Some Android system images cannot inject non-ASCII text (for example Chinese or emoji) through shell input.
+- If this occurs, install an ADB keyboard IME from a trusted source, verify checksum/signature, and enable it only for test sessions:
+  - Trusted sources: https://github.com/senzhk/ADBKeyBoard or https://f-droid.org/packages/com.android.adbkeyboard/
+  - `adb -s <serial> install <path-to-adbkeyboard.apk>`
+  - `adb -s <serial> shell ime enable com.android.adbkeyboard/.AdbIME`
+  - `adb -s <serial> shell ime set com.android.adbkeyboard/.AdbIME`
+  - `adb -s <serial> shell ime list -s` (verify current/default IME)
 
 Settings helpers:
 - `settings wifi on|off`

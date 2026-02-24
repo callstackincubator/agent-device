@@ -66,6 +66,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
+Some Android images cannot enter non-ASCII text over shell input; in that case use a trusted ADB keyboard IME and verify APK checksum/signature before install.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.

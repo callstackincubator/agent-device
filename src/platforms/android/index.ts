@@ -446,8 +446,24 @@ export async function longPressAndroid(
 }
 
 export async function typeAndroid(device: DeviceInfo, text: string): Promise<void> {
-  const encoded = text.replace(/ /g, '%s');
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'text', encoded]));
+  if (shouldUseClipboardTextInjection(text)) {
+    const clipboardResult = await typeAndroidViaClipboard(device, text);
+    if (clipboardResult === 'ok') return;
+  }
+  try {
+    const encoded = text.replace(/ /g, '%s');
+    await runCmd('adb', adbArgs(device, ['shell', 'input', 'text', encoded]));
+  } catch (error) {
+    if (shouldUseClipboardTextInjection(text) && isAndroidInputTextUnsupported(error)) {
+      throw new AppError(
+        'COMMAND_FAILED',
+        'Non-ASCII text input is not supported on this Android shell. Install an ADB keyboard IME or use ASCII input.',
+        { textPreview: text.slice(0, 32) },
+        error instanceof Error ? error : undefined,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function focusAndroid(device: DeviceInfo, x: number, y: number): Promise<void> {
@@ -460,6 +476,7 @@ export async function fillAndroid(
   y: number,
   text: string,
 ): Promise<void> {
+  const textCodePointLength = Array.from(text).length;
   const attempts = [
     { clearPadding: 12, minClear: 8, maxClear: 48, chunkSize: 4, delayMs: 0 },
     { clearPadding: 24, minClear: 16, maxClear: 96, chunkSize: 1, delayMs: 15 },
@@ -470,7 +487,7 @@ export async function fillAndroid(
 
   for (const attempt of attempts) {
     const clearCount = clampCount(
-      text.length + attempt.clearPadding,
+      textCodePointLength + attempt.clearPadding,
       attempt.minClear,
       attempt.maxClear,
     );
@@ -845,13 +862,62 @@ async function typeAndroidChunked(
   delayMs: number,
 ): Promise<void> {
   const size = Math.max(1, Math.floor(chunkSize));
-  for (let i = 0; i < text.length; i += size) {
-    const chunk = text.slice(i, i + size);
+  const chars = Array.from(text);
+  for (let i = 0; i < chars.length; i += size) {
+    const chunk = chars.slice(i, i + size).join('');
     await typeAndroid(device, chunk);
-    if (delayMs > 0 && i + size < text.length) {
+    if (delayMs > 0 && i + size < chars.length) {
       await sleep(delayMs);
     }
   }
+}
+
+function shouldUseClipboardTextInjection(text: string): boolean {
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    if (code === undefined) continue;
+    if (code < 0x20 || code > 0x7e) return true;
+  }
+  return false;
+}
+
+async function typeAndroidViaClipboard(
+  device: DeviceInfo,
+  text: string,
+): Promise<'ok' | 'unsupported' | 'failed'> {
+  const setClipboard = await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'cmd', 'clipboard', 'set', 'text', text]),
+    { allowFailure: true },
+  );
+  if (setClipboard.exitCode !== 0) return 'failed';
+  if (isClipboardShellUnsupported(setClipboard.stdout, setClipboard.stderr)) return 'unsupported';
+
+  const pasteByName = await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'input', 'keyevent', 'KEYCODE_PASTE']),
+    { allowFailure: true },
+  );
+  if (pasteByName.exitCode === 0) return 'ok';
+
+  const pasteByCode = await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '279']), {
+    allowFailure: true,
+  });
+  return pasteByCode.exitCode === 0 ? 'ok' : 'failed';
+}
+
+function isClipboardShellUnsupported(stdout: string, stderr: string): boolean {
+  const haystack = `${stdout}\n${stderr}`.toLowerCase();
+  return haystack.includes('no shell command implementation') || haystack.includes('unknown command');
+}
+
+function isAndroidInputTextUnsupported(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const stderr = String((error.details as any)?.stderr ?? '').toLowerCase();
+  if (stderr.includes("exception occurred while executing 'text'")) return true;
+  if (stderr.includes('nullpointerexception') && stderr.includes('inputshellcommand.sendtext')) return true;
+  return false;
 }
 
 async function clearFocusedText(device: DeviceInfo, count: number): Promise<void> {

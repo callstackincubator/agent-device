@@ -11,6 +11,7 @@ import {
   parseAndroidLaunchComponent,
   setAndroidSetting,
   swipeAndroid,
+  typeAndroid,
 } from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -425,6 +426,97 @@ test('parseAndroidLaunchComponent handles multi-entry resolve output', () => {
   );
 });
 
+test('typeAndroid uses clipboard paste for unicode text', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-unicode-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "set" ] && [ "$5" = "text" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_PASTE" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      '  echo "unexpected fallback to input text" >&2',
+      '  exit 1',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await typeAndroid(device, '很 ☝ 😀');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ncmd\nclipboard\nset\ntext\n很 ☝ 😀/);
+      assert.match(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
+      assert.doesNotMatch(logged, /shell\ninput\ntext/);
+    },
+  );
+});
+
+test('typeAndroid uses adb input text for ascii text', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-ascii-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await typeAndroid(device, 'hello world');
+      const args = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      assert.deepEqual(args, [
+        '-s',
+        'emulator-5554',
+        'shell',
+        'input',
+        'text',
+        'hello%sworld',
+      ]);
+    },
+  );
+});
+
+test('typeAndroid reports clear error when unicode input is unsupported', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-unicode-unsupported-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "set" ] && [ "$5" = "text" ]; then',
+      '  echo "No shell command implementation."',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      "  echo \"Exception occurred while executing 'text':\" >&2",
+      '  echo "java.lang.NullPointerException" >&2',
+      '  exit 255',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await assert.rejects(
+        () => typeAndroid(device, '很'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /non-ascii text input is not supported/i);
+          return true;
+        },
+      );
+    },
+  );
+});
 test('setAndroidSetting permission grant camera uses pm grant', async () => {
   await withMockedAdb(
     'agent-device-android-permission-camera-',
