@@ -10,9 +10,11 @@ import {
   openAndroidApp,
   parseAndroidLaunchComponent,
   pushAndroidNotification,
+  readAndroidClipboardText,
   setAndroidSetting,
   swipeAndroid,
   typeAndroid,
+  writeAndroidClipboardText,
 } from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -610,6 +612,42 @@ test('typeAndroid reports clear error when unicode input is unsupported', async 
           return true;
         },
       );
+    },
+  );
+});
+
+test('writeAndroidClipboardText uses adb cmd clipboard set text', async () => {
+  await withMockedAdb(
+    'agent-device-android-clipboard-write-',
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await writeAndroidClipboardText(device, 'hello otp');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ncmd\nclipboard\nset\ntext\nhello otp/);
+    },
+  );
+});
+
+test('readAndroidClipboardText uses adb cmd clipboard get text', async () => {
+  await withMockedAdb(
+    'agent-device-android-clipboard-read-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "get" ] && [ "$5" = "text" ]; then',
+      '  echo "copied-value"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const text = await readAndroidClipboardText(device);
+      assert.equal(text, 'copied-value');
     },
   );
 });

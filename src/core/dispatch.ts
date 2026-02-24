@@ -9,13 +9,20 @@ import {
   ensureAdb,
   homeAndroid,
   pushAndroidNotification,
+  readAndroidClipboardText,
   setAndroidSetting,
   snapshotAndroid,
+  writeAndroidClipboardText,
 } from '../platforms/android/index.ts';
 import { listIosDevices } from '../platforms/ios/devices.ts';
 import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { pushIosNotification, setIosSetting } from '../platforms/ios/index.ts';
+import {
+  pushIosNotification,
+  readIosClipboardText,
+  setIosSetting,
+  writeIosClipboardText,
+} from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
@@ -412,6 +419,28 @@ export async function dispatchCommand(
       }
       await appSwitcherAndroid(device);
       return { action: 'app-switcher' };
+    }
+    case 'clipboard': {
+      const action = (positionals[0] ?? '').toLowerCase();
+      if (action !== 'read' && action !== 'write') {
+        throw new AppError('INVALID_ARGS', 'clipboard requires a subcommand: read or write');
+      }
+      if (action === 'read') {
+        if (positionals.length !== 1) {
+          throw new AppError('INVALID_ARGS', 'clipboard read does not accept additional arguments');
+        }
+        const text = device.platform === 'ios'
+          ? await readIosClipboardText(device)
+          : await readAndroidClipboardText(device);
+        return { action, text };
+      }
+      if (positionals.length < 2) {
+        throw new AppError('INVALID_ARGS', 'clipboard write requires text (use "" to clear clipboard)');
+      }
+      const text = positionals.slice(1).join(' ');
+      if (device.platform === 'ios') await writeIosClipboardText(device, text);
+      else await writeAndroidClipboardText(device, text);
+      return { action, textLength: Array.from(text).length };
     }
     case 'settings': {
       const [setting, state, target, mode, appBundleId] = positionals;

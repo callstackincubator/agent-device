@@ -6,11 +6,13 @@ export {
   openIosApp,
   openIosDevice,
   pushIosNotification,
+  readIosClipboardText,
   reinstallIosApp,
   resolveIosApp,
   screenshotIos,
   setIosSetting,
   uninstallIosApp,
+  writeIosClipboardText,
 } from './apps.ts';
 
 export { ensureBootedSimulator } from './simulator.ts';

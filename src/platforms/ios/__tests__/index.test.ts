@@ -8,9 +8,11 @@ import {
   openIosApp,
   parseIosDeviceAppsPayload,
   pushIosNotification,
+  readIosClipboardText,
   reinstallIosApp,
   resolveIosApp,
   setIosSetting,
+  writeIosClipboardText,
 } from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -20,6 +22,14 @@ const IOS_TEST_DEVICE: DeviceInfo = {
   id: 'ios-device-1',
   name: 'iPhone Device',
   kind: 'device',
+  booted: true,
+};
+
+const IOS_TEST_SIMULATOR: DeviceInfo = {
+  platform: 'ios',
+  id: 'sim-1',
+  name: 'iPhone 17 Pro',
+  kind: 'simulator',
   booted: true,
 };
 
@@ -206,6 +216,118 @@ test('openIosApp custom scheme on iOS device uses active app context', async () 
     }
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('writeIosClipboardText uses simctl pbcopy with stdin', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-clipboard-write-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const stdinLogPath = path.join(tmpDir, 'stdin.log');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then',
+      '  echo \'{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "simctl" ] && [ "$2" = "pbcopy" ]; then',
+      '  cat > "$AGENT_DEVICE_TEST_STDIN_FILE"',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  const previousStdinFile = process.env.AGENT_DEVICE_TEST_STDIN_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+  process.env.AGENT_DEVICE_TEST_STDIN_FILE = stdinLogPath;
+
+  try {
+    await writeIosClipboardText(IOS_TEST_SIMULATOR, 'hello otp');
+    const args = (await fs.readFile(argsLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    assert.deepEqual(args, ['simctl', 'pbcopy', 'sim-1']);
+    assert.equal(await fs.readFile(stdinLogPath, 'utf8'), 'hello otp');
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    if (previousStdinFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_STDIN_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_STDIN_FILE = previousStdinFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('readIosClipboardText uses simctl pbpaste', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-clipboard-read-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then',
+      '  echo \'{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "simctl" ] && [ "$2" = "pbpaste" ]; then',
+      '  echo "copied-value"',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    const text = await readIosClipboardText(IOS_TEST_SIMULATOR);
+    assert.equal(text, 'copied-value');
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /simctl\npbpaste\nsim-1/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('readIosClipboardText rejects physical devices', async () => {
+  await assert.rejects(
+    () => readIosClipboardText(IOS_TEST_DEVICE),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+      return true;
+    },
+  );
 });
 
 test('reinstallIosApp on iOS physical device uses devicectl uninstall + install', async () => {

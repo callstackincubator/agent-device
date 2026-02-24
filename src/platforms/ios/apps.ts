@@ -227,6 +227,36 @@ export async function screenshotIos(device: DeviceInfo, outPath: string): Promis
   });
 }
 
+export async function readIosClipboardText(device: DeviceInfo): Promise<string> {
+  ensureSimulator(device, 'clipboard');
+  await ensureBootedSimulator(device);
+  const result = await runCmd('xcrun', ['simctl', 'pbpaste', device.id], { allowFailure: true });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to read iOS simulator clipboard', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+  return result.stdout.replace(/\r\n/g, '\n').replace(/\n$/, '');
+}
+
+export async function writeIosClipboardText(device: DeviceInfo, text: string): Promise<void> {
+  ensureSimulator(device, 'clipboard');
+  await ensureBootedSimulator(device);
+  const result = await runCmd('xcrun', ['simctl', 'pbcopy', device.id], {
+    allowFailure: true,
+    stdin: text,
+  });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to write iOS simulator clipboard', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+}
+
 export async function pushIosNotification(
   device: DeviceInfo,
   bundleId: string,

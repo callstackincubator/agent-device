@@ -16,6 +16,7 @@ The project is in early development and considered experimental. Pull requests a
 - Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
+- Clipboard commands: `clipboard read`, `clipboard write <text>`.
 - App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs clear` truncates session app logs; `logs clear --restart` resets and restarts stream in one step; `logs doctor` checks readiness; `logs mark` writes timeline markers.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
 - Minimal dependencies; TypeScript executed directly on Node 22+ (no build step).
@@ -147,6 +148,7 @@ agent-device scrollintoview @e42
 - `alert`, `wait`, `screenshot`
 - `trace start`, `trace stop`
 - `logs path`, `logs start`, `logs stop`, `logs clear`, `logs clear --restart`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
+- `clipboard read`, `clipboard write <text>` (iOS simulator + Android)
 - `settings wifi|airplane|location on|off`
 - `settings appearance light|dark|toggle`
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
@@ -332,6 +334,12 @@ App state:
 - `appstate` shows the foreground app/activity (Android).
 - On iOS, `appstate` returns the currently tracked session app (`source: session`) and requires an active session on the selected device.
 - `apps` includes default/system apps by default (use `--user-installed` to filter).
+
+Clipboard:
+- `clipboard read` returns current clipboard text.
+- `clipboard write <text>` sets clipboard text (`clipboard write ""` clears it).
+- Supported on Android emulator/device and iOS simulator.
+- iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
 ## Debug
 

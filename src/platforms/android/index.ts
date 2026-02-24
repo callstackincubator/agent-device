@@ -473,6 +473,23 @@ export async function typeAndroid(device: DeviceInfo, text: string): Promise<voi
   }
 }
 
+export async function readAndroidClipboardText(device: DeviceInfo): Promise<string> {
+  const stdout = await runAndroidClipboardShellCommand(
+    device,
+    ['shell', 'cmd', 'clipboard', 'get', 'text'],
+    'read',
+  );
+  return normalizeAndroidClipboardText(stdout);
+}
+
+export async function writeAndroidClipboardText(device: DeviceInfo, text: string): Promise<void> {
+  await runAndroidClipboardShellCommand(
+    device,
+    ['shell', 'cmd', 'clipboard', 'set', 'text', text],
+    'write',
+  );
+}
+
 export async function focusAndroid(device: DeviceInfo, x: number, y: number): Promise<void> {
   await pressAndroid(device, x, y);
 }
@@ -1008,6 +1025,36 @@ async function typeAndroidViaClipboard(
 function isClipboardShellUnsupported(stdout: string, stderr: string): boolean {
   const haystack = `${stdout}\n${stderr}`.toLowerCase();
   return haystack.includes('no shell command implementation') || haystack.includes('unknown command');
+}
+
+async function runAndroidClipboardShellCommand(
+  device: DeviceInfo,
+  args: string[],
+  operation: 'read' | 'write',
+): Promise<string> {
+  const result = await runCmd('adb', adbArgs(device, args), { allowFailure: true });
+  if (isClipboardShellUnsupported(result.stdout, result.stderr)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `Android shell clipboard ${operation} is not supported on this device.`,
+    );
+  }
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', `Failed to ${operation} Android clipboard text`, {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+  return result.stdout;
+}
+
+function normalizeAndroidClipboardText(stdout: string): string {
+  const normalized = stdout.replace(/\r\n/g, '\n').replace(/\n$/, '');
+  const prefixed = normalized.match(/^clipboard text:\s*(.*)$/i);
+  if (prefixed) return prefixed[1] ?? '';
+  if (normalized.trim().toLowerCase() === 'null') return '';
+  return normalized;
 }
 
 function isAndroidInputTextUnsupported(error: unknown): boolean {

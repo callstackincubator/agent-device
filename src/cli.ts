@@ -290,6 +290,21 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
+      if (command === 'clipboard') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const action = (positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')).toLowerCase();
+        if (action === 'read') {
+          const text = typeof data?.text === 'string' ? data.text : '';
+          process.stdout.write(`${text}\n`);
+          if (logTailStopper) logTailStopper();
+          return;
+        }
+        if (action === 'write') {
+          process.stdout.write('Clipboard updated\n');
+          if (logTailStopper) logTailStopper();
+          return;
+        }
+      }
       if (command === 'click' || command === 'press') {
         const ref = (response.data as any)?.ref ?? '';
         const x = (response.data as any)?.x;

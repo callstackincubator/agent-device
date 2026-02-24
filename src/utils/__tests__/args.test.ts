@@ -25,6 +25,16 @@ test('parseArgs accepts push with payload file', () => {
   assert.deepEqual(parsed.positionals, ['com.example.app', './payload.json']);
 });
 
+test('parseArgs accepts clipboard subcommands', () => {
+  const read = parseArgs(['clipboard', 'read'], { strictFlags: true });
+  assert.equal(read.command, 'clipboard');
+  assert.deepEqual(read.positionals, ['read']);
+
+  const write = parseArgs(['clipboard', 'write', 'otp', '123456'], { strictFlags: true });
+  assert.equal(write.command, 'clipboard');
+  assert.deepEqual(write.positionals, ['write', 'otp', '123456']);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');
@@ -204,6 +214,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--restart/);
   assert.match(usage(), /--fps <n>/);
   assert.match(usage(), /--save-script \[path\]/);
+  assert.match(usage(), /clipboard read \| clipboard write <text>/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.doesNotMatch(usage(), /--metadata/);
 });
@@ -354,6 +365,13 @@ test('command usage shows no command flags when unsupported', () => {
   assert.match(help, /Show foreground app\/activity/);
   assert.doesNotMatch(help, /Command flags:/);
   assert.match(help, /Global flags:/);
+});
+
+test('clipboard command usage is documented', () => {
+  const help = usageForCommand('clipboard');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /clipboard read \| clipboard write <text>/);
+  assert.match(help, /Read or write device clipboard text/);
 });
 
 test('settings usage documents canonical faceid states', () => {

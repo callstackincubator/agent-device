@@ -419,6 +419,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
+  clipboard: {
+    usageOverride: 'clipboard read | clipboard write <text>',
+    description: 'Read or write device clipboard text',
+    positionalArgs: ['read|write', 'text?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [],
+  },
   back: {
     description: 'Navigate back (where supported)',
     positionalArgs: [],

@@ -612,6 +612,158 @@ test('appstate with explicit missing session returns SESSION_NOT_FOUND', async (
   }
 });
 
+test('clipboard requires an active session or explicit device selector', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'clipboard',
+      positionals: ['read'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /clipboard requires an active session or an explicit device selector/i);
+  }
+});
+
+test('clipboard read uses active session device', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-session';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'clipboard',
+      positionals: ['read'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async (device, command, positionals) => {
+      assert.equal(device.id, 'sim-1');
+      assert.equal(command, 'clipboard');
+      assert.deepEqual(positionals, ['read']);
+      return { action: 'read', text: 'otp-123456' };
+    },
+    resolveTargetDevice: async () => {
+      throw new Error('resolveTargetDevice should not run');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.action, 'read');
+    assert.equal(response.data?.text, 'otp-123456');
+  }
+});
+
+test('clipboard write supports explicit selector without active session', async () => {
+  const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel Emulator',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'clipboard',
+      positionals: ['write', 'hello', 'clipboard'],
+      flags: { platform: 'android', serial: 'emulator-5554' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => selectedDevice,
+    dispatch: async (device, command, positionals) => {
+      assert.equal(device.id, 'emulator-5554');
+      assert.equal(command, 'clipboard');
+      assert.deepEqual(positionals, ['write', 'hello', 'clipboard']);
+      return { action: 'write', textLength: 15 };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.action, 'write');
+    assert.equal(response.data?.textLength, 15);
+  }
+});
+
+test('clipboard rejects unsupported iOS physical devices', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'clipboard',
+      positionals: ['read'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async () => {
+      throw new Error('dispatch should not run for unsupported targets');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /clipboard is not supported on this device/i);
+  }
+});
+
 test('open URL on existing iOS session clears stale app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';

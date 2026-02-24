@@ -22,13 +22,13 @@ If you know `agent-browser`, this is the mobile-native counterpart for iOS/Andro
 
 - iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `reinstall`.
 - iOS `appstate` is session-scoped on the selected target device.
-- iOS simulator-only: `alert`, `pinch`, `settings`, `push`.
+- iOS simulator-only: `alert`, `pinch`, `settings`, `push`, `clipboard`.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to uncapped (max available) FPS and supports `--fps` caps.
-- Android supports the same core interaction set, plus `push` notification simulation via broadcast intents.
+- Android supports the same core interaction set, plus `push` notification simulation and `clipboard read/write` via adb shell commands.
 
 ## Architecture (high level)
 

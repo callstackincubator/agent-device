@@ -254,6 +254,64 @@ async function handleAppStateCommand(params: {
   };
 }
 
+async function handleClipboardCommand(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  ensureReady: typeof ensureDeviceReady;
+  resolveDevice: typeof resolveTargetDevice;
+  dispatch: typeof dispatchCommand;
+}): Promise<DaemonResponse> {
+  const { req, sessionName, logPath, sessionStore, ensureReady, resolveDevice, dispatch } = params;
+  const session = sessionStore.get(sessionName);
+  const flags = req.flags ?? {};
+  const guard = requireSessionOrExplicitSelector('clipboard', session, flags);
+  if (guard) return guard;
+
+  const action = (req.positionals?.[0] ?? '').toLowerCase();
+  if (action !== 'read' && action !== 'write') {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: 'clipboard requires a subcommand: read or write',
+      },
+    };
+  }
+
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReadyFn: ensureReady,
+    resolveTargetDeviceFn: resolveDevice,
+    ensureReady: true,
+  });
+
+  if (!isCommandSupportedOnDevice('clipboard', device)) {
+    return {
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_OPERATION',
+        message: 'clipboard is not supported on this device',
+      },
+    };
+  }
+
+  const result = await dispatch(device, 'clipboard', req.positionals ?? [], req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+  });
+  if (session) {
+    sessionStore.recordAction(session, {
+      command: req.command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: result ?? {},
+    });
+  }
+  return { ok: true, data: { platform: device.platform, ...(result ?? {}) } };
+}
+
 export async function handleSessionCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -406,6 +464,18 @@ export async function handleSessionCommands(params: {
       sessionStore,
       ensureReady,
       resolveDevice,
+    });
+  }
+
+  if (command === 'clipboard') {
+    return await handleClipboardCommand({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      dispatch,
     });
   }
 
