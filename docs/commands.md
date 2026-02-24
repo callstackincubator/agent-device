@@ -125,6 +125,9 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings appearance light
+agent-device settings appearance dark
+agent-device settings appearance toggle
 agent-device settings faceid match
 agent-device settings faceid nonmatch
 agent-device settings faceid enroll
@@ -136,6 +139,7 @@ agent-device settings permission reset notifications
 ```
 
 - iOS `settings` support is simulator-only.
+- `settings appearance` maps to iOS simulator appearance and Android night mode.
 - Face ID controls are iOS simulator-only.
 - Permission actions are scoped to the active session app.
 - iOS permission targets: `camera`, `microphone`, `photos` (`full` or `limited`), `contacts`, `notifications`.
