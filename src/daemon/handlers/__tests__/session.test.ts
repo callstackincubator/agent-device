@@ -841,6 +841,99 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
   assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
 });
 
+test('open app on existing Android session resolves and stores package id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel Emulator',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appName: 'Old App',
+    },
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['RNCLI83'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+    resolveAndroidPackageForOpen: async () => 'org.reactjs.native.example.RNCLI83',
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'org.reactjs.native.example.RNCLI83');
+  assert.equal(updated?.appName, 'RNCLI83');
+  assert.equal(dispatchedContext?.appBundleId, 'org.reactjs.native.example.RNCLI83');
+});
+
+test('open intent target on existing Android session clears stale package context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel Emulator',
+        kind: 'emulator',
+        booted: true,
+      }),
+      appBundleId: 'com.example.old',
+      appName: 'Old App',
+    },
+  );
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+    resolveAndroidPackageForOpen: async () => undefined,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, undefined);
+  assert.equal(updated?.appName, 'settings');
+  assert.equal(dispatchedContext?.appBundleId, undefined);
+});
+
 test('open --relaunch closes and reopens active session app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-session';

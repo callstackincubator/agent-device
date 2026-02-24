@@ -22,6 +22,8 @@ import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './sim
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
+let cachedSimctlPrivacyServices: Set<string> | null = null;
+let cachedSimctlPrivacyServicesPath: string | undefined;
 
 function isMissingAppErrorOutput(output: string): boolean {
   return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
@@ -288,7 +290,7 @@ export async function setIosSetting(
       }
       const action = mapIosPermissionAction(parsePermissionAction(state));
       const target = parseIosPermissionTarget(options?.permissionTarget, options?.permissionMode);
-      await runCmd('xcrun', ['simctl', 'privacy', device.id, action, target, appBundleId]);
+      await runIosPrivacyCommand(device.id, action, target, appBundleId);
       return;
     }
     default:
@@ -360,6 +362,123 @@ function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | '
   return action;
 }
 
+async function runIosPrivacyCommand(
+  deviceId: string,
+  action: 'grant' | 'revoke' | 'reset',
+  target: string,
+  appBundleId: string,
+): Promise<void> {
+  const supportedServices = await getSimctlPrivacyServices();
+  if (!supportedServices.has(target)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `iOS simctl privacy does not support service "${target}" on this runtime.`,
+      {
+        deviceId,
+        appBundleId,
+        hint: `Supported services: ${Array.from(supportedServices).sort().join(', ')}`,
+      },
+    );
+  }
+
+  const args = ['simctl', 'privacy', deviceId, action, target, appBundleId];
+  const isNotificationsTarget = target === 'notifications';
+  if (!(action === 'reset' && isNotificationsTarget)) {
+    try {
+      await runCmd('xcrun', args);
+      return;
+    } catch (error) {
+      if (!(isNotificationsTarget && isNotificationsOperationNotPermitted(error))) {
+        throw error;
+      }
+      throw new AppError(
+        'UNSUPPORTED_OPERATION',
+        'iOS simulator does not support setting notifications permission via simctl privacy on this runtime.',
+        {
+          deviceId,
+          appBundleId,
+          hint: 'Use reset notifications for reprompt behavior, or toggle notifications manually in Settings.',
+        },
+      );
+    }
+  }
+
+  try {
+    await runCmd('xcrun', args);
+    return;
+  } catch (error) {
+    if (!isNotificationsOperationNotPermitted(error)) {
+      throw error;
+    }
+  }
+
+  try {
+    await runCmd('xcrun', ['simctl', 'privacy', deviceId, 'reset', 'all', appBundleId]);
+  } catch (error) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'iOS simulator blocked direct notifications reset. Fallback reset-all also failed.',
+      {
+        deviceId,
+        appBundleId,
+        hint: 'Use reinstall to force a fresh notifications prompt, or reset simulator content and settings.',
+      },
+      error instanceof Error ? error : undefined,
+    );
+  }
+}
+
+function isNotificationsOperationNotPermitted(error: unknown): boolean {
+  if (!(error instanceof AppError) || error.code !== 'COMMAND_FAILED') return false;
+  const stderr = String(error.details?.stderr ?? '').toLowerCase();
+  return (
+    (stderr.includes('failed to grant access') ||
+      stderr.includes('failed to revoke access') ||
+      stderr.includes('failed to reset access')) &&
+    stderr.includes('operation not permitted')
+  );
+}
+
+async function getSimctlPrivacyServices(): Promise<Set<string>> {
+  const currentPath = process.env.PATH;
+  if (cachedSimctlPrivacyServices && cachedSimctlPrivacyServicesPath === currentPath) {
+    return cachedSimctlPrivacyServices;
+  }
+  const result = await runCmd('xcrun', ['simctl', 'privacy', 'help'], { allowFailure: true });
+  const services = parseSimctlPrivacyServices(`${result.stdout}\n${result.stderr}`);
+  if (services.size === 0) {
+    throw new AppError('COMMAND_FAILED', 'Unable to determine supported simctl privacy services', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+      hint: 'Run `xcrun simctl privacy help` manually to verify available services for this runtime.',
+    });
+  }
+  cachedSimctlPrivacyServices = services;
+  cachedSimctlPrivacyServicesPath = currentPath;
+  return services;
+}
+
+function parseSimctlPrivacyServices(helpText: string): Set<string> {
+  const services = new Set<string>();
+  let inServiceSection = false;
+  for (const line of helpText.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed === 'service') {
+      inServiceSection = true;
+      continue;
+    }
+    if (!inServiceSection) continue;
+    if (trimmed.startsWith('bundle identifier')) break;
+    const match = /^([a-z-]+)\s+-\s+/.exec(trimmed);
+    if (match) {
+      services.add(match[1]);
+    }
+  }
+  return services;
+}
+
 function parseIosPermissionTarget(permissionTarget: string | undefined, permissionMode: string | undefined): string {
   const normalized = parsePermissionTarget(permissionTarget);
   if (normalized !== 'photos' && permissionMode?.trim()) {
@@ -371,7 +490,15 @@ function parseIosPermissionTarget(permissionTarget: string | undefined, permissi
   if (normalized === 'camera') return 'camera';
   if (normalized === 'microphone') return 'microphone';
   if (normalized === 'contacts') return 'contacts';
+  if (normalized === 'contacts-limited') return 'contacts-limited';
   if (normalized === 'notifications') return 'notifications';
+  if (normalized === 'calendar') return 'calendar';
+  if (normalized === 'location') return 'location';
+  if (normalized === 'location-always') return 'location-always';
+  if (normalized === 'media-library') return 'media-library';
+  if (normalized === 'motion') return 'motion';
+  if (normalized === 'reminders') return 'reminders';
+  if (normalized === 'siri') return 'siri';
   if (normalized === 'photos') {
     const mode = permissionMode?.trim().toLowerCase();
     if (!mode || mode === 'full') return 'photos';
@@ -380,7 +507,7 @@ function parseIosPermissionTarget(permissionTarget: string | undefined, permissi
   }
   throw new AppError(
     'INVALID_ARGS',
-    `Unsupported permission target: ${permissionTarget}. Use camera|microphone|photos|contacts|notifications.`,
+    `Unsupported permission target: ${permissionTarget}. Use camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri.`,
   );
 }
 

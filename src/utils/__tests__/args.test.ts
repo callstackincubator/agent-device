@@ -353,6 +353,6 @@ test('settings usage documents canonical faceid states', () => {
   const help = usageForCommand('settings');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
-  assert.match(help, /camera\|microphone\|photos\|contacts\|notifications/);
+  assert.match(help, /camera\|microphone\|photos\|contacts\|contacts-limited\|notifications\|calendar\|location\|location-always\|media-library\|motion\|reminders\|siri/);
   assert.doesNotMatch(help, /validate\|unvalidate/);
 });

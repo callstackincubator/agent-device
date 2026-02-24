@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
-import { readVersion } from './utils/version.ts';
+import { findProjectRoot, readVersion } from './utils/version.ts';
 import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
@@ -47,6 +47,7 @@ type DaemonLockInfo = {
 };
 
 const daemonProcessStartTime = readProcessStartTime(process.pid) ?? undefined;
+const daemonCodeSignature = resolveDaemonCodeSignature();
 
 function contextFromFlags(
   flags: CommandFlags | undefined,
@@ -222,11 +223,35 @@ function writeInfo(port: number): void {
   fs.writeFileSync(logPath, '');
   fs.writeFileSync(
     infoPath,
-    JSON.stringify({ port, token, pid: process.pid, version, processStartTime: daemonProcessStartTime }, null, 2),
+    JSON.stringify(
+      {
+        port,
+        token,
+        pid: process.pid,
+        version,
+        codeSignature: daemonCodeSignature,
+        processStartTime: daemonProcessStartTime,
+      },
+      null,
+      2,
+    ),
     {
       mode: 0o600,
     },
   );
+}
+
+function resolveDaemonCodeSignature(): string {
+  const entryPath = process.argv[1];
+  if (!entryPath) return 'unknown';
+  try {
+    const stat = fs.statSync(entryPath);
+    const root = findProjectRoot();
+    const relativePath = path.relative(root, entryPath) || entryPath;
+    return `${relativePath}:${stat.size}:${Math.trunc(stat.mtimeMs)}`;
+  } catch {
+    return 'unknown';
+  }
 }
 
 function removeInfo(): void {

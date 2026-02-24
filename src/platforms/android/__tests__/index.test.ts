@@ -331,7 +331,7 @@ test('setAndroidSetting permission grant camera uses pm grant', async () => {
   );
 });
 
-test('setAndroidSetting permission deny notifications uses appops', async () => {
+test('setAndroidSetting permission deny notifications revokes runtime permission and appops', async () => {
   await withMockedAdb(
     'agent-device-android-permission-notifications-',
     '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
@@ -340,7 +340,31 @@ test('setAndroidSetting permission deny notifications uses appops', async () => 
         permissionTarget: 'notifications',
       });
       const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/);
       assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndeny/);
+    },
+  );
+});
+
+test('setAndroidSetting permission reset notifications clears permission flags for reprompt', async () => {
+  await withMockedAdb(
+    'agent-device-android-permission-notifications-reset-',
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'permission', 'reset', 'com.example.app', {
+        permissionTarget: 'notifications',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/);
+      assert.match(
+        logged,
+        /shell\npm\nclear-permission-flags\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS\nuser-set/,
+      );
+      assert.match(
+        logged,
+        /shell\npm\nclear-permission-flags\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS\nuser-fixed/,
+      );
+      assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndefault/);
     },
   );
 });
@@ -377,6 +401,28 @@ test('setAndroidSetting permission rejects mode argument', async () => {
       assert.equal(error instanceof AppError, true);
       assert.equal((error as AppError).code, 'INVALID_ARGS');
       assert.match((error as AppError).message, /mode is only supported for photos/i);
+      return true;
+    },
+  );
+});
+
+test('setAndroidSetting permission rejects iOS-only targets with Android-specific guidance', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  await assert.rejects(
+    () =>
+      setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'calendar',
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /Unsupported permission target on Android/i);
       return true;
     },
   );

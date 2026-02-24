@@ -1,7 +1,20 @@
 import { AppError } from '../utils/errors.ts';
 
 export type PermissionAction = 'grant' | 'deny' | 'reset';
-export type PermissionTarget = 'camera' | 'microphone' | 'photos' | 'contacts' | 'notifications';
+export type PermissionTarget =
+  | 'camera'
+  | 'microphone'
+  | 'photos'
+  | 'contacts'
+  | 'contacts-limited'
+  | 'notifications'
+  | 'calendar'
+  | 'location'
+  | 'location-always'
+  | 'media-library'
+  | 'motion'
+  | 'reminders'
+  | 'siri';
 export type PermissionSettingOptions = {
   permissionTarget?: string;
   permissionMode?: string;
@@ -11,7 +24,15 @@ export const PERMISSION_TARGETS: readonly PermissionTarget[] = [
   'microphone',
   'photos',
   'contacts',
+  'contacts-limited',
   'notifications',
+  'calendar',
+  'location',
+  'location-always',
+  'media-library',
+  'motion',
+  'reminders',
+  'siri',
 ];
 
 export function parsePermissionAction(action: string): PermissionAction {
@@ -29,7 +50,15 @@ export function parsePermissionTarget(value: string | undefined): PermissionTarg
     normalized === 'microphone' ||
     normalized === 'photos' ||
     normalized === 'contacts' ||
-    normalized === 'notifications'
+    normalized === 'contacts-limited' ||
+    normalized === 'notifications' ||
+    normalized === 'calendar' ||
+    normalized === 'location' ||
+    normalized === 'location-always' ||
+    normalized === 'media-library' ||
+    normalized === 'motion' ||
+    normalized === 'reminders' ||
+    normalized === 'siri'
   ) {
     return normalized;
   }

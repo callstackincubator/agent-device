@@ -395,7 +395,7 @@ export async function handleSnapshotCommands(params: {
         error: {
           code: 'INVALID_ARGS',
           message:
-            'settings requires <wifi|airplane|location> <on|off>, faceid <match|nonmatch|enroll|unenroll>, or permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]',
+            'settings requires <wifi|airplane|location> <on|off>, faceid <match|nonmatch|enroll|unenroll>, or permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited]',
         },
       };
     }

@@ -30,7 +30,8 @@ async function withMockedXcrun(
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
   const xcrunPath = path.join(tmpDir, 'xcrun');
   const argsLogPath = path.join(tmpDir, 'args.log');
-  await fs.writeFile(xcrunPath, script, 'utf8');
+  const scriptWithPrivacyHelp = injectDefaultPrivacyHelp(script);
+  await fs.writeFile(xcrunPath, scriptWithPrivacyHelp, 'utf8');
   await fs.chmod(xcrunPath, 0o755);
 
   const previousPath = process.env.PATH;
@@ -49,6 +50,38 @@ async function withMockedXcrun(
     }
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+}
+
+function injectDefaultPrivacyHelp(script: string): string {
+  if (script.includes('AGENT_DEVICE_CUSTOM_PRIVACY_HELP')) return script;
+  const helpBlock = `if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "help" ]; then
+  cat <<'HELP'
+Usage: simctl privacy <device> <action> <service> [<bundle identifier>]
+
+        service
+             The service:
+                 all - Apply the action to all services.
+                 calendar - Allow access to calendar.
+                 contacts-limited - Allow access to basic contact info.
+                 contacts - Allow access to full contact details.
+                 location - Allow access to location services when app is in use.
+                 location-always - Allow access to location services at all times.
+                 photos-add - Allow adding photos to the photo library.
+                 photos - Allow full access to the photo library.
+                 media-library - Allow access to the media library.
+                 microphone - Allow access to audio input.
+                 motion - Allow access to motion and fitness data.
+                 reminders - Allow access to reminders.
+                 siri - Allow use of the app with Siri.
+                 camera - Allow access to camera.
+                 notifications - Allow access to notifications.
+HELP
+  exit 0
+fi
+`;
+  const shebang = '#!/bin/sh\n';
+  if (!script.startsWith(shebang)) return `${shebang}${helpBlock}${script}`;
+  return `${shebang}${helpBlock}${script.slice(shebang.length)}`;
 }
 
 test('openIosApp custom scheme deep links on iOS devices require app bundle context', async () => {
@@ -573,6 +606,41 @@ exit 1
   );
 });
 
+test('setIosSetting permission grant calendar uses simctl privacy calendar target', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-calendar-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "grant" ] && [ "$5" = "calendar" ] && [ "$6" = "com.example.app" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'permission', 'grant', 'com.example.app', {
+        permissionTarget: 'calendar',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nsim-1\ngrant\ncalendar\ncom\.example\.app/);
+    },
+  );
+});
+
 test('setIosSetting permission grant photos limited maps to photos-add', async () => {
   await withMockedXcrun(
     'agent-device-ios-permission-photos-test-',
@@ -643,6 +711,159 @@ exit 1
           return true;
         },
       );
+    },
+  );
+});
+
+test('setIosSetting permission reset notifications falls back to reset all when direct reset is blocked', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-notifications-reset-fallback-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "reset" ] && [ "$5" = "notifications" ] && [ "$6" = "com.example.app" ]; then
+  echo "Failed to reset access" >&2
+  echo "Operation not permitted" >&2
+  exit 1
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "reset" ] && [ "$5" = "all" ] && [ "$6" = "com.example.app" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'permission', 'reset', 'com.example.app', {
+        permissionTarget: 'notifications',
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nsim-1\nreset\nnotifications\ncom\.example\.app/);
+      assert.match(logged, /simctl\nprivacy\nsim-1\nreset\nall\ncom\.example\.app/);
+    },
+  );
+});
+
+test('setIosSetting permission deny notifications returns unsupported on runtimes that block it', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-notifications-deny-unsupported-',
+    `#!/bin/sh
+# AGENT_DEVICE_CUSTOM_PRIVACY_HELP
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "help" ]; then
+  cat <<'HELP'
+Usage: simctl privacy <device> <action> <service> [<bundle identifier>]
+
+        service
+             The service:
+                 notifications - Allow access to notifications.
+                 camera - Allow access to camera.
+HELP
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "sim-1" ] && [ "$4" = "revoke" ] && [ "$5" = "notifications" ] && [ "$6" = "com.example.app" ]; then
+  echo "Failed to revoke access" >&2
+  echo "Operation not permitted" >&2
+  exit 1
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () =>
+          setIosSetting(device, 'permission', 'deny', 'com.example.app', {
+            permissionTarget: 'notifications',
+          }),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+          assert.match((error as AppError).message, /does not support setting notifications permission/i);
+          return true;
+        },
+      );
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nsim-1\nrevoke\nnotifications\ncom\.example\.app/);
+    },
+  );
+});
+
+test('setIosSetting permission rejects service missing from simctl privacy help', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-permission-service-unsupported-',
+    `#!/bin/sh
+# AGENT_DEVICE_CUSTOM_PRIVACY_HELP
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "privacy" ] && [ "$3" = "help" ]; then
+  cat <<'HELP'
+Usage: simctl privacy <device> <action> <service> [<bundle identifier>]
+
+        service
+             The service:
+                 camera - Allow access to camera.
+                 microphone - Allow access to audio input.
+HELP
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () =>
+          setIosSetting(device, 'permission', 'grant', 'com.example.app', {
+            permissionTarget: 'calendar',
+          }),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+          assert.match((error as AppError).message, /does not support service "calendar"/i);
+          return true;
+        },
+      );
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nprivacy\nhelp/);
+      assert.doesNotMatch(logged, /simctl\nprivacy\nsim-1\ngrant\ncalendar/);
     },
   );
 });

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { resolveDaemonRequestTimeoutMs, resolveDaemonStartupHint } from '../../daemon-client.ts';
+import { computeDaemonCodeSignature, resolveDaemonRequestTimeoutMs, resolveDaemonStartupHint } from '../../daemon-client.ts';
 import {
   isProcessAlive,
   readProcessCommand,
@@ -37,6 +37,19 @@ test('resolveDaemonStartupHint covers stale info+lock pair', () => {
 test('resolveDaemonStartupHint falls back to daemon.json guidance', () => {
   const hint = resolveDaemonStartupHint({ hasInfo: true, hasLock: false });
   assert.match(hint, /daemon\.json/i);
+});
+
+test('computeDaemonCodeSignature includes relative path, size, and mtime', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-signature-'));
+  try {
+    const daemonEntryPath = path.join(root, 'dist', 'src', 'daemon.js');
+    fs.mkdirSync(path.dirname(daemonEntryPath), { recursive: true });
+    fs.writeFileSync(daemonEntryPath, 'console.log("daemon");\n', 'utf8');
+    const signature = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.match(signature, /^dist\/src\/daemon\.js:\d+:\d+$/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('stopDaemonProcessForTakeover terminates a matching daemon process', async (t) => {

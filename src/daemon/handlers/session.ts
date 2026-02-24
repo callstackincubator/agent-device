@@ -146,6 +146,27 @@ async function tryResolveIosAppBundleId(device: DeviceInfo, openTarget: string):
   }
 }
 
+async function resolveAndroidPackageForOpen(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+): Promise<string | undefined> {
+  if (device.platform !== 'android' || !openTarget || isDeepLinkTarget(openTarget)) return undefined;
+  try {
+    const { resolveAndroidApp } = await import('../../platforms/android/index.ts');
+    const resolved = await resolveAndroidApp(device, openTarget);
+    return resolved.type === 'package' ? resolved.value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function shouldPreserveAndroidPackageContext(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+): boolean {
+  return device.platform === 'android' && Boolean(openTarget && isDeepLinkTarget(openTarget));
+}
+
 async function handleAppStateCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -247,6 +268,10 @@ export async function handleSessionCommands(params: {
     start: typeof startAppLog;
     stop: typeof stopAppLog;
   };
+  resolveAndroidPackageForOpen?: (
+    device: DeviceInfo,
+    openTarget: string | undefined,
+  ) => Promise<string | undefined>;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -263,6 +288,7 @@ export async function handleSessionCommands(params: {
       start: startAppLog,
       stop: stopAppLog,
     },
+    resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
@@ -471,7 +497,10 @@ export async function handleSessionCommands(params: {
         };
       }
       await ensureReady(session.device);
-      const appBundleId = await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId);
+      const appBundleId =
+        (await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId))
+        ?? (await resolveAndroidPackageForOpenOverride(session.device, openTarget))
+        ?? (shouldPreserveAndroidPackageContext(session.device, openTarget) ? session.appBundleId : undefined);
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
         const closeTarget = appBundleId ?? openTarget;
@@ -530,7 +559,9 @@ export async function handleSessionCommands(params: {
       };
     }
     await ensureReady(device);
-    const appBundleId = await resolveIosBundleIdForOpen(device, openTarget);
+    const appBundleId =
+      (await resolveIosBundleIdForOpen(device, openTarget))
+      ?? (await resolveAndroidPackageForOpenOverride(device, openTarget));
     if (shouldRelaunch && openTarget) {
       const closeTarget = appBundleId ?? openTarget;
       await dispatch(device, 'close', [closeTarget], req.flags?.out, {

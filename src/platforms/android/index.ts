@@ -21,7 +21,7 @@ function adbArgs(device: DeviceInfo, args: string[]): string[] {
   return ['-s', device.id, ...args];
 }
 
-async function resolveAndroidApp(
+export async function resolveAndroidApp(
   device: DeviceInfo,
   app: string,
 ): Promise<{ type: 'intent' | 'package'; value: string }> {
@@ -589,9 +589,8 @@ export async function setAndroidSetting(
       }
       const action = parsePermissionAction(state);
       const target = parseAndroidPermissionTarget(options?.permissionTarget, options?.permissionMode);
-      if (target.kind === 'appops') {
-        const appOpsMode = action === 'grant' ? 'allow' : action === 'deny' ? 'deny' : 'default';
-        await runCmd('adb', adbArgs(device, ['shell', 'appops', 'set', appPackage, target.value, appOpsMode]));
+      if (target.kind === 'notifications') {
+        await setAndroidNotificationPermission(device, appPackage, action, target);
         return;
       }
       const pmAction = action === 'grant' ? 'grant' : 'revoke';
@@ -713,7 +712,7 @@ function parseAndroidPermissionTarget(
   permissionMode: string | undefined,
 ):
   | { kind: 'pm'; value: string; type: 'camera' | 'microphone' | 'photos' | 'contacts' }
-  | { kind: 'appops'; value: string } {
+  | { kind: 'notifications'; appOps: string; permission: string } {
   const normalized = parsePermissionTarget(permissionTarget);
   if (permissionMode?.trim()) {
     throw new AppError(
@@ -731,10 +730,16 @@ function parseAndroidPermissionTarget(
   if (normalized === 'contacts') {
     return { kind: 'pm', value: 'android.permission.READ_CONTACTS', type: 'contacts' };
   }
-  if (normalized === 'notifications') return { kind: 'appops', value: 'POST_NOTIFICATION' };
+  if (normalized === 'notifications') {
+    return {
+      kind: 'notifications',
+      appOps: 'POST_NOTIFICATION',
+      permission: 'android.permission.POST_NOTIFICATIONS',
+    };
+  }
   throw new AppError(
     'INVALID_ARGS',
-    `Unsupported permission target: ${permissionTarget}. Use camera|microphone|photos|contacts|notifications.`,
+    `Unsupported permission target on Android: ${permissionTarget}. Use camera|microphone|photos|contacts|notifications.`,
   );
 }
 
@@ -765,6 +770,41 @@ async function setAndroidPhotoPermission(
     sdkInt,
     attempts: failures,
   });
+}
+
+async function setAndroidNotificationPermission(
+  device: DeviceInfo,
+  appPackage: string,
+  action: 'grant' | 'deny' | 'reset',
+  target: { appOps: string; permission: string },
+): Promise<void> {
+  const appOpsMode = action === 'grant' ? 'allow' : action === 'deny' ? 'deny' : 'default';
+  if (action === 'grant') {
+    await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'pm', 'grant', appPackage, target.permission]),
+      { allowFailure: true },
+    );
+  } else {
+    await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'pm', 'revoke', appPackage, target.permission]),
+      { allowFailure: true },
+    );
+    if (action === 'reset') {
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'pm', 'clear-permission-flags', appPackage, target.permission, 'user-set']),
+        { allowFailure: true },
+      );
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'pm', 'clear-permission-flags', appPackage, target.permission, 'user-fixed']),
+        { allowFailure: true },
+      );
+    }
+  }
+  await runCmd('adb', adbArgs(device, ['shell', 'appops', 'set', appPackage, target.appOps, appOpsMode]));
 }
 
 async function getAndroidSdkInt(device: DeviceInfo): Promise<number | null> {

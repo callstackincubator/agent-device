@@ -20,6 +20,7 @@ type DaemonInfo = {
   token: string;
   pid: number;
   version?: string;
+  codeSignature?: string;
   processStartTime?: string;
 };
 
@@ -83,9 +84,24 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
 async function ensureDaemon(): Promise<DaemonInfo> {
   const existing = readDaemonInfo();
   const localVersion = readVersion();
+  const localCodeSignature = resolveLocalDaemonCodeSignature();
   const existingReachable = existing ? await canConnect(existing) : false;
-  if (existing && existing.version === localVersion && existingReachable) return existing;
-  if (existing && (existing.version !== localVersion || !existingReachable)) {
+  if (
+    existing
+    && existing.version === localVersion
+    && existing.codeSignature === localCodeSignature
+    && existingReachable
+  ) {
+    return existing;
+  }
+  if (
+    existing
+    && (
+      existing.version !== localVersion
+      || existing.codeSignature !== localCodeSignature
+      || !existingReachable
+    )
+  ) {
     await stopDaemonProcessForTakeover(existing);
     removeDaemonInfo();
   }
@@ -224,6 +240,22 @@ async function canConnect(info: DaemonInfo): Promise<boolean> {
 }
 
 async function startDaemon(): Promise<void> {
+  const launchSpec = resolveDaemonLaunchSpec();
+  const args = launchSpec.useSrc
+    ? ['--experimental-strip-types', launchSpec.srcPath]
+    : [launchSpec.distPath];
+
+  runCmdDetached(process.execPath, args);
+}
+
+type DaemonLaunchSpec = {
+  root: string;
+  distPath: string;
+  srcPath: string;
+  useSrc: boolean;
+};
+
+function resolveDaemonLaunchSpec(): DaemonLaunchSpec {
   const root = findProjectRoot();
   const distPath = path.join(root, 'dist', 'src', 'daemon.js');
   const srcPath = path.join(root, 'src', 'daemon.ts');
@@ -235,9 +267,23 @@ async function startDaemon(): Promise<void> {
   }
   const runningFromSource = process.execArgv.includes('--experimental-strip-types');
   const useSrc = runningFromSource ? hasSrc : !hasDist && hasSrc;
-  const args = useSrc ? ['--experimental-strip-types', srcPath] : [distPath];
+  return { root, distPath, srcPath, useSrc };
+}
 
-  runCmdDetached(process.execPath, args);
+function resolveLocalDaemonCodeSignature(): string {
+  const launchSpec = resolveDaemonLaunchSpec();
+  const entryPath = launchSpec.useSrc ? launchSpec.srcPath : launchSpec.distPath;
+  return computeDaemonCodeSignature(entryPath, launchSpec.root);
+}
+
+export function computeDaemonCodeSignature(entryPath: string, root: string = findProjectRoot()): string {
+  try {
+    const stat = fs.statSync(entryPath);
+    const relativePath = path.relative(root, entryPath) || entryPath;
+    return `${relativePath}:${stat.size}:${Math.trunc(stat.mtimeMs)}`;
+  } catch {
+    return 'unknown';
+  }
 }
 
 async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
