@@ -67,6 +67,20 @@ type StartupPerfSample = {
   appBundleId?: string;
 };
 
+function buildOpenResult(params: {
+  sessionName: string;
+  appName?: string;
+  appBundleId?: string;
+  startup?: StartupPerfSample;
+}): Record<string, unknown> {
+  const { sessionName, appName, appBundleId, startup } = params;
+  const result: Record<string, unknown> = { session: sessionName };
+  if (appName) result.appName = appName;
+  if (appBundleId) result.appBundleId = appBundleId;
+  if (startup) result.startup = startup;
+  return result;
+}
+
 function buildStartupPerfSample(
   startedAtMs: number,
   appTarget: string | undefined,
@@ -747,7 +761,12 @@ export async function handleSessionCommands(params: {
         recordSession: session.recordSession || Boolean(req.flags?.saveScript),
         snapshot: undefined,
       };
-      const openResult = { session: sessionName, appName: openTarget, appBundleId, startup: startupSample };
+      const openResult = buildOpenResult({
+        sessionName,
+        appName: openTarget,
+        appBundleId,
+        startup: startupSample,
+      });
       sessionStore.recordAction(nextSession, {
         command,
         positionals: openPositionals,
@@ -812,10 +831,12 @@ export async function handleSessionCommands(params: {
       recordSession: Boolean(req.flags?.saveScript),
       actions: [],
     };
-    const openResult: Record<string, unknown> = { session: sessionName };
-    if (openTarget) openResult.appName = openTarget;
-    if (appBundleId) openResult.appBundleId = appBundleId;
-    if (startupSample) openResult.startup = startupSample;
+    const openResult = buildOpenResult({
+      sessionName,
+      appName: openTarget,
+      appBundleId,
+      startup: startupSample,
+    });
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
@@ -823,7 +844,7 @@ export async function handleSessionCommands(params: {
       result: openResult,
     });
     sessionStore.set(sessionName, session);
-    return { ok: true, data: { session: sessionName } };
+    return { ok: true, data: openResult };
   }
 
   if (command === 'replay') {
