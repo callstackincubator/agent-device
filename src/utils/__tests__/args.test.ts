@@ -327,7 +327,8 @@ test('usage includes swipe and press series options', () => {
   assert.match(help, /swipe <x1> <y1> <x2> <y2>/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /--interval-ms/);
-  assert.match(help, /settings <wifi\|airplane\|location\|appearance>/);
+  assert.match(help, /settings <wifi\|airplane\|location> <on\|off>/);
+  assert.match(help, /settings appearance <light\|dark\|toggle>/);
   assert.match(help, /settings permission <grant\|deny\|reset>/);
 });
 
