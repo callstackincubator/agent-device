@@ -238,46 +238,51 @@ export async function openAndroidApp(
     );
     return;
   }
-  try {
-    await runCmd(
-      'adb',
-      adbArgs(device, [
-        'shell',
-        'am',
-        'start',
-        '-W',
-        '-a',
-        'android.intent.action.MAIN',
-        '-c',
-        'android.intent.category.DEFAULT',
-        '-c',
-        'android.intent.category.LAUNCHER',
-        '-p',
-        resolved.value,
-      ]),
-    );
+  const primaryResult = await runCmd(
+    'adb',
+    adbArgs(device, [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.DEFAULT',
+      '-c',
+      'android.intent.category.LAUNCHER',
+      '-p',
+      resolved.value,
+    ]),
+    { allowFailure: true },
+  );
+  if (primaryResult.exitCode === 0 && !isAmStartError(primaryResult.stdout, primaryResult.stderr)) {
     return;
-  } catch (initialError) {
-    const component = await resolveAndroidLaunchComponent(device, resolved.value);
-    if (!component) throw initialError;
-    await runCmd(
-      'adb',
-      adbArgs(device, [
-        'shell',
-        'am',
-        'start',
-        '-W',
-        '-a',
-        'android.intent.action.MAIN',
-        '-c',
-        'android.intent.category.DEFAULT',
-        '-c',
-        'android.intent.category.LAUNCHER',
-        '-n',
-        component,
-      ]),
-    );
   }
+  const component = await resolveAndroidLaunchComponent(device, resolved.value);
+  if (!component) {
+    throw new AppError('COMMAND_FAILED', `Failed to launch ${resolved.value}`, {
+      stdout: primaryResult.stdout,
+      stderr: primaryResult.stderr,
+    });
+  }
+  await runCmd(
+    'adb',
+    adbArgs(device, [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.DEFAULT',
+      '-c',
+      'android.intent.category.LAUNCHER',
+      '-n',
+      component,
+    ]),
+  );
 }
 
 async function resolveAndroidLaunchComponent(
@@ -302,6 +307,11 @@ async function resolveAndroidLaunchComponent(
   );
   if (result.exitCode !== 0) return null;
   return parseAndroidLaunchComponent(result.stdout);
+}
+
+export function isAmStartError(stdout: string, stderr: string): boolean {
+  const output = `${stdout}\n${stderr}`;
+  return /Error:.*(?:Activity not started|unable to resolve Intent)/i.test(output);
 }
 
 export function parseAndroidLaunchComponent(stdout: string): string | null {

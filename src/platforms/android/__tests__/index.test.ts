@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   inferAndroidAppName,
+  isAmStartError,
   listAndroidApps,
   openAndroidApp,
   parseAndroidLaunchComponent,
@@ -137,6 +138,23 @@ test('parseAndroidLaunchComponent extracts final resolved component', () => {
 test('parseAndroidLaunchComponent returns null when no component is present', () => {
   const stdout = 'No activity found';
   assert.equal(parseAndroidLaunchComponent(stdout), null);
+});
+
+test('isAmStartError detects am start failure in stdout', () => {
+  assert.equal(
+    isAmStartError(
+      'Starting: Intent { ... }\nError: Activity not started, unable to resolve Intent { ... }',
+      '',
+    ),
+    true,
+  );
+});
+
+test('isAmStartError returns false for successful am start', () => {
+  assert.equal(
+    isAmStartError('Status: ok\nLaunchState: COLD\nActivity: com.example/.MainActivity', ''),
+    false,
+  );
 });
 
 test('inferAndroidAppName derives readable names from package ids', () => {
@@ -363,12 +381,13 @@ test('openAndroidApp fallback resolve-activity includes MAIN/LAUNCHER flags', as
       '  echo "package:com.microsoft.office.outlook"',
       '  exit 0',
       'fi',
-      '# First am start (with -p) fails to simulate multi-entry app issue',
+      '# First am start (with -p) outputs error but exits 0 (real Android behavior)',
       'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
       '  for arg in "$@"; do',
       '    if [ "$arg" = "-p" ]; then',
-      '      echo "Error: Activity not started" >&2',
-      '      exit 1',
+      '      echo "Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.DEFAULT,android.intent.category.LAUNCHER] pkg=com.microsoft.office.outlook }"',
+      '      echo "Error: Activity not started, unable to resolve Intent { act=android.intent.action.MAIN cat=[android.intent.category.DEFAULT,android.intent.category.LAUNCHER] flg=0x10000000 pkg=com.microsoft.office.outlook }"',
+      '      exit 0',
       '    fi',
       '  done',
       '  echo "Status: ok"',
