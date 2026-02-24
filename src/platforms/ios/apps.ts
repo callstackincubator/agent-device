@@ -8,6 +8,7 @@ import {
   parsePermissionTarget,
   type PermissionSettingOptions,
 } from '../permission-utils.ts';
+import { parseAppearanceAction } from '../appearance.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
@@ -360,16 +361,6 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
-type AppearanceAction = 'light' | 'dark' | 'toggle';
-
-function parseAppearanceAction(state: string): AppearanceAction {
-  const normalized = state.trim().toLowerCase();
-  if (normalized === 'light') return 'light';
-  if (normalized === 'dark') return 'dark';
-  if (normalized === 'toggle') return 'toggle';
-  throw new AppError('INVALID_ARGS', `Invalid appearance state: ${state}. Use light|dark|toggle.`);
-}
-
 async function resolveIosAppearanceTarget(deviceId: string, state: string): Promise<'light' | 'dark'> {
   const action = parseAppearanceAction(state);
   if (action !== 'toggle') return action;
@@ -395,9 +386,12 @@ async function resolveIosAppearanceTarget(deviceId: string, state: string): Prom
 }
 
 function parseIosAppearance(stdout: string, stderr: string): 'light' | 'dark' | null {
-  const match = /\b(light|dark)\b/i.exec(`${stdout}\n${stderr}`);
+  const match = /\b(light|dark|unsupported|unknown)\b/i.exec(`${stdout}\n${stderr}`);
   if (!match) return null;
-  return match[1].toLowerCase() === 'dark' ? 'dark' : 'light';
+  const value = match[1].toLowerCase();
+  if (value === 'dark') return 'dark';
+  if (value === 'light') return 'light';
+  return null;
 }
 
 type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';

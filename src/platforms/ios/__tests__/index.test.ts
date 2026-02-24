@@ -650,6 +650,43 @@ exit 1
   );
 });
 
+test('setIosSetting appearance toggle rejects unsupported current appearance output', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-appearance-toggle-unsupported-test-',
+    `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "ui" ] && [ "$3" = "sim-1" ] && [ "$4" = "appearance" ] && [ -z "$5" ]; then
+  echo "unsupported"
+  exit 0
+fi
+exit 0
+`,
+    async () => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () => setIosSetting(device, 'appearance', 'toggle'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /Unable to determine current iOS appearance/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
 test('setIosSetting permission grant camera uses simctl privacy', async () => {
   await withMockedXcrun(
     'agent-device-ios-permission-camera-test-',

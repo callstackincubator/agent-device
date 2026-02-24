@@ -12,6 +12,7 @@ import {
   parsePermissionTarget,
   type PermissionSettingOptions,
 } from '../permission-utils.ts';
+import { parseAppearanceAction } from '../appearance.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -733,16 +734,6 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
-type AppearanceAction = 'light' | 'dark' | 'toggle';
-
-function parseAppearanceAction(state: string): AppearanceAction {
-  const normalized = state.trim().toLowerCase();
-  if (normalized === 'light') return 'light';
-  if (normalized === 'dark') return 'dark';
-  if (normalized === 'toggle') return 'toggle';
-  throw new AppError('INVALID_ARGS', `Invalid appearance state: ${state}. Use light|dark|toggle.`);
-}
-
 async function resolveAndroidAppearanceTarget(
   device: DeviceInfo,
   state: string,
@@ -767,17 +758,17 @@ async function resolveAndroidAppearanceTarget(
       stderr: currentResult.stderr,
     });
   }
+  if (current === 'auto') return 'dark';
   return current === 'dark' ? 'light' : 'dark';
 }
 
-function parseAndroidAppearance(stdout: string, stderr: string): 'light' | 'dark' | null {
-  const output = `${stdout}\n${stderr}`.toLowerCase();
-  if (output.includes('night mode: yes')) return 'dark';
-  if (output.includes('night mode: no')) return 'light';
-  if (/\bdark\b/.test(output)) return 'dark';
-  if (/\blight\b/.test(output)) return 'light';
-  if (/\byes\b/.test(output)) return 'dark';
-  if (/\bno\b/.test(output)) return 'light';
+function parseAndroidAppearance(stdout: string, stderr: string): 'light' | 'dark' | 'auto' | null {
+  const match = /night mode:\s*(yes|no|auto)\b/i.exec(`${stdout}\n${stderr}`);
+  if (!match) return null;
+  const value = match[1].toLowerCase();
+  if (value === 'yes') return 'dark';
+  if (value === 'no') return 'light';
+  if (value === 'auto') return 'auto';
   return null;
 }
 

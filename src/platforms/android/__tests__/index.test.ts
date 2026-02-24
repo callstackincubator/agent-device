@@ -336,6 +336,58 @@ test('setAndroidSetting appearance toggle flips current mode', async () => {
   );
 });
 
+test('setAndroidSetting appearance toggle from auto sets dark mode', async () => {
+  await withMockedAdb(
+    'agent-device-android-appearance-toggle-auto-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ] && [ "$4" = "cmd" ] && [ "$5" = "uimode" ] && [ "$6" = "night" ] && [ -z "$7" ]; then',
+      '  echo "Night mode: auto"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'appearance', 'toggle');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /shell cmd uimode night yes/);
+    },
+  );
+});
+
+test('setAndroidSetting appearance toggle rejects unknown current mode output', async () => {
+  await withMockedAdb(
+    'agent-device-android-appearance-toggle-unknown-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ] && [ "$4" = "cmd" ] && [ "$5" = "uimode" ] && [ "$6" = "night" ] && [ -z "$7" ]; then',
+      '  echo "mode unavailable"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await assert.rejects(
+        () => setAndroidSetting(device, 'appearance', 'toggle'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /Unable to determine current Android appearance/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
 test('swipeAndroid invokes adb input swipe with duration', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-swipe-test-'));
   const adbPath = path.join(tmpDir, 'adb');

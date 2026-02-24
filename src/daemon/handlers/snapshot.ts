@@ -1,5 +1,6 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { SETTINGS_INVALID_ARGS_MESSAGE } from '../../core/settings-contract.ts';
 import { runIosRunnerCommand, stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
 import {
@@ -394,8 +395,7 @@ export async function handleSnapshotCommands(params: {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
-          message:
-            'settings requires <wifi|airplane|location> <on|off>, appearance <light|dark|toggle>, faceid <match|nonmatch|enroll|unenroll>, or permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited]',
+          message: SETTINGS_INVALID_ARGS_MESSAGE,
         },
       };
     }
