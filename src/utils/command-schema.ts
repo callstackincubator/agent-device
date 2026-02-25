@@ -34,6 +34,7 @@ export type CliFlags = {
   activity?: string;
   saveScript?: boolean | string;
   relaunch?: boolean;
+  headless?: boolean;
   restart?: boolean;
   noRecord?: boolean;
   replayUpdate?: boolean;
@@ -180,6 +181,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--serial <serial>',
     usageDescription: 'Android device serial',
+  },
+  {
+    key: 'headless',
+    names: ['--headless'],
+    type: 'boolean',
+    usageLabel: '--headless',
+    usageDescription: 'Boot: launch Android emulator without a GUI window',
   },
   {
     key: 'activity',
@@ -444,7 +452,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   boot: {
     description: 'Ensure target device/simulator is booted and ready',
     positionalArgs: [],
-    allowedFlags: [],
+    allowedFlags: ['headless'],
   },
   open: {
     description: 'Boot device/simulator; optionally launch app or deep link URL',

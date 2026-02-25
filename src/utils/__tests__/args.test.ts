@@ -19,6 +19,14 @@ test('parseArgs recognizes --target selector', () => {
   assert.equal(parsed.flags.target, 'tv');
 });
 
+test('parseArgs recognizes boot --headless flag', () => {
+  const parsed = parseArgs(['boot', '--platform', 'android', '--device', 'Pixel_9_Pro_XL', '--headless'], { strictFlags: true });
+  assert.equal(parsed.command, 'boot');
+  assert.equal(parsed.flags.platform, 'android');
+  assert.equal(parsed.flags.device, 'Pixel_9_Pro_XL');
+  assert.equal(parsed.flags.headless, true);
+});
+
 test('parseArgs recognizes --platform apple alias', () => {
   const parsed = parseArgs(['open', 'Settings', '--platform', 'apple', '--target', 'tv'], { strictFlags: true });
   assert.equal(parsed.command, 'open');

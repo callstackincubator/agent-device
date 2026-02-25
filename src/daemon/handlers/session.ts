@@ -48,6 +48,12 @@ type ReinstallOps = {
   android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package: string }>;
 };
 
+type EnsureAndroidEmulatorBoot = (params: {
+  avdName: string;
+  serial?: string;
+  headless?: boolean;
+}) => Promise<DeviceInfo>;
+
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
@@ -225,6 +231,27 @@ async function resolveCommandDevice(params: {
   }
   return device;
 }
+
+function resolveAndroidEmulatorAvdName(params: {
+  flags: DaemonRequest['flags'] | undefined;
+  sessionDevice?: DeviceInfo;
+  resolvedDevice?: DeviceInfo;
+}): string | undefined {
+  const explicit = params.flags?.device?.trim();
+  if (explicit) return explicit;
+  if (params.resolvedDevice?.platform === 'android' && params.resolvedDevice.kind === 'emulator') {
+    return params.resolvedDevice.name;
+  }
+  if (params.sessionDevice?.platform === 'android' && params.sessionDevice.kind === 'emulator') {
+    return params.sessionDevice.name;
+  }
+  return undefined;
+}
+
+const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avdName, serial, headless }) => {
+  const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
+  return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
+};
 
 const defaultReinstallOps: ReinstallOps = {
   ios: async (device, app, appPath) => {
@@ -442,6 +469,7 @@ export async function handleSessionCommands(params: {
     start: typeof startAppLog;
     stop: typeof stopAppLog;
   };
+  ensureAndroidEmulatorBoot?: EnsureAndroidEmulatorBoot;
   resolveAndroidPackageForOpen?: (
     device: DeviceInfo,
     openTarget: string | undefined,
@@ -462,6 +490,7 @@ export async function handleSessionCommands(params: {
       start: startAppLog,
       stop: stopAppLog,
     },
+    ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
@@ -555,13 +584,94 @@ export async function handleSessionCommands(params: {
     const flags = req.flags ?? {};
     const guard = requireSessionOrExplicitSelector(command, session, flags);
     if (guard) return guard;
-    const device = await resolveCommandDevice({
-      session,
+    const normalizedPlatform = normalizePlatformSelector(flags.platform) ?? session?.device.platform;
+    const targetsAndroid = normalizedPlatform === 'android';
+    const wantsAndroidHeadless = flags.headless === true;
+    const shouldUseFastAndroidSelectorLookup = targetsAndroid && !flags.target && Boolean(flags.device || flags.serial);
+    const fallbackAvdName = resolveAndroidEmulatorAvdName({
       flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
-      ensureReady: true,
+      sessionDevice: session?.device,
     });
+    const canFallbackLaunchAndroidEmulator = targetsAndroid && Boolean(fallbackAvdName);
+    let device: DeviceInfo;
+    let launchedAndroidEmulator = false;
+    const fastLookupDevice = shouldUseFastAndroidSelectorLookup
+      ? await (async () => {
+        const { resolveAndroidBootSelectorDevice } = await import('../../platforms/android/devices.ts');
+        return await resolveAndroidBootSelectorDevice({
+          deviceName: flags.device,
+          serial: flags.serial,
+        });
+      })()
+      : undefined;
+    try {
+      device = fastLookupDevice
+        ?? (await resolveCommandDevice({
+          session,
+          flags,
+          ensureReadyFn: ensureReady,
+          resolveTargetDeviceFn: resolveDevice,
+          ensureReady: false,
+        }));
+    } catch (error) {
+      const appErr = asAppError(error);
+      if (targetsAndroid && wantsAndroidHeadless && !fallbackAvdName && appErr.code === 'DEVICE_NOT_FOUND') {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+          },
+        };
+      }
+      if (!canFallbackLaunchAndroidEmulator || appErr.code !== 'DEVICE_NOT_FOUND' || !fallbackAvdName) {
+        throw error;
+      }
+      device = await ensureAndroidEmulatorBootOverride({
+        avdName: fallbackAvdName,
+        serial: flags.serial,
+        headless: wantsAndroidHeadless,
+      });
+      launchedAndroidEmulator = true;
+    }
+    if (targetsAndroid && wantsAndroidHeadless) {
+      if (device.platform !== 'android' || device.kind !== 'emulator') {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'boot --headless is supported only for Android emulators.',
+          },
+        };
+      }
+      if (!launchedAndroidEmulator) {
+        const avdName = resolveAndroidEmulatorAvdName({
+          flags,
+          sessionDevice: session?.device,
+          resolvedDevice: device,
+        });
+        if (!avdName) {
+          return {
+            ok: false,
+            error: {
+              code: 'INVALID_ARGS',
+              message: 'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+            },
+          };
+        }
+        device = await ensureAndroidEmulatorBootOverride({
+          avdName,
+          serial: flags.serial,
+          headless: true,
+        });
+      }
+      await ensureReady(device);
+    } else {
+      const shouldEnsureReady = device.platform !== 'android' || device.booted !== true;
+      if (shouldEnsureReady) {
+        await ensureReady(device);
+      }
+    }
     if (!isCommandSupportedOnDevice('boot', device)) {
       return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' } };
     }

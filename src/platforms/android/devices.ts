@@ -1,4 +1,4 @@
-import { runCmd, whichCmd } from '../../utils/exec.ts';
+import { runCmd, runCmdDetached, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -7,6 +7,9 @@ import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
+const ANDROID_EMULATOR_BOOT_POLL_MS = 1000;
+const ANDROID_EMULATOR_BOOT_TIMEOUT_MS = 120_000;
+const ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS = 1_500;
 const ANDROID_TV_FEATURES = [
   'android.software.leanback',
   'android.software.leanback_only',
@@ -25,6 +28,10 @@ function isEmulatorSerial(serial: string): boolean {
   return serial.startsWith(EMULATOR_SERIAL_PREFIX);
 }
 
+function normalizeAndroidName(value: string): string {
+  return value.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 async function readAndroidBootProp(
   serial: string,
   timeoutMs = TIMEOUT_PROFILES.android_boot.operationMs,
@@ -38,15 +45,32 @@ async function readAndroidBootProp(
 async function resolveAndroidDeviceName(serial: string, rawModel: string): Promise<string> {
   const modelName = rawModel.replace(/_/g, ' ').trim();
   if (!isEmulatorSerial(serial)) return modelName || serial;
-  const avd = await runCmd('adb', adbArgs(serial, ['emu', 'avd', 'name']), {
-    allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
-  });
-  const avdName = avd.stdout.trim();
-  if (avd.exitCode === 0 && avdName) {
-    return avdName.replace(/_/g, ' ');
-  }
+  const avdName = await resolveAndroidEmulatorAvdName(serial);
+  if (avdName) return avdName.replace(/_/g, ' ');
   return modelName || serial;
+}
+
+async function resolveAndroidEmulatorAvdName(serial: string): Promise<string | undefined> {
+  const avdPropKeys = ['ro.boot.qemu.avd_name', 'persist.sys.avd_name'];
+  for (const prop of avdPropKeys) {
+    const result = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', prop]), {
+      allowFailure: true,
+      timeoutMs: ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS,
+    });
+    const value = result.stdout.trim();
+    if (result.exitCode === 0 && value.length > 0) {
+      return value;
+    }
+  }
+  const emuResult = await runCmd('adb', adbArgs(serial, ['emu', 'avd', 'name']), {
+    allowFailure: true,
+    timeoutMs: ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS,
+  });
+  const emuValue = emuResult.stdout.trim();
+  if (emuResult.exitCode === 0 && emuValue.length > 0) {
+    return emuValue;
+  }
+  return undefined;
 }
 
 export function parseAndroidTargetFromCharacteristics(rawOutput: string): 'tv' | null {
@@ -118,18 +142,7 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
     throw new AppError('TOOL_MISSING', 'adb not found in PATH');
   }
 
-  const result = await runCmd('adb', ['devices', '-l'], {
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
-  });
-  const lines = result.stdout.split('\n').map((l: string) => l.trim());
-  const entries = lines
-    .filter((line) => line.length > 0 && !line.startsWith('List of devices'))
-    .map((line) => line.split(/\s+/))
-    .filter((parts) => parts[1] === 'device')
-    .map((parts) => ({
-      serial: parts[0],
-      rawModel: (parts.find((p: string) => p.startsWith('model:')) ?? '').replace('model:', ''),
-    }));
+  const entries = await listAndroidDeviceEntries();
 
   const devices = await Promise.all(entries.map(async ({ serial, rawModel }) => {
     const [name, booted, target] = await Promise.all([
@@ -150,6 +163,181 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
   return devices;
 }
 
+type AndroidDeviceEntry = {
+  serial: string;
+  rawModel: string;
+};
+
+function parseAndroidDeviceEntries(rawOutput: string): AndroidDeviceEntry[] {
+  const lines = rawOutput.split('\n').map((line) => line.trim());
+  return lines
+    .filter((line) => line.length > 0 && !line.startsWith('List of devices'))
+    .map((line) => line.split(/\s+/))
+    .filter((parts) => parts[1] === 'device')
+    .map((parts) => ({
+      serial: parts[0],
+      rawModel: (parts.find((entry) => entry.startsWith('model:')) ?? '').replace('model:', ''),
+    }));
+}
+
+async function listAndroidDeviceEntries(): Promise<AndroidDeviceEntry[]> {
+  const result = await runCmd('adb', ['devices', '-l'], {
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+  });
+  return parseAndroidDeviceEntries(result.stdout);
+}
+
+export async function resolveAndroidBootSelectorDevice(params: {
+  deviceName?: string;
+  serial?: string;
+}): Promise<DeviceInfo | undefined> {
+  const adbAvailable = await whichCmd('adb');
+  if (!adbAvailable) {
+    throw new AppError('TOOL_MISSING', 'adb not found in PATH');
+  }
+
+  const entries = await listAndroidDeviceEntries();
+  if (entries.length === 0) return undefined;
+
+  const serialSelector = params.serial?.trim();
+  const deviceNameSelector = params.deviceName?.trim();
+
+  let matched: AndroidDeviceEntry | undefined;
+  let matchedName: string | undefined;
+
+  if (serialSelector) {
+    matched = entries.find((entry) => entry.serial === serialSelector);
+    if (!matched) return undefined;
+    matchedName = await resolveAndroidDeviceName(matched.serial, matched.rawModel);
+  } else if (deviceNameSelector) {
+    const target = normalizeAndroidName(deviceNameSelector);
+    for (const entry of entries) {
+      const modelName = entry.rawModel.replace(/_/g, ' ').trim();
+      if (normalizeAndroidName(modelName) === target) {
+        matched = entry;
+        matchedName = modelName || entry.serial;
+        break;
+      }
+      const resolvedName = await resolveAndroidDeviceName(entry.serial, entry.rawModel);
+      if (normalizeAndroidName(resolvedName) === target) {
+        matched = entry;
+        matchedName = resolvedName;
+        break;
+      }
+    }
+  } else {
+    return undefined;
+  }
+
+  if (!matched) return undefined;
+  const booted = await isAndroidBooted(matched.serial);
+  return {
+    platform: 'android',
+    id: matched.serial,
+    name: matchedName ?? (matched.rawModel.replace(/_/g, ' ').trim() || matched.serial),
+    kind: isEmulatorSerial(matched.serial) ? 'emulator' : 'device',
+    booted,
+  };
+}
+
+export function parseAndroidAvdList(rawOutput: string): string[] {
+  return rawOutput
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+export function resolveAndroidAvdName(avdNames: string[], requestedName: string): string | undefined {
+  const direct = avdNames.find((name) => name === requestedName);
+  if (direct) return direct;
+  const target = normalizeAndroidName(requestedName);
+  return avdNames.find((name) => normalizeAndroidName(name) === target);
+}
+
+async function listAndroidAvdNames(): Promise<string[]> {
+  const result = await runCmd('emulator', ['-list-avds'], {
+    allowFailure: true,
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+  });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to list Android emulator AVDs', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+      hint: 'Verify Android emulator tooling is installed and available in PATH.',
+    });
+  }
+  return parseAndroidAvdList(result.stdout);
+}
+
+function findAndroidEmulatorByAvdName(
+  devices: DeviceInfo[],
+  avdName: string,
+  serial?: string,
+): DeviceInfo | undefined {
+  const target = normalizeAndroidName(avdName);
+  return devices.find((device) => {
+    if (device.platform !== 'android' || device.kind !== 'emulator') return false;
+    if (serial && device.id !== serial) return false;
+    return normalizeAndroidName(device.name) === target;
+  });
+}
+
+async function waitForAndroidEmulatorByAvdName(params: {
+  avdName: string;
+  serial?: string;
+  timeoutMs: number;
+}): Promise<DeviceInfo> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < params.timeoutMs) {
+    try {
+      const serial = await findAndroidEmulatorSerialByAvdName(params.avdName, params.serial);
+      if (serial) {
+        return {
+          platform: 'android',
+          id: serial,
+          name: params.avdName,
+          kind: 'emulator',
+          target: 'mobile',
+          booted: false,
+        };
+      }
+    } catch {
+      // Best-effort polling while adb/emulator process settles.
+    }
+    await new Promise((resolve) => setTimeout(resolve, ANDROID_EMULATOR_BOOT_POLL_MS));
+  }
+  throw new AppError('COMMAND_FAILED', 'Android emulator did not appear in time', {
+    avdName: params.avdName,
+    serial: params.serial,
+    timeoutMs: params.timeoutMs,
+    hint: 'Check emulator logs and verify the AVD can start from command line.',
+  });
+}
+
+async function findAndroidEmulatorSerialByAvdName(
+  avdName: string,
+  serial?: string,
+): Promise<string | undefined> {
+  const target = normalizeAndroidName(avdName);
+  const entries = await listAndroidDeviceEntries();
+  const candidates = entries.filter((entry) => {
+    if (serial && entry.serial !== serial) return false;
+    return isEmulatorSerial(entry.serial);
+  });
+
+  for (const entry of candidates) {
+    if (normalizeAndroidName(entry.rawModel) === target) {
+      return entry.serial;
+    }
+    const resolvedName = await resolveAndroidDeviceName(entry.serial, entry.rawModel);
+    if (normalizeAndroidName(resolvedName) === target) {
+      return entry.serial;
+    }
+  }
+  return undefined;
+}
+
 async function isAndroidBooted(serial: string): Promise<boolean> {
   try {
     const result = await readAndroidBootProp(serial);
@@ -157,6 +345,82 @@ async function isAndroidBooted(serial: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function ensureAndroidEmulatorBooted(params: {
+  avdName: string;
+  serial?: string;
+  timeoutMs?: number;
+  headless?: boolean;
+}): Promise<DeviceInfo> {
+  const requestedAvdName = params.avdName.trim();
+  if (!requestedAvdName) {
+    throw new AppError('INVALID_ARGS', 'Android emulator boot requires a non-empty AVD name.');
+  }
+  const timeoutMs = params.timeoutMs ?? ANDROID_EMULATOR_BOOT_TIMEOUT_MS;
+
+  if (!(await whichCmd('adb'))) {
+    throw new AppError('TOOL_MISSING', 'adb not found in PATH');
+  }
+  if (!(await whichCmd('emulator'))) {
+    throw new AppError('TOOL_MISSING', 'emulator not found in PATH');
+  }
+
+  const avdNames = await listAndroidAvdNames();
+  const resolvedAvdName = resolveAndroidAvdName(avdNames, requestedAvdName);
+  if (!resolvedAvdName) {
+    throw new AppError('DEVICE_NOT_FOUND', `No Android emulator AVD named ${params.avdName}`, {
+      requestedAvdName,
+      availableAvds: avdNames,
+      hint: 'Run `emulator -list-avds` and pass an existing AVD name to --device.',
+    });
+  }
+
+  const startedAt = Date.now();
+  const existing = findAndroidEmulatorByAvdName(await listAndroidDevices(), resolvedAvdName, params.serial);
+  if (!existing) {
+    const launchArgs = ['-avd', resolvedAvdName];
+    if (params.headless) {
+      launchArgs.push('-no-window', '-no-audio');
+    }
+    runCmdDetached('emulator', launchArgs);
+  }
+
+  const discovered =
+    existing
+    ?? (await waitForAndroidEmulatorByAvdName({
+      avdName: resolvedAvdName,
+      serial: params.serial,
+      timeoutMs,
+    }));
+
+  const elapsedMs = Date.now() - startedAt;
+  const remainingMs = Math.max(1_000, timeoutMs - elapsedMs);
+  await waitForAndroidBoot(discovered.id, remainingMs);
+  const refreshed = (await listAndroidDevices()).find((device) => device.id === discovered.id);
+  if (refreshed) {
+    return {
+      ...refreshed,
+      name: resolvedAvdName,
+      booted: true,
+    };
+  }
+  return {
+    ...discovered,
+    name: resolvedAvdName,
+    booted: true,
+  };
+}
+
+export async function ensureAndroidEmulatorHeadlessBooted(params: {
+  avdName: string;
+  serial?: string;
+  timeoutMs?: number;
+}): Promise<DeviceInfo> {
+  return await ensureAndroidEmulatorBooted({
+    ...params,
+    headless: true,
+  });
 }
 
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {

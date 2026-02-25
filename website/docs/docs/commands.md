@@ -12,6 +12,7 @@ This page summarizes the primary command groups.
 agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
+agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 agent-device open [app|url] [url]
 agent-device close [app]
 agent-device back
@@ -24,6 +25,8 @@ agent-device app-switcher
 - `--platform apple` is an alias for the iOS/tvOS backend.
 - Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
+- Android: `boot --platform android --device <avd-name>` launches that emulator in GUI mode when needed.
+- Android: add `--headless` to launch without opening a GUI window.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.

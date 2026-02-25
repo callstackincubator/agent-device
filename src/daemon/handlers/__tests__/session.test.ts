@@ -6,6 +6,7 @@ import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
+import { AppError } from '../../../utils/errors.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-handler-'));
@@ -312,7 +313,7 @@ test('boot succeeds for supported device in session', async () => {
   });
   assert.ok(response);
   assert.equal(response?.ok, true);
-  assert.equal(ensureCalls, 1);
+  assert.equal(ensureCalls, 0);
   if (response && response.ok) {
     assert.equal(response.data?.platform, 'android');
     assert.equal(response.data?.booted, true);
@@ -365,6 +366,128 @@ test('boot prefers explicit device selector over active session device', async (
   if (response && response.ok) {
     assert.equal(response.data?.platform, 'ios');
     assert.equal(response.data?.id, 'sim-2');
+  }
+});
+
+test('boot --headless launches Android emulator when no running device matches', async () => {
+  const sessionStore = makeSessionStore();
+  const ensured: string[] = [];
+  const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'android', target: 'mobile', device: 'Pixel_9_Pro_XL', headless: true },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async (device) => {
+      ensured.push(device.id);
+    },
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
+    },
+    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
+      launchCalls.push({ avdName, serial, headless });
+      return {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel_9_Pro_XL',
+        kind: 'emulator',
+        target: 'mobile',
+        booted: true,
+      };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: true }]);
+  assert.deepEqual(ensured, ['emulator-5554']);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.id, 'emulator-5554');
+    assert.equal(response.data?.device, 'Pixel_9_Pro_XL');
+  }
+});
+
+test('boot launches Android emulator with GUI when no running device matches', async () => {
+  const sessionStore = makeSessionStore();
+  const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'android', target: 'mobile', device: 'Pixel_9_Pro_XL' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
+    },
+    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
+      launchCalls.push({ avdName, serial, headless });
+      return {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel_9_Pro_XL',
+        kind: 'emulator',
+        target: 'mobile',
+        booted: true,
+      };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.id, 'emulator-5554');
+    assert.equal(response.data?.device, 'Pixel_9_Pro_XL');
+  }
+});
+
+test('boot --headless requires avd selector when device cannot be resolved', async () => {
+  const sessionStore = makeSessionStore();
+  let bootCalled = false;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'android', target: 'mobile', serial: 'emulator-5554', headless: true },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
+    },
+    ensureAndroidEmulatorBoot: async () => {
+      bootCalled = true;
+      throw new Error('unexpected');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  assert.equal(bootCalled, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /boot --headless requires --device <avd-name>/);
   }
 });
 

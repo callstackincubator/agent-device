@@ -30,6 +30,10 @@ Boot target if there is no ready device/simulator:
 
 ```bash
 agent-device boot --platform ios # or android
+# Android emulator launch by AVD name (GUI mode):
+agent-device boot --platform android --device Pixel_9_Pro_XL
+# Android headless emulator boot (AVD name):
+agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ```
 
 ## Common commands

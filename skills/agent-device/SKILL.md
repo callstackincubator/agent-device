@@ -99,6 +99,8 @@ agent-device session list
 ```
 
 Use `boot` only as fallback when `open` cannot find/connect to a ready target.
+For Android emulators by AVD name, use `boot --platform android --device <avd-name>`.
+For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
 
 TV quick reference:
