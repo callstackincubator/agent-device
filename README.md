@@ -35,6 +35,7 @@ npx agent-device open SampleApp
 ```
 
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).
+For structured exploratory QA workflows, use the dogfood skill at [skills/dogfood/SKILL.md](skills/dogfood/SKILL.md).
 
 ## Quick Start
 

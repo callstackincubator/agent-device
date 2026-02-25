@@ -6,6 +6,7 @@ description: Automates interactions for iOS simulators/devices and Android emula
 # Mobile Automation with agent-device
 
 For exploration, use snapshot refs. For deterministic replay, use selectors.
+For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 
 ## Start Here (Read This First)
 
