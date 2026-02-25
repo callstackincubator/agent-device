@@ -40,6 +40,7 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 ```
 
 - AndroidTV app launch and app listing resolve TV launchable activities via `LEANBACK_LAUNCHER`.
+- TV target selection supports both simulator/emulator and connected physical devices (AppleTV + AndroidTV).
 - tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
 - tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
