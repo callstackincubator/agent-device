@@ -46,27 +46,13 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   wait: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
 };
 
-const IOS_TV_SUPPORTED_COMMANDS = new Set<string>([
-  'apps',
-  'boot',
-  'close',
-  'logs',
-  'open',
-  'reinstall',
-  'screenshot',
-]);
-
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {
   const capability = COMMAND_CAPABILITY_MATRIX[command];
   if (!capability) return true;
   const byPlatform = capability[device.platform];
   if (!byPlatform) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
-  if (byPlatform[kind] !== true) return false;
-  if (device.platform === 'ios' && device.target === 'tv') {
-    return IOS_TV_SUPPORTED_COMMANDS.has(command);
-  }
-  return true;
+  return byPlatform[kind] === true;
 }
 
 export function listCapabilityCommands(): string[] {

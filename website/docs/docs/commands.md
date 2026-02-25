@@ -21,6 +21,7 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
+- `--platform apple` is an alias for the iOS/tvOS backend.
 - Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
@@ -43,8 +44,8 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 ```
 
 - AndroidTV app launch and app listing resolve TV launchable activities via `LEANBACK_LAUNCHER`.
-- tvOS currently supports non-runner flows only: `open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`.
-- tvOS runner-driven interaction/snapshot commands are unsupported: `snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`.
+- tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
+- On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
 
 ## Snapshot and inspect
 

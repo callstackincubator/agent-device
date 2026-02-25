@@ -516,20 +516,22 @@ export function resolveRunnerDestination(device: DeviceInfo): string {
   if (device.platform !== 'ios') {
     throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
   }
+  const platformName = device.target === 'tv' ? 'tvOS' : 'iOS';
   if (device.kind === 'simulator') {
-    return `platform=iOS Simulator,id=${device.id}`;
+    return `platform=${platformName} Simulator,id=${device.id}`;
   }
-  return `platform=iOS,id=${device.id}`;
+  return `platform=${platformName},id=${device.id}`;
 }
 
 export function resolveRunnerBuildDestination(device: DeviceInfo): string {
   if (device.platform !== 'ios') {
     throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
   }
+  const platformName = device.target === 'tv' ? 'tvOS' : 'iOS';
   if (device.kind === 'simulator') {
-    return `platform=iOS Simulator,id=${device.id}`;
+    return `platform=${platformName} Simulator,id=${device.id}`;
   }
-  return 'generic/platform=iOS';
+  return `generic/platform=${platformName}`;
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {

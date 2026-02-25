@@ -106,12 +106,12 @@ test('Android TV uses Android capabilities for core commands', () => {
   }
 });
 
-test('tvOS allows non-runner commands and blocks runner-driven interactions', () => {
+test('tvOS follows iOS capability matrix by device kind', () => {
   for (const cmd of ['open', 'close', 'apps', 'screenshot', 'logs', 'reinstall', 'boot']) {
     assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
   }
   for (const cmd of ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), false, `${cmd} on tvOS`);
+    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
   }
 });
 

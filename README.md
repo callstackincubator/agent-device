@@ -196,7 +196,7 @@ Efficient snapshot usage:
 
 Flags:
 - `--version, -V` print version and exit
-- `--platform ios|android`
+- `--platform ios|android|apple` (`apple` aliases the iOS/tvOS backend)
 - `--target mobile|tv` select device class within platform (requires `--platform`; for example AndroidTV/tvOS)
 - `--device <name>`
 - `--udid <udid>` (iOS)
@@ -218,10 +218,10 @@ Flags:
 - `--max-steps <n>` batch: max allowed steps per request
 
 TV targets:
-- Use `--target tv` together with `--platform ios|android`.
+- Use `--target tv` together with `--platform ios|android|apple`.
 - AndroidTV app launch/app listing use TV launcher discovery (`LEANBACK_LAUNCHER`) and fallback component resolution when needed.
-- tvOS currently supports non-runner flows only: `open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`.
-- tvOS runner-driven interaction/snapshot commands remain unsupported: `snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`.
+- tvOS uses the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
+- tvOS back/home/app-switcher use Siri Remote semantics in the runner (`menu`, `home`, double-home).
 
 Examples:
 - `agent-device open YouTube --platform android --target tv`
@@ -259,7 +259,7 @@ Sessions:
 - On iOS, `appstate` is session-scoped and requires an active session on the target device.
 
 Navigation helpers:
-- `boot --platform ios|android` ensures the target is ready without launching an app.
+- `boot --platform ios|android|apple` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
@@ -367,7 +367,7 @@ Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
 - Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
-- Use `agent-device boot --platform ios|android` when starting a new session only if `open` cannot find/connect to an available target.
+- Use `agent-device boot --platform ios|android|apple` when starting a new session only if `open` cannot find/connect to an available target.
 - `--debug` captures retry telemetry in diagnostics logs.
 - Set `AGENT_DEVICE_RETRY_LOGS=1` to also print retry telemetry directly to stderr (ad-hoc troubleshooting).
 
@@ -384,8 +384,7 @@ Diagnostics files:
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `settings`.
-- tvOS targets are selectable (`--platform ios --target tv`) for non-runner flows (`open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`).
-- tvOS runner-driven interaction commands are currently unsupported (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`).
+- tvOS targets are selectable (`--platform ios --target tv` or `--platform apple --target tv`) and support runner-driven interaction/snapshot commands.
 - `record` supports iOS simulators and physical iOS devices.
   - iOS simulator recording uses native `simctl io ... recordVideo`.
   - Physical iOS device recording is runner-based and built from repeated `XCUIScreen.main.screenshot()` frames (no native video stream/audio capture).

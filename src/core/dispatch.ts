@@ -36,8 +36,9 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
   return await withDiagnosticTimer(
     'resolve_target_device',
     async () => {
+      const normalizedPlatform = flags.platform === 'apple' ? 'ios' : flags.platform;
       const selector = {
-        platform: flags.platform,
+        platform: normalizedPlatform,
         target: flags.target,
         deviceName: flags.device,
         udid: flags.udid,
@@ -46,7 +47,7 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
       if (selector.target && !selector.platform) {
         throw new AppError(
           'INVALID_ARGS',
-          'Device target selector requires --platform. Use --platform ios|android with --target mobile|tv.',
+          'Device target selector requires --platform. Use --platform ios|android|apple with --target mobile|tv.',
         );
       }
 
@@ -75,7 +76,7 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
       return await selectDevice(devices, selector);
     },
     {
-      platform: flags.platform,
+      platform: flags.platform === 'apple' ? 'ios' : flags.platform,
       target: flags.target,
     },
   );

@@ -19,6 +19,13 @@ test('parseArgs recognizes --target selector', () => {
   assert.equal(parsed.flags.target, 'tv');
 });
 
+test('parseArgs recognizes --platform apple alias', () => {
+  const parsed = parseArgs(['open', 'Settings', '--platform', 'apple', '--target', 'tv'], { strictFlags: true });
+  assert.equal(parsed.command, 'open');
+  assert.equal(parsed.flags.platform, 'apple');
+  assert.equal(parsed.flags.target, 'tv');
+});
+
 test('parseArgs recognizes logs clear --restart', () => {
   const parsed = parseArgs(['logs', 'clear', '--restart'], { strictFlags: true });
   assert.equal(parsed.command, 'logs');
@@ -353,7 +360,7 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /Command flags:/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /Global flags:/);
-  assert.match(help, /--platform ios\|android/);
+  assert.match(help, /--platform ios\|android\|apple/);
 });
 
 test('command usage shows no command flags when unsupported', () => {

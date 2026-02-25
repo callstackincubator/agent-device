@@ -43,6 +43,20 @@ test('rejects mismatched platform selector', () => {
   );
 });
 
+test('accepts --platform apple alias for ios sessions', () => {
+  const session = makeSession({
+    device: {
+      platform: 'ios',
+      id: 'tv-sim-1',
+      name: 'Apple TV',
+      kind: 'simulator',
+      target: 'tv',
+      booted: true,
+    },
+  });
+  assert.doesNotThrow(() => assertSessionSelectorMatches(session, { platform: 'apple', target: 'tv' }));
+});
+
 test('rejects mismatched serial selector', () => {
   const session = makeSession();
   assert.throws(

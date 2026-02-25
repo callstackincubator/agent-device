@@ -29,6 +29,24 @@ const iosDevice: DeviceInfo = {
   booted: true,
 };
 
+const tvOsSimulator: DeviceInfo = {
+  platform: 'ios',
+  id: 'tv-sim-1',
+  name: 'Apple TV',
+  kind: 'simulator',
+  target: 'tv',
+  booted: true,
+};
+
+const tvOsDevice: DeviceInfo = {
+  platform: 'ios',
+  id: '00008120-000E12341234003F',
+  name: 'Apple TV',
+  kind: 'device',
+  target: 'tv',
+  booted: true,
+};
+
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
 });
@@ -42,6 +60,22 @@ test('resolveRunnerDestination uses device destination for physical devices', ()
 
 test('resolveRunnerBuildDestination uses generic iOS destination for physical devices', () => {
   assert.equal(resolveRunnerBuildDestination(iosDevice), 'generic/platform=iOS');
+});
+
+test('resolveRunnerDestination uses tvOS simulator destination for tvOS simulators', () => {
+  assert.equal(resolveRunnerDestination(tvOsSimulator), 'platform=tvOS Simulator,id=tv-sim-1');
+});
+
+test('resolveRunnerDestination uses tvOS destination for tvOS devices', () => {
+  assert.equal(
+    resolveRunnerDestination(tvOsDevice),
+    'platform=tvOS,id=00008120-000E12341234003F',
+  );
+});
+
+test('resolveRunnerBuildDestination uses tvOS destinations for tvOS devices and simulators', () => {
+  assert.equal(resolveRunnerBuildDestination(tvOsSimulator), 'platform=tvOS Simulator,id=tv-sim-1');
+  assert.equal(resolveRunnerBuildDestination(tvOsDevice), 'generic/platform=tvOS');
 });
 
 test('resolveRunnerMaxConcurrentDestinationsFlag uses simulator flag for simulators', () => {

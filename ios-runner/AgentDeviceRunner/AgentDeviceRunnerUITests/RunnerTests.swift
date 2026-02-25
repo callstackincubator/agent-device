@@ -790,7 +790,7 @@ final class RunnerTests: XCTestCase {
       performBackGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "back"))
     case .home:
-      XCUIDevice.shared.press(.home)
+      pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))
     case .appSwitcher:
       performAppSwitcherGesture(app: activeApp)
@@ -990,21 +990,43 @@ final class RunnerTests: XCTestCase {
       back.tap()
       return true
     }
+#if os(tvOS)
+    XCUIRemote.shared.press(.menu)
+    return true
+#endif
     return false
   }
 
   private func performBackGesture(app: XCUIApplication) {
+#if os(tvOS)
+    XCUIRemote.shared.press(.menu)
+#else
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
     start.press(forDuration: 0.05, thenDragTo: end)
+#endif
   }
 
   private func performAppSwitcherGesture(app: XCUIApplication) {
+#if os(tvOS)
+    XCUIRemote.shared.press(.home)
+    usleep(120_000)
+    XCUIRemote.shared.press(.home)
+#else
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
     start.press(forDuration: 0.6, thenDragTo: end)
+#endif
+  }
+
+  private func pressHomeButton() {
+#if os(tvOS)
+    XCUIRemote.shared.press(.home)
+#else
+    XCUIDevice.shared.press(.home)
+#endif
   }
 
   private func findElement(app: XCUIApplication, text: String) -> XCUIElement? {
@@ -1109,6 +1131,19 @@ final class RunnerTests: XCTestCase {
   }
 
   private func swipe(app: XCUIApplication, direction: SwipeDirection) {
+#if os(tvOS)
+    switch direction {
+    case .up:
+      XCUIRemote.shared.press(.up)
+    case .down:
+      XCUIRemote.shared.press(.down)
+    case .left:
+      XCUIRemote.shared.press(.left)
+    case .right:
+      XCUIRemote.shared.press(.right)
+    }
+    return
+#endif
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))

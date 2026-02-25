@@ -54,6 +54,11 @@ const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target'
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 
+function normalizePlatformSelector(platform: CommandFlags['platform'] | undefined): DeviceInfo['platform'] | undefined {
+  if (platform === 'apple') return 'ios';
+  return platform;
+}
+
 function requireSessionOrExplicitSelector(
   command: string,
   session: SessionState | undefined,
@@ -85,7 +90,8 @@ function selectorTargetsSessionDevice(
 ): boolean {
   if (!session) return false;
   if (!hasExplicitDeviceSelector(flags)) return true;
-  if (flags?.platform && flags.platform !== session.device.platform) return false;
+  const normalizedPlatform = normalizePlatformSelector(flags?.platform);
+  if (normalizedPlatform && normalizedPlatform !== session.device.platform) return false;
   if (flags?.target && flags.target !== (session.device.target ?? 'mobile')) return false;
   if (flags?.udid && flags.udid !== session.device.id) return false;
   if (flags?.serial && flags.serial !== session.device.id) return false;
@@ -179,9 +185,10 @@ async function handleAppStateCommand(params: {
   const { req, sessionName, sessionStore, ensureReady, resolveDevice } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
+  const normalizedPlatform = normalizePlatformSelector(flags.platform);
   if (!session && hasExplicitSessionFlag(flags)) {
     const iOSSessionHint =
-      flags.platform === 'ios'
+      normalizedPlatform === 'ios'
         ? `No active session "${sessionName}". Run open with --session ${sessionName} first.`
         : `No active session "${sessionName}". Run open with --session ${sessionName} first, or omit --session to query by device selector.`;
     return {
@@ -196,7 +203,7 @@ async function handleAppStateCommand(params: {
   if (guard) return guard;
 
   const shouldUseSessionStateForIos = session?.device.platform === 'ios' && selectorTargetsSessionDevice(flags, session);
-  const targetsIos = flags.platform === 'ios';
+  const targetsIos = normalizedPlatform === 'ios';
   if (targetsIos && !shouldUseSessionStateForIos) {
     return {
       ok: false,
@@ -315,10 +322,11 @@ export async function handleSessionCommands(params: {
   if (command === 'devices') {
     try {
       const devices: DeviceInfo[] = [];
-      if (req.flags?.platform === 'android') {
+      const requestedPlatform = normalizePlatformSelector(req.flags?.platform);
+      if (requestedPlatform === 'android') {
         const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
         devices.push(...(await listAndroidDevices()));
-      } else if (req.flags?.platform === 'ios') {
+      } else if (requestedPlatform === 'ios') {
         const { listIosDevices } = await import('../../platforms/ios/devices.ts');
         devices.push(...(await listIosDevices()));
       } else {
