@@ -12,7 +12,6 @@ import {
   type PermissionSettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
-import { runIosRunnerCommand } from './runner-client.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {

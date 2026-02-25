@@ -13,12 +13,16 @@ import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 
-export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = [
+const iosRunnerContainerBundleIds = [
   process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
   process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID,
   'com.myapp.AgentDeviceRunnerUITests.xctrunner',
   'com.myapp.AgentDeviceRunner',
-].filter((id): id is string => Boolean(id?.trim()));
+]
+  .map((id) => id?.trim() ?? '')
+  .filter((id) => id.length > 0);
+
+export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = Array.from(new Set(iosRunnerContainerBundleIds));
 
 type RunnerCommand = {
   command:
