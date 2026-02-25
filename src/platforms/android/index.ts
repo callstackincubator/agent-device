@@ -17,6 +17,9 @@ import { parseAppearanceAction } from '../appearance.ts';
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
 };
+const ANDROID_LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER';
+const ANDROID_LEANBACK_CATEGORY = 'android.intent.category.LEANBACK_LAUNCHER';
+const ANDROID_DEFAULT_CATEGORY = 'android.intent.category.DEFAULT';
 
 type AndroidBroadcastPayload = {
   action?: string;
@@ -73,33 +76,55 @@ export async function listAndroidApps(
 }
 
 async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<string>> {
-  const result = await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'cmd',
-      'package',
-      'query-activities',
-      '--brief',
-      '-a',
-      'android.intent.action.MAIN',
-      '-c',
-      'android.intent.category.LAUNCHER',
-    ]),
-    { allowFailure: true },
-  );
-  if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
-    return new Set<string>();
-  }
   const packages = new Set<string>();
-  for (const line of result.stdout.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const firstToken = trimmed.split(/\s+/)[0];
-    const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
-    if (pkg) packages.add(pkg);
+  for (const category of resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true })) {
+    const result = await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'cmd',
+        'package',
+        'query-activities',
+        '--brief',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        category,
+      ]),
+      { allowFailure: true },
+    );
+    if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
+      continue;
+    }
+    for (const line of result.stdout.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const firstToken = trimmed.split(/\s+/)[0];
+      const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
+      if (pkg) packages.add(pkg);
+    }
   }
   return packages;
+}
+
+function resolveAndroidLauncherCategory(device: DeviceInfo): string {
+  return resolveAndroidLaunchCategories(device)[0] ?? ANDROID_LAUNCHER_CATEGORY;
+}
+
+function resolveAndroidLaunchCategories(
+  device: DeviceInfo,
+  options: { includeFallbackWhenUnknown?: boolean } = {},
+): string[] {
+  if (device.target === 'tv') {
+    return [ANDROID_LEANBACK_CATEGORY];
+  }
+  if (device.target === 'mobile') {
+    return [ANDROID_LAUNCHER_CATEGORY];
+  }
+  if (options.includeFallbackWhenUnknown) {
+    return [ANDROID_LAUNCHER_CATEGORY, ANDROID_LEANBACK_CATEGORY];
+  }
+  return [ANDROID_LAUNCHER_CATEGORY];
 }
 
 async function listAndroidUserInstalledPackages(device: DeviceInfo): Promise<string[]> {
@@ -215,6 +240,7 @@ export async function openAndroidApp(
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
+  const launchCategory = resolveAndroidLauncherCategory(device);
   if (resolved.type === 'intent') {
     if (activity) {
       throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
@@ -236,9 +262,9 @@ export async function openAndroidApp(
         '-a',
         'android.intent.action.MAIN',
         '-c',
-        'android.intent.category.DEFAULT',
+        ANDROID_DEFAULT_CATEGORY,
         '-c',
-        'android.intent.category.LAUNCHER',
+        launchCategory,
         '-n',
         component,
       ]),
@@ -255,9 +281,9 @@ export async function openAndroidApp(
       '-a',
       'android.intent.action.MAIN',
       '-c',
-      'android.intent.category.DEFAULT',
+      ANDROID_DEFAULT_CATEGORY,
       '-c',
-      'android.intent.category.LAUNCHER',
+      launchCategory,
       '-p',
       resolved.value,
     ]),
@@ -283,9 +309,9 @@ export async function openAndroidApp(
       '-a',
       'android.intent.action.MAIN',
       '-c',
-      'android.intent.category.DEFAULT',
+      ANDROID_DEFAULT_CATEGORY,
       '-c',
-      'android.intent.category.LAUNCHER',
+      launchCategory,
       '-n',
       component,
     ]),
@@ -296,24 +322,33 @@ async function resolveAndroidLaunchComponent(
   device: DeviceInfo,
   packageName: string,
 ): Promise<string | null> {
-  const result = await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'cmd',
-      'package',
-      'resolve-activity',
-      '--brief',
-      '-a',
-      'android.intent.action.MAIN',
-      '-c',
-      'android.intent.category.LAUNCHER',
-      packageName,
-    ]),
-    { allowFailure: true },
-  );
-  if (result.exitCode !== 0) return null;
-  return parseAndroidLaunchComponent(result.stdout);
+  const categories = Array.from(new Set(
+    resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true }),
+  ));
+  for (const category of categories) {
+    const result = await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'cmd',
+        'package',
+        'resolve-activity',
+        '--brief',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        category,
+        packageName,
+      ]),
+      { allowFailure: true },
+    );
+    if (result.exitCode !== 0) {
+      continue;
+    }
+    const component = parseAndroidLaunchComponent(result.stdout);
+    if (component) return component;
+  }
+  return null;
 }
 
 export function isAmStartError(stdout: string, stderr: string): boolean {

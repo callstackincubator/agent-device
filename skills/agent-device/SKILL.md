@@ -68,6 +68,12 @@ agent-device session list
 ```
 
 Use `boot` only as fallback when `open` cannot find/connect to a ready target.
+Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
+
+TV quick reference:
+- AndroidTV: `open`/`apps` use TV launcher discovery automatically.
+- tvOS: use non-runner flows only (`open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`).
+- tvOS runner-driven interactions are unsupported (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`).
 
 ### Snapshot and targeting
 
@@ -109,6 +115,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - iOS settings helpers are simulator-only; use `appearance light|dark|toggle` and faceid `match|nonmatch|enroll|unenroll`.
+- For AndroidTV/tvOS selection, always pair `--target` with `--platform`; target-only selection is invalid.
 - `push` simulates notification delivery:
   - iOS simulator uses APNs-style payload JSON.
   - Android uses broadcast action + typed extras (string/boolean/number).

@@ -24,6 +24,22 @@ const androidDevice: DeviceInfo = {
   kind: 'device',
 };
 
+const androidTvDevice: DeviceInfo = {
+  platform: 'android',
+  id: 'and-tv-1',
+  name: 'Android TV',
+  kind: 'device',
+  target: 'tv',
+};
+
+const tvOsSimulator: DeviceInfo = {
+  platform: 'ios',
+  id: 'tv-sim-1',
+  name: 'Apple TV',
+  kind: 'simulator',
+  target: 'tv',
+};
+
 test('iOS simulator-only commands reject iOS devices and Android', () => {
   for (const cmd of ['alert', 'pinch']) {
     assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
@@ -81,6 +97,21 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
     assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), true, `${cmd} on iOS device`);
     assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
+  }
+});
+
+test('Android TV uses Android capabilities for core commands', () => {
+  for (const cmd of ['open', 'apps', 'snapshot', 'press', 'swipe', 'back', 'home', 'scroll']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, androidTvDevice), true, `${cmd} on Android TV`);
+  }
+});
+
+test('tvOS allows non-runner commands and blocks runner-driven interactions', () => {
+  for (const cmd of ['open', 'close', 'apps', 'screenshot', 'logs', 'reinstall', 'boot']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
+  }
+  for (const cmd of ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), false, `${cmd} on tvOS`);
   }
 });
 

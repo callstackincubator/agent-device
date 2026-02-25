@@ -308,8 +308,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             const name = d?.name ?? d?.id ?? 'unknown';
             const platform = d?.platform ?? 'unknown';
             const kind = d?.kind ? ` ${d.kind}` : '';
+            const target = d?.target ? ` target=${d.target}` : '';
             const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
-            return `${name} (${platform}${kind})${booted}`;
+            return `${name} (${platform}${kind}${target})${booted}`;
           });
           process.stdout.write(`${lines.join('\n')}\n`);
           if (logTailStopper) logTailStopper();

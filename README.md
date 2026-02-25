@@ -13,7 +13,7 @@ CLI to control iOS and Android devices for AI agents influenced by Vercel’s [a
 The project is in early development and considered experimental. Pull requests are welcome!
 
 ## Features
-- Platforms: iOS (simulator + physical device core automation) and Android (emulator + device).
+- Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - App logs: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs clear` truncates session app logs; `logs clear --restart` resets and restarts stream in one step; `logs doctor` checks readiness; `logs mark` writes timeline markers.
@@ -197,6 +197,7 @@ Efficient snapshot usage:
 Flags:
 - `--version, -V` print version and exit
 - `--platform ios|android`
+- `--target mobile|tv` select device class within platform (requires `--platform`; for example AndroidTV/tvOS)
 - `--device <name>`
 - `--udid <udid>` (iOS)
 - `--serial <serial>` (Android)
@@ -215,6 +216,18 @@ Flags:
 - `--steps-file <path>` batch: read step JSON from file
 - `--on-error stop` batch: stop when a step fails
 - `--max-steps <n>` batch: max allowed steps per request
+
+TV targets:
+- Use `--target tv` together with `--platform ios|android`.
+- AndroidTV app launch/app listing use TV launcher discovery (`LEANBACK_LAUNCHER`) and fallback component resolution when needed.
+- tvOS currently supports non-runner flows only: `open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`.
+- tvOS runner-driven interaction/snapshot commands remain unsupported: `snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`.
+
+Examples:
+- `agent-device open YouTube --platform android --target tv`
+- `agent-device apps --platform android --target tv`
+- `agent-device open Settings --platform ios --target tv`
+- `agent-device screenshot ./apple-tv.png --platform ios --target tv`
 
 Pinch:
 - `pinch` is supported on iOS simulators.
@@ -371,6 +384,8 @@ Diagnostics files:
 ## iOS notes
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `settings`.
+- tvOS targets are selectable (`--platform ios --target tv`) for non-runner flows (`open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`).
+- tvOS runner-driven interaction commands are currently unsupported (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`).
 - `record` supports iOS simulators and physical iOS devices.
   - iOS simulator recording uses native `simctl io ... recordVideo`.
   - Physical iOS device recording is runner-based and built from repeated `XCUIScreen.main.screenshot()` frames (no native video stream/audio capture).

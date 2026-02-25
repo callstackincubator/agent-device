@@ -3,6 +3,7 @@ import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 export type CliFlags = {
   json: boolean;
   platform?: 'ios' | 'android';
+  target?: 'mobile' | 'tv';
   device?: string;
   udid?: string;
   serial?: string;
@@ -91,6 +92,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     enumValues: ['ios', 'android'],
     usageLabel: '--platform ios|android',
     usageDescription: 'Platform to target',
+  },
+  {
+    key: 'target',
+    names: ['--target'],
+    type: 'enum',
+    enumValues: ['mobile', 'tv'],
+    usageLabel: '--target mobile|tv',
+    usageDescription: 'Device target class to match',
   },
   {
     key: 'device',
@@ -357,6 +366,7 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'version',
   'verbose',
   'platform',
+  'target',
   'device',
   'udid',
   'serial',

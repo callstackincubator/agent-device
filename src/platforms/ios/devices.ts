@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
+import type { DeviceInfo, DeviceTarget } from '../../utils/device.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 
 const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
@@ -11,6 +11,26 @@ const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   8_000,
   500,
 );
+
+function resolveAppleTargetFromRuntime(runtime: string): DeviceTarget {
+  return runtime.toLowerCase().includes('tvos') ? 'tv' : 'mobile';
+}
+
+function isSupportedAppleRuntime(runtime: string): boolean {
+  const normalized = runtime.toLowerCase();
+  return normalized.includes('ios') || normalized.includes('tvos');
+}
+
+function resolveAppleTargetFromDevicectlDevice(device: {
+  hardwareProperties?: { platform?: string };
+  deviceProperties?: { name?: string };
+  name?: string;
+}): DeviceTarget {
+  const platform = (device.hardwareProperties?.platform ?? '').toLowerCase();
+  if (platform.includes('tvos')) return 'tv';
+  const name = (device.name ?? device.deviceProperties?.name ?? '').toLowerCase();
+  return name.includes('apple tv') ? 'tv' : 'mobile';
+}
 
 export async function listIosDevices(): Promise<DeviceInfo[]> {
   if (process.platform !== 'darwin') {
@@ -32,7 +52,8 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
         { name: string; udid: string; state: string; isAvailable: boolean }[]
       >;
     };
-    for (const runtimes of Object.values(payload.devices)) {
+    for (const [runtime, runtimes] of Object.entries(payload.devices)) {
+      if (!isSupportedAppleRuntime(runtime)) continue;
       for (const device of runtimes) {
         if (!device.isAvailable) continue;
         devices.push({
@@ -40,6 +61,7 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
           id: device.udid,
           name: device.name,
           kind: 'simulator',
+          target: resolveAppleTargetFromRuntime(runtime),
           booted: device.state === 'Booted',
         });
       }
@@ -75,7 +97,9 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
     };
     for (const device of payload.result?.devices ?? []) {
       const platform = device.hardwareProperties?.platform ?? '';
-      if (platform.toLowerCase().includes('ios')) {
+      const isApplePlatform = platform.toLowerCase().includes('ios') || platform.toLowerCase().includes('tvos');
+      const fallbackName = (device.name ?? device.deviceProperties?.name ?? '').toLowerCase();
+      if (isApplePlatform || fallbackName.includes('apple tv')) {
         const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
         const name = device.name ?? device.deviceProperties?.name ?? id;
         if (!id) continue;
@@ -84,6 +108,7 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
           id,
           name,
           kind: 'device',
+          target: resolveAppleTargetFromDevicectlDevice(device),
           booted: true,
         });
       }

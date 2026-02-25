@@ -49,8 +49,8 @@ type ReinstallOps = {
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
-const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
-const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'device', 'udid', 'serial', 'verbose', 'out'];
+const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
+const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 
@@ -72,7 +72,7 @@ function requireSessionOrExplicitSelector(
 }
 
 function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {
-  return Boolean(flags?.platform || flags?.device || flags?.udid || flags?.serial);
+  return Boolean(flags?.platform || flags?.target || flags?.device || flags?.udid || flags?.serial);
 }
 
 function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
@@ -86,6 +86,7 @@ function selectorTargetsSessionDevice(
   if (!session) return false;
   if (!hasExplicitDeviceSelector(flags)) return true;
   if (flags?.platform && flags.platform !== session.device.platform) return false;
+  if (flags?.target && flags.target !== (session.device.target ?? 'mobile')) return false;
   if (flags?.udid && flags.udid !== session.device.id) return false;
   if (flags?.serial && flags.serial !== session.device.id) return false;
   if (flags?.device) {
@@ -302,6 +303,7 @@ export async function handleSessionCommands(params: {
       sessions: sessionStore.toArray().map((s) => ({
         name: s.name,
         platform: s.device.platform,
+        target: s.device.target ?? 'mobile',
         device: s.device.name,
         id: s.device.id,
         createdAt: s.createdAt,
@@ -333,7 +335,10 @@ export async function handleSessionCommands(params: {
           // ignore
         }
       }
-      return { ok: true, data: { devices } };
+      const filtered = req.flags?.target
+        ? devices.filter((device) => (device.target ?? 'mobile') === req.flags?.target)
+        : devices;
+      return { ok: true, data: { devices: filtered } };
     } catch (err) {
       const appErr = asAppError(err);
       return { ok: false, error: { code: appErr.code, message: appErr.message, details: appErr.details } };
@@ -391,6 +396,7 @@ export async function handleSessionCommands(params: {
       ok: true,
       data: {
         platform: device.platform,
+        target: device.target ?? 'mobile',
         device: device.name,
         id: device.id,
         kind: device.kind,
@@ -1543,7 +1549,8 @@ function writeReplayScript(filePath: string, actions: SessionAction[], session?:
   if (session) {
     const deviceLabel = session.device.name.replace(/"/g, '\\"');
     const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
-    lines.push(`context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=unknown`);
+    const target = session.device.target ? ` target=${session.device.target}` : '';
+    lines.push(`context platform=${session.device.platform}${target} device="${deviceLabel}"${kind} theme=unknown`);
   }
   for (const action of actions) {
     lines.push(formatReplayActionLine(action));

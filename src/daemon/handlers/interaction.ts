@@ -50,6 +50,12 @@ export async function handleInteractionCommands(params: {
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
       };
     }
+    if (!isCommandSupportedOnDevice('press', session.device)) {
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
+      };
+    }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
       const data = await dispatch(
@@ -166,6 +172,12 @@ export async function handleInteractionCommands(params: {
 
   if (command === 'fill') {
     const session = sessionStore.get(sessionName);
+    if (session && !isCommandSupportedOnDevice('fill', session.device)) {
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'fill is not supported on this device' },
+      };
+    }
     if (req.positionals?.[0]?.startsWith('@')) {
       if (!session) {
         return {
@@ -312,6 +324,12 @@ export async function handleInteractionCommands(params: {
       return {
         ok: false,
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+      };
+    }
+    if (!isCommandSupportedOnDevice('get', session.device)) {
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'get is not supported on this device' },
       };
     }
     const refInput = req.positionals?.[1] ?? '';
@@ -555,6 +573,12 @@ export async function handleInteractionCommands(params: {
       return {
         ok: false,
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+      };
+    }
+    if (!isCommandSupportedOnDevice('scrollintoview', session.device)) {
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'scrollintoview is not supported on this device' },
       };
     }
     const targetInput = req.positionals?.[0] ?? '';

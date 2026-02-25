@@ -463,6 +463,38 @@ test('openAndroidApp default launch uses -p package flag', async () => {
   );
 });
 
+test('openAndroidApp uses LEANBACK category for Android TV targets', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-tv-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
+      '  echo "package:com.example.tvapp"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+      '  echo "Status: ok"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      device.target = 'tv';
+      await openAndroidApp(device, 'com.example.tvapp');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /-c\nandroid\.intent\.category\.LEANBACK_LAUNCHER/);
+      assert.match(logged, /-p\ncom\.example\.tvapp/);
+    },
+  );
+});
+
 test('openAndroidApp fallback resolve-activity includes MAIN/LAUNCHER flags', async () => {
   await withMockedAdb(
     'agent-device-android-open-fallback-',

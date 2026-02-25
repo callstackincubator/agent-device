@@ -21,6 +21,7 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
+- Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
@@ -31,6 +32,19 @@ agent-device app-switcher
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 ```
+
+## TV targets
+
+```bash
+agent-device open YouTube --platform android --target tv
+agent-device apps --platform android --target tv
+agent-device open Settings --platform ios --target tv
+agent-device screenshot apple-tv.png --platform ios --target tv
+```
+
+- AndroidTV app launch and app listing resolve TV launchable activities via `LEANBACK_LAUNCHER`.
+- tvOS currently supports non-runner flows only: `open`, `close`, `apps`, `screenshot`, `logs`, `reinstall`, `boot`.
+- tvOS runner-driven interaction/snapshot commands are unsupported: `snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`.
 
 ## Snapshot and inspect
 

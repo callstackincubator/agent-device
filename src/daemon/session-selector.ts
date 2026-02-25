@@ -14,6 +14,9 @@ export function assertSessionSelectorMatches(
   if (flags.platform && flags.platform !== device.platform) {
     mismatches.push(`--platform=${flags.platform}`);
   }
+  if (flags.target && flags.target !== (device.target ?? 'mobile')) {
+    mismatches.push(`--target=${flags.target}`);
+  }
 
   if (flags.udid && (device.platform !== 'ios' || flags.udid !== device.id)) {
     mismatches.push(`--udid=${flags.udid}`);

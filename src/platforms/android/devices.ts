@@ -40,6 +40,28 @@ async function resolveAndroidDeviceName(serial: string, rawModel: string): Promi
   return modelName || serial;
 }
 
+async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
+  const characteristicsResult = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']), {
+    allowFailure: true,
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+  });
+  const characteristics = `${characteristicsResult.stdout}\n${characteristicsResult.stderr}`.toLowerCase();
+  if (characteristics.includes('tv') || characteristics.includes('leanback')) {
+    return 'tv';
+  }
+
+  const leanbackResult = await runCmd(
+    'adb',
+    adbArgs(serial, ['shell', 'cmd', 'package', 'has-feature', 'android.software.leanback']),
+    {
+      allowFailure: true,
+      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+    },
+  );
+  const hasLeanback = `${leanbackResult.stdout}\n${leanbackResult.stderr}`.toLowerCase().includes('true');
+  return hasLeanback ? 'tv' : 'mobile';
+}
+
 export async function listAndroidDevices(): Promise<DeviceInfo[]> {
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
@@ -60,15 +82,17 @@ export async function listAndroidDevices(): Promise<DeviceInfo[]> {
     }));
 
   const devices = await Promise.all(entries.map(async ({ serial, rawModel }) => {
-    const [name, booted] = await Promise.all([
+    const [name, booted, target] = await Promise.all([
       resolveAndroidDeviceName(serial, rawModel),
       isAndroidBooted(serial),
+      resolveAndroidTarget(serial),
     ]);
     return {
       platform: 'android',
       id: serial,
       name,
       kind: isEmulatorSerial(serial) ? 'emulator' : 'device',
+      target,
       booted,
     } satisfies DeviceInfo;
   }));

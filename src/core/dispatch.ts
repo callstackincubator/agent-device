@@ -38,10 +38,17 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
     async () => {
       const selector = {
         platform: flags.platform,
+        target: flags.target,
         deviceName: flags.device,
         udid: flags.udid,
         serial: flags.serial,
       };
+      if (selector.target && !selector.platform) {
+        throw new AppError(
+          'INVALID_ARGS',
+          'Device target selector requires --platform. Use --platform ios|android with --target mobile|tv.',
+        );
+      }
 
       if (selector.platform === 'android') {
         await ensureAdb();
@@ -69,6 +76,7 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
     },
     {
       platform: flags.platform,
+      target: flags.target,
     },
   );
 }
