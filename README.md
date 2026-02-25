@@ -286,6 +286,18 @@ Performance metrics:
 - Startup samples are session-scoped and include sample history from recent `open` actions.
 - Platform support for current sampling: iOS simulator, iOS physical device, Android emulator/device.
 - `fps`, `memory`, and `cpu` are reported as not yet implemented in this release.
+- Quick usage:
+
+```bash
+agent-device open Settings --platform ios
+agent-device perf --json
+```
+
+- How to read it:
+  - `metrics.startup.lastDurationMs`: most recent startup sample in milliseconds.
+  - `metrics.startup.samples[]`: recent startup history for this session.
+  - `sampling.startup.method`: currently `open-command-roundtrip`.
+- Caveat: startup here is command-to-launch round-trip timing, not true app TTI/first-interactive telemetry.
 
 Replay update:
 - `replay <path>` runs deterministic replay from `.ad` scripts.

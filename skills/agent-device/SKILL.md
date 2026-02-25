@@ -88,6 +88,7 @@ agent-device is visible 'id="anchor"'
 agent-device appstate
 agent-device clipboard read
 agent-device clipboard write "token"
+agent-device perf --json
 agent-device push <bundle|package> <payload.json|inline-json>
 agent-device get text @e1
 agent-device screenshot out.png
@@ -102,6 +103,19 @@ agent-device trace stop ./trace.log
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
 ```
+
+### Performance Check (current support)
+
+```bash
+agent-device open Settings --platform ios
+agent-device perf --json
+```
+
+- `perf` (alias: `metrics`) is session-scoped and currently reports startup timing samples only.
+- Sampling method is `open-command-roundtrip` in milliseconds around each `open` dispatch.
+- Startup values are useful for regression tracking between builds and runs on the same target/setup.
+- Do not treat current startup value as app-level first frame / first interactive telemetry.
+- `fps`, `memory`, and `cpu` are placeholders in the current release.
 
 ## Guardrails (High Value Only)
 
@@ -120,6 +134,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - On Android, non-ASCII `fill/type` may require an ADB keyboard IME on some system images; only install IME APKs from trusted sources and verify checksum/signature.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
+- For perf analysis, compare like-for-like runs (same device, app build, and session workflow) to reduce noise.
 
 ## Security and Trust Notes
 

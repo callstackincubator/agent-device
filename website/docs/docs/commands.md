@@ -208,6 +208,8 @@ agent-device metrics --json
 - Unit: milliseconds (`ms`).
 - Platform support for current startup sampling: iOS simulator, iOS physical device, Android emulator/device.
 - `fps`, `memory`, and `cpu` are surfaced as unavailable placeholders in this release.
+- If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
+- Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 
 ## Media and logs
 
