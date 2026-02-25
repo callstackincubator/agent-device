@@ -191,6 +191,22 @@ agent-device clipboard write ""   # clear clipboard
 - Supported on Android emulator/device and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
+## Performance metrics
+
+```bash
+agent-device perf --json
+agent-device metrics --json
+```
+
+- `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
+- Current metric: `startup` from `open-command-roundtrip` sampling.
+- Sampling method: elapsed wall-clock time around each `open` command dispatch for the active session app target.
+- Unit: milliseconds (`ms`).
+- Platform support for current startup sampling: iOS simulator, iOS physical device, Android emulator/device.
+- `fps`, `memory`, and `cpu` are surfaced as unavailable placeholders in this release.
+- If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
+- Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
+
 ## Media and logs
 
 ```bash
