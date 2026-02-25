@@ -85,7 +85,7 @@ Strategy:
 - Move through each major app area (tabs, drawers, settings pages).
 - Test core journeys end-to-end (create, edit, delete, submit, recover).
 - Validate edge states (empty/error/loading/offline/permissions denied).
-- Use `snapshot -i` after UI transitions to avoid stale refs.
+- Use `diff snapshot -i` after UI transitions to avoid stale refs.
 - Periodically capture `logs path` and inspect the app log when behavior looks suspicious.
 
 Useful commands per screen:
