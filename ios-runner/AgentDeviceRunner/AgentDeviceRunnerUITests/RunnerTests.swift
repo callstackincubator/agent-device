@@ -990,42 +990,62 @@ final class RunnerTests: XCTestCase {
       back.tap()
       return true
     }
-#if os(tvOS)
-    XCUIRemote.shared.press(.menu)
-    return true
-#endif
-    return false
+    return pressTvRemoteMenuIfAvailable()
   }
 
   private func performBackGesture(app: XCUIApplication) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.menu)
-#else
+    if pressTvRemoteMenuIfAvailable() {
+      return
+    }
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
     start.press(forDuration: 0.05, thenDragTo: end)
-#endif
   }
 
   private func performAppSwitcherGesture(app: XCUIApplication) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.home)
-    usleep(120_000)
-    XCUIRemote.shared.press(.home)
-#else
+    if performTvRemoteAppSwitcherIfAvailable() {
+      return
+    }
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
     start.press(forDuration: 0.6, thenDragTo: end)
-#endif
   }
 
   private func pressHomeButton() {
+    if pressTvRemoteHomeIfAvailable() {
+      return
+    }
+    XCUIDevice.shared.press(.home)
+  }
+
+  private func pressTvRemoteMenuIfAvailable() -> Bool {
+#if os(tvOS)
+    XCUIRemote.shared.press(.menu)
+    return true
+#else
+    return false
+#endif
+  }
+
+  private func pressTvRemoteHomeIfAvailable() -> Bool {
 #if os(tvOS)
     XCUIRemote.shared.press(.home)
+    return true
 #else
-    XCUIDevice.shared.press(.home)
+    return false
+#endif
+  }
+
+  private func performTvRemoteAppSwitcherIfAvailable() -> Bool {
+#if os(tvOS)
+    XCUIRemote.shared.press(.home)
+    usleep(120_000)
+    XCUIRemote.shared.press(.home)
+    return true
+#else
+    return false
 #endif
   }
 
@@ -1131,19 +1151,9 @@ final class RunnerTests: XCTestCase {
   }
 
   private func swipe(app: XCUIApplication, direction: SwipeDirection) {
-#if os(tvOS)
-    switch direction {
-    case .up:
-      XCUIRemote.shared.press(.up)
-    case .down:
-      XCUIRemote.shared.press(.down)
-    case .left:
-      XCUIRemote.shared.press(.left)
-    case .right:
-      XCUIRemote.shared.press(.right)
+    if performTvRemoteSwipeIfAvailable(direction: direction) {
+      return
     }
-    return
-#endif
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
@@ -1160,6 +1170,24 @@ final class RunnerTests: XCTestCase {
     case .right:
       left.press(forDuration: 0.1, thenDragTo: right)
     }
+  }
+
+  private func performTvRemoteSwipeIfAvailable(direction: SwipeDirection) -> Bool {
+#if os(tvOS)
+    switch direction {
+    case .up:
+      XCUIRemote.shared.press(.up)
+    case .down:
+      XCUIRemote.shared.press(.down)
+    case .left:
+      XCUIRemote.shared.press(.left)
+    case .right:
+      XCUIRemote.shared.press(.right)
+    }
+    return true
+#else
+    return false
+#endif
   }
 
   private func pinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) {

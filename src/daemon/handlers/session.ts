@@ -9,7 +9,7 @@ import {
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
+import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -53,11 +53,6 @@ const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target',
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
-
-function normalizePlatformSelector(platform: CommandFlags['platform'] | undefined): DeviceInfo['platform'] | undefined {
-  if (platform === 'apple') return 'ios';
-  return platform;
-}
 
 function requireSessionOrExplicitSelector(
   command: string,

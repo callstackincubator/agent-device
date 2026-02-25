@@ -3,6 +3,7 @@ import { isInteractive } from './interactive.ts';
 import { isCancel, select } from '@clack/prompts';
 
 export type Platform = 'ios' | 'android';
+export type PlatformSelector = Platform | 'apple';
 export type DeviceKind = 'simulator' | 'emulator' | 'device';
 export type DeviceTarget = 'mobile' | 'tv';
 
@@ -22,6 +23,17 @@ type DeviceSelector = {
   udid?: string;
   serial?: string;
 };
+
+export function normalizePlatformSelector(
+  platform: PlatformSelector | undefined,
+): Platform | undefined {
+  if (platform === 'apple') return 'ios';
+  return platform;
+}
+
+export function resolveApplePlatformName(target: DeviceTarget | undefined): 'iOS' | 'tvOS' {
+  return target === 'tv' ? 'tvOS' : 'iOS';
+}
 
 export async function selectDevice(
   devices: DeviceInfo[],

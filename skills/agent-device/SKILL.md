@@ -74,6 +74,7 @@ TV quick reference:
 - AndroidTV: `open`/`apps` use TV launcher discovery automatically.
 - tvOS: runner-driven interactions and snapshots are supported (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record` and related selector flows).
 - tvOS `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home) in the runner.
+- tvOS does not support iOS simulator-only helpers `pinch`, `settings`, or `push`.
 
 ### Snapshot and targeting
 
@@ -115,6 +116,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - iOS settings helpers are simulator-only; use `appearance light|dark|toggle` and faceid `match|nonmatch|enroll|unenroll`.
+- tvOS is excluded from iOS simulator-only helpers (`settings`, `push`, `pinch`).
 - For AndroidTV/tvOS selection, always pair `--target` with `--platform` (`ios`, `android`, or `apple` alias); target-only selection is invalid.
 - `push` simulates notification delivery:
   - iOS simulator uses APNs-style payload JSON.

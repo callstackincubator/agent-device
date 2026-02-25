@@ -1,11 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState } from './types.ts';
-
-function normalizePlatformSelector(platform: CommandFlags['platform'] | undefined): SessionState['device']['platform'] | undefined {
-  if (platform === 'apple') return 'ios';
-  return platform;
-}
+import { normalizePlatformSelector } from '../utils/device.ts';
 
 export function assertSessionSelectorMatches(
   session: SessionState,

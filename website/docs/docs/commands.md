@@ -46,6 +46,7 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 - AndroidTV app launch and app listing resolve TV launchable activities via `LEANBACK_LAUNCHER`.
 - tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
+- tvOS does not support iOS simulator-only helpers `pinch`, `settings`, or `push`.
 
 ## Snapshot and inspect
 
@@ -145,6 +146,7 @@ agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"t
 
 - `push <bundle|package> <payload.json|inline-json>` simulates push notification delivery.
 - iOS push simulation is simulator-only (`xcrun simctl push`) and requires an APNs-style JSON object payload.
+- tvOS is not supported for `push`.
 - Android uses `adb shell am broadcast` and accepts payload shape:
   `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
 - Android extras support `string`, `boolean`, and `number` values.
@@ -173,6 +175,7 @@ agent-device settings permission reset notifications
 ```
 
 - iOS `settings` support is simulator-only.
+- tvOS is not supported for `settings`.
 - `settings appearance` maps to iOS simulator appearance and Android night mode.
 - Face ID controls are iOS simulator-only.
 - Permission actions are scoped to the active session app.

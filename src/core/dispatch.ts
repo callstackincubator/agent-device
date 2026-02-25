@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
-import { selectDevice, type DeviceInfo } from '../utils/device.ts';
+import { normalizePlatformSelector, selectDevice, type DeviceInfo } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
 import {
   appSwitcherAndroid,
@@ -33,10 +33,10 @@ export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSt
 };
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
+  const normalizedPlatform = normalizePlatformSelector(flags.platform);
   return await withDiagnosticTimer(
     'resolve_target_device',
     async () => {
-      const normalizedPlatform = flags.platform === 'apple' ? 'ios' : flags.platform;
       const selector = {
         platform: normalizedPlatform,
         target: flags.target,
@@ -76,7 +76,7 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
       return await selectDevice(devices, selector);
     },
     {
-      platform: flags.platform === 'apple' ? 'ios' : flags.platform,
+      platform: normalizedPlatform,
       target: flags.target,
     },
   );

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd, runCmdStreaming, runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { Deadline, isEnvTruthy, retryWithPolicy, withRetry } from '../../utils/retry.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
+import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { isProcessAlive } from '../../utils/process-identity.ts';
 import net from 'node:net';
@@ -506,17 +506,14 @@ function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
     return path.resolve(override);
   }
   if (kind === 'simulator') {
-    // Keep simulator runtime path aligned with pnpm build:xcuitest/build:all.
+    // Keep simulator runtime path aligned with pnpm build:xcuitest:ios/build:all.
     return path.join(RUNNER_DERIVED_ROOT, 'derived');
   }
   return path.join(RUNNER_DERIVED_ROOT, 'derived', kind);
 }
 
 export function resolveRunnerDestination(device: DeviceInfo): string {
-  if (device.platform !== 'ios') {
-    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
-  }
-  const platformName = device.target === 'tv' ? 'tvOS' : 'iOS';
+  const platformName = resolveRunnerPlatformName(device);
   if (device.kind === 'simulator') {
     return `platform=${platformName} Simulator,id=${device.id}`;
   }
@@ -524,14 +521,18 @@ export function resolveRunnerDestination(device: DeviceInfo): string {
 }
 
 export function resolveRunnerBuildDestination(device: DeviceInfo): string {
-  if (device.platform !== 'ios') {
-    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
-  }
-  const platformName = device.target === 'tv' ? 'tvOS' : 'iOS';
+  const platformName = resolveRunnerPlatformName(device);
   if (device.kind === 'simulator') {
     return `platform=${platformName} Simulator,id=${device.id}`;
   }
   return `generic/platform=${platformName}`;
+}
+
+function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' {
+  if (device.platform !== 'ios') {
+    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+  }
+  return resolveApplePlatformName(device.target);
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
