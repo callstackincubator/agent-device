@@ -8,7 +8,6 @@ import {
   parseAndroidAvdList,
   parseAndroidFeatureListForTv,
   parseAndroidTargetFromCharacteristics,
-  resolveAndroidBootSelectorDevice,
   resolveAndroidAvdName,
 } from '../devices.ts';
 
@@ -179,26 +178,5 @@ test('ensureAndroidEmulatorBooted launches emulator with GUI by default', async 
     const log = await fs.readFile(emulatorLogPath, 'utf8');
     assert.match(log, /-avd Pixel_9_Pro_XL/);
     assert.doesNotMatch(log, /-no-window/);
-  });
-});
-
-test('resolveAndroidBootSelectorDevice matches emulator by device name', async () => {
-  await withMockedAndroidTools(async () => {
-    await fs.writeFile(process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE!, 'ready', 'utf8');
-    const device = await resolveAndroidBootSelectorDevice({ deviceName: 'Pixel 9 Pro XL', includeTarget: true });
-    assert.ok(device);
-    assert.equal(device?.id, 'emulator-5554');
-    assert.equal(device?.kind, 'emulator');
-    assert.equal(device?.target, 'mobile');
-    assert.equal(device?.booted, true);
-  });
-});
-
-test('resolveAndroidBootSelectorDevice matches by serial', async () => {
-  await withMockedAndroidTools(async () => {
-    await fs.writeFile(process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE!, 'ready', 'utf8');
-    const device = await resolveAndroidBootSelectorDevice({ serial: 'emulator-5554' });
-    assert.ok(device);
-    assert.equal(device?.id, 'emulator-5554');
   });
 });

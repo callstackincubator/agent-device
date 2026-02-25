@@ -187,62 +187,6 @@ async function listAndroidDeviceEntries(): Promise<AndroidDeviceEntry[]> {
   return parseAndroidDeviceEntries(result.stdout);
 }
 
-export async function resolveAndroidBootSelectorDevice(params: {
-  deviceName?: string;
-  serial?: string;
-  includeTarget?: boolean;
-}): Promise<DeviceInfo | undefined> {
-  const adbAvailable = await whichCmd('adb');
-  if (!adbAvailable) {
-    throw new AppError('TOOL_MISSING', 'adb not found in PATH');
-  }
-
-  const entries = await listAndroidDeviceEntries();
-  if (entries.length === 0) return undefined;
-
-  const serialSelector = params.serial?.trim();
-  const deviceNameSelector = params.deviceName?.trim();
-
-  let matched: AndroidDeviceEntry | undefined;
-  let matchedName: string | undefined;
-
-  if (serialSelector) {
-    matched = entries.find((entry) => entry.serial === serialSelector);
-    if (!matched) return undefined;
-    matchedName = await resolveAndroidDeviceName(matched.serial, matched.rawModel);
-  } else if (deviceNameSelector) {
-    const target = normalizeAndroidName(deviceNameSelector);
-    for (const entry of entries) {
-      const modelName = entry.rawModel.replace(/_/g, ' ').trim();
-      if (normalizeAndroidName(modelName) === target) {
-        matched = entry;
-        matchedName = modelName || entry.serial;
-        break;
-      }
-      const resolvedName = await resolveAndroidDeviceName(entry.serial, entry.rawModel);
-      if (normalizeAndroidName(resolvedName) === target) {
-        matched = entry;
-        matchedName = resolvedName;
-        break;
-      }
-    }
-  } else {
-    return undefined;
-  }
-
-  if (!matched) return undefined;
-  const booted = await isAndroidBooted(matched.serial);
-  const target = params.includeTarget ? await resolveAndroidTarget(matched.serial) : undefined;
-  return {
-    platform: 'android',
-    id: matched.serial,
-    name: matchedName ?? (matched.rawModel.replace(/_/g, ' ').trim() || matched.serial),
-    kind: isEmulatorSerial(matched.serial) ? 'emulator' : 'device',
-    target,
-    booted,
-  };
-}
-
 export function parseAndroidAvdList(rawOutput: string): string[] {
   return rawOutput
     .split('\n')
