@@ -104,18 +104,10 @@ agent-device trace stop ./trace.log
 agent-device batch --steps-file /tmp/batch-steps.json --json
 ```
 
-### Performance Check (current support)
+### Performance Check
 
-```bash
-agent-device open Settings --platform ios
-agent-device perf --json
-```
-
-- `perf` (alias: `metrics`) is session-scoped and currently reports startup timing samples only.
-- Sampling method is `open-command-roundtrip` in milliseconds around each `open` dispatch.
-- Startup values are useful for regression tracking between builds and runs on the same target/setup.
-- Do not treat current startup value as app-level first frame / first interactive telemetry.
-- `fps`, `memory`, and `cpu` are placeholders in the current release.
+- Use `agent-device perf --json` (or `metrics --json`) after `open`.
+- For detailed metric semantics, caveats, and interpretation guidance, see [references/perf-metrics.md](references/perf-metrics.md).
 
 ## Guardrails (High Value Only)
 
@@ -134,7 +126,6 @@ agent-device perf --json
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - On Android, non-ASCII `fill/type` may require an ADB keyboard IME on some system images; only install IME APKs from trusted sources and verify checksum/signature.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
-- For perf analysis, compare like-for-like runs (same device, app build, and session workflow) to reduce noise.
 
 ## Security and Trust Notes
 
@@ -160,3 +151,4 @@ agent-device perf --json
 - [references/video-recording.md](references/video-recording.md)
 - [references/coordinate-system.md](references/coordinate-system.md)
 - [references/batching.md](references/batching.md)
+- [references/perf-metrics.md](references/perf-metrics.md)
