@@ -304,6 +304,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           if (logTailStopper) logTailStopper();
           return;
         }
+      }
       if (command === 'network') {
         const data = response.data as Record<string, unknown> | undefined;
         const pathOut = typeof data?.path === 'string' ? data.path : '';
