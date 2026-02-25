@@ -14,6 +14,8 @@ Sessions isolate device context. A device can only be held by one session at a t
 - Name sessions semantically.
 - Close sessions when done.
 - Use separate sessions for parallel work.
+- For remote tenant-scoped automation, run commands with:
+  `--tenant <id> --session-isolation tenant --run-id <id> --lease-id <id>`
 - In iOS sessions, use `open <app>`. `open <url>` opens deep links; on devices `http(s)://` opens Safari when no app is active, and custom schemes require an active app in the session.
 - In iOS sessions, `open <app> <url>` opens a deep link.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
@@ -35,3 +37,9 @@ agent-device session list
 agent-device replay ./session.ad --session auth
 agent-device replay -u ./session.ad --session auth
 ```
+
+## Tenant isolation note
+
+When session isolation is set to tenant mode, session namespace is scoped as
+`<tenant>:<session>`. For remote runs, allocate and maintain an active lease
+for the same tenant/run scope before executing tenant-isolated commands.

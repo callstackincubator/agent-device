@@ -25,6 +25,7 @@ Use this skill as a router, not a full manual.
 - Normal UI task: `open` -> `snapshot -i` -> `press/fill` -> `diff snapshot -i` -> `close`
 - Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
+- Remote multi-tenant run: allocate lease -> run commands with tenant isolation flags -> heartbeat/release lease
 
 ## Canonical Flows
 
@@ -55,6 +56,34 @@ Logging is off by default. Enable only for debugging windows.
 
 ```bash
 agent-device replay -u ./session.ad
+```
+
+### 4) Remote Tenant Lease Flow (HTTP JSON-RPC)
+
+```bash
+# Allocate lease
+curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":"alloc-1","method":"agent_device.lease.allocate","params":{"runId":"run-123","tenantId":"acme","ttlMs":60000}}'
+
+# Use lease in tenant-isolated command execution
+agent-device --daemon-transport http \
+  --tenant acme \
+  --session-isolation tenant \
+  --run-id run-123 \
+  --lease-id <lease-id> \
+  session list --json
+
+# Heartbeat and release
+curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":"hb-1","method":"agent_device.lease.heartbeat","params":{"leaseId":"<lease-id>","ttlMs":60000}}'
+curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
 ```
 
 ## Command Skeleton (Minimal)
@@ -139,6 +168,8 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - On Android, non-ASCII `fill/type` may require an ADB keyboard IME on some system images; only install IME APKs from trusted sources and verify checksum/signature.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
+- For tenant-isolated remote runs, always pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` together.
+- Use short lease TTLs and heartbeat only while work is active; release leases immediately after run completion/failure.
 
 ## Security and Trust Notes
 
@@ -146,6 +177,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - If install is required, pin an exact version (for example: `npx --yes agent-device@<exact-version> --help`).
 - Signing/provisioning environment variables are optional, sensitive, and only for iOS physical-device setup.
 - Logs/artifacts are written under `~/.agent-device`; replay scripts write to explicit paths you provide.
+- For remote daemon mode, prefer `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual` with `AGENT_DEVICE_HTTP_AUTH_HOOK` and tenant-scoped lease admission.
 - Keep logging off unless debugging and use least-privilege/isolated environments for autonomous runs.
 
 ## Common Mistakes
@@ -165,3 +197,4 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - [references/coordinate-system.md](references/coordinate-system.md)
 - [references/batching.md](references/batching.md)
 - [references/perf-metrics.md](references/perf-metrics.md)
+- [references/remote-tenancy.md](references/remote-tenancy.md)
