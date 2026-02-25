@@ -1,5 +1,6 @@
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import type { LeaseRegistry } from '../lease-registry.ts';
+import { resolveLeaseScope } from '../lease-context.ts';
 
 type LeaseHandlerArgs = {
   req: DaemonRequest;
@@ -8,13 +9,14 @@ type LeaseHandlerArgs = {
 
 export async function handleLeaseCommands(args: LeaseHandlerArgs): Promise<DaemonResponse | null> {
   const { req, leaseRegistry } = args;
+  const leaseScope = resolveLeaseScope(req);
   switch (req.command) {
     case 'lease_allocate': {
       const lease = leaseRegistry.allocateLease({
-        tenantId: req.meta?.tenantId ?? req.flags?.tenant ?? '',
-        runId: req.meta?.runId ?? req.flags?.runId ?? '',
-        backend: req.meta?.leaseBackend,
-        ttlMs: req.meta?.leaseTtlMs,
+        tenantId: leaseScope.tenantId ?? '',
+        runId: leaseScope.runId ?? '',
+        backend: leaseScope.leaseBackend,
+        ttlMs: leaseScope.leaseTtlMs,
       });
       return {
         ok: true,
@@ -23,10 +25,10 @@ export async function handleLeaseCommands(args: LeaseHandlerArgs): Promise<Daemo
     }
     case 'lease_heartbeat': {
       const lease = leaseRegistry.heartbeatLease({
-        leaseId: req.meta?.leaseId ?? req.flags?.leaseId ?? '',
-        tenantId: req.meta?.tenantId ?? req.flags?.tenant,
-        runId: req.meta?.runId ?? req.flags?.runId,
-        ttlMs: req.meta?.leaseTtlMs,
+        leaseId: leaseScope.leaseId ?? '',
+        tenantId: leaseScope.tenantId,
+        runId: leaseScope.runId,
+        ttlMs: leaseScope.leaseTtlMs,
       });
       return {
         ok: true,
@@ -35,9 +37,9 @@ export async function handleLeaseCommands(args: LeaseHandlerArgs): Promise<Daemo
     }
     case 'lease_release': {
       const result = leaseRegistry.releaseLease({
-        leaseId: req.meta?.leaseId ?? req.flags?.leaseId ?? '',
-        tenantId: req.meta?.tenantId ?? req.flags?.tenant,
-        runId: req.meta?.runId ?? req.flags?.runId,
+        leaseId: leaseScope.leaseId ?? '',
+        tenantId: leaseScope.tenantId,
+        runId: leaseScope.runId,
       });
       return {
         ok: true,

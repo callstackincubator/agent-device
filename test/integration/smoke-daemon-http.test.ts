@@ -100,6 +100,32 @@ async function callRpc(
   });
 }
 
+async function callCommandRpc(
+  info: DaemonInfo,
+  command: string,
+  flags: Record<string, unknown> = {},
+  headers: Record<string, string> = {},
+): Promise<{ statusCode: number; json: any }> {
+  return await callRpc(
+    info.httpPort as number,
+    commandRpcPayload(info.token, command, flags),
+    headers,
+  );
+}
+
+async function callLeaseRpc(
+  info: DaemonInfo,
+  method: 'allocate' | 'heartbeat' | 'release',
+  params: Record<string, unknown>,
+  headers: Record<string, string> = {},
+): Promise<{ statusCode: number; json: any }> {
+  return await callRpc(
+    info.httpPort as number,
+    leaseRpcPayload(info.token, method, params),
+    headers,
+  );
+}
+
 async function stopDaemonForStateDir(stateDir: string): Promise<void> {
   try {
     const infoPath = path.join(stateDir, 'daemon.json');
@@ -202,79 +228,58 @@ test('daemon HTTP JSON-RPC flow honors custom state dir and tenant isolation con
     assert.equal(typeof info.httpPort, 'number');
     assert.ok((info.httpPort ?? 0) > 0);
 
-    const okResponse = await callRpc(info.httpPort as number, commandRpcPayload(info.token, 'session_list'));
+    const okResponse = await callCommandRpc(info, 'session_list');
     assert.equal(okResponse.statusCode, 200);
     assert.equal(okResponse.json?.result?.ok, true, JSON.stringify(okResponse.json));
 
-    const missingTenantResponse = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'session_list', { sessionIsolation: 'tenant' }),
-    );
+    const missingTenantResponse = await callCommandRpc(info, 'session_list', { sessionIsolation: 'tenant' });
     assert.equal(missingTenantResponse.statusCode, 400);
     assert.equal(missingTenantResponse.json?.error?.code, -32000);
     assert.equal(missingTenantResponse.json?.error?.data?.code, 'INVALID_ARGS');
 
-    const leaseAllocate = await callRpc(
-      info.httpPort as number,
-      leaseRpcPayload(info.token, 'allocate', {
-        tenantId: 'acme',
-        runId: 'run-http-flow',
-        ttlMs: 60_000,
-      }),
-    );
+    const leaseAllocate = await callLeaseRpc(info, 'allocate', {
+      tenantId: 'acme',
+      runId: 'run-http-flow',
+      ttlMs: 60_000,
+    });
     assert.equal(leaseAllocate.statusCode, 200);
     const leaseId = leaseAllocate.json?.result?.data?.lease?.leaseId;
     assert.equal(typeof leaseId, 'string');
 
-    const missingLeaseResponse = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'close', {
-        sessionIsolation: 'tenant',
-        tenant: 'acme',
-        runId: 'run-http-flow',
-      }),
-    );
+    const missingLeaseResponse = await callCommandRpc(info, 'close', {
+      sessionIsolation: 'tenant',
+      tenant: 'acme',
+      runId: 'run-http-flow',
+    });
     assert.equal(missingLeaseResponse.statusCode, 400);
     assert.equal(missingLeaseResponse.json?.error?.data?.code, 'INVALID_ARGS');
 
-    const tenantScopedResponse = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'close', {
-        sessionIsolation: 'tenant',
-        tenant: 'acme',
-        runId: 'run-http-flow',
-        leaseId,
-      }),
-    );
+    const tenantScopedResponse = await callCommandRpc(info, 'close', {
+      sessionIsolation: 'tenant',
+      tenant: 'acme',
+      runId: 'run-http-flow',
+      leaseId,
+    });
     assert.equal(tenantScopedResponse.statusCode, 200);
     assert.equal(tenantScopedResponse.json?.result?.ok, true, JSON.stringify(tenantScopedResponse.json));
 
-    const heartbeatResponse = await callRpc(
-      info.httpPort as number,
-      leaseRpcPayload(info.token, 'heartbeat', {
-        leaseId,
-        ttlMs: 60_000,
-      }),
-    );
+    const heartbeatResponse = await callLeaseRpc(info, 'heartbeat', {
+      leaseId,
+      ttlMs: 60_000,
+    });
     assert.equal(heartbeatResponse.statusCode, 200);
     assert.equal(heartbeatResponse.json?.result?.ok, true, JSON.stringify(heartbeatResponse.json));
 
-    const releaseResponse = await callRpc(
-      info.httpPort as number,
-      leaseRpcPayload(info.token, 'release', { leaseId }),
-    );
+    const releaseResponse = await callLeaseRpc(info, 'release', { leaseId });
     assert.equal(releaseResponse.statusCode, 200);
     assert.equal(releaseResponse.json?.result?.data?.released, true);
 
-    const deniedAfterRelease = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'close', {
-        sessionIsolation: 'tenant',
-        tenant: 'acme',
-        runId: 'run-http-flow',
-        leaseId,
-      }),
-    );
+    const deniedAfterRelease = await callCommandRpc(info, 'close', {
+      sessionIsolation: 'tenant',
+      tenant: 'acme',
+      runId: 'run-http-flow',
+      leaseId,
+    });
     assert.equal(deniedAfterRelease.statusCode, 401);
     assert.equal(deniedAfterRelease.json?.error?.data?.code, 'UNAUTHORIZED');
   } finally {
@@ -323,19 +328,15 @@ test('daemon HTTP auth hook can reject and inject tenant context', async (t) => 
 
     const info = readDaemonInfo(stateDir);
 
-    const denied = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'session_list'),
-    );
+    const denied = await callCommandRpc(info, 'session_list');
     assert.equal(denied.statusCode, 401);
     assert.equal(denied.json?.error?.code, -32001);
     assert.equal(denied.json?.error?.data?.code, 'UNAUTHORIZED');
 
-    const allocate = await callRpc(
-      info.httpPort as number,
-      leaseRpcPayload(info.token, 'allocate', {
-        runId: 'auth-hook-run',
-      }),
+    const allocate = await callLeaseRpc(
+      info,
+      'allocate',
+      { runId: 'auth-hook-run' },
       { 'x-test-auth': 'allow' },
     );
     assert.equal(allocate.statusCode, 200);
@@ -343,13 +344,14 @@ test('daemon HTTP auth hook can reject and inject tenant context', async (t) => 
     assert.equal(typeof leaseId, 'string');
     assert.equal(allocate.json?.result?.data?.lease?.tenantId, 'hooktenant');
 
-    const allowed = await callRpc(
-      info.httpPort as number,
-      commandRpcPayload(info.token, 'close', {
+    const allowed = await callCommandRpc(
+      info,
+      'close',
+      {
         sessionIsolation: 'tenant',
         runId: 'auth-hook-run',
         leaseId,
-      }),
+      },
       { 'x-test-auth': 'allow' },
     );
     assert.equal(allowed.statusCode, 200);

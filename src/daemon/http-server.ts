@@ -46,6 +46,21 @@ type HttpAuthDecision =
   | { ok: true; tenantId?: string }
   | { ok: false; statusCode: number; response: JsonRpcResponse };
 
+const MAX_HTTP_RPC_BODY_BYTES = 1024 * 1024;
+const COMMAND_RPC_METHODS = new Set(['agent_device.command', 'agent-device.command']);
+const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_heartbeat' | 'lease_release'> = {
+  'agent_device.lease.allocate': 'lease_allocate',
+  'agent-device.lease.allocate': 'lease_allocate',
+  'agent_device.lease.heartbeat': 'lease_heartbeat',
+  'agent-device.lease.heartbeat': 'lease_heartbeat',
+  'agent_device.lease.release': 'lease_release',
+  'agent-device.lease.release': 'lease_release',
+};
+const SUPPORTED_RPC_METHODS = new Set([
+  ...COMMAND_RPC_METHODS,
+  ...Object.keys(LEASE_RPC_METHOD_TO_COMMAND),
+]);
+
 function createRpcError(
   id: string | number | null,
   code: number,
@@ -136,22 +151,18 @@ function methodToDaemonRequest(
   params: Record<string, unknown>,
   headers: IncomingHttpHeaders,
 ): DaemonRequest {
-  switch (method) {
-    case 'agent_device.command':
-    case 'agent-device.command':
-      return toDaemonRequest(params as unknown as Partial<DaemonRequest>, headers);
-    case 'agent_device.lease.allocate':
-    case 'agent-device.lease.allocate':
-      return toLeaseDaemonRequest('lease_allocate', params, headers);
-    case 'agent_device.lease.heartbeat':
-    case 'agent-device.lease.heartbeat':
-      return toLeaseDaemonRequest('lease_heartbeat', params, headers);
-    case 'agent_device.lease.release':
-    case 'agent-device.lease.release':
-      return toLeaseDaemonRequest('lease_release', params, headers);
-    default:
-      throw new AppError('INVALID_ARGS', `Method not found: ${method}`);
+  if (COMMAND_RPC_METHODS.has(method)) {
+    return toDaemonRequest(params as unknown as Partial<DaemonRequest>, headers);
   }
+  const leaseCommand = LEASE_RPC_METHOD_TO_COMMAND[method];
+  if (leaseCommand) {
+    return toLeaseDaemonRequest(leaseCommand, params, headers);
+  }
+  throw new AppError('INVALID_ARGS', `Method not found: ${method}`);
+}
+
+function isCommandRpcMethod(method: string): boolean {
+  return COMMAND_RPC_METHODS.has(method);
 }
 
 async function runHttpAuthHook(
@@ -243,7 +254,7 @@ export async function createDaemonHttpServer(options: {
     req.setEncoding('utf8');
     req.on('data', (chunk) => {
       body += chunk;
-      if (body.length > 1024 * 1024) {
+      if (body.length > MAX_HTTP_RPC_BODY_BYTES) {
         req.destroy(new Error('request too large'));
       }
     });
@@ -267,17 +278,7 @@ export async function createDaemonHttpServer(options: {
         sendJson(res, createRpcError(rpcRequest.id ?? null, -32600, 'Invalid Request'), 400);
         return;
       }
-      const supportedMethods = new Set([
-        'agent_device.command',
-        'agent-device.command',
-        'agent_device.lease.allocate',
-        'agent-device.lease.allocate',
-        'agent_device.lease.heartbeat',
-        'agent-device.lease.heartbeat',
-        'agent_device.lease.release',
-        'agent-device.lease.release',
-      ]);
-      if (!supportedMethods.has(rpcRequest.method)) {
+      if (!SUPPORTED_RPC_METHODS.has(rpcRequest.method)) {
         sendJson(res, createRpcError(rpcRequest.id ?? null, -32601, `Method not found: ${rpcRequest.method}`), 404);
         return;
       }
@@ -290,7 +291,7 @@ export async function createDaemonHttpServer(options: {
         const params = rpcRequest.params as Record<string, unknown>;
         const daemonRequest = methodToDaemonRequest(rpcRequest.method, params, req.headers);
         if (
-          (rpcRequest.method === 'agent_device.command' || rpcRequest.method === 'agent-device.command')
+          isCommandRpcMethod(rpcRequest.method)
           && (typeof daemonRequest.command !== 'string' || daemonRequest.command.length === 0)
         ) {
           sendJson(res, createRpcError(rpcRequest.id ?? null, -32602, 'Invalid params: command is required'), 400);

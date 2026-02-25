@@ -34,6 +34,7 @@ import {
 } from './daemon/config.ts';
 import { createDaemonHttpServer } from './daemon/http-server.ts';
 import { LeaseRegistry } from './daemon/lease-registry.ts';
+import { resolveLeaseScope } from './daemon/lease-context.ts';
 
 const daemonPaths = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
 const { baseDir, infoPath, lockPath, logPath, sessionsDir } = daemonPaths;
@@ -137,12 +138,13 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         });
 
         const command = scopedReq.command;
+        const leaseScope = resolveLeaseScope(scopedReq);
         if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
           leaseRegistry.assertLeaseAdmission({
-            tenantId: scopedReq.meta?.tenantId ?? scopedReq.flags?.tenant,
-            runId: scopedReq.meta?.runId ?? scopedReq.flags?.runId,
-            leaseId: scopedReq.meta?.leaseId ?? scopedReq.flags?.leaseId,
-            backend: scopedReq.meta?.leaseBackend,
+            tenantId: leaseScope.tenantId,
+            runId: leaseScope.runId,
+            leaseId: leaseScope.leaseId,
+            backend: leaseScope.leaseBackend,
           });
         }
         const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
