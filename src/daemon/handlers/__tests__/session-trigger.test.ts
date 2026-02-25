@@ -88,7 +88,7 @@ test('trigger-app-event supports explicit selector without active session', asyn
   assert.equal(response.ok, true);
 });
 
-test('trigger command records action and refreshes session app bundle context', async () => {
+test('trigger-app-event records action and refreshes session app bundle context', async () => {
   const sessionStore = makeStore();
   const session = makeSession('default', {
     platform: 'android',
@@ -103,8 +103,8 @@ test('trigger command records action and refreshes session app bundle context', 
     req: {
       token: 't',
       session: 'default',
-      command: 'trigger-screenshot-notification',
-      positionals: [],
+      command: 'trigger-app-event',
+      positionals: ['screenshot_taken'],
       flags: {},
     },
     sessionName: 'default',
@@ -129,75 +129,4 @@ test('trigger command records action and refreshes session app bundle context', 
   assert.equal(nextSession?.actions.length, 1);
   assert.equal(nextSession?.actions[0]?.command, 'trigger-app-event');
   assert.deepEqual(nextSession?.actions[0]?.positionals, ['screenshot_taken']);
-});
-
-test('trigger aliases are normalized to trigger-app-event before dispatch', async () => {
-  const sessionStore = makeStore();
-  sessionStore.set('default', makeSession('default', {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  }));
-
-  let dispatchedCommand = '';
-  let dispatchedPositionals: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'trigger-memory-warning',
-      positionals: [],
-      flags: {},
-    },
-    sessionName: 'default',
-    logPath: '/tmp/daemon.log',
-    sessionStore,
-    invoke,
-    ensureReady: async () => {},
-    dispatch: async (_device, command, positionals) => {
-      dispatchedCommand = command;
-      dispatchedPositionals = positionals;
-      return { event: 'memory_warning', eventUrl: 'myapp://agent-device/event?name=memory_warning' };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response.ok, true);
-  assert.equal(dispatchedCommand, 'trigger-app-event');
-  assert.deepEqual(dispatchedPositionals, ['memory_warning']);
-});
-
-test('trigger aliases reject unexpected positional arguments', async () => {
-  const sessionStore = makeStore();
-  sessionStore.set('default', makeSession('default', {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  }));
-
-  await assert.rejects(
-    () => handleSessionCommands({
-      req: {
-        token: 't',
-        session: 'default',
-        command: 'trigger-screenshot',
-        positionals: ['extra'],
-        flags: {},
-      },
-      sessionName: 'default',
-      logPath: '/tmp/daemon.log',
-      sessionStore,
-      invoke,
-      ensureReady: async () => {},
-    }),
-    (error: unknown) =>
-      error instanceof Error
-      && 'code' in error
-      && (error as { code?: string }).code === 'INVALID_ARGS'
-      && /does not accept positional arguments/i.test(error.message),
-  );
 });

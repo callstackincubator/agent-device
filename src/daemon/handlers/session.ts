@@ -7,7 +7,6 @@ import {
   validateAndNormalizeBatchSteps,
 } from '../../core/batch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { normalizeTriggerAliasCommand } from '../../core/app-events.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
@@ -61,7 +60,6 @@ const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
-const TRIGGER_COMMANDS = new Set(['trigger-app-event']);
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const PERF_UNAVAILABLE_REASON = 'Not implemented for this platform in this release.';
 const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
@@ -585,9 +583,7 @@ export async function handleSessionCommands(params: {
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
-  const normalizedTrigger = normalizeTriggerAliasCommand(req.command, req.positionals ?? []);
-  const command = normalizedTrigger.command;
-  const triggerPositionals = normalizedTrigger.positionals;
+  const command = req.command;
 
   if (command === 'session_list') {
     const data = {
@@ -909,7 +905,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (TRIGGER_COMMANDS.has(command)) {
+  if (command === 'trigger-app-event') {
     return await runSessionOrSelectorDispatch({
       req,
       sessionName,
@@ -919,7 +915,7 @@ export async function handleSessionCommands(params: {
       resolveDevice,
       dispatch,
       command: 'trigger-app-event',
-      positionals: triggerPositionals,
+      positionals: req.positionals ?? [],
       deriveNextSession: async (session, result) => {
         const eventUrl = typeof result?.eventUrl === 'string' ? result.eventUrl : undefined;
         const nextAppBundleId = eventUrl
