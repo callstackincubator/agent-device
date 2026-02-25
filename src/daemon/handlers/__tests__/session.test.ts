@@ -379,7 +379,7 @@ test('boot --headless launches Android emulator when no running device matches',
       session: 'default',
       command: 'boot',
       positionals: [],
-      flags: { platform: 'android', target: 'mobile', device: 'Pixel_9_Pro_XL', headless: true },
+      flags: { platform: 'android', device: 'Pixel_9_Pro_XL', headless: true },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -391,6 +391,7 @@ test('boot --headless launches Android emulator when no running device matches',
     resolveTargetDevice: async () => {
       throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
     },
+    resolveAndroidBootSelectorDevice: async () => undefined,
     ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
       launchCalls.push({ avdName, serial, headless });
       return {
@@ -424,7 +425,7 @@ test('boot launches Android emulator with GUI when no running device matches', a
       session: 'default',
       command: 'boot',
       positionals: [],
-      flags: { platform: 'android', target: 'mobile', device: 'Pixel_9_Pro_XL' },
+      flags: { platform: 'android', device: 'Pixel_9_Pro_XL' },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -434,6 +435,7 @@ test('boot launches Android emulator with GUI when no running device matches', a
     resolveTargetDevice: async () => {
       throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
     },
+    resolveAndroidBootSelectorDevice: async () => undefined,
     ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
       launchCalls.push({ avdName, serial, headless });
       return {
@@ -466,7 +468,7 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
       session: 'default',
       command: 'boot',
       positionals: [],
-      flags: { platform: 'android', target: 'mobile', serial: 'emulator-5554', headless: true },
+      flags: { platform: 'android', serial: 'emulator-5554', headless: true },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -476,6 +478,7 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
     resolveTargetDevice: async () => {
       throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
     },
+    resolveAndroidBootSelectorDevice: async () => undefined,
     ensureAndroidEmulatorBoot: async () => {
       bootCalled = true;
       throw new Error('unexpected');
@@ -488,6 +491,45 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
     assert.match(response.error.message, /boot --headless requires --device <avd-name>/);
+  }
+});
+
+test('boot uses fast Android selector lookup for already booted device', async () => {
+  const sessionStore = makeSessionStore();
+  let ensureCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'android', device: 'Pixel 9 Pro XL' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {
+      ensureCalls += 1;
+    },
+    resolveTargetDevice: async () => {
+      throw new Error('resolveTargetDevice should not be called when fast lookup succeeds');
+    },
+    resolveAndroidBootSelectorDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel 9 Pro XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    }),
+  });
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(ensureCalls, 0);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.id, 'emulator-5554');
   }
 });
 

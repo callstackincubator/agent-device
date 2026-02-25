@@ -189,6 +189,7 @@ test('resolveAndroidBootSelectorDevice matches emulator by device name', async (
     assert.ok(device);
     assert.equal(device?.id, 'emulator-5554');
     assert.equal(device?.kind, 'emulator');
+    assert.equal(device?.target, 'mobile');
     assert.equal(device?.booted, true);
   });
 });

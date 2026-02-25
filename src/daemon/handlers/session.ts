@@ -54,6 +54,11 @@ type EnsureAndroidEmulatorBoot = (params: {
   headless?: boolean;
 }) => Promise<DeviceInfo>;
 
+type ResolveAndroidBootSelectorDevice = (params: {
+  deviceName?: string;
+  serial?: string;
+}) => Promise<DeviceInfo | undefined>;
+
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
@@ -251,6 +256,11 @@ function resolveAndroidEmulatorAvdName(params: {
 const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avdName, serial, headless }) => {
   const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
   return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
+};
+
+const defaultResolveAndroidBootSelectorDevice: ResolveAndroidBootSelectorDevice = async ({ deviceName, serial }) => {
+  const { resolveAndroidBootSelectorDevice } = await import('../../platforms/android/devices.ts');
+  return await resolveAndroidBootSelectorDevice({ deviceName, serial });
 };
 
 const defaultReinstallOps: ReinstallOps = {
@@ -470,6 +480,7 @@ export async function handleSessionCommands(params: {
     stop: typeof stopAppLog;
   };
   ensureAndroidEmulatorBoot?: EnsureAndroidEmulatorBoot;
+  resolveAndroidBootSelectorDevice?: ResolveAndroidBootSelectorDevice;
   resolveAndroidPackageForOpen?: (
     device: DeviceInfo,
     openTarget: string | undefined,
@@ -491,6 +502,7 @@ export async function handleSessionCommands(params: {
       stop: stopAppLog,
     },
     ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
+    resolveAndroidBootSelectorDevice: resolveAndroidBootSelectorDeviceOverride = defaultResolveAndroidBootSelectorDevice,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
@@ -587,7 +599,7 @@ export async function handleSessionCommands(params: {
     const normalizedPlatform = normalizePlatformSelector(flags.platform) ?? session?.device.platform;
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
-    const shouldUseFastAndroidSelectorLookup = targetsAndroid && !flags.target && Boolean(flags.device || flags.serial);
+    const shouldUseFastAndroidSelectorLookup = targetsAndroid && Boolean(flags.device || flags.serial);
     const fallbackAvdName = resolveAndroidEmulatorAvdName({
       flags,
       sessionDevice: session?.device,
@@ -595,15 +607,16 @@ export async function handleSessionCommands(params: {
     const canFallbackLaunchAndroidEmulator = targetsAndroid && Boolean(fallbackAvdName);
     let device: DeviceInfo;
     let launchedAndroidEmulator = false;
-    const fastLookupDevice = shouldUseFastAndroidSelectorLookup
-      ? await (async () => {
-        const { resolveAndroidBootSelectorDevice } = await import('../../platforms/android/devices.ts');
-        return await resolveAndroidBootSelectorDevice({
-          deviceName: flags.device,
-          serial: flags.serial,
-        });
-      })()
+    const fastLookupDeviceCandidate = shouldUseFastAndroidSelectorLookup
+      ? await resolveAndroidBootSelectorDeviceOverride({
+        deviceName: flags.device,
+        serial: flags.serial,
+      })
       : undefined;
+    const targetMismatch = Boolean(flags.target)
+      && fastLookupDeviceCandidate
+      && (fastLookupDeviceCandidate.target ?? 'mobile') !== flags.target;
+    const fastLookupDevice = targetMismatch ? undefined : fastLookupDeviceCandidate;
     try {
       device = fastLookupDevice
         ?? (await resolveCommandDevice({

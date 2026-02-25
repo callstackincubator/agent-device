@@ -230,12 +230,16 @@ export async function resolveAndroidBootSelectorDevice(params: {
   }
 
   if (!matched) return undefined;
-  const booted = await isAndroidBooted(matched.serial);
+  const [booted, target] = await Promise.all([
+    isAndroidBooted(matched.serial),
+    resolveAndroidTarget(matched.serial),
+  ]);
   return {
     platform: 'android',
     id: matched.serial,
     name: matchedName ?? (matched.rawModel.replace(/_/g, ' ').trim() || matched.serial),
     kind: isEmulatorSerial(matched.serial) ? 'emulator' : 'device',
+    target,
     booted,
   };
 }
