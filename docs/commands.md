@@ -24,6 +24,7 @@ agent-device app-switcher
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
+- Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
@@ -310,4 +311,4 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - If first-run XCTest setup/build is slow, increase daemon request timeout:
   - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
 - For daemon startup troubleshooting:
-  - follow stale metadata hints for `~/.agent-device/daemon.json` and `~/.agent-device/daemon.lock`
+  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)

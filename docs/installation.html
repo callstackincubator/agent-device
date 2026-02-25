@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.df6e1030.js"></script>
+<script defer src="/agent-device/static/js/index.6ed9ad54.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -47,8 +47,17 @@
 </li>
 <li>If daemon startup reports stale metadata, remove stale files and retry:
 <ul>
-<li><code>~/.agent-device/daemon.json</code></li>
-<li><code>~/.agent-device/daemon.lock</code></li>
+<li><code>&lt;state-dir&gt;/daemon.json</code></li>
+<li><code>&lt;state-dir&gt;/daemon.lock</code></li>
+<li>default state dir is <code>~/.agent-device</code> unless <code>AGENT_DEVICE_STATE_DIR</code> or <code>--state-dir</code> is set</li>
+</ul>
+</li>
+<li>Optional remote tenancy/lease controls:
+<ul>
+<li><code>AGENT_DEVICE_MAX_SIMULATOR_LEASES=&lt;n&gt;</code></li>
+<li><code>AGENT_DEVICE_LEASE_TTL_MS=&lt;ms&gt;</code></li>
+<li><code>AGENT_DEVICE_LEASE_MIN_TTL_MS=&lt;ms&gt;</code></li>
+<li><code>AGENT_DEVICE_LEASE_MAX_TTL_MS=&lt;ms&gt;</code></li>
 </ul>
 </li>
 </ul><!--/$--></div><div class="container-uhcWmO"><img class="logo-IwzwG8" src="/agent-device/static/image/abstract-atom.4eca0300.avif" alt="Abstract Logo" aria-hidden="true"/><div class="content-uJxcIj"><div class="headlineContainer-NHNT4y"><h1 class="headline-iCUUUl">Need React or React Native
