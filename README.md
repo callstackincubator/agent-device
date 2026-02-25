@@ -219,6 +219,7 @@ Flags:
 
 TV targets:
 - Use `--target tv` together with `--platform ios|android|apple`.
+- TV target selection supports both simulator/emulator and connected physical devices (AppleTV + AndroidTV).
 - AndroidTV app launch/app listing use TV launcher discovery (`LEANBACK_LAUNCHER`) and fallback component resolution when needed.
 - tvOS uses the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - tvOS back/home/app-switcher use Siri Remote semantics in the runner (`menu`, `home`, double-home).

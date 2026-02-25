@@ -40,26 +40,67 @@ async function resolveAndroidDeviceName(serial: string, rawModel: string): Promi
   return modelName || serial;
 }
 
-async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
-  const characteristicsResult = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']), {
-    allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
-  });
-  const characteristics = `${characteristicsResult.stdout}\n${characteristicsResult.stderr}`.toLowerCase();
-  if (characteristics.includes('tv') || characteristics.includes('leanback')) {
+export function parseAndroidTargetFromCharacteristics(rawOutput: string): 'tv' | 'mobile' | null {
+  const normalized = rawOutput.toLowerCase();
+  if (normalized.includes('tv') || normalized.includes('leanback')) {
     return 'tv';
   }
+  return null;
+}
 
-  const leanbackResult = await runCmd(
+export function parseAndroidFeatureListForTv(rawOutput: string): boolean {
+  return /feature:android\.(software\.leanback(_only)?|hardware\.type\.television)\b/i.test(rawOutput);
+}
+
+async function probeAndroidFeature(serial: string, feature: string): Promise<boolean | null> {
+  const result = await runCmd(
     'adb',
-    adbArgs(serial, ['shell', 'cmd', 'package', 'has-feature', 'android.software.leanback']),
+    adbArgs(serial, ['shell', 'cmd', 'package', 'has-feature', feature]),
     {
       allowFailure: true,
       timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
     },
   );
-  const hasLeanback = `${leanbackResult.stdout}\n${leanbackResult.stderr}`.toLowerCase().includes('true');
-  return hasLeanback ? 'tv' : 'mobile';
+  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  if (output.includes('true')) return true;
+  if (output.includes('false')) return false;
+  return null;
+}
+
+async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
+  const characteristicsResult = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']), {
+    allowFailure: true,
+    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+  });
+  const characteristicsTarget = parseAndroidTargetFromCharacteristics(
+    `${characteristicsResult.stdout}\n${characteristicsResult.stderr}`,
+  );
+  if (characteristicsTarget === 'tv') {
+    return 'tv';
+  }
+
+  const featureChecks = await Promise.all([
+    probeAndroidFeature(serial, 'android.software.leanback'),
+    probeAndroidFeature(serial, 'android.software.leanback_only'),
+    probeAndroidFeature(serial, 'android.hardware.type.television'),
+  ]);
+  if (featureChecks.some((value) => value === true)) {
+    return 'tv';
+  }
+
+  const featureListResult = await runCmd(
+    'adb',
+    adbArgs(serial, ['shell', 'pm', 'list', 'features']),
+    {
+      allowFailure: true,
+      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+    },
+  );
+  if (parseAndroidFeatureListForTv(`${featureListResult.stdout}\n${featureListResult.stderr}`)) {
+    return 'tv';
+  }
+
+  return 'mobile';
 }
 
 export async function listAndroidDevices(): Promise<DeviceInfo[]> {

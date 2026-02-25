@@ -21,15 +21,53 @@ function isSupportedAppleRuntime(runtime: string): boolean {
   return normalized.includes('ios') || normalized.includes('tvos');
 }
 
-function resolveAppleTargetFromDevicectlDevice(device: {
-  hardwareProperties?: { platform?: string };
-  deviceProperties?: { name?: string };
+function isAppleTvLabel(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.includes('apple tv') || normalized.includes('appletv') || normalized.includes('tvos');
+}
+
+export function isAppleProductType(productType: string): boolean {
+  return /^(iphone|ipad|ipod|appletv)/i.test(productType.trim());
+}
+
+export function isAppleTvProductType(productType: string): boolean {
+  return /^appletv/i.test(productType.trim());
+}
+
+type DevicectlAppleDevice = {
+  hardwareProperties?: { platform?: string; productType?: string };
+  deviceProperties?: { name?: string; productType?: string; deviceType?: string };
   name?: string;
-}): DeviceTarget {
+};
+
+function resolveDevicectlAppleProductType(device: DevicectlAppleDevice): string {
+  return device.hardwareProperties?.productType ?? device.deviceProperties?.productType ?? '';
+}
+
+export function resolveAppleTargetFromDevicectlDevice(device: DevicectlAppleDevice): DeviceTarget {
   const platform = (device.hardwareProperties?.platform ?? '').toLowerCase();
   if (platform.includes('tvos')) return 'tv';
-  const name = (device.name ?? device.deviceProperties?.name ?? '').toLowerCase();
-  return name.includes('apple tv') ? 'tv' : 'mobile';
+  const productType = resolveDevicectlAppleProductType(device);
+  if (isAppleTvProductType(productType)) return 'tv';
+  const labels = [
+    device.name ?? '',
+    device.deviceProperties?.name ?? '',
+    device.deviceProperties?.deviceType ?? '',
+  ];
+  return labels.some(isAppleTvLabel) ? 'tv' : 'mobile';
+}
+
+export function isSupportedAppleDevicectlDevice(device: DevicectlAppleDevice): boolean {
+  const platform = (device.hardwareProperties?.platform ?? '').toLowerCase();
+  if (platform.includes('ios') || platform.includes('tvos')) return true;
+  const productType = resolveDevicectlAppleProductType(device);
+  if (isAppleProductType(productType)) return true;
+  const labels = [
+    device.name ?? '',
+    device.deviceProperties?.name ?? '',
+    device.deviceProperties?.deviceType ?? '',
+  ];
+  return labels.some(isAppleTvLabel);
 }
 
 export async function listIosDevices(): Promise<DeviceInfo[]> {
@@ -89,17 +127,14 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
         devices?: Array<{
           identifier?: string;
           name?: string;
-          hardwareProperties?: { platform?: string; udid?: string };
-          deviceProperties?: { name?: string };
+          hardwareProperties?: { platform?: string; udid?: string; productType?: string };
+          deviceProperties?: { name?: string; productType?: string; deviceType?: string };
           connectionProperties?: { tunnelState?: string };
         }>;
       };
     };
     for (const device of payload.result?.devices ?? []) {
-      const platform = device.hardwareProperties?.platform ?? '';
-      const isApplePlatform = platform.toLowerCase().includes('ios') || platform.toLowerCase().includes('tvos');
-      const fallbackName = (device.name ?? device.deviceProperties?.name ?? '').toLowerCase();
-      if (isApplePlatform || fallbackName.includes('apple tv')) {
+      if (isSupportedAppleDevicectlDevice(device)) {
         const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
         const name = device.name ?? device.deviceProperties?.name ?? id;
         if (!id) continue;
