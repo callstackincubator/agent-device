@@ -111,6 +111,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             debug: Boolean(flags.verbose),
             cwd: process.cwd(),
             tenantId: flags.tenant,
+            runId: flags.runId,
+            leaseId: flags.leaseId,
             sessionIsolation: flags.sessionIsolation,
           },
         });

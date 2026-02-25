@@ -78,6 +78,8 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       debug,
       cwd: req.meta?.cwd,
       tenantId: req.meta?.tenantId ?? req.flags?.tenant,
+      runId: req.meta?.runId ?? req.flags?.runId,
+      leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
       sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
     },
   };

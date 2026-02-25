@@ -16,6 +16,7 @@ import { handleSnapshotCommands } from './daemon/handlers/snapshot.ts';
 import { handleFindCommands } from './daemon/handlers/find.ts';
 import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
+import { handleLeaseCommands } from './daemon/handlers/lease.ts';
 import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
 import { resolveEffectiveSessionName } from './daemon/session-routing.ts';
@@ -32,15 +33,29 @@ import {
   resolveSessionIsolationMode,
 } from './daemon/config.ts';
 import { createDaemonHttpServer } from './daemon/http-server.ts';
+import { LeaseRegistry } from './daemon/lease-registry.ts';
 
 const daemonPaths = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
 const { baseDir, infoPath, lockPath, logPath, sessionsDir } = daemonPaths;
 const daemonServerMode = resolveDaemonServerMode(process.env.AGENT_DEVICE_DAEMON_SERVER_MODE);
 cleanupStaleAppLogProcesses(sessionsDir);
 const sessionStore = new SessionStore(sessionsDir);
+const leaseRegistry = new LeaseRegistry({
+  maxActiveSimulatorLeases: parseIntegerEnv(process.env.AGENT_DEVICE_MAX_SIMULATOR_LEASES),
+  defaultLeaseTtlMs: parseIntegerEnv(process.env.AGENT_DEVICE_LEASE_TTL_MS),
+  minLeaseTtlMs: parseIntegerEnv(process.env.AGENT_DEVICE_LEASE_MIN_TTL_MS),
+  maxLeaseTtlMs: parseIntegerEnv(process.env.AGENT_DEVICE_LEASE_MAX_TTL_MS),
+});
 const version = readVersion();
 const token = crypto.randomBytes(24).toString('hex');
 const selectorValidationExemptCommands = new Set(['session_list', 'devices']);
+const leaseAdmissionExemptCommands = new Set([
+  'session_list',
+  'devices',
+  'lease_allocate',
+  'lease_heartbeat',
+  'lease_release',
+]);
 const disconnectAbortPollIntervalMs = 200;
 const disconnectAbortMaxWindowMs = 15_000;
 
@@ -122,11 +137,25 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         });
 
         const command = scopedReq.command;
+        if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
+          leaseRegistry.assertLeaseAdmission({
+            tenantId: scopedReq.meta?.tenantId ?? scopedReq.flags?.tenant,
+            runId: scopedReq.meta?.runId ?? scopedReq.flags?.runId,
+            leaseId: scopedReq.meta?.leaseId ?? scopedReq.flags?.leaseId,
+            backend: scopedReq.meta?.leaseBackend,
+          });
+        }
         const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
         const existingSession = sessionStore.get(sessionName);
         if (existingSession && !selectorValidationExemptCommands.has(command)) {
           assertSessionSelectorMatches(existingSession, scopedReq.flags);
         }
+
+        const leaseResponse = await handleLeaseCommands({
+          req: scopedReq,
+          leaseRegistry,
+        });
+        if (leaseResponse) return finalizeDaemonResponse(leaseResponse);
 
         const sessionResponse = await handleSessionCommands({
           req: scopedReq,
@@ -551,3 +580,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 void start();
+
+function parseIntegerEnv(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isInteger(value)) return undefined;
+  return value;
+}

@@ -214,6 +214,8 @@ Flags:
 - `--daemon-server-mode socket|http|dual` daemon server mode (`http` and `dual` expose JSON-RPC over HTTP at `/rpc`)
 - `--tenant <id>` tenant identifier used with session isolation
 - `--session-isolation none|tenant` explicit session isolation mode (`tenant` scopes session namespace as `<tenant>:<session>`)
+- `--run-id <id>` run identifier used with tenant-scoped lease admission
+- `--lease-id <id>` active lease identifier used with tenant-scoped lease admission
 - `--count <n>` repeat count for `press`/`swipe`
 - `--interval-ms <ms>` delay between `press` iterations
 - `--hold-ms <ms>` hold duration per `press` iteration
@@ -463,6 +465,10 @@ Environment selectors:
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
 - `AGENT_DEVICE_HTTP_AUTH_HOOK=<module-path>` optional HTTP auth hook module path for JSON-RPC server mode.
 - `AGENT_DEVICE_HTTP_AUTH_EXPORT=<export-name>` optional export name from auth hook module (default: `default`).
+- `AGENT_DEVICE_MAX_SIMULATOR_LEASES=<n>` optional max concurrent simulator leases for HTTP lease allocation (default: unlimited).
+- `AGENT_DEVICE_LEASE_TTL_MS=<ms>` default lease TTL used by `agent_device.lease.allocate` and `agent_device.lease.heartbeat` (default: `60000`).
+- `AGENT_DEVICE_LEASE_MIN_TTL_MS=<ms>` minimum accepted lease TTL (default: `5000`).
+- `AGENT_DEVICE_LEASE_MAX_TTL_MS=<ms>` maximum accepted lease TTL (default: `600000`).
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.

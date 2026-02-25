@@ -14,6 +14,10 @@ export type DaemonRequest = {
     debug?: boolean;
     cwd?: string;
     tenantId?: string;
+    runId?: string;
+    leaseId?: string;
+    leaseTtlMs?: number;
+    leaseBackend?: 'ios-simulator';
     sessionIsolation?: 'none' | 'tenant';
   };
 };

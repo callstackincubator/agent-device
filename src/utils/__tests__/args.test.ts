@@ -76,12 +76,18 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
     'team_alpha',
     '--session-isolation',
     'tenant',
+    '--run-id',
+    'run_42',
+    '--lease-id',
+    'abcd1234ef567890',
   ], { strictFlags: true });
   assert.equal(parsed.flags.stateDir, './tmp/ad-state');
   assert.equal(parsed.flags.daemonTransport, 'http');
   assert.equal(parsed.flags.daemonServerMode, 'dual');
   assert.equal(parsed.flags.tenant, 'team_alpha');
   assert.equal(parsed.flags.sessionIsolation, 'tenant');
+  assert.equal(parsed.flags.runId, 'run_42');
+  assert.equal(parsed.flags.leaseId, 'abcd1234ef567890');
 });
 
 test('batch requires exactly one step source', () => {
@@ -277,6 +283,8 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--daemon-server-mode socket\|http\|dual/);
   assert.match(usage(), /--tenant <id>/);
   assert.match(usage(), /--session-isolation none\|tenant/);
+  assert.match(usage(), /--run-id <id>/);
+  assert.match(usage(), /--lease-id <id>/);
   assert.doesNotMatch(usage(), /--metadata/);
 });
 

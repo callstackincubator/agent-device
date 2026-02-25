@@ -78,18 +78,80 @@ function statusCodeForNormalizedError(code: string): number {
   }
 }
 
-function toDaemonRequest(params: Partial<DaemonRequest>, headers: IncomingHttpHeaders): DaemonRequest {
+function resolveToken(
+  params: Record<string, unknown>,
+  headers: IncomingHttpHeaders,
+): string {
   const authHeader = typeof headers.authorization === 'string' ? headers.authorization : '';
   const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice('bearer '.length) : undefined;
   const headerToken = typeof headers['x-agent-device-token'] === 'string' ? headers['x-agent-device-token'] : undefined;
+  const paramToken = typeof params.token === 'string' ? params.token : undefined;
+  return paramToken ?? headerToken ?? bearerToken ?? '';
+}
+
+function toDaemonRequest(params: Partial<DaemonRequest>, headers: IncomingHttpHeaders): DaemonRequest {
+  const raw = params as Record<string, unknown>;
   return {
-    token: params.token ?? headerToken ?? bearerToken ?? '',
+    token: resolveToken(raw, headers),
     session: params.session ?? 'default',
     command: params.command ?? '',
     positionals: Array.isArray(params.positionals) ? params.positionals : [],
     flags: params.flags,
     meta: params.meta,
   };
+}
+
+function readStringParam(params: Record<string, unknown>, key: string): string | undefined {
+  const value = params[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readIntParam(params: Record<string, unknown>, key: string): number | undefined {
+  const value = params[key];
+  return Number.isInteger(value) ? Number(value) : undefined;
+}
+
+function toLeaseDaemonRequest(
+  command: 'lease_allocate' | 'lease_heartbeat' | 'lease_release',
+  params: Record<string, unknown>,
+  headers: IncomingHttpHeaders,
+): DaemonRequest {
+  return {
+    token: resolveToken(params, headers),
+    session: readStringParam(params, 'session') ?? 'default',
+    command,
+    positionals: [],
+    meta: {
+      tenantId: readStringParam(params, 'tenantId') ?? readStringParam(params, 'tenant'),
+      runId: readStringParam(params, 'runId'),
+      leaseId: readStringParam(params, 'leaseId'),
+      leaseTtlMs: readIntParam(params, 'ttlMs'),
+      leaseBackend: readStringParam(params, 'backend') as 'ios-simulator' | undefined,
+    },
+  };
+}
+
+function methodToDaemonRequest(
+  method: string,
+  params: Record<string, unknown>,
+  headers: IncomingHttpHeaders,
+): DaemonRequest {
+  switch (method) {
+    case 'agent_device.command':
+    case 'agent-device.command':
+      return toDaemonRequest(params as unknown as Partial<DaemonRequest>, headers);
+    case 'agent_device.lease.allocate':
+    case 'agent-device.lease.allocate':
+      return toLeaseDaemonRequest('lease_allocate', params, headers);
+    case 'agent_device.lease.heartbeat':
+    case 'agent-device.lease.heartbeat':
+      return toLeaseDaemonRequest('lease_heartbeat', params, headers);
+    case 'agent_device.lease.release':
+    case 'agent-device.lease.release':
+      return toLeaseDaemonRequest('lease_release', params, headers);
+    default:
+      throw new AppError('INVALID_ARGS', `Method not found: ${method}`);
+  }
 }
 
 async function runHttpAuthHook(
@@ -205,7 +267,17 @@ export async function createDaemonHttpServer(options: {
         sendJson(res, createRpcError(rpcRequest.id ?? null, -32600, 'Invalid Request'), 400);
         return;
       }
-      if (rpcRequest.method !== 'agent_device.command' && rpcRequest.method !== 'agent-device.command') {
+      const supportedMethods = new Set([
+        'agent_device.command',
+        'agent-device.command',
+        'agent_device.lease.allocate',
+        'agent-device.lease.allocate',
+        'agent_device.lease.heartbeat',
+        'agent-device.lease.heartbeat',
+        'agent_device.lease.release',
+        'agent-device.lease.release',
+      ]);
+      if (!supportedMethods.has(rpcRequest.method)) {
         sendJson(res, createRpcError(rpcRequest.id ?? null, -32601, `Method not found: ${rpcRequest.method}`), 404);
         return;
       }
@@ -215,9 +287,12 @@ export async function createDaemonHttpServer(options: {
       }
 
       try {
-        const params = rpcRequest.params as Partial<DaemonRequest>;
-        const daemonRequest = toDaemonRequest(params, req.headers);
-        if (!daemonRequest.command) {
+        const params = rpcRequest.params as Record<string, unknown>;
+        const daemonRequest = methodToDaemonRequest(rpcRequest.method, params, req.headers);
+        if (
+          (rpcRequest.method === 'agent_device.command' || rpcRequest.method === 'agent-device.command')
+          && (typeof daemonRequest.command !== 'string' || daemonRequest.command.length === 0)
+        ) {
           sendJson(res, createRpcError(rpcRequest.id ?? null, -32602, 'Invalid params: command is required'), 400);
           return;
         }
@@ -235,6 +310,7 @@ export async function createDaemonHttpServer(options: {
           daemonRequest.meta = {
             ...daemonRequest.meta,
             tenantId: authResult.tenantId,
+            sessionIsolation: daemonRequest.meta?.sessionIsolation ?? daemonRequest.flags?.sessionIsolation ?? 'tenant',
           };
         }
 
@@ -251,7 +327,7 @@ export async function createDaemonHttpServer(options: {
             daemonResponse.error.message,
             daemonResponse.error,
           ),
-          400,
+          statusCodeForNormalizedError(daemonResponse.error.code),
         );
       } catch (error) {
         const normalized = normalizeError(error);

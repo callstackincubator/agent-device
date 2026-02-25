@@ -36,3 +36,8 @@ npx agent-device open Settings --platform ios
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
   - default state dir is `~/.agent-device` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+- Optional remote tenancy/lease controls:
+  - `AGENT_DEVICE_MAX_SIMULATOR_LEASES=<n>`
+  - `AGENT_DEVICE_LEASE_TTL_MS=<ms>`
+  - `AGENT_DEVICE_LEASE_MIN_TTL_MS=<ms>`
+  - `AGENT_DEVICE_LEASE_MAX_TTL_MS=<ms>`

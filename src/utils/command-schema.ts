@@ -7,6 +7,8 @@ export type CliFlags = {
   daemonServerMode?: 'socket' | 'http' | 'dual';
   tenant?: string;
   sessionIsolation?: 'none' | 'tenant';
+  runId?: string;
+  leaseId?: string;
   platform?: 'ios' | 'android' | 'apple';
   target?: 'mobile' | 'tv';
   device?: string;
@@ -127,6 +129,20 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     enumValues: ['none', 'tenant'],
     usageLabel: '--session-isolation none|tenant',
     usageDescription: 'Session isolation strategy (tenant prefixes session namespace)',
+  },
+  {
+    key: 'runId',
+    names: ['--run-id'],
+    type: 'string',
+    usageLabel: '--run-id <id>',
+    usageDescription: 'Run identifier used for tenant lease admission checks',
+  },
+  {
+    key: 'leaseId',
+    names: ['--lease-id'],
+    type: 'string',
+    usageLabel: '--lease-id <id>',
+    usageDescription: 'Lease identifier bound to tenant/run admission scope',
   },
   {
     key: 'platform',
@@ -410,6 +426,8 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'daemonServerMode',
   'tenant',
   'sessionIsolation',
+  'runId',
+  'leaseId',
   'help',
   'version',
   'verbose',
