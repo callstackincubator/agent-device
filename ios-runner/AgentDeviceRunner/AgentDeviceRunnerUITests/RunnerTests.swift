@@ -40,6 +40,7 @@ final class RunnerTests: XCTestCase {
   private let postSnapshotInteractionDelay: TimeInterval = 0.2
   private let firstInteractionAfterActivateDelay: TimeInterval = 0.25
   private let scrollInteractionIdleTimeoutDefault: TimeInterval = 1.0
+  private let tvRemoteDoublePressDelayDefault: TimeInterval = 0.0
   private let minRecordingFps = 1
   private let maxRecordingFps = 120
   private var needsPostSnapshotInteractionDelay = false
@@ -1041,12 +1042,25 @@ final class RunnerTests: XCTestCase {
   private func performTvRemoteAppSwitcherIfAvailable() -> Bool {
 #if os(tvOS)
     XCUIRemote.shared.press(.home)
-    usleep(120_000)
+    sleepFor(resolveTvRemoteDoublePressDelay())
     XCUIRemote.shared.press(.home)
     return true
 #else
     return false
 #endif
+  }
+
+  private func resolveTvRemoteDoublePressDelay() -> TimeInterval {
+    guard
+      let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_TV_REMOTE_DOUBLE_PRESS_DELAY_MS"],
+      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      return tvRemoteDoublePressDelayDefault
+    }
+    guard let parsedMs = Double(raw), parsedMs >= 0 else {
+      return tvRemoteDoublePressDelayDefault
+    }
+    return min(parsedMs, 1000) / 1000.0
   }
 
   private func findElement(app: XCUIApplication, text: String) -> XCUIElement? {
