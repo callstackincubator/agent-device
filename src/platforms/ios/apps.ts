@@ -390,19 +390,15 @@ export async function setIosSetting(
       await runCmd('xcrun', ['simctl', 'privacy', device.id, action, 'location', appBundleId]);
       return;
     }
-    case 'faceid': {
-      const action = parseBiometricAction(state, 'faceid');
-      await runIosBiometricSimctlCommand(device.id, action, {
-        settingName: 'faceid',
-        modalityAliases: ['face'],
-      });
-      return;
-    }
+    case 'faceid':
     case 'touchid': {
-      const action = parseBiometricAction(state, 'touchid');
+      const biometricSetting = normalized as IosBiometricSetting;
+      const biometric = IOS_BIOMETRIC_SETTINGS[biometricSetting];
+      const action = parseBiometricAction(state, biometricSetting);
       await runIosBiometricSimctlCommand(device.id, action, {
-        settingName: 'touchid',
-        modalityAliases: ['finger', 'touch'],
+        settingName: biometricSetting,
+        label: biometric.label,
+        modalityAliases: biometric.modalityAliases,
       });
       return;
     }
@@ -519,6 +515,15 @@ function parseIosAppearance(stdout: string, stderr: string): 'light' | 'dark' | 
 }
 
 type IosBiometricAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
+type IosBiometricSetting = 'faceid' | 'touchid';
+
+const IOS_BIOMETRIC_SETTINGS: Record<
+  IosBiometricSetting,
+  { label: 'Face ID' | 'Touch ID'; modalityAliases: string[] }
+> = {
+  faceid: { label: 'Face ID', modalityAliases: ['face'] },
+  touchid: { label: 'Touch ID', modalityAliases: ['finger', 'touch'] },
+};
 
 function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | 'revoke' | 'reset' {
   if (action === 'deny') return 'revoke';
@@ -676,7 +681,7 @@ function parseIosPermissionTarget(permissionTarget: string | undefined, permissi
 
 function parseBiometricAction(
   state: string,
-  settingName: 'faceid' | 'touchid',
+  settingName: IosBiometricSetting,
 ): IosBiometricAction {
   const normalized = state.trim().toLowerCase();
   if (normalized === 'match') return 'match';
@@ -692,7 +697,7 @@ function parseBiometricAction(
 async function runIosBiometricSimctlCommand(
   deviceId: string,
   action: IosBiometricAction,
-  options: { settingName: 'faceid' | 'touchid'; modalityAliases: string[] },
+  options: { settingName: IosBiometricSetting; label: 'Face ID' | 'Touch ID'; modalityAliases: string[] },
 ): Promise<void> {
   const attempts = biometricCommandAttempts(deviceId, action, options.modalityAliases);
   const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
@@ -719,7 +724,7 @@ async function runIosBiometricSimctlCommand(
   if (capabilityMissing) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      `${options.settingName === 'faceid' ? 'Face ID' : 'Touch ID'} simulation is not supported on this simulator runtime.`,
+      `${options.label} simulation is not supported on this simulator runtime.`,
       {
         deviceId,
         action,

@@ -184,6 +184,7 @@ agent-device settings permission reset notifications
 - `settings appearance` maps to iOS simulator appearance and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
+  On physical Android devices, only `cmd fingerprint` is attempted.
 - Permission actions are scoped to the active session app.
 - iOS permission targets: `camera`, `microphone`, `photos` (`full` or `limited`), `contacts`, `notifications`.
 - Android permission targets: `camera`, `microphone`, `photos`, `contacts`, `notifications`.

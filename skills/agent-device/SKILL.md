@@ -129,7 +129,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
 - `network dump` is best-effort and parses HTTP(s) entries from the session app log file.
-- iOS settings helpers are simulator-only; use `appearance light|dark|toggle` and faceid `match|nonmatch|enroll|unenroll`.
+- Biometric settings: iOS simulator supports `settings faceid|touchid <match|nonmatch|enroll|unenroll>`; Android supports `settings fingerprint <match|nonmatch>` where runtime tooling is available.
 - For AndroidTV/tvOS selection, always pair `--target` with `--platform` (`ios`, `android`, or `apple` alias); target-only selection is invalid.
 - `push` simulates notification delivery:
   - iOS simulator uses APNs-style payload JSON.
