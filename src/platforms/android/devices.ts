@@ -190,6 +190,7 @@ async function listAndroidDeviceEntries(): Promise<AndroidDeviceEntry[]> {
 export async function resolveAndroidBootSelectorDevice(params: {
   deviceName?: string;
   serial?: string;
+  includeTarget?: boolean;
 }): Promise<DeviceInfo | undefined> {
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
@@ -230,10 +231,8 @@ export async function resolveAndroidBootSelectorDevice(params: {
   }
 
   if (!matched) return undefined;
-  const [booted, target] = await Promise.all([
-    isAndroidBooted(matched.serial),
-    resolveAndroidTarget(matched.serial),
-  ]);
+  const booted = await isAndroidBooted(matched.serial);
+  const target = params.includeTarget ? await resolveAndroidTarget(matched.serial) : undefined;
   return {
     platform: 'android',
     id: matched.serial,

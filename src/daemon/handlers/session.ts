@@ -57,6 +57,7 @@ type EnsureAndroidEmulatorBoot = (params: {
 type ResolveAndroidBootSelectorDevice = (params: {
   deviceName?: string;
   serial?: string;
+  includeTarget?: boolean;
 }) => Promise<DeviceInfo | undefined>;
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
@@ -258,9 +259,9 @@ const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avd
   return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
 };
 
-const defaultResolveAndroidBootSelectorDevice: ResolveAndroidBootSelectorDevice = async ({ deviceName, serial }) => {
+const defaultResolveAndroidBootSelectorDevice: ResolveAndroidBootSelectorDevice = async ({ deviceName, serial, includeTarget }) => {
   const { resolveAndroidBootSelectorDevice } = await import('../../platforms/android/devices.ts');
-  return await resolveAndroidBootSelectorDevice({ deviceName, serial });
+  return await resolveAndroidBootSelectorDevice({ deviceName, serial, includeTarget });
 };
 
 const defaultReinstallOps: ReinstallOps = {
@@ -611,6 +612,7 @@ export async function handleSessionCommands(params: {
       ? await resolveAndroidBootSelectorDeviceOverride({
         deviceName: flags.device,
         serial: flags.serial,
+        includeTarget: Boolean(flags.target),
       })
       : undefined;
     const targetMismatch = Boolean(flags.target)
