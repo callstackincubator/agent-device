@@ -644,6 +644,36 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['path?'],
     allowedFlags: ['out'],
   },
+  'trigger-app-event': {
+    usageOverride: 'trigger-app-event <event> [payloadJson]',
+    description: 'Trigger app-defined event hook via deep link template',
+    positionalArgs: ['event', 'payloadJson?'],
+    allowedFlags: [],
+  },
+  'trigger-screenshot': {
+    description: 'Trigger app-defined screenshot event hook',
+    positionalArgs: [],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
+  'trigger-screenshot-notification': {
+    description: 'Trigger app-defined screenshot notification hook',
+    positionalArgs: [],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
+  'trigger-memory-warning': {
+    description: 'Trigger app-defined memory warning event hook',
+    positionalArgs: [],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
+  'trigger-device-shake': {
+    description: 'Trigger app-defined device shake event hook',
+    positionalArgs: [],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
   record: {
     usageOverride: 'record start [path] [--fps <n>] | record stop',
     description: 'Start/stop screen recording',

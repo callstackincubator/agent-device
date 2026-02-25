@@ -267,6 +267,12 @@ test('parseArgs supports metrics alias for perf', () => {
   assert.deepEqual(parsed.positionals, []);
 });
 
+test('parseArgs supports trigger-app-event payload argument', () => {
+  const parsed = parseArgs(['trigger-app-event', 'screenshot_taken', '{"source":"qa"}'], { strictFlags: true });
+  assert.equal(parsed.command, 'trigger-app-event');
+  assert.deepEqual(parsed.positionals, ['screenshot_taken', '{"source":"qa"}']);
+});
+
 test('usageForCommand resolves longpress help', () => {
   const help = usageForCommand('longpress');
   assert.equal(help === null, false);
@@ -303,6 +309,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /network dump/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /clipboard read \| clipboard write <text>/);
+  assert.match(usage(), /trigger-app-event <event> \[payloadJson\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.match(usage(), /--state-dir <path>/);
   assert.match(usage(), /--daemon-transport auto\|socket\|http/);
@@ -476,4 +483,10 @@ test('settings usage documents canonical faceid states', () => {
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
   assert.match(help, /camera\|microphone\|photos\|contacts\|contacts-limited\|notifications\|calendar\|location\|location-always\|media-library\|motion\|reminders\|siri/);
   assert.doesNotMatch(help, /validate\|unvalidate/);
+});
+
+test('trigger-screenshot-notification usage is documented', () => {
+  const help = usageForCommand('trigger-screenshot-notification');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Trigger app-defined screenshot notification hook/);
 });

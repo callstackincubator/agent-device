@@ -45,6 +45,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   swipe: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   settings: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
   snapshot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
+  'trigger-app-event': { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   type: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   wait: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
 };

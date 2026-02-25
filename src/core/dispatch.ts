@@ -24,6 +24,7 @@ import {
   writeIosClipboardText,
 } from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
+import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
@@ -373,6 +374,12 @@ export async function dispatchCommand(
         },
       );
       return { scale, x, y };
+    }
+    case 'trigger-app-event': {
+      const { eventName, payload } = parseTriggerAppEventArgs(positionals);
+      const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);
+      await interactor.open(eventUrl, { appBundleId: context?.appBundleId });
+      return { event: eventName, eventUrl, transport: 'deep-link' };
     }
     case 'screenshot': {
       const positionalPath = positionals[0];

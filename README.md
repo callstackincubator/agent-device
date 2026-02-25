@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
 - Performance command: `perf` (alias: `metrics`) returns a metrics JSON blob for the active session; startup timing is currently sampled.
@@ -148,6 +148,9 @@ agent-device scrollintoview @e42
 - `snapshot`, `diff snapshot`, `find`, `get`
 - `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
+- `trigger-app-event <event> [payloadJson]`
+- `trigger-screenshot-notification` (alias: `trigger-screenshot`)
+- `trigger-memory-warning`, `trigger-device-shake`
 - `trace start`, `trace stop`
 - `logs path`, `logs start`, `logs stop`, `logs clear`, `logs clear --restart`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
 - `clipboard read`, `clipboard write <text>` (iOS simulator + Android)
@@ -180,6 +183,32 @@ Payload notes:
   `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
 - Android extras support string/boolean/number values.
 - `push` works with session context (uses session device) or explicit device selectors.
+
+App event triggers (app hook):
+
+```bash
+# Generic app event trigger
+agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
+
+# Convenience aliases
+agent-device trigger-screenshot-notification
+agent-device trigger-screenshot
+agent-device trigger-memory-warning
+agent-device trigger-device-shake
+```
+
+- `trigger-*` commands dispatch an app event via deep link and require an app-side test/debug hook.
+- `trigger-*` commands require either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- On iOS physical devices, custom-scheme deep links require active app context (open the app in-session first).
+- Configure one of:
+  - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`
+  - `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`
+  - `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`
+- Template placeholders: `{event}`, `{payload}`, `{platform}`.
+- Example template: `myapp://agent-device/event?name={event}&payload={payload}`.
+- `payloadJson` must be a JSON object.
+- This is app-hook-based simulation, not an OS-global notification injector.
+- Canonical trigger contract lives in [`website/docs/docs/commands.md`](website/docs/docs/commands.md) under **App event triggers**.
 
 ## iOS Snapshots
 

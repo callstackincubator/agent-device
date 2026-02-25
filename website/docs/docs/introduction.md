@@ -21,7 +21,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `reinstall`.
+- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS simulator-only: `alert`, `pinch`, `settings`, `push`, `clipboard`.
 - Session performance metrics: `perf`/`metrics` is available on iOS and Android and currently reports startup timing sampled from `open` command round-trip duration.
@@ -31,6 +31,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to uncapped (max available) FPS and supports `--fps` caps.
 - Android supports the same core interaction set, plus `push` notification simulation and `clipboard read/write` via adb shell commands.
+- App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event` and trigger aliases), using active session context or explicit device selectors.
 
 ## Architecture (high level)
 

@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
+import { normalizeTriggerAliasCommand } from './core/app-events.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
@@ -278,8 +279,30 @@ function finalizeDaemonResponse(response: DaemonResponse): DaemonResponse {
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
-  if (req.command !== 'click') return req;
-  return { ...req, command: 'press' };
+  let normalizedReq = req;
+  if (normalizedReq.command === 'click') {
+    normalizedReq = { ...normalizedReq, command: 'press' };
+  }
+  const normalizedTrigger = normalizeTriggerAliasCommand(
+    normalizedReq.command,
+    normalizedReq.positionals ?? [],
+  );
+  if (
+    normalizedTrigger.command !== normalizedReq.command
+    || !areSamePositionals(normalizedTrigger.positionals, normalizedReq.positionals ?? [])
+  ) {
+    normalizedReq = {
+      ...normalizedReq,
+      command: normalizedTrigger.command,
+      positionals: normalizedTrigger.positionals,
+    };
+  }
+  return normalizedReq;
+}
+
+function areSamePositionals(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((entry, index) => entry === right[index]);
 }
 
 function writeInfo(ports: { socketPort?: number; httpPort?: number }): void {

@@ -92,6 +92,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     'scroll',
     'scrollintoview',
     'snapshot',
+    'trigger-app-event',
     'type',
     'wait',
   ]) {
@@ -108,7 +109,16 @@ test('Android TV uses Android capabilities for core commands', () => {
 });
 
 test('tvOS follows iOS capability matrix by device kind', () => {
-  for (const cmd of ['open', 'close', 'apps', 'screenshot', 'logs', 'reinstall', 'boot']) {
+  for (const cmd of [
+    'open',
+    'close',
+    'apps',
+    'screenshot',
+    'trigger-app-event',
+    'logs',
+    'reinstall',
+    'boot',
+  ]) {
     assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
   }
   for (const cmd of ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record']) {

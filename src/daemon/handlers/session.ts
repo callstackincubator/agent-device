@@ -7,6 +7,7 @@ import {
   validateAndNormalizeBatchSteps,
 } from '../../core/batch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { normalizeTriggerAliasCommand } from '../../core/app-events.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
@@ -60,6 +61,7 @@ const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
 const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
+const TRIGGER_COMMANDS = new Set(['trigger-app-event']);
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const PERF_UNAVAILABLE_REASON = 'Not implemented for this platform in this release.';
 const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
@@ -254,6 +256,75 @@ const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avd
   return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
 };
 
+async function runSessionOrSelectorDispatch(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  ensureReady: typeof ensureDeviceReady;
+  resolveDevice: typeof resolveTargetDevice;
+  dispatch: typeof dispatchCommand;
+  command: string;
+  positionals: string[];
+  recordPositionals?: string[];
+  deriveNextSession?: (
+    session: SessionState,
+    result: Record<string, unknown> | void,
+    device: DeviceInfo,
+  ) => Promise<SessionState> | SessionState;
+}): Promise<DaemonResponse> {
+  const {
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    ensureReady,
+    resolveDevice,
+    dispatch,
+    command,
+    positionals,
+    recordPositionals,
+    deriveNextSession,
+  } = params;
+  const session = sessionStore.get(sessionName);
+  const flags = req.flags ?? {};
+  const guard = requireSessionOrExplicitSelector(command, session, flags);
+  if (guard) return guard;
+
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReadyFn: ensureReady,
+    resolveTargetDeviceFn: resolveDevice,
+    ensureReady: true,
+  });
+  if (!isCommandSupportedOnDevice(command, device)) {
+    return {
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_OPERATION',
+        message: `${command} is not supported on this device`,
+      },
+    };
+  }
+
+  const result = await dispatch(device, command, positionals, req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+  });
+  if (session) {
+    const nextSession = deriveNextSession ? await deriveNextSession(session, result, device) : session;
+    sessionStore.recordAction(nextSession, {
+      command,
+      positionals: recordPositionals ?? positionals,
+      flags: req.flags ?? {},
+      result: result ?? {},
+    });
+    if (nextSession !== session) {
+      sessionStore.set(sessionName, nextSession);
+    }
+  }
+  return { ok: true, data: result ?? {} };
+}
 const defaultReinstallOps: ReinstallOps = {
   ios: async (device, app, appPath) => {
     const { reinstallIosApp } = await import('../../platforms/ios/index.ts');
@@ -308,6 +379,22 @@ function shouldPreserveAndroidPackageContext(
   openTarget: string | undefined,
 ): boolean {
   return device.platform === 'android' && Boolean(openTarget && isDeepLinkTarget(openTarget));
+}
+
+async function resolveSessionAppBundleIdForTarget(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+  currentAppBundleId: string | undefined,
+  resolveAndroidPackageForOpenFn: (
+    device: DeviceInfo,
+    openTarget: string | undefined,
+  ) => Promise<string | undefined>,
+): Promise<string | undefined> {
+  return (
+    (await resolveIosBundleIdForOpen(device, openTarget, currentAppBundleId))
+    ?? (await resolveAndroidPackageForOpenFn(device, openTarget))
+    ?? (shouldPreserveAndroidPackageContext(device, openTarget) ? currentAppBundleId : undefined)
+  );
 }
 
 async function handleAppStateCommand(params: {
@@ -498,7 +585,9 @@ export async function handleSessionCommands(params: {
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
-  const command = req.command;
+  const normalizedTrigger = normalizeTriggerAliasCommand(req.command, req.positionals ?? []);
+  const command = normalizedTrigger.command;
+  const triggerPositionals = normalizedTrigger.positionals;
 
   if (command === 'session_list') {
     const data = {
@@ -794,10 +883,6 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'push') {
-    const session = sessionStore.get(sessionName);
-    const flags = req.flags ?? {};
-    const guard = requireSessionOrExplicitSelector(command, session, flags);
-    if (guard) return guard;
     const appId = req.positionals?.[0]?.trim();
     const payloadArg = req.positionals?.[1]?.trim();
     if (!appId || !payloadArg) {
@@ -810,34 +895,49 @@ export async function handleSessionCommands(params: {
       };
     }
     const normalizedPayloadArg = maybeResolvePushPayloadPath(payloadArg, req.meta?.cwd);
-    const device = await resolveCommandDevice({
-      session,
-      flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
-      ensureReady: true,
+    return await runSessionOrSelectorDispatch({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      dispatch,
+      command: 'push',
+      positionals: [appId, normalizedPayloadArg],
+      recordPositionals: [appId, payloadArg],
     });
-    if (!isCommandSupportedOnDevice('push', device)) {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'push is not supported on this device',
-        },
-      };
-    }
-    const result = await dispatch(device, 'push', [appId, normalizedPayloadArg], req.flags?.out, {
-      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+  }
+
+  if (TRIGGER_COMMANDS.has(command)) {
+    return await runSessionOrSelectorDispatch({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      dispatch,
+      command: 'trigger-app-event',
+      positionals: triggerPositionals,
+      deriveNextSession: async (session, result) => {
+        const eventUrl = typeof result?.eventUrl === 'string' ? result.eventUrl : undefined;
+        const nextAppBundleId = eventUrl
+          ? (
+            await resolveSessionAppBundleIdForTarget(
+              session.device,
+              eventUrl,
+              session.appBundleId,
+              resolveAndroidPackageForOpenOverride,
+            )
+          ) ?? session.appBundleId
+          : session.appBundleId;
+        return {
+          ...session,
+          appBundleId: nextAppBundleId,
+        };
+      },
     });
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: [appId, payloadArg],
-        flags: req.flags ?? {},
-        result: result ?? {},
-      });
-    }
-    return { ok: true, data: result ?? {} };
   }
 
   if (command === 'open') {
@@ -874,10 +974,12 @@ export async function handleSessionCommands(params: {
         };
       }
       await ensureReady(session.device);
-      const appBundleId =
-        (await resolveIosBundleIdForOpen(session.device, openTarget, session.appBundleId))
-        ?? (await resolveAndroidPackageForOpenOverride(session.device, openTarget))
-        ?? (shouldPreserveAndroidPackageContext(session.device, openTarget) ? session.appBundleId : undefined);
+      const appBundleId = await resolveSessionAppBundleIdForTarget(
+        session.device,
+        openTarget,
+        session.appBundleId,
+        resolveAndroidPackageForOpenOverride,
+      );
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
         const closeTarget = appBundleId ?? openTarget;
@@ -945,8 +1047,7 @@ export async function handleSessionCommands(params: {
     }
     await ensureReady(device);
     const appBundleId =
-      (await resolveIosBundleIdForOpen(device, openTarget))
-      ?? (await resolveAndroidPackageForOpenOverride(device, openTarget));
+      await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
     if (shouldRelaunch && openTarget) {
       const closeTarget = appBundleId ?? openTarget;
       await dispatch(device, 'close', [closeTarget], req.flags?.out, {
