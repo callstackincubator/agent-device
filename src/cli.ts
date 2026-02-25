@@ -5,11 +5,11 @@ import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
+import { resolveDaemonPaths } from './daemon/config.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -97,8 +97,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
 
       const { command, positionals, flags } = parsed;
       const daemonFlags = toDaemonFlags(flags);
+      const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
-      const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail() : null;
+      const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail(daemonPaths.logPath) : null;
       const sendDaemonRequest = async (payload: { command: string; positionals: string[]; flags?: Record<string, unknown> }) =>
         await deps.sendToDaemon({
           session: sessionName,
@@ -109,6 +110,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             requestId,
             debug: Boolean(flags.verbose),
             cwd: process.cwd(),
+            tenantId: flags.tenant,
+            sessionIsolation: flags.sessionIsolation,
           },
         });
       try {
@@ -459,7 +462,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           printHumanError(normalized, { showDetails: flags.verbose });
           if (flags.verbose) {
             try {
-              const logPath = path.join(os.homedir(), '.agent-device', 'daemon.log');
+              const logPath = daemonPaths.logPath;
               if (fs.existsSync(logPath)) {
                 const content = fs.readFileSync(logPath, 'utf8');
                 const lines = content.split('\n');
@@ -536,9 +539,8 @@ if (isDirectRun) {
   });
 }
 
-function startDaemonLogTail(): (() => void) | null {
+function startDaemonLogTail(logPath: string): (() => void) | null {
   try {
-    const logPath = path.join(os.homedir(), '.agent-device', 'daemon.log');
     let offset = 0;
     let stopped = false;
     const interval = setInterval(() => {

@@ -1,6 +1,6 @@
 import net from 'node:net';
+import http from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
 import type { DaemonRequest as SharedDaemonRequest, DaemonResponse as SharedDaemonResponse } from './daemon/types.ts';
@@ -11,12 +11,22 @@ import {
   isAgentDeviceDaemonProcess,
   stopProcessForTakeover,
 } from './utils/process-identity.ts';
+import {
+  resolveDaemonPaths,
+  resolveDaemonServerMode,
+  resolveDaemonTransportPreference,
+  type DaemonPaths,
+  type DaemonServerMode,
+  type DaemonTransportPreference,
+} from './daemon/config.ts';
 
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
 
 type DaemonInfo = {
-  port: number;
+  port?: number;
+  httpPort?: number;
+  transport?: 'socket' | 'http' | 'dual';
   token: string;
   pid: number;
   version?: string;
@@ -35,9 +45,12 @@ type DaemonMetadataState = {
   hasLock: boolean;
 };
 
-const baseDir = path.join(os.homedir(), '.agent-device');
-const infoPath = path.join(baseDir, 'daemon.json');
-const lockPath = path.join(baseDir, 'daemon.lock');
+type DaemonClientSettings = {
+  paths: DaemonPaths;
+  transportPreference: DaemonTransportPreference;
+  serverMode: DaemonServerMode;
+};
+
 const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
 const DAEMON_STARTUP_TIMEOUT_MS = 5000;
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
@@ -51,9 +64,10 @@ const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
   const requestId = req.meta?.requestId ?? createRequestId();
   const debug = Boolean(req.meta?.debug || req.flags?.verbose);
+  const settings = resolveClientSettings(req);
   const info = await withDiagnosticTimer(
     'daemon_startup',
-    async () => await ensureDaemon(),
+    async () => await ensureDaemon(settings),
     { requestId, session: req.session },
   );
   const request = {
@@ -63,6 +77,8 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       requestId,
       debug,
       cwd: req.meta?.cwd,
+      tenantId: req.meta?.tenantId ?? req.flags?.tenant,
+      sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
     },
   };
   emitDiagnostic({
@@ -76,16 +92,32 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   });
   return await withDiagnosticTimer(
     'daemon_request',
-    async () => await sendRequest(info, request),
+    async () => await sendRequest(info, request, settings.transportPreference),
     { requestId, command: req.command },
   );
 }
 
-async function ensureDaemon(): Promise<DaemonInfo> {
-  const existing = readDaemonInfo();
+function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {
+  const stateDir = req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR;
+  const rawTransport = req.flags?.daemonTransport ?? process.env.AGENT_DEVICE_DAEMON_TRANSPORT;
+  const transportPreference = resolveDaemonTransportPreference(rawTransport);
+  const rawServerMode =
+    req.flags?.daemonServerMode
+    ?? process.env.AGENT_DEVICE_DAEMON_SERVER_MODE
+    ?? (rawTransport === 'dual' ? 'dual' : undefined);
+  const serverMode = resolveDaemonServerMode(rawServerMode);
+  return {
+    paths: resolveDaemonPaths(stateDir),
+    transportPreference,
+    serverMode,
+  };
+}
+
+async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo> {
+  const existing = readDaemonInfo(settings.paths.infoPath);
   const localVersion = readVersion();
   const localCodeSignature = resolveLocalDaemonCodeSignature();
-  const existingReachable = existing ? await canConnect(existing) : false;
+  const existingReachable = existing ? await canConnect(existing, settings.transportPreference) : false;
   if (
     existing
     && existing.version === localVersion
@@ -103,48 +135,48 @@ async function ensureDaemon(): Promise<DaemonInfo> {
     )
   ) {
     await stopDaemonProcessForTakeover(existing);
-    removeDaemonInfo();
+    removeDaemonInfo(settings.paths.infoPath);
   }
 
-  cleanupStaleDaemonLockIfSafe();
-  await startDaemon();
-  const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS);
+  cleanupStaleDaemonLockIfSafe(settings.paths);
+  await startDaemon(settings);
+  const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
   if (started) return started;
 
-  if (await recoverDaemonLockHolder()) {
-    await startDaemon();
-    const recovered = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS);
+  if (await recoverDaemonLockHolder(settings.paths)) {
+    await startDaemon(settings);
+    const recovered = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
     if (recovered) return recovered;
   }
 
   throw new AppError('COMMAND_FAILED', 'Failed to start daemon', {
     kind: 'daemon_startup_failed',
-    infoPath,
-    lockPath,
-    hint: resolveDaemonStartupHint(getDaemonMetadataState()),
+    infoPath: settings.paths.infoPath,
+    lockPath: settings.paths.lockPath,
+    hint: resolveDaemonStartupHint(getDaemonMetadataState(settings.paths), settings.paths),
   });
 }
 
-async function waitForDaemonInfo(timeoutMs: number): Promise<DaemonInfo | null> {
+async function waitForDaemonInfo(timeoutMs: number, settings: DaemonClientSettings): Promise<DaemonInfo | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const info = readDaemonInfo();
-    if (info && (await canConnect(info))) return info;
+    const info = readDaemonInfo(settings.paths.infoPath);
+    if (info && (await canConnect(info, settings.transportPreference))) return info;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return null;
 }
 
-async function recoverDaemonLockHolder(): Promise<boolean> {
-  const state = getDaemonMetadataState();
+async function recoverDaemonLockHolder(paths: DaemonPaths): Promise<boolean> {
+  const state = getDaemonMetadataState(paths);
   if (!state.hasLock || state.hasInfo) return false;
-  const lockInfo = readDaemonLockInfo();
+  const lockInfo = readDaemonLockInfo(paths.lockPath);
   if (!lockInfo) {
-    removeDaemonLock();
+    removeDaemonLock(paths.lockPath);
     return true;
   }
   if (!isAgentDeviceDaemonProcess(lockInfo.pid, lockInfo.processStartTime)) {
-    removeDaemonLock();
+    removeDaemonLock(paths.lockPath);
     return true;
   }
   await stopProcessForTakeover(lockInfo.pid, {
@@ -152,7 +184,7 @@ async function recoverDaemonLockHolder(): Promise<boolean> {
     killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
     expectedStartTime: lockInfo.processStartTime,
   });
-  removeDaemonLock();
+  removeDaemonLock(paths.lockPath);
   return true;
 }
 
@@ -164,16 +196,21 @@ async function stopDaemonProcessForTakeover(info: DaemonInfo): Promise<void> {
   });
 }
 
-function readDaemonInfo(): DaemonInfo | null {
+function readDaemonInfo(infoPath: string): DaemonInfo | null {
   const data = readJsonFile(infoPath) as DaemonInfo | null;
-  if (!data || !data.port || !data.token) return null;
+  if (!data || typeof data.token !== 'string' || data.token.length === 0) return null;
+  const hasSocket = Number.isInteger(data.port) && Number(data.port) > 0;
+  const hasHttp = Number.isInteger(data.httpPort) && Number(data.httpPort) > 0;
+  if (!hasSocket && !hasHttp) return null;
   return {
     ...data,
+    port: hasSocket ? Number(data.port) : undefined,
+    httpPort: hasHttp ? Number(data.httpPort) : undefined,
     pid: Number.isInteger(data.pid) && data.pid > 0 ? data.pid : 0,
   };
 }
 
-function readDaemonLockInfo(): DaemonLockInfo | null {
+function readDaemonLockInfo(lockPath: string): DaemonLockInfo | null {
   const data = readJsonFile(lockPath) as DaemonLockInfo | null;
   if (!data || !Number.isInteger(data.pid) || data.pid <= 0) {
     return null;
@@ -181,32 +218,32 @@ function readDaemonLockInfo(): DaemonLockInfo | null {
   return data;
 }
 
-function removeDaemonInfo(): void {
+function removeDaemonInfo(infoPath: string): void {
   removeFileIfExists(infoPath);
 }
 
-function removeDaemonLock(): void {
+function removeDaemonLock(lockPath: string): void {
   removeFileIfExists(lockPath);
 }
 
-function cleanupStaleDaemonLockIfSafe(): void {
-  const state = getDaemonMetadataState();
+function cleanupStaleDaemonLockIfSafe(paths: DaemonPaths): void {
+  const state = getDaemonMetadataState(paths);
   if (!state.hasLock || state.hasInfo) return;
-  const lockInfo = readDaemonLockInfo();
+  const lockInfo = readDaemonLockInfo(paths.lockPath);
   if (!lockInfo) {
-    removeDaemonLock();
+    removeDaemonLock(paths.lockPath);
     return;
   }
   if (isAgentDeviceDaemonProcess(lockInfo.pid, lockInfo.processStartTime)) {
     return;
   }
-  removeDaemonLock();
+  removeDaemonLock(paths.lockPath);
 }
 
-function getDaemonMetadataState(): DaemonMetadataState {
+function getDaemonMetadataState(paths: DaemonPaths): DaemonMetadataState {
   return {
-    hasInfo: fs.existsSync(infoPath),
-    hasLock: fs.existsSync(lockPath),
+    hasInfo: fs.existsSync(paths.infoPath),
+    hasLock: fs.existsSync(paths.lockPath),
   };
 }
 
@@ -227,9 +264,18 @@ function removeFileIfExists(filePath: string): void {
   }
 }
 
-async function canConnect(info: DaemonInfo): Promise<boolean> {
+async function canConnect(info: DaemonInfo, preference: DaemonTransportPreference): Promise<boolean> {
+  const transport = chooseTransport(info, preference);
+  if (transport === 'http') {
+    return await canConnectHttp(info.httpPort);
+  }
+  return await canConnectSocket(info.port);
+}
+
+function canConnectSocket(port: number | undefined): Promise<boolean> {
+  if (!port) return Promise.resolve(false);
   return new Promise((resolve) => {
-    const socket = net.createConnection({ host: '127.0.0.1', port: info.port }, () => {
+    const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
       socket.destroy();
       resolve(true);
     });
@@ -239,13 +285,45 @@ async function canConnect(info: DaemonInfo): Promise<boolean> {
   });
 }
 
-async function startDaemon(): Promise<void> {
+function canConnectHttp(httpPort: number | undefined): Promise<boolean> {
+  if (!httpPort) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port: httpPort,
+        path: '/health',
+        method: 'GET',
+        timeout: 500,
+      },
+      (res) => {
+        res.resume();
+        resolve((res.statusCode ?? 500) < 500);
+      },
+    );
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on('error', () => {
+      resolve(false);
+    });
+    req.end();
+  });
+}
+
+async function startDaemon(settings: DaemonClientSettings): Promise<void> {
   const launchSpec = resolveDaemonLaunchSpec();
   const args = launchSpec.useSrc
     ? ['--experimental-strip-types', launchSpec.srcPath]
     : [launchSpec.distPath];
+  const env = {
+    ...process.env,
+    AGENT_DEVICE_STATE_DIR: settings.paths.baseDir,
+    AGENT_DEVICE_DAEMON_SERVER_MODE: settings.serverMode,
+  };
 
-  runCmdDetached(process.execPath, args);
+  runCmdDetached(process.execPath, args, { env });
 }
 
 type DaemonLaunchSpec = {
@@ -286,15 +364,46 @@ export function computeDaemonCodeSignature(entryPath: string, root: string = fin
   }
 }
 
-async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
+async function sendRequest(
+  info: DaemonInfo,
+  req: DaemonRequest,
+  preference: DaemonTransportPreference,
+): Promise<DaemonResponse> {
+  const transport = chooseTransport(info, preference);
+  if (transport === 'http') {
+    return await sendHttpRequest(info, req);
+  }
+  return await sendSocketRequest(info, req);
+}
+
+function chooseTransport(info: DaemonInfo, preference: DaemonTransportPreference): 'socket' | 'http' {
+  if (preference === 'http') {
+    if (!info.httpPort) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
+    return 'http';
+  }
+  if (preference === 'socket') {
+    if (!info.port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
+    return 'socket';
+  }
+  const transport = info.transport;
+  if (transport === 'http' && info.httpPort) return 'http';
+  if ((transport === 'socket' || transport === 'dual') && info.port) return 'socket';
+  if (info.httpPort) return 'http';
+  if (info.port) return 'socket';
+  throw new AppError('COMMAND_FAILED', 'Daemon metadata has no reachable transport');
+}
+
+async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
+  const port = info.port;
+  if (!port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
   return new Promise((resolve, reject) => {
-    const socket = net.createConnection({ host: '127.0.0.1', port: info.port }, () => {
+    const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
       socket.write(`${JSON.stringify(req)}\n`);
     });
     const timeout = setTimeout(() => {
       socket.destroy();
       const cleanup = cleanupTimedOutIosRunnerBuilds();
-      const daemonReset = resetDaemonAfterTimeout(info);
+      const daemonReset = resetDaemonAfterTimeout(info, resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR));
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -364,6 +473,138 @@ async function sendRequest(info: DaemonInfo, req: DaemonRequest): Promise<Daemon
   });
 }
 
+async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
+  const httpPort = info.httpPort;
+  if (!httpPort) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
+  const rpcPayload = JSON.stringify({
+    jsonrpc: '2.0',
+    id: req.meta?.requestId ?? createRequestId(),
+    method: 'agent_device.command',
+    params: req,
+  });
+
+  return await new Promise((resolve, reject) => {
+    const statePaths = resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
+    const request = http.request(
+      {
+        host: '127.0.0.1',
+        port: httpPort,
+        method: 'POST',
+        path: '/rpc',
+        headers: {
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(rpcPayload),
+        },
+      },
+      (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
+        res.on('end', () => {
+          clearTimeout(timeout);
+          try {
+            const parsed = JSON.parse(body) as {
+              result?: DaemonResponse;
+              error?: {
+                message?: string;
+                data?: Record<string, unknown>;
+              };
+            };
+            if (parsed.error) {
+              const data = parsed.error.data ?? {};
+              reject(
+                new AppError(
+                  String(data.code ?? 'COMMAND_FAILED') as any,
+                  String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),
+                  {
+                    ...(typeof data.details === 'object' && data.details ? data.details : {}),
+                    hint: typeof data.hint === 'string' ? data.hint : undefined,
+                    diagnosticId: typeof data.diagnosticId === 'string' ? data.diagnosticId : undefined,
+                    logPath: typeof data.logPath === 'string' ? data.logPath : undefined,
+                    requestId: req.meta?.requestId,
+                  },
+                ),
+              );
+              return;
+            }
+            if (!parsed.result || typeof parsed.result !== 'object') {
+              reject(
+                new AppError('COMMAND_FAILED', 'Invalid daemon RPC response', {
+                  requestId: req.meta?.requestId,
+                }),
+              );
+              return;
+            }
+            resolve(parsed.result);
+          } catch (err) {
+            clearTimeout(timeout);
+            reject(
+              new AppError('COMMAND_FAILED', 'Invalid daemon response', {
+                requestId: req.meta?.requestId,
+                line: body,
+              }, err instanceof Error ? err : undefined),
+            );
+          }
+        });
+      },
+    );
+
+    const timeout = setTimeout(() => {
+      request.destroy();
+      const cleanup = cleanupTimedOutIosRunnerBuilds();
+      const daemonReset = resetDaemonAfterTimeout(info, statePaths);
+      emitDiagnostic({
+        level: 'error',
+        phase: 'daemon_request_timeout',
+        data: {
+          timeoutMs: REQUEST_TIMEOUT_MS,
+          requestId: req.meta?.requestId,
+          command: req.command,
+          timedOutRunnerPidsTerminated: cleanup.terminated,
+          timedOutRunnerCleanupError: cleanup.error,
+          daemonPidReset: info.pid,
+          daemonPidForceKilled: daemonReset.forcedKill,
+        },
+      });
+      reject(
+        new AppError('COMMAND_FAILED', 'Daemon request timed out', {
+          timeoutMs: REQUEST_TIMEOUT_MS,
+          requestId: req.meta?.requestId,
+          hint: 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
+        }),
+      );
+    }, REQUEST_TIMEOUT_MS);
+
+    request.on('error', (err) => {
+      clearTimeout(timeout);
+      emitDiagnostic({
+        level: 'error',
+        phase: 'daemon_request_socket_error',
+        data: {
+          requestId: req.meta?.requestId,
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
+      reject(
+        new AppError(
+          'COMMAND_FAILED',
+          'Failed to communicate with daemon',
+          {
+            requestId: req.meta?.requestId,
+            hint: 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
+          },
+          err,
+        ),
+      );
+    });
+
+    request.write(rpcPayload);
+    request.end();
+  });
+}
+
 function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string } {
   let terminated = 0;
   try {
@@ -380,7 +621,7 @@ function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string 
   }
 }
 
-function resetDaemonAfterTimeout(info: DaemonInfo): { forcedKill: boolean } {
+function resetDaemonAfterTimeout(info: DaemonInfo, paths: DaemonPaths): { forcedKill: boolean } {
   let forcedKill = false;
   try {
     if (isAgentDeviceDaemonProcess(info.pid, info.processStartTime)) {
@@ -394,8 +635,8 @@ function resetDaemonAfterTimeout(info: DaemonInfo): { forcedKill: boolean } {
       expectedStartTime: info.processStartTime,
     });
   } finally {
-    removeDaemonInfo();
-    removeDaemonLock();
+    removeDaemonInfo(paths.infoPath);
+    removeDaemonLock(paths.lockPath);
   }
   return { forcedKill };
 }
@@ -407,12 +648,15 @@ export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.
   return Math.max(1000, Math.floor(parsed));
 }
 
-export function resolveDaemonStartupHint(state: { hasInfo: boolean; hasLock: boolean }): string {
+export function resolveDaemonStartupHint(
+  state: { hasInfo: boolean; hasLock: boolean },
+  paths: Pick<DaemonPaths, 'infoPath' | 'lockPath'> = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR),
+): string {
   if (state.hasLock && !state.hasInfo) {
-    return 'Detected ~/.agent-device/daemon.lock without daemon.json. If no agent-device daemon process is running, delete ~/.agent-device/daemon.lock and retry.';
+    return `Detected ${paths.lockPath} without ${paths.infoPath}. If no agent-device daemon process is running, delete ${paths.lockPath} and retry.`;
   }
   if (state.hasLock && state.hasInfo) {
-    return 'Daemon metadata may be stale. If no agent-device daemon process is running, delete ~/.agent-device/daemon.json and ~/.agent-device/daemon.lock, then retry.';
+    return `Daemon metadata may be stale. If no agent-device daemon process is running, delete ${paths.infoPath} and ${paths.lockPath}, then retry.`;
   }
-  return 'Daemon metadata is missing or stale. Delete ~/.agent-device/daemon.json if present and retry.';
+  return `Daemon metadata is missing or stale. Delete ${paths.infoPath} if present and retry.`;
 }

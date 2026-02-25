@@ -1,6 +1,6 @@
 import net from 'node:net';
+import type { Server as HttpServer } from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
@@ -25,12 +25,17 @@ import {
   readProcessStartTime,
 } from './utils/process-identity.ts';
 import { emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
+import {
+  normalizeTenantId,
+  resolveDaemonPaths,
+  resolveDaemonServerMode,
+  resolveSessionIsolationMode,
+} from './daemon/config.ts';
+import { createDaemonHttpServer } from './daemon/http-server.ts';
 
-const baseDir = path.join(os.homedir(), '.agent-device');
-const infoPath = path.join(baseDir, 'daemon.json');
-const lockPath = path.join(baseDir, 'daemon.lock');
-const logPath = path.join(baseDir, 'daemon.log');
-const sessionsDir = path.join(baseDir, 'sessions');
+const daemonPaths = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
+const { baseDir, infoPath, lockPath, logPath, sessionsDir } = daemonPaths;
+const daemonServerMode = resolveDaemonServerMode(process.env.AGENT_DEVICE_DAEMON_SERVER_MODE);
 cleanupStaleAppLogProcesses(sessionsDir);
 const sessionStore = new SessionStore(sessionsDir);
 const version = readVersion();
@@ -61,42 +66,70 @@ function contextFromFlags(
   };
 }
 
+function scopeRequestSession(req: DaemonRequest): DaemonRequest {
+  const isolation = resolveSessionIsolationMode(req.meta?.sessionIsolation ?? req.flags?.sessionIsolation);
+  const rawTenant = req.meta?.tenantId ?? req.flags?.tenant;
+  const tenant = normalizeTenantId(rawTenant);
+
+  if (rawTenant && !tenant) {
+    throw new AppError('INVALID_ARGS', 'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+  }
+  if (isolation !== 'tenant') {
+    return req;
+  }
+  if (!tenant) {
+    throw new AppError('INVALID_ARGS', 'session isolation mode tenant requires --tenant (or meta.tenantId).');
+  }
+  return {
+    ...req,
+    session: `${tenant}:${req.session || 'default'}`,
+    meta: {
+      ...req.meta,
+      tenantId: tenant,
+      sessionIsolation: isolation,
+    },
+  };
+}
+
 async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
-  const debug = Boolean(req.meta?.debug || req.flags?.verbose);
+  const normalizedReq = normalizeAliasedCommands(req);
+  const debug = Boolean(normalizedReq.meta?.debug || normalizedReq.flags?.verbose);
   return await withDiagnosticsScope(
     {
-      session: req.session,
-      requestId: req.meta?.requestId,
-      command: req.command,
+      session: normalizedReq.session,
+      requestId: normalizedReq.meta?.requestId,
+      command: normalizedReq.command,
       debug,
       logPath,
     },
     async () => {
-      if (req.token !== token) {
+      if (normalizedReq.token !== token) {
         const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
         return { ok: false, error: unauthorizedError };
       }
 
-      emitDiagnostic({
-        level: 'info',
-        phase: 'request_start',
-        data: {
-          session: req.session,
-          command: req.command,
-        },
-      });
-
       try {
-        const normalizedReq = normalizeAliasedCommands(req);
-        const command = normalizedReq.command;
-        const sessionName = resolveEffectiveSessionName(normalizedReq, sessionStore);
+        const scopedReq = scopeRequestSession(normalizedReq);
+        emitDiagnostic({
+          level: 'info',
+          phase: 'request_start',
+          data: {
+            session: scopedReq.session,
+            command: scopedReq.command,
+            tenant: scopedReq.meta?.tenantId,
+            isolation: scopedReq.meta?.sessionIsolation,
+          },
+        });
+
+        const command = scopedReq.command;
+        const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
         const existingSession = sessionStore.get(sessionName);
         if (existingSession && !selectorValidationExemptCommands.has(command)) {
-          assertSessionSelectorMatches(existingSession, normalizedReq.flags);
+          assertSessionSelectorMatches(existingSession, scopedReq.flags);
         }
 
         const sessionResponse = await handleSessionCommands({
-          req: normalizedReq,
+          req: scopedReq,
           sessionName,
           logPath,
           sessionStore,
@@ -105,7 +138,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         if (sessionResponse) return finalizeDaemonResponse(sessionResponse);
 
         const snapshotResponse = await handleSnapshotCommands({
-          req: normalizedReq,
+          req: scopedReq,
           sessionName,
           logPath,
           sessionStore,
@@ -113,7 +146,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         if (snapshotResponse) return finalizeDaemonResponse(snapshotResponse);
 
         const recordTraceResponse = await handleRecordTraceCommands({
-          req,
+          req: scopedReq,
           sessionName,
           sessionStore,
           logPath,
@@ -121,7 +154,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         if (recordTraceResponse) return finalizeDaemonResponse(recordTraceResponse);
 
         const findResponse = await handleFindCommands({
-          req: normalizedReq,
+          req: scopedReq,
           sessionName,
           logPath,
           sessionStore,
@@ -130,7 +163,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         if (findResponse) return finalizeDaemonResponse(findResponse);
 
         const interactionResponse = await handleInteractionCommands({
-          req: normalizedReq,
+          req: scopedReq,
           sessionName,
           sessionStore,
           contextFromFlags,
@@ -152,13 +185,13 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           });
         }
 
-        const data = await dispatchCommand(session.device, command, normalizedReq.positionals ?? [], normalizedReq.flags?.out, {
-          ...contextFromFlags(normalizedReq.flags, session.appBundleId, session.trace?.outPath),
+        const data = await dispatchCommand(session.device, command, scopedReq.positionals ?? [], scopedReq.flags?.out, {
+          ...contextFromFlags(scopedReq.flags, session.appBundleId, session.trace?.outPath),
         });
         sessionStore.recordAction(session, {
           command,
-          positionals: normalizedReq.positionals ?? [],
-          flags: normalizedReq.flags ?? {},
+          positionals: scopedReq.positionals ?? [],
+          flags: scopedReq.flags ?? {},
           result: data ?? {},
         });
         return finalizeDaemonResponse({ ok: true, data: data ?? {} });
@@ -218,19 +251,27 @@ function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
   return { ...req, command: 'press' };
 }
 
-function writeInfo(port: number): void {
+function writeInfo(ports: { socketPort?: number; httpPort?: number }): void {
   if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
   fs.writeFileSync(logPath, '');
+  const transport = ports.httpPort && ports.socketPort
+    ? 'dual'
+    : ports.httpPort
+      ? 'http'
+      : 'socket';
   fs.writeFileSync(
     infoPath,
     JSON.stringify(
       {
-        port,
+        port: ports.socketPort,
+        httpPort: ports.httpPort,
+        transport,
         token,
         pid: process.pid,
         version,
         codeSignature: daemonCodeSignature,
         processStartTime: daemonProcessStartTime,
+        stateDir: baseDir,
       },
       null,
       2,
@@ -298,8 +339,6 @@ function acquireDaemonLock(): boolean {
   ) {
     return false;
   }
-  // Best-effort stale-lock cleanup: another process may win the race between unlink and re-create.
-  // We rely on the subsequent write with `wx` to enforce single-writer semantics.
   try {
     fs.unlinkSync(lockPath);
   } catch {
@@ -318,14 +357,8 @@ function releaseDaemonLock(): void {
   }
 }
 
-function start(): void {
-  if (!acquireDaemonLock()) {
-    process.stderr.write('Daemon lock is held by another process; exiting.\n');
-    process.exit(0);
-    return;
-  }
-
-  const server = net.createServer((socket) => {
+function createSocketServer(): net.Server {
+  return net.createServer((socket) => {
     let buffer = '';
     let inFlightRequests = 0;
     const activeRequestIds = new Set<string>();
@@ -343,8 +376,6 @@ function start(): void {
           inFlightRequests,
         },
       });
-      // Best effort: if client disconnects mid-request (for example on Ctrl+C),
-      // repeatedly abort runner sessions while request work is still in-flight.
       void (async () => {
         const deadline = Date.now() + disconnectAbortMaxWindowMs;
         while (inFlightRequests > 0 && Date.now() < deadline) {
@@ -396,29 +427,99 @@ function start(): void {
       }
     });
   });
+}
 
-  server.listen(0, '127.0.0.1', () => {
-    const address = server.address();
-    if (typeof address === 'object' && address?.port) {
-      writeInfo(address.port);
-      process.stdout.write(`AGENT_DEVICE_DAEMON_PORT=${address.port}\n`);
-    }
+function listenNetServer(server: net.Server): Promise<number> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      const address = server.address();
+      if (typeof address === 'object' && address?.port) {
+        resolve(address.port);
+        return;
+      }
+      reject(new AppError('COMMAND_FAILED', 'Failed to bind socket server'));
+    });
   });
+}
+
+function listenHttpServer(server: HttpServer): Promise<number> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      const address = server.address();
+      if (typeof address === 'object' && address?.port) {
+        resolve(address.port);
+        return;
+      }
+      reject(new AppError('COMMAND_FAILED', 'Failed to bind HTTP server'));
+    });
+  });
+}
+
+async function start(): Promise<void> {
+  if (!acquireDaemonLock()) {
+    process.stderr.write('Daemon lock is held by another process; exiting.\n');
+    process.exit(0);
+    return;
+  }
+
+  const servers: Array<{ close: (cb: (err?: Error) => void) => void }> = [];
+  let socketPort: number | undefined;
+  let httpPort: number | undefined;
+
+  try {
+    if (daemonServerMode === 'socket' || daemonServerMode === 'dual') {
+      const socketServer = createSocketServer();
+      servers.push(socketServer);
+      socketPort = await listenNetServer(socketServer);
+    }
+
+    if (daemonServerMode === 'http' || daemonServerMode === 'dual') {
+      const httpServer = await createDaemonHttpServer({ handleRequest });
+      servers.push(httpServer);
+      httpPort = await listenHttpServer(httpServer);
+    }
+
+    writeInfo({ socketPort, httpPort });
+    if (socketPort) process.stdout.write(`AGENT_DEVICE_DAEMON_PORT=${socketPort}\n`);
+    if (httpPort) process.stdout.write(`AGENT_DEVICE_DAEMON_HTTP_PORT=${httpPort}\n`);
+  } catch (error) {
+    const appErr = asAppError(error);
+    process.stderr.write(`Daemon error: ${appErr.message}\n`);
+    for (const server of servers) {
+      try {
+        server.close(() => {});
+      } catch {
+        // ignore
+      }
+    }
+    removeInfo();
+    releaseDaemonLock();
+    process.exit(1);
+    return;
+  }
 
   let shuttingDown = false;
-  const closeServer = async (): Promise<void> => {
-    await new Promise<void>((resolve) => {
-      try {
-        server.close(() => resolve());
-      } catch {
-        resolve();
-      }
-    });
+  const closeServers = async (): Promise<void> => {
+    await Promise.all(
+      servers.map(async (server) => {
+        await new Promise<void>((resolve) => {
+          try {
+            server.close(() => resolve());
+          } catch {
+            resolve();
+          }
+        });
+      }),
+    );
   };
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
-    await closeServer();
+    await closeServers();
     const sessionsToStop = sessionStore.toArray();
     for (const session of sessionsToStop) {
       sessionStore.writeSessionLog(session);
@@ -449,4 +550,4 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-start();
+void start();

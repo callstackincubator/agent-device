@@ -33,5 +33,6 @@ npx agent-device open Settings --platform ios
 - If device setup is slow, increase daemon timeout:
   - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
 - If daemon startup reports stale metadata, remove stale files and retry:
-  - `~/.agent-device/daemon.json`
-  - `~/.agent-device/daemon.lock`
+  - `<state-dir>/daemon.json`
+  - `<state-dir>/daemon.lock`
+  - default state dir is `~/.agent-device` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set

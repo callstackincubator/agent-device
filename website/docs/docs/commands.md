@@ -299,4 +299,4 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - If first-run XCTest setup/build is slow, increase daemon request timeout:
   - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
 - For daemon startup troubleshooting:
-  - follow stale metadata hints for `~/.agent-device/daemon.json` and `~/.agent-device/daemon.lock`
+  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)

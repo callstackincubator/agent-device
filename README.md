@@ -209,6 +209,11 @@ Flags:
 - `--serial <serial>` (Android)
 - `--activity <component>` (Android app launch only; package/Activity or package/.Activity; not for URL opens)
 - `--session <name>`
+- `--state-dir <path>` daemon state directory override (default: `~/.agent-device`)
+- `--daemon-transport auto|socket|http` daemon client transport preference
+- `--daemon-server-mode socket|http|dual` daemon server mode (`http` and `dual` expose JSON-RPC over HTTP at `/rpc`)
+- `--tenant <id>` tenant identifier used with session isolation
+- `--session-isolation none|tenant` explicit session isolation mode (`tenant` scopes session namespace as `<tenant>:<session>`)
 - `--count <n>` repeat count for `press`/`swipe`
 - `--interval-ms <ms>` delay between `press` iterations
 - `--hold-ms <ms>` hold duration per `press` iteration
@@ -260,7 +265,7 @@ Sessions:
 - If a session is already open, `open <app|url>` switches the active app or opens a deep link URL.
 - `close` stops the session and releases device resources. Pass an app to close it explicitly, or omit to just close the session.
 - Use `--session <name>` to manage multiple sessions.
-- Session scripts are written to `~/.agent-device/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
+- Session scripts are written to `<state-dir>/sessions/<session>-<timestamp>.ad` when recording is enabled with `--save-script`.
 - `--save-script` accepts an optional path: `--save-script ./workflows/my-flow.ad`.
 - For ambiguous bare values, use an explicit form: `--save-script=workflow.ad` or a path-like value such as `./workflow.ad`.
 - Deterministic replay is `.ad`-based; use `replay --update` (`-u`) to update selector drift and rewrite the replay file in place.
@@ -381,7 +386,7 @@ Clipboard:
 
 ## Debug
 
-- **App logs (token-efficient):** Logging is off by default in normal flows. Enable it on demand when debugging. With an active session, run `logs path` to get path + state metadata (e.g. `~/.agent-device/sessions/<session>/app.log`). Run `logs start` to stream app output to that file; use `logs stop` to stop. Run `logs clear` to truncate `app.log` (and remove rotated `app.log.N` files) before a new repro window. Run `logs doctor` for tool/runtime checks and `logs mark "step"` to insert timeline markers. Grep the file when you need to inspect errors (e.g. `grep -n "Error\|Exception" <path>`) instead of pulling full logs into context. Supported on iOS simulator, iOS physical device, and Android.
+- **App logs (token-efficient):** Logging is off by default in normal flows. Enable it on demand when debugging. With an active session, run `logs path` to get path + state metadata (e.g. `<state-dir>/sessions/<session>/app.log`). Run `logs start` to stream app output to that file; use `logs stop` to stop. Run `logs clear` to truncate `app.log` (and remove rotated `app.log.N` files) before a new repro window. Run `logs doctor` for tool/runtime checks and `logs mark "step"` to insert timeline markers. Grep the file when you need to inspect errors (e.g. `grep -n "Error\|Exception" <path>`) instead of pulling full logs into context. Supported on iOS simulator, iOS physical device, and Android.
 - Use `logs clear --restart` when you want one command to stop an active stream, clear current logs, and immediately resume streaming.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
 - **Network dump (best-effort):** `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) lines from the same session app log file and returns method/url/status with optional headers/bodies. `network log ...` is an alias. Current limits: scans up to 4000 recent log lines, returns up to 200 entries, truncates payload/header fields at 2048 characters.
@@ -395,7 +400,7 @@ Clipboard:
 - The trace log includes snapshot logs and XCTest runner logs for the session.
 - Built-in retries cover transient runner connection failures and Android UI dumps.
 - For snapshot issues (missing elements), compare with `--raw` flag for unaltered output and scope with `-s "<label>"`.
-- If startup fails with stale metadata hints, remove stale `~/.agent-device/daemon.json` / `~/.agent-device/daemon.lock` and retry.
+- If startup fails with stale metadata hints, remove stale `<state-dir>/daemon.json` / `<state-dir>/daemon.lock` and retry (state dir defaults to `~/.agent-device` unless overridden).
 
 Boot diagnostics:
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
@@ -453,6 +458,11 @@ Environment selectors:
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).
+- `AGENT_DEVICE_STATE_DIR=<path>` override daemon state directory (metadata, logs, session artifacts).
+- `AGENT_DEVICE_DAEMON_SERVER_MODE=socket|http|dual` daemon server mode. `http` and `dual` expose JSON-RPC 2.0 at `POST /rpc` (`GET /health` available for liveness).
+- `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
+- `AGENT_DEVICE_HTTP_AUTH_HOOK=<module-path>` optional HTTP auth hook module path for JSON-RPC server mode.
+- `AGENT_DEVICE_HTTP_AUTH_EXPORT=<export-name>` optional export name from auth hook module (default: `default`).
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.

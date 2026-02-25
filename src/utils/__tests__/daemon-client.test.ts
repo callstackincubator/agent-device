@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { computeDaemonCodeSignature, resolveDaemonRequestTimeoutMs, resolveDaemonStartupHint } from '../../daemon-client.ts';
+import { resolveDaemonPaths } from '../../daemon/config.ts';
 import {
   isProcessAlive,
   readProcessCommand,
@@ -37,6 +38,13 @@ test('resolveDaemonStartupHint covers stale info+lock pair', () => {
 test('resolveDaemonStartupHint falls back to daemon.json guidance', () => {
   const hint = resolveDaemonStartupHint({ hasInfo: true, hasLock: false });
   assert.match(hint, /daemon\.json/i);
+});
+
+test('resolveDaemonStartupHint includes configured state directory paths', () => {
+  const paths = resolveDaemonPaths('/tmp/ad-custom-state');
+  const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true }, paths);
+  assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.lock/);
+  assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.json/);
 });
 
 test('computeDaemonCodeSignature includes relative path, size, and mtime', () => {

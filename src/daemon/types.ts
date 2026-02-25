@@ -13,6 +13,8 @@ export type DaemonRequest = {
     requestId?: string;
     debug?: boolean;
     cwd?: string;
+    tenantId?: string;
+    sessionIsolation?: 'none' | 'tenant';
   };
 };
 
