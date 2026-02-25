@@ -375,7 +375,7 @@ export async function dispatchCommand(
       const positionalPath = positionals[0];
       const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
       await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
-      await interactor.screenshot(screenshotPath);
+      await interactor.screenshot(screenshotPath, context?.appBundleId);
       return { path: screenshotPath };
     }
     case 'back': {

@@ -785,19 +785,27 @@ final class RunnerTests: XCTestCase {
       needsPostSnapshotInteractionDelay = true
       return Response(ok: true, data: snapshotFast(app: activeApp, options: options))
     case .screenshot:
-      guard
-        let requestedOutPath = command.outPath?.trimmingCharacters(in: .whitespacesAndNewlines),
-        !requestedOutPath.isEmpty
-      else {
-        return Response(ok: false, error: ErrorPayload(message: "screenshot requires outPath"))
+      // If a target app bundle ID is provided, activate it first so the screenshot
+      // captures the target app rather than the AgentDeviceRunner itself.
+      if let bundleId = command.appBundleId, !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let targetApp = XCUIApplication(bundleIdentifier: bundleId)
+        targetApp.activate()
+        // Brief wait for the app transition animation to complete
+        Thread.sleep(forTimeInterval: 0.5)
       }
       let screenshot = XCUIScreen.main.screenshot()
-      do {
-        try screenshot.pngRepresentation.write(to: URL(fileURLWithPath: requestedOutPath))
-        return Response(ok: true, data: DataPayload(message: "screenshot captured"))
-      } catch {
-        return Response(ok: false, error: ErrorPayload(message: "failed to write screenshot: \(error.localizedDescription)"))
+      guard let pngData = screenshot.image.pngData() else {
+        return Response(ok: false, error: ErrorPayload(message: "Failed to encode screenshot as PNG"))
       }
+      let fileName = "screenshot-\(Int(Date().timeIntervalSince1970 * 1000)).png"
+      let filePath = (NSTemporaryDirectory() as NSString).appendingPathComponent(fileName)
+      do {
+        try pngData.write(to: URL(fileURLWithPath: filePath))
+      } catch {
+        return Response(ok: false, error: ErrorPayload(message: "Failed to write screenshot: \(error.localizedDescription)"))
+      }
+      // Return path relative to app container root (tmp/ maps to NSTemporaryDirectory)
+      return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
     case .back:
       if tapNavigationBack(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))

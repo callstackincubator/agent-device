@@ -3,31 +3,13 @@ import path from 'node:path';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
+import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
-function uniqueNonEmpty(values: Array<string | undefined>): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const value of values) {
-    if (!value) continue;
-    const trimmed = value.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
-}
 
-const IOS_RUNNER_CONTAINER_BUNDLE_IDS = uniqueNonEmpty([
-  process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
-  process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID,
-  'com.myapp.AgentDeviceRunnerUITests.xctrunner',
-  'com.myapp.AgentDeviceRunner',
-]);
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
 

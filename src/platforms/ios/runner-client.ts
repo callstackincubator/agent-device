@@ -13,6 +13,13 @@ import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 
+export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = [
+  process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
+  process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID,
+  'com.myapp.AgentDeviceRunnerUITests.xctrunner',
+  'com.myapp.AgentDeviceRunner',
+].filter((id): id is string => Boolean(id?.trim()));
+
 type RunnerCommand = {
   command:
     | 'tap'

@@ -44,7 +44,7 @@ type Interactor = {
   fill(x: number, y: number, text: string): Promise<void>;
   scroll(direction: string, amount?: number): Promise<void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
-  screenshot(outPath: string): Promise<void>;
+  screenshot(outPath: string, appBundleId?: string): Promise<void>;
 };
 
 export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
@@ -66,14 +66,14 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         fill: (x, y, text) => fillAndroid(device, x, y, text),
         scroll: (direction, amount) => scrollAndroid(device, direction, amount),
         scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
-        screenshot: (outPath) => screenshotAndroid(device, outPath),
+        screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
       };
     case 'ios':
       return {
         open: (app, options) => openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
-        screenshot: (outPath) => screenshotIos(device, outPath),
+        screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
         ...iosRunnerOverrides(device, runnerContext),
       };
     default:
