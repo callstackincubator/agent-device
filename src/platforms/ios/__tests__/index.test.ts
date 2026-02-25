@@ -771,6 +771,156 @@ exit 1
   );
 });
 
+test('setIosSetting touchid match uses simctl biometric match finger', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-touchid-match-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "sim-1" ] && [ "$4" = "match" ] && [ "$5" = "finger" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'touchid', 'match');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl biometric sim-1 match finger/);
+    },
+  );
+});
+
+test('setIosSetting touchid retries touch modality when finger fails', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-touchid-fallback-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "sim-1" ] && [ "$4" = "match" ] && [ "$5" = "finger" ]; then
+  exit 2
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "match" ] && [ "$4" = "sim-1" ] && [ "$5" = "finger" ]; then
+  exit 2
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "biometric" ] && [ "$3" = "sim-1" ] && [ "$4" = "match" ] && [ "$5" = "touch" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await setIosSetting(device, 'touchid', 'match');
+      const lines = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /simctl biometric sim-1 match finger/);
+      assert.match(logged, /simctl biometric match sim-1 finger/);
+      assert.match(logged, /simctl biometric sim-1 match touch/);
+    },
+  );
+});
+
+test('setIosSetting touchid reports unsupported when simctl biometric is unavailable', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-touchid-unsupported-test-',
+    `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+echo "unknown subcommand biometric" >&2
+exit 1
+`,
+    async () => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () => setIosSetting(device, 'touchid', 'match'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+          assert.match((error as AppError).message, /Touch ID simulation is not supported/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
+test('setIosSetting touchid keeps COMMAND_FAILED for operational failures', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-touchid-command-failed-test-',
+    `#!/bin/sh
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+echo "Failed to boot simulator service" >&2
+exit 1
+`,
+    async () => {
+      const device: DeviceInfo = {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone Sim',
+        kind: 'simulator',
+        booted: true,
+      };
+      await assert.rejects(
+        () => setIosSetting(device, 'touchid', 'match'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /Failed to simulate touchid/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
 test('setIosSetting appearance dark uses simctl ui appearance', async () => {
   await withMockedXcrun(
     'agent-device-ios-appearance-dark-test-',

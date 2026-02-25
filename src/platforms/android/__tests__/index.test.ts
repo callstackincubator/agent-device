@@ -392,6 +392,131 @@ test('setAndroidSetting appearance toggle rejects unknown current mode output', 
   );
 });
 
+test('setAndroidSetting fingerprint match uses adb shell cmd fingerprint touch', async () => {
+  await withMockedAdb(
+    'agent-device-android-fingerprint-match-',
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'fingerprint', 'match');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ncmd\nfingerprint\ntouch\n1/);
+    },
+  );
+});
+
+test('setAndroidSetting fingerprint retries emulator command when shell cmd fingerprint fails', async () => {
+  await withMockedAdb(
+    'agent-device-android-fingerprint-fallback-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "fingerprint" ]; then',
+      '  echo "fingerprint cmd unavailable" >&2',
+      '  exit 1',
+      'fi',
+      'if [ "$1" = "emu" ] && [ "$2" = "finger" ] && [ "$3" = "touch" ] && [ "$4" = "1" ]; then',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'fingerprint', 'match');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ncmd\nfingerprint\ntouch\n1/);
+      assert.match(logged, /shell\ncmd\nfingerprint\nfinger\n1/);
+      assert.match(logged, /emu\nfinger\ntouch\n1/);
+    },
+  );
+});
+
+test('setAndroidSetting fingerprint rejects unsupported action', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  await assert.rejects(
+    () => setAndroidSetting(device, 'fingerprint', 'enroll'),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /Invalid fingerprint state/);
+      return true;
+    },
+  );
+});
+
+test('setAndroidSetting fingerprint returns COMMAND_FAILED for transport/runtime failures', async () => {
+  await withMockedAdb(
+    'agent-device-android-fingerprint-command-failed-',
+    [
+      '#!/bin/sh',
+      'echo "error: device offline" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await assert.rejects(
+        () => setAndroidSetting(device, 'fingerprint', 'match'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /Failed to simulate Android fingerprint/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
+test('setAndroidSetting fingerprint does not use adb emu command on physical devices', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-fingerprint-device-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\necho "unknown command" >&2\nexit 1\n',
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'R5CT11',
+    name: 'Pixel Device',
+    kind: 'device',
+    booted: true,
+  };
+
+  try {
+    await assert.rejects(() => setAndroidSetting(device, 'fingerprint', 'match'));
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.doesNotMatch(logged, /\nemu\nfinger\ntouch\n/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('swipeAndroid invokes adb input swipe with duration', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-swipe-test-'));
   const adbPath = path.join(tmpDir, 'adb');

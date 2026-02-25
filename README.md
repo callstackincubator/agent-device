@@ -155,6 +155,8 @@ agent-device scrollintoview @e42
 - `settings wifi|airplane|location on|off`
 - `settings appearance light|dark|toggle`
 - `settings faceid match|nonmatch|enroll|unenroll` (iOS simulator only)
+- `settings touchid match|nonmatch|enroll|unenroll` (iOS simulator only)
+- `settings fingerprint match|nonmatch` (Android emulator/device where supported)
 - `settings permission grant|deny|reset camera|microphone|photos|contacts|notifications [full|limited]`
 - `appstate`, `apps`, `devices`, `session list`
 - `perf` (alias: `metrics`)
@@ -362,6 +364,8 @@ Settings helpers:
 - `settings airplane on|off`
 - `settings location on|off` (iOS uses per-app permission for the current session app)
 - `settings appearance light|dark|toggle` (iOS simulator appearance + Android night mode)
+- `settings faceid|touchid match|nonmatch|enroll|unenroll` (iOS simulator only)
+- `settings fingerprint match|nonmatch` (Android emulator/device where supported)
 - `settings permission grant|deny|reset <camera|microphone|photos|contacts|notifications> [full|limited]` (session app required)
 Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 - iOS permission targets map to `simctl privacy`: `camera`, `microphone`, `photos` (`full` => `photos`, `limited` => `photos-add`), `contacts`, `notifications`.

@@ -682,6 +682,11 @@ export async function setAndroidSetting(
       await runCmd('adb', adbArgs(device, ['shell', 'cmd', 'uimode', 'night', target === 'dark' ? 'yes' : 'no']));
       return;
     }
+    case 'fingerprint': {
+      const action = parseAndroidFingerprintAction(state);
+      await runAndroidFingerprintCommand(device, action);
+      return;
+    }
     case 'permission': {
       if (!appPackage) {
         throw new AppError(
@@ -706,6 +711,91 @@ export async function setAndroidSetting(
     default:
       throw new AppError('INVALID_ARGS', `Unsupported setting: ${setting}`);
   }
+}
+
+type AndroidFingerprintAction = 'match' | 'nonmatch';
+
+function parseAndroidFingerprintAction(state: string): AndroidFingerprintAction {
+  const normalized = state.trim().toLowerCase();
+  if (normalized === 'match') return 'match';
+  if (normalized === 'nonmatch') return 'nonmatch';
+  throw new AppError(
+    'INVALID_ARGS',
+    `Invalid fingerprint state: ${state}. Use match|nonmatch.`,
+  );
+}
+
+async function runAndroidFingerprintCommand(
+  device: DeviceInfo,
+  action: AndroidFingerprintAction,
+): Promise<void> {
+  const attempts = androidFingerprintCommandAttempts(device, action);
+  const failures: Array<{ args: string[]; stdout: string; stderr: string; exitCode: number }> = [];
+
+  for (const args of attempts) {
+    const result = await runCmd('adb', adbArgs(device, args), { allowFailure: true });
+    if (result.exitCode === 0) return;
+    failures.push({
+      args,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+
+  const attemptsPayload = failures.map((failure) => ({
+    args: failure.args.join(' '),
+    exitCode: failure.exitCode,
+    stderr: failure.stderr.slice(0, 400),
+  }));
+  const capabilityMissing = failures.length > 0 && failures.every((failure) =>
+    isAndroidFingerprintCapabilityMissing(failure.stdout, failure.stderr)
+  );
+  if (capabilityMissing) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'Android fingerprint simulation is not supported on this target/runtime.',
+      {
+        deviceId: device.id,
+        action,
+        hint: 'Use an Android emulator with biometric support, or a device/runtime that exposes cmd fingerprint.',
+        attempts: attemptsPayload,
+      },
+    );
+  }
+  throw new AppError('COMMAND_FAILED', 'Failed to simulate Android fingerprint.', {
+    deviceId: device.id,
+    action,
+    attempts: attemptsPayload,
+  });
+}
+
+function androidFingerprintCommandAttempts(
+  device: DeviceInfo,
+  action: AndroidFingerprintAction,
+): string[][] {
+  const fingerprintId = action === 'match' ? '1' : '9999';
+  const attempts: string[][] = [
+    ['shell', 'cmd', 'fingerprint', 'touch', fingerprintId],
+    ['shell', 'cmd', 'fingerprint', 'finger', fingerprintId],
+  ];
+  if (device.kind === 'emulator') {
+    attempts.push(['emu', 'finger', 'touch', fingerprintId]);
+  }
+  return attempts;
+}
+
+function isAndroidFingerprintCapabilityMissing(stdout: string, stderr: string): boolean {
+  const text = `${stdout}\n${stderr}`.toLowerCase();
+  return (
+    text.includes('unknown command') ||
+    text.includes("can't find service: fingerprint") ||
+    text.includes('service fingerprint was not found') ||
+    text.includes('fingerprint cmd unavailable') ||
+    text.includes('emu command is not supported') ||
+    text.includes('emulator console is not running') ||
+    (text.includes('fingerprint') && text.includes('not found'))
+  );
 }
 
 export async function pushAndroidNotification(

@@ -391,8 +391,19 @@ export async function setIosSetting(
       return;
     }
     case 'faceid': {
-      const action = parseFaceIdAction(state);
-      await runFaceIdSimctlCommand(device.id, action);
+      const action = parseBiometricAction(state, 'faceid');
+      await runIosBiometricSimctlCommand(device.id, action, {
+        settingName: 'faceid',
+        modalityAliases: ['face'],
+      });
+      return;
+    }
+    case 'touchid': {
+      const action = parseBiometricAction(state, 'touchid');
+      await runIosBiometricSimctlCommand(device.id, action, {
+        settingName: 'touchid',
+        modalityAliases: ['finger', 'touch'],
+      });
       return;
     }
     case 'appearance': {
@@ -507,7 +518,7 @@ function parseIosAppearance(stdout: string, stderr: string): 'light' | 'dark' | 
   return null;
 }
 
-type FaceIdAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
+type IosBiometricAction = 'match' | 'nonmatch' | 'enroll' | 'unenroll';
 
 function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | 'revoke' | 'reset' {
   if (action === 'deny') return 'revoke';
@@ -663,7 +674,10 @@ function parseIosPermissionTarget(permissionTarget: string | undefined, permissi
   );
 }
 
-function parseFaceIdAction(state: string): FaceIdAction {
+function parseBiometricAction(
+  state: string,
+  settingName: 'faceid' | 'touchid',
+): IosBiometricAction {
   const normalized = state.trim().toLowerCase();
   if (normalized === 'match') return 'match';
   if (normalized === 'nonmatch') return 'nonmatch';
@@ -671,12 +685,16 @@ function parseFaceIdAction(state: string): FaceIdAction {
   if (normalized === 'unenroll') return 'unenroll';
   throw new AppError(
     'INVALID_ARGS',
-    `Invalid faceid state: ${state}. Use match|nonmatch|enroll|unenroll.`,
+    `Invalid ${settingName} state: ${state}. Use match|nonmatch|enroll|unenroll.`,
   );
 }
 
-async function runFaceIdSimctlCommand(deviceId: string, action: FaceIdAction): Promise<void> {
-  const attempts = biometricCommandAttempts(deviceId, action);
+async function runIosBiometricSimctlCommand(
+  deviceId: string,
+  action: IosBiometricAction,
+  options: { settingName: 'faceid' | 'touchid'; modalityAliases: string[] },
+): Promise<void> {
+  const attempts = biometricCommandAttempts(deviceId, action, options.modalityAliases);
   const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
 
   for (const args of attempts) {
@@ -690,35 +708,53 @@ async function runFaceIdSimctlCommand(deviceId: string, action: FaceIdAction): P
     });
   }
 
-  throw new AppError(
-    'COMMAND_FAILED',
-    'simctl biometric command failed. Ensure your Xcode Simulator runtime supports Face ID control.',
-    {
-      deviceId,
-      action,
-      attempts: failures.map((failure) => ({
-        args: failure.args.join(' '),
-        exitCode: failure.exitCode,
-        stderr: failure.stderr.slice(0, 400),
-      })),
-    },
+  const attemptsPayload = failures.map((failure) => ({
+    args: failure.args.join(' '),
+    exitCode: failure.exitCode,
+    stderr: failure.stderr.slice(0, 400),
+  }));
+  const capabilityMissing = failures.length > 0 && failures.every((failure) =>
+    isIosBiometricCapabilityMissing(failure.stdout, failure.stderr)
   );
+  if (capabilityMissing) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `${options.settingName === 'faceid' ? 'Face ID' : 'Touch ID'} simulation is not supported on this simulator runtime.`,
+      {
+        deviceId,
+        action,
+        setting: options.settingName,
+        attempts: attemptsPayload,
+      },
+    );
+  }
+  throw new AppError('COMMAND_FAILED', `Failed to simulate ${options.settingName}.`, {
+    deviceId,
+    action,
+    setting: options.settingName,
+    attempts: attemptsPayload,
+  });
 }
 
-function biometricCommandAttempts(deviceId: string, action: FaceIdAction): string[][] {
+function biometricCommandAttempts(
+  deviceId: string,
+  action: IosBiometricAction,
+  modalityAliases: string[],
+): string[][] {
+  const modalities = modalityAliases.length > 0 ? modalityAliases : ['face'];
   switch (action) {
     case 'match':
-      return [
-        ['simctl', 'biometric', deviceId, 'match', 'face'],
-        ['simctl', 'biometric', 'match', deviceId, 'face'],
-      ];
+      return modalities.flatMap((modality) => [
+        ['simctl', 'biometric', deviceId, 'match', modality],
+        ['simctl', 'biometric', 'match', deviceId, modality],
+      ]);
     case 'nonmatch':
-      return [
-        ['simctl', 'biometric', deviceId, 'nonmatch', 'face'],
-        ['simctl', 'biometric', deviceId, 'nomatch', 'face'],
-        ['simctl', 'biometric', 'nonmatch', deviceId, 'face'],
-        ['simctl', 'biometric', 'nomatch', deviceId, 'face'],
-      ];
+      return modalities.flatMap((modality) => [
+        ['simctl', 'biometric', deviceId, 'nonmatch', modality],
+        ['simctl', 'biometric', deviceId, 'nomatch', modality],
+        ['simctl', 'biometric', 'nonmatch', deviceId, modality],
+        ['simctl', 'biometric', 'nomatch', deviceId, modality],
+      ]);
     case 'enroll':
       return [
         ['simctl', 'biometric', deviceId, 'enroll', 'yes'],
@@ -734,6 +770,17 @@ function biometricCommandAttempts(deviceId: string, action: FaceIdAction): strin
         ['simctl', 'biometric', 'enroll', deviceId, '0'],
       ];
   }
+}
+
+function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolean {
+  const text = `${stdout}\n${stderr}`.toLowerCase();
+  return (
+    text.includes('unrecognized subcommand') ||
+    text.includes('unknown subcommand') ||
+    text.includes('not supported') ||
+    text.includes('unavailable') ||
+    (text.includes('biometric') && text.includes('invalid'))
+  );
 }
 
 function isTransientSimulatorLaunchFailure(error: unknown): boolean {
