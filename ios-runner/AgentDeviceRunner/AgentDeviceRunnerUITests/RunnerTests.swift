@@ -784,6 +784,20 @@ final class RunnerTests: XCTestCase {
       }
       needsPostSnapshotInteractionDelay = true
       return Response(ok: true, data: snapshotFast(app: activeApp, options: options))
+    case .screenshot:
+      guard
+        let requestedOutPath = command.outPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !requestedOutPath.isEmpty
+      else {
+        return Response(ok: false, error: ErrorPayload(message: "screenshot requires outPath"))
+      }
+      let screenshot = XCUIScreen.main.screenshot()
+      do {
+        try screenshot.pngRepresentation.write(to: URL(fileURLWithPath: requestedOutPath))
+        return Response(ok: true, data: DataPayload(message: "screenshot captured"))
+      } catch {
+        return Response(ok: false, error: ErrorPayload(message: "failed to write screenshot: \(error.localizedDescription)"))
+      }
     case .back:
       if tapNavigationBack(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))
@@ -935,7 +949,7 @@ final class RunnerTests: XCTestCase {
 
   private func isReadOnlyCommand(_ command: Command) -> Bool {
     switch command.command {
-    case .findText, .snapshot:
+    case .findText, .snapshot, .screenshot:
       return true
     case .alert:
       let action = (command.action ?? "get").lowercased()
@@ -962,7 +976,7 @@ final class RunnerTests: XCTestCase {
 
   private func isRunnerLifecycleCommand(_ command: CommandType) -> Bool {
     switch command {
-    case .shutdown, .recordStop:
+    case .shutdown, .recordStop, .screenshot:
       return true
     default:
       return false
@@ -1818,6 +1832,7 @@ enum CommandType: String, Codable {
   case swipe
   case findText
   case snapshot
+  case screenshot
   case back
   case home
   case appSwitcher

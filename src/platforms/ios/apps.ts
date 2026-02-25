@@ -12,6 +12,7 @@ import {
   type PermissionSettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { runIosRunnerCommand } from './runner-client.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
@@ -221,10 +222,33 @@ export async function screenshotIos(device: DeviceInfo, outPath: string): Promis
     return;
   }
 
-  await runIosDevicectl(['device', 'screenshot', '--device', device.id, outPath], {
-    action: 'capture iOS screenshot',
-    deviceId: device.id,
-  });
+  try {
+    await runIosDevicectl(['device', 'screenshot', '--device', device.id, outPath], {
+      action: 'capture iOS screenshot',
+      deviceId: device.id,
+    });
+    return;
+  } catch (error) {
+    if (!shouldFallbackToRunnerForIosScreenshot(error)) {
+      throw error;
+    }
+  }
+
+  await runIosRunnerCommand(device, { command: 'screenshot', outPath });
+}
+
+export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const details = (error.details ?? {}) as { stdout?: unknown; stderr?: unknown };
+  const stdout = typeof details.stdout === 'string' ? details.stdout : '';
+  const stderr = typeof details.stderr === 'string' ? details.stderr : '';
+  const combined = `${error.message}\n${stdout}\n${stderr}`.toLowerCase();
+  return (
+    combined.includes("unknown option '--device'") ||
+    (combined.includes('unknown subcommand') && combined.includes('screenshot')) ||
+    (combined.includes('unrecognized subcommand') && combined.includes('screenshot'))
+  );
 }
 
 export async function readIosClipboardText(device: DeviceInfo): Promise<string> {

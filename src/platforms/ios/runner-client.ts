@@ -24,6 +24,7 @@ type RunnerCommand = {
     | 'swipe'
     | 'findText'
     | 'snapshot'
+    | 'screenshot'
     | 'back'
     | 'home'
     | 'appSwitcher'
@@ -654,7 +655,7 @@ export function isRetryableRunnerError(err: unknown): boolean {
 }
 
 function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
-  return command === 'snapshot' || command === 'findText' || command === 'alert';
+  return command === 'snapshot' || command === 'screenshot' || command === 'findText' || command === 'alert';
 }
 
 function assertRunnerRequestActive(requestId: string | undefined): void {

@@ -14,6 +14,7 @@ import {
   setIosSetting,
   writeIosClipboardText,
 } from '../index.ts';
+import { shouldFallbackToRunnerForIosScreenshot } from '../apps.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -112,6 +113,20 @@ test('openIosApp custom scheme deep links on iOS devices require app bundle cont
       return true;
     },
   );
+});
+
+test('shouldFallbackToRunnerForIosScreenshot detects removed devicectl subcommand output', () => {
+  const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
+    stderr: "error: Unknown option '--device'",
+  });
+  assert.equal(shouldFallbackToRunnerForIosScreenshot(error), true);
+});
+
+test('shouldFallbackToRunnerForIosScreenshot ignores unrelated command failures', () => {
+  const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
+    stderr: 'error: device is busy connecting',
+  });
+  assert.equal(shouldFallbackToRunnerForIosScreenshot(error), false);
 });
 
 test('openIosApp web URL on iOS device without app falls back to Safari', async () => {
