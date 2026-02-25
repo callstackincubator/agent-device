@@ -485,8 +485,7 @@ test('settings usage documents canonical faceid states', () => {
   assert.doesNotMatch(help, /validate\|unvalidate/);
 });
 
-test('trigger-screenshot-notification usage is documented', () => {
+test('removed trigger aliases are no longer documented as commands', () => {
   const help = usageForCommand('trigger-screenshot-notification');
-  if (help === null) throw new Error('Expected command help text');
-  assert.match(help, /Trigger app-defined screenshot notification hook/);
+  assert.equal(help, null);
 });

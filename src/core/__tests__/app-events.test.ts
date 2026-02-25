@@ -1,20 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTriggerAppEventArgs, normalizeTriggerAliasCommand } from '../app-events.ts';
+import { parseTriggerAppEventArgs } from '../app-events.ts';
 import { AppError } from '../../utils/errors.ts';
-
-test('normalizeTriggerAliasCommand maps aliases to trigger-app-event', () => {
-  const normalized = normalizeTriggerAliasCommand('trigger-screenshot-notification', []);
-  assert.equal(normalized.command, 'trigger-app-event');
-  assert.deepEqual(normalized.positionals, ['screenshot_taken']);
-});
-
-test('normalizeTriggerAliasCommand rejects alias arguments', () => {
-  assert.throws(
-    () => normalizeTriggerAliasCommand('trigger-device-shake', ['extra']),
-    (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
-  );
-});
 
 test('parseTriggerAppEventArgs validates event name format', () => {
   assert.throws(

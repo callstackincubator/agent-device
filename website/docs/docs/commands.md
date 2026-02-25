@@ -176,19 +176,11 @@ agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"t
 
 ```bash
 agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
-agent-device trigger-screenshot-notification
-agent-device trigger-screenshot
-agent-device trigger-memory-warning
-agent-device trigger-device-shake
 ```
 
 - `trigger-app-event <event> [payloadJson]` dispatches app-defined events via deep link.
-- `trigger-*` commands require either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- `trigger-app-event` requires either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - On iOS physical devices, custom-scheme deep links require active app context (open app first in the session).
-- Convenience aliases:
-  - `trigger-screenshot-notification` / `trigger-screenshot` -> `screenshot_taken`
-  - `trigger-memory-warning` -> `memory_warning`
-  - `trigger-device-shake` -> `device_shake`
 - Configure one of:
   - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`

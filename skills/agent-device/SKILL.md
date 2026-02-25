@@ -142,7 +142,6 @@ agent-device perf --json
 agent-device network dump [limit] [summary|headers|body|all]
 agent-device push <bundle|package> <payload.json|inline-json>
 agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
-agent-device trigger-screenshot-notification
 agent-device get text @e1
 agent-device screenshot out.png
 agent-device settings permission grant notifications
@@ -176,8 +175,8 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - `push` simulates notification delivery:
   - iOS simulator uses APNs-style payload JSON.
   - Android uses broadcast action + typed extras (string/boolean/number).
-- `trigger-app-event` and `trigger-*` aliases require app-defined deep-link hooks and URL template configuration (`AGENT_DEVICE_APP_EVENT_URL_TEMPLATE` or platform-specific variants).
-- `trigger-*` commands require an active session or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`); on iOS physical devices, custom-scheme triggers require active app context.
+- `trigger-app-event` requires app-defined deep-link hooks and URL template configuration (`AGENT_DEVICE_APP_EVENT_URL_TEMPLATE` or platform-specific variants).
+- `trigger-app-event` requires an active session or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`); on iOS physical devices, custom-scheme triggers require active app context.
 - Canonical trigger behavior and caveats are documented in [`website/docs/docs/commands.md`](../../website/docs/docs/commands.md) under **App event triggers**.
 - Permission settings are app-scoped and require an active session app:
   `settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]`

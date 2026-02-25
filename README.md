@@ -149,8 +149,6 @@ agent-device scrollintoview @e42
 - `press` (alias: `click`), `focus`, `type`, `fill`, `long-press`, `swipe`, `scroll`, `scrollintoview`, `pinch`, `is`
 - `alert`, `wait`, `screenshot`
 - `trigger-app-event <event> [payloadJson]`
-- `trigger-screenshot-notification` (alias: `trigger-screenshot`)
-- `trigger-memory-warning`, `trigger-device-shake`
 - `trace start`, `trace stop`
 - `logs path`, `logs start`, `logs stop`, `logs clear`, `logs clear --restart`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
 - `clipboard read`, `clipboard write <text>` (iOS simulator + Android)
@@ -187,18 +185,11 @@ Payload notes:
 App event triggers (app hook):
 
 ```bash
-# Generic app event trigger
 agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
-
-# Convenience aliases
-agent-device trigger-screenshot-notification
-agent-device trigger-screenshot
-agent-device trigger-memory-warning
-agent-device trigger-device-shake
 ```
 
-- `trigger-*` commands dispatch an app event via deep link and require an app-side test/debug hook.
-- `trigger-*` commands require either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- `trigger-app-event` dispatches an app event via deep link and requires an app-side test/debug hook.
+- `trigger-app-event` requires either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - On iOS physical devices, custom-scheme deep links require active app context (open the app in-session first).
 - Configure one of:
   - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`

@@ -1,32 +1,11 @@
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError } from '../utils/errors.ts';
 
-const APP_EVENT_ALIAS_TO_NAME = {
-  'trigger-screenshot': 'screenshot_taken',
-  'trigger-screenshot-notification': 'screenshot_taken',
-  'trigger-memory-warning': 'memory_warning',
-  'trigger-device-shake': 'device_shake',
-} as const;
-
 const APP_EVENT_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
 const MAX_APP_EVENT_PAYLOAD_BYTES = 8 * 1024;
 const MAX_APP_EVENT_URL_LENGTH = 4 * 1024;
 
 type AppEventPayload = Record<string, unknown> | undefined;
-
-export function normalizeTriggerAliasCommand(
-  command: string,
-  positionals: string[],
-): { command: string; positionals: string[] } {
-  const eventName = APP_EVENT_ALIAS_TO_NAME[command as keyof typeof APP_EVENT_ALIAS_TO_NAME];
-  if (!eventName) {
-    return { command, positionals };
-  }
-  if (positionals.length > 0) {
-    throw new AppError('INVALID_ARGS', `${command} does not accept positional arguments`);
-  }
-  return { command: 'trigger-app-event', positionals: [eventName] };
-}
 
 export function parseTriggerAppEventArgs(positionals: string[]): {
   eventName: string;
