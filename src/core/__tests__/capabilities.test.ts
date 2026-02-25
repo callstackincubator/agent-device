@@ -113,8 +113,8 @@ test('tvOS follows iOS capability matrix by device kind', () => {
   for (const cmd of ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record']) {
     assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
   }
-  for (const cmd of ['pinch', 'push', 'settings']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), false, `${cmd} unsupported on tvOS`);
+  for (const cmd of ['pinch', 'push', 'settings', 'alert']) {
+    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS simulator`);
   }
 });
 

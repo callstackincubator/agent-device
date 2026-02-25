@@ -168,7 +168,6 @@ agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"t
 
 Payload notes:
 - iOS uses `xcrun simctl push <device> <bundle> <payload>` and requires APNs-style JSON object (for example `{"aps":{"alert":"..."}}`).
-- tvOS is not supported for `push`.
 - Android uses `adb shell am broadcast` with payload JSON shape:
   `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
 - Android extras support string/boolean/number values.
@@ -223,7 +222,7 @@ TV targets:
 - AndroidTV app launch/app listing use TV launcher discovery (`LEANBACK_LAUNCHER`) and fallback component resolution when needed.
 - tvOS uses the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - tvOS back/home/app-switcher use Siri Remote semantics in the runner (`menu`, `home`, double-home).
-- tvOS does not support iOS simulator-only helpers `pinch`, `settings`, or `push`.
+- tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
 
 Examples:
 - `agent-device open YouTube --platform android --target tv`
@@ -232,7 +231,7 @@ Examples:
 - `agent-device screenshot ./apple-tv.png --platform ios --target tv`
 
 Pinch:
-- `pinch` is supported on iOS simulators (mobile target).
+- `pinch` is supported on iOS simulators (including tvOS simulator targets).
 - On Android, `pinch` currently returns `UNSUPPORTED_OPERATION` in the adb backend.
 
 Swipe timing:

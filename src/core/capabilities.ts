@@ -46,17 +46,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   wait: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
 };
 
-const TVOS_UNSUPPORTED_COMMANDS = new Set<string>([
-  // tvOS does not expose these iOS simulator helpers.
-  'pinch',
-  'push',
-  'settings',
-]);
-
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {
-  if (device.platform === 'ios' && device.target === 'tv' && TVOS_UNSUPPORTED_COMMANDS.has(command)) {
-    return false;
-  }
   const capability = COMMAND_CAPABILITY_MATRIX[command];
   if (!capability) return true;
   const byPlatform = capability[device.platform];
