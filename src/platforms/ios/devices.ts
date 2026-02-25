@@ -11,63 +11,99 @@ const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   8_000,
   500,
 );
+const APPLE_PRODUCT_TYPE_PATTERN = /^(iphone|ipad|ipod|appletv)/i;
+const APPLE_TV_PRODUCT_TYPE_PATTERN = /^appletv/i;
+const APPLE_TV_LABEL_HINTS = ['apple tv', 'appletv', 'tvos'] as const;
+
+type SimctlDeviceRecord = {
+  name: string;
+  udid: string;
+  state: string;
+  isAvailable: boolean;
+};
+
+type SimctlListDevicesPayload = {
+  devices: Record<string, SimctlDeviceRecord[]>;
+};
+
+type DevicectlAppleDevice = {
+  identifier?: string;
+  name?: string;
+  hardwareProperties?: { platform?: string; udid?: string; productType?: string };
+  deviceProperties?: { name?: string; productType?: string; deviceType?: string };
+  connectionProperties?: { tunnelState?: string };
+};
+
+type DevicectlListDevicesPayload = {
+  result?: {
+    devices?: DevicectlAppleDevice[];
+  };
+};
+
+function normalizeAppleDescriptor(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function resolveAppleRuntime(runtime: string): string {
+  return normalizeAppleDescriptor(runtime);
+}
+
+function resolveDevicectlApplePlatform(device: DevicectlAppleDevice): string {
+  return normalizeAppleDescriptor(device.hardwareProperties?.platform);
+}
+
+function isAppleTvPlatform(platform: string): boolean {
+  return platform.includes('tvos');
+}
 
 function resolveAppleTargetFromRuntime(runtime: string): DeviceTarget {
-  return runtime.toLowerCase().includes('tvos') ? 'tv' : 'mobile';
+  return isAppleTvPlatform(resolveAppleRuntime(runtime)) ? 'tv' : 'mobile';
 }
 
 function isSupportedAppleRuntime(runtime: string): boolean {
-  const normalized = runtime.toLowerCase();
+  const normalized = resolveAppleRuntime(runtime);
   return normalized.includes('ios') || normalized.includes('tvos');
 }
 
 function isAppleTvLabel(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.includes('apple tv') || normalized.includes('appletv') || normalized.includes('tvos');
+  const normalized = normalizeAppleDescriptor(value);
+  return APPLE_TV_LABEL_HINTS.some((hint) => normalized.includes(hint));
 }
 
 export function isAppleProductType(productType: string): boolean {
-  return /^(iphone|ipad|ipod|appletv)/i.test(productType.trim());
+  return APPLE_PRODUCT_TYPE_PATTERN.test(productType.trim());
 }
 
 export function isAppleTvProductType(productType: string): boolean {
-  return /^appletv/i.test(productType.trim());
+  return APPLE_TV_PRODUCT_TYPE_PATTERN.test(productType.trim());
 }
 
-type DevicectlAppleDevice = {
-  hardwareProperties?: { platform?: string; productType?: string };
-  deviceProperties?: { name?: string; productType?: string; deviceType?: string };
-  name?: string;
-};
+function resolveDevicectlAppleLabels(device: DevicectlAppleDevice): string[] {
+  return [
+    device.name ?? '',
+    device.deviceProperties?.name ?? '',
+    device.deviceProperties?.deviceType ?? '',
+  ];
+}
 
 function resolveDevicectlAppleProductType(device: DevicectlAppleDevice): string {
   return device.hardwareProperties?.productType ?? device.deviceProperties?.productType ?? '';
 }
 
 export function resolveAppleTargetFromDevicectlDevice(device: DevicectlAppleDevice): DeviceTarget {
-  const platform = (device.hardwareProperties?.platform ?? '').toLowerCase();
-  if (platform.includes('tvos')) return 'tv';
+  const platform = resolveDevicectlApplePlatform(device);
+  if (isAppleTvPlatform(platform)) return 'tv';
   const productType = resolveDevicectlAppleProductType(device);
   if (isAppleTvProductType(productType)) return 'tv';
-  const labels = [
-    device.name ?? '',
-    device.deviceProperties?.name ?? '',
-    device.deviceProperties?.deviceType ?? '',
-  ];
-  return labels.some(isAppleTvLabel) ? 'tv' : 'mobile';
+  return resolveDevicectlAppleLabels(device).some(isAppleTvLabel) ? 'tv' : 'mobile';
 }
 
 export function isSupportedAppleDevicectlDevice(device: DevicectlAppleDevice): boolean {
-  const platform = (device.hardwareProperties?.platform ?? '').toLowerCase();
+  const platform = resolveDevicectlApplePlatform(device);
   if (platform.includes('ios') || platform.includes('tvos')) return true;
   const productType = resolveDevicectlAppleProductType(device);
   if (isAppleProductType(productType)) return true;
-  const labels = [
-    device.name ?? '',
-    device.deviceProperties?.name ?? '',
-    device.deviceProperties?.deviceType ?? '',
-  ];
-  return labels.some(isAppleTvLabel);
+  return resolveDevicectlAppleLabels(device).some(isAppleTvLabel);
 }
 
 export async function listIosDevices(): Promise<DeviceInfo[]> {
@@ -84,12 +120,7 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
 
   const simResult = await runCmd('xcrun', ['simctl', 'list', 'devices', '-j']);
   try {
-    const payload = JSON.parse(simResult.stdout as string) as {
-      devices: Record<
-        string,
-        { name: string; udid: string; state: string; isAvailable: boolean }[]
-      >;
-    };
+    const payload = JSON.parse(simResult.stdout as string) as SimctlListDevicesPayload;
     for (const [runtime, runtimes] of Object.entries(payload.devices)) {
       if (!isSupportedAppleRuntime(runtime)) continue;
       for (const device of runtimes) {
@@ -122,17 +153,7 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
       return devices;
     }
     const jsonText = await fs.readFile(jsonPath, 'utf8');
-    const payload = JSON.parse(jsonText) as {
-      result?: {
-        devices?: Array<{
-          identifier?: string;
-          name?: string;
-          hardwareProperties?: { platform?: string; udid?: string; productType?: string };
-          deviceProperties?: { name?: string; productType?: string; deviceType?: string };
-          connectionProperties?: { tunnelState?: string };
-        }>;
-      };
-    };
+    const payload = JSON.parse(jsonText) as DevicectlListDevicesPayload;
     for (const device of payload.result?.devices ?? []) {
       if (isSupportedAppleDevicectlDevice(device)) {
         const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
