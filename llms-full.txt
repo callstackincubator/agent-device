@@ -213,6 +213,8 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
+- `--platform apple` is an alias for the iOS/tvOS backend.
+- Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
@@ -223,6 +225,21 @@ agent-device app-switcher
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 ```
+
+## TV targets
+
+```bash
+agent-device open YouTube --platform android --target tv
+agent-device apps --platform android --target tv
+agent-device open Settings --platform ios --target tv
+agent-device screenshot apple-tv.png --platform ios --target tv
+```
+
+- AndroidTV app launch and app listing resolve TV launchable activities via `LEANBACK_LAUNCHER`.
+- TV target selection supports both simulator/emulator and connected physical devices (AppleTV + AndroidTV).
+- tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
+- On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
+- tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
 
 ## Snapshot and inspect
 
