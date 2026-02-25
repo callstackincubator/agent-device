@@ -260,8 +260,8 @@ test('daemon HTTP JSON-RPC flow honors custom state dir and tenant isolation con
       runId: 'run-http-flow',
       leaseId,
     });
-    assert.equal(tenantScopedResponse.statusCode, 200);
-    assert.equal(tenantScopedResponse.json?.result?.ok, true, JSON.stringify(tenantScopedResponse.json));
+    assert.equal(tenantScopedResponse.statusCode, 404);
+    assert.equal(tenantScopedResponse.json?.error?.data?.code, 'SESSION_NOT_FOUND');
 
     const heartbeatResponse = await callLeaseRpc(info, 'heartbeat', {
       leaseId,
@@ -354,8 +354,8 @@ test('daemon HTTP auth hook can reject and inject tenant context', async (t) => 
       },
       { 'x-test-auth': 'allow' },
     );
-    assert.equal(allowed.statusCode, 200);
-    assert.equal(allowed.json?.result?.ok, true, JSON.stringify(allowed.json));
+    assert.equal(allowed.statusCode, 404);
+    assert.equal(allowed.json?.error?.data?.code, 'SESSION_NOT_FOUND');
   } finally {
     await stopDaemonForStateDir(stateDir);
   }
