@@ -587,6 +587,15 @@ export async function handleSessionCommands(params: {
     const normalizedPlatform = normalizePlatformSelector(flags.platform) ?? session?.device.platform;
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
+    if (wantsAndroidHeadless && !targetsAndroid) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'boot --headless is supported only for Android emulators.',
+        },
+      };
+    }
     const fallbackAvdName = resolveAndroidEmulatorAvdName({
       flags,
       sessionDevice: session?.device,
@@ -622,6 +631,15 @@ export async function handleSessionCommands(params: {
         headless: wantsAndroidHeadless,
       });
       launchedAndroidEmulator = true;
+    }
+    if (flags.target && (device.target ?? 'mobile') !== flags.target) {
+      return {
+        ok: false,
+        error: {
+          code: 'DEVICE_NOT_FOUND',
+          message: `No ${device.platform} device found matching --target ${flags.target}.`,
+        },
+      };
     }
     if (targetsAndroid && wantsAndroidHeadless) {
       if (device.platform !== 'android' || device.kind !== 'emulator') {

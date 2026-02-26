@@ -491,6 +491,85 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
   }
 });
 
+test('boot --headless rejects non-Android selectors', async () => {
+  const sessionStore = makeSessionStore();
+  let resolved = false;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro', headless: true },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => {
+      resolved = true;
+      throw new Error('unexpected resolve');
+    },
+    ensureAndroidEmulatorBoot: async () => {
+      throw new Error('unexpected emulator launch');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  assert.equal(resolved, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /headless is supported only for Android emulators/i);
+  }
+});
+
+test('boot keeps --target validation when emulator is fallback-launched', async () => {
+  const sessionStore = makeSessionStore();
+  let ensured = false;
+  const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: { platform: 'android', target: 'tv', device: 'Pixel_9_Pro_XL' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {
+      ensured = true;
+    },
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'No Android TV devices found');
+    },
+    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
+      launchCalls.push({ avdName, serial, headless });
+      return {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel_9_Pro_XL',
+        kind: 'emulator',
+        target: 'mobile',
+        booted: true,
+      };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  assert.equal(ensured, false);
+  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'DEVICE_NOT_FOUND');
+    assert.match(response.error.message, /matching --target tv/i);
+  }
+});
+
 test('appstate on iOS requires active session on selected device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
