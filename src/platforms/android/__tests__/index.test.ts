@@ -737,6 +737,50 @@ test('typeAndroid uses adb input text for ascii text', async () => {
   );
 });
 
+test('typeAndroid URL-encodes shell-sensitive ascii text', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-ascii-special-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await typeAndroid(device, 'curtis.layne+test+73kmc@uber.com');
+      const args = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      assert.deepEqual(args, [
+        '-s',
+        'emulator-5554',
+        'shell',
+        'input',
+        'text',
+        'curtis.layne%2Btest%2B73kmc%40uber.com',
+      ]);
+    },
+  );
+});
+
+test('typeAndroid URL-encodes percent signs', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-ascii-percent-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await typeAndroid(device, '50% complete');
+      const args = (await fs.readFile(argsLogPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .filter(Boolean);
+      assert.deepEqual(args, [
+        '-s',
+        'emulator-5554',
+        'shell',
+        'input',
+        'text',
+        '50%25%scomplete',
+      ]);
+    },
+  );
+});
+
 test('typeAndroid reports clear error when unicode input is unsupported', async () => {
   await withMockedAdb(
     'agent-device-android-type-unicode-unsupported-',

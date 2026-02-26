@@ -488,15 +488,16 @@ export async function longPressAndroid(
 }
 
 export async function typeAndroid(device: DeviceInfo, text: string): Promise<void> {
-  if (shouldUseClipboardTextInjection(text)) {
+  const shouldInjectViaClipboard = shouldUseClipboardTextInjection(text);
+  if (shouldInjectViaClipboard) {
     const clipboardResult = await typeAndroidViaClipboard(device, text);
     if (clipboardResult === 'ok') return;
   }
   try {
-    const encoded = text.replace(/ /g, '%s');
+    const encoded = encodeAndroidInputText(text);
     await runCmd('adb', adbArgs(device, ['shell', 'input', 'text', encoded]));
   } catch (error) {
-    if (shouldUseClipboardTextInjection(text) && isAndroidInputTextUnsupported(error)) {
+    if (shouldInjectViaClipboard && isAndroidInputTextUnsupported(error)) {
       throw new AppError(
         'COMMAND_FAILED',
         'Non-ASCII text input is not supported on this Android shell. Install an ADB keyboard IME or use ASCII input.',
@@ -1120,6 +1121,11 @@ function shouldUseClipboardTextInjection(text: string): boolean {
     if (code < 0x20 || code > 0x7e) return true;
   }
   return false;
+}
+
+function encodeAndroidInputText(text: string): string {
+  // Android shell input understands URL-escaped bytes and `%s` as a space token.
+  return encodeURIComponent(text).replace(/%20/g, '%s');
 }
 
 async function typeAndroidViaClipboard(
