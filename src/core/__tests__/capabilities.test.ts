@@ -56,6 +56,12 @@ test('simulator-only iOS commands with Android support reject iOS devices', () =
   }
 });
 
+test('keyboard command is Android-only', () => {
+  assert.equal(isCommandSupportedOnDevice('keyboard', iosSimulator), false, 'keyboard on iOS sim');
+  assert.equal(isCommandSupportedOnDevice('keyboard', iosDevice), false, 'keyboard on iOS device');
+  assert.equal(isCommandSupportedOnDevice('keyboard', androidDevice), true, 'keyboard on Android');
+});
+
 test('swipe supports iOS simulator, iOS device, and Android', () => {
   assert.equal(isCommandSupportedOnDevice('swipe', iosSimulator), true, 'swipe on iOS sim');
   assert.equal(isCommandSupportedOnDevice('swipe', iosDevice), true, 'swipe on iOS device');
@@ -127,6 +133,7 @@ test('tvOS follows iOS capability matrix by device kind', () => {
   for (const cmd of ['pinch', 'push', 'settings', 'alert']) {
     assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS simulator`);
   }
+  assert.equal(isCommandSupportedOnDevice('keyboard', tvOsSimulator), false, 'keyboard on tvOS simulator');
 });
 
 test('unknown commands default to supported', () => {

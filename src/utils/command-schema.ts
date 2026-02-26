@@ -528,6 +528,12 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowsExtraPositionals: true,
     allowedFlags: [],
   },
+  keyboard: {
+    usageOverride: 'keyboard [status|get|dismiss]',
+    description: 'Inspect Android keyboard visibility/type or dismiss it',
+    positionalArgs: ['action?'],
+    allowedFlags: [],
+  },
   perf: {
     description: 'Show session performance metrics (startup timing)',
     positionalArgs: [],

@@ -22,6 +22,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   boot: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   click: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   clipboard: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  keyboard: { ios: {}, android: { emulator: true, device: true, unknown: true } },
   close: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   fill: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   diff: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },

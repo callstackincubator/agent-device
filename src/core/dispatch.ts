@@ -6,7 +6,9 @@ import { listAndroidDevices } from '../platforms/android/devices.ts';
 import {
   appSwitcherAndroid,
   backAndroid,
+  dismissAndroidKeyboard,
   ensureAdb,
+  getAndroidKeyboardState,
   homeAndroid,
   pushAndroidNotification,
   readAndroidClipboardText,
@@ -460,6 +462,39 @@ export async function dispatchCommand(
       if (device.platform === 'ios') await writeIosClipboardText(device, text);
       else await writeAndroidClipboardText(device, text);
       return { action, textLength: Array.from(text).length };
+    }
+    case 'keyboard': {
+      if (device.platform !== 'android') {
+        throw new AppError('UNSUPPORTED_OPERATION', 'keyboard is currently supported only on Android');
+      }
+      const action = (positionals[0] ?? 'status').toLowerCase();
+      if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
+        throw new AppError('INVALID_ARGS', 'keyboard requires a subcommand: status, get, or dismiss');
+      }
+      if (positionals.length > 1) {
+        throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
+      }
+      if (action === 'dismiss') {
+        const result = await dismissAndroidKeyboard(device);
+        return {
+          platform: 'android',
+          action: 'dismiss',
+          attempts: result.attempts,
+          wasVisible: result.wasVisible,
+          dismissed: result.dismissed,
+          visible: result.visible,
+          inputType: result.inputType,
+          type: result.type,
+        };
+      }
+      const state = await getAndroidKeyboardState(device);
+      return {
+        platform: 'android',
+        action: 'status',
+        visible: state.visible,
+        inputType: state.inputType,
+        type: state.type,
+      };
     }
     case 'settings': {
       const [setting, state, target, mode, appBundleId] = positionals;

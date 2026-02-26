@@ -806,6 +806,20 @@ export async function handleSessionCommands(params: {
     });
   }
 
+  if (command === 'keyboard') {
+    return await runSessionOrSelectorDispatch({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      dispatch,
+      command: 'keyboard',
+      positionals: req.positionals ?? [],
+    });
+  }
+
   if (command === 'perf') {
     const session = sessionStore.get(sessionName);
     if (!session) {

@@ -17,6 +17,7 @@ The project is in early development and considered experimental. Pull requests a
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
+- Keyboard commands: `keyboard status|get|dismiss` (Android).
 - Performance command: `perf` (alias: `metrics`) returns a metrics JSON blob for the active session; startup timing is currently sampled.
 - App logs and traffic inspection: `logs path` returns session log metadata; `logs start` / `logs stop` stream app output; `logs clear` truncates session app logs; `logs clear --restart` resets and restarts stream in one step; `logs doctor` checks readiness; `logs mark` writes timeline markers; `network dump` parses recent HTTP(s) entries from session logs.
 - Device tooling: `adb` (Android), `simctl`/`devicectl` (iOS via Xcode).
@@ -152,6 +153,7 @@ agent-device scrollintoview @e42
 - `trace start`, `trace stop`
 - `logs path`, `logs start`, `logs stop`, `logs clear`, `logs clear --restart`, `logs doctor`, `logs mark` (session app log file for grep; iOS simulator + iOS device + Android)
 - `clipboard read`, `clipboard write <text>` (iOS simulator + Android)
+- `keyboard [status|get|dismiss]` (Android emulator/device)
 - `network dump [limit] [summary|headers|body|all]`, `network log ...` (best-effort HTTP(s) parsing from session app log)
 - `settings wifi|airplane|location on|off`
 - `settings appearance light|dark|toggle`
@@ -417,6 +419,12 @@ Clipboard:
 - `clipboard write <text>` sets clipboard text (`clipboard write ""` clears it).
 - Supported on Android emulator/device and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
+
+Keyboard:
+- `keyboard status` (or `keyboard get`) reports Android keyboard visibility and best-effort input type classification (`text`, `number`, `email`, `phone`, `password`, `datetime`).
+- `keyboard dismiss` issues Android back keyevent only when keyboard is visible, then verifies hidden state.
+- Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- Supported on Android emulator/device.
 
 ## Debug
 

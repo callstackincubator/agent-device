@@ -258,6 +258,19 @@ agent-device clipboard write ""   # clear clipboard
 - Supported on Android emulator/device and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
+## Keyboard (Android)
+
+```bash
+agent-device keyboard status
+agent-device keyboard get
+agent-device keyboard dismiss
+```
+
+- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification.
+- `keyboard dismiss` dismisses keyboard with Android back keyevent only when the keyboard is visible, then confirms hidden state.
+- Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- Supported on Android emulator/device.
+
 ## Performance metrics
 
 ```bash

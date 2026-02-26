@@ -838,6 +838,112 @@ test('clipboard requires an active session or explicit device selector', async (
   }
 });
 
+test('keyboard requires an active session or explicit device selector', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'keyboard',
+      positionals: ['status'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /keyboard requires an active session or an explicit device selector/i);
+  }
+});
+
+test('keyboard dismiss supports explicit selector without active session', async () => {
+  const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel Emulator',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'keyboard',
+      positionals: ['dismiss'],
+      flags: { platform: 'android', serial: 'emulator-5554' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => selectedDevice,
+    dispatch: async (device, command, positionals) => {
+      assert.equal(device.id, 'emulator-5554');
+      assert.equal(command, 'keyboard');
+      assert.deepEqual(positionals, ['dismiss']);
+      return { platform: 'android', action: 'dismiss', dismissed: true, visible: false };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.action, 'dismiss');
+    assert.equal(response.data?.dismissed, true);
+    assert.equal(response.data?.visible, false);
+  }
+});
+
+test('keyboard rejects unsupported iOS simulator devices', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-session';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'keyboard',
+      positionals: ['status'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async () => {
+      throw new Error('dispatch should not run for unsupported targets');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /keyboard is not supported on this device/i);
+  }
+});
+
 test('clipboard read uses active session device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-session';

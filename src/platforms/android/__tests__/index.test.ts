@@ -4,7 +4,9 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  dismissAndroidKeyboard,
   fillAndroid,
+  getAndroidKeyboardState,
   inferAndroidAppName,
   isAmStartError,
   listAndroidApps,
@@ -918,6 +920,169 @@ test('readAndroidClipboardText uses adb cmd clipboard get text', async () => {
     },
   );
 });
+
+test('getAndroidKeyboardState reads visibility and input type', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-state-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=true mIsInputViewShown=true"',
+      '  echo "inputType=0x21 imeOptions=0x12000000 privateImeOptions=null"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const state = await getAndroidKeyboardState(device);
+      assert.equal(state.visible, true);
+      assert.equal(state.inputType, '0x21');
+      assert.equal(state.type, 'email');
+    },
+  );
+});
+
+test('getAndroidKeyboardState falls back to mImeWindowVis flag', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-window-vis-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mImeWindowVis=0x1"',
+      '  echo "inputType=0x2"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const state = await getAndroidKeyboardState(device);
+      assert.equal(state.visible, true);
+      assert.equal(state.inputType, '0x2');
+      assert.equal(state.type, 'number');
+    },
+  );
+});
+
+test('getAndroidKeyboardState uses latest visibility value when dumpsys contains duplicates', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-duplicate-visibility-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=true"',
+      '  echo "mInputShown=false"',
+      '  echo "mIsInputViewShown=false"',
+      '  echo "inputType=0x21"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const state = await getAndroidKeyboardState(device);
+      assert.equal(state.visible, false);
+      assert.equal(state.inputType, '0x21');
+      assert.equal(state.type, 'email');
+    },
+  );
+});
+
+test('dismissAndroidKeyboard skips keyevent when keyboard is already hidden', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-dismiss-hidden-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=false mIsInputViewShown=false"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "4" ]; then',
+      '  echo "unexpected keyevent" >&2',
+      '  exit 1',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      const result = await dismissAndroidKeyboard(device);
+      assert.equal(result.attempts, 0);
+      assert.equal(result.wasVisible, false);
+      assert.equal(result.dismissed, false);
+      assert.equal(result.visible, false);
+
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.doesNotMatch(logged, /shell\ninput\nkeyevent\n4/);
+    },
+  );
+});
+
+test('dismissAndroidKeyboard sends back keyevent and confirms hidden state', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-dismiss-visible-',
+    [
+      '#!/bin/sh',
+      'STATE_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/keyboard_hidden.txt"',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  if [ -f "$STATE_FILE" ]; then',
+      '    echo "mInputShown=false mIsInputViewShown=false"',
+      '    exit 0',
+      '  fi',
+      '  echo "mInputShown=true mIsInputViewShown=true"',
+      '  echo "inputType=0x2"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "4" ]; then',
+      '  touch "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      const result = await dismissAndroidKeyboard(device);
+      assert.equal(result.attempts, 1);
+      assert.equal(result.wasVisible, true);
+      assert.equal(result.dismissed, true);
+      assert.equal(result.visible, false);
+
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ndumpsys\ninput_method/);
+      assert.match(logged, /shell\ninput\nkeyevent\n4/);
+    },
+  );
+});
+
 test('setAndroidSetting permission grant camera uses pm grant', async () => {
   await withMockedAdb(
     'agent-device-android-permission-camera-',

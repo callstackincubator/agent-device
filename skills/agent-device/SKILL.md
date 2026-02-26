@@ -138,6 +138,8 @@ agent-device is visible 'id="anchor"'
 agent-device appstate
 agent-device clipboard read
 agent-device clipboard write "token"
+agent-device keyboard status
+agent-device keyboard dismiss
 agent-device perf --json
 agent-device network dump [limit] [summary|headers|body|all]
 agent-device push <bundle|package> <payload.json|inline-json>
@@ -169,6 +171,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
+- Android keyboard helpers: `keyboard status|get|dismiss` report keyboard visibility/type and dismiss via keyevent when visible.
 - `network dump` is best-effort and parses HTTP(s) entries from the session app log file.
 - Biometric settings: iOS simulator supports `settings faceid|touchid <match|nonmatch|enroll|unenroll>`; Android supports `settings fingerprint <match|nonmatch>` where runtime tooling is available.
 - For AndroidTV/tvOS selection, always pair `--target` with `--platform` (`ios`, `android`, or `apple` alias); target-only selection is invalid.

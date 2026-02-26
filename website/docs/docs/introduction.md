@@ -30,7 +30,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to uncapped (max available) FPS and supports `--fps` caps.
-- Android supports the same core interaction set, plus `push` notification simulation and `clipboard read/write` via adb shell commands.
+- Android supports the same core interaction set, plus `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss` via adb shell commands.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)

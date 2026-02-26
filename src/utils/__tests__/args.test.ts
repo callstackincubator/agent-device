@@ -79,6 +79,16 @@ test('parseArgs accepts clipboard subcommands', () => {
   assert.deepEqual(write.positionals, ['write', 'otp', '123456']);
 });
 
+test('parseArgs accepts keyboard subcommands', () => {
+  const status = parseArgs(['keyboard', 'status'], { strictFlags: true });
+  assert.equal(status.command, 'keyboard');
+  assert.deepEqual(status.positionals, ['status']);
+
+  const dismiss = parseArgs(['keyboard', 'dismiss'], { strictFlags: true });
+  assert.equal(dismiss.command, 'keyboard');
+  assert.deepEqual(dismiss.positionals, ['dismiss']);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');
@@ -309,6 +319,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /network dump/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /clipboard read \| clipboard write <text>/);
+  assert.match(usage(), /keyboard \[status\|get\|dismiss\]/);
   assert.match(usage(), /trigger-app-event <event> \[payloadJson\]/);
   assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
   assert.match(usage(), /--state-dir <path>/);
@@ -474,6 +485,13 @@ test('clipboard command usage is documented', () => {
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /clipboard read \| clipboard write <text>/);
   assert.match(help, /Read or write device clipboard text/);
+});
+
+test('keyboard command usage is documented', () => {
+  const help = usageForCommand('keyboard');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /keyboard \[status\|get\|dismiss\]/);
+  assert.match(help, /Inspect Android keyboard visibility\/type or dismiss it/);
 });
 
 test('settings usage documents canonical faceid states', () => {
