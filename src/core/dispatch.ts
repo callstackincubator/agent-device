@@ -28,6 +28,7 @@ import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { resolvePayloadInput } from '../utils/payload-input.ts';
+import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../utils/device-isolation.ts';
 
 export type BatchStep = {
   command: string;
@@ -41,6 +42,8 @@ export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSt
 
 export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
   const normalizedPlatform = normalizePlatformSelector(flags.platform);
+  const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(flags.iosSimulatorDeviceSet);
+  const androidSerialAllowlist = resolveAndroidSerialAllowlist(flags.androidDeviceAllowlist);
   return await withDiagnosticTimer(
     'resolve_target_device',
     async () => {
@@ -60,23 +63,23 @@ export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceIn
 
       if (selector.platform === 'android') {
         await ensureAdb();
-        const devices = await listAndroidDevices();
+        const devices = await listAndroidDevices({ serialAllowlist: androidSerialAllowlist });
         return await selectDevice(devices, selector);
       }
 
       if (selector.platform === 'ios') {
-        const devices = await listIosDevices();
+        const devices = await listIosDevices({ simulatorSetPath: iosSimulatorSetPath });
         return await selectDevice(devices, selector);
       }
 
       const devices: DeviceInfo[] = [];
       try {
-        devices.push(...(await listAndroidDevices()));
+        devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
       } catch {
         // ignore
       }
       try {
-        devices.push(...(await listIosDevices()));
+        devices.push(...(await listIosDevices({ simulatorSetPath: iosSimulatorSetPath })));
       } catch {
         // ignore
       }

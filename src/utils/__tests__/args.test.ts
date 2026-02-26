@@ -34,6 +34,22 @@ test('parseArgs recognizes --platform apple alias', () => {
   assert.equal(parsed.flags.target, 'tv');
 });
 
+test('parseArgs recognizes device isolation flags', () => {
+  const parsed = parseArgs([
+    'devices',
+    '--platform',
+    'ios',
+    '--ios-simulator-device-set',
+    '/tmp/tenant-a/simulators',
+    '--android-device-allowlist',
+    'emulator-5554,device-1234',
+  ], { strictFlags: true });
+  assert.equal(parsed.command, 'devices');
+  assert.equal(parsed.flags.platform, 'ios');
+  assert.equal(parsed.flags.iosSimulatorDeviceSet, '/tmp/tenant-a/simulators');
+  assert.equal(parsed.flags.androidDeviceAllowlist, 'emulator-5554,device-1234');
+});
+
 test('parseArgs recognizes logs clear --restart', () => {
   const parsed = parseArgs(['logs', 'clear', '--restart'], { strictFlags: true });
   assert.equal(parsed.command, 'logs');
@@ -281,6 +297,8 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
   assert.match(usage(), /--restart/);
   assert.match(usage(), /--target mobile\|tv/);
+  assert.match(usage(), /--ios-simulator-device-set <path>/);
+  assert.match(usage(), /--android-device-allowlist <serials>/);
   assert.match(usage(), /--fps <n>/);
   assert.match(usage(), /network dump/);
   assert.match(usage(), /--save-script \[path\]/);

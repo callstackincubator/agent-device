@@ -5,6 +5,8 @@ import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo, DeviceTarget } from '../../utils/device.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
+import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
+import { buildSimctlArgs } from './simctl.ts';
 
 const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICECTL_LIST_TIMEOUT_MS,
@@ -38,6 +40,10 @@ type DevicectlListDevicesPayload = {
   result?: {
     devices?: DevicectlAppleDevice[];
   };
+};
+
+type IosDeviceDiscoveryOptions = {
+  simulatorSetPath?: string;
 };
 
 function normalizeAppleDescriptor(value: string | undefined): string {
@@ -106,7 +112,7 @@ export function isSupportedAppleDevicectlDevice(device: DevicectlAppleDevice): b
   return resolveDevicectlAppleLabels(device).some(isAppleTvLabel);
 }
 
-export async function listIosDevices(): Promise<DeviceInfo[]> {
+export async function listIosDevices(options: IosDeviceDiscoveryOptions = {}): Promise<DeviceInfo[]> {
   if (process.platform !== 'darwin') {
     throw new AppError('UNSUPPORTED_PLATFORM', 'iOS tools are only available on macOS');
   }
@@ -117,8 +123,9 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
   }
 
   const devices: DeviceInfo[] = [];
+  const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
 
-  const simResult = await runCmd('xcrun', ['simctl', 'list', 'devices', '-j']);
+  const simResult = await runCmd('xcrun', buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }));
   try {
     const payload = JSON.parse(simResult.stdout as string) as SimctlListDevicesPayload;
     for (const [runtime, runtimes] of Object.entries(payload.devices)) {
@@ -132,11 +139,18 @@ export async function listIosDevices(): Promise<DeviceInfo[]> {
           kind: 'simulator',
           target: resolveAppleTargetFromRuntime(runtime),
           booted: device.state === 'Booted',
+          ...(simulatorSetPath ? { simulatorSetPath } : {}),
         });
       }
     }
   } catch (err) {
     throw new AppError('COMMAND_FAILED', 'Failed to parse simctl devices JSON', undefined, err);
+  }
+
+  // When a simulator set is configured, keep discovery strictly scoped to that set.
+  // Do not enumerate host-global physical devices via devicectl.
+  if (simulatorSetPath) {
+    return devices;
   }
 
   let jsonPath: string | null = null;

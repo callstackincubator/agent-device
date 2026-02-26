@@ -38,6 +38,22 @@ agent-device open "https://example.com" --platform ios           # open link in 
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 ```
 
+## Device isolation scopes
+
+```bash
+agent-device devices --platform ios --ios-simulator-device-set /tmp/tenant-a/simulators
+agent-device devices --platform android --android-device-allowlist emulator-5554,device-1234
+```
+
+- `--ios-simulator-device-set <path>` constrains simulator discovery and simulator command execution via `xcrun simctl --set <path> ...`.
+- `--android-device-allowlist <serials>` constrains Android discovery/selection to comma or space separated serials.
+- Scope is applied before selectors (`--device`, `--udid`, `--serial`), so out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
+- With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
+- Environment equivalents:
+  - iOS: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
+  - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
+- CLI scope flags override environment values.
+
 ## TV targets
 
 ```bash

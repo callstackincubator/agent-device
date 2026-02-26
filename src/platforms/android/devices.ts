@@ -3,6 +3,7 @@ import type { ExecResult } from '../../utils/exec.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
+import { resolveAndroidSerialAllowlist } from '../../utils/device-isolation.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
@@ -15,6 +16,10 @@ const ANDROID_TV_FEATURES = [
   'android.software.leanback_only',
   'android.hardware.type.television',
 ] as const;
+
+type AndroidDeviceDiscoveryOptions = {
+  serialAllowlist?: ReadonlySet<string>;
+};
 
 function commandOutput(result: ExecResult): string {
   return `${result.stdout}\n${result.stderr}`;
@@ -136,15 +141,20 @@ async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
   return 'mobile';
 }
 
-export async function listAndroidDevices(): Promise<DeviceInfo[]> {
+export async function listAndroidDevices(options: AndroidDeviceDiscoveryOptions = {}): Promise<DeviceInfo[]> {
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
     throw new AppError('TOOL_MISSING', 'adb not found in PATH');
   }
+  const serialAllowlist =
+    options.serialAllowlist
+    ?? resolveAndroidSerialAllowlist(undefined);
 
   const entries = await listAndroidDeviceEntries();
+  const filteredEntries = entries.filter((entry) =>
+    !serialAllowlist || serialAllowlist.has(entry.serial));
 
-  const devices = await Promise.all(entries.map(async ({ serial, rawModel }) => {
+  const devices = await Promise.all(filteredEntries.map(async ({ serial, rawModel }) => {
     const [name, booted, target] = await Promise.all([
       resolveAndroidDeviceName(serial, rawModel),
       isAndroidBooted(serial),

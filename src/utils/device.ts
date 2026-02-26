@@ -14,6 +14,7 @@ export type DeviceInfo = {
   kind: DeviceKind;
   target?: DeviceTarget;
   booted?: boolean;
+  simulatorSetPath?: string;
 };
 
 type DeviceSelector = {

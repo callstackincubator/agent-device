@@ -2,6 +2,7 @@ import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState } from './types.ts';
 import { normalizePlatformSelector } from '../utils/device.ts';
+import { parseSerialAllowlist } from '../utils/device-isolation.ts';
 
 export function assertSessionSelectorMatches(
   session: SessionState,
@@ -30,6 +31,25 @@ export function assertSessionSelectorMatches(
 
   if (flags.device && flags.device.trim().toLowerCase() !== device.name.trim().toLowerCase()) {
     mismatches.push(`--device=${flags.device}`);
+  }
+
+  if (flags.iosSimulatorDeviceSet) {
+    const requestedSetPath = flags.iosSimulatorDeviceSet.trim();
+    const sessionSetPath = device.simulatorSetPath?.trim();
+    if (
+      device.platform !== 'ios'
+      || device.kind !== 'simulator'
+      || requestedSetPath !== sessionSetPath
+    ) {
+      mismatches.push(`--ios-simulator-device-set=${flags.iosSimulatorDeviceSet}`);
+    }
+  }
+
+  if (flags.androidDeviceAllowlist) {
+    const allowlist = parseSerialAllowlist(flags.androidDeviceAllowlist);
+    if (device.platform !== 'android' || !allowlist.has(device.id)) {
+      mismatches.push(`--android-device-allowlist=${flags.androidDeviceAllowlist}`);
+    }
   }
 
   if (mismatches.length === 0) return;

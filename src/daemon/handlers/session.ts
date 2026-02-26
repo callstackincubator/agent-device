@@ -10,6 +10,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
+import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -516,23 +517,25 @@ export async function handleSessionCommands(params: {
   if (command === 'devices') {
     try {
       const devices: DeviceInfo[] = [];
+      const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(req.flags?.iosSimulatorDeviceSet);
+      const androidSerialAllowlist = resolveAndroidSerialAllowlist(req.flags?.androidDeviceAllowlist);
       const requestedPlatform = normalizePlatformSelector(req.flags?.platform);
       if (requestedPlatform === 'android') {
         const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
-        devices.push(...(await listAndroidDevices()));
+        devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
       } else if (requestedPlatform === 'ios') {
         const { listIosDevices } = await import('../../platforms/ios/devices.ts');
-        devices.push(...(await listIosDevices()));
+        devices.push(...(await listIosDevices({ simulatorSetPath: iosSimulatorSetPath })));
       } else {
         const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
         const { listIosDevices } = await import('../../platforms/ios/devices.ts');
         try {
-          devices.push(...(await listAndroidDevices()));
+          devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
         } catch {
           // ignore
         }
         try {
-          devices.push(...(await listIosDevices()));
+          devices.push(...(await listIosDevices({ simulatorSetPath: iosSimulatorSetPath })));
         } catch {
           // ignore
         }
@@ -540,7 +543,8 @@ export async function handleSessionCommands(params: {
       const filtered = req.flags?.target
         ? devices.filter((device) => (device.target ?? 'mobile') === req.flags?.target)
         : devices;
-      return { ok: true, data: { devices: filtered } };
+      const publicDevices = filtered.map(({ simulatorSetPath: _simulatorSetPath, ...device }) => device);
+      return { ok: true, data: { devices: publicDevices } };
     } catch (err) {
       const appErr = asAppError(err);
       return { ok: false, error: { code: appErr.code, message: appErr.message, details: appErr.details } };

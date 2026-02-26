@@ -109,3 +109,31 @@ test('rejects mismatched device selector', () => {
       err.message.includes('--device=thymikee-iphone'),
   );
 });
+
+test('accepts matching ios simulator set selector for iOS simulator sessions', () => {
+  const session = makeSession({
+    device: {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17',
+      kind: 'simulator',
+      target: 'mobile',
+      booted: true,
+      simulatorSetPath: '/tmp/tenant-a/simulator-set',
+    },
+  });
+  assert.doesNotThrow(() =>
+    assertSessionSelectorMatches(session, { iosSimulatorDeviceSet: '/tmp/tenant-a/simulator-set' }),
+  );
+});
+
+test('rejects android allowlist selector when session device is not allowlisted', () => {
+  const session = makeSession();
+  assert.throws(
+    () => assertSessionSelectorMatches(session, { androidDeviceAllowlist: 'emulator-9999' }),
+    (err: unknown) =>
+      err instanceof AppError &&
+      err.code === 'INVALID_ARGS' &&
+      err.message.includes('--android-device-allowlist=emulator-9999'),
+  );
+});

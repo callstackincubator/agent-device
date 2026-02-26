@@ -209,6 +209,8 @@ Flags:
 - `--device <name>`
 - `--udid <udid>` (iOS)
 - `--serial <serial>` (Android)
+- `--ios-simulator-device-set <path>` constrain iOS simulator discovery/commands to one simulator set (`xcrun simctl --set`)
+- `--android-device-allowlist <serials>` constrain Android discovery/selection to comma/space-separated serials
 - `--activity <component>` (Android app launch only; package/Activity or package/.Activity; not for URL opens)
 - `--session <name>`
 - `--state-dir <path>` daemon state directory override (default: `~/.agent-device`)
@@ -231,6 +233,11 @@ Flags:
 - `--steps-file <path>` batch: read step JSON from file
 - `--on-error stop` batch: stop when a step fails
 - `--max-steps <n>` batch: max allowed steps per request
+
+Isolation precedence:
+- Discovery scope (`--ios-simulator-device-set`, `--android-device-allowlist`) is applied before selector matching (`--device`, `--udid`, `--serial`).
+- If a selector points outside the scoped set/allowlist, command resolution fails with `DEVICE_NOT_FOUND` (no host-global fallback).
+- When `--ios-simulator-device-set` is set (or its env equivalent), iOS discovery is simulator-set only (physical iOS devices are not enumerated).
 
 TV targets:
 - Use `--target tv` together with `--platform ios|android|apple`.
@@ -465,6 +472,9 @@ pnpm build
 Environment selectors:
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
+- `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET=<path>` (or `IOS_SIMULATOR_DEVICE_SET=<path>`) to scope all iOS simulator discovery/commands to one simulator set.
+- `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
+- CLI flags `--ios-simulator-device-set` / `--android-device-allowlist` override environment values.
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).
 - `AGENT_DEVICE_STATE_DIR=<path>` override daemon state directory (metadata, logs, session artifacts).

@@ -4,6 +4,7 @@ import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
+import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -185,7 +186,7 @@ export async function handleRecordTraceCommands(params: {
         }
         activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, remotePath };
       } else if (device.platform === 'ios') {
-        const { child, wait } = deps.runCmdBackground('xcrun', ['simctl', 'io', device.id, 'recordVideo', resolvedOut], {
+        const { child, wait } = deps.runCmdBackground('xcrun', buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]), {
           allowFailure: true,
         });
         activeSession.recording = { platform: 'ios', outPath: resolvedOut, child, wait };

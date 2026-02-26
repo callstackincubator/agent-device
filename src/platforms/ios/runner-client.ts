@@ -12,6 +12,7 @@ import net from 'node:net';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import { isRequestCanceled } from '../../daemon/request-cancel.ts';
+import { buildSimctlArgsForDevice } from './simctl.ts';
 
 const iosRunnerContainerBundleIds = [
   process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
@@ -314,8 +315,8 @@ async function stopRunnerSessionInternal(deviceId: string, sessionOverride?: Run
   }
 }
 
-async function ensureBooted(udid: string): Promise<void> {
-  await runCmd('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
+async function ensureBooted(device: DeviceInfo): Promise<void> {
+  await runCmd('xcrun', buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
     allowFailure: true,
     timeoutMs: RUNNER_STARTUP_TIMEOUT_MS,
   });
@@ -551,7 +552,7 @@ function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
   if (device.kind !== 'simulator') {
     return Promise.resolve();
   }
-  return ensureBooted(device.id);
+  return ensureBooted(device);
 }
 
 function validateRunnerDevice(device: DeviceInfo): void {
@@ -844,7 +845,7 @@ async function waitForRunner(
     if (remainingMs <= 0) {
       throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
     }
-    const simResponse = await postCommandViaSimulator(device.id, port, command, remainingMs);
+    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs);
     return new Response(simResponse.body, { status: simResponse.status });
   }
 
@@ -936,28 +937,28 @@ async function resolveDeviceTunnelIp(deviceId: string, timeoutBudgetMs?: number)
 }
 
 async function postCommandViaSimulator(
-  udid: string,
+  device: DeviceInfo,
   port: number,
   command: RunnerCommand,
   timeoutMs: number,
 ): Promise<{ status: number; body: string }> {
   const payload = JSON.stringify(command);
+  const args = buildSimctlArgsForDevice(device, [
+    'spawn',
+    device.id,
+    '/usr/bin/curl',
+    '-s',
+    '-X',
+    'POST',
+    '-H',
+    'Content-Type: application/json',
+    '--data',
+    payload,
+    `http://127.0.0.1:${port}/command`,
+  ]);
   const result = await runCmd(
     'xcrun',
-    [
-      'simctl',
-      'spawn',
-      udid,
-      '/usr/bin/curl',
-      '-s',
-      '-X',
-      'POST',
-      '-H',
-      'Content-Type: application/json',
-      '--data',
-      payload,
-      `http://127.0.0.1:${port}/command`,
-    ],
+    args,
     { allowFailure: true, timeoutMs },
   );
   const body = result.stdout as string;

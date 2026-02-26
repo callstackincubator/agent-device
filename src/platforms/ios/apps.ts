@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
+import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import {
@@ -23,12 +24,25 @@ import {
 } from './devicectl.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-client.ts';
 import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './simulator.ts';
+import { buildSimctlArgsForDevice } from './simctl.ts';
 
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
 let cachedSimctlPrivacyServices: Set<string> | null = null;
-let cachedSimctlPrivacyServicesPath: string | undefined;
+let cachedSimctlPrivacyServicesCacheKey: string | undefined;
+
+function simctlArgs(device: DeviceInfo, args: string[]): string[] {
+  return buildSimctlArgsForDevice(device, args);
+}
+
+function runSimctl(
+  device: DeviceInfo,
+  args: string[],
+  options?: Parameters<typeof runCmd>[2],
+) {
+  return runCmd('xcrun', simctlArgs(device, args), options);
+}
 
 function isMissingAppErrorOutput(output: string): boolean {
   return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
@@ -67,7 +81,7 @@ export async function openIosApp(
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
       await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-      await runCmd('xcrun', ['simctl', 'openurl', device.id, explicitUrl]);
+      await runSimctl(device, ['openurl', device.id, explicitUrl]);
       return;
     }
     const appBundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
@@ -87,7 +101,7 @@ export async function openIosApp(
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
       await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
-      await runCmd('xcrun', ['simctl', 'openurl', device.id, deepLinkTarget]);
+      await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
       return;
     }
     const bundleId = resolveIosDeviceDeepLinkBundleId(options?.appBundleId, deepLinkTarget);
@@ -112,7 +126,7 @@ export async function openIosApp(
 
 export async function openIosDevice(device: DeviceInfo): Promise<void> {
   if (device.kind !== 'simulator') return;
-  const state = await getSimulatorState(device.id);
+  const state = await getSimulatorState(device);
   if (state === 'Booted') return;
 
   await ensureBootedSimulator(device);
@@ -123,7 +137,8 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   const bundleId = await resolveIosApp(device, app);
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
-    const result = await runCmd('xcrun', ['simctl', 'terminate', device.id, bundleId], {
+    const terminateArgs = simctlArgs(device, ['terminate', device.id, bundleId]);
+    const result = await runCmd('xcrun', terminateArgs, {
       allowFailure: true,
     });
     if (result.exitCode !== 0) {
@@ -131,7 +146,7 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
       if (stderr.includes('found nothing to terminate')) return;
       throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
         cmd: 'xcrun',
-        args: ['simctl', 'terminate', device.id, bundleId],
+        args: terminateArgs,
         stdout: result.stdout,
         stderr: result.stderr,
         exitCode: result.exitCode,
@@ -175,7 +190,7 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
 
   await ensureBootedSimulator(device);
 
-  const result = await runCmd('xcrun', ['simctl', 'uninstall', device.id, bundleId], {
+  const result = await runSimctl(device, ['uninstall', device.id, bundleId], {
     allowFailure: true,
   });
   if (result.exitCode !== 0) {
@@ -202,7 +217,7 @@ export async function installIosApp(device: DeviceInfo, appPath: string): Promis
   }
 
   await ensureBootedSimulator(device);
-  await runCmd('xcrun', ['simctl', 'install', device.id, appPath]);
+  await runSimctl(device, ['install', device.id, appPath]);
 }
 
 export async function reinstallIosApp(
@@ -218,7 +233,7 @@ export async function reinstallIosApp(
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
-    await runCmd('xcrun', ['simctl', 'io', device.id, 'screenshot', outPath]);
+    await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
     return;
   }
 
@@ -293,7 +308,7 @@ export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean 
 export async function readIosClipboardText(device: DeviceInfo): Promise<string> {
   ensureSimulator(device, 'clipboard');
   await ensureBootedSimulator(device);
-  const result = await runCmd('xcrun', ['simctl', 'pbpaste', device.id], { allowFailure: true });
+  const result = await runSimctl(device, ['pbpaste', device.id], { allowFailure: true });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to read iOS simulator clipboard', {
       stdout: result.stdout,
@@ -307,7 +322,7 @@ export async function readIosClipboardText(device: DeviceInfo): Promise<string> 
 export async function writeIosClipboardText(device: DeviceInfo, text: string): Promise<void> {
   ensureSimulator(device, 'clipboard');
   await ensureBootedSimulator(device);
-  const result = await runCmd('xcrun', ['simctl', 'pbcopy', device.id], {
+  const result = await runSimctl(device, ['pbcopy', device.id], {
     allowFailure: true,
     stdin: text,
   });
@@ -331,7 +346,7 @@ export async function pushIosNotification(
   const payloadPath = path.join(tempDir, 'payload.apns');
   try {
     await fs.writeFile(payloadPath, `${JSON.stringify(payload)}\n`, 'utf8');
-    await runCmd('xcrun', ['simctl', 'push', device.id, bundleId, payloadPath]);
+    await runSimctl(device, ['push', device.id, bundleId, payloadPath]);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
@@ -352,14 +367,13 @@ export async function setIosSetting(
     case 'wifi': {
       const enabled = parseSettingState(state);
       const mode = enabled ? 'active' : 'failed';
-      await runCmd('xcrun', ['simctl', 'status_bar', device.id, 'override', '--wifiMode', mode]);
+      await runSimctl(device, ['status_bar', device.id, 'override', '--wifiMode', mode]);
       return;
     }
     case 'airplane': {
       const enabled = parseSettingState(state);
       if (enabled) {
-        await runCmd('xcrun', [
-          'simctl',
+        await runSimctl(device, [
           'status_bar',
           device.id,
           'override',
@@ -377,7 +391,7 @@ export async function setIosSetting(
           '',
         ]);
       } else {
-        await runCmd('xcrun', ['simctl', 'status_bar', device.id, 'clear']);
+        await runSimctl(device, ['status_bar', device.id, 'clear']);
       }
       return;
     }
@@ -387,7 +401,7 @@ export async function setIosSetting(
         throw new AppError('INVALID_ARGS', 'location setting requires an active app in session');
       }
       const action = enabled ? 'grant' : 'revoke';
-      await runCmd('xcrun', ['simctl', 'privacy', device.id, action, 'location', appBundleId]);
+      await runSimctl(device, ['privacy', device.id, action, 'location', appBundleId]);
       return;
     }
     case 'faceid':
@@ -395,7 +409,7 @@ export async function setIosSetting(
       const biometricSetting = normalized as IosBiometricSetting;
       const biometric = IOS_BIOMETRIC_SETTINGS[biometricSetting];
       const action = parseBiometricAction(state, biometricSetting);
-      await runIosBiometricSimctlCommand(device.id, action, {
+      await runIosBiometricSimctlCommand(device, action, {
         settingName: biometricSetting,
         label: biometric.label,
         modalityAliases: biometric.modalityAliases,
@@ -403,8 +417,8 @@ export async function setIosSetting(
       return;
     }
     case 'appearance': {
-      const target = await resolveIosAppearanceTarget(device.id, state);
-      await runCmd('xcrun', ['simctl', 'ui', device.id, 'appearance', target]);
+      const target = await resolveIosAppearanceTarget(device, state);
+      await runSimctl(device, ['ui', device.id, 'appearance', target]);
       return;
     }
     case 'permission': {
@@ -416,7 +430,7 @@ export async function setIosSetting(
       }
       const action = mapIosPermissionAction(parsePermissionAction(state));
       const target = parseIosPermissionTarget(options?.permissionTarget, options?.permissionMode);
-      await runIosPrivacyCommand(device.id, action, target, appBundleId);
+      await runIosPrivacyCommand(device, action, target, appBundleId);
       return;
     }
     default:
@@ -436,7 +450,7 @@ export async function listIosApps(
 }
 
 export async function listSimulatorApps(device: DeviceInfo): Promise<IosAppInfo[]> {
-  const result = await runCmd('xcrun', ['simctl', 'listapps', device.id], { allowFailure: true });
+  const result = await runSimctl(device, ['listapps', device.id], { allowFailure: true });
   const stdout = result.stdout as string;
   const trimmed = stdout.trim();
   if (!trimmed) return [];
@@ -481,11 +495,11 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
-async function resolveIosAppearanceTarget(deviceId: string, state: string): Promise<'light' | 'dark'> {
+async function resolveIosAppearanceTarget(device: DeviceInfo, state: string): Promise<'light' | 'dark'> {
   const action = parseAppearanceAction(state);
   if (action !== 'toggle') return action;
 
-  const currentResult = await runCmd('xcrun', ['simctl', 'ui', deviceId, 'appearance'], {
+  const currentResult = await runSimctl(device, ['ui', device.id, 'appearance'], {
     allowFailure: true,
   });
   if (currentResult.exitCode !== 0) {
@@ -531,29 +545,29 @@ function mapIosPermissionAction(action: 'grant' | 'deny' | 'reset'): 'grant' | '
 }
 
 async function runIosPrivacyCommand(
-  deviceId: string,
+  device: DeviceInfo,
   action: 'grant' | 'revoke' | 'reset',
   target: string,
   appBundleId: string,
 ): Promise<void> {
-  const supportedServices = await getSimctlPrivacyServices();
+  const supportedServices = await getSimctlPrivacyServices(device);
   if (!supportedServices.has(target)) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
       `iOS simctl privacy does not support service "${target}" on this runtime.`,
       {
-        deviceId,
+        deviceId: device.id,
         appBundleId,
         hint: `Supported services: ${Array.from(supportedServices).sort().join(', ')}`,
       },
     );
   }
 
-  const args = ['simctl', 'privacy', deviceId, action, target, appBundleId];
+  const args = ['privacy', device.id, action, target, appBundleId];
   const isNotificationsTarget = target === 'notifications';
   if (!(action === 'reset' && isNotificationsTarget)) {
     try {
-      await runCmd('xcrun', args);
+      await runSimctl(device, args);
       return;
     } catch (error) {
       if (!(isNotificationsTarget && isNotificationsOperationNotPermitted(error))) {
@@ -563,7 +577,7 @@ async function runIosPrivacyCommand(
         'UNSUPPORTED_OPERATION',
         'iOS simulator does not support setting notifications permission via simctl privacy on this runtime.',
         {
-          deviceId,
+          deviceId: device.id,
           appBundleId,
           hint: 'Use reset notifications for reprompt behavior, or toggle notifications manually in Settings.',
         },
@@ -572,7 +586,7 @@ async function runIosPrivacyCommand(
   }
 
   try {
-    await runCmd('xcrun', args);
+    await runSimctl(device, args);
     return;
   } catch (error) {
     if (!isNotificationsOperationNotPermitted(error)) {
@@ -581,13 +595,13 @@ async function runIosPrivacyCommand(
   }
 
   try {
-    await runCmd('xcrun', ['simctl', 'privacy', deviceId, 'reset', 'all', appBundleId]);
+    await runSimctl(device, ['privacy', device.id, 'reset', 'all', appBundleId]);
   } catch (error) {
     throw new AppError(
       'COMMAND_FAILED',
       'iOS simulator blocked direct notifications reset. Fallback reset-all also failed.',
       {
-        deviceId,
+        deviceId: device.id,
         appBundleId,
         hint: 'Use reinstall to force a fresh notifications prompt, or reset simulator content and settings.',
       },
@@ -607,12 +621,13 @@ function isNotificationsOperationNotPermitted(error: unknown): boolean {
   );
 }
 
-async function getSimctlPrivacyServices(): Promise<Set<string>> {
-  const currentPath = process.env.PATH;
-  if (cachedSimctlPrivacyServices && cachedSimctlPrivacyServicesPath === currentPath) {
+async function getSimctlPrivacyServices(device: DeviceInfo): Promise<Set<string>> {
+  const simulatorSetPath = resolveIosSimulatorDeviceSetPath(device.simulatorSetPath);
+  const currentCacheKey = `${process.env.PATH ?? ''}::${simulatorSetPath ?? ''}`;
+  if (cachedSimctlPrivacyServices && cachedSimctlPrivacyServicesCacheKey === currentCacheKey) {
     return cachedSimctlPrivacyServices;
   }
-  const result = await runCmd('xcrun', ['simctl', 'privacy', 'help'], { allowFailure: true });
+  const result = await runSimctl(device, ['privacy', 'help'], { allowFailure: true });
   const services = parseSimctlPrivacyServices(`${result.stdout}\n${result.stderr}`);
   if (services.size === 0) {
     throw new AppError('COMMAND_FAILED', 'Unable to determine supported simctl privacy services', {
@@ -623,7 +638,7 @@ async function getSimctlPrivacyServices(): Promise<Set<string>> {
     });
   }
   cachedSimctlPrivacyServices = services;
-  cachedSimctlPrivacyServicesPath = currentPath;
+  cachedSimctlPrivacyServicesCacheKey = currentCacheKey;
   return services;
 }
 
@@ -695,18 +710,19 @@ function parseBiometricAction(
 }
 
 async function runIosBiometricSimctlCommand(
-  deviceId: string,
+  device: DeviceInfo,
   action: IosBiometricAction,
   options: { settingName: IosBiometricSetting; label: 'Face ID' | 'Touch ID'; modalityAliases: string[] },
 ): Promise<void> {
-  const attempts = biometricCommandAttempts(deviceId, action, options.modalityAliases);
+  const attempts = biometricCommandAttempts(device.id, action, options.modalityAliases);
   const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
 
   for (const args of attempts) {
-    const result = await runCmd('xcrun', args, { allowFailure: true });
+    const commandArgs = simctlArgs(device, args);
+    const result = await runCmd('xcrun', commandArgs, { allowFailure: true });
     if (result.exitCode === 0) return;
     failures.push({
-      args,
+      args: commandArgs,
       stderr: result.stderr,
       stdout: result.stdout,
       exitCode: result.exitCode,
@@ -726,7 +742,7 @@ async function runIosBiometricSimctlCommand(
       'UNSUPPORTED_OPERATION',
       `${options.label} simulation is not supported on this simulator runtime.`,
       {
-        deviceId,
+        deviceId: device.id,
         action,
         setting: options.settingName,
         attempts: attemptsPayload,
@@ -734,7 +750,7 @@ async function runIosBiometricSimctlCommand(
     );
   }
   throw new AppError('COMMAND_FAILED', `Failed to simulate ${options.settingName}.`, {
-    deviceId,
+    deviceId: device.id,
     action,
     setting: options.settingName,
     attempts: attemptsPayload,
@@ -750,29 +766,29 @@ function biometricCommandAttempts(
   switch (action) {
     case 'match':
       return modalities.flatMap((modality) => [
-        ['simctl', 'biometric', deviceId, 'match', modality],
-        ['simctl', 'biometric', 'match', deviceId, modality],
+        ['biometric', deviceId, 'match', modality],
+        ['biometric', 'match', deviceId, modality],
       ]);
     case 'nonmatch':
       return modalities.flatMap((modality) => [
-        ['simctl', 'biometric', deviceId, 'nonmatch', modality],
-        ['simctl', 'biometric', deviceId, 'nomatch', modality],
-        ['simctl', 'biometric', 'nonmatch', deviceId, modality],
-        ['simctl', 'biometric', 'nomatch', deviceId, modality],
+        ['biometric', deviceId, 'nonmatch', modality],
+        ['biometric', deviceId, 'nomatch', modality],
+        ['biometric', 'nonmatch', deviceId, modality],
+        ['biometric', 'nomatch', deviceId, modality],
       ]);
     case 'enroll':
       return [
-        ['simctl', 'biometric', deviceId, 'enroll', 'yes'],
-        ['simctl', 'biometric', deviceId, 'enroll', '1'],
-        ['simctl', 'biometric', 'enroll', deviceId, 'yes'],
-        ['simctl', 'biometric', 'enroll', deviceId, '1'],
+        ['biometric', deviceId, 'enroll', 'yes'],
+        ['biometric', deviceId, 'enroll', '1'],
+        ['biometric', 'enroll', deviceId, 'yes'],
+        ['biometric', 'enroll', deviceId, '1'],
       ];
     case 'unenroll':
       return [
-        ['simctl', 'biometric', deviceId, 'enroll', 'no'],
-        ['simctl', 'biometric', deviceId, 'enroll', '0'],
-        ['simctl', 'biometric', 'enroll', deviceId, 'no'],
-        ['simctl', 'biometric', 'enroll', deviceId, '0'],
+        ['biometric', deviceId, 'enroll', 'no'],
+        ['biometric', deviceId, 'enroll', '0'],
+        ['biometric', 'enroll', deviceId, 'no'],
+        ['biometric', 'enroll', deviceId, '0'],
       ];
   }
 }
@@ -815,14 +831,15 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
         });
       }
 
-      const result = await runCmd('xcrun', ['simctl', 'launch', device.id, bundleId], {
+      const launchArgs = simctlArgs(device, ['launch', device.id, bundleId]);
+      const result = await runCmd('xcrun', launchArgs, {
         allowFailure: true,
       });
       if (result.exitCode === 0) return;
 
       throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
         cmd: 'xcrun',
-        args: ['simctl', 'launch', device.id, bundleId],
+        args: launchArgs,
         stdout: result.stdout,
         stderr: result.stderr,
         exitCode: result.exitCode,

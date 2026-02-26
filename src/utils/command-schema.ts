@@ -14,6 +14,8 @@ export type CliFlags = {
   device?: string;
   udid?: string;
   serial?: string;
+  iosSimulatorDeviceSet?: string;
+  androidDeviceAllowlist?: string;
   out?: string;
   session?: string;
   verbose?: boolean;
@@ -188,6 +190,20 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--headless',
     usageDescription: 'Boot: launch Android emulator without a GUI window',
+  },
+  {
+    key: 'iosSimulatorDeviceSet',
+    names: ['--ios-simulator-device-set'],
+    type: 'string',
+    usageLabel: '--ios-simulator-device-set <path>',
+    usageDescription: 'Scope iOS simulator discovery/commands to this simulator device set',
+  },
+  {
+    key: 'androidDeviceAllowlist',
+    names: ['--android-device-allowlist'],
+    type: 'string',
+    usageLabel: '--android-device-allowlist <serials>',
+    usageDescription: 'Comma/space separated Android serial allowlist for discovery/selection',
   },
   {
     key: 'activity',
@@ -444,6 +460,8 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'device',
   'udid',
   'serial',
+  'iosSimulatorDeviceSet',
+  'androidDeviceAllowlist',
   'session',
   'noRecord',
 ]);
