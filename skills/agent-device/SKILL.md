@@ -26,6 +26,7 @@ Use this skill as a router, not a full manual.
 - Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
 - Remote multi-tenant run: allocate lease -> run commands with tenant isolation flags -> heartbeat/release lease
+- Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only
 
 ## Canonical Flows
 
@@ -92,6 +93,8 @@ curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
 
 ```bash
 agent-device devices
+agent-device devices --platform ios --ios-simulator-device-set /tmp/tenant-a/simulators
+agent-device devices --platform android --android-device-allowlist emulator-5554,device-1234
 agent-device open [app|url] [url]
 agent-device open [app] --relaunch
 agent-device close [app]
@@ -102,6 +105,12 @@ Use `boot` only as fallback when `open` cannot find/connect to a ready target.
 For Android emulators by AVD name, use `boot --platform android --device <avd-name>`.
 For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
+
+Isolation scoping quick reference:
+- `--ios-simulator-device-set <path>` scopes iOS simulator discovery + command execution to one simulator set.
+- `--android-device-allowlist <serials>` scopes Android discovery/selection to comma/space separated serials.
+- Scope is applied before selectors (`--device`, `--udid`, `--serial`); out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
+- With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
 
 TV quick reference:
 - AndroidTV: `open`/`apps` use TV launcher discovery automatically.
@@ -172,6 +181,8 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
 - For tenant-isolated remote runs, always pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` together.
 - Use short lease TTLs and heartbeat only while work is active; release leases immediately after run completion/failure.
+- Env equivalents for scoped runs: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat `IOS_SIMULATOR_DEVICE_SET`) and
+  `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat `ANDROID_DEVICE_ALLOWLIST`).
 
 ## Security and Trust Notes
 

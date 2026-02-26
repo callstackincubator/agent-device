@@ -25,6 +25,22 @@ Sessions isolate device context. A device can only be held by one session at a t
 - For deterministic replay scripts, prefer selector-based actions and assertions.
 - Use `replay -u` to update selector drift during maintenance.
 
+## Scoped device isolation
+
+Use scoped discovery when sessions must not see host-global device lists.
+
+```bash
+agent-device devices --platform ios --ios-simulator-device-set /tmp/tenant-a/simulators
+agent-device devices --platform android --android-device-allowlist emulator-5554,device-1234
+```
+
+- Scope is applied before selectors (`--device`, `--udid`, `--serial`).
+- If selector target is outside scope, resolution fails with `DEVICE_NOT_FOUND`.
+- With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
+- Environment equivalents:
+  - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
+  - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
+
 ## Listing sessions
 
 ```bash
