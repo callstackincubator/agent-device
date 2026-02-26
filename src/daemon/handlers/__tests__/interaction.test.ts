@@ -155,6 +155,161 @@ test('press @ref resolves snapshot node and records press action', async () => {
   assert.ok(Array.isArray(result.selectorChain));
 });
 
+test('press @ref refreshes snapshot when stored ref bounds are invalid', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.device = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel 8 Pro',
+    kind: 'emulator',
+    booted: true,
+  };
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.TextView',
+        label: 'My App',
+        // Simulate malformed persisted bounds from older/stale snapshot state.
+        rect: { x: 20, y: 40, width: Number.NaN, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  const pressCalls: Array<{ command: string; positionals: string[] }> = [];
+  let snapshotCalls = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e1'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      if (command === 'snapshot') {
+        snapshotCalls += 1;
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'android.widget.TextView',
+              label: 'My App',
+              rect: { x: 20, y: 40, width: 100, height: 40 },
+              enabled: true,
+              hittable: true,
+            },
+          ],
+          backend: 'android',
+        };
+      }
+      pressCalls.push({ command, positionals });
+      return { pressed: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(snapshotCalls, 1);
+  assert.equal(pressCalls.length, 1);
+  assert.equal(pressCalls[0]?.command, 'press');
+  assert.deepEqual(pressCalls[0]?.positionals, ['70', '60']);
+  if (response.ok) {
+    assert.equal(response.data?.x, 70);
+    assert.equal(response.data?.y, 60);
+    assert.equal(response.data?.ref, 'e1');
+  }
+});
+
+test('press @ref fallback label is used after refresh when ref bounds remain invalid', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.device = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel 8 Pro',
+    kind: 'emulator',
+    booted: true,
+  };
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.TextView',
+        label: 'My App',
+        rect: { x: 20, y: 40, width: Number.NaN, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  const pressCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e1', 'My App'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      if (command === 'snapshot') {
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'android.widget.TextView',
+              label: 'Different',
+              rect: { x: 20, y: 40, width: Number.NaN, height: 40 },
+              enabled: true,
+              hittable: true,
+            },
+            {
+              index: 1,
+              type: 'android.widget.TextView',
+              label: 'My App',
+              rect: { x: 100, y: 200, width: 80, height: 40 },
+              enabled: true,
+              hittable: true,
+            },
+          ],
+          backend: 'android',
+        };
+      }
+      pressCalls.push({ command, positionals });
+      return { pressed: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(pressCalls.length, 1);
+  assert.equal(pressCalls[0]?.command, 'press');
+  assert.deepEqual(pressCalls[0]?.positionals, ['140', '220']);
+  if (response.ok) {
+    assert.equal(response.data?.x, 140);
+    assert.equal(response.data?.y, 220);
+  }
+});
+
 test('press coordinates does not treat extra trailing args as selector', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';

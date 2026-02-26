@@ -6,6 +6,7 @@ import {
   findNodeByRef,
   normalizeRef,
   type RawSnapshotNode,
+  type Rect,
   type SnapshotNode,
 } from '../../utils/snapshot.ts';
 import type { DaemonCommandContext } from '../context.ts';
@@ -91,16 +92,40 @@ export async function handleInteractionCommands(params: {
         notFoundMessage: `Ref ${refInput} not found or has no bounds`,
       });
       if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
-      const { ref, node, snapshotNodes } = resolvedRefTarget.target;
-      if (!node.rect) {
+      const { ref } = resolvedRefTarget.target;
+      let node = resolvedRefTarget.target.node;
+      let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
+      let pressPoint = resolveRectCenter(node.rect);
+      if (!pressPoint) {
+        const refreshed = await captureSnapshotForSession(
+          session,
+          req.flags,
+          sessionStore,
+          contextFromFlags,
+          { interactiveOnly: true },
+          dispatch,
+        );
+        const refNode = findNodeByRef(refreshed.nodes, ref);
+        const fallbackNode = fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
+        const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
+        const refNodePoint = resolveRectCenter(refNode?.rect);
+        const refreshedNode = refNodePoint ? refNode : fallbackNodePoint ? fallbackNode : refNode ?? fallbackNode;
+        const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
+        if (refreshedNode && refreshedPoint) {
+          node = refreshedNode;
+          snapshotNodes = refreshed.nodes;
+          pressPoint = refreshedPoint;
+        }
+      }
+      if (!pressPoint) {
         return {
           ok: false,
-          error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has no bounds` },
+          error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has invalid bounds` },
         };
       }
       const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
-      const { x, y } = centerOfRect(node.rect);
+      const { x, y } = pressPoint;
       const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
@@ -149,7 +174,17 @@ export async function handleInteractionCommands(params: {
         },
       };
     }
-    const { x, y } = centerOfRect(resolved.node.rect);
+    const pressPoint = resolveRectCenter(resolved.node.rect);
+    if (!pressPoint) {
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `Selector ${resolved.selector.raw} resolved to invalid bounds`,
+        },
+      };
+    }
+    const { x, y } = pressPoint;
     const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
@@ -771,4 +806,25 @@ function resolveRefTarget(params: {
     };
   }
   return { ok: true, target: { ref, node, snapshotNodes: session.snapshot.nodes } };
+}
+
+function resolveRectCenter(rect: Rect | undefined): { x: number; y: number } | null {
+  const normalized = normalizeRect(rect);
+  if (!normalized) return null;
+  const center = centerOfRect(normalized);
+  if (!Number.isFinite(center.x) || !Number.isFinite(center.y)) return null;
+  return center;
+}
+
+function normalizeRect(rect: Rect | undefined): Rect | null {
+  if (!rect) return null;
+  const x = Number(rect.x);
+  const y = Number(rect.y);
+  const width = Number(rect.width);
+  const height = Number(rect.height);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+  if (width < 0 || height < 0) return null;
+  return { x, y, width, height };
 }
