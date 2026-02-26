@@ -475,7 +475,8 @@ Diagnostics files:
   - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
   - Physical iOS device recording defaults to uncapped (max available) FPS.
   - Use `agent-device record start [path] --fps <n>` (1-120) to set an explicit FPS cap on physical iOS devices.
-- iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`.
+- iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`, `AGENT_DEVICE_IOS_BUNDLE_ID`.
+- Free Apple Developer (Personal Team) accounts may need a unique runner bundle id; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a reverse-DNS identifier unique to your team (for example `com.yourname.agentdevice.runner`).
 
 ## Testing
 
@@ -517,6 +518,7 @@ Environment selectors:
 - `AGENT_DEVICE_IOS_TEAM_ID=<team-id>` optional Team ID override for iOS device runner signing.
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY=<identity>` optional signing identity override.
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE=<profile>` optional provisioning profile specifier for iOS device runner signing.
+- `AGENT_DEVICE_IOS_BUNDLE_ID=<reverse-dns-id>` optional iOS runner app bundle id base. Tests derive from this as `<id>.uitests`.
 - `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH=<path>` optional override for iOS runner derived data root. By default, simulator uses `~/.agent-device/ios-runner/derived` and physical device uses `~/.agent-device/ios-runner/derived/device`. If you set this override, use separate paths per kind to avoid simulator/device artifact collisions.
 - `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` rebuild iOS runner artifacts from scratch for runtime daemon-triggered builds (`pnpm ad ...`) on the selected path. `pnpm build:xcuitest` (alias of `pnpm build:xcuitest:ios`), `pnpm build:xcuitest:tvos`, and `pnpm build:all` already clear their default derived paths and do not require this variable. When `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` is set, cleanup is blocked by default; set `AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN=1` only for trusted custom paths.
 

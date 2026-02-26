@@ -7,6 +7,7 @@ import {
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
   resolveRunnerBuildDestination,
+  resolveRunnerBundleBuildSettings,
   resolveRunnerDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
   resolveRunnerSigningBuildSettings,
@@ -121,6 +122,22 @@ test('resolveRunnerSigningBuildSettings applies optional overrides when provided
     'DEVELOPMENT_TEAM=ABCDE12345',
     'CODE_SIGN_IDENTITY=Apple Development',
     'PROVISIONING_PROFILE_SPECIFIER=My Profile',
+  ]);
+});
+
+test('resolveRunnerBundleBuildSettings returns default bundle identifiers', () => {
+  assert.deepEqual(resolveRunnerBundleBuildSettings({}), [
+    'AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID=com.callstack.agentdevice.runner',
+    'AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID=com.callstack.agentdevice.runner.uitests',
+  ]);
+});
+
+test('resolveRunnerBundleBuildSettings uses AGENT_DEVICE_IOS_BUNDLE_ID when provided', () => {
+  assert.deepEqual(resolveRunnerBundleBuildSettings({
+    AGENT_DEVICE_IOS_BUNDLE_ID: 'com.example.agent-device.runner',
+  }), [
+    'AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID=com.example.agent-device.runner',
+    'AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID=com.example.agent-device.runner.uitests',
   ]);
 });
 

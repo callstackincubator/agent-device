@@ -14,16 +14,39 @@ import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts
 import { isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 
-const iosRunnerContainerBundleIds = [
-  process.env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID,
-  process.env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID,
-  'com.myapp.AgentDeviceRunnerUITests.xctrunner',
-  'com.myapp.AgentDeviceRunner',
-]
-  .map((id) => id?.trim() ?? '')
-  .filter((id) => id.length > 0);
+const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 
-export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = Array.from(new Set(iosRunnerContainerBundleIds));
+function normalizeBundleId(value: string | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function resolveRunnerAppBundleId(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = normalizeBundleId(env.AGENT_DEVICE_IOS_BUNDLE_ID)
+    || normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID);
+  return configured || DEFAULT_IOS_RUNNER_APP_BUNDLE_ID;
+}
+
+function resolveRunnerTestBundleId(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID);
+  if (configured) {
+    return configured;
+  }
+  return `${resolveRunnerAppBundleId(env)}.uitests`;
+}
+
+function resolveRunnerContainerBundleIds(env: NodeJS.ProcessEnv = process.env): string[] {
+  const appBundleId = resolveRunnerAppBundleId(env);
+  const testBundleId = resolveRunnerTestBundleId(env);
+  return Array.from(new Set([
+    normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID),
+    `${testBundleId}.xctrunner`,
+    appBundleId,
+    'com.myapp.AgentDeviceRunnerUITests.xctrunner',
+    'com.myapp.AgentDeviceRunner',
+  ].filter((id) => id.length > 0)));
+}
+
+export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerBundleIds(process.env);
 
 type RunnerCommand = {
   command:
@@ -445,6 +468,7 @@ async function ensureXctestrun(
     throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
   }
 
+  const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
   const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
   const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
   try {
@@ -464,6 +488,7 @@ async function ensureXctestrun(
         resolveRunnerBuildDestination(device),
         '-derivedDataPath',
         derived,
+        ...runnerBundleBuildSettings,
         ...provisioningArgs,
         ...signingBuildSettings,
       ],
@@ -591,9 +616,26 @@ export function resolveRunnerSigningBuildSettings(
   return args;
 }
 
+export function resolveRunnerBundleBuildSettings(
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const appBundleId = resolveRunnerAppBundleId(env);
+  const testBundleId = resolveRunnerTestBundleId(env);
+  return [
+    `AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID=${appBundleId}`,
+    `AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID=${testBundleId}`,
+  ];
+}
+
 function resolveSigningFailureHint(error: AppError): string | undefined {
   const details = error.details ? JSON.stringify(error.details) : '';
   const combined = `${error.message}\n${details}`.toLowerCase();
+  if (
+    combined.includes('failed registering bundle identifier')
+    || (combined.includes('app identifier') && combined.includes('not available'))
+  ) {
+    return 'Set AGENT_DEVICE_IOS_BUNDLE_ID to a unique reverse-DNS value (for example, com.yourname.agentdevice.runner), then retry.';
+  }
   if (combined.includes('requires a development team')) {
     return 'Configure signing in Xcode or set AGENT_DEVICE_IOS_TEAM_ID for physical-device runs.';
   }

@@ -30,6 +30,8 @@ npx agent-device open Settings --platform ios
 - `AGENT_DEVICE_IOS_TEAM_ID`
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- `AGENT_DEVICE_IOS_BUNDLE_ID` (optional runner bundle-id base override)
+- Free Apple Developer (Personal Team) accounts can fail with "bundle identifier is not available" for generic IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value (for example `com.yourname.agentdevice.runner`).
 - If device setup is slow, increase daemon timeout:
   - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
 - If daemon startup reports stale metadata, remove stale files and retry:

@@ -12,6 +12,10 @@ Use Automatic Signing in Xcode, or provide optional overrides:
 - `AGENT_DEVICE_IOS_TEAM_ID`
 - `AGENT_DEVICE_IOS_SIGNING_IDENTITY`
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
+- `AGENT_DEVICE_IOS_BUNDLE_ID` (optional runner bundle-id base override)
+
+Free Apple Developer (Personal Team) accounts may reject generic bundle IDs as unavailable.
+Set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS identifier when that happens.
 
 Security guidance for these overrides:
 
@@ -23,7 +27,7 @@ Security guidance for these overrides:
 
 If setup/build takes long, increase:
 
-- `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (default `45000`, for example `120000`)
+- `AGENT_DEVICE_DAEMON_TIMEOUT_MS` (default `90000`, for example `120000`)
 
 If daemon startup fails with stale metadata hints, clean stale files and retry:
 

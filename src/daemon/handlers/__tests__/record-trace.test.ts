@@ -6,6 +6,7 @@ import path from 'node:path';
 import { handleRecordTraceCommands } from '../record-trace.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
+import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../../platforms/ios/runner-client.ts';
 
 type RecordTraceDeps = NonNullable<Parameters<typeof handleRecordTraceCommands>[0]['deps']>;
 type RunnerCall = {
@@ -160,7 +161,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     '--domain-type',
     'appDataContainer',
     '--domain-identifier',
-    'com.myapp.AgentDeviceRunnerUITests.xctrunner',
+    IOS_RUNNER_CONTAINER_BUNDLE_IDS[0] ?? '',
   ]);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
