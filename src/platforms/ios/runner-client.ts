@@ -41,8 +41,6 @@ function resolveRunnerContainerBundleIds(env: NodeJS.ProcessEnv = process.env): 
     normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID),
     `${testBundleId}.xctrunner`,
     appBundleId,
-    'com.myapp.AgentDeviceRunnerUITests.xctrunner',
-    'com.myapp.AgentDeviceRunner',
   ].filter((id) => id.length > 0)));
 }
 
