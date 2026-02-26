@@ -30,7 +30,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to uncapped (max available) FPS and supports `--fps` caps.
-- Android supports the same core interaction set, plus `push` notification simulation and `clipboard read/write` via adb shell commands.
+- Android supports the same core interaction set, plus `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss` via adb shell commands.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)
@@ -451,6 +451,19 @@ agent-device clipboard write ""   # clear clipboard
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - Supported on Android emulator/device and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
+
+## Keyboard (Android)
+
+```bash
+agent-device keyboard status
+agent-device keyboard get
+agent-device keyboard dismiss
+```
+
+- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification.
+- `keyboard dismiss` dismisses keyboard with Android back keyevent only when the keyboard is visible, then confirms hidden state.
+- Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- Supported on Android emulator/device.
 
 ## Performance metrics
 
