@@ -537,22 +537,42 @@ export async function fillAndroid(
   text: string,
 ): Promise<void> {
   const textCodePointLength = Array.from(text).length;
-  const attempts = [
-    { clearPadding: 12, minClear: 8, maxClear: 48, chunkSize: 4, delayMs: 0 },
-    { clearPadding: 24, minClear: 16, maxClear: 96, chunkSize: 1, delayMs: 15 },
-  ] as const;
+  const usesClipboardForText = shouldUseClipboardTextInjection(text);
+  const attempts: Array<{
+    strategy: 'input_text' | 'clipboard_paste' | 'chunked_input';
+    clearPadding: number;
+    minClear: number;
+    maxClear: number;
+  }> = [
+    { strategy: 'input_text', clearPadding: 12, minClear: 8, maxClear: 48 },
+    { strategy: 'clipboard_paste', clearPadding: 12, minClear: 8, maxClear: 48 },
+  ];
+  if (!usesClipboardForText) {
+    attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
+  }
 
-  await focusAndroid(device, x, y);
   let lastActual: string | null = null;
+  const attemptedStrategies: string[] = [];
 
   for (const attempt of attempts) {
+    await focusAndroid(device, x, y);
     const clearCount = clampCount(
       textCodePointLength + attempt.clearPadding,
       attempt.minClear,
       attempt.maxClear,
     );
     await clearFocusedText(device, clearCount);
-    await typeAndroidChunked(device, text, attempt.chunkSize, attempt.delayMs);
+    attemptedStrategies.push(attempt.strategy);
+    if (attempt.strategy === 'input_text') {
+      await typeAndroid(device, text);
+    } else if (attempt.strategy === 'clipboard_paste') {
+      const clipboardResult = await typeAndroidViaClipboard(device, text);
+      if (clipboardResult !== 'ok') {
+        continue;
+      }
+    } else {
+      await typeAndroidChunked(device, text, 1, 15);
+    }
     lastActual = await readInputValueAtPoint(device, x, y);
     if (lastActual === text) return;
   }
@@ -560,6 +580,7 @@ export async function fillAndroid(
   throw new AppError('COMMAND_FAILED', 'Android fill verification failed', {
     expected: text,
     actual: lastActual ?? null,
+    strategies: attemptedStrategies,
   });
 }
 
@@ -1124,8 +1145,8 @@ function shouldUseClipboardTextInjection(text: string): boolean {
 }
 
 function encodeAndroidInputText(text: string): string {
-  // Android shell input understands URL-escaped bytes and `%s` as a space token.
-  return encodeURIComponent(text).replace(/%20/g, '%s');
+  // Android shell input uses `%s` as the escaped token for spaces.
+  return text.replace(/ /g, '%s');
 }
 
 async function typeAndroidViaClipboard(

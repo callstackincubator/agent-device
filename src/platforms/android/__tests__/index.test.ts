@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  fillAndroid,
   inferAndroidAppName,
   isAmStartError,
   listAndroidApps,
@@ -737,7 +738,7 @@ test('typeAndroid uses adb input text for ascii text', async () => {
   );
 });
 
-test('typeAndroid URL-encodes shell-sensitive ascii text', async () => {
+test('typeAndroid passes shell-sensitive ascii text to adb input text', async () => {
   await withMockedAdb(
     'agent-device-android-type-ascii-special-',
     '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
@@ -753,13 +754,13 @@ test('typeAndroid URL-encodes shell-sensitive ascii text', async () => {
         'shell',
         'input',
         'text',
-        'curtis.layne%2Btest%2B73kmc%40uber.com',
+        'curtis.layne+test+73kmc@uber.com',
       ]);
     },
   );
 });
 
-test('typeAndroid URL-encodes percent signs', async () => {
+test('typeAndroid preserves percent signs while encoding spaces', async () => {
   await withMockedAdb(
     'agent-device-android-type-ascii-percent-',
     '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
@@ -775,8 +776,73 @@ test('typeAndroid URL-encodes percent signs', async () => {
         'shell',
         'input',
         'text',
-        '50%25%scomplete',
+        '50%%scomplete',
       ]);
+    },
+  );
+});
+
+test('fillAndroid falls back to clipboard paste when adb input text truncates', async () => {
+  await withMockedAdb(
+    'agent-device-android-fill-fallback-',
+    [
+      '#!/bin/sh',
+      'STATE_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/fill_state.txt"',
+      'CLIP_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/clipboard_state.txt"',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_MOVE_END" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_DEL" ]; then',
+      '  : > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      '  # Simulate WebView truncation on shell text input with special chars.',
+      '  if [ "$4" = "curtis.layne+test+73kmc@uber.com" ]; then',
+      '    printf "curti" > "$STATE_FILE"',
+      '  else',
+      '    printf "%s" "$4" > "$STATE_FILE"',
+      '  fi',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "set" ] && [ "$5" = "text" ]; then',
+      '  printf "%s" "$6" > "$CLIP_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_PASTE" ]; then',
+      '  cat "$CLIP_FILE" > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "279" ]; then',
+      '  cat "$CLIP_FILE" > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "exec-out" ] && [ "$2" = "uiautomator" ] && [ "$3" = "dump" ] && [ "$4" = "/dev/tty" ]; then',
+      '  text="$(cat "$STATE_FILE" 2>/dev/null)"',
+      '  printf "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><hierarchy><node class=\\"android.widget.EditText\\" text=\\"%s\\" focused=\\"true\\" bounds=\\"[0,0][200,100]\\"/></hierarchy>" "$text"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await fillAndroid(device, 10, 10, 'curtis.layne+test+73kmc@uber.com');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ninput\ntext\ncurtis\.layne\+test\+73kmc@uber\.com/);
+      assert.match(logged, /shell\ncmd\nclipboard\nset\ntext\ncurtis\.layne\+test\+73kmc@uber\.com/);
+      assert.match(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
+      const shellInputTextCount = (logged.match(/shell\ninput\ntext\n/g) ?? []).length;
+      assert.equal(shellInputTextCount, 1);
     },
   );
 });
