@@ -537,22 +537,19 @@ export async function fillAndroid(
   text: string,
 ): Promise<void> {
   const textCodePointLength = Array.from(text).length;
-  const usesClipboardForText = shouldUseClipboardTextInjection(text);
+  const requiresClipboardInjection = shouldUseClipboardTextInjection(text);
   const attempts: Array<{
     strategy: 'input_text' | 'clipboard_paste' | 'chunked_input';
     clearPadding: number;
     minClear: number;
     maxClear: number;
-  }> = [
-    { strategy: 'input_text', clearPadding: 12, minClear: 8, maxClear: 48 },
-    { strategy: 'clipboard_paste', clearPadding: 12, minClear: 8, maxClear: 48 },
-  ];
-  if (!usesClipboardForText) {
+  }> = [{ strategy: 'input_text', clearPadding: 12, minClear: 8, maxClear: 48 }];
+  if (!requiresClipboardInjection) {
+    attempts.push({ strategy: 'clipboard_paste', clearPadding: 12, minClear: 8, maxClear: 48 });
     attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
   }
 
   let lastActual: string | null = null;
-  const attemptedStrategies: string[] = [];
 
   for (const attempt of attempts) {
     await focusAndroid(device, x, y);
@@ -562,7 +559,6 @@ export async function fillAndroid(
       attempt.maxClear,
     );
     await clearFocusedText(device, clearCount);
-    attemptedStrategies.push(attempt.strategy);
     if (attempt.strategy === 'input_text') {
       await typeAndroid(device, text);
     } else if (attempt.strategy === 'clipboard_paste') {
@@ -580,7 +576,6 @@ export async function fillAndroid(
   throw new AppError('COMMAND_FAILED', 'Android fill verification failed', {
     expected: text,
     actual: lastActual ?? null,
-    strategies: attemptedStrategies,
   });
 }
 
