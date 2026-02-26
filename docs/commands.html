@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.6ed9ad54.js"></script>
+<script defer src="/agent-device/static/js/index.c433d6e3.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -27,6 +27,7 @@
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> ios</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span><span style="color:var(--shiki-token-string)"> --device</span><span style="color:var(--shiki-token-string)"> Pixel_9_Pro_XL</span><span style="color:var(--shiki-token-string)"> --headless</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-foreground)"> [app</span><span style="color:var(--shiki-token-keyword)">|</span><span style="color:var(--shiki-token-function)">url]</span><span style="color:var(--shiki-foreground)"> [url]</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> close</span><span style="color:var(--shiki-foreground)"> [app]</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> back</span></span>
@@ -38,6 +39,8 @@
 <li><code>--platform apple</code> is an alias for the iOS/tvOS backend.</li>
 <li>Use <code>--target mobile|tv</code> with <code>--platform</code> (required) to select phone/tablet vs TV-class devices (<code>AndroidTV</code>, <code>tvOS</code>).</li>
 <li><code>boot</code> is mainly needed when starting a new session and <code>open</code> fails because no booted simulator/emulator is available.</li>
+<li>Android: <code>boot --platform android --device &lt;avd-name&gt;</code> launches that emulator in GUI mode when needed.</li>
+<li>Android: add <code>--headless</code> to launch without opening a GUI window.</li>
 <li><code>open [app|url] [url]</code> already boots/activates the selected target when needed.</li>
 <li><code>open &lt;url&gt;</code> deep links are supported on Android and iOS.</li>
 <li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link on iOS.</li>
