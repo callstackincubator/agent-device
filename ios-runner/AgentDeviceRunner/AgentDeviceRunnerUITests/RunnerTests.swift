@@ -1320,6 +1320,7 @@ final class RunnerTests: XCTestCase {
     let rootLabel = aggregatedLabel(for: rootSnapshot) ?? rootSnapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootIdentifier = rootSnapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootValue = snapshotValueText(rootSnapshot)
+    let rootHittable = computedSnapshotHittable(rootSnapshot, viewport: viewport, laterSiblings: [])
     nodes.append(
       SnapshotNode(
         index: 0,
@@ -1334,15 +1335,21 @@ final class RunnerTests: XCTestCase {
           height: Double(rootSnapshot.frame.size.height),
         ),
         enabled: rootSnapshot.isEnabled,
-        hittable: snapshotHittable(rootSnapshot),
+        hittable: rootHittable,
         depth: 0,
       )
     )
 
     var seen = Set<String>()
-    var stack: [(XCUIElementSnapshot, Int, Int)] = rootSnapshot.children.map { ($0, 1, 1) }
+    var stack: [(XCUIElementSnapshot, Int, Int, ArraySlice<XCUIElementSnapshot>)] = []
+    let rootChildren = rootSnapshot.children
+    if !rootChildren.isEmpty {
+      for index in stride(from: rootChildren.count - 1, through: 0, by: -1) {
+        stack.append((rootChildren[index], 1, 1, rootChildren.suffix(from: index + 1)))
+      }
+    }
 
-    while let (snapshot, depth, visibleDepth) = stack.popLast() {
+    while let (snapshot, depth, visibleDepth, laterSiblings) = stack.popLast() {
       if nodes.count >= fastSnapshotLimit {
         truncated = true
         break
@@ -1352,6 +1359,7 @@ final class RunnerTests: XCTestCase {
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(snapshot)
+      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterSiblings: laterSiblings)
       let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
       if !isVisibleInViewport(snapshot.frame, viewport) && !hasContent {
         continue
@@ -1362,7 +1370,8 @@ final class RunnerTests: XCTestCase {
         label: label,
         identifier: identifier,
         valueText: valueText,
-        options: options
+        options: options,
+        hittable: hittable
       )
 
       let key = "\(snapshot.elementType)-\(label)-\(identifier)-\(snapshot.frame.origin.x)-\(snapshot.frame.origin.y)"
@@ -1373,8 +1382,11 @@ final class RunnerTests: XCTestCase {
 
       if depth < maxDepth {
         let nextVisibleDepth = include && !isDuplicate ? visibleDepth + 1 : visibleDepth
-        for child in snapshot.children.reversed() {
-          stack.append((child, depth + 1, nextVisibleDepth))
+        let children = snapshot.children
+        if !children.isEmpty {
+          for childIndex in stride(from: children.count - 1, through: 0, by: -1) {
+            stack.append((children[childIndex], depth + 1, nextVisibleDepth, children.suffix(from: childIndex + 1)))
+          }
         }
       }
 
@@ -1394,7 +1406,7 @@ final class RunnerTests: XCTestCase {
             height: Double(snapshot.frame.size.height),
           ),
           enabled: snapshot.isEnabled,
-          hittable: snapshotHittable(snapshot),
+          hittable: hittable,
           depth: min(maxDepth, visibleDepth),
         )
       )
@@ -1439,7 +1451,7 @@ final class RunnerTests: XCTestCase {
         identifier: identifier,
         valueText: valueText,
         options: options,
-        hittableOverride: hittable
+        hittable: hittable
       ) {
         nodes.append(
           SnapshotNode(
@@ -1697,10 +1709,9 @@ final class RunnerTests: XCTestCase {
     identifier: String,
     valueText: String?,
     options: SnapshotOptions,
-    hittableOverride: Bool? = nil
+    hittable: Bool
   ) -> Bool {
     let type = snapshot.elementType
-    let hittable = hittableOverride ?? snapshotHittable(snapshot)
     let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
     if options.compact && type == .other && !hasContent && !hittable {
       if snapshot.children.count <= 1 { return false }
@@ -1739,11 +1750,6 @@ final class RunnerTests: XCTestCase {
     guard let value = snapshot.value else { return nil }
     let text = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
     return text.isEmpty ? nil : text
-  }
-
-  private func snapshotHittable(_ snapshot: XCUIElementSnapshot) -> Bool {
-    // XCUIElementSnapshot does not expose isHittable; use enabled as a lightweight proxy.
-    return snapshot.isEnabled
   }
 
   private func aggregatedLabel(for snapshot: XCUIElementSnapshot, depth: Int = 0) -> String? {
