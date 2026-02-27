@@ -1259,23 +1259,6 @@ final class RunnerTests: XCTestCase {
     center.press(forDuration: 0.05, thenDragTo: endPoint)
   }
 
-  private func aggregatedLabel(for element: XCUIElement, depth: Int = 0) -> String? {
-    if depth > 2 { return nil }
-    let text = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
-    if !text.isEmpty { return text }
-    if let value = element.value {
-      let valueText = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
-      if !valueText.isEmpty { return valueText }
-    }
-    let children = element.children(matching: .any).allElementsBoundByIndex
-    for child in children {
-      if let childLabel = aggregatedLabel(for: child, depth: depth + 1) {
-        return childLabel
-      }
-    }
-    return nil
-  }
-
   private func elementTypeName(_ type: XCUIElement.ElementType) -> String {
     switch type {
     case .application: return "Application"
@@ -1426,55 +1409,61 @@ final class RunnerTests: XCTestCase {
       return blocking
     }
 
-    let root = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
+    let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
     var nodes: [SnapshotNode] = []
     var truncated = false
     let viewport = app.frame
 
-    func walk(_ element: XCUIElement, depth: Int) {
+    let rootSnapshot: XCUIElementSnapshot
+    do {
+      rootSnapshot = try queryRoot.snapshot()
+    } catch {
+      return DataPayload(nodes: nodes, truncated: truncated)
+    }
+
+    func walk(_ snapshot: XCUIElementSnapshot, depth: Int, laterSiblings: ArraySlice<XCUIElementSnapshot>) {
       if nodes.count >= maxSnapshotElements {
         truncated = true
         return
       }
       if let limit = options.depth, depth > limit { return }
-      if !isVisibleInViewport(element.frame, viewport) { return }
+      if !isVisibleInViewport(snapshot.frame, viewport) { return }
 
-      let label = aggregatedLabel(for: element) ?? element.label.trimmingCharacters(in: .whitespacesAndNewlines)
-      let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-      let valueText: String? = {
-        guard let value = element.value else { return nil }
-        let text = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.isEmpty ? nil : text
-      }()
-      if shouldInclude(element: element, label: label, identifier: identifier, valueText: valueText, options: options) {
+      let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+      let valueText = snapshotValueText(snapshot)
+      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterSiblings: laterSiblings)
+      if shouldInclude(
+        snapshot: snapshot,
+        label: label,
+        identifier: identifier,
+        valueText: valueText,
+        options: options,
+        hittableOverride: hittable
+      ) {
         nodes.append(
           SnapshotNode(
             index: nodes.count,
-            type: elementTypeName(element.elementType),
+            type: elementTypeName(snapshot.elementType),
             label: label.isEmpty ? nil : label,
             identifier: identifier.isEmpty ? nil : identifier,
             value: valueText,
-            rect: SnapshotRect(
-              x: Double(element.frame.origin.x),
-              y: Double(element.frame.origin.y),
-              width: Double(element.frame.size.width),
-              height: Double(element.frame.size.height),
-            ),
-            enabled: element.isEnabled,
-            hittable: element.isHittable,
+            rect: snapshotRect(from: snapshot.frame),
+            enabled: snapshot.isEnabled,
+            hittable: hittable,
             depth: depth,
           )
         )
       }
 
-      let children = element.children(matching: .any).allElementsBoundByIndex
-      for child in children {
-        walk(child, depth: depth + 1)
+      let children = snapshot.children
+      for (index, child) in children.enumerated() {
+        walk(child, depth: depth + 1, laterSiblings: children.suffix(from: index + 1))
         if truncated { return }
       }
     }
 
-    walk(root, depth: 0)
+    walk(rootSnapshot, depth: 0, laterSiblings: [])
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
@@ -1703,50 +1692,45 @@ final class RunnerTests: XCTestCase {
   }
 
   private func shouldInclude(
-    element: XCUIElement,
-    label: String,
-    identifier: String,
-    valueText: String?,
-    options: SnapshotOptions
-  ) -> Bool {
-    let type = element.elementType
-    let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
-    if options.compact && type == .other && !hasContent && !element.isHittable {
-      let children = element.children(matching: .any).allElementsBoundByIndex
-      if children.count <= 1 { return false }
-    }
-    if options.interactiveOnly {
-      if interactiveTypes.contains(type) { return true }
-      if element.isHittable && type != .other { return true }
-      if hasContent { return true }
-      return false
-    }
-    if options.compact {
-      return hasContent || element.isHittable
-    }
-    return true
-  }
-
-  private func shouldInclude(
     snapshot: XCUIElementSnapshot,
     label: String,
     identifier: String,
     valueText: String?,
-    options: SnapshotOptions
+    options: SnapshotOptions,
+    hittableOverride: Bool? = nil
   ) -> Bool {
     let type = snapshot.elementType
+    let hittable = hittableOverride ?? snapshotHittable(snapshot)
     let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
-    if options.compact && type == .other && !hasContent && !snapshotHittable(snapshot) {
+    if options.compact && type == .other && !hasContent && !hittable {
       if snapshot.children.count <= 1 { return false }
     }
     if options.interactiveOnly {
       if interactiveTypes.contains(type) { return true }
-      if snapshotHittable(snapshot) && type != .other { return true }
+      if hittable && type != .other { return true }
       if hasContent { return true }
       return false
     }
     if options.compact {
-      return hasContent || snapshotHittable(snapshot)
+      return hasContent || hittable
+    }
+    return true
+  }
+
+  private func computedSnapshotHittable(
+    _ snapshot: XCUIElementSnapshot,
+    viewport: CGRect,
+    laterSiblings: ArraySlice<XCUIElementSnapshot>
+  ) -> Bool {
+    guard snapshot.isEnabled else { return false }
+    let frame = snapshot.frame
+    if frame.isNull || frame.isEmpty { return false }
+    let center = CGPoint(x: frame.midX, y: frame.midY)
+    if !viewport.contains(center) { return false }
+    for sibling in laterSiblings {
+      let siblingFrame = sibling.frame
+      if siblingFrame.isNull || siblingFrame.isEmpty { continue }
+      if siblingFrame.contains(center) { return false }
     }
     return true
   }
