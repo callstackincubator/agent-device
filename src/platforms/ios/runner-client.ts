@@ -471,7 +471,7 @@ async function ensureXctestrun(
     const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
     const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
     const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
-    const performanceBuildSettings = resolveRunnerPerformanceBuildSettings(device);
+    const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
     try {
       await runCmdStreaming(
         'xcodebuild',
@@ -529,12 +529,8 @@ async function ensureXctestrun(
   });
 }
 
-function resolveRunnerPerformanceBuildSettings(device: DeviceInfo): string[] {
-  const settings = ['COMPILER_INDEX_STORE_ENABLE=NO'];
-  if (device.kind === 'simulator') {
-    settings.push('ONLY_ACTIVE_ARCH=YES');
-  }
-  return settings;
+function resolveRunnerPerformanceBuildSettings(): string[] {
+  return ['COMPILER_INDEX_STORE_ENABLE=NO'];
 }
 
 async function stopAllRunnerPrepProcesses(): Promise<void> {
