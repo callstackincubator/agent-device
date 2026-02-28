@@ -1317,10 +1317,13 @@ final class RunnerTests: XCTestCase {
       return DataPayload(nodes: nodes, truncated: truncated)
     }
 
+    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
+    let rootRange = snapshotRanges[ObjectIdentifier(rootSnapshot)] ?? (0, 0)
+    let rootLaterNodes = flatSnapshots.suffix(from: rootRange.1 + 1)
     let rootLabel = aggregatedLabel(for: rootSnapshot) ?? rootSnapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootIdentifier = rootSnapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootValue = snapshotValueText(rootSnapshot)
-    let rootHittable = computedSnapshotHittable(rootSnapshot, viewport: viewport, laterSiblings: [])
+    let rootHittable = computedSnapshotHittable(rootSnapshot, viewport: viewport, laterNodes: rootLaterNodes)
     nodes.append(
       SnapshotNode(
         index: 0,
@@ -1341,15 +1344,9 @@ final class RunnerTests: XCTestCase {
     )
 
     var seen = Set<String>()
-    var stack: [(XCUIElementSnapshot, Int, Int, ArraySlice<XCUIElementSnapshot>)] = []
-    let rootChildren = rootSnapshot.children
-    if !rootChildren.isEmpty {
-      for index in stride(from: rootChildren.count - 1, through: 0, by: -1) {
-        stack.append((rootChildren[index], 1, 1, rootChildren.suffix(from: index + 1)))
-      }
-    }
+    var stack: [(XCUIElementSnapshot, Int, Int)] = rootSnapshot.children.map { ($0, 1, 1) }
 
-    while let (snapshot, depth, visibleDepth, laterSiblings) = stack.popLast() {
+    while let (snapshot, depth, visibleDepth) = stack.popLast() {
       if nodes.count >= fastSnapshotLimit {
         truncated = true
         break
@@ -1359,7 +1356,9 @@ final class RunnerTests: XCTestCase {
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(snapshot)
-      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterSiblings: laterSiblings)
+      let snapshotRange = snapshotRanges[ObjectIdentifier(snapshot)] ?? (0, 0)
+      let laterNodes = flatSnapshots.suffix(from: snapshotRange.1 + 1)
+      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
       let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
       if !isVisibleInViewport(snapshot.frame, viewport) && !hasContent {
         continue
@@ -1382,11 +1381,8 @@ final class RunnerTests: XCTestCase {
 
       if depth < maxDepth {
         let nextVisibleDepth = include && !isDuplicate ? visibleDepth + 1 : visibleDepth
-        let children = snapshot.children
-        if !children.isEmpty {
-          for childIndex in stride(from: children.count - 1, through: 0, by: -1) {
-            stack.append((children[childIndex], depth + 1, nextVisibleDepth, children.suffix(from: childIndex + 1)))
-          }
+        for child in snapshot.children.reversed() {
+          stack.append((child, depth + 1, nextVisibleDepth))
         }
       }
 
@@ -1433,7 +1429,9 @@ final class RunnerTests: XCTestCase {
       return DataPayload(nodes: nodes, truncated: truncated)
     }
 
-    func walk(_ snapshot: XCUIElementSnapshot, depth: Int, laterSiblings: ArraySlice<XCUIElementSnapshot>) {
+    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
+
+    func walk(_ snapshot: XCUIElementSnapshot, depth: Int) {
       if nodes.count >= maxSnapshotElements {
         truncated = true
         return
@@ -1444,7 +1442,9 @@ final class RunnerTests: XCTestCase {
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(snapshot)
-      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterSiblings: laterSiblings)
+      let snapshotRange = snapshotRanges[ObjectIdentifier(snapshot)] ?? (0, 0)
+      let laterNodes = flatSnapshots.suffix(from: snapshotRange.1 + 1)
+      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
       if shouldInclude(
         snapshot: snapshot,
         label: label,
@@ -1469,13 +1469,13 @@ final class RunnerTests: XCTestCase {
       }
 
       let children = snapshot.children
-      for (index, child) in children.enumerated() {
-        walk(child, depth: depth + 1, laterSiblings: children.suffix(from: index + 1))
+      for child in children {
+        walk(child, depth: depth + 1)
         if truncated { return }
       }
     }
 
-    walk(rootSnapshot, depth: 0, laterSiblings: [])
+    walk(rootSnapshot, depth: 0)
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
@@ -1731,19 +1731,41 @@ final class RunnerTests: XCTestCase {
   private func computedSnapshotHittable(
     _ snapshot: XCUIElementSnapshot,
     viewport: CGRect,
-    laterSiblings: ArraySlice<XCUIElementSnapshot>
+    laterNodes: ArraySlice<XCUIElementSnapshot>
   ) -> Bool {
     guard snapshot.isEnabled else { return false }
     let frame = snapshot.frame
     if frame.isNull || frame.isEmpty { return false }
     let center = CGPoint(x: frame.midX, y: frame.midY)
     if !viewport.contains(center) { return false }
-    for sibling in laterSiblings {
-      let siblingFrame = sibling.frame
-      if siblingFrame.isNull || siblingFrame.isEmpty { continue }
-      if siblingFrame.contains(center) { return false }
+    for node in laterNodes {
+      let nodeFrame = node.frame
+      if nodeFrame.isNull || nodeFrame.isEmpty { continue }
+      if nodeFrame.contains(center) { return false }
     }
     return true
+  }
+
+  private func flattenedSnapshots(
+    _ root: XCUIElementSnapshot
+  ) -> ([XCUIElementSnapshot], [ObjectIdentifier: (Int, Int)]) {
+    var ordered: [XCUIElementSnapshot] = []
+    var ranges: [ObjectIdentifier: (Int, Int)] = [:]
+
+    @discardableResult
+    func visit(_ snapshot: XCUIElementSnapshot) -> Int {
+      let start = ordered.count
+      ordered.append(snapshot)
+      var end = start
+      for child in snapshot.children {
+        end = max(end, visit(child))
+      }
+      ranges[ObjectIdentifier(snapshot)] = (start, end)
+      return end
+    }
+
+    _ = visit(root)
+    return (ordered, ranges)
   }
 
   private func snapshotValueText(_ snapshot: XCUIElementSnapshot) -> String? {
