@@ -104,6 +104,7 @@ type RunnerSession = {
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
+const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
 const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
@@ -448,80 +449,88 @@ async function ensureXctestrun(
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
   const derived = resolveRunnerDerivedPath(device.kind);
-  if (shouldCleanDerived()) {
-    assertSafeDerivedCleanup(derived);
-    try {
-      fs.rmSync(derived, { recursive: true, force: true });
-    } catch {
-      // ignore
+  return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
+    if (shouldCleanDerived()) {
+      assertSafeDerivedCleanup(derived);
+      try {
+        fs.rmSync(derived, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
     }
-  }
-  const existing = findXctestrun(derived);
-  if (existing) return existing;
+    const existing = findXctestrun(derived);
+    if (existing) return existing;
 
-  const projectRoot = findProjectRoot();
-  const projectPath = path.join(projectRoot, 'ios-runner', 'AgentDeviceRunner', 'AgentDeviceRunner.xcodeproj');
+    const projectRoot = findProjectRoot();
+    const projectPath = path.join(projectRoot, 'ios-runner', 'AgentDeviceRunner', 'AgentDeviceRunner.xcodeproj');
 
-  if (!fs.existsSync(projectPath)) {
-    throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
-  }
+    if (!fs.existsSync(projectPath)) {
+      throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
+    }
 
-  const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
-  const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
-  const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
-  try {
-    await runCmdStreaming(
-      'xcodebuild',
-      [
-        'build-for-testing',
-        '-project',
-        projectPath,
-        '-scheme',
-        'AgentDeviceRunner',
-        '-parallel-testing-enabled',
-        'NO',
-        resolveRunnerMaxConcurrentDestinationsFlag(device),
-        '1',
-        '-destination',
-        resolveRunnerBuildDestination(device),
-        '-derivedDataPath',
-        derived,
-        ...runnerBundleBuildSettings,
-        ...provisioningArgs,
-        ...signingBuildSettings,
-      ],
-      {
-        detached: true,
-        onSpawn: (child) => {
-          runnerPrepProcesses.add(child);
-          child.on('close', () => {
-            runnerPrepProcesses.delete(child);
-          });
+    const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
+    const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
+    const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
+    const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
+    try {
+      await runCmdStreaming(
+        'xcodebuild',
+        [
+          'build-for-testing',
+          '-project',
+          projectPath,
+          '-scheme',
+          'AgentDeviceRunner',
+          '-parallel-testing-enabled',
+          'NO',
+          resolveRunnerMaxConcurrentDestinationsFlag(device),
+          '1',
+          '-destination',
+          resolveRunnerBuildDestination(device),
+          '-derivedDataPath',
+          derived,
+          ...performanceBuildSettings,
+          ...runnerBundleBuildSettings,
+          ...provisioningArgs,
+          ...signingBuildSettings,
+        ],
+        {
+          detached: true,
+          onSpawn: (child) => {
+            runnerPrepProcesses.add(child);
+            child.on('close', () => {
+              runnerPrepProcesses.delete(child);
+            });
+          },
+          onStdoutChunk: (chunk) => {
+            logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+          },
+          onStderrChunk: (chunk) => {
+            logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+          },
         },
-        onStdoutChunk: (chunk) => {
-          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-        },
-        onStderrChunk: (chunk) => {
-          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-        },
-      },
-    );
-  } catch (err) {
-    const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
-    const hint = resolveSigningFailureHint(appErr);
-    throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
-      error: appErr.message,
-      details: appErr.details,
-      logPath: options.logPath,
-      hint,
-    });
-  }
+      );
+    } catch (err) {
+      const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
+      const hint = resolveSigningFailureHint(appErr);
+      throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
+        error: appErr.message,
+        details: appErr.details,
+        logPath: options.logPath,
+        hint,
+      });
+    }
 
-  const built = findXctestrun(derived);
-  if (!built) {
-    throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
-  }
-  return built;
+    const built = findXctestrun(derived);
+    if (!built) {
+      throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
+    }
+    return built;
+  });
+}
+
+function resolveRunnerPerformanceBuildSettings(): string[] {
+  return ['COMPILER_INDEX_STORE_ENABLE=NO'];
 }
 
 async function stopAllRunnerPrepProcesses(): Promise<void> {
