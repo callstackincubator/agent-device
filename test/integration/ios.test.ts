@@ -6,7 +6,6 @@ import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 const session = ['--session', 'ios-test'];
 const iosTarget = ['--platform', 'ios'];
 const iosPhysicalUdid = process.env.IOS_UDID?.trim();
-const runIosIntegrationOnCi = isEnvTruthy(process.env.AGENT_DEVICE_RUN_IOS_INTEGRATION_ON_CI);
 let didRunIosPhysicalSession = false;
 
 test.after(() => {
@@ -125,7 +124,7 @@ test('ios physical device core lifecycle', { skip: shouldSkipIosPhysicalDevice()
 });
 
 function shouldSkipIos(): boolean {
-  return process.platform !== 'darwin' || (isCi() && !runIosIntegrationOnCi);
+  return process.platform !== 'darwin';
 }
 
 function shouldSkipIosPhysicalDevice(): boolean {
