@@ -1318,8 +1318,11 @@ final class RunnerTests: XCTestCase {
     }
 
     let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
-    let rootRange = snapshotRanges[ObjectIdentifier(rootSnapshot)] ?? (0, 0)
-    let rootLaterNodes = flatSnapshots.suffix(from: rootRange.1 + 1)
+    let rootLaterNodes = laterSnapshots(
+      for: rootSnapshot,
+      in: flatSnapshots,
+      ranges: snapshotRanges
+    )
     let rootLabel = aggregatedLabel(for: rootSnapshot) ?? rootSnapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootIdentifier = rootSnapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
     let rootValue = snapshotValueText(rootSnapshot)
@@ -1356,8 +1359,11 @@ final class RunnerTests: XCTestCase {
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(snapshot)
-      let snapshotRange = snapshotRanges[ObjectIdentifier(snapshot)] ?? (0, 0)
-      let laterNodes = flatSnapshots.suffix(from: snapshotRange.1 + 1)
+      let laterNodes = laterSnapshots(
+        for: snapshot,
+        in: flatSnapshots,
+        ranges: snapshotRanges
+      )
       let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
       let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
       if !isVisibleInViewport(snapshot.frame, viewport) && !hasContent {
@@ -1442,8 +1448,11 @@ final class RunnerTests: XCTestCase {
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(snapshot)
-      let snapshotRange = snapshotRanges[ObjectIdentifier(snapshot)] ?? (0, 0)
-      let laterNodes = flatSnapshots.suffix(from: snapshotRange.1 + 1)
+      let laterNodes = laterSnapshots(
+        for: snapshot,
+        in: flatSnapshots,
+        ranges: snapshotRanges
+      )
       let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
       if shouldInclude(
         snapshot: snapshot,
@@ -1739,11 +1748,21 @@ final class RunnerTests: XCTestCase {
     let center = CGPoint(x: frame.midX, y: frame.midY)
     if !viewport.contains(center) { return false }
     for node in laterNodes {
+      if !isOccludingType(node.elementType) { continue }
       let nodeFrame = node.frame
       if nodeFrame.isNull || nodeFrame.isEmpty { continue }
       if nodeFrame.contains(center) { return false }
     }
     return true
+  }
+
+  private func isOccludingType(_ type: XCUIElement.ElementType) -> Bool {
+    switch type {
+    case .application, .window:
+      return false
+    default:
+      return true
+    }
   }
 
   private func flattenedSnapshots(
@@ -1766,6 +1785,21 @@ final class RunnerTests: XCTestCase {
 
     _ = visit(root)
     return (ordered, ranges)
+  }
+
+  private func laterSnapshots(
+    for snapshot: XCUIElementSnapshot,
+    in ordered: [XCUIElementSnapshot],
+    ranges: [ObjectIdentifier: (Int, Int)]
+  ) -> ArraySlice<XCUIElementSnapshot> {
+    guard let (_, subtreeEnd) = ranges[ObjectIdentifier(snapshot)] else {
+      return ordered.suffix(from: ordered.count)
+    }
+    let nextIndex = subtreeEnd + 1
+    if nextIndex >= ordered.count {
+      return ordered.suffix(from: ordered.count)
+    }
+    return ordered.suffix(from: nextIndex)
   }
 
   private func snapshotValueText(_ snapshot: XCUIElementSnapshot) -> String? {
