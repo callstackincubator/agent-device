@@ -8,6 +8,7 @@ import {
   fillAndroid,
   getAndroidKeyboardState,
   inferAndroidAppName,
+  installAndroidApp,
   isAmStartError,
   listAndroidApps,
   openAndroidApp,
@@ -277,6 +278,215 @@ test('listAndroidApps user-installed excludes non-launchable packages', async ()
     ]);
   } finally {
     process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installAndroidApp installs .apk via adb install -r', async () => {
+  await withMockedAdb(
+    'agent-device-android-install-apk-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await installAndroidApp(device, '/tmp/Sample.apk');
+      const logged = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').join(' ');
+      assert.match(logged, /install -r \/tmp\/Sample\.apk/);
+    },
+  );
+});
+
+test('installAndroidApp installs .aab via bundletool build-apks + install-apks', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-aab-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const bundletoolPath = path.join(tmpDir, 'bundletool');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const aabPath = path.join(tmpDir, 'Sample.aab');
+  await fs.writeFile(aabPath, 'placeholder', 'utf8');
+  await fs.writeFile(adbPath, '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n', 'utf8');
+  await fs.chmod(adbPath, 0o755);
+  await fs.writeFile(
+    bundletoolPath,
+    [
+      '#!/bin/sh',
+      'printf "bundletool %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "build-apks" ]; then',
+      '  out=""',
+      '  while [ "$#" -gt 0 ]; do',
+      '    if [ "$1" = "--output" ]; then',
+      '      out="$2"',
+      '      shift 2',
+      '      continue',
+      '    fi',
+      '    shift',
+      '  done',
+      '  mkdir -p "$(dirname "$out")"',
+      '  printf "apks" > "$out"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "install-apks" ]; then',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(bundletoolPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  const previousBundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+  delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await installAndroidApp(device, aabPath);
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /bundletool build-apks .*--bundle .*Sample\.aab .*--mode universal/);
+    assert.match(logged, /bundletool install-apks .*--device-id emulator-5554/);
+    assert.doesNotMatch(logged, /adb .* install -r/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    if (previousBundletoolJar === undefined) {
+      delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+    } else {
+      process.env.AGENT_DEVICE_BUNDLETOOL_JAR = previousBundletoolJar;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installAndroidApp honors AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE for .aab installs', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-aab-mode-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const bundletoolPath = path.join(tmpDir, 'bundletool');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const aabPath = path.join(tmpDir, 'Sample.aab');
+  await fs.writeFile(aabPath, 'placeholder', 'utf8');
+  await fs.writeFile(adbPath, '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n', 'utf8');
+  await fs.chmod(adbPath, 0o755);
+  await fs.writeFile(
+    bundletoolPath,
+    [
+      '#!/bin/sh',
+      'printf "bundletool %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "build-apks" ]; then',
+      '  out=""',
+      '  while [ "$#" -gt 0 ]; do',
+      '    if [ "$1" = "--output" ]; then',
+      '      out="$2"',
+      '      shift 2',
+      '      continue',
+      '    fi',
+      '    shift',
+      '  done',
+      '  mkdir -p "$(dirname "$out")"',
+      '  printf "apks" > "$out"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "install-apks" ]; then',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(bundletoolPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  const previousBundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+  const previousBundletoolMode = process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+  process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE = 'default';
+  delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await installAndroidApp(device, aabPath);
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /bundletool build-apks .*--mode default/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    if (previousBundletoolJar === undefined) {
+      delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+    } else {
+      process.env.AGENT_DEVICE_BUNDLETOOL_JAR = previousBundletoolJar;
+    }
+    if (previousBundletoolMode === undefined) {
+      delete process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE;
+    } else {
+      process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE = previousBundletoolMode;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installAndroidApp .aab reports missing bundletool tooling', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-aab-missing-tool-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const aabPath = path.join(tmpDir, 'Sample.aab');
+  await fs.writeFile(aabPath, 'placeholder', 'utf8');
+  await fs.writeFile(adbPath, '#!/bin/sh\nexit 0\n', 'utf8');
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousBundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await assert.rejects(
+      () => installAndroidApp(device, aabPath),
+      (error: unknown) => {
+        assert.equal(error instanceof AppError, true);
+        assert.equal((error as AppError).code, 'TOOL_MISSING');
+        assert.match((error as AppError).message, /bundletool/i);
+        return true;
+      },
+    );
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousBundletoolJar === undefined) {
+      delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+    } else {
+      process.env.AGENT_DEVICE_BUNDLETOOL_JAR = previousBundletoolJar;
+    }
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });

@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`, `trigger-app-event`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `install`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
 - Keyboard commands: `keyboard status|get|dismiss` (Android).
@@ -143,7 +143,7 @@ agent-device scrollintoview @e42
 ```
 
 ## Command Index
-- `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
+- `boot`, `open`, `close`, `install`, `reinstall`, `home`, `back`, `app-switcher`
 - `push`
 - `batch`
 - `snapshot`, `diff snapshot`, `find`, `get`
@@ -308,8 +308,13 @@ Navigation helpers:
 - `boot --platform ios|android|apple` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
+- `install <app> <path>` installs app binary without uninstalling first (Android + iOS simulator/device).
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
-- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
+- `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
+- Supported binary formats for `install`/`reinstall`: Android `.apk` and `.aab`, iOS `.app` and `.ipa`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` (with `java` in `PATH`).
+- For Android `.aab`, set `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` to override bundletool `--mode` (default: `universal`).
+- `.ipa` install extracts `Payload/*.app`; when an IPA contains multiple app bundles, `<app>` is used as a bundle id/name hint to select the target bundle.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
@@ -503,6 +508,8 @@ Environment selectors:
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET=<path>` (or `IOS_SIMULATOR_DEVICE_SET=<path>`) to scope all iOS simulator discovery/commands to one simulator set.
 - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
+- `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.
+- `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` optional bundletool `build-apks --mode` override for Android `.aab` installs (default: `universal`).
 - CLI flags `--ios-simulator-device-set` / `--android-device-allowlist` override environment values.
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).

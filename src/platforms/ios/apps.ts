@@ -48,6 +48,120 @@ function isMissingAppErrorOutput(output: string): boolean {
   return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
 }
 
+function isIpaPath(appPath: string): boolean {
+  return path.extname(appPath).toLowerCase() === '.ipa';
+}
+
+type InstallIosAppOptions = {
+  appIdentifierHint?: string;
+};
+
+type IosPayloadAppBundle = {
+  installPath: string;
+  bundleName: string;
+  bundleId?: string;
+};
+
+async function resolveIosPayloadBundleId(appBundlePath: string): Promise<string | undefined> {
+  const infoPlistPath = path.join(appBundlePath, 'Info.plist');
+  try {
+    const result = await runCmd(
+      'plutil',
+      ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlistPath],
+      { allowFailure: true },
+    );
+    if (result.exitCode !== 0) return undefined;
+    const bundleId = String(result.stdout ?? '').trim();
+    return bundleId.length > 0 ? bundleId : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatIosPayloadBundleDetails(bundle: IosPayloadAppBundle): string {
+  if (bundle.bundleId) return `${bundle.bundleName}.app (${bundle.bundleId})`;
+  return `${bundle.bundleName}.app`;
+}
+
+async function ensureIosPayloadBundleIds(bundles: IosPayloadAppBundle[]): Promise<void> {
+  await Promise.all(
+    bundles.map(async (bundle) => {
+      if (bundle.bundleId !== undefined) return;
+      bundle.bundleId = await resolveIosPayloadBundleId(bundle.installPath);
+    }),
+  );
+}
+
+async function resolveIosInstallableAppPath(
+  appPath: string,
+  options?: InstallIosAppOptions,
+): Promise<{ installPath: string; cleanup: () => Promise<void> }> {
+  if (!isIpaPath(appPath)) {
+    return { installPath: appPath, cleanup: async () => {} };
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-ipa-'));
+  const cleanup = async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  };
+  try {
+    await runCmd('ditto', ['-x', '-k', appPath, tempDir]);
+    const payloadDir = path.join(tempDir, 'Payload');
+    const payloadEntries = await fs.readdir(payloadDir, { withFileTypes: true }).catch(() => {
+      throw new AppError('INVALID_ARGS', 'Invalid IPA: missing Payload directory');
+    });
+    const appBundles: IosPayloadAppBundle[] = payloadEntries
+      .filter((entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith('.app'))
+      .map((entry) => ({
+        installPath: path.join(payloadDir, entry.name),
+        bundleName: entry.name.replace(/\.app$/i, ''),
+      }));
+    if (appBundles.length === 1) {
+      return { installPath: appBundles[0].installPath, cleanup };
+    }
+    if (appBundles.length === 0) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid IPA: expected at least one .app under Payload, found 0',
+      );
+    }
+
+    await ensureIosPayloadBundleIds(appBundles);
+    const hint = options?.appIdentifierHint?.trim();
+    if (hint) {
+      const hintLower = hint.toLowerCase();
+      const directNameMatches = appBundles.filter((bundle) => bundle.bundleName.toLowerCase() === hintLower);
+      if (directNameMatches.length === 1) {
+        return { installPath: directNameMatches[0].installPath, cleanup };
+      }
+      if (directNameMatches.length > 1) {
+        throw new AppError(
+          'INVALID_ARGS',
+          `Invalid IPA: multiple app bundles matched "${hint}" by name. Use a bundle id hint instead.`,
+        );
+      }
+      if (hint.includes('.')) {
+        const bundleIdMatches = appBundles.filter((bundle) => bundle.bundleId?.toLowerCase() === hintLower);
+        if (bundleIdMatches.length === 1) {
+          return { installPath: bundleIdMatches[0].installPath, cleanup };
+        }
+      }
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid IPA: found ${appBundles.length} .app bundles under Payload and none matched "${hint}". Available bundles: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,
+      );
+    }
+
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid IPA: found ${appBundles.length} .app bundles under Payload. Pass an app identifier or bundle name matching one of: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,
+    );
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+}
+
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();
   if (trimmed.includes('.')) return trimmed;
@@ -207,17 +321,26 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
   return { bundleId };
 }
 
-export async function installIosApp(device: DeviceInfo, appPath: string): Promise<void> {
-  if (device.kind !== 'simulator') {
-    await runIosDevicectl(['device', 'install', 'app', '--device', device.id, appPath], {
-      action: 'install iOS app',
-      deviceId: device.id,
-    });
-    return;
-  }
+export async function installIosApp(
+  device: DeviceInfo,
+  appPath: string,
+  options?: InstallIosAppOptions,
+): Promise<void> {
+  const { installPath, cleanup } = await resolveIosInstallableAppPath(appPath, options);
+  try {
+    if (device.kind !== 'simulator') {
+      await runIosDevicectl(['device', 'install', 'app', '--device', device.id, installPath], {
+        action: 'install iOS app',
+        deviceId: device.id,
+      });
+      return;
+    }
 
-  await ensureBootedSimulator(device);
-  await runSimctl(device, ['install', device.id, appPath]);
+    await ensureBootedSimulator(device);
+    await runSimctl(device, ['install', device.id, installPath]);
+  } finally {
+    await cleanup();
+  }
 }
 
 export async function reinstallIosApp(
@@ -226,14 +349,25 @@ export async function reinstallIosApp(
   appPath: string,
 ): Promise<{ bundleId: string }> {
   const { bundleId } = await uninstallIosApp(device, app);
-  await installIosApp(device, appPath);
+  await installIosApp(device, appPath, { appIdentifierHint: app });
   return { bundleId };
 }
 
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
-    await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
+    await retryWithPolicy(
+      async () => {
+        await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 700,
+        maxDelayMs: 2_000,
+        shouldRetry: (error) => shouldRetryIosSimulatorScreenshot(error),
+      },
+      { phase: 'ios_simulator_screenshot' },
+    );
     return;
   }
 
@@ -302,6 +436,19 @@ export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean 
     combined.includes("unknown option '--device'") ||
     (combined.includes('unknown subcommand') && combined.includes('screenshot')) ||
     (combined.includes('unrecognized subcommand') && combined.includes('screenshot'))
+  );
+}
+
+export function shouldRetryIosSimulatorScreenshot(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const details = (error.details ?? {}) as { stdout?: unknown; stderr?: unknown };
+  const stdout = typeof details.stdout === 'string' ? details.stdout : '';
+  const stderr = typeof details.stderr === 'string' ? details.stderr : '';
+  const combined = `${error.message}\n${stdout}\n${stderr}`.toLowerCase();
+  return (
+    combined.includes('timeout waiting for screen surfaces') ||
+    (combined.includes('nsposixerrordomain') && combined.includes('code=60') && combined.includes('screenshot'))
   );
 }
 

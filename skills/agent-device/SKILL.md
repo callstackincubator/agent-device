@@ -98,6 +98,8 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 agent-device open [app|url] [url]
 agent-device open [app] --relaunch
 agent-device close [app]
+agent-device install <app> <path-to-binary>
+agent-device reinstall <app> <path-to-binary>
 agent-device session list
 ```
 
@@ -169,6 +171,11 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Prefer `snapshot -i`; scope/depth only when needed.
 - Use refs for discovery, selectors for replay/assertions.
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
+- Use `install` for in-place app upgrades (keep app data when platform permits), and `reinstall` for deterministic fresh-state runs.
+- App binary format support for `install`/`reinstall`: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
+- Android `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- Android `.aab` optional: set `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` to control bundletool `build-apks --mode` (default: `universal`).
+- iOS `.ipa`: extract/install from `Payload/*.app`; when multiple app bundles are present, `<app>` is used as a bundle id/name hint.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
 - Android keyboard helpers: `keyboard status|get|dismiss` report keyboard visibility/type and dismiss via keyevent when visible.

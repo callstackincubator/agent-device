@@ -487,6 +487,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
   },
+  install: {
+    description: 'Install app from binary path without uninstalling first',
+    positionalArgs: ['app', 'path'],
+    allowedFlags: [],
+  },
   push: {
     description: 'Simulate push notification payload delivery',
     positionalArgs: ['bundleOrPackage', 'payloadOrJson'],

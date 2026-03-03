@@ -50,6 +50,13 @@ type ReinstallOps = {
   android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package: string }>;
 };
 
+type AppDeployOps = {
+  ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId?: string }>;
+  android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package?: string }>;
+};
+
+type InstallOps = AppDeployOps;
+
 type EnsureAndroidEmulatorBoot = (params: {
   avdName: string;
   serial?: string;
@@ -373,6 +380,93 @@ const defaultReinstallOps: ReinstallOps = {
   },
 };
 
+const defaultInstallOps: InstallOps = {
+  ios: async (device, app, appPath) => {
+    const { installIosApp } = await import('../../platforms/ios/index.ts');
+    await installIosApp(device, appPath, { appIdentifierHint: app });
+    const { bundleId } = await resolveInstalledAppIdentifier(device, app);
+    return bundleId ? { bundleId } : {};
+  },
+  android: async (device, app, appPath) => {
+    const { installAndroidApp } = await import('../../platforms/android/index.ts');
+    await installAndroidApp(device, appPath);
+    const { package: pkg } = await resolveInstalledAppIdentifier(device, app);
+    return pkg ? { package: pkg } : {};
+  },
+};
+
+async function handleAppDeployCommand(params: {
+  req: DaemonRequest;
+  command: 'install' | 'reinstall';
+  sessionName: string;
+  sessionStore: SessionStore;
+  ensureReady: typeof ensureDeviceReady;
+  resolveDevice: typeof resolveTargetDevice;
+  deployOps: AppDeployOps;
+}): Promise<DaemonResponse> {
+  const { req, command, sessionName, sessionStore, ensureReady, resolveDevice, deployOps } = params;
+  const session = sessionStore.get(sessionName);
+  const flags = req.flags ?? {};
+  const guard = requireSessionOrExplicitSelector(command, session, flags);
+  if (guard) return guard;
+  const app = req.positionals?.[0]?.trim();
+  const appPathInput = req.positionals?.[1]?.trim();
+  if (!app || !appPathInput) {
+    return {
+      ok: false,
+      error: { code: 'INVALID_ARGS', message: `${command} requires: ${command} <app> <path-to-app-binary>` },
+    };
+  }
+  const appPath = SessionStore.expandHome(appPathInput);
+  if (!fs.existsSync(appPath)) {
+    return {
+      ok: false,
+      error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
+    };
+  }
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReadyFn: ensureReady,
+    resolveTargetDeviceFn: resolveDevice,
+    ensureReady: false,
+  });
+  if (!isCommandSupportedOnDevice(command, device)) {
+    return {
+      ok: false,
+      error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
+    };
+  }
+
+  let result:
+    | { app: string; appPath: string; platform: 'ios'; appId?: string; bundleId?: string }
+    | { app: string; appPath: string; platform: 'android'; appId?: string; package?: string };
+
+  if (device.platform === 'ios') {
+    const iosResult = await deployOps.ios(device, app, appPath);
+    const bundleId = iosResult.bundleId;
+    result = bundleId
+      ? { app, appPath, platform: 'ios', appId: bundleId, bundleId }
+      : { app, appPath, platform: 'ios' };
+  } else {
+    const androidResult = await deployOps.android(device, app, appPath);
+    const pkg = androidResult.package;
+    result = pkg
+      ? { app, appPath, platform: 'android', appId: pkg, package: pkg }
+      : { app, appPath, platform: 'android' };
+  }
+
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result,
+    });
+  }
+  return { ok: true, data: result };
+}
+
 async function resolveIosBundleIdForOpen(
   device: DeviceInfo,
   openTarget: string | undefined,
@@ -409,6 +503,16 @@ async function resolveAndroidPackageForOpen(
   } catch {
     return undefined;
   }
+}
+
+async function resolveInstalledAppIdentifier(
+  device: DeviceInfo,
+  app: string,
+): Promise<{ bundleId?: string; package?: string }> {
+  if (device.platform === 'ios') {
+    return { bundleId: await tryResolveIosAppBundleId(device, app) };
+  }
+  return { package: await resolveAndroidPackageForOpen(device, app) };
 }
 
 function shouldPreserveAndroidPackageContext(
@@ -588,6 +692,7 @@ export async function handleSessionCommands(params: {
   dispatch?: typeof dispatchCommand;
   ensureReady?: typeof ensureDeviceReady;
   resolveTargetDevice?: typeof resolveTargetDevice;
+  installOps?: InstallOps;
   reinstallOps?: ReinstallOps;
   stopIosRunner?: typeof stopIosRunnerSession;
   appLogOps?: {
@@ -610,6 +715,7 @@ export async function handleSessionCommands(params: {
     dispatch: dispatchOverride,
     ensureReady: ensureReadyOverride,
     resolveTargetDevice: resolveTargetDeviceOverride,
+    installOps = defaultInstallOps,
     reinstallOps = defaultReinstallOps,
     stopIosRunner: stopIosRunnerOverride,
     appLogOps = {
@@ -879,59 +985,16 @@ export async function handleSessionCommands(params: {
     };
   }
 
-  if (command === 'reinstall') {
-    const session = sessionStore.get(sessionName);
-    const flags = req.flags ?? {};
-    const guard = requireSessionOrExplicitSelector(command, session, flags);
-    if (guard) return guard;
-    const app = req.positionals?.[0]?.trim();
-    const appPathInput = req.positionals?.[1]?.trim();
-    if (!app || !appPathInput) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'reinstall requires: reinstall <app> <path-to-app-binary>' },
-      };
-    }
-    const appPath = SessionStore.expandHome(appPathInput);
-    if (!fs.existsSync(appPath)) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
-      };
-    }
-    const device = await resolveCommandDevice({
-      session,
-      flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
-      ensureReady: false,
+  if (command === 'install' || command === 'reinstall') {
+    return await handleAppDeployCommand({
+      req,
+      command,
+      sessionName,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      deployOps: command === 'install' ? installOps : reinstallOps,
     });
-    if (!isCommandSupportedOnDevice('reinstall', device)) {
-      return {
-        ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: 'reinstall is not supported on this device' },
-      };
-    }
-    let reinstallData:
-      | { platform: 'ios'; appId: string; bundleId: string }
-      | { platform: 'android'; appId: string; package: string };
-    if (device.platform === 'ios') {
-      const iosResult = await reinstallOps.ios(device, app, appPath);
-      reinstallData = { platform: 'ios', appId: iosResult.bundleId, bundleId: iosResult.bundleId };
-    } else {
-      const androidResult = await reinstallOps.android(device, app, appPath);
-      reinstallData = { platform: 'android', appId: androidResult.package, package: androidResult.package };
-    }
-    const result = { app, appPath, ...reinstallData };
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result,
-      });
-    }
-    return { ok: true, data: result };
   }
 
   if (command === 'push') {

@@ -1,4 +1,6 @@
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -525,7 +527,7 @@ async function uninstallAndroidApp(
 ): Promise<{ package: string }> {
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {
-    throw new AppError('INVALID_ARGS', 'reinstall requires a package name, not an intent');
+    throw new AppError('INVALID_ARGS', 'App uninstall requires a package name, not an intent');
   }
   const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), { allowFailure: true });
   if (result.exitCode !== 0) {
@@ -541,8 +543,103 @@ async function uninstallAndroidApp(
   return { package: resolved.value };
 }
 
-async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['install', appPath]));
+type BundletoolInvocation =
+  | { cmd: 'bundletool'; prefixArgs: readonly string[] }
+  | { cmd: 'java'; prefixArgs: readonly string[] };
+
+let cachedBundletoolInvocation:
+  | { key: string; invocation: BundletoolInvocation }
+  | null = null;
+
+function bundletoolInvocationCacheKey(): string {
+  return `${process.env.PATH ?? ''}::${process.env.AGENT_DEVICE_BUNDLETOOL_JAR ?? ''}`;
+}
+
+async function resolveBundletoolInvocation(): Promise<BundletoolInvocation> {
+  const cacheKey = bundletoolInvocationCacheKey();
+  if (cachedBundletoolInvocation?.key === cacheKey) {
+    return cachedBundletoolInvocation.invocation;
+  }
+
+  if (await whichCmd('bundletool')) {
+    const invocation = { cmd: 'bundletool', prefixArgs: [] } as const;
+    cachedBundletoolInvocation = { key: cacheKey, invocation };
+    return invocation;
+  }
+
+  const bundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR?.trim();
+  if (!bundletoolJar) {
+    throw new AppError(
+      'TOOL_MISSING',
+      'bundletool not found in PATH. Install bundletool or set AGENT_DEVICE_BUNDLETOOL_JAR to a bundletool-all.jar path.',
+    );
+  }
+  try {
+    await fs.access(bundletoolJar);
+  } catch {
+    throw new AppError(
+      'TOOL_MISSING',
+      `AGENT_DEVICE_BUNDLETOOL_JAR points to a missing file: ${bundletoolJar}`,
+    );
+  }
+  const invocation = { cmd: 'java', prefixArgs: ['-jar', bundletoolJar] } as const;
+  cachedBundletoolInvocation = { key: cacheKey, invocation };
+  return invocation;
+}
+
+async function runBundletool(args: string[]): Promise<void> {
+  const invocation = await resolveBundletoolInvocation();
+  await runCmd(invocation.cmd, [...invocation.prefixArgs, ...args]);
+}
+
+function isAndroidAppBundlePath(appPath: string): boolean {
+  return path.extname(appPath).toLowerCase() === '.aab';
+}
+
+function resolveBundletoolBuildMode(): string {
+  const mode = process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE?.trim();
+  return mode && mode.length > 0 ? mode : 'universal';
+}
+
+async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Promise<void> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-aab-'));
+  const apksPath = path.join(tempDir, 'bundle.apks');
+  const mode = resolveBundletoolBuildMode();
+  try {
+    await runBundletool([
+      'build-apks',
+      '--bundle',
+      appPath,
+      '--output',
+      apksPath,
+      '--mode',
+      mode,
+    ]);
+    await runBundletool([
+      'install-apks',
+      '--apks',
+      apksPath,
+      '--device-id',
+      device.id,
+    ]);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function installAndroidAppFiles(device: DeviceInfo, appPath: string): Promise<void> {
+  if (isAndroidAppBundlePath(appPath)) {
+    await installAndroidAppBundle(device, appPath);
+    return;
+  }
+  await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
+}
+
+export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  if (!device.booted) {
+    await waitForAndroidBoot(device.id);
+  }
+  await installAndroidAppFiles(device, appPath);
 }
 
 export async function reinstallAndroidApp(
@@ -554,7 +651,7 @@ export async function reinstallAndroidApp(
     await waitForAndroidBoot(device.id);
   }
   const { package: pkg } = await uninstallAndroidApp(device, app);
-  await installAndroidApp(device, appPath);
+  await installAndroidAppFiles(device, appPath);
   return { package: pkg };
 }
 
