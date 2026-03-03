@@ -21,7 +21,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `reinstall`, `trigger-app-event`.
+- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS simulator-only: `alert`, `pinch`, `settings`, `push`, `clipboard`.
 - Session performance metrics: `perf`/`metrics` is available on iOS and Android and currently reports startup timing sampled from `open` command round-trip duration.
@@ -340,6 +340,21 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 
 See [Batching](/agent-device/docs/batching.md) for payload format, response shape, and usage guidelines.
 
+## App install (in-place)
+
+```bash
+agent-device install com.example.app ./build/app.apk --platform android
+agent-device install com.example.app ./build/MyApp.app --platform ios
+```
+
+- `install <app> <path>` installs from binary path without uninstalling first.
+- Supports Android devices/emulators, iOS simulators, and iOS physical devices.
+- Useful for upgrade flows where you want to keep existing app data when supported by the platform.
+- Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
+
 ## App reinstall (fresh state)
 
 ```bash
@@ -350,6 +365,9 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - `reinstall <app> <path>` uninstalls and installs in one command.
 - Supports Android devices/emulators, iOS simulators, and iOS physical devices.
 - Useful for login/logout reset flows and deterministic test setup.
+- Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
+- `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
+- `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
 ## Push notification simulation
 
@@ -704,8 +722,18 @@ agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
 agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
+agent-device install com.example.app ./build/app.apk     # Install app binary in-place
+agent-device reinstall com.example.app ./build/app.apk   # Fresh-state uninstall + install
 agent-device close
 ```
+
+`install`/`reinstall` binary format support:
+
+- Android: `.apk` and `.aab`
+- iOS: `.app` and `.ipa`
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 
