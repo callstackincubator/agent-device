@@ -1,5 +1,5 @@
 import test from 'node:test';
-import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
+import { cleanupDefaultDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'android-test'];
 const settingsSectionLabels = [
@@ -24,6 +24,7 @@ const settingsCrashDialogSelector = settingsCrashDialogLabels
 
 test.after(() => {
   runCliJson(['close', '--platform', 'android', ...session]);
+  cleanupDefaultDaemonMetadata();
 });
 
 test('android settings commands', () => {

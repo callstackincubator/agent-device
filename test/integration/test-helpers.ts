@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { resolveDaemonPaths } from '../../src/daemon/config.ts';
 import { runCmdSync } from '../../src/utils/exec.ts';
 
 export type CliJsonResult = {
@@ -71,6 +72,16 @@ export function formatResultDebug(step: string, args: string[], result: CliJsonR
     `json:`,
     jsonText,
   ].join('\n');
+}
+
+export function cleanupDefaultDaemonMetadata(): void {
+  const { infoPath, lockPath } = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
+  if (existsSync(infoPath)) {
+    rmSync(infoPath, { force: true });
+  }
+  if (existsSync(lockPath)) {
+    rmSync(lockPath, { force: true });
+  }
 }
 
 export function createIntegrationTestContext(options: IntegrationTestContextOptions) {

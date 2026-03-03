@@ -1,7 +1,7 @@
 import test from 'node:test';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { createIntegrationTestContext, runCliJson } from './test-helpers.ts';
+import { cleanupDefaultDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
 const session = ['--session', 'ios-test'];
 const iosTarget = ['--platform', 'ios'];
@@ -13,6 +13,7 @@ test.after(() => {
   if (iosPhysicalUdid && didRunIosPhysicalSession) {
     runCliJson(['close', '--platform', 'ios', '--udid', iosPhysicalUdid, '--json', '--session', 'ios-device-test']);
   }
+  cleanupDefaultDaemonMetadata();
 });
 
 test('ios settings commands', { skip: shouldSkipIos() }, async () => {
