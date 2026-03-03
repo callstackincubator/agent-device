@@ -52,7 +52,7 @@ type DaemonClientSettings = {
 };
 
 const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
-const DAEMON_STARTUP_TIMEOUT_MS = 5000;
+const DAEMON_STARTUP_TIMEOUT_MS = resolveDaemonStartupTimeoutMs();
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
 const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
@@ -647,6 +647,15 @@ export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.
   if (!raw) return 90000;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 90000;
+  return Math.max(1000, Math.floor(parsed));
+}
+
+export function resolveDaemonStartupTimeoutMs(
+  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_STARTUP_TIMEOUT_MS,
+): number {
+  if (!raw) return 15000;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 15000;
   return Math.max(1000, Math.floor(parsed));
 }
 
