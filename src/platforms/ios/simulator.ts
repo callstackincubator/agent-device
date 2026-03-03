@@ -142,6 +142,22 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   }
 }
 
+export async function shutdownSimulator(device: DeviceInfo): Promise<{
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}> {
+  const args = buildSimctlArgsForDevice(device, ['shutdown', device.id]);
+  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs: 15_000 });
+  return {
+    success: result.exitCode === 0,
+    exitCode: result.exitCode,
+    stdout: String(result.stdout ?? ''),
+    stderr: String(result.stderr ?? ''),
+  };
+}
+
 export async function getSimulatorState(deviceOrUdid: DeviceInfo | string): Promise<string | null> {
   const udid = typeof deviceOrUdid === 'string' ? deviceOrUdid : deviceOrUdid.id;
   const simctlArgs = typeof deviceOrUdid === 'string'

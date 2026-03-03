@@ -38,6 +38,7 @@ export type CliFlags = {
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
   saveScript?: boolean | string;
+  shutdown?: boolean;
   relaunch?: boolean;
   headless?: boolean;
   restart?: boolean;
@@ -348,6 +349,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Save session script (.ad) on close; optional custom output path',
   },
   {
+    key: 'shutdown',
+    names: ['--shutdown'],
+    type: 'boolean',
+    usageLabel: '--shutdown',
+    usageDescription: 'close: shutdown associated iOS simulator after ending session',
+  },
+  {
     key: 'relaunch',
     names: ['--relaunch'],
     type: 'boolean',
@@ -504,7 +512,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   close: {
     description: 'Close app or just end session',
     positionalArgs: ['app?'],
-    allowedFlags: ['saveScript'],
+    allowedFlags: ['saveScript', 'shutdown'],
   },
   reinstall: {
     description: 'Uninstall + install app from binary path',

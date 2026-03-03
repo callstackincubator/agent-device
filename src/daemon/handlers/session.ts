@@ -17,6 +17,7 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
 import {
@@ -712,6 +713,7 @@ export async function handleSessionCommands(params: {
     openTarget: string | undefined,
   ) => Promise<string | undefined>;
   settleSimulator?: typeof settleIosSimulator;
+  shutdownSimulator?: typeof shutdownSimulator;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -732,12 +734,14 @@ export async function handleSessionCommands(params: {
     ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
     settleSimulator: settleSimulatorOverride,
+    shutdownSimulator: shutdownSimulatorOverride,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
   const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
+  const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -1583,6 +1587,31 @@ export async function handleSessionCommands(params: {
     }
     sessionStore.writeSessionLog(session);
     sessionStore.delete(sessionName);
+    if (req.flags?.shutdown && isIosSimulator(session.device)) {
+      let shutdownResult: {
+        success: boolean;
+        exitCode: number;
+        stdout: string;
+        stderr: string;
+        error?: ReturnType<typeof normalizeError>;
+      };
+      try {
+        shutdownResult = await doShutdownSimulator(session.device);
+      } catch (error) {
+        const normalized = normalizeError(error);
+        shutdownResult = {
+          success: false,
+          exitCode: -1,
+          stdout: '',
+          stderr: normalized.message,
+          error: normalized,
+        };
+      }
+      return {
+        ok: true,
+        data: { session: sessionName, shutdown: shutdownResult },
+      };
+    }
     return { ok: true, data: { session: sessionName } };
   }
 
