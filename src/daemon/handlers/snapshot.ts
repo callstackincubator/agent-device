@@ -25,9 +25,11 @@ export async function handleSnapshotCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   dispatchSnapshotCommand?: typeof dispatchCommand;
+  runnerCommand?: typeof runIosRunnerCommand;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore } = params;
   const dispatchSnapshotCommand = params.dispatchSnapshotCommand ?? dispatchCommand;
+  const runnerCommand = params.runnerCommand ?? runIosRunnerCommand;
   const command = req.command;
 
   if (command === 'snapshot') {
@@ -343,7 +345,7 @@ export async function handleSnapshotCommands(params: {
         const start = Date.now();
         while (Date.now() - start < timeout) {
           try {
-            const data = await runIosRunnerCommand(
+            const data = await runnerCommand(
               device,
               { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
               {
@@ -362,20 +364,41 @@ export async function handleSnapshotCommands(params: {
         }
         return { ok: false, error: { code: 'COMMAND_FAILED', message: 'alert wait timed out' } };
       }
-      const data = await runIosRunnerCommand(
+      const resolvedAction =
+        action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get';
+      const runnerOptions = {
+        verbose: req.flags?.verbose,
+        logPath,
+        traceLogPath: session?.trace?.outPath,
+        requestId: req.meta?.requestId,
+      };
+      if (resolvedAction === 'accept' || resolvedAction === 'dismiss') {
+        const ALERT_ACTION_RETRY_MS = 2_000;
+        const start = Date.now();
+        let lastError: unknown;
+        while (Date.now() - start < ALERT_ACTION_RETRY_MS) {
+          try {
+            const data = await runnerCommand(
+              device,
+              { command: 'alert', action: resolvedAction, appBundleId: session?.appBundleId },
+              runnerOptions,
+            );
+            recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
+            return { ok: true, data };
+          } catch (err) {
+            lastError = err;
+            const msg = String((err as { message?: unknown })?.message ?? '').toLowerCase();
+            if (!msg.includes('alert not found') && !msg.includes('no alert')) break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        }
+        // lastError is always set because ALERT_ACTION_RETRY_MS > 0
+        throw lastError;
+      }
+      const data = await runnerCommand(
         device,
-        {
-          command: 'alert',
-          action:
-            action === 'accept' || action === 'dismiss' ? (action as 'accept' | 'dismiss') : 'get',
-          appBundleId: session?.appBundleId,
-        },
-        {
-          verbose: req.flags?.verbose,
-          logPath,
-          traceLogPath: session?.trace?.outPath,
-          requestId: req.meta?.requestId,
-        },
+        { command: 'alert', action: resolvedAction, appBundleId: session?.appBundleId },
+        runnerOptions,
       );
       recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
       return { ok: true, data };

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { handleSnapshotCommands } from '../snapshot.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
+import { AppError } from '../../../utils/errors.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-handler-'));
@@ -224,4 +225,113 @@ test('diff initializes baseline on first run and updates it for subsequent runs'
   }
   const updatedSession = sessionStore.get(sessionName);
   assert.equal(updatedSession?.snapshot?.nodes[1]?.label, '134');
+});
+
+const iosSimulatorDevice: SessionState['device'] = {
+  platform: 'ios',
+  id: 'sim-1',
+  name: 'My iPhone Simulator',
+  kind: 'simulator',
+  booted: true,
+};
+
+test('alert accept retries on "alert not found" and succeeds on second attempt', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  let calls = 0;
+  const runnerCommand = async () => {
+    calls += 1;
+    if (calls === 1) throw new AppError('COMMAND_FAILED', 'alert not found');
+    return { accepted: true };
+  };
+
+  const response = await handleSnapshotCommands({
+    req: { token: 't', session: sessionName, command: 'alert', positionals: ['accept'], flags: {} },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    runnerCommand: runnerCommand as any,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(calls, 2);
+});
+
+test('alert accept does not retry on non-alert errors', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  let calls = 0;
+  const runnerCommand = async () => {
+    calls += 1;
+    throw new AppError('COMMAND_FAILED', 'runner crashed');
+  };
+
+  await assert.rejects(
+    () =>
+      handleSnapshotCommands({
+        req: { token: 't', session: sessionName, command: 'alert', positionals: ['accept'], flags: {} },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+        runnerCommand: runnerCommand as any,
+      }),
+    (err: unknown) => err instanceof AppError && err.message === 'runner crashed',
+  );
+
+  assert.equal(calls, 1);
+});
+
+test('alert dismiss retries on "no alert" message', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  let calls = 0;
+  const runnerCommand = async () => {
+    calls += 1;
+    if (calls < 3) throw new AppError('COMMAND_FAILED', 'no alert present');
+    return { dismissed: true };
+  };
+
+  const response = await handleSnapshotCommands({
+    req: { token: 't', session: sessionName, command: 'alert', positionals: ['dismiss'], flags: {} },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    runnerCommand: runnerCommand as any,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(calls, 3);
+});
+
+test('alert get does not retry on failure', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  let calls = 0;
+  const runnerCommand = async () => {
+    calls += 1;
+    throw new AppError('COMMAND_FAILED', 'alert not found');
+  };
+
+  await assert.rejects(
+    () =>
+      handleSnapshotCommands({
+        req: { token: 't', session: sessionName, command: 'alert', positionals: ['get'], flags: {} },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+        runnerCommand: runnerCommand as any,
+      }),
+  );
+
+  assert.equal(calls, 1);
 });
