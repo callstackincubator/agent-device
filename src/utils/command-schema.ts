@@ -18,6 +18,9 @@ export type CliFlags = {
   androidDeviceAllowlist?: string;
   out?: string;
   session?: string;
+  runtime?: string;
+  boot?: boolean;
+  reuseExisting?: boolean;
   verbose?: boolean;
   snapshotInteractiveOnly?: boolean;
   snapshotCompact?: boolean;
@@ -190,6 +193,27 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--headless',
     usageDescription: 'Boot: launch Android emulator without a GUI window',
+  },
+  {
+    key: 'runtime',
+    names: ['--runtime'],
+    type: 'string',
+    usageLabel: '--runtime <id>',
+    usageDescription: 'ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)',
+  },
+  {
+    key: 'boot',
+    names: ['--boot'],
+    type: 'boolean',
+    usageLabel: '--boot',
+    usageDescription: 'ensure-simulator: boot the simulator after ensuring it exists',
+  },
+  {
+    key: 'reuseExisting',
+    names: ['--reuse-existing'],
+    type: 'boolean',
+    usageLabel: '--reuse-existing',
+    usageDescription: 'ensure-simulator: reuse an existing simulator (default: true)',
   },
   {
     key: 'iosSimulatorDeviceSet',
@@ -507,6 +531,12 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Diff current accessibility snapshot against previous baseline',
     positionalArgs: ['kind'],
     allowedFlags: [...SNAPSHOT_FLAGS],
+  },
+  'ensure-simulator': {
+    description: 'Ensure an iOS simulator exists in a device set (create if missing)',
+    positionalArgs: [],
+    allowedFlags: ['runtime', 'boot', 'reuseExisting'],
+    skipCapabilityCheck: true,
   },
   devices: {
     description: 'List available devices',

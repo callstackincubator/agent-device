@@ -49,10 +49,11 @@ const leaseRegistry = new LeaseRegistry({
 });
 const version = readVersion();
 const token = crypto.randomBytes(24).toString('hex');
-const selectorValidationExemptCommands = new Set(['session_list', 'devices']);
+const selectorValidationExemptCommands = new Set(['session_list', 'devices', 'ensure-simulator']);
 const leaseAdmissionExemptCommands = new Set([
   'session_list',
   'devices',
+  'ensure-simulator',
   'lease_allocate',
   'lease_heartbeat',
   'lease_release',

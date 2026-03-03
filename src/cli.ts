@@ -245,6 +245,20 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
+      if (command === 'ensure-simulator') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const udid = typeof data?.udid === 'string' ? data.udid : 'unknown';
+        const device = typeof data?.device === 'string' ? data.device : 'unknown';
+        const runtime = typeof data?.runtime === 'string' ? data.runtime : '';
+        const created = data?.created === true;
+        const booted = data?.booted === true;
+        const action = created ? 'Created' : 'Reused';
+        const bootedSuffix = booted ? ' (booted)' : '';
+        process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
+        if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
+        if (logTailStopper) logTailStopper();
+        return;
+      }
       if (command === 'logs') {
         const data = response.data as Record<string, unknown> | undefined;
         const pathOut = typeof data?.path === 'string' ? data.path : '';
