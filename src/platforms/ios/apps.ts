@@ -48,6 +48,41 @@ function isMissingAppErrorOutput(output: string): boolean {
   return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
 }
 
+function isIpaPath(appPath: string): boolean {
+  return path.extname(appPath).toLowerCase() === '.ipa';
+}
+
+async function resolveIosInstallableAppPath(appPath: string): Promise<{ installPath: string; cleanup: () => Promise<void> }> {
+  if (!isIpaPath(appPath)) {
+    return { installPath: appPath, cleanup: async () => {} };
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-ipa-'));
+  const cleanup = async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  };
+  try {
+    await runCmd('ditto', ['-x', '-k', appPath, tempDir]);
+    const payloadDir = path.join(tempDir, 'Payload');
+    const payloadEntries = await fs.readdir(payloadDir, { withFileTypes: true }).catch(() => {
+      throw new AppError('INVALID_ARGS', 'Invalid IPA: missing Payload directory');
+    });
+    const appBundles = payloadEntries
+      .filter((entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith('.app'))
+      .map((entry) => path.join(payloadDir, entry.name));
+    if (appBundles.length !== 1) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid IPA: expected exactly one .app under Payload, found ${appBundles.length}`,
+      );
+    }
+    return { installPath: appBundles[0], cleanup };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+}
+
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
   const trimmed = app.trim();
   if (trimmed.includes('.')) return trimmed;
@@ -208,16 +243,21 @@ export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<
 }
 
 export async function installIosApp(device: DeviceInfo, appPath: string): Promise<void> {
-  if (device.kind !== 'simulator') {
-    await runIosDevicectl(['device', 'install', 'app', '--device', device.id, appPath], {
-      action: 'install iOS app',
-      deviceId: device.id,
-    });
-    return;
-  }
+  const { installPath, cleanup } = await resolveIosInstallableAppPath(appPath);
+  try {
+    if (device.kind !== 'simulator') {
+      await runIosDevicectl(['device', 'install', 'app', '--device', device.id, installPath], {
+        action: 'install iOS app',
+        deviceId: device.id,
+      });
+      return;
+    }
 
-  await ensureBootedSimulator(device);
-  await runSimctl(device, ['install', device.id, appPath]);
+    await ensureBootedSimulator(device);
+    await runSimctl(device, ['install', device.id, installPath]);
+  } finally {
+    await cleanup();
+  }
 }
 
 export async function reinstallIosApp(

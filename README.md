@@ -311,8 +311,9 @@ Navigation helpers:
 - `install <app> <path>` installs app binary without uninstalling first (Android + iOS simulator/device).
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
-- Supported binary formats for `install`/`reinstall`: Android `.apk`, iOS `.app`.
-- Not supported directly by `install`/`reinstall`: Android `.aab`, iOS `.ipa`.
+- Supported binary formats for `install`/`reinstall`: Android `.apk` and `.aab`, iOS `.app` and `.ipa`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` (with `java` in `PATH`).
+- `.ipa` install extracts `Payload/*.app` and installs the embedded app bundle.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.
@@ -506,6 +507,7 @@ Environment selectors:
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET=<path>` (or `IOS_SIMULATOR_DEVICE_SET=<path>`) to scope all iOS simulator discovery/commands to one simulator set.
 - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
+- `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.
 - CLI flags `--ios-simulator-device-set` / `--android-device-allowlist` override environment values.
 - `AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS=<ms>` to adjust iOS simulator boot timeout (default: `120000`, minimum: `5000`).
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).

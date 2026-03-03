@@ -172,7 +172,8 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use refs for discovery, selectors for replay/assertions.
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - Use `install` for in-place app upgrades (keep app data when platform permits), and `reinstall` for deterministic fresh-state runs.
-- App binary format support for `install`/`reinstall`: Android `.apk`, iOS `.app`; `.aab`/`.ipa` are not supported directly.
+- App binary format support for `install`/`reinstall`: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
+- Android `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
 - Android keyboard helpers: `keyboard status|get|dismiss` report keyboard visibility/type and dismiss via keyevent when visible.

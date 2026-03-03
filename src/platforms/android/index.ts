@@ -1,4 +1,6 @@
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -541,7 +543,72 @@ async function uninstallAndroidApp(
   return { package: resolved.value };
 }
 
+type BundletoolInvocation =
+  | { cmd: 'bundletool'; prefixArgs: string[] }
+  | { cmd: 'java'; prefixArgs: string[] };
+
+async function resolveBundletoolInvocation(): Promise<BundletoolInvocation> {
+  if (await whichCmd('bundletool')) {
+    return { cmd: 'bundletool', prefixArgs: [] };
+  }
+
+  const bundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR?.trim();
+  if (!bundletoolJar) {
+    throw new AppError(
+      'TOOL_MISSING',
+      'bundletool not found in PATH. Install bundletool or set AGENT_DEVICE_BUNDLETOOL_JAR to a bundletool-all.jar path.',
+    );
+  }
+  try {
+    await fs.access(bundletoolJar);
+  } catch {
+    throw new AppError(
+      'TOOL_MISSING',
+      `AGENT_DEVICE_BUNDLETOOL_JAR points to a missing file: ${bundletoolJar}`,
+    );
+  }
+  return { cmd: 'java', prefixArgs: ['-jar', bundletoolJar] };
+}
+
+async function runBundletool(args: string[]): Promise<void> {
+  const invocation = await resolveBundletoolInvocation();
+  await runCmd(invocation.cmd, [...invocation.prefixArgs, ...args]);
+}
+
+function isAndroidAppBundlePath(appPath: string): boolean {
+  return path.extname(appPath).toLowerCase() === '.aab';
+}
+
+async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Promise<void> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-aab-'));
+  const apksPath = path.join(tempDir, 'bundle.apks');
+  try {
+    await runBundletool([
+      'build-apks',
+      '--bundle',
+      appPath,
+      '--output',
+      apksPath,
+      '--mode',
+      'universal',
+    ]);
+    await runBundletool([
+      'install-apks',
+      '--apks',
+      apksPath,
+      '--device-id',
+      device.id,
+    ]);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  if (isAndroidAppBundlePath(appPath)) {
+    await installAndroidAppBundle(device, appPath);
+    return;
+  }
   await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
 }
 

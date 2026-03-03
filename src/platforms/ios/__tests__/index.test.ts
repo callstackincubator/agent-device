@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  installIosApp,
   listIosApps,
   openIosApp,
   parseIosDeviceAppsPayload,
@@ -448,6 +449,93 @@ exit 1
     assert.equal(args.includes('install'), true);
     },
   );
+});
+
+test('installIosApp on iOS physical device accepts .ipa and installs extracted .app payload', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const dittoPath = path.join(tmpDir, 'ditto');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const ipaPath = path.join(tmpDir, 'Sample.ipa');
+  await fs.writeFile(ipaPath, 'placeholder', 'utf8');
+
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.writeFile(
+    dittoPath,
+    '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(dittoPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await installIosApp(IOS_TEST_DEVICE, ipaPath);
+    const args = (await fs.readFile(argsLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    const installIdx = args.indexOf('install');
+    assert.notEqual(installIdx, -1);
+    assert.deepEqual(args.slice(installIdx - 2, installIdx + 4), [
+      'devicectl',
+      'device',
+      'install',
+      'app',
+      '--device',
+      'ios-device-1',
+    ]);
+    const installedPath = args[installIdx + 4];
+    assert.equal(typeof installedPath, 'string');
+    assert.equal(installedPath?.endsWith('/Payload/Sample.app'), true);
+    assert.notEqual(installedPath, ipaPath);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installIosApp rejects invalid .ipa payloads without embedded .app', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-invalid-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const dittoPath = path.join(tmpDir, 'ditto');
+  const ipaPath = path.join(tmpDir, 'Broken.ipa');
+  await fs.writeFile(ipaPath, 'placeholder', 'utf8');
+
+  await fs.writeFile(xcrunPath, '#!/bin/sh\nexit 0\n', 'utf8');
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.writeFile(dittoPath, '#!/bin/sh\nmkdir -p "$4/NoPayload"\nexit 0\n', 'utf8');
+  await fs.chmod(dittoPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  try {
+    await assert.rejects(
+      () => installIosApp(IOS_TEST_DEVICE, ipaPath),
+      (error: unknown) => {
+        assert.equal(error instanceof AppError, true);
+        assert.equal((error as AppError).code, 'INVALID_ARGS');
+        assert.match((error as AppError).message, /invalid ipa/i);
+        return true;
+      },
+    );
+  } finally {
+    process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('openIosApp with app and URL on iOS device launches app bundle with payload URL', async () => {
