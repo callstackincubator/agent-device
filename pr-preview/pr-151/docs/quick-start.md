@@ -49,9 +49,9 @@ agent-device close
 
 `install`/`reinstall` binary format support:
 
-- Android: `.apk`
-- iOS: `.app`
-- Not supported directly: `.aab` and `.ipa`
+- Android: `.apk` and `.aab`
+- iOS: `.app` and `.ipa`
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 
