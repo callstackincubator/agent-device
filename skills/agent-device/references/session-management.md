@@ -47,6 +47,8 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 agent-device session list
 ```
 
+iOS session entries include `device_udid` and `ios_simulator_device_set` (null when using the default set). Use these fields to confirm device routing in concurrent multi-session runs without additional `simctl` calls.
+
 ## Replay within sessions
 
 ```bash

@@ -668,6 +668,8 @@ test('appstate with explicit selector matching session returns session state', a
     assert.equal(response.data?.appName, 'Maps');
     assert.equal(response.data?.appBundleId, 'com.apple.Maps');
     assert.equal(response.data?.source, 'session');
+    assert.equal(response.data?.device_udid, 'sim-1');
+    assert.equal(response.data?.ios_simulator_device_set, null);
   }
 });
 
@@ -716,6 +718,8 @@ test('appstate returns session appName when bundle id is unavailable', async () 
     assert.equal(response.data?.appName, 'Maps');
     assert.equal(response.data?.appBundleId, undefined);
     assert.equal(response.data?.source, 'session');
+    assert.equal(response.data?.device_udid, 'sim-1');
+    assert.equal(response.data?.ios_simulator_device_set, null);
   }
 });
 
@@ -1411,6 +1415,10 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
   assert.equal(updated?.appBundleId, 'com.apple.Preferences');
   assert.equal(updated?.appName, 'settings');
   assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
+  if (response && response.ok) {
+    assert.equal(response.data?.device_udid, 'sim-1');
+    assert.equal(response.data?.ios_simulator_device_set, null);
+  }
 });
 
 test('open app on existing Android session resolves and stores package id', async () => {
@@ -2768,5 +2776,64 @@ test('network dump validates include mode and limit', async () => {
   if (invalidMode && !invalidMode.ok) {
     assert.equal(invalidMode.error.code, 'INVALID_ARGS');
     assert.match(invalidMode.error.message, /summary, headers, body, all/);
+  }
+});
+
+test('session_list includes device_udid and ios_simulator_device_set for iOS sessions', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'ios-default',
+    makeSession('ios-default', {
+      platform: 'ios',
+      id: 'ABC-123',
+      name: 'iPhone 16',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  sessionStore.set(
+    'ios-scoped',
+    makeSession('ios-scoped', {
+      platform: 'ios',
+      id: 'DEF-456',
+      name: 'iPhone 16',
+      kind: 'simulator',
+      booted: true,
+      simulatorSetPath: '/tmp/tenant-a/simulators',
+    }),
+  );
+  sessionStore.set(
+    'android-1',
+    makeSession('android-1', {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: { token: 't', session: 'default', command: 'session_list', positionals: [] },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    const sessions = response.data?.sessions as Array<Record<string, unknown>>;
+    assert.ok(Array.isArray(sessions));
+    const iosDefault = sessions.find((s) => s.name === 'ios-default');
+    assert.equal(iosDefault?.device_udid, 'ABC-123');
+    assert.equal(iosDefault?.ios_simulator_device_set, null);
+    const iosScoped = sessions.find((s) => s.name === 'ios-scoped');
+    assert.equal(iosScoped?.device_udid, 'DEF-456');
+    assert.equal(iosScoped?.ios_simulator_device_set, '/tmp/tenant-a/simulators');
+    const android = sessions.find((s) => s.name === 'android-1');
+    assert.equal(android?.device_udid, undefined);
+    assert.equal(android?.ios_simulator_device_set, undefined);
   }
 });

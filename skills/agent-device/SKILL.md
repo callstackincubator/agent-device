@@ -176,7 +176,8 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Android `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Android `.aab` optional: set `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` to control bundletool `build-apks --mode` (default: `universal`).
 - iOS `.ipa`: extract/install from `Payload/*.app`; when multiple app bundles are present, `<app>` is used as a bundle id/name hint.
-- iOS `appstate` is session-scoped; Android `appstate` is live foreground state.
+- iOS `appstate` is session-scoped; Android `appstate` is live foreground state. iOS responses include `device_udid` and `ios_simulator_device_set` for isolation verification.
+- iOS `open` responses include `device_udid` and `ios_simulator_device_set` to confirm which simulator handled the session.
 - Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
 - Android keyboard helpers: `keyboard status|get|dismiss` report keyboard visibility/type and dismiss via keyevent when visible.
 - `network dump` is best-effort and parses HTTP(s) entries from the session app log file.

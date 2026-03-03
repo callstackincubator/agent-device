@@ -99,12 +99,17 @@ function buildOpenResult(params: {
   appName?: string;
   appBundleId?: string;
   startup?: StartupPerfSample;
+  device?: DeviceInfo;
 }): Record<string, unknown> {
-  const { sessionName, appName, appBundleId, startup } = params;
+  const { sessionName, appName, appBundleId, startup, device } = params;
   const result: Record<string, unknown> = { session: sessionName };
   if (appName) result.appName = appName;
   if (appBundleId) result.appBundleId = appBundleId;
   if (startup) result.startup = startup;
+  if (device?.platform === 'ios') {
+    result.device_udid = device.id;
+    result.ios_simulator_device_set = device.simulatorSetPath ?? null;
+  }
   return result;
 }
 
@@ -593,6 +598,8 @@ async function handleAppStateCommand(params: {
         appName: appName ?? 'unknown',
         appBundleId: session.appBundleId,
         source: 'session',
+        device_udid: session.device.id,
+        ios_simulator_device_set: session.device.simulatorSetPath ?? null,
       },
     };
   }
@@ -741,6 +748,10 @@ export async function handleSessionCommands(params: {
         device: s.device.name,
         id: s.device.id,
         createdAt: s.createdAt,
+        ...(s.device.platform === 'ios' && {
+          device_udid: s.device.id,
+          ios_simulator_device_set: s.device.simulatorSetPath ?? null,
+        }),
       })),
     };
     return { ok: true, data };
@@ -1127,6 +1138,7 @@ export async function handleSessionCommands(params: {
         appName: openTarget,
         appBundleId,
         startup: startupSample,
+        device: session.device,
       });
       sessionStore.recordAction(nextSession, {
         command,
@@ -1205,6 +1217,7 @@ export async function handleSessionCommands(params: {
       appName: openTarget,
       appBundleId,
       startup: startupSample,
+      device,
     });
     sessionStore.recordAction(session, {
       command,
