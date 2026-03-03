@@ -1,7 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFindArgs } from '../find.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { parseFindArgs, handleFindCommands } from '../find.ts';
 import { AppError } from '../../../utils/errors.ts';
+import { SessionStore } from '../../session-store.ts';
+import type { SessionState } from '../../types.ts';
+import type { DaemonRequest, DaemonResponse } from '../../types.ts';
+
+function makeSessionStore(): SessionStore {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-find-handler-'));
+  return new SessionStore(path.join(root, 'sessions'));
+}
+
+function makeSession(name: string): SessionState {
+  return {
+    name,
+    device: {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    actions: [],
+  };
+}
+
+const INCREMENT_NODE = {
+  type: 'Button',
+  label: 'Increment',
+  hittable: true,
+  rect: { x: 50, y: 0, width: 100, height: 100 },
+  depth: 0,
+};
 
 test('parseFindArgs defaults to click with any locator', () => {
   const parsed = parseFindArgs(['Login']);
@@ -96,4 +130,82 @@ test('parseFindArgs with bare locator yields empty query', () => {
   assert.equal(parsed.locator, 'text');
   assert.equal(parsed.query, '');
   assert.equal(parsed.action, 'click');
+});
+
+test('handleFindCommands click returns deterministic matched-target metadata', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  const invokeCalls: DaemonRequest[] = [];
+  const response = await handleFindCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'find',
+      positionals: ['Increment', 'click'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/test.log',
+    sessionStore,
+    invoke: async (req) => {
+      invokeCalls.push(req);
+      // Simulate runner returning non-deterministic platform data that should not bleed through
+      return { ok: true, data: { platformSpecificRef: 'XCUIElementTypeApplication', x: 0, y: 0 } };
+    },
+    dispatch: async (_device, command) => {
+      if (command === 'snapshot') {
+        return { nodes: [INCREMENT_NODE] };
+      }
+      return {};
+    },
+  });
+
+  assert.ok(response, 'expected a response');
+  assert.ok(response.ok, 'expected success');
+  const data = response.data as Record<string, unknown>;
+
+  // Deterministic matched-target metadata
+  assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
+  assert.equal(data.locator, 'any', 'locator must reflect the find strategy');
+  assert.equal(data.query, 'Increment', 'query must reflect the search term');
+  assert.equal(data.x, 100, 'x must be derived from the matched node rect center');
+  assert.equal(data.y, 50, 'y must be derived from the matched node rect center');
+
+  // Non-deterministic platform data must not leak through
+  assert.equal(data.platformSpecificRef, undefined, 'platform runner data must not appear in response');
+
+  // invoke was called with the resolved ref
+  assert.equal(invokeCalls.length, 1);
+  assert.equal(invokeCalls[0].positionals?.[0], '@e1');
+});
+
+test('handleFindCommands click with explicit label locator returns locator in metadata', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  const response = await handleFindCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'find',
+      positionals: ['label', 'Increment', 'click'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/test.log',
+    sessionStore,
+    invoke: async () => ({ ok: true, data: {} }),
+    dispatch: async (_device, command) => {
+      if (command === 'snapshot') return { nodes: [INCREMENT_NODE] };
+      return {};
+    },
+  });
+
+  assert.ok(response?.ok);
+  const data = response!.data as Record<string, unknown>;
+  assert.equal(data.locator, 'label');
+  assert.equal(data.query, 'Increment');
 });

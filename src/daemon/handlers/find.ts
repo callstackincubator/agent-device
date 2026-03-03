@@ -19,8 +19,10 @@ export async function handleFindCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  dispatch?: typeof dispatchCommand;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore, invoke } = params;
+  const dispatch = params.dispatch ?? dispatchCommand;
   const command = req.command;
   if (command !== 'find') return null;
 
@@ -59,7 +61,7 @@ export async function handleFindCommands(params: {
     if (lastNodes && now - lastSnapshotAt < 750) {
       return { nodes: lastNodes };
     }
-    const data = (await dispatchCommand(device, 'snapshot', [], req.flags?.out, {
+    const data = (await dispatch(device, 'snapshot', [], req.flags?.out, {
       ...contextFromFlags(
         logPath,
         {
@@ -187,15 +189,21 @@ export async function handleFindCommands(params: {
       flags: actionFlags,
     });
     if (!response.ok) return response;
+    const matchCoords = resolvedNode.rect ? centerOfRect(resolvedNode.rect) : null;
+    const matchData: Record<string, unknown> = { ref, locator, query };
+    if (matchCoords) {
+      matchData.x = matchCoords.x;
+      matchData.y = matchCoords.y;
+    }
     if (session) {
       sessionStore.recordAction(session, {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result: { ref, action: 'click' },
+        result: { ref, action: 'click', locator, query },
       });
     }
-    return response;
+    return { ok: true, data: matchData };
   }
   if (action === 'fill') {
     if (!value) {
@@ -224,7 +232,7 @@ export async function handleFindCommands(params: {
     if (!coords) {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' } };
     }
-    const response = await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
+    const response = await dispatch(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
     });
     if (session) {
@@ -245,10 +253,10 @@ export async function handleFindCommands(params: {
     if (!coords) {
       return { ok: false, error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' } };
     }
-    await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
+    await dispatch(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
     });
-    const response = await dispatchCommand(device, 'type', [value], req.flags?.out, {
+    const response = await dispatch(device, 'type', [value], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
     });
     if (session) {
