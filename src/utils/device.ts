@@ -25,6 +25,10 @@ type DeviceSelector = {
   serial?: string;
 };
 
+type DeviceSelectionContext = {
+  simulatorSetPath?: string;
+};
+
 export function normalizePlatformSelector(
   platform: PlatformSelector | undefined,
 ): Platform | undefined {
@@ -39,6 +43,7 @@ export function resolveApplePlatformName(target: DeviceTarget | undefined): 'iOS
 export async function selectDevice(
   devices: DeviceInfo[],
   selector: DeviceSelector,
+  context: DeviceSelectionContext = {},
 ): Promise<DeviceInfo> {
   let candidates = devices;
   const normalize = (value: string): string =>
@@ -76,6 +81,14 @@ export async function selectDevice(
   if (candidates.length === 1) return candidates[0];
 
   if (candidates.length === 0) {
+    const simulatorSetPath = context.simulatorSetPath;
+    if (simulatorSetPath && (!selector.platform || selector.platform === 'ios')) {
+      throw new AppError('DEVICE_NOT_FOUND', 'No devices found in the scoped simulator set', {
+        simulatorSetPath,
+        hint: `The simulator set at "${simulatorSetPath}" appears to be empty. Create a simulator first:\n  xcrun simctl --set "${simulatorSetPath}" create "iPhone 16" com.apple.CoreSimulator.SimDeviceType.iPhone-16 com.apple.CoreSimulator.SimRuntime.iOS-18-0`,
+        selector,
+      });
+    }
     throw new AppError('DEVICE_NOT_FOUND', 'No devices found', { selector });
   }
 

@@ -41,7 +41,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
 
       if (selector.platform === 'ios') {
         const devices = await listIosDevices({ simulatorSetPath: iosSimulatorSetPath });
-        return await selectDevice(devices, selector);
+        return await selectDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath });
       }
 
       const devices: DeviceInfo[] = [];
@@ -55,7 +55,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       } catch {
         // ignore
       }
-      return await selectDevice(devices, selector);
+      return await selectDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath });
     },
     {
       platform: normalizedPlatform,
