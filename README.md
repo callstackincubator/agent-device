@@ -311,6 +311,8 @@ Navigation helpers:
 - `install <app> <path>` installs app binary without uninstalling first (Android + iOS simulator/device).
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
+- Supported binary formats for `install`/`reinstall`: Android `.apk`, iOS `.app`.
+- Not supported directly by `install`/`reinstall`: Android `.aab`, iOS `.ipa`.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.

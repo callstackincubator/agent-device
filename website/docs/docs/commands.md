@@ -156,6 +156,8 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - `install <app> <path>` installs from binary path without uninstalling first.
 - Supports Android devices/emulators, iOS simulators, and iOS physical devices.
 - Useful for upgrade flows where you want to keep existing app data when supported by the platform.
+- Supported binary formats: Android `.apk`, iOS `.app`.
+- Not supported directly: Android `.aab`, iOS `.ipa`.
 
 ## App reinstall (fresh state)
 
@@ -167,6 +169,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - `reinstall <app> <path>` uninstalls and installs in one command.
 - Supports Android devices/emulators, iOS simulators, and iOS physical devices.
 - Useful for login/logout reset flows and deterministic test setup.
+- Supported binary formats: Android `.apk`, iOS `.app`.
 
 ## Push notification simulation
 
