@@ -34,6 +34,33 @@ If daemon startup fails with stale metadata hints, clean stale files and retry:
 - `~/.agent-device/daemon.json`
 - `~/.agent-device/daemon.lock`
 
+## iOS permission alerts (simulator only)
+
+iOS apps trigger system permission dialogs (camera, location, notifications, etc.) on first use.
+Use `alert` to handle them without tapping coordinates:
+
+```bash
+agent-device alert wait          # block until an alert appears (default 10 s timeout)
+agent-device alert accept        # accept the frontmost alert
+agent-device alert dismiss       # dismiss the frontmost alert
+agent-device alert get           # read alert title/message without acting
+```
+
+**Timing note:** `alert accept` and `alert dismiss` include a built-in 2 s retry window.
+If the alert is present in the UI hierarchy but not yet interactive, the command retries every 300 ms
+rather than failing immediately. You do not need to add manual sleeps between triggering the alert
+and accepting it.
+
+**Preferred pattern for clean simulator sessions:**
+
+```bash
+agent-device open MyApp --platform ios
+agent-device alert wait 5000     # wait up to 5 s for the permission prompt
+agent-device alert accept        # accept; retries internally if not yet actionable
+```
+
+`alert` is only supported on iOS simulators; iOS physical devices are not supported.
+
 ## iOS: "Allow Paste" dialog
 
 iOS 16+ shows an "Allow Paste" prompt when an app reads the system pasteboard. Under XCUITest (which `agent-device` uses), this prompt is suppressed by the testing runtime. Use `xcrun simctl pbcopy booted` to set clipboard content directly on the simulator instead.

@@ -190,6 +190,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Canonical trigger behavior and caveats are documented in [`website/docs/docs/commands.md`](../../website/docs/docs/commands.md) under **App event triggers**.
 - Permission settings are app-scoped and require an active session app:
   `settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]`
+- iOS simulator permission alerts: use `alert wait` then `alert accept/dismiss` — `accept`/`dismiss` retry internally for up to 2 s so you do not need manual sleeps. See [references/permissions.md](references/permissions.md).
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - On Android, non-ASCII `fill/type` may require an ADB keyboard IME on some system images; only install IME APKs from trusted sources and verify checksum/signature.
 - If using `--save-script`, prefer explicit path syntax (`--save-script=flow.ad` or `./flow.ad`).
