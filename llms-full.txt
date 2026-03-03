@@ -991,6 +991,12 @@ agent-device snapshot -i
 agent-device close --session my-session
 ```
 
+Shut down the simulator on close (iOS simulator only, prevents resource leakage in CI/multi-tenant workloads):
+
+```bash
+agent-device close --platform ios --shutdown
+```
+
 Notes:
 
 - `open <app>` within an existing session switches the active app and updates the session bundle id.
