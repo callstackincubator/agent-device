@@ -153,3 +153,22 @@ test('close treats structured daemon startup failure as no-op without relying on
   assert.equal(result.stdout, '');
   assert.equal(result.stderr, '');
 });
+
+test('close --shutdown is accepted as a valid flag', async () => {
+  const result = await runCliCapture(['close', '--shutdown']);
+  assert.equal(result.code, null);
+  assert.equal(result.daemonCalls, 1);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+});
+
+test('close --shutdown --json treats daemon startup failure as no-op success', async () => {
+  const result = await runCliCapture(['close', '--shutdown', '--json']);
+  assert.equal(result.code, null);
+  assert.equal(result.daemonCalls, 1);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.closed, 'session');
+  assert.equal(payload.data.source, 'no-daemon');
+  assert.equal(result.stderr, '');
+});
