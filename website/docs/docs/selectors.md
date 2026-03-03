@@ -20,3 +20,22 @@ Tips:
 - Use `find ... wait <timeoutMs>` to wait for UI to appear.
 - Combine with scoped snapshots using `snapshot -s "<label>"` for speed.
 - [Android] If a matched node is not hittable, agent-device will click/focus the nearest hittable ancestor.
+
+## Response shape (click)
+
+`find "<query>" click --json` returns deterministic matched-target metadata derived from the resolved snapshot node:
+
+```json
+{
+  "ref": "@e3",
+  "locator": "any",
+  "query": "Sign In",
+  "x": 195,
+  "y": 422
+}
+```
+
+- `ref` — snapshot ref of the matched (or nearest hittable ancestor) element.
+- `locator` — find strategy used (`any`, `text`, `label`, `value`, `role`, `id`).
+- `query` — the search term as provided.
+- `x`, `y` — tap coordinates derived from the matched element's rect center.

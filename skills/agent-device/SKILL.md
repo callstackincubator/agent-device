@@ -170,6 +170,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Re-snapshot after UI mutations (navigation/modal/list changes).
 - Prefer `snapshot -i`; scope/depth only when needed.
 - Use refs for discovery, selectors for replay/assertions.
+- `find "<query>" click --json` returns `{ ref, locator, query, x, y }` — all derived from the matched snapshot node. Do not rely on these fields from raw `press`/`click` responses for observability; use `find` instead.
 - Use `fill` for clear-then-type semantics; use `type` for focused append typing.
 - Use `install` for in-place app upgrades (keep app data when platform permits), and `reinstall` for deterministic fresh-state runs.
 - App binary format support for `install`/`reinstall`: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
