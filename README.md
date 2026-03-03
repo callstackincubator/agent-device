@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `reinstall`, `push`, `trigger-app-event`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `install`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
 - Keyboard commands: `keyboard status|get|dismiss` (Android).
@@ -143,7 +143,7 @@ agent-device scrollintoview @e42
 ```
 
 ## Command Index
-- `boot`, `open`, `close`, `reinstall`, `home`, `back`, `app-switcher`
+- `boot`, `open`, `close`, `install`, `reinstall`, `home`, `back`, `app-switcher`
 - `push`
 - `batch`
 - `snapshot`, `diff snapshot`, `find`, `get`
@@ -308,8 +308,9 @@ Navigation helpers:
 - `boot --platform ios|android|apple` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
+- `install <app> <path>` installs app binary without uninstalling first (Android + iOS simulator/device).
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
-- `reinstall` accepts package/bundle id style app names and supports `~` in paths.
+- `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
 
 Deep links:
 - `open <url>` supports deep links with `scheme://...`.

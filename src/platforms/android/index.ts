@@ -525,7 +525,7 @@ async function uninstallAndroidApp(
 ): Promise<{ package: string }> {
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {
-    throw new AppError('INVALID_ARGS', 'reinstall requires a package name, not an intent');
+    throw new AppError('INVALID_ARGS', 'App uninstall requires a package name, not an intent');
   }
   const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), { allowFailure: true });
   if (result.exitCode !== 0) {
@@ -541,8 +541,8 @@ async function uninstallAndroidApp(
   return { package: resolved.value };
 }
 
-async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['install', appPath]));
+export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
 }
 
 export async function reinstallAndroidApp(

@@ -69,6 +69,12 @@ test('parseArgs accepts push with payload file', () => {
   assert.deepEqual(parsed.positionals, ['com.example.app', './payload.json']);
 });
 
+test('parseArgs accepts install command args', () => {
+  const parsed = parseArgs(['install', 'com.example.app', './build/app.apk'], { strictFlags: true });
+  assert.equal(parsed.command, 'install');
+  assert.deepEqual(parsed.positionals, ['com.example.app', './build/app.apk']);
+});
+
 test('parseArgs accepts clipboard subcommands', () => {
   const read = parseArgs(['clipboard', 'read'], { strictFlags: true });
   assert.equal(read.command, 'clipboard');

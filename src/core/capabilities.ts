@@ -36,6 +36,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   longpress: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   open: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   perf: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
+  install: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   reinstall: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   press: { ios: { simulator: true, device: true }, android: { emulator: true, device: true, unknown: true } },
   push: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },

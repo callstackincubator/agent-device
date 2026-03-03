@@ -74,6 +74,12 @@ test('reinstall supports iOS simulator, iOS device, and Android', () => {
   assert.equal(isCommandSupportedOnDevice('reinstall', androidDevice), true, 'reinstall on Android');
 });
 
+test('install supports iOS simulator, iOS device, and Android', () => {
+  assert.equal(isCommandSupportedOnDevice('install', iosSimulator), true, 'install on iOS sim');
+  assert.equal(isCommandSupportedOnDevice('install', iosDevice), true, 'install on iOS device');
+  assert.equal(isCommandSupportedOnDevice('install', androidDevice), true, 'install on Android');
+});
+
 test('core commands support iOS simulator, iOS device, and Android', () => {
   for (const cmd of [
     'app-switcher',
@@ -88,6 +94,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     'focus',
     'get',
     'home',
+    'install',
     'longpress',
     'logs',
     'open',

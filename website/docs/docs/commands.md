@@ -146,6 +146,17 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 
 See [Batching](/docs/batching) for payload format, response shape, and usage guidelines.
 
+## App install (in-place)
+
+```bash
+agent-device install com.example.app ./build/app.apk --platform android
+agent-device install com.example.app ./build/MyApp.app --platform ios
+```
+
+- `install <app> <path>` installs from binary path without uninstalling first.
+- Supports Android devices/emulators, iOS simulators, and iOS physical devices.
+- Useful for upgrade flows where you want to keep existing app data when supported by the platform.
+
 ## App reinstall (fresh state)
 
 ```bash
