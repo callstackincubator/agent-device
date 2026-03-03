@@ -21,6 +21,7 @@ import {
   shouldFallbackToRunnerForSimulatorScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from '../apps.ts';
+import { resolveSimulatorRunnerScreenshotCandidatePaths } from '../screenshot.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -165,6 +166,20 @@ test('shouldFallbackToRunnerForSimulatorScreenshot ignores non-timeout failures'
     exitCode: 3,
   });
   assert.equal(shouldFallbackToRunnerForSimulatorScreenshot(error), false);
+});
+
+test('resolveSimulatorRunnerScreenshotCandidatePaths includes tmp-based and basename fallbacks', () => {
+  const containerPath = '/tmp/container';
+  const candidates = resolveSimulatorRunnerScreenshotCandidatePaths(
+    containerPath,
+    '/var/mobile/Containers/Data/Application/abc/tmp/screenshot-1.png',
+  );
+  assert.equal(candidates.includes(path.join(containerPath, 'tmp', 'screenshot-1.png')), true);
+  assert.equal(candidates.includes('/var/mobile/Containers/Data/Application/abc/tmp/screenshot-1.png'), true);
+});
+
+test('resolveSimulatorRunnerScreenshotCandidatePaths handles empty runner path', () => {
+  assert.deepEqual(resolveSimulatorRunnerScreenshotCandidatePaths('/tmp/container', '   '), []);
 });
 
 test('screenshotIos retries simulator capture timeouts and eventually succeeds', async () => {

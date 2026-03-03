@@ -82,9 +82,8 @@ async function captureScreenshotViaRunner(
   outPath: string,
   appBundleId?: string,
 ): Promise<void> {
-  // `xcrun devicectl device screenshot` is unavailable (removed in Xcode 26.x).
-  // Fall back to the XCTest runner: capture to the device's temp directory,
-  // then pull the file to the host via `devicectl device copy from`.
+  // Capture with the XCTest runner, then pull from the runner container.
+  // Devices use `devicectl ... copy from`; simulators use `simctl get_app_container`.
   const result = await runIosRunnerCommand(device, { command: 'screenshot', appBundleId });
   const remoteFileName = result['message'] as string;
   if (!remoteFileName) {
@@ -138,7 +137,6 @@ async function copyRunnerScreenshotFromSimulator(
   remoteFileName: string,
   outPath: string,
 ): Promise<void> {
-  const remoteRelativePath = remoteFileName.replace(/^\/+/, '');
   let lastError = 'Unable to locate runner container for simulator screenshot';
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
     const containerResult = await runSimctl(device, ['get_app_container', device.id, bundleId, 'data'], {
@@ -156,15 +154,59 @@ async function copyRunnerScreenshotFromSimulator(
       lastError = 'simctl get_app_container returned empty output';
       continue;
     }
-    const sourcePath = path.join(containerPath, remoteRelativePath);
-    try {
-      await fs.copyFile(sourcePath, outPath);
-      return;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
+    const candidateSourcePaths = resolveSimulatorRunnerScreenshotCandidatePaths(containerPath, remoteFileName);
+    for (const sourcePath of candidateSourcePaths) {
+      try {
+        await fs.copyFile(sourcePath, outPath);
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
     }
   }
   throw new AppError('COMMAND_FAILED', `Failed to capture iOS screenshot: ${lastError}`);
+}
+
+export function resolveSimulatorRunnerScreenshotCandidatePaths(containerPath: string, remoteFileName: string): string[] {
+  const normalizedContainerPath = path.resolve(containerPath);
+  const rawRemotePath = remoteFileName.trim();
+  if (!rawRemotePath) return [];
+
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const pushUnique = (candidate: string) => {
+    const normalized = path.normalize(candidate);
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    candidates.push(normalized);
+  };
+
+  const relativeFromRoot = rawRemotePath.replace(/^\/+/, '');
+  const remotePosixPath = relativeFromRoot.replace(/\\/g, '/');
+  if (relativeFromRoot) {
+    pushUnique(path.join(normalizedContainerPath, relativeFromRoot));
+  }
+
+  if (path.isAbsolute(rawRemotePath)) {
+    pushUnique(path.normalize(rawRemotePath));
+  }
+
+  if (remotePosixPath.startsWith('tmp/')) {
+    pushUnique(path.join(normalizedContainerPath, remotePosixPath));
+  } else {
+    const tmpSegmentIndex = remotePosixPath.lastIndexOf('/tmp/');
+    if (tmpSegmentIndex >= 0) {
+      const fromTmp = remotePosixPath.slice(tmpSegmentIndex + 1);
+      pushUnique(path.join(normalizedContainerPath, fromTmp));
+    }
+  }
+
+  const baseName = path.basename(rawRemotePath);
+  if (baseName) {
+    pushUnique(path.join(normalizedContainerPath, 'tmp', baseName));
+  }
+
+  return candidates;
 }
 
 export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean {
