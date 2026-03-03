@@ -52,7 +52,8 @@ type DaemonClientSettings = {
 };
 
 const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
-const DAEMON_STARTUP_TIMEOUT_MS = 5000;
+const DAEMON_STARTUP_TIMEOUT_MS = resolveDaemonStartupTimeoutMs();
+const DAEMON_STARTUP_ATTEMPTS = resolveDaemonStartupAttempts();
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
 const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
@@ -141,21 +142,39 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
   }
 
   cleanupStaleDaemonLockIfSafe(settings.paths);
-  await startDaemon(settings);
-  const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
-  if (started) return started;
 
-  if (await recoverDaemonLockHolder(settings.paths)) {
+  let lockRecoveryCount = 0;
+  for (let attempt = 1; attempt <= DAEMON_STARTUP_ATTEMPTS; attempt += 1) {
     await startDaemon(settings);
-    const recovered = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
-    if (recovered) return recovered;
+    const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
+    if (started) return started;
+
+    if (await recoverDaemonLockHolder(settings.paths)) {
+      lockRecoveryCount += 1;
+      continue;
+    }
+
+    const metadataState = getDaemonMetadataState(settings.paths);
+    const hasAnotherAttempt = attempt < DAEMON_STARTUP_ATTEMPTS;
+    if (!hasAnotherAttempt) break;
+
+    // Detached daemon startup can race on busy CI hosts; retry when no metadata exists yet.
+    if (!metadataState.hasInfo && !metadataState.hasLock) {
+      await sleepMs(150);
+      continue;
+    }
   }
 
+  const state = getDaemonMetadataState(settings.paths);
   throw new AppError('COMMAND_FAILED', 'Failed to start daemon', {
     kind: 'daemon_startup_failed',
     infoPath: settings.paths.infoPath,
     lockPath: settings.paths.lockPath,
-    hint: resolveDaemonStartupHint(getDaemonMetadataState(settings.paths), settings.paths),
+    startupTimeoutMs: DAEMON_STARTUP_TIMEOUT_MS,
+    startupAttempts: DAEMON_STARTUP_ATTEMPTS,
+    lockRecoveryCount,
+    metadataState: state,
+    hint: resolveDaemonStartupHint(state, settings.paths),
   });
 }
 
@@ -167,6 +186,10 @@ async function waitForDaemonInfo(timeoutMs: number, settings: DaemonClientSettin
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return null;
+}
+
+async function sleepMs(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function recoverDaemonLockHolder(paths: DaemonPaths): Promise<boolean> {
@@ -648,6 +671,24 @@ export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 90000;
   return Math.max(1000, Math.floor(parsed));
+}
+
+export function resolveDaemonStartupTimeoutMs(
+  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_STARTUP_TIMEOUT_MS,
+): number {
+  if (!raw) return 15000;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 15000;
+  return Math.max(1000, Math.floor(parsed));
+}
+
+export function resolveDaemonStartupAttempts(
+  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_STARTUP_ATTEMPTS,
+): number {
+  if (!raw) return 2;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 2;
+  return Math.min(5, Math.max(1, Math.floor(parsed)));
 }
 
 export function resolveDaemonStartupHint(

@@ -4,7 +4,13 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { computeDaemonCodeSignature, resolveDaemonRequestTimeoutMs, resolveDaemonStartupHint } from '../../daemon-client.ts';
+import {
+  computeDaemonCodeSignature,
+  resolveDaemonRequestTimeoutMs,
+  resolveDaemonStartupAttempts,
+  resolveDaemonStartupHint,
+  resolveDaemonStartupTimeoutMs,
+} from '../../daemon-client.ts';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import {
   isProcessAlive,
@@ -21,6 +27,27 @@ test('resolveDaemonRequestTimeoutMs enforces minimum timeout', () => {
   assert.equal(resolveDaemonRequestTimeoutMs('100'), 1000);
   assert.equal(resolveDaemonRequestTimeoutMs('2500'), 2500);
   assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 90000);
+});
+
+test('resolveDaemonStartupTimeoutMs defaults to 15000', () => {
+  assert.equal(resolveDaemonStartupTimeoutMs(undefined), 15000);
+});
+
+test('resolveDaemonStartupTimeoutMs enforces minimum timeout', () => {
+  assert.equal(resolveDaemonStartupTimeoutMs('100'), 1000);
+  assert.equal(resolveDaemonStartupTimeoutMs('20000'), 20000);
+  assert.equal(resolveDaemonStartupTimeoutMs('invalid'), 15000);
+});
+
+test('resolveDaemonStartupAttempts defaults to 2', () => {
+  assert.equal(resolveDaemonStartupAttempts(undefined), 2);
+});
+
+test('resolveDaemonStartupAttempts clamps values to [1,5]', () => {
+  assert.equal(resolveDaemonStartupAttempts('0'), 1);
+  assert.equal(resolveDaemonStartupAttempts('3'), 3);
+  assert.equal(resolveDaemonStartupAttempts('999'), 5);
+  assert.equal(resolveDaemonStartupAttempts('invalid'), 2);
 });
 
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {
