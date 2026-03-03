@@ -36,6 +36,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`).
 - If selector target is outside scope, resolution fails with `DEVICE_NOT_FOUND`.
+- If the scoped iOS simulator set is empty (first-run), the error includes the set path and a suggested `xcrun simctl --set <path> create ...` command.
 - With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
 - Environment equivalents:
   - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
