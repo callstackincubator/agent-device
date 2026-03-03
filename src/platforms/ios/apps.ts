@@ -364,7 +364,18 @@ export async function reinstallIosApp(
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
-    await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
+    await retryWithPolicy(
+      async () => {
+        await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 700,
+        maxDelayMs: 2_000,
+        shouldRetry: (error) => shouldRetryIosSimulatorScreenshot(error),
+      },
+      { phase: 'ios_simulator_screenshot' },
+    );
     return;
   }
 
@@ -433,6 +444,19 @@ export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean 
     combined.includes("unknown option '--device'") ||
     (combined.includes('unknown subcommand') && combined.includes('screenshot')) ||
     (combined.includes('unrecognized subcommand') && combined.includes('screenshot'))
+  );
+}
+
+export function shouldRetryIosSimulatorScreenshot(error: unknown): boolean {
+  if (!(error instanceof AppError)) return false;
+  if (error.code !== 'COMMAND_FAILED') return false;
+  const details = (error.details ?? {}) as { stdout?: unknown; stderr?: unknown };
+  const stdout = typeof details.stdout === 'string' ? details.stdout : '';
+  const stderr = typeof details.stderr === 'string' ? details.stderr : '';
+  const combined = `${error.message}\n${stdout}\n${stderr}`.toLowerCase();
+  return (
+    combined.includes('timeout waiting for screen surfaces') ||
+    (combined.includes('nsposixerrordomain') && combined.includes('code=60') && combined.includes('screenshot'))
   );
 }
 

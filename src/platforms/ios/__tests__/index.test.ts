@@ -15,7 +15,7 @@ import {
   setIosSetting,
   writeIosClipboardText,
 } from '../index.ts';
-import { shouldFallbackToRunnerForIosScreenshot } from '../apps.ts';
+import { shouldFallbackToRunnerForIosScreenshot, shouldRetryIosSimulatorScreenshot } from '../apps.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -128,6 +128,22 @@ test('shouldFallbackToRunnerForIosScreenshot ignores unrelated command failures'
     stderr: 'error: device is busy connecting',
   });
   assert.equal(shouldFallbackToRunnerForIosScreenshot(error), false);
+});
+
+test('shouldRetryIosSimulatorScreenshot detects simulator screen-surface timeout', () => {
+  const error = new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
+    stderr: 'Timeout waiting for screen surfaces',
+    exitCode: 60,
+  });
+  assert.equal(shouldRetryIosSimulatorScreenshot(error), true);
+});
+
+test('shouldRetryIosSimulatorScreenshot ignores unrelated screenshot failures', () => {
+  const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
+    stderr: 'No such file or directory',
+    exitCode: 2,
+  });
+  assert.equal(shouldRetryIosSimulatorScreenshot(error), false);
 });
 
 test('openIosApp web URL on iOS device without app falls back to Safari', async () => {
