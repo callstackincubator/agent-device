@@ -67,11 +67,13 @@ const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
 const STARTUP_SAMPLE_DESCRIPTION =
   'Elapsed wall-clock time around dispatching the open command for the active session app target.';
 const PERF_STARTUP_SAMPLE_LIMIT = 20;
+// Default simulator cool-down after terminate/close to reduce SpringBoard/XCTest attach races.
 const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   300,
   0,
 );
+// Default simulator cool-down after launch/open before follow-up interactions/attach.
 const IOS_SIMULATOR_POST_OPEN_SETTLE_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
   300,
@@ -216,6 +218,23 @@ function isIosSimulator(device: DeviceInfo): boolean {
 async function settleIosSimulator(device: DeviceInfo, delayMs: number): Promise<void> {
   if (!isIosSimulator(device) || delayMs <= 0) return;
   await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function relaunchCloseApp(params: {
+  device: DeviceInfo;
+  closeTarget: string;
+  stopIosRunner: (deviceId: string) => Promise<void>;
+  dispatch: typeof dispatchCommand;
+  outFlag: string | undefined;
+  context: Parameters<typeof dispatchCommand>[4];
+  settleSimulator: (device: DeviceInfo, delayMs: number) => Promise<void>;
+}): Promise<void> {
+  const { device, closeTarget, stopIosRunner, dispatch, outFlag, context, settleSimulator } = params;
+  if (device.platform === 'ios') {
+    await stopIosRunner(device.id);
+  }
+  await dispatch(device, 'close', [closeTarget], outFlag, context);
+  await settleSimulator(device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
 }
 
 function selectorTargetsSessionDevice(
@@ -580,6 +599,7 @@ export async function handleSessionCommands(params: {
     device: DeviceInfo,
     openTarget: string | undefined,
   ) => Promise<string | undefined>;
+  settleSimulator?: typeof settleIosSimulator;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -598,11 +618,13 @@ export async function handleSessionCommands(params: {
     },
     ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
+    settleSimulator: settleSimulatorOverride,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
   const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
+  const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -1012,21 +1034,25 @@ export async function handleSessionCommands(params: {
       );
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
-        if (session.device.platform === 'ios') {
-          await stopIosRunner(session.device.id);
-        }
         const closeTarget = appBundleId ?? openTarget;
-        await dispatch(session.device, 'close', [closeTarget], req.flags?.out, {
-          ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
+        await relaunchCloseApp({
+          device: session.device,
+          closeTarget,
+          stopIosRunner,
+          dispatch,
+          outFlag: req.flags?.out,
+          context: {
+            ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
+          },
+          settleSimulator,
         });
-        await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
       }
       const openStartedAtMs = Date.now();
       await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
       const startupSample = buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId);
-      await settleIosSimulator(session.device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
+      await settleSimulator(session.device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
       const nextSession: SessionState = {
         ...session,
         appBundleId,
@@ -1084,21 +1110,25 @@ export async function handleSessionCommands(params: {
     const appBundleId =
       await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
     if (shouldRelaunch && openTarget) {
-      if (device.platform === 'ios') {
-        await stopIosRunner(device.id);
-      }
       const closeTarget = appBundleId ?? openTarget;
-      await dispatch(device, 'close', [closeTarget], req.flags?.out, {
-        ...contextFromFlags(logPath, req.flags, appBundleId),
+      await relaunchCloseApp({
+        device,
+        closeTarget,
+        stopIosRunner,
+        dispatch,
+        outFlag: req.flags?.out,
+        context: {
+          ...contextFromFlags(logPath, req.flags, appBundleId),
+        },
+        settleSimulator,
       });
-      await settleIosSimulator(device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
     }
     const openStartedAtMs = Date.now();
     await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, appBundleId),
     });
     const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
-    await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
+    await settleSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
     const session: SessionState = {
       name: sessionName,
       device,
@@ -1415,21 +1445,19 @@ export async function handleSessionCommands(params: {
     if (!session) {
       return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
     }
-    let iosRunnerStopped = false;
     if (session.appLog) {
       await appLogOps.stop(session.appLog);
     }
     if (req.positionals && req.positionals.length > 0) {
       if (session.device.platform === 'ios') {
         await stopIosRunner(session.device.id);
-        iosRunnerStopped = true;
       }
-      await dispatch(session.device, 'close', req.positionals ?? [], req.flags?.out, {
+      await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
       });
-      await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
+      await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
     }
-    if (session.device.platform === 'ios' && !iosRunnerStopped) {
+    if (session.device.platform === 'ios') {
       await stopIosRunner(session.device.id);
     }
     sessionStore.recordAction(session, {

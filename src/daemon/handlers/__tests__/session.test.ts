@@ -1595,6 +1595,90 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
+test('open --relaunch on iOS without existing session closes then opens target app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-new-session';
+
+  const calls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['com.example.app'],
+      flags: { relaunch: true, platform: 'ios' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => ({
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    stopIosRunner: async () => {
+      calls.push('stop-runner');
+    },
+    dispatch: async (_device, command, positionals) => {
+      calls.push(`${command}:${positionals.join(' ')}`);
+      return {};
+    },
+    ensureReady: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'open:com.example.app']);
+});
+
+test('open --relaunch on iOS simulator reaches settle path for close and open', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-session';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'sim-1',
+        name: 'iPhone 16',
+        kind: 'simulator',
+        booted: true,
+      }),
+      appName: 'com.example.app',
+    },
+  );
+
+  const settleCalls: Array<{ deviceId: string; delayMs: number }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: [],
+      flags: { relaunch: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async () => ({}),
+    stopIosRunner: async () => {},
+    ensureReady: async () => {},
+    settleSimulator: async (device, delayMs) => {
+      settleCalls.push({ deviceId: device.id, delayMs });
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(settleCalls.length, 2);
+  assert.deepEqual(settleCalls[0], { deviceId: 'sim-1', delayMs: 300 });
+  assert.deepEqual(settleCalls[1], { deviceId: 'sim-1', delayMs: 300 });
+});
+
 test('close on iOS session with recording stops runner session before delete', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
@@ -1640,7 +1724,7 @@ test('close on iOS session with recording stops runner session before delete', a
   assert.equal(sessionStore.get(sessionName), undefined);
 });
 
-test('close <app> on iOS stops runner before app close dispatch', async () => {
+test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-close-session';
   sessionStore.set(
@@ -1681,7 +1765,7 @@ test('close <app> on iOS stops runner before app close dispatch', async () => {
 
   assert.ok(response);
   assert.equal(response?.ok, true);
-  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app']);
+  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'stop-runner']);
 });
 
 test('open --relaunch rejects URL targets', async () => {
