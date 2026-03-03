@@ -12,6 +12,7 @@ import {
   readIosClipboardText,
   reinstallIosApp,
   resolveIosApp,
+  screenshotIos,
   setIosSetting,
   writeIosClipboardText,
 } from '../index.ts';
@@ -144,6 +145,84 @@ test('shouldRetryIosSimulatorScreenshot ignores unrelated screenshot failures', 
     exitCode: 2,
   });
   assert.equal(shouldRetryIosSimulatorScreenshot(error), false);
+});
+
+test('screenshotIos retries simulator capture timeouts and eventually succeeds', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-screenshot-retry-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const openPath = path.join(tmpDir, 'open');
+  const commandLogPath = path.join(tmpDir, 'commands.log');
+  const screenshotCountPath = path.join(tmpDir, 'screenshot-attempts.count');
+  const outPath = path.join(tmpDir, 'screen.png');
+
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'echo "__XCRUN__ $*" >> "$AGENT_DEVICE_TEST_COMMAND_LOG"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then',
+      '  echo \'{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "simctl" ] && [ "$2" = "io" ] && [ "$3" = "sim-1" ] && [ "$4" = "screenshot" ]; then',
+      '  count=0',
+      '  if [ -f "$AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE" ]; then',
+      '    count=$(cat "$AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE")',
+      '  fi',
+      '  count=$((count + 1))',
+      '  echo "$count" > "$AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE"',
+      '  if [ "$count" -lt 3 ]; then',
+      '    echo "Detected file type from extension: PNG" >&2',
+      '    echo "Timeout waiting for screen surfaces" >&2',
+      '    exit 60',
+      '  fi',
+      '  printf "png-bytes" > "$5"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected xcrun args: $*" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.writeFile(openPath, '#!/bin/sh\necho "__OPEN__ $*" >> "$AGENT_DEVICE_TEST_COMMAND_LOG"\nexit 0\n', 'utf8');
+  await fs.chmod(openPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousCommandLog = process.env.AGENT_DEVICE_TEST_COMMAND_LOG;
+  const previousScreenshotCountFile = process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_COMMAND_LOG = commandLogPath;
+  process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE = screenshotCountPath;
+
+  try {
+    await screenshotIos(IOS_TEST_SIMULATOR, outPath);
+    assert.equal(await fs.readFile(outPath, 'utf8'), 'png-bytes');
+    assert.equal(await fs.readFile(screenshotCountPath, 'utf8'), '3\n');
+
+    const logLines = (await fs.readFile(commandLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    assert.equal(
+      logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
+      3,
+      'should focus Simulator before first screenshot and between retries',
+    );
+    assert.equal(
+      logLines.filter((line) => line === '__XCRUN__ simctl io sim-1 screenshot ' + outPath).length,
+      3,
+      'should retry screenshot command until success',
+    );
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousCommandLog === undefined) delete process.env.AGENT_DEVICE_TEST_COMMAND_LOG;
+    else process.env.AGENT_DEVICE_TEST_COMMAND_LOG = previousCommandLog;
+    if (previousScreenshotCountFile === undefined) delete process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE;
+    else process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE = previousScreenshotCountFile;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('openIosApp web URL on iOS device without app falls back to Safari', async () => {

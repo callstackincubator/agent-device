@@ -14,7 +14,13 @@ import {
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
 
-import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
+import {
+  IOS_APP_LAUNCH_TIMEOUT_MS,
+  IOS_DEVICECTL_TIMEOUT_MS,
+  IOS_SIMULATOR_SCREENSHOT_RETRY_BASE_DELAY_MS,
+  IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_ATTEMPTS,
+  IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_DELAY_MS,
+} from './config.ts';
 import {
   IOS_DEVICECTL_DEFAULT_HINT,
   listIosDeviceApps,
@@ -42,6 +48,10 @@ function runSimctl(
   options?: Parameters<typeof runCmd>[2],
 ) {
   return runCmd('xcrun', simctlArgs(device, args), options);
+}
+
+async function focusIosSimulatorWindow(): Promise<void> {
+  await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
 }
 
 function isMissingAppErrorOutput(output: string): boolean {
@@ -194,7 +204,7 @@ export async function openIosApp(
     }
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
-      await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+      await focusIosSimulatorWindow();
       await runSimctl(device, ['openurl', device.id, explicitUrl]);
       return;
     }
@@ -214,7 +224,7 @@ export async function openIosApp(
   if (isDeepLinkTarget(deepLinkTarget)) {
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
-      await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+      await focusIosSimulatorWindow();
       await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
       return;
     }
@@ -244,7 +254,7 @@ export async function openIosDevice(device: DeviceInfo): Promise<void> {
   if (state === 'Booted') return;
 
   await ensureBootedSimulator(device);
-  await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+  await focusIosSimulatorWindow();
 }
 
 export async function closeIosApp(device: DeviceInfo, app: string): Promise<void> {
@@ -356,14 +366,19 @@ export async function reinstallIosApp(
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
+    await focusIosSimulatorWindow();
     await retryWithPolicy(
-      async () => {
+      async ({ attempt }) => {
+        if (attempt > 1) {
+          await focusIosSimulatorWindow();
+        }
         await runSimctl(device, ['io', device.id, 'screenshot', outPath]);
       },
       {
-        maxAttempts: 3,
-        baseDelayMs: 700,
-        maxDelayMs: 2_000,
+        maxAttempts: IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_ATTEMPTS,
+        baseDelayMs: IOS_SIMULATOR_SCREENSHOT_RETRY_BASE_DELAY_MS,
+        maxDelayMs: IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_DELAY_MS,
+        jitter: 0.2,
         shouldRetry: (error) => shouldRetryIosSimulatorScreenshot(error),
       },
       { phase: 'ios_simulator_screenshot' },
@@ -967,7 +982,7 @@ function isTransientSimulatorLaunchFailure(error: unknown): boolean {
 
 async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Promise<void> {
   await ensureBootedSimulator(device);
-  await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+  await focusIosSimulatorWindow();
 
   const launchDeadline = Deadline.fromTimeoutMs(IOS_APP_LAUNCH_TIMEOUT_MS);
   await retryWithPolicy(
