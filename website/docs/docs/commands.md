@@ -158,7 +158,8 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - Useful for upgrade flows where you want to keep existing app data when supported by the platform.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
-- `.ipa` installs by extracting and installing the embedded `Payload/*.app`.
+- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
 
 ## App reinstall (fresh state)
 
@@ -171,6 +172,8 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - Supports Android devices/emulators, iOS simulators, and iOS physical devices.
 - Useful for login/logout reset flows and deterministic test setup.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
+- `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
+- `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
 ## Push notification simulation
 

@@ -544,12 +544,27 @@ async function uninstallAndroidApp(
 }
 
 type BundletoolInvocation =
-  | { cmd: 'bundletool'; prefixArgs: string[] }
-  | { cmd: 'java'; prefixArgs: string[] };
+  | { cmd: 'bundletool'; prefixArgs: readonly string[] }
+  | { cmd: 'java'; prefixArgs: readonly string[] };
+
+let cachedBundletoolInvocation:
+  | { key: string; invocation: BundletoolInvocation }
+  | null = null;
+
+function bundletoolInvocationCacheKey(): string {
+  return `${process.env.PATH ?? ''}::${process.env.AGENT_DEVICE_BUNDLETOOL_JAR ?? ''}`;
+}
 
 async function resolveBundletoolInvocation(): Promise<BundletoolInvocation> {
+  const cacheKey = bundletoolInvocationCacheKey();
+  if (cachedBundletoolInvocation?.key === cacheKey) {
+    return cachedBundletoolInvocation.invocation;
+  }
+
   if (await whichCmd('bundletool')) {
-    return { cmd: 'bundletool', prefixArgs: [] };
+    const invocation = { cmd: 'bundletool', prefixArgs: [] } as const;
+    cachedBundletoolInvocation = { key: cacheKey, invocation };
+    return invocation;
   }
 
   const bundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR?.trim();
@@ -567,7 +582,9 @@ async function resolveBundletoolInvocation(): Promise<BundletoolInvocation> {
       `AGENT_DEVICE_BUNDLETOOL_JAR points to a missing file: ${bundletoolJar}`,
     );
   }
-  return { cmd: 'java', prefixArgs: ['-jar', bundletoolJar] };
+  const invocation = { cmd: 'java', prefixArgs: ['-jar', bundletoolJar] } as const;
+  cachedBundletoolInvocation = { key: cacheKey, invocation };
+  return invocation;
 }
 
 async function runBundletool(args: string[]): Promise<void> {
@@ -579,9 +596,15 @@ function isAndroidAppBundlePath(appPath: string): boolean {
   return path.extname(appPath).toLowerCase() === '.aab';
 }
 
+function resolveBundletoolBuildMode(): string {
+  const mode = process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE?.trim();
+  return mode && mode.length > 0 ? mode : 'universal';
+}
+
 async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Promise<void> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-aab-'));
   const apksPath = path.join(tempDir, 'bundle.apks');
+  const mode = resolveBundletoolBuildMode();
   try {
     await runBundletool([
       'build-apks',
@@ -590,7 +613,7 @@ async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Pro
       '--output',
       apksPath,
       '--mode',
-      'universal',
+      mode,
     ]);
     await runBundletool([
       'install-apks',
@@ -605,6 +628,9 @@ async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Pro
 }
 
 export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  if (!device.booted) {
+    await waitForAndroidBoot(device.id);
+  }
   if (isAndroidAppBundlePath(appPath)) {
     await installAndroidAppBundle(device, appPath);
     return;

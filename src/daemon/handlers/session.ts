@@ -344,7 +344,9 @@ const defaultReinstallOps: ReinstallOps = {
 const defaultInstallOps: InstallOps = {
   ios: async (device, app, appPath) => {
     const { installIosApp, resolveIosApp } = await import('../../platforms/ios/index.ts');
-    await installIosApp(device, appPath);
+    await installIosApp(device, appPath, { appIdentifierHint: app });
+    const { bundleId } = await resolveInstalledAppIdentifier(device, app);
+    if (bundleId) return { bundleId };
     try {
       return { bundleId: await resolveIosApp(device, app) };
     } catch {
@@ -352,18 +354,10 @@ const defaultInstallOps: InstallOps = {
     }
   },
   android: async (device, app, appPath) => {
-    const { installAndroidApp, resolveAndroidApp } = await import('../../platforms/android/index.ts');
-    if (!device.booted) {
-      const { waitForAndroidBoot } = await import('../../platforms/android/devices.ts');
-      await waitForAndroidBoot(device.id);
-    }
+    const { installAndroidApp } = await import('../../platforms/android/index.ts');
     await installAndroidApp(device, appPath);
-    try {
-      const resolved = await resolveAndroidApp(device, app);
-      return resolved.type === 'package' ? { package: resolved.value } : {};
-    } catch {
-      return {};
-    }
+    const { package: pkg } = await resolveInstalledAppIdentifier(device, app);
+    return pkg ? { package: pkg } : {};
   },
 };
 
@@ -475,6 +469,16 @@ async function resolveAndroidPackageForOpen(
   } catch {
     return undefined;
   }
+}
+
+async function resolveInstalledAppIdentifier(
+  device: DeviceInfo,
+  app: string,
+): Promise<{ bundleId?: string; package?: string }> {
+  if (device.platform === 'ios') {
+    return { bundleId: await tryResolveIosAppBundleId(device, app) };
+  }
+  return { package: await resolveAndroidPackageForOpen(device, app) };
 }
 
 function shouldPreserveAndroidPackageContext(
