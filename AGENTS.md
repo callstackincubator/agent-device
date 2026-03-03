@@ -28,6 +28,10 @@ Minimal operating guide for AI coding agents in this repo.
 - Surgical edits only.
 - Match existing style.
 - Remove imports/variables YOUR changes made unused; do not clean unrelated dead code.
+- Keep modules small for agent context safety:
+  - target <= 300 LOC per implementation file when practical.
+  - if a file grows past 500 LOC, plan/extract focused submodules before adding new behavior.
+  - exception: generated files, schema/fixture snapshots, and integration test aggregations.
 
 ## Routing
 - Keep `src/daemon.ts` as a thin router.
@@ -75,7 +79,7 @@ Minimal operating guide for AI coding agents in this repo.
 - Pipeline: **parse -> resolve -> act -> record selectorChain -> heal on replay**.
 - Keep selector parsing/matching in `src/daemon/selectors.ts`.
 - Call `buildSelectorChainForNode` after resolving target nodes.
-- New element-targeting interactions must support selector + `@ref`, record `selectorChain`, and hook replay healing (`healReplayAction` + `collectReplaySelectorCandidates` in `session.ts`).
+- New element-targeting interactions must support selector + `@ref`, record `selectorChain`, and hook replay healing (`healReplayAction` in `session.ts` + selector helpers in `session-replay-heal.ts`).
 - New selector keys remain centralized in `selectors.ts`.
 - New `is` predicates belong in `evaluateIsPredicate`.
 
