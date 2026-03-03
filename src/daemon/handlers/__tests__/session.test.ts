@@ -2837,3 +2837,124 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
     assert.equal(android?.ios_simulator_device_set, undefined);
   }
 });
+
+test('close --shutdown calls shutdownSimulator for iOS simulator and includes result in response', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-shutdown-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-udid-1',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  }));
+
+  const shutdownCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async () => {},
+    shutdownSimulator: async (device) => {
+      shutdownCalls.push(device.id);
+      return { success: true, exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(shutdownCalls, ['sim-udid-1']);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.session, sessionName);
+    assert.deepEqual(response.data?.shutdown, { success: true, exitCode: 0, stdout: '', stderr: '' });
+  }
+});
+
+test('close --shutdown is ignored for non-simulator iOS devices', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-shutdown-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'physical-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const shutdownCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async () => {},
+    shutdownSimulator: async (device) => {
+      shutdownCalls.push(device.id);
+      return { success: true, exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(shutdownCalls, []);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.session, sessionName);
+    assert.equal(response.data?.shutdown, undefined);
+  }
+});
+
+test('close without --shutdown does not call shutdownSimulator', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-no-shutdown-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-udid-2',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  }));
+
+  const shutdownCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async () => {},
+    shutdownSimulator: async (device) => {
+      shutdownCalls.push(device.id);
+      return { success: true, exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(shutdownCalls, []);
+  if (response && response.ok) {
+    assert.equal(response.data?.shutdown, undefined);
+  }
+});
