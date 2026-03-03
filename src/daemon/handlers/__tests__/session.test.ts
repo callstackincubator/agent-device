@@ -2958,3 +2958,58 @@ test('close without --shutdown does not call shutdownSimulator', async () => {
     assert.equal(response.data?.shutdown, undefined);
   }
 });
+
+test('close --shutdown returns success and failure payload when shutdownSimulator throws', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-shutdown-failure-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-udid-3',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  }));
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async () => {},
+    shutdownSimulator: async () => {
+      throw new AppError('COMMAND_FAILED', 'simctl shutdown failed');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    const shutdown = response.data?.shutdown as
+      | {
+        success?: boolean;
+        exitCode?: number;
+        stdout?: string;
+        stderr?: string;
+        error?: {
+          code?: string;
+          message?: string;
+        };
+      }
+      | undefined;
+    assert.equal(response.data?.session, sessionName);
+    assert.equal(shutdown?.success, false);
+    assert.equal(shutdown?.exitCode, -1);
+    assert.equal(shutdown?.stdout, '');
+    assert.equal(shutdown?.stderr, 'simctl shutdown failed');
+    assert.equal(shutdown?.error?.code, 'COMMAND_FAILED');
+    assert.equal(shutdown?.error?.message, 'simctl shutdown failed');
+  }
+});
