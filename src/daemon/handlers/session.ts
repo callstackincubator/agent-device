@@ -11,6 +11,7 @@ import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/o
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
 import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
+import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -66,6 +67,16 @@ const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
 const STARTUP_SAMPLE_DESCRIPTION =
   'Elapsed wall-clock time around dispatching the open command for the active session app target.';
 const PERF_STARTUP_SAMPLE_LIMIT = 20;
+const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
+  300,
+  0,
+);
+const IOS_SIMULATOR_POST_OPEN_SETTLE_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  300,
+  0,
+);
 
 type StartupPerfSample = {
   durationMs: number;
@@ -196,6 +207,15 @@ function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): b
 
 function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
   return typeof flags?.session === 'string' && flags.session.trim().length > 0;
+}
+
+function isIosSimulator(device: DeviceInfo): boolean {
+  return device.platform === 'ios' && device.kind === 'simulator';
+}
+
+async function settleIosSimulator(device: DeviceInfo, delayMs: number): Promise<void> {
+  if (!isIosSimulator(device) || delayMs <= 0) return;
+  await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 }
 
 function selectorTargetsSessionDevice(
@@ -992,16 +1012,21 @@ export async function handleSessionCommands(params: {
       );
       const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
       if (shouldRelaunch) {
+        if (session.device.platform === 'ios') {
+          await stopIosRunner(session.device.id);
+        }
         const closeTarget = appBundleId ?? openTarget;
         await dispatch(session.device, 'close', [closeTarget], req.flags?.out, {
           ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
         });
+        await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
       }
       const openStartedAtMs = Date.now();
       await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
       const startupSample = buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId);
+      await settleIosSimulator(session.device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
       const nextSession: SessionState = {
         ...session,
         appBundleId,
@@ -1059,16 +1084,21 @@ export async function handleSessionCommands(params: {
     const appBundleId =
       await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
     if (shouldRelaunch && openTarget) {
+      if (device.platform === 'ios') {
+        await stopIosRunner(device.id);
+      }
       const closeTarget = appBundleId ?? openTarget;
       await dispatch(device, 'close', [closeTarget], req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
       });
+      await settleIosSimulator(device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
     }
     const openStartedAtMs = Date.now();
     await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, appBundleId),
     });
     const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
+    await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
     const session: SessionState = {
       name: sessionName,
       device,
@@ -1385,15 +1415,21 @@ export async function handleSessionCommands(params: {
     if (!session) {
       return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
     }
+    let iosRunnerStopped = false;
     if (session.appLog) {
       await appLogOps.stop(session.appLog);
     }
     if (req.positionals && req.positionals.length > 0) {
+      if (session.device.platform === 'ios') {
+        await stopIosRunner(session.device.id);
+        iosRunnerStopped = true;
+      }
       await dispatch(session.device, 'close', req.positionals ?? [], req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
       });
+      await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
     }
-    if (session.device.platform === 'ios') {
+    if (session.device.platform === 'ios' && !iosRunnerStopped) {
       await stopIosRunner(session.device.id);
     }
     sessionStore.recordAction(session, {

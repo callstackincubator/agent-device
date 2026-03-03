@@ -339,7 +339,6 @@ async function stopRunnerSessionInternal(deviceId: string, sessionOverride?: Run
 
 async function ensureBooted(device: DeviceInfo): Promise<void> {
   await runCmd('xcrun', buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
-    allowFailure: true,
     timeoutMs: RUNNER_STARTUP_TIMEOUT_MS,
   });
 }
