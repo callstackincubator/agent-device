@@ -126,13 +126,8 @@ async function resolveIosInstallableAppPath(
       );
     }
 
+    await ensureIosPayloadBundleIds(appBundles);
     const hint = options?.appIdentifierHint?.trim();
-    let bundleIdsLoaded = false;
-    const loadBundleIds = async (): Promise<void> => {
-      if (bundleIdsLoaded) return;
-      await ensureIosPayloadBundleIds(appBundles);
-      bundleIdsLoaded = true;
-    };
     if (hint) {
       const hintLower = hint.toLowerCase();
       const directNameMatches = appBundles.filter((bundle) => bundle.bundleName.toLowerCase() === hintLower);
@@ -146,20 +141,17 @@ async function resolveIosInstallableAppPath(
         );
       }
       if (hint.includes('.')) {
-        await loadBundleIds();
         const bundleIdMatches = appBundles.filter((bundle) => bundle.bundleId?.toLowerCase() === hintLower);
         if (bundleIdMatches.length === 1) {
           return { installPath: bundleIdMatches[0].installPath, cleanup };
         }
       }
-      await loadBundleIds();
       throw new AppError(
         'INVALID_ARGS',
         `Invalid IPA: found ${appBundles.length} .app bundles under Payload and none matched "${hint}". Available bundles: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,
       );
     }
 
-    await loadBundleIds();
     throw new AppError(
       'INVALID_ARGS',
       `Invalid IPA: found ${appBundles.length} .app bundles under Payload. Pass an app identifier or bundle name matching one of: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,

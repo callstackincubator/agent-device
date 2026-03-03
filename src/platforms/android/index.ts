@@ -627,15 +627,19 @@ async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Pro
   }
 }
 
-export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
-  if (!device.booted) {
-    await waitForAndroidBoot(device.id);
-  }
+async function installAndroidAppFiles(device: DeviceInfo, appPath: string): Promise<void> {
   if (isAndroidAppBundlePath(appPath)) {
     await installAndroidAppBundle(device, appPath);
     return;
   }
   await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
+}
+
+export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+  if (!device.booted) {
+    await waitForAndroidBoot(device.id);
+  }
+  await installAndroidAppFiles(device, appPath);
 }
 
 export async function reinstallAndroidApp(
@@ -647,7 +651,7 @@ export async function reinstallAndroidApp(
     await waitForAndroidBoot(device.id);
   }
   const { package: pkg } = await uninstallAndroidApp(device, app);
-  await installAndroidApp(device, appPath);
+  await installAndroidAppFiles(device, appPath);
   return { package: pkg };
 }
 

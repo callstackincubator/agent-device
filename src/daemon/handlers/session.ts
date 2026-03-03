@@ -343,15 +343,10 @@ const defaultReinstallOps: ReinstallOps = {
 
 const defaultInstallOps: InstallOps = {
   ios: async (device, app, appPath) => {
-    const { installIosApp, resolveIosApp } = await import('../../platforms/ios/index.ts');
+    const { installIosApp } = await import('../../platforms/ios/index.ts');
     await installIosApp(device, appPath, { appIdentifierHint: app });
     const { bundleId } = await resolveInstalledAppIdentifier(device, app);
-    if (bundleId) return { bundleId };
-    try {
-      return { bundleId: await resolveIosApp(device, app) };
-    } catch {
-      return {};
-    }
+    return bundleId ? { bundleId } : {};
   },
   android: async (device, app, appPath) => {
     const { installAndroidApp } = await import('../../platforms/android/index.ts');
