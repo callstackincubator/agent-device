@@ -18,10 +18,12 @@ import {
 } from '../index.ts';
 import {
   shouldFallbackToRunnerForIosScreenshot,
-  shouldFallbackToRunnerForSimulatorScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from '../apps.ts';
-import { resolveSimulatorRunnerScreenshotCandidatePaths } from '../screenshot.ts';
+import {
+  captureSimulatorScreenshotWithFallback,
+  resolveSimulatorRunnerScreenshotCandidatePaths,
+} from '../screenshot.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -152,20 +154,34 @@ test('shouldRetryIosSimulatorScreenshot ignores unrelated screenshot failures', 
   assert.equal(shouldRetryIosSimulatorScreenshot(error), false);
 });
 
-test('shouldFallbackToRunnerForSimulatorScreenshot detects simulator screen-surface timeout', () => {
-  const error = new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
-    stderr: 'Timeout waiting for screen surfaces',
-    exitCode: 60,
-  });
-  assert.equal(shouldFallbackToRunnerForSimulatorScreenshot(error), true);
-});
-
-test('shouldFallbackToRunnerForSimulatorScreenshot ignores non-timeout failures', () => {
-  const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
-    stderr: 'No such process',
-    exitCode: 3,
-  });
-  assert.equal(shouldFallbackToRunnerForSimulatorScreenshot(error), false);
+test('captureSimulatorScreenshotWithFallback falls back to runner after retry exhaustion', async () => {
+  let ensureBootedCalls = 0;
+  let retryCalls = 0;
+  let runnerCalls = 0;
+  await captureSimulatorScreenshotWithFallback(
+    IOS_TEST_SIMULATOR,
+    '/tmp/out.png',
+    'com.example.app',
+    {
+      ensureBooted: async () => {
+        ensureBootedCalls += 1;
+      },
+      captureWithRetry: async () => {
+        retryCalls += 1;
+        throw new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
+          stderr: 'Timeout waiting for screen surfaces',
+          exitCode: 60,
+        });
+      },
+      captureWithRunner: async () => {
+        runnerCalls += 1;
+      },
+      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
+    },
+  );
+  assert.equal(ensureBootedCalls, 1);
+  assert.equal(retryCalls, 1);
+  assert.equal(runnerCalls, 1);
 });
 
 test('resolveSimulatorRunnerScreenshotCandidatePaths includes tmp-based and basename fallbacks', () => {

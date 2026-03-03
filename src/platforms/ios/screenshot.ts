@@ -27,18 +27,23 @@ function runSimctl(
   return runCmd('xcrun', simctlArgs(device, args), options);
 }
 
+type SimulatorScreenshotFlowDeps = {
+  ensureBooted: (device: DeviceInfo) => Promise<void>;
+  captureWithRetry: (device: DeviceInfo, outPath: string) => Promise<void>;
+  captureWithRunner: (device: DeviceInfo, outPath: string, appBundleId?: string) => Promise<void>;
+  shouldFallbackToRunner: (error: unknown) => boolean;
+};
+
+const defaultSimulatorScreenshotFlowDeps: SimulatorScreenshotFlowDeps = {
+  ensureBooted: ensureBootedSimulator,
+  captureWithRetry: captureSimulatorScreenshotWithRetry,
+  captureWithRunner: captureScreenshotViaRunner,
+  shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
+};
+
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
-    await ensureBootedSimulator(device);
-    try {
-      await captureSimulatorScreenshotWithRetry(device, outPath);
-      return;
-    } catch (error) {
-      if (!shouldFallbackToRunnerForSimulatorScreenshot(error)) {
-        throw error;
-      }
-    }
-    await captureScreenshotViaRunner(device, outPath, appBundleId);
+    await captureSimulatorScreenshotWithFallback(device, outPath, appBundleId);
     return;
   }
 
@@ -55,6 +60,28 @@ export async function screenshotIos(device: DeviceInfo, outPath: string, appBund
   }
 
   await captureScreenshotViaRunner(device, outPath, appBundleId);
+}
+
+export async function captureSimulatorScreenshotWithFallback(
+  device: DeviceInfo,
+  outPath: string,
+  appBundleId?: string,
+  deps: SimulatorScreenshotFlowDeps = defaultSimulatorScreenshotFlowDeps,
+): Promise<void> {
+  if (device.kind !== 'simulator') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'Simulator screenshot fallback flow supports only iOS simulators');
+  }
+
+  await deps.ensureBooted(device);
+  try {
+    await deps.captureWithRetry(device, outPath);
+    return;
+  } catch (error) {
+    if (!deps.shouldFallbackToRunner(error)) {
+      throw error;
+    }
+  }
+  await deps.captureWithRunner(device, outPath, appBundleId);
 }
 
 async function captureSimulatorScreenshotWithRetry(device: DeviceInfo, outPath: string): Promise<void> {
@@ -234,8 +261,4 @@ export function shouldRetryIosSimulatorScreenshot(error: unknown): boolean {
     combined.includes('timeout waiting for screen surfaces') ||
     (combined.includes('nsposixerrordomain') && combined.includes('code=60') && combined.includes('screenshot'))
   );
-}
-
-export function shouldFallbackToRunnerForSimulatorScreenshot(error: unknown): boolean {
-  return shouldRetryIosSimulatorScreenshot(error);
 }

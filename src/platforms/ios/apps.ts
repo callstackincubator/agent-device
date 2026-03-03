@@ -27,7 +27,6 @@ import { buildSimctlArgsForDevice } from './simctl.ts';
 export {
   screenshotIos,
   shouldFallbackToRunnerForIosScreenshot,
-  shouldFallbackToRunnerForSimulatorScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from './screenshot.ts';
 
