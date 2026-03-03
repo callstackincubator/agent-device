@@ -24,7 +24,12 @@ import {
 } from './devicectl.ts';
 import { ensureBootedSimulator, ensureSimulator, focusIosSimulatorWindow, getSimulatorState } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-export { screenshotIos, shouldFallbackToRunnerForIosScreenshot, shouldRetryIosSimulatorScreenshot } from './screenshot.ts';
+export {
+  screenshotIos,
+  shouldFallbackToRunnerForIosScreenshot,
+  shouldFallbackToRunnerForSimulatorScreenshot,
+  shouldRetryIosSimulatorScreenshot,
+} from './screenshot.ts';
 
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',

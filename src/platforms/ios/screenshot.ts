@@ -1,3 +1,5 @@
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
@@ -28,7 +30,15 @@ function runSimctl(
 export async function screenshotIos(device: DeviceInfo, outPath: string, appBundleId?: string): Promise<void> {
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
-    await captureSimulatorScreenshotWithRetry(device, outPath);
+    try {
+      await captureSimulatorScreenshotWithRetry(device, outPath);
+      return;
+    } catch (error) {
+      if (!shouldFallbackToRunnerForSimulatorScreenshot(error)) {
+        throw error;
+      }
+    }
+    await captureScreenshotViaRunner(device, outPath, appBundleId);
     return;
   }
 
@@ -44,7 +54,7 @@ export async function screenshotIos(device: DeviceInfo, outPath: string, appBund
     }
   }
 
-  await captureDeviceScreenshotViaRunner(device, outPath, appBundleId);
+  await captureScreenshotViaRunner(device, outPath, appBundleId);
 }
 
 async function captureSimulatorScreenshotWithRetry(device: DeviceInfo, outPath: string): Promise<void> {
@@ -67,7 +77,7 @@ async function captureSimulatorScreenshotWithRetry(device: DeviceInfo, outPath: 
   );
 }
 
-async function captureDeviceScreenshotViaRunner(
+async function captureScreenshotViaRunner(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
@@ -81,6 +91,18 @@ async function captureDeviceScreenshotViaRunner(
     throw new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot: runner returned no file path');
   }
 
+  if (device.kind === 'simulator') {
+    await copyRunnerScreenshotFromSimulator(device, remoteFileName, outPath);
+    return;
+  }
+  await copyRunnerScreenshotFromDevice(device, remoteFileName, outPath);
+}
+
+async function copyRunnerScreenshotFromDevice(
+  device: DeviceInfo,
+  remoteFileName: string,
+  outPath: string,
+): Promise<void> {
   let copyResult = { exitCode: 1, stdout: '', stderr: '' };
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
     copyResult = await runCmd(
@@ -104,14 +126,45 @@ async function captureDeviceScreenshotViaRunner(
       { allowFailure: true },
     );
     if (copyResult.exitCode === 0) {
-      break;
+      return;
     }
   }
+  const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
+  throw new AppError('COMMAND_FAILED', `Failed to capture iOS screenshot: ${copyError}`);
+}
 
-  if (copyResult.exitCode !== 0) {
-    const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
-    throw new AppError('COMMAND_FAILED', `Failed to capture iOS screenshot: ${copyError}`);
+async function copyRunnerScreenshotFromSimulator(
+  device: DeviceInfo,
+  remoteFileName: string,
+  outPath: string,
+): Promise<void> {
+  const remoteRelativePath = remoteFileName.replace(/^\/+/, '');
+  let lastError = 'Unable to locate runner container for simulator screenshot';
+  for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
+    const containerResult = await runSimctl(device, ['get_app_container', device.id, bundleId, 'data'], {
+      allowFailure: true,
+    });
+    if (containerResult.exitCode !== 0) {
+      const stderr = containerResult.stderr.trim();
+      if (stderr) {
+        lastError = stderr;
+      }
+      continue;
+    }
+    const containerPath = containerResult.stdout.trim();
+    if (!containerPath) {
+      lastError = 'simctl get_app_container returned empty output';
+      continue;
+    }
+    const sourcePath = path.join(containerPath, remoteRelativePath);
+    try {
+      await fs.copyFile(sourcePath, outPath);
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
   }
+  throw new AppError('COMMAND_FAILED', `Failed to capture iOS screenshot: ${lastError}`);
 }
 
 export function shouldFallbackToRunnerForIosScreenshot(error: unknown): boolean {
@@ -139,4 +192,8 @@ export function shouldRetryIosSimulatorScreenshot(error: unknown): boolean {
     combined.includes('timeout waiting for screen surfaces') ||
     (combined.includes('nsposixerrordomain') && combined.includes('code=60') && combined.includes('screenshot'))
   );
+}
+
+export function shouldFallbackToRunnerForSimulatorScreenshot(error: unknown): boolean {
+  return shouldRetryIosSimulatorScreenshot(error);
 }

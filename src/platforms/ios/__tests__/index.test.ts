@@ -16,7 +16,11 @@ import {
   setIosSetting,
   writeIosClipboardText,
 } from '../index.ts';
-import { shouldFallbackToRunnerForIosScreenshot, shouldRetryIosSimulatorScreenshot } from '../apps.ts';
+import {
+  shouldFallbackToRunnerForIosScreenshot,
+  shouldFallbackToRunnerForSimulatorScreenshot,
+  shouldRetryIosSimulatorScreenshot,
+} from '../apps.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
@@ -145,6 +149,22 @@ test('shouldRetryIosSimulatorScreenshot ignores unrelated screenshot failures', 
     exitCode: 2,
   });
   assert.equal(shouldRetryIosSimulatorScreenshot(error), false);
+});
+
+test('shouldFallbackToRunnerForSimulatorScreenshot detects simulator screen-surface timeout', () => {
+  const error = new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
+    stderr: 'Timeout waiting for screen surfaces',
+    exitCode: 60,
+  });
+  assert.equal(shouldFallbackToRunnerForSimulatorScreenshot(error), true);
+});
+
+test('shouldFallbackToRunnerForSimulatorScreenshot ignores non-timeout failures', () => {
+  const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
+    stderr: 'No such process',
+    exitCode: 3,
+  });
+  assert.equal(shouldFallbackToRunnerForSimulatorScreenshot(error), false);
 });
 
 test('screenshotIos retries simulator capture timeouts and eventually succeeds', async () => {
