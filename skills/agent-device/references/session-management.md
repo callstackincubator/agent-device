@@ -21,6 +21,7 @@ Sessions isolate device context. A device can only be held by one session at a t
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - For dev loops where runtime state can persist (for example React Native Fast Refresh), use `open <app> --relaunch` to restart the app process in the same session.
 - Use `--save-script [path]` to record replay scripts on `close`; path is a file path and parent directories are created automatically.
+- Use `close --shutdown` (iOS simulator only) to shut down the simulator as part of session teardown, preventing resource leakage in multi-tenant or CI workloads.
 - For ambiguous bare `--save-script` values, prefer `--save-script=workflow.ad` or `./workflow.ad`.
 - For deterministic replay scripts, prefer selector-based actions and assertions.
 - Use `replay -u` to update selector drift during maintenance.
