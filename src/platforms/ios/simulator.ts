@@ -13,6 +13,10 @@ export function ensureSimulator(device: DeviceInfo, command: string): void {
   }
 }
 
+export async function focusIosSimulatorWindow(): Promise<void> {
+  await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+}
+
 export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   if (device.kind !== 'simulator') return;
 
