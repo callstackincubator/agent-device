@@ -1,13 +1,11 @@
 import { promises as fs } from 'node:fs';
 import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
-import { normalizePlatformSelector, selectDevice, type DeviceInfo } from '../utils/device.ts';
-import { listAndroidDevices } from '../platforms/android/devices.ts';
+import type { DeviceInfo } from '../utils/device.ts';
 import {
   appSwitcherAndroid,
   backAndroid,
   dismissAndroidKeyboard,
-  ensureAdb,
   getAndroidKeyboardState,
   homeAndroid,
   pushAndroidNotification,
@@ -16,7 +14,6 @@ import {
   snapshotAndroid,
   writeAndroidClipboardText,
 } from '../platforms/android/index.ts';
-import { listIosDevices } from '../platforms/ios/devices.ts';
 import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import {
@@ -30,8 +27,18 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
-import { resolvePayloadInput } from '../utils/payload-input.ts';
-import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../utils/device-isolation.ts';
+import {
+  requireIntInRange,
+  clampIosSwipeDuration,
+  shouldUseIosTapSeries,
+  shouldUseIosDragSeries,
+  computeDeterministicJitter,
+  runRepeatedSeries,
+} from './dispatch-series.ts';
+import { readNotificationPayload } from './dispatch-payload.ts';
+
+export { resolveTargetDevice } from './dispatch-resolve.ts';
+export { shouldUseIosTapSeries, shouldUseIosDragSeries };
 
 export type BatchStep = {
   command: string;
@@ -42,58 +49,6 @@ export type BatchStep = {
 export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSteps'> & {
   batchSteps?: BatchStep[];
 };
-
-export async function resolveTargetDevice(flags: CommandFlags): Promise<DeviceInfo> {
-  const normalizedPlatform = normalizePlatformSelector(flags.platform);
-  const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(flags.iosSimulatorDeviceSet);
-  const androidSerialAllowlist = resolveAndroidSerialAllowlist(flags.androidDeviceAllowlist);
-  return await withDiagnosticTimer(
-    'resolve_target_device',
-    async () => {
-      const selector = {
-        platform: normalizedPlatform,
-        target: flags.target,
-        deviceName: flags.device,
-        udid: flags.udid,
-        serial: flags.serial,
-      };
-      if (selector.target && !selector.platform) {
-        throw new AppError(
-          'INVALID_ARGS',
-          'Device target selector requires --platform. Use --platform ios|android|apple with --target mobile|tv.',
-        );
-      }
-
-      if (selector.platform === 'android') {
-        await ensureAdb();
-        const devices = await listAndroidDevices({ serialAllowlist: androidSerialAllowlist });
-        return await selectDevice(devices, selector);
-      }
-
-      if (selector.platform === 'ios') {
-        const devices = await listIosDevices({ simulatorSetPath: iosSimulatorSetPath });
-        return await selectDevice(devices, selector);
-      }
-
-      const devices: DeviceInfo[] = [];
-      try {
-        devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
-      } catch {
-        // ignore
-      }
-      try {
-        devices.push(...(await listIosDevices({ simulatorSetPath: iosSimulatorSetPath })));
-      } catch {
-        // ignore
-      }
-      return await selectDevice(devices, selector);
-    },
-    {
-      platform: normalizedPlatform,
-      target: flags.target,
-    },
-  );
-}
 
 export async function dispatchCommand(
   device: DeviceInfo,
@@ -606,101 +561,4 @@ export async function dispatchCommand(
       platform: device.platform,
     },
   );
-}
-
-const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
-  [0, 0],
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-  [0, -1],
-  [1, 1],
-  [-1, 1],
-  [1, -1],
-  [-1, -1],
-];
-
-function requireIntInRange(value: number, name: string, min: number, max: number): number {
-  if (!Number.isFinite(value) || !Number.isInteger(value) || value < min || value > max) {
-    throw new AppError('INVALID_ARGS', `${name} must be an integer between ${min} and ${max}`);
-  }
-  return value;
-}
-
-function clampIosSwipeDuration(durationMs: number): number {
-  // Keep iOS swipes stable while allowing explicit fast durations for scroll-heavy flows.
-  return Math.min(60, Math.max(16, Math.round(durationMs)));
-}
-
-async function readNotificationPayload(payloadArg: string): Promise<Record<string, unknown>> {
-  const source = resolvePayloadInput(payloadArg, { subject: 'Push payload' });
-  const payloadText = source.kind === 'inline'
-    ? source.text
-    : await readPushPayloadFile(source.path);
-  try {
-    const parsed = JSON.parse(payloadText) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new AppError('INVALID_ARGS', 'push payload must be a JSON object');
-    }
-    return parsed as Record<string, unknown>;
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('INVALID_ARGS', `Invalid push payload JSON: ${payloadArg}`);
-  }
-}
-
-async function readPushPayloadFile(payloadPath: string): Promise<string> {
-  try {
-    return await fs.readFile(payloadPath, 'utf8');
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === 'ENOENT') {
-      throw new AppError('INVALID_ARGS', `Push payload file not found: ${payloadPath}`);
-    }
-    if (code === 'EISDIR') {
-      throw new AppError('INVALID_ARGS', `Push payload path is not a file: ${payloadPath}`);
-    }
-    if (code === 'EACCES' || code === 'EPERM') {
-      throw new AppError('INVALID_ARGS', `Push payload file is not readable: ${payloadPath}`);
-    }
-    throw new AppError('COMMAND_FAILED', `Unable to read push payload file: ${payloadPath}`, {
-      cause: String(error),
-    });
-  }
-}
-
-export function shouldUseIosTapSeries(
-  device: DeviceInfo,
-  count: number,
-  holdMs: number,
-  jitterPx: number,
-): boolean {
-  return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
-}
-
-export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {
-  return device.platform === 'ios' && count > 1;
-}
-
-function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {
-  if (jitterPx <= 0) return [0, 0];
-  const [dx, dy] = DETERMINISTIC_JITTER_PATTERN[index % DETERMINISTIC_JITTER_PATTERN.length];
-  return [dx * jitterPx, dy * jitterPx];
-}
-
-async function runRepeatedSeries(
-  count: number,
-  pauseMs: number,
-  operation: (index: number) => Promise<void>,
-): Promise<void> {
-  for (let index = 0; index < count; index += 1) {
-    await operation(index);
-    if (index < count - 1 && pauseMs > 0) {
-      await sleep(pauseMs);
-    }
-  }
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
 }
