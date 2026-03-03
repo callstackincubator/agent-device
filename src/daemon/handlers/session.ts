@@ -1588,7 +1588,25 @@ export async function handleSessionCommands(params: {
     sessionStore.writeSessionLog(session);
     sessionStore.delete(sessionName);
     if (req.flags?.shutdown && isIosSimulator(session.device)) {
-      const shutdownResult = await doShutdownSimulator(session.device);
+      let shutdownResult: {
+        success: boolean;
+        exitCode: number;
+        stdout: string;
+        stderr: string;
+        error?: ReturnType<typeof normalizeError>;
+      };
+      try {
+        shutdownResult = await doShutdownSimulator(session.device);
+      } catch (error) {
+        const normalized = normalizeError(error);
+        shutdownResult = {
+          success: false,
+          exitCode: -1,
+          stdout: '',
+          stderr: normalized.message,
+          error: normalized,
+        };
+      }
       return {
         ok: true,
         data: { session: sessionName, shutdown: shutdownResult },
