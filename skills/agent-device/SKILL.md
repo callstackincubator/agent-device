@@ -95,6 +95,8 @@ curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
 agent-device devices
 agent-device devices --platform ios --ios-simulator-device-set /tmp/tenant-a/simulators
 agent-device devices --platform android --android-device-allowlist emulator-5554,device-1234
+agent-device ensure-simulator --device "iPhone 16" --ios-simulator-device-set /tmp/tenant-a/simulators
+agent-device ensure-simulator --device "iPhone 16" --runtime com.apple.CoreSimulator.SimRuntime.iOS-18-4 --ios-simulator-device-set /tmp/tenant-a/simulators --boot
 agent-device open [app|url] [url]
 agent-device open [app] --relaunch
 agent-device close [app]
@@ -113,6 +115,12 @@ Isolation scoping quick reference:
 - `--android-device-allowlist <serials>` scopes Android discovery/selection to comma/space separated serials.
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`); out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
 - With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
+
+Simulator provisioning quick reference:
+- Use `ensure-simulator` to create or reuse a named iOS simulator inside a device set before starting a session.
+- `--device <name>` is required (e.g. `"iPhone 16 Pro"`). `--runtime <id>` pins the runtime; omit to use the newest compatible one.
+- `--boot` boots it immediately. Returns `udid`, `device`, `runtime`, `ios_simulator_device_set`, `created`, `booted`.
+- Idempotent: safe to call repeatedly; reuses an existing matching simulator by default.
 
 TV quick reference:
 - AndroidTV: `open`/`apps` use TV launcher discovery automatically.
