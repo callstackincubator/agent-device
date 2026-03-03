@@ -1,7 +1,9 @@
 import test from 'node:test';
-import { cleanupDefaultDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
+import path from 'node:path';
+import { cleanupDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
-const session = ['--session', 'android-test'];
+const stateDir = path.resolve('test/.state/android-integration');
+const session = ['--session', 'android-test', '--state-dir', stateDir];
 const settingsSectionLabels = [
   'Apps',
   'Apps & notifications',
@@ -22,9 +24,13 @@ const settingsCrashDialogSelector = settingsCrashDialogLabels
   .map((label) => (label.includes(' ') ? `label="${label}"` : `label=${label}`))
   .join(' || ');
 
+test.before(() => {
+  cleanupDaemonMetadata(stateDir);
+});
+
 test.after(() => {
   runCliJson(['close', '--platform', 'android', ...session]);
-  cleanupDefaultDaemonMetadata();
+  cleanupDaemonMetadata(stateDir);
 });
 
 test('android settings commands', () => {

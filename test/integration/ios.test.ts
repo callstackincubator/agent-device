@@ -1,19 +1,35 @@
 import test from 'node:test';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { cleanupDefaultDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
+import { cleanupDaemonMetadata, createIntegrationTestContext, runCliJson } from './test-helpers.ts';
 
-const session = ['--session', 'ios-test'];
+const stateDir = path.resolve('test/.state/ios-integration');
+const daemonState = ['--state-dir', stateDir];
+const session = ['--session', 'ios-test', ...daemonState];
 const iosTarget = ['--platform', 'ios'];
 const iosPhysicalUdid = process.env.IOS_UDID?.trim();
 let didRunIosPhysicalSession = false;
 
+test.before(() => {
+  cleanupDaemonMetadata(stateDir);
+});
+
 test.after(() => {
   runCliJson(['close', ...iosTarget, '--json', ...session]);
   if (iosPhysicalUdid && didRunIosPhysicalSession) {
-    runCliJson(['close', '--platform', 'ios', '--udid', iosPhysicalUdid, '--json', '--session', 'ios-device-test']);
+    runCliJson([
+      'close',
+      '--platform',
+      'ios',
+      '--udid',
+      iosPhysicalUdid,
+      '--json',
+      '--session',
+      'ios-device-test',
+      ...daemonState,
+    ]);
   }
-  cleanupDefaultDaemonMetadata();
+  cleanupDaemonMetadata(stateDir);
 });
 
 test('ios settings commands', { skip: shouldSkipIos() }, async () => {
@@ -100,7 +116,7 @@ test('ios physical device core lifecycle', { skip: shouldSkipIosPhysicalDevice()
     platform: 'ios',
     testName: 'ios physical device core lifecycle',
   });
-  const deviceSession = ['--session', 'ios-device-test'];
+  const deviceSession = ['--session', 'ios-device-test', ...daemonState];
   const target = ['--platform', 'ios', '--udid', iosPhysicalUdid as string];
   didRunIosPhysicalSession = true;
 

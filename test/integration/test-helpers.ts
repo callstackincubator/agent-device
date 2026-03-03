@@ -75,7 +75,11 @@ export function formatResultDebug(step: string, args: string[], result: CliJsonR
 }
 
 export function cleanupDefaultDaemonMetadata(): void {
-  const { infoPath, lockPath } = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
+  cleanupDaemonMetadata(process.env.AGENT_DEVICE_STATE_DIR);
+}
+
+export function cleanupDaemonMetadata(stateDir?: string): void {
+  const { infoPath, lockPath } = resolveDaemonPaths(stateDir);
   if (existsSync(infoPath)) {
     rmSync(infoPath, { force: true });
   }
