@@ -35,7 +35,11 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
   if (pngOffset < 0) {
     throw new AppError('COMMAND_FAILED', 'Screenshot data does not contain a valid PNG header');
   }
-  await fs.writeFile(outPath, result.stdoutBuffer.subarray(pngOffset));
+  const pngEndOffset = findPngEndOffset(result.stdoutBuffer, pngOffset);
+  if (!pngEndOffset) {
+    throw new AppError('COMMAND_FAILED', 'Screenshot data does not contain a complete PNG payload');
+  }
+  await fs.writeFile(outPath, result.stdoutBuffer.subarray(pngOffset, pngEndOffset));
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
@@ -91,6 +95,20 @@ function extractUiDumpXml(stdout: string, stderr: string): string | null {
   if (end < 0 || end < hierarchyStart) return null;
   const xml = text.slice(hierarchyStart, end + '</hierarchy>'.length).trim();
   return xml.length > 0 ? xml : null;
+}
+
+function findPngEndOffset(buffer: Buffer, pngStartOffset: number): number | null {
+  let offset = pngStartOffset + PNG_SIGNATURE.length;
+  while (offset + 8 <= buffer.length) {
+    const chunkLength = buffer.readUInt32BE(offset);
+    const chunkTypeOffset = offset + 4;
+    const chunkType = buffer.toString('ascii', chunkTypeOffset, chunkTypeOffset + 4);
+    const chunkEnd = offset + 12 + chunkLength; // len(4) + type(4) + data + crc(4)
+    if (chunkEnd > buffer.length) return null;
+    if (chunkType === 'IEND') return chunkEnd;
+    offset = chunkEnd;
+  }
+  return null;
 }
 
 function isRetryableAdbError(err: unknown): boolean {

@@ -7,7 +7,10 @@ import { screenshotAndroid } from '../index.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const FAKE_PNG = Buffer.concat([PNG_SIGNATURE, Buffer.from('fake-png-body')]);
+const VALID_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
+  'base64',
+);
 
 async function withMockedAdb(
   tempPrefix: string,
@@ -49,20 +52,31 @@ test('screenshotAndroid writes a valid PNG when output is clean', async () => {
     const outPath = path.join(tmpDir, 'out.png');
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
-    assert.deepEqual(written, FAKE_PNG);
-  }, FAKE_PNG);
+    assert.deepEqual(written, VALID_PNG);
+  }, VALID_PNG);
 });
 
 test('screenshotAndroid strips warning text before PNG signature', async () => {
   const warning =
     '[Warning] Multiple displays were found, but no display id was specified! Defaulting to the first display found.';
-  const payload = Buffer.concat([Buffer.from(warning), FAKE_PNG]);
+  const payload = Buffer.concat([Buffer.from(warning), VALID_PNG]);
 
   await withMockedAdb('screenshot-warning-', catPayload, async ({ device, tmpDir }) => {
     const outPath = path.join(tmpDir, 'out.png');
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
-    assert.deepEqual(written, FAKE_PNG);
+    assert.deepEqual(written, VALID_PNG);
+  }, payload);
+});
+
+test('screenshotAndroid strips trailing garbage after PNG payload', async () => {
+  const payload = Buffer.concat([VALID_PNG, Buffer.from('\ntrailing-warning\n')]);
+
+  await withMockedAdb('screenshot-trailing-', catPayload, async ({ device, tmpDir }) => {
+    const outPath = path.join(tmpDir, 'out.png');
+    await screenshotAndroid(device, outPath);
+    const written = await fs.readFile(outPath);
+    assert.deepEqual(written, VALID_PNG);
   }, payload);
 });
 
@@ -75,4 +89,15 @@ test('screenshotAndroid throws when output contains no PNG signature', async () 
       message: 'Screenshot data does not contain a valid PNG header',
     });
   });
+});
+
+test('screenshotAndroid throws when PNG payload is truncated', async () => {
+  const payload = VALID_PNG.subarray(0, VALID_PNG.length - 3);
+
+  await withMockedAdb('screenshot-truncated-', catPayload, async ({ device, tmpDir }) => {
+    const outPath = path.join(tmpDir, 'out.png');
+    await assert.rejects(() => screenshotAndroid(device, outPath), {
+      message: 'Screenshot data does not contain a complete PNG payload',
+    });
+  }, payload);
 });
