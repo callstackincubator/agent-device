@@ -18,6 +18,9 @@ export async function snapshotAndroid(
   return parseUiHierarchy(xml, 800, options);
 }
 
+// PNG file signature: 0x89 P N G \r \n 0x1A \n
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 export async function screenshotAndroid(device: DeviceInfo, outPath: string): Promise<void> {
   const result = await runCmd('adb', adbArgs(device, ['exec-out', 'screencap', '-p']), {
     binaryStdout: true,
@@ -25,7 +28,15 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
   if (!result.stdoutBuffer) {
     throw new AppError('COMMAND_FAILED', 'Failed to capture screenshot');
   }
-  await fs.writeFile(outPath, result.stdoutBuffer);
+  // On multi-display devices (e.g. Galaxy Z Fold), adb screencap may write a
+  // warning to stdout before the PNG data.  Strip any leading garbage by
+  // locating the PNG signature and discarding everything before it.
+  const pngOffset = result.stdoutBuffer.indexOf(PNG_SIGNATURE);
+  if (pngOffset < 0) {
+    throw new AppError('COMMAND_FAILED', 'Screenshot data does not contain a valid PNG header');
+  }
+  const pngBuffer = pngOffset > 0 ? result.stdoutBuffer.subarray(pngOffset) : result.stdoutBuffer;
+  await fs.writeFile(outPath, pngBuffer);
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
