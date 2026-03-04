@@ -35,8 +35,7 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
   if (pngOffset < 0) {
     throw new AppError('COMMAND_FAILED', 'Screenshot data does not contain a valid PNG header');
   }
-  const pngBuffer = pngOffset > 0 ? result.stdoutBuffer.subarray(pngOffset) : result.stdoutBuffer;
-  await fs.writeFile(outPath, pngBuffer);
+  await fs.writeFile(outPath, result.stdoutBuffer.subarray(pngOffset));
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {

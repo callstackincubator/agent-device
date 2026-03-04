@@ -13,11 +13,15 @@ async function withMockedAdb(
   tempPrefix: string,
   script: string,
   run: (ctx: { device: DeviceInfo; tmpDir: string }) => Promise<void>,
+  payload?: Buffer,
 ): Promise<void> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
   const adbPath = path.join(tmpDir, 'adb');
   await fs.writeFile(adbPath, script, 'utf8');
   await fs.chmod(adbPath, 0o755);
+  if (payload) {
+    await fs.writeFile(path.join(tmpDir, 'payload.bin'), payload);
+  }
 
   const previousPath = process.env.PATH;
   process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
@@ -38,36 +42,32 @@ async function withMockedAdb(
   }
 }
 
-test('screenshotAndroid writes a valid PNG when output is clean', async () => {
-  const pngHex = FAKE_PNG.toString('hex');
-  const script = `#!/bin/bash\nprintf '\\x${pngHex.match(/.{2}/g)!.join("\\x")}'\n`;
+const catPayload = '#!/bin/bash\ncat "$(dirname "$0")/payload.bin"\n';
 
-  await withMockedAdb('screenshot-clean-', script, async ({ device, tmpDir }) => {
+test('screenshotAndroid writes a valid PNG when output is clean', async () => {
+  await withMockedAdb('screenshot-clean-', catPayload, async ({ device, tmpDir }) => {
     const outPath = path.join(tmpDir, 'out.png');
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
     assert.deepEqual(written, FAKE_PNG);
-  });
+  }, FAKE_PNG);
 });
 
 test('screenshotAndroid strips warning text before PNG signature', async () => {
   const warning =
     '[Warning] Multiple displays were found, but no display id was specified! Defaulting to the first display found.';
-  const warningHex = Buffer.from(warning).toString('hex');
-  const pngHex = FAKE_PNG.toString('hex');
-  const allHex = warningHex + pngHex;
-  const script = `#!/bin/bash\nprintf '\\x${allHex.match(/.{2}/g)!.join("\\x")}'\n`;
+  const payload = Buffer.concat([Buffer.from(warning), FAKE_PNG]);
 
-  await withMockedAdb('screenshot-warning-', script, async ({ device, tmpDir }) => {
+  await withMockedAdb('screenshot-warning-', catPayload, async ({ device, tmpDir }) => {
     const outPath = path.join(tmpDir, 'out.png');
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
     assert.deepEqual(written, FAKE_PNG);
-  });
+  }, payload);
 });
 
 test('screenshotAndroid throws when output contains no PNG signature', async () => {
-  const script = `#!/bin/bash\necho "not a png"\n`;
+  const script = '#!/bin/bash\necho "not a png"\n';
 
   await withMockedAdb('screenshot-nopng-', script, async ({ device, tmpDir }) => {
     const outPath = path.join(tmpDir, 'out.png');
