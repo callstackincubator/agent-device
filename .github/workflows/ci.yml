@@ -14,6 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ios-runner-swift-compat:
+    name: iOS Runner Swift Compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Disallow trailing commas before closing parenthesis in Swift
+        run: |
+          if rg -nU --glob '*.swift' ',\s*\n\s*\)' ios-runner; then
+            echo "Found trailing commas before ')' in Swift files. This syntax requires Swift 6.1+ and breaks older Xcode toolchains."
+            exit 1
+          fi
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest
