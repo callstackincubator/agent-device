@@ -68,14 +68,14 @@ extension RunnerTests {
       let outputSettings: [String: Any] = [
         AVVideoCodecKey: AVVideoCodecType.h264,
         AVVideoWidthKey: Int(dimensions.width),
-        AVVideoHeightKey: Int(dimensions.height),
+        AVVideoHeightKey: Int(dimensions.height)
       ]
       let input = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
       input.expectsMediaDataInRealTime = true
       let attributes: [String: Any] = [
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
         kCVPixelBufferWidthKey as String: Int(dimensions.width),
-        kCVPixelBufferHeightKey as String: Int(dimensions.height),
+        kCVPixelBufferHeightKey as String: Int(dimensions.height)
       ]
       let adaptor = AVAssetWriterInputPixelBufferAdaptor(
         assetWriterInput: input,

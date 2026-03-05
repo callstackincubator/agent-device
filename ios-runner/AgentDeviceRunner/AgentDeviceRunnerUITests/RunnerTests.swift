@@ -59,7 +59,7 @@ final class RunnerTests: XCTestCase {
     .tabBar,
     .textField,
     .secureTextField,
-    .textView,
+    .textView
   ]
   // Keep blocker actions narrow to avoid false positives from generic hittable containers.
   let actionableTypes: Set<XCUIElement.ElementType> = [
@@ -68,7 +68,7 @@ final class RunnerTests: XCTestCase {
     .link,
     .menuItem,
     .checkBox,
-    .switch,
+    .switch
   ]
 
   // MARK: - XCTest Entry

@@ -310,7 +310,7 @@ extension RunnerTests {
         compact: command.compact ?? false,
         depth: command.depth,
         scope: command.scope,
-        raw: command.raw ?? false,
+        raw: command.raw ?? false
       )
       if options.raw {
         needsPostSnapshotInteractionDelay = true

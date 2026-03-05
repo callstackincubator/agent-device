@@ -82,11 +82,11 @@ extension RunnerTests {
           x: Double(rootSnapshot.frame.origin.x),
           y: Double(rootSnapshot.frame.origin.y),
           width: Double(rootSnapshot.frame.size.width),
-          height: Double(rootSnapshot.frame.size.height),
+          height: Double(rootSnapshot.frame.size.height)
         ),
         enabled: rootSnapshot.isEnabled,
         hittable: rootHittable,
-        depth: 0,
+        depth: 0
       )
     )
 
@@ -149,11 +149,11 @@ extension RunnerTests {
             x: Double(snapshot.frame.origin.x),
             y: Double(snapshot.frame.origin.y),
             width: Double(snapshot.frame.size.width),
-            height: Double(snapshot.frame.size.height),
+            height: Double(snapshot.frame.size.height)
           ),
           enabled: snapshot.isEnabled,
           hittable: hittable,
-          depth: min(maxDepth, visibleDepth),
+          depth: min(maxDepth, visibleDepth)
         )
       )
 
@@ -216,7 +216,7 @@ extension RunnerTests {
             rect: snapshotRect(from: snapshot.frame),
             enabled: snapshot.isEnabled,
             hittable: hittable,
-            depth: depth,
+            depth: depth
           )
         )
       }

@@ -19,7 +19,7 @@ extension RunnerTests {
       if buffer.count + data.count > self.maxRequestBytes {
         let response = self.jsonResponse(
           status: 413,
-          response: Response(ok: false, error: ErrorPayload(message: "request too large")),
+          response: Response(ok: false, error: ErrorPayload(message: "request too large"))
         )
         connection.send(content: response, completion: .contentProcessed { [weak self] _ in
           connection.cancel()
@@ -111,7 +111,7 @@ extension RunnerTests {
       "Content-Length: \(body.utf8.count)",
       "Connection: close",
       "",
-      body,
+      body
     ].joined(separator: "\r\n")
     return Data(headers.utf8)
   }
