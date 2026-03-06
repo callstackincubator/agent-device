@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
+import { resolveDaemonPaths } from '../daemon/config.ts';
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -74,6 +78,33 @@ test('cli forwards --debug as verbose/debug metadata', async () => {
   assert.equal(result.calls[0]?.meta?.debug, true);
   assert.equal(result.calls[0]?.meta?.cwd, process.cwd());
   assert.equal(typeof result.calls[0]?.meta?.requestId, 'string');
+});
+
+test('cli does not tail local daemon log when remote daemon base URL is set', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-remote-'));
+  const daemonPaths = resolveDaemonPaths(stateDir);
+  fs.mkdirSync(path.dirname(daemonPaths.logPath), { recursive: true });
+  fs.writeFileSync(daemonPaths.logPath, 'REMOTE_TAIL_SENTINEL\n', 'utf8');
+
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+
+  try {
+    const result = await runCliCapture(['clipboard', 'write', 'hello', '--debug', '--state-dir', stateDir], async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        ok: true,
+        data: { action: 'write' },
+      };
+    });
+    assert.equal(result.code, null);
+    assert.equal(result.stdout.includes('REMOTE_TAIL_SENTINEL'), false);
+    assert.match(result.stdout, /Clipboard updated/);
+  } finally {
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 test('cli returns normalized JSON failures with diagnostics fields', async () => {

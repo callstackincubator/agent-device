@@ -32,6 +32,8 @@ agent-device app-switcher
 - `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
+- Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
+- Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP.
 
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser

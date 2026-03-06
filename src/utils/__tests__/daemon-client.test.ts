@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,6 +12,7 @@ import {
   resolveDaemonStartupAttempts,
   resolveDaemonStartupHint,
   resolveDaemonStartupTimeoutMs,
+  sendToDaemon,
 } from '../../daemon-client.ts';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import {
@@ -72,6 +75,121 @@ test('resolveDaemonStartupHint includes configured state directory paths', () =>
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true }, paths);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.lock/);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.json/);
+});
+
+test('sendToDaemon uses explicit remote daemon base URL and auth token', async () => {
+  let authHeader = '';
+  let tokenHeader = '';
+  let rpcRequest: Record<string, unknown> | null = null;
+  const seenPaths: string[] = [];
+  const originalHttpRequest = http.request;
+  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
+    const req = new EventEmitter() as EventEmitter & {
+      write: (chunk: string) => void;
+      end: () => void;
+      destroy: () => void;
+    };
+    let body = '';
+    req.write = (chunk: string) => {
+      body += chunk;
+    };
+    req.destroy = () => {
+      req.emit('close');
+    };
+    req.end = () => {
+      seenPaths.push(String(options.path ?? ''));
+      if (options.method === 'GET') {
+        const res = new EventEmitter() as EventEmitter & {
+          statusCode?: number;
+          resume: () => void;
+          setEncoding: (_encoding: string) => void;
+        };
+        res.statusCode = 200;
+        res.resume = () => {};
+        res.setEncoding = () => {};
+        process.nextTick(() => {
+          callback(res);
+          res.emit('end');
+        });
+        return;
+      }
+
+      authHeader = String(options.headers?.authorization ?? '');
+      tokenHeader = String(options.headers?.['x-agent-device-token'] ?? '');
+      rpcRequest = JSON.parse(body) as Record<string, unknown>;
+      const res = new EventEmitter() as EventEmitter & {
+        statusCode?: number;
+        setEncoding: (_encoding: string) => void;
+      };
+      res.statusCode = 200;
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        callback(res);
+        res.emit('data', JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'req-remote',
+          result: {
+            ok: true,
+            data: { source: 'remote-daemon' },
+          },
+        }));
+        res.emit('end');
+      });
+    };
+    return req as any;
+  }) as typeof http.request;
+
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
+
+  try {
+    const response = await sendToDaemon({
+      session: 'default',
+      command: 'remote-smoke',
+      positionals: ['ping'],
+      flags: {},
+      meta: { requestId: 'req-remote' },
+    });
+
+    assert.equal(response.ok, true);
+    assert.deepEqual(response.data, { source: 'remote-daemon' });
+    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
+    assert.equal(authHeader, 'Bearer remote-secret');
+    assert.equal(tokenHeader, 'remote-secret');
+    assert.equal((rpcRequest as any)?.method, 'agent_device.command');
+    assert.equal((rpcRequest as any)?.params?.command, 'remote-smoke');
+    assert.deepEqual((rpcRequest as any)?.params?.positionals, ['ping']);
+    assert.equal((rpcRequest as any)?.params?.token, 'remote-secret');
+  } finally {
+    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+});
+
+test('sendToDaemon rejects socket transport when remote daemon base URL is set', async () => {
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://127.0.0.1:4310/agent-device';
+
+  try {
+    await assert.rejects(
+      async () => await sendToDaemon({
+        session: 'default',
+        command: 'remote-smoke',
+        positionals: [],
+        flags: { daemonTransport: 'socket' },
+        meta: { requestId: 'req-remote-socket' },
+      }),
+      /only supports HTTP transport/,
+    );
+  } finally {
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+  }
 });
 
 test('computeDaemonCodeSignature includes relative path, size, and mtime', () => {

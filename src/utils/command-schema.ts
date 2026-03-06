@@ -3,6 +3,8 @@ import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 export type CliFlags = {
   json: boolean;
   stateDir?: string;
+  daemonBaseUrl?: string;
+  daemonAuthToken?: string;
   daemonTransport?: 'auto' | 'socket' | 'http';
   daemonServerMode?: 'socket' | 'http' | 'dual';
   tenant?: string;
@@ -105,6 +107,20 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--state-dir <path>',
     usageDescription: 'Daemon state directory (defaults to ~/.agent-device)',
+  },
+  {
+    key: 'daemonBaseUrl',
+    names: ['--daemon-base-url'],
+    type: 'string',
+    usageLabel: '--daemon-base-url <url>',
+    usageDescription: 'Explicit remote HTTP daemon base URL (skip local daemon discovery/startup)',
+  },
+  {
+    key: 'daemonAuthToken',
+    names: ['--daemon-auth-token'],
+    type: 'string',
+    usageLabel: '--daemon-auth-token <token>',
+    usageDescription: 'Remote HTTP daemon auth token (sent as request token and bearer header)',
   },
   {
     key: 'daemonTransport',
@@ -478,6 +494,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
 export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'json',
   'stateDir',
+  'daemonBaseUrl',
+  'daemonAuthToken',
   'daemonTransport',
   'daemonServerMode',
   'tenant',

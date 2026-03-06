@@ -1,5 +1,6 @@
 import net from 'node:net';
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
@@ -32,6 +33,7 @@ type DaemonInfo = {
   version?: string;
   codeSignature?: string;
   processStartTime?: string;
+  baseUrl?: string;
 };
 
 type DaemonLockInfo = {
@@ -49,6 +51,8 @@ type DaemonClientSettings = {
   paths: DaemonPaths;
   transportPreference: DaemonTransportPreference;
   serverMode: DaemonServerMode;
+  remoteBaseUrl?: string;
+  remoteAuthToken?: string;
 };
 
 const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
@@ -102,8 +106,19 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
 
 function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {
   const stateDir = req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR;
+  const remoteBaseUrl = resolveRemoteDaemonBaseUrl(
+    req.flags?.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL,
+  );
+  const remoteAuthToken = req.flags?.daemonAuthToken ?? process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
   const rawTransport = req.flags?.daemonTransport ?? process.env.AGENT_DEVICE_DAEMON_TRANSPORT;
   const transportPreference = resolveDaemonTransportPreference(rawTransport);
+  if (remoteBaseUrl && transportPreference === 'socket') {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Remote daemon base URL only supports HTTP transport. Remove --daemon-transport socket.',
+      { daemonBaseUrl: remoteBaseUrl },
+    );
+  }
   const rawServerMode =
     req.flags?.daemonServerMode
     ?? process.env.AGENT_DEVICE_DAEMON_SERVER_MODE
@@ -113,10 +128,26 @@ function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientS
     paths: resolveDaemonPaths(stateDir),
     transportPreference,
     serverMode,
+    remoteBaseUrl,
+    remoteAuthToken,
   };
 }
 
 async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo> {
+  if (settings.remoteBaseUrl) {
+    const remoteInfo: DaemonInfo = {
+      transport: 'http',
+      token: settings.remoteAuthToken ?? '',
+      pid: 0,
+      baseUrl: settings.remoteBaseUrl,
+    };
+    if (await canConnect(remoteInfo, 'http')) return remoteInfo;
+    throw new AppError('COMMAND_FAILED', 'Remote daemon is unavailable', {
+      daemonBaseUrl: settings.remoteBaseUrl,
+      hint: 'Verify AGENT_DEVICE_DAEMON_BASE_URL points to a reachable daemon with GET /health and POST /rpc.',
+    });
+  }
+
   const existing = readDaemonInfo(settings.paths.infoPath);
   const localVersion = readVersion();
   const localCodeSignature = resolveLocalDaemonCodeSignature();
@@ -292,7 +323,7 @@ function removeFileIfExists(filePath: string): void {
 async function canConnect(info: DaemonInfo, preference: DaemonTransportPreference): Promise<boolean> {
   const transport = chooseTransport(info, preference);
   if (transport === 'http') {
-    return await canConnectHttp(info.httpPort);
+    return await canConnectHttp(info);
   }
   return await canConnectSocket(info.port);
 }
@@ -310,14 +341,22 @@ function canConnectSocket(port: number | undefined): Promise<boolean> {
   });
 }
 
-function canConnectHttp(httpPort: number | undefined): Promise<boolean> {
-  if (!httpPort) return Promise.resolve(false);
+function canConnectHttp(info: DaemonInfo): Promise<boolean> {
+  const endpoint = info.baseUrl
+    ? buildDaemonHttpUrl(info.baseUrl, 'health')
+    : info.httpPort
+      ? `http://127.0.0.1:${info.httpPort}/health`
+      : null;
+  if (!endpoint) return Promise.resolve(false);
+  const url = new URL(endpoint);
+  const transport = url.protocol === 'https:' ? https : http;
   return new Promise((resolve) => {
-    const req = http.request(
+    const req = transport.request(
       {
-        host: '127.0.0.1',
-        port: httpPort,
-        path: '/health',
+        protocol: url.protocol,
+        host: url.hostname,
+        port: url.port,
+        path: url.pathname + url.search,
         method: 'GET',
         timeout: 500,
       },
@@ -402,6 +441,14 @@ async function sendRequest(
 }
 
 function chooseTransport(info: DaemonInfo, preference: DaemonTransportPreference): 'socket' | 'http' {
+  if (info.baseUrl) {
+    if (preference === 'socket') {
+      throw new AppError('COMMAND_FAILED', 'Remote daemon endpoint only supports HTTP transport', {
+        daemonBaseUrl: info.baseUrl,
+      });
+    }
+    return 'http';
+  }
   if (preference === 'http') {
     if (!info.httpPort) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
     return 'http';
@@ -499,27 +546,38 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
 }
 
 async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
-  const httpPort = info.httpPort;
-  if (!httpPort) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
+  const rpcUrl = info.baseUrl
+    ? new URL(buildDaemonHttpUrl(info.baseUrl, 'rpc'))
+    : info.httpPort
+      ? new URL(`http://127.0.0.1:${info.httpPort}/rpc`)
+      : null;
+  if (!rpcUrl) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
   const rpcPayload = JSON.stringify({
     jsonrpc: '2.0',
     id: req.meta?.requestId ?? createRequestId(),
     method: 'agent_device.command',
     params: req,
   });
+  const headers: Record<string, string | number> = {
+    'content-type': 'application/json',
+    'content-length': Buffer.byteLength(rpcPayload),
+  };
+  if (info.baseUrl && info.token) {
+    headers.authorization = `Bearer ${info.token}`;
+    headers['x-agent-device-token'] = info.token;
+  }
 
   return await new Promise((resolve, reject) => {
     const statePaths = resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
-    const request = http.request(
+    const transport = rpcUrl.protocol === 'https:' ? https : http;
+    const request = transport.request(
       {
-        host: '127.0.0.1',
-        port: httpPort,
+        protocol: rpcUrl.protocol,
+        host: rpcUrl.hostname,
+        port: rpcUrl.port,
         method: 'POST',
-        path: '/rpc',
-        headers: {
-          'content-type': 'application/json',
-          'content-length': Buffer.byteLength(rpcPayload),
-        },
+        path: rpcUrl.pathname + rpcUrl.search,
+        headers,
       },
       (res) => {
         let body = '';
@@ -578,8 +636,10 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
 
     const timeout = setTimeout(() => {
       request.destroy();
-      const cleanup = cleanupTimedOutIosRunnerBuilds();
-      const daemonReset = resetDaemonAfterTimeout(info, statePaths);
+      const cleanup = isRemoteDaemon(info) ? { terminated: 0 } : cleanupTimedOutIosRunnerBuilds();
+      const daemonReset = isRemoteDaemon(info)
+        ? { forcedKill: false }
+        : resetDaemonAfterTimeout(info, statePaths);
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -589,15 +649,18 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
           command: req.command,
           timedOutRunnerPidsTerminated: cleanup.terminated,
           timedOutRunnerCleanupError: cleanup.error,
-          daemonPidReset: info.pid,
-          daemonPidForceKilled: daemonReset.forcedKill,
+          daemonPidReset: isRemoteDaemon(info) ? undefined : info.pid,
+          daemonPidForceKilled: isRemoteDaemon(info) ? undefined : daemonReset.forcedKill,
+          daemonBaseUrl: info.baseUrl,
         },
       });
       reject(
         new AppError('COMMAND_FAILED', 'Daemon request timed out', {
           timeoutMs: REQUEST_TIMEOUT_MS,
           requestId: req.meta?.requestId,
-          hint: 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
+          hint: isRemoteDaemon(info)
+            ? 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.'
+            : 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
         }),
       );
     }, REQUEST_TIMEOUT_MS);
@@ -618,7 +681,9 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
           'Failed to communicate with daemon',
           {
             requestId: req.meta?.requestId,
-            hint: 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
+            hint: isRemoteDaemon(info)
+              ? 'Retry command. If this persists, verify the remote daemon URL, auth token, and remote host reachability.'
+              : 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
           },
           err,
         ),
@@ -664,6 +729,33 @@ function resetDaemonAfterTimeout(info: DaemonInfo, paths: DaemonPaths): { forced
     removeDaemonLock(paths.lockPath);
   }
   return { forcedKill };
+}
+
+function isRemoteDaemon(info: DaemonInfo): boolean {
+  return typeof info.baseUrl === 'string' && info.baseUrl.length > 0;
+}
+
+function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch (error) {
+    throw new AppError('INVALID_ARGS', 'Invalid daemon base URL', {
+      daemonBaseUrl: raw,
+    }, error instanceof Error ? error : undefined);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new AppError('INVALID_ARGS', 'Daemon base URL must use http or https', {
+      daemonBaseUrl: raw,
+    });
+  }
+  return parsed.toString().replace(/\/+$/, '');
+}
+
+function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL(route, normalizedBase).toString();
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {

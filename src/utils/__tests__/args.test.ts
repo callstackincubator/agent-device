@@ -108,6 +108,10 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
     'settings',
     '--state-dir',
     './tmp/ad-state',
+    '--daemon-base-url',
+    'https://remote-mac.example.test:7777/agent-device',
+    '--daemon-auth-token',
+    'remote-secret',
     '--daemon-transport',
     'http',
     '--daemon-server-mode',
@@ -122,6 +126,8 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
     'abcd1234ef567890',
   ], { strictFlags: true });
   assert.equal(parsed.flags.stateDir, './tmp/ad-state');
+  assert.equal(parsed.flags.daemonBaseUrl, 'https://remote-mac.example.test:7777/agent-device');
+  assert.equal(parsed.flags.daemonAuthToken, 'remote-secret');
   assert.equal(parsed.flags.daemonTransport, 'http');
   assert.equal(parsed.flags.daemonServerMode, 'dual');
   assert.equal(parsed.flags.tenant, 'team_alpha');

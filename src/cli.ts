@@ -99,7 +99,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
-      const logTailStopper = flags.verbose && !flags.json ? startDaemonLogTail(daemonPaths.logPath) : null;
+      const remoteDaemonBaseUrl = flags.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+      const logTailStopper = flags.verbose && !flags.json && !remoteDaemonBaseUrl
+        ? startDaemonLogTail(daemonPaths.logPath)
+        : null;
       const sendDaemonRequest = async (payload: { command: string; positionals: string[]; flags?: Record<string, unknown> }) =>
         await deps.sendToDaemon({
           session: sessionName,
