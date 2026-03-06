@@ -82,6 +82,7 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
   let tokenHeader = '';
   let rpcRequest: Record<string, unknown> | null = null;
   const seenPaths: string[] = [];
+  let healthcheckTimeout: number | undefined;
   const originalHttpRequest = http.request;
   (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
     const req = new EventEmitter() as EventEmitter & {
@@ -99,6 +100,7 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
     req.end = () => {
       seenPaths.push(String(options.path ?? ''));
       if (options.method === 'GET') {
+        healthcheckTimeout = Number(options.timeout);
         const res = new EventEmitter() as EventEmitter & {
           statusCode?: number;
           resume: () => void;
@@ -156,6 +158,7 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
     assert.equal(response.ok, true);
     assert.deepEqual(response.data, { source: 'remote-daemon' });
     assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
+    assert.equal(healthcheckTimeout, 3000);
     assert.equal(authHeader, 'Bearer remote-secret');
     assert.equal(tokenHeader, 'remote-secret');
     assert.equal((rpcRequest as any)?.method, 'agent_device.command');

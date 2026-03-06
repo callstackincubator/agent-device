@@ -60,6 +60,8 @@ const DAEMON_STARTUP_TIMEOUT_MS = resolveDaemonStartupTimeoutMs();
 const DAEMON_STARTUP_ATTEMPTS = resolveDaemonStartupAttempts();
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
+const LOCAL_DAEMON_HEALTHCHECK_TIMEOUT_MS = 500;
+const REMOTE_DAEMON_HEALTHCHECK_TIMEOUT_MS = 3000;
 const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
   'xcodebuild .*AgentDeviceRunnerUITests/RunnerTests/testCommand',
   'xcodebuild .*AgentDeviceRunner\\.env\\.session-',
@@ -137,6 +139,7 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
   if (settings.remoteBaseUrl) {
     const remoteInfo: DaemonInfo = {
       transport: 'http',
+      // Remote mode reuses the auth token as the daemon token so the existing JSON-RPC contract still works.
       token: settings.remoteAuthToken ?? '',
       pid: 0,
       baseUrl: settings.remoteBaseUrl,
@@ -350,6 +353,7 @@ function canConnectHttp(info: DaemonInfo): Promise<boolean> {
   if (!endpoint) return Promise.resolve(false);
   const url = new URL(endpoint);
   const transport = url.protocol === 'https:' ? https : http;
+  const timeoutMs = info.baseUrl ? REMOTE_DAEMON_HEALTHCHECK_TIMEOUT_MS : LOCAL_DAEMON_HEALTHCHECK_TIMEOUT_MS;
   return new Promise((resolve) => {
     const req = transport.request(
       {
@@ -358,7 +362,7 @@ function canConnectHttp(info: DaemonInfo): Promise<boolean> {
         port: url.port,
         path: url.pathname + url.search,
         method: 'GET',
-        timeout: 500,
+        timeout: timeoutMs,
       },
       (res) => {
         res.resume();
@@ -442,6 +446,7 @@ async function sendRequest(
 
 function chooseTransport(info: DaemonInfo, preference: DaemonTransportPreference): 'socket' | 'http' {
   if (info.baseUrl) {
+    // Defensive guard: resolveClientSettings rejects this earlier for normal CLI flow.
     if (preference === 'socket') {
       throw new AppError('COMMAND_FAILED', 'Remote daemon endpoint only supports HTTP transport', {
         daemonBaseUrl: info.baseUrl,
@@ -754,6 +759,7 @@ function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined
 }
 
 function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
+  // URL(base, relative) treats a base without trailing slash as a file path, so normalize to a directory-like base.
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return new URL(route, normalizedBase).toString();
 }

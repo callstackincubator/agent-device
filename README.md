@@ -237,7 +237,7 @@ Flags:
 - `--session <name>`
 - `--state-dir <path>` daemon state directory override (default: `~/.agent-device`)
 - `--daemon-base-url <url>` explicit remote HTTP daemon base URL; skips local daemon discovery/startup
-- `--daemon-auth-token <token>` remote HTTP daemon auth token; sent as request token and `Authorization: Bearer`
+- `--daemon-auth-token <token>` remote HTTP daemon auth token; sent in both the JSON-RPC request token and HTTP auth headers (`Authorization: Bearer` and `x-agent-device-token`)
 - `--daemon-transport auto|socket|http` daemon client transport preference
 - `--daemon-server-mode socket|http|dual` daemon server mode (`http` and `dual` expose JSON-RPC over HTTP at `/rpc`)
 - `--tenant <id>` tenant identifier used with session isolation
@@ -517,7 +517,7 @@ Environment selectors:
 - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=<ms>` to override daemon request timeout (default `90000`). Increase for slow physical-device setup (for example `120000`).
 - `AGENT_DEVICE_STATE_DIR=<path>` override daemon state directory (metadata, logs, session artifacts).
 - `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]` connect directly to a remote HTTP daemon and skip local daemon metadata/startup.
-- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>` auth token for remote HTTP daemon mode; sent as request token plus `Authorization: Bearer` / `x-agent-device-token`.
+- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>` auth token for remote HTTP daemon mode; sent in both the JSON-RPC request token and HTTP auth headers (`Authorization: Bearer` and `x-agent-device-token`).
 - `AGENT_DEVICE_DAEMON_SERVER_MODE=socket|http|dual` daemon server mode. `http` and `dual` expose JSON-RPC 2.0 at `POST /rpc` (`GET /health` available for liveness).
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
 - `AGENT_DEVICE_HTTP_AUTH_HOOK=<module-path>` optional HTTP auth hook module path for JSON-RPC server mode.
