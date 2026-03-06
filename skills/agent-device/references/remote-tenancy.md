@@ -6,7 +6,12 @@ tenant/run admission control.
 ## Transport prerequisites
 
 - Start daemon in HTTP mode (`AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual`).
-- Use a token from daemon metadata or `Authorization: Bearer <token>`.
+- Point remote clients at the host with `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]`
+  or `--daemon-base-url <url>` so the CLI skips local daemon discovery/startup.
+- Use `AGENT_DEVICE_DAEMON_AUTH_TOKEN` / `--daemon-auth-token` when the client should send the
+  shared daemon token automatically.
+- Direct JSON-RPC callers can use a token in params, `Authorization: Bearer <token>`, or
+  `x-agent-device-token`.
 - Prefer an auth hook (`AGENT_DEVICE_HTTP_AUTH_HOOK`) for caller validation and
   tenant injection.
 
@@ -21,7 +26,7 @@ Use `POST /rpc` with JSON-RPC 2.0 methods:
 Example allocate:
 
 ```bash
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"alloc-1","method":"agent_device.lease.allocate","params":{"tenantId":"acme","runId":"run-123","ttlMs":60000}}'
@@ -30,7 +35,7 @@ curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
 Example heartbeat:
 
 ```bash
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"hb-1","method":"agent_device.lease.heartbeat","params":{"leaseId":"<lease-id>","ttlMs":60000}}'
@@ -39,7 +44,7 @@ curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
 Example release:
 
 ```bash
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
@@ -50,7 +55,7 @@ curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
 For tenant-isolated command execution, pass all four flags:
 
 ```bash
-agent-device --daemon-transport http \
+agent-device \
   --tenant acme \
   --session-isolation tenant \
   --run-id run-123 \
@@ -59,6 +64,9 @@ agent-device --daemon-transport http \
 ```
 
 Admission checks require tenant/run/lease scope alignment.
+
+The CLI sends `AGENT_DEVICE_DAEMON_AUTH_TOKEN` in both the JSON-RPC request token field and HTTP
+auth headers so existing daemon auth paths continue to work.
 
 ## Failure semantics
 
@@ -70,6 +78,8 @@ Admission checks require tenant/run/lease scope alignment.
 
 - Keep TTL short and heartbeat only while a run is active.
 - Release lease immediately on run completion/error paths.
+- For remote debug sessions, inspect logs on the remote host; client-side `--debug` no longer tails
+  a local daemon log when `AGENT_DEVICE_DAEMON_BASE_URL` is set.
 - For bounded hosts, configure:
   - `AGENT_DEVICE_MAX_SIMULATOR_LEASES`
   - `AGENT_DEVICE_LEASE_TTL_MS`

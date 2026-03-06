@@ -25,7 +25,7 @@ Use this skill as a router, not a full manual.
 - Normal UI task: `open` -> `snapshot -i` -> `press/fill` -> `diff snapshot -i` -> `close`
 - Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
-- Remote multi-tenant run: allocate lease -> run commands with tenant isolation flags -> heartbeat/release lease
+- Remote multi-tenant run: allocate lease -> point client at remote daemon base URL -> run commands with tenant isolation flags -> heartbeat/release lease
 - Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only
 
 ## Canonical Flows
@@ -62,14 +62,18 @@ agent-device replay -u ./session.ad
 ### 4) Remote Tenant Lease Flow (HTTP JSON-RPC)
 
 ```bash
+# Client points directly at the remote daemon HTTP base URL.
+export AGENT_DEVICE_DAEMON_BASE_URL=http://mac-host.example:4310
+export AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>
+
 # Allocate lease
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"alloc-1","method":"agent_device.lease.allocate","params":{"runId":"run-123","tenantId":"acme","ttlMs":60000}}'
 
 # Use lease in tenant-isolated command execution
-agent-device --daemon-transport http \
+agent-device \
   --tenant acme \
   --session-isolation tenant \
   --run-id run-123 \
@@ -77,15 +81,20 @@ agent-device --daemon-transport http \
   session list --json
 
 # Heartbeat and release
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"hb-1","method":"agent_device.lease.heartbeat","params":{"leaseId":"<lease-id>","ttlMs":60000}}'
-curl -sS http://127.0.0.1:${AGENT_DEVICE_DAEMON_HTTP_PORT}/rpc \
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -H "content-type: application/json" \
   -H "Authorization: Bearer <token>" \
   -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
 ```
+
+Notes:
+- `AGENT_DEVICE_DAEMON_BASE_URL` makes the CLI skip local daemon discovery/startup and call the remote HTTP daemon directly.
+- `AGENT_DEVICE_DAEMON_AUTH_TOKEN` is sent in both the JSON-RPC request token and HTTP auth headers.
+- In remote daemon mode, `--debug` does not tail a local `daemon.log`; inspect logs on the remote host instead.
 
 ## Command Skeleton (Minimal)
 
@@ -208,6 +217,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Use short lease TTLs and heartbeat only while work is active; release leases immediately after run completion/failure.
 - Env equivalents for scoped runs: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat `IOS_SIMULATOR_DEVICE_SET`) and
   `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat `ANDROID_DEVICE_ALLOWLIST`).
+- For explicit remote client mode, prefer `AGENT_DEVICE_DAEMON_BASE_URL` / `--daemon-base-url` instead of relying on local daemon metadata or loopback-only ports.
 
 ## Security and Trust Notes
 
@@ -215,7 +225,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - If install is required, pin an exact version (for example: `npx --yes agent-device@<exact-version> --help`).
 - Signing/provisioning environment variables are optional, sensitive, and only for iOS physical-device setup.
 - Logs/artifacts are written under `~/.agent-device`; replay scripts write to explicit paths you provide.
-- For remote daemon mode, prefer `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual` with `AGENT_DEVICE_HTTP_AUTH_HOOK` and tenant-scoped lease admission.
+- For remote daemon mode, prefer `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual` on the host plus client-side `AGENT_DEVICE_DAEMON_BASE_URL`, with `AGENT_DEVICE_HTTP_AUTH_HOOK` and tenant-scoped lease admission where needed.
 - Keep logging off unless debugging and use least-privilege/isolated environments for autonomous runs.
 
 ## Common Mistakes
