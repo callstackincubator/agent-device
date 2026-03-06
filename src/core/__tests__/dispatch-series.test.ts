@@ -163,14 +163,21 @@ test('runRepeatedSeries does not invoke operation when count is 0', async () => 
   assert.deepEqual(indices, []);
 });
 
-test('runRepeatedSeries pauses between operations but not after the last', async () => {
+test('runRepeatedSeries pauses between operations but not after the last', async (t) => {
+  const timeoutDelays: number[] = [];
+  t.mock.method(globalThis, 'setTimeout', (cb: () => void, ms: number) => {
+    timeoutDelays.push(ms);
+    cb();
+    return 0;
+  });
   const pauseMs = 50;
-  const start = Date.now();
-  await runRepeatedSeries(3, pauseMs, async () => {});
-  const elapsed = Date.now() - start;
+  const calls: number[] = [];
+  await runRepeatedSeries(3, pauseMs, async (i) => {
+    calls.push(i);
+  });
+  assert.deepEqual(calls, [0, 1, 2]);
   // 3 operations with pauses only between them = 2 pauses
-  assert.ok(elapsed >= pauseMs * 2 - 10, `elapsed ${elapsed}ms should be >= ${pauseMs * 2 - 10}ms`);
-  assert.ok(elapsed < pauseMs * 3 + 50, `elapsed ${elapsed}ms should be < ${pauseMs * 3 + 50}ms`);
+  assert.deepEqual(timeoutDelays, [pauseMs, pauseMs]);
 });
 
 test('runRepeatedSeries propagates operation error and stops iteration', async () => {
