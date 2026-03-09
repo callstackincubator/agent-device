@@ -107,6 +107,9 @@ export async function waitForRunner(
             );
             return response;
           } catch (err) {
+            if (signal?.aborted || isRequestCanceledError(err)) {
+              throw new AppError('COMMAND_FAILED', 'request canceled');
+            }
             lastError = err;
           }
         }
@@ -126,9 +129,16 @@ export async function waitForRunner(
       { deadline, phase: 'ios_runner_connect', signal },
     );
   } catch (error) {
+    if (signal?.aborted || isRequestCanceledError(error)) {
+      throw new AppError('COMMAND_FAILED', 'request canceled');
+    }
     if (!lastError) {
       lastError = error;
     }
+  }
+
+  if (signal?.aborted) {
+    throw new AppError('COMMAND_FAILED', 'request canceled');
   }
 
   if (device.kind === 'simulator') {
@@ -141,6 +151,10 @@ export async function waitForRunner(
   }
 
   throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
+}
+
+function isRequestCanceledError(error: unknown): boolean {
+  return error instanceof AppError && error.code === 'COMMAND_FAILED' && error.message === 'request canceled';
 }
 
 async function resolveRunnerCommandEndpoints(
