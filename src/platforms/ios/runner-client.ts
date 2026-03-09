@@ -6,6 +6,7 @@ import {
   shouldRetryRunnerConnectError,
   isReadOnlyRunnerCommand,
   assertRunnerRequestActive,
+  resolveRequestSignal,
 } from './runner-errors.ts';
 import { waitForRunner, RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
 import {
@@ -93,6 +94,7 @@ async function executeRunnerCommand(
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
   assertRunnerRequestActive(options.requestId);
+  const signal = resolveRequestSignal(options.requestId);
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);
@@ -103,6 +105,7 @@ async function executeRunnerCommand(
       command,
       options.logPath,
       timeoutMs,
+      signal,
     );
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
@@ -126,6 +129,8 @@ async function executeRunnerCommand(
         command,
         options.logPath,
         RUNNER_STARTUP_TIMEOUT_MS,
+        undefined,
+        signal,
       );
       return await parseRunnerResponse(response, session, options.logPath);
     }

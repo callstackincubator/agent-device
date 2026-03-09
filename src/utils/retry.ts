@@ -91,6 +91,7 @@ export async function retryWithPolicy<T>(
   options: {
     deadline?: Deadline;
     phase?: string;
+    signal?: AbortSignal;
     classifyReason?: (error: unknown) => string | undefined;
     onEvent?: (event: RetryTelemetryEvent) => void;
   } = {},
@@ -104,6 +105,9 @@ export async function retryWithPolicy<T>(
   };
   let lastError: unknown;
   for (let attempt = 1; attempt <= merged.maxAttempts; attempt += 1) {
+    if (options.signal?.aborted) {
+      throw new AppError('COMMAND_FAILED', 'request canceled');
+    }
     if (options.deadline?.isExpired() && attempt > 1) break;
     try {
       const result = await fn({ attempt, maxAttempts: merged.maxAttempts, deadline: options.deadline });
@@ -155,7 +159,7 @@ export async function retryWithPolicy<T>(
       };
       options.onEvent?.(retryEvent);
       publishRetryEvent(retryEvent);
-      await sleep(boundedDelay);
+      await sleep(boundedDelay, options.signal);
     }
   }
   const exhaustedEvent: RetryTelemetryEvent = {
@@ -192,8 +196,15 @@ function computeDelay(base: number, max: number, jitter: number, attempt: number
   return Math.max(0, exp + (Math.random() * 2 - 1) * jitterAmount);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) { resolve(); return; }
+    const timer = setTimeout(resolve, ms);
+    if (signal) {
+      const onAbort = () => { clearTimeout(timer); resolve(); };
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
+  });
 }
 
 function publishRetryEvent(event: RetryTelemetryEvent): void {

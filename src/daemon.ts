@@ -20,7 +20,7 @@ import { handleLeaseCommands } from './daemon/handlers/lease.ts';
 import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
 import { resolveEffectiveSessionName } from './daemon/session-routing.ts';
-import { clearRequestCanceled, isRequestCanceled, markRequestCanceled } from './daemon/request-cancel.ts';
+import { clearRequestCanceled, isRequestCanceled, markRequestCanceled, registerRequestAbort } from './daemon/request-cancel.ts';
 import {
   isAgentDeviceDaemonProcess,
   readProcessStartTime,
@@ -440,6 +440,7 @@ function createSocketServer(): net.Server {
           requestIdForCleanup = req.meta?.requestId;
           if (requestIdForCleanup) {
             activeRequestIds.add(requestIdForCleanup);
+            registerRequestAbort(requestIdForCleanup);
             if (isRequestCanceled(requestIdForCleanup)) {
               throw new AppError('COMMAND_FAILED', 'request canceled');
             }

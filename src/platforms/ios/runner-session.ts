@@ -247,8 +247,9 @@ export async function executeRunnerCommandWithSession(
   command: RunnerCommand,
   logPath: string | undefined,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
-  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs, session);
+  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs, session, signal);
   return await parseRunnerResponse(response, session, logPath);
 }
 

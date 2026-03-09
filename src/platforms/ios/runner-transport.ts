@@ -65,6 +65,7 @@ export async function waitForRunner(
   logPath?: string,
   timeoutMs: number = RUNNER_STARTUP_TIMEOUT_MS,
   session?: RunnerSession,
+  signal?: AbortSignal,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
   let endpoints = await resolveRunnerCommandEndpoints(device, port, deadline.remainingMs());
@@ -102,6 +103,7 @@ export async function waitForRunner(
                 body: JSON.stringify(command),
               },
               Math.min(RUNNER_CONNECT_REQUEST_TIMEOUT_MS, remainingMs),
+              signal,
             );
             return response;
           } catch (err) {
@@ -121,7 +123,7 @@ export async function waitForRunner(
         jitter: 0.2,
         shouldRetry: shouldRetryRunnerConnectError,
       },
-      { deadline, phase: 'ios_runner_connect' },
+      { deadline, phase: 'ios_runner_connect', signal },
     );
   } catch (error) {
     if (!lastError) {
@@ -161,13 +163,27 @@ async function fetchWithTimeout(
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  requestSignal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let onRequestAbort: (() => void) | undefined;
+  if (requestSignal) {
+    if (requestSignal.aborted) {
+      clearTimeout(timeout);
+      controller.abort();
+    } else {
+      onRequestAbort = () => controller.abort();
+      requestSignal.addEventListener('abort', onRequestAbort, { once: true });
+    }
+  }
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timeout);
+    if (onRequestAbort && requestSignal) {
+      requestSignal.removeEventListener('abort', onRequestAbort);
+    }
   }
 }
 
