@@ -45,6 +45,7 @@ import {
   stopAppLog,
 } from '../app-log.ts';
 import { readRecentNetworkTraffic } from '../network-log.ts';
+import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import {
   collectReplaySelectorCandidates,
   healNumericGetTextDrift,
@@ -816,6 +817,8 @@ export async function handleSessionCommands(params: {
     device: DeviceInfo,
     openTarget: string | undefined,
   ) => Promise<string | undefined>;
+  applyRuntimeHints?: typeof applyRuntimeHintsToApp;
+  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   settleSimulator?: typeof settleIosSimulator;
   shutdownSimulator?: typeof shutdownSimulator;
 }): Promise<DaemonResponse | null> {
@@ -837,6 +840,8 @@ export async function handleSessionCommands(params: {
     },
     ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
+    applyRuntimeHints: applyRuntimeHintsOverride = applyRuntimeHintsToApp,
+    clearRuntimeHints: clearRuntimeHintsOverride = clearRuntimeHintsFromApp,
     settleSimulator: settleSimulatorOverride,
     shutdownSimulator: shutdownSimulatorOverride,
   } = params;
@@ -846,6 +851,8 @@ export async function handleSessionCommands(params: {
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
   const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
   const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
+  const applyRuntimeHints = applyRuntimeHintsOverride;
+  const clearRuntimeHints = clearRuntimeHintsOverride;
   const command = req.command;
 
   if (command === 'session_list') {
@@ -874,6 +881,12 @@ export async function handleSessionCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'runtime requires set, show, or clear' } };
     }
     if (action === 'clear') {
+      if (hasRuntimeTransportHints(current) && session?.appBundleId) {
+        await clearRuntimeHints({
+          device: session.device,
+          appId: session.appBundleId,
+        });
+      }
       const cleared = sessionStore.clearRuntimeHints(sessionName);
       return { ok: true, data: { session: sessionName, cleared } };
     }
@@ -1328,6 +1341,11 @@ export async function handleSessionCommands(params: {
           settleSimulator,
         });
       }
+      await applyRuntimeHints({
+        device: session.device,
+        appId: appBundleId,
+        runtime,
+      });
       const openStartedAtMs = Date.now();
       await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
         ...contextFromFlags(logPath, req.flags, appBundleId),
@@ -1417,6 +1435,11 @@ export async function handleSessionCommands(params: {
         settleSimulator,
       });
     }
+    await applyRuntimeHints({
+      device,
+      appId: appBundleId,
+      runtime,
+    });
     const openStartedAtMs = Date.now();
     await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, appBundleId),
@@ -1764,6 +1787,13 @@ export async function handleSessionCommands(params: {
     }
     if (session.device.platform === 'ios') {
       await stopIosRunner(session.device.id);
+    }
+    const runtime = sessionStore.getRuntimeHints(sessionName);
+    if (hasRuntimeTransportHints(runtime) && session.appBundleId) {
+      await clearRuntimeHints({
+        device: session.device,
+        appId: session.appBundleId,
+      }).catch(() => {});
     }
     sessionStore.recordAction(session, {
       command,
