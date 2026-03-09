@@ -318,11 +318,13 @@ export async function createDaemonHttpServer(options: {
           requestId: requestIdForCleanup,
         };
         registerRequestAbort(requestIdForCleanup);
-        req.on('close', () => {
+        const markCanceledIfResponseIncomplete = () => {
           if (!res.writableFinished) {
             markRequestCanceled(requestIdForCleanup);
           }
-        });
+        };
+        req.on('aborted', markCanceledIfResponseIncomplete);
+        res.on('close', markCanceledIfResponseIncomplete);
 
         const authResult = await runHttpAuthHook(authHook, {
           headers: req.headers,
