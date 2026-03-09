@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,57 +7,6 @@ import { runCmd } from '../utils/exec.ts';
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const TEMP_PREFIX = 'agent-device-upload-';
-const UPLOAD_CLEANUP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-type UploadEntry = {
-  artifactPath: string;
-  tempDir: string;
-  tenantId?: string;
-  claimed: boolean;
-  timer: ReturnType<typeof setTimeout>;
-};
-
-const pendingUploads = new Map<string, UploadEntry>();
-
-export function trackUploadedArtifact(params: {
-  artifactPath: string;
-  tempDir: string;
-  tenantId?: string;
-}): string {
-  const uploadId = crypto.randomUUID();
-  const timer = setTimeout(() => {
-    cleanupUploadedArtifact(uploadId);
-  }, UPLOAD_CLEANUP_TIMEOUT_MS);
-  pendingUploads.set(uploadId, {
-    artifactPath: params.artifactPath,
-    tempDir: params.tempDir,
-    tenantId: params.tenantId,
-    claimed: false,
-    timer,
-  });
-  return uploadId;
-}
-
-export function prepareUploadedArtifact(uploadId: string, tenantId?: string): string {
-  const entry = pendingUploads.get(uploadId);
-  if (!entry) {
-    throw new AppError('INVALID_ARGS', `Uploaded artifact not found: ${uploadId}`);
-  }
-  if (entry.tenantId && entry.tenantId !== tenantId) {
-    throw new AppError('UNAUTHORIZED', 'Uploaded artifact belongs to a different tenant');
-  }
-  clearTimeout(entry.timer);
-  entry.claimed = true;
-  return entry.artifactPath;
-}
-
-export function cleanupUploadedArtifact(uploadId: string): void {
-  const entry = pendingUploads.get(uploadId);
-  if (!entry) return;
-  clearTimeout(entry.timer);
-  pendingUploads.delete(uploadId);
-  fs.rmSync(entry.tempDir, { recursive: true, force: true });
-}
 
 function sanitizeFilename(raw: string): string {
   const basename = path.basename(raw);

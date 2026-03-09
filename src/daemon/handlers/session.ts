@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload.ts';
+import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload-registry.ts';
 import { dispatchCommand, resolveTargetDevice, type BatchStep, type CommandFlags } from '../../core/dispatch.ts';
 import {
   DEFAULT_BATCH_MAX_STEPS,

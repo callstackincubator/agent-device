@@ -4,7 +4,8 @@ import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { receiveUpload, trackUploadedArtifact } from './upload.ts';
+import { trackUploadedArtifact } from './upload-registry.ts';
+import { receiveUpload } from './upload.ts';
 
 type JsonRpcRequest = {
   jsonrpc?: string;

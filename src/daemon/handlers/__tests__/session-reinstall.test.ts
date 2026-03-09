@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
-import { trackUploadedArtifact } from '../../upload.ts';
+import { trackUploadedArtifact } from '../../upload-registry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 
