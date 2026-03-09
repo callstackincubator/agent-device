@@ -1,37 +1,69 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 import type { IncomingMessage } from 'node:http';
+import { AppError } from '../utils/errors.ts';
+import { runCmd } from '../utils/exec.ts';
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const TEMP_PREFIX = 'agent-device-upload-';
 const UPLOAD_CLEANUP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-type UploadEntry = { cleanup: () => void; timer: ReturnType<typeof setTimeout> };
+type UploadEntry = {
+  artifactPath: string;
+  tempDir: string;
+  tenantId?: string;
+  claimed: boolean;
+  timer: ReturnType<typeof setTimeout>;
+};
+
 const pendingUploads = new Map<string, UploadEntry>();
 
-export function trackUpload(artifactPath: string, cleanup: () => void): void {
+export function trackUploadedArtifact(params: {
+  artifactPath: string;
+  tempDir: string;
+  tenantId?: string;
+}): string {
+  const uploadId = crypto.randomUUID();
   const timer = setTimeout(() => {
-    pendingUploads.delete(artifactPath);
-    cleanup();
+    cleanupUploadedArtifact(uploadId);
   }, UPLOAD_CLEANUP_TIMEOUT_MS);
-  pendingUploads.set(artifactPath, { cleanup, timer });
+  pendingUploads.set(uploadId, {
+    artifactPath: params.artifactPath,
+    tempDir: params.tempDir,
+    tenantId: params.tenantId,
+    claimed: false,
+    timer,
+  });
+  return uploadId;
 }
 
-export function cleanupUploadedArtifact(artifactPath: string): void {
-  const entry = pendingUploads.get(artifactPath);
-  if (entry) {
-    clearTimeout(entry.timer);
-    pendingUploads.delete(artifactPath);
-    entry.cleanup();
+export function prepareUploadedArtifact(uploadId: string, tenantId?: string): string {
+  const entry = pendingUploads.get(uploadId);
+  if (!entry) {
+    throw new AppError('INVALID_ARGS', `Uploaded artifact not found: ${uploadId}`);
   }
+  if (entry.tenantId && entry.tenantId !== tenantId) {
+    throw new AppError('UNAUTHORIZED', 'Uploaded artifact belongs to a different tenant');
+  }
+  clearTimeout(entry.timer);
+  entry.claimed = true;
+  return entry.artifactPath;
+}
+
+export function cleanupUploadedArtifact(uploadId: string): void {
+  const entry = pendingUploads.get(uploadId);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  pendingUploads.delete(uploadId);
+  fs.rmSync(entry.tempDir, { recursive: true, force: true });
 }
 
 function sanitizeFilename(raw: string): string {
   const basename = path.basename(raw);
   if (!basename || basename === '.' || basename === '..') {
-    throw new Error(`Invalid artifact filename: ${raw}`);
+    throw new AppError('INVALID_ARGS', `Invalid artifact filename: ${raw}`);
   }
   return basename;
 }
@@ -41,12 +73,13 @@ export async function receiveUpload(req: IncomingMessage): Promise<{ artifactPat
   const rawFilename = req.headers['x-artifact-filename'] as string | undefined;
 
   if (!artifactType || !rawFilename) {
-    throw new Error('Missing required headers: x-artifact-type and x-artifact-filename');
+    throw new AppError('INVALID_ARGS', 'Missing required headers: x-artifact-type and x-artifact-filename');
   }
   if (artifactType !== 'file' && artifactType !== 'app-bundle') {
-    throw new Error(`Invalid x-artifact-type: ${artifactType}. Must be "file" or "app-bundle".`);
+    throw new AppError('INVALID_ARGS', `Invalid x-artifact-type: ${artifactType}. Must be "file" or "app-bundle".`);
   }
 
+  validateContentLength(req);
   const artifactFilename = sanitizeFilename(rawFilename);
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), TEMP_PREFIX));
 
@@ -57,11 +90,15 @@ export async function receiveUpload(req: IncomingMessage): Promise<{ artifactPat
       return { artifactPath: destPath, tempDir };
     }
 
-    // app-bundle: extract tar stream into tempDir
-    await extractTar(req, tempDir);
+    const archivePath = path.join(tempDir, 'artifact.tar');
+    await streamToFile(req, archivePath);
+    await validateTarArchive(archivePath, artifactFilename);
+    await runCmd('tar', ['xf', archivePath, '-C', tempDir]);
+    fs.rmSync(archivePath, { force: true });
+
     const destPath = path.join(tempDir, artifactFilename);
     if (!fs.existsSync(destPath)) {
-      throw new Error(`Expected extracted bundle "${artifactFilename}" not found in archive`);
+      throw new AppError('INVALID_ARGS', `Expected extracted bundle "${artifactFilename}" not found in archive`);
     }
     return { artifactPath: destPath, tempDir };
   } catch (error) {
@@ -70,52 +107,91 @@ export async function receiveUpload(req: IncomingMessage): Promise<{ artifactPat
   }
 }
 
+function validateContentLength(req: IncomingMessage): void {
+  const rawLength = req.headers['content-length'];
+  if (typeof rawLength !== 'string') return;
+  const parsed = Number(rawLength);
+  if (Number.isFinite(parsed) && parsed > MAX_UPLOAD_BYTES) {
+    throw new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_UPLOAD_BYTES} bytes`);
+  }
+}
+
 function streamToFile(req: IncomingMessage, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const ws = fs.createWriteStream(destPath);
+    let settled = false;
     let bytesWritten = 0;
+
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
 
     req.on('data', (chunk: Buffer) => {
       bytesWritten += chunk.length;
       if (bytesWritten > MAX_UPLOAD_BYTES) {
-        req.destroy(new Error(`Upload exceeds maximum size of ${MAX_UPLOAD_BYTES} bytes`));
-        ws.destroy();
-        return;
+        const error = new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_UPLOAD_BYTES} bytes`);
+        req.destroy(error);
+        ws.destroy(error);
       }
     });
 
     req.pipe(ws);
-    ws.on('finish', resolve);
-    ws.on('error', reject);
-    req.on('error', reject);
+    ws.on('finish', resolveOnce);
+    ws.on('error', rejectOnce);
+    req.on('error', rejectOnce);
   });
 }
 
-function extractTar(req: IncomingMessage, destDir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const tar = spawn('tar', ['xf', '-', '-C', destDir], {
-      stdio: ['pipe', 'ignore', 'pipe'],
-    });
+async function validateTarArchive(archivePath: string, artifactFilename: string): Promise<void> {
+  const entriesResult = await runCmd('tar', ['-tf', archivePath]);
+  const entries = entriesResult.stdout
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 
-    let stderr = '';
-    tar.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
+  if (entries.length === 0) {
+    throw new AppError('INVALID_ARGS', 'Uploaded app bundle archive is empty');
+  }
 
-    req.pipe(tar.stdin);
+  const hasExpectedRoot = entries.some((entry) => entry === artifactFilename || entry.startsWith(`${artifactFilename}/`));
+  if (!hasExpectedRoot) {
+    throw new AppError('INVALID_ARGS', `Uploaded archive must contain a top-level "${artifactFilename}" bundle`);
+  }
 
-    tar.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`tar extraction failed (exit ${code}): ${stderr.trim()}`));
-      }
-    });
+  for (const entry of entries) {
+    validateArchiveEntryPath(entry, artifactFilename);
+  }
 
-    tar.on('error', reject);
-    req.on('error', (err) => {
-      tar.stdin.destroy();
-      reject(err);
-    });
-  });
+  const verboseResult = await runCmd('tar', ['-tvf', archivePath]);
+  const lines = verboseResult.stdout.split(/\r?\n/).filter(Boolean);
+  for (const line of lines) {
+    const entryType = line[0];
+    if (entryType === 'l' || entryType === 'h') {
+      throw new AppError('INVALID_ARGS', 'Uploaded app bundle archive cannot contain symlinks or hard links');
+    }
+  }
+}
+
+function validateArchiveEntryPath(entry: string, artifactFilename: string): void {
+  if (entry.includes('\0')) {
+    throw new AppError('INVALID_ARGS', `Invalid archive entry: ${entry}`);
+  }
+  if (path.posix.isAbsolute(entry)) {
+    throw new AppError('INVALID_ARGS', `Archive entry must be relative: ${entry}`);
+  }
+  const normalized = path.posix.normalize(entry).replace(/^\.\/+/, '');
+  if (!normalized || normalized === '.' || normalized.startsWith('../')) {
+    throw new AppError('INVALID_ARGS', `Archive entry escapes bundle root: ${entry}`);
+  }
+  if (normalized !== artifactFilename && !normalized.startsWith(`${artifactFilename}/`)) {
+    throw new AppError('INVALID_ARGS', `Archive entry must stay inside top-level "${artifactFilename}" bundle: ${entry}`);
+  }
 }

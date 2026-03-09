@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
+import { trackUploadedArtifact } from '../../upload.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 
@@ -347,4 +348,51 @@ test('install omits app id fields when platform op cannot resolve them', async (
     assert.equal(response.data?.package, undefined);
     assert.equal(response.data?.appPath, appPath);
   }
+});
+
+test('reinstall resolves uploaded artifacts by id and cleans temp files after completion', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set(
+    'default',
+    makeSession('default', {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-uploaded-artifact-'));
+  const appPath = path.join(tempRoot, 'Sample.app');
+  fs.writeFileSync(appPath, 'placeholder');
+  const uploadedArtifactId = trackUploadedArtifact({ artifactPath: appPath, tempDir: tempRoot });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'reinstall',
+      positionals: ['com.example.app', '/Users/dev/Downloads/Sample.app'],
+      flags: {},
+      meta: { uploadedArtifactId },
+    },
+    sessionName: 'default',
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    invoke,
+    reinstallOps: {
+      ios: async (_device, app, pathToBinary) => {
+        assert.equal(app, 'com.example.app');
+        assert.equal(pathToBinary, appPath);
+        return { bundleId: 'com.example.app' };
+      },
+      android: async () => {
+        throw new Error('unexpected android reinstall');
+      },
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(fs.existsSync(tempRoot), false);
 });

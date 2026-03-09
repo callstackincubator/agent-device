@@ -79,7 +79,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     { requestId, session: req.session },
   );
   // For remote daemons, transparently upload local install/reinstall artifacts.
-  let uploadedArtifactPath: string | undefined;
+  let uploadedArtifactId: string | undefined;
   const positionals = [...(req.positionals ?? [])];
   if (
     isRemoteDaemon(info)
@@ -87,16 +87,19 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     && positionals.length >= 2
   ) {
     const rawPath = positionals[1]!;
-    const localPath = path.isAbsolute(rawPath)
-      ? rawPath
-      : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
-    if (fs.existsSync(localPath)) {
-      uploadedArtifactPath = await uploadArtifact({
-        localPath,
-        baseUrl: info.baseUrl!,
-        token: info.token,
-      });
-      positionals[1] = uploadedArtifactPath;
+    if (rawPath.startsWith('remote:')) {
+      positionals[1] = rawPath.slice('remote:'.length);
+    } else {
+      const localPath = path.isAbsolute(rawPath)
+        ? rawPath
+        : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
+      if (fs.existsSync(localPath)) {
+        uploadedArtifactId = await uploadArtifact({
+          localPath,
+          baseUrl: info.baseUrl!,
+          token: info.token,
+        });
+      }
     }
   }
 
@@ -112,7 +115,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       runId: req.meta?.runId ?? req.flags?.runId,
       leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
       sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
-      ...(uploadedArtifactPath ? { uploadedArtifactPath } : {}),
+      ...(uploadedArtifactId ? { uploadedArtifactId } : {}),
     },
   };
   emitDiagnostic({

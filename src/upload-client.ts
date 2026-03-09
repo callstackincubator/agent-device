@@ -15,7 +15,7 @@ type UploadArtifactOptions = {
 
 type UploadResponse = {
   ok: boolean;
-  artifactPath: string;
+  uploadId: string;
 };
 
 export async function uploadArtifact(options: UploadArtifactOptions): Promise<string> {
@@ -60,13 +60,13 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
           clearTimeout(timeout);
           try {
             const parsed = JSON.parse(body) as UploadResponse;
-            if (!parsed.ok || !parsed.artifactPath) {
+            if (!parsed.ok || !parsed.uploadId) {
               reject(
                 new AppError('COMMAND_FAILED', `Upload failed: ${body}`),
               );
               return;
             }
-            resolve(parsed.artifactPath);
+            resolve(parsed.uploadId);
           } catch {
             reject(
               new AppError('COMMAND_FAILED', `Invalid upload response: ${body}`),

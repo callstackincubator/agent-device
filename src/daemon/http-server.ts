@@ -1,11 +1,10 @@
-import fs from 'node:fs';
 import http, { type IncomingHttpHeaders } from 'node:http';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { receiveUpload, trackUpload } from './upload.ts';
+import { receiveUpload, trackUploadedArtifact } from './upload.ts';
 
 type JsonRpcRequest = {
   jsonrpc?: string;
@@ -357,7 +356,7 @@ async function handleUpload(
   try {
     // Auth: resolve token from headers and run auth hook with a synthetic context.
     const token = resolveToken({}, req.headers);
-    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.upload' };
+    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
     const syntheticDaemon: DaemonRequest = {
       token,
       session: 'default',
@@ -372,25 +371,27 @@ async function handleUpload(
     if (!authResult.ok) {
       res.statusCode = authResult.statusCode;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
+      res.end(JSON.stringify({
+        ok: false,
+        error: authResult.response.error?.data?.message ?? authResult.response.error?.message ?? 'Unauthorized',
+      }));
       return;
     }
 
     const result = await receiveUpload(req);
-
-    // Register with auto-cleanup timer as safety net for abandoned uploads.
-    const { tempDir } = result;
-    trackUpload(result.artifactPath, () => {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+    const uploadId = trackUploadedArtifact({
+      artifactPath: result.artifactPath,
+      tempDir: result.tempDir,
+      tenantId: authResult.tenantId,
     });
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: true, artifactPath: result.artifactPath }));
+    res.end(JSON.stringify({ ok: true, uploadId }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    res.statusCode = 500;
+    const normalized = normalizeError(error);
+    res.statusCode = statusCodeForNormalizedError(normalized.code);
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ ok: false, error: message }));
+    res.end(JSON.stringify({ ok: false, error: normalized.message, code: normalized.code }));
   }
 }

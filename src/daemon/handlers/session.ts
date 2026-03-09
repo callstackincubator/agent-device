@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { cleanupUploadedArtifact } from '../upload.ts';
+import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload.ts';
 import { dispatchCommand, resolveTargetDevice, type BatchStep, type CommandFlags } from '../../core/dispatch.ts';
 import {
   DEFAULT_BATCH_MAX_STEPS,
@@ -424,16 +424,18 @@ async function handleAppDeployCommand(params: {
       error: { code: 'INVALID_ARGS', message: `${command} requires: ${command} <app> <path-to-app-binary>` },
     };
   }
-  const appPath = SessionStore.expandHome(appPathInput);
-  if (!fs.existsSync(appPath)) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
-    };
-  }
-  const uploadedArtifactPath = req.meta?.uploadedArtifactPath;
+  const uploadedArtifactId = req.meta?.uploadedArtifactId;
 
   try {
+    const appPath = uploadedArtifactId
+      ? prepareUploadedArtifact(uploadedArtifactId, req.meta?.tenantId)
+      : SessionStore.expandHome(appPathInput);
+    if (!fs.existsSync(appPath)) {
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
+      };
+    }
     const device = await resolveCommandDevice({
       session,
       flags,
@@ -476,8 +478,8 @@ async function handleAppDeployCommand(params: {
     }
     return { ok: true, data: result };
   } finally {
-    if (uploadedArtifactPath) {
-      cleanupUploadedArtifact(uploadedArtifactPath);
+    if (uploadedArtifactId) {
+      cleanupUploadedArtifact(uploadedArtifactId);
     }
   }
 }
