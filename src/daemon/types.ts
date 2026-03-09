@@ -19,6 +19,7 @@ export type DaemonRequest = {
     leaseTtlMs?: number;
     leaseBackend?: 'ios-simulator';
     sessionIsolation?: 'none' | 'tenant';
+    uploadedArtifactPath?: string;
   };
 };
 

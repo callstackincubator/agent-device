@@ -1,9 +1,11 @@
+import fs from 'node:fs';
 import http, { type IncomingHttpHeaders } from 'node:http';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { receiveUpload, trackUpload } from './upload.ts';
 
 type JsonRpcRequest = {
   jsonrpc?: string;
@@ -244,6 +246,11 @@ export async function createDaemonHttpServer(options: {
       return;
     }
 
+    if (req.method === 'POST' && req.url === '/upload') {
+      handleUpload(req, res, authHook);
+      return;
+    }
+
     if (req.method !== 'POST' || req.url !== '/rpc') {
       res.statusCode = 404;
       res.end('Not found');
@@ -340,4 +347,50 @@ export async function createDaemonHttpServer(options: {
       }
     });
   });
+}
+
+async function handleUpload(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  authHook: HttpAuthHook | null,
+): Promise<void> {
+  try {
+    // Auth: resolve token from headers and run auth hook with a synthetic context.
+    const token = resolveToken({}, req.headers);
+    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.upload' };
+    const syntheticDaemon: DaemonRequest = {
+      token,
+      session: 'default',
+      command: 'upload',
+      positionals: [],
+    };
+    const authResult = await runHttpAuthHook(authHook, {
+      headers: req.headers,
+      rpcRequest: syntheticRpc,
+      daemonRequest: syntheticDaemon,
+    });
+    if (!authResult.ok) {
+      res.statusCode = authResult.statusCode;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
+      return;
+    }
+
+    const result = await receiveUpload(req);
+
+    // Register with auto-cleanup timer as safety net for abandoned uploads.
+    const { tempDir } = result;
+    trackUpload(result.artifactPath, () => {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    res.statusCode = 200;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: true, artifactPath: result.artifactPath }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.statusCode = 500;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: message }));
+  }
 }

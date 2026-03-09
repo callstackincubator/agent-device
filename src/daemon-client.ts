@@ -20,6 +20,7 @@ import {
   type DaemonServerMode,
   type DaemonTransportPreference,
 } from './daemon/config.ts';
+import { uploadArtifact } from './upload-client.ts';
 
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
@@ -77,8 +78,31 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     async () => await ensureDaemon(settings),
     { requestId, session: req.session },
   );
+  // For remote daemons, transparently upload local install/reinstall artifacts.
+  let uploadedArtifactPath: string | undefined;
+  const positionals = [...(req.positionals ?? [])];
+  if (
+    isRemoteDaemon(info)
+    && (req.command === 'install' || req.command === 'reinstall')
+    && positionals.length >= 2
+  ) {
+    const rawPath = positionals[1]!;
+    const localPath = path.isAbsolute(rawPath)
+      ? rawPath
+      : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
+    if (fs.existsSync(localPath)) {
+      uploadedArtifactPath = await uploadArtifact({
+        localPath,
+        baseUrl: info.baseUrl!,
+        token: info.token,
+      });
+      positionals[1] = uploadedArtifactPath;
+    }
+  }
+
   const request = {
     ...req,
+    positionals,
     token: info.token,
     meta: {
       requestId,
@@ -88,6 +112,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       runId: req.meta?.runId ?? req.flags?.runId,
       leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
       sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+      ...(uploadedArtifactPath ? { uploadedArtifactPath } : {}),
     },
   };
   emitDiagnostic({
