@@ -243,9 +243,10 @@ async function loadHttpAuthHook(): Promise<HttpAuthHook | null> {
 
 export async function createDaemonHttpServer(options: {
   handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>;
+  token?: string;
 }): Promise<http.Server> {
   const authHook = await loadHttpAuthHook();
-  const { handleRequest } = options;
+  const { handleRequest, token } = options;
   return http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
       res.statusCode = 200;
@@ -255,12 +256,12 @@ export async function createDaemonHttpServer(options: {
     }
 
     if (req.method === 'POST' && req.url === '/upload') {
-      handleUpload(req, res, authHook);
+      handleUpload(req, res, authHook, token);
       return;
     }
 
     if (req.method === 'GET' && req.url?.startsWith('/artifacts/')) {
-      void handleArtifactDownload(req, res, authHook);
+      void handleArtifactDownload(req, res, authHook, token);
       return;
     }
 
@@ -383,10 +384,18 @@ async function handleUpload(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   authHook: HttpAuthHook | null,
+  expectedToken?: string,
 ): Promise<void> {
   try {
     // Auth: resolve token from headers and run auth hook with a synthetic context.
     const token = resolveToken({}, req.headers);
+    const tokenError = enforceDaemonToken(token, expectedToken);
+    if (tokenError) {
+      res.statusCode = statusCodeForNormalizedError(tokenError.code);
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: tokenError.message, code: tokenError.code }));
+      return;
+    }
     const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
     const syntheticDaemon: DaemonRequest = {
       token,
@@ -431,6 +440,7 @@ async function handleArtifactDownload(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   authHook: HttpAuthHook | null,
+  expectedToken?: string,
 ): Promise<void> {
   const artifactId = req.url?.slice('/artifacts/'.length) ?? '';
   if (!artifactId) {
@@ -440,6 +450,13 @@ async function handleArtifactDownload(
   }
   try {
     const token = resolveToken({}, req.headers);
+    const tokenError = enforceDaemonToken(token, expectedToken);
+    if (tokenError) {
+      res.statusCode = statusCodeForNormalizedError(tokenError.code);
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: false, error: tokenError.message, code: tokenError.code }));
+      return;
+    }
     const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
     const syntheticDaemon: DaemonRequest = {
       token,
@@ -489,4 +506,13 @@ async function handleArtifactDownload(
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: false, error: normalized.message, code: normalized.code }));
   }
+}
+
+function enforceDaemonToken(
+  requestToken: string,
+  expectedToken: string | undefined,
+): ReturnType<typeof normalizeError> | null {
+  if (!expectedToken) return null;
+  if (requestToken === expectedToken) return null;
+  return normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
 }

@@ -961,17 +961,30 @@ function resolveMaterializedArtifactPath(
   return path.resolve(req.meta?.cwd ?? process.cwd(), fallbackName);
 }
 
-async function downloadRemoteArtifact(params: {
+export async function downloadRemoteArtifact(params: {
   baseUrl: string;
   token: string;
   artifactId: string;
   destinationPath: string;
   requestId?: string;
+  timeoutMs?: number;
 }): Promise<void> {
   const artifactUrl = new URL(buildDaemonArtifactUrl(params.baseUrl, params.artifactId));
   const transport = artifactUrl.protocol === 'https:' ? https : http;
   await fs.promises.mkdir(path.dirname(params.destinationPath), { recursive: true });
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const timeoutMs = params.timeoutMs ?? REQUEST_TIMEOUT_MS;
+    const settle = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutHandle);
+      if (error) {
+        void fs.promises.rm(params.destinationPath, { force: true }).finally(() => reject(error));
+        return;
+      }
+      resolve();
+    };
     const request = transport.request(
       {
         protocol: artifactUrl.protocol,
@@ -994,7 +1007,7 @@ async function downloadRemoteArtifact(params: {
             body += chunk;
           });
           res.on('end', () => {
-            reject(
+            settle(
               new AppError('COMMAND_FAILED', 'Failed to download remote artifact', {
                 artifactId: params.artifactId,
                 statusCode: res.statusCode,
@@ -1006,19 +1019,43 @@ async function downloadRemoteArtifact(params: {
           return;
         }
         const output = fs.createWriteStream(params.destinationPath);
-        output.on('error', reject);
-        res.on('error', reject);
+        output.on('error', (error) => {
+          settle(error instanceof Error ? error : new Error(String(error)));
+        });
+        res.on('error', (error) => {
+          settle(error instanceof Error ? error : new Error(String(error)));
+        });
+        res.on('aborted', () => {
+          settle(
+            new AppError('COMMAND_FAILED', 'Remote artifact download was interrupted', {
+              artifactId: params.artifactId,
+              requestId: params.requestId,
+            }),
+          );
+        });
         output.on('finish', () => {
-          output.close(() => resolve());
+          output.close(() => settle());
         });
         res.pipe(output);
       },
     );
+    const timeoutHandle = setTimeout(() => {
+      request.destroy(new AppError('COMMAND_FAILED', 'Remote artifact download timed out', {
+        artifactId: params.artifactId,
+        requestId: params.requestId,
+        timeoutMs,
+      }));
+    }, timeoutMs);
     request.on('error', (error) => {
-      reject(
+      if (error instanceof AppError) {
+        settle(error);
+        return;
+      }
+      settle(
         new AppError('COMMAND_FAILED', 'Failed to download remote artifact', {
           artifactId: params.artifactId,
           requestId: params.requestId,
+          timeoutMs,
         }, error instanceof Error ? error : undefined),
       );
     });

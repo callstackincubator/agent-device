@@ -578,7 +578,7 @@ async function start(): Promise<void> {
     }
 
     if (daemonServerMode === 'http' || daemonServerMode === 'dual') {
-      const httpServer = await createDaemonHttpServer({ handleRequest });
+      const httpServer = await createDaemonHttpServer({ handleRequest, token });
       servers.push(httpServer);
       httpPort = await listenHttpServer(httpServer);
     }

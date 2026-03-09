@@ -81,7 +81,11 @@ async function callRpc(port: number, payload: Record<string, unknown>): Promise<
   });
 }
 
-async function callGet(port: number, requestPath: string): Promise<{ statusCode: number; body: string; headers: http.IncomingHttpHeaders }> {
+async function callGet(
+  port: number,
+  requestPath: string,
+  headers?: http.OutgoingHttpHeaders,
+): Promise<{ statusCode: number; body: string; headers: http.IncomingHttpHeaders }> {
   return await new Promise((resolve, reject) => {
     const request = http.request(
       {
@@ -89,6 +93,7 @@ async function callGet(port: number, requestPath: string): Promise<{ statusCode:
         port,
         path: requestPath,
         method: 'GET',
+        headers,
       },
       (response) => {
         let body = '';
@@ -172,6 +177,46 @@ test('HTTP artifact download streams registered files', async (t) => {
   });
   const server = await createDaemonHttpServer({
     handleRequest: async (): Promise<DaemonResponse> => ({ ok: true, data: {} }),
+    token: 'test-token',
+  });
+  const port = await listen(server);
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const response = await callGet(port, `/artifacts/${artifactId}`, {
+    authorization: 'Bearer test-token',
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body, 'png-binary');
+  assert.match(String(response.headers['content-disposition'] ?? ''), /screen\.png/);
+});
+
+test('HTTP artifact download rejects requests without the daemon token', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-http-artifact-auth-'));
+  const artifactPath = path.join(root, 'screen.png');
+  fs.writeFileSync(artifactPath, 'png-binary', 'utf8');
+  const artifactId = trackDownloadableArtifact({
+    artifactPath,
+    fileName: 'screen.png',
+  });
+  const server = await createDaemonHttpServer({
+    handleRequest: async (): Promise<DaemonResponse> => ({ ok: true, data: {} }),
+    token: 'test-token',
   });
   const port = await listen(server);
   t.after(async () => {
@@ -188,7 +233,6 @@ test('HTTP artifact download streams registered files', async (t) => {
   });
 
   const response = await callGet(port, `/artifacts/${artifactId}`);
-  assert.equal(response.statusCode, 200);
-  assert.equal(response.body, 'png-binary');
-  assert.match(String(response.headers['content-disposition'] ?? ''), /screen\.png/);
+  assert.equal(response.statusCode, 401);
+  assert.match(response.body, /Invalid token/);
 });

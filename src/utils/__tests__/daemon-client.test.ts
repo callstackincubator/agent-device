@@ -9,6 +9,7 @@ import path from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import {
   computeDaemonCodeSignature,
+  downloadRemoteArtifact,
   resolveDaemonRequestTimeoutMs,
   resolveDaemonStartupAttempts,
   resolveDaemonStartupHint,
@@ -22,6 +23,24 @@ import {
   stopProcessForTakeover,
   waitForProcessExit,
 } from '../process-identity.ts';
+
+let loopbackBindSupportPromise: Promise<boolean> | null = null;
+
+async function supportsLoopbackBind(): Promise<boolean> {
+  if (loopbackBindSupportPromise) {
+    return await loopbackBindSupportPromise;
+  }
+  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
+    const server = http.createServer();
+    server.once('error', () => {
+      resolve(false);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      server.close(() => resolve(true));
+    });
+  });
+  return await loopbackBindSupportPromise;
+}
 
 test('resolveDaemonRequestTimeoutMs defaults to 90000', () => {
   assert.equal(resolveDaemonRequestTimeoutMs(undefined), 90000);
@@ -416,6 +435,11 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
       resume?: () => void;
       setEncoding: (_encoding: string) => void;
     }) => void;
+    private activeResponse?: PassThrough & {
+      statusCode?: number;
+      resume?: () => void;
+      setEncoding: (_encoding: string) => void;
+    };
 
     constructor(
       options: Record<string, unknown>,
@@ -454,6 +478,7 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
           resume?: () => void;
           setEncoding: (_encoding: string) => void;
         };
+        this.activeResponse = res;
         res.statusCode = 200;
         process.nextTick(() => {
           this.callbackFn(res);
@@ -537,6 +562,54 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
     else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
     if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
     else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+});
+
+test('downloadRemoteArtifact times out stalled artifact responses and removes partial files', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-artifact-timeout-'));
+  const destinationPath = path.join(tempRoot, 'artifacts', 'screen.png');
+  const server = http.createServer((req, _res) => {
+    if (req.url?.includes('/artifacts/')) {
+      return;
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+  const address = server.address();
+  assert.equal(typeof address, 'object');
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    await assert.rejects(
+      async () => await downloadRemoteArtifact({
+        baseUrl: `http://127.0.0.1:${port}/agent-device`,
+        token: 'remote-secret',
+        artifactId: 'artifact-timeout',
+        destinationPath,
+        requestId: 'req-remote-artifact-timeout',
+        timeoutMs: 50,
+      }),
+      (error: unknown) => {
+        assert.equal(error instanceof Error, true);
+        assert.match(String((error as Error).message), /timed out/i);
+        return true;
+      },
+    );
+    assert.equal(fs.existsSync(destinationPath), false);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
