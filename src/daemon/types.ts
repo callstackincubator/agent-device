@@ -20,11 +20,32 @@ export type DaemonRequest = {
     leaseBackend?: 'ios-simulator';
     sessionIsolation?: 'none' | 'tenant';
     uploadedArtifactId?: string;
+    clientArtifactPaths?: Record<string, string>;
   };
 };
 
+export type SessionRuntimeHints = {
+  platform?: 'ios' | 'android';
+  metroHost?: string;
+  metroPort?: number;
+  bundleUrl?: string;
+  launchUrl?: string;
+};
+
+export type DaemonArtifact = {
+  field: string;
+  artifactId?: string;
+  fileName?: string;
+  localPath?: string;
+  path?: string;
+};
+
+export type DaemonResponseData = Record<string, unknown> & {
+  artifacts?: DaemonArtifact[];
+};
+
 export type DaemonResponse =
-  | { ok: true; data?: Record<string, unknown> }
+  | { ok: true; data?: DaemonResponseData }
   | {
     ok: false;
     error: {
@@ -55,6 +76,7 @@ export type SessionState = {
     | {
       platform: 'ios' | 'android';
       outPath: string;
+      clientOutPath?: string;
       remotePath?: string;
       child: ReturnType<typeof import('node:child_process').spawn>;
       wait: Promise<ExecResult>;
@@ -62,6 +84,7 @@ export type SessionState = {
     | {
       platform: 'ios-device-runner';
       outPath: string;
+      clientOutPath?: string;
       remotePath: string;
     };
   /** Session-scoped app log stream; logs written to outPath for agent to grep */

@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createDaemonHttpServer } from '../http-server.ts';
+import { trackDownloadableArtifact } from '../artifact-registry.ts';
 import { isRequestCanceled } from '../request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 
@@ -77,6 +81,35 @@ async function callRpc(port: number, payload: Record<string, unknown>): Promise<
   });
 }
 
+async function callGet(port: number, requestPath: string): Promise<{ statusCode: number; body: string; headers: http.IncomingHttpHeaders }> {
+  return await new Promise((resolve, reject) => {
+    const request = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: requestPath,
+        method: 'GET',
+      },
+      (response) => {
+        let body = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk) => {
+          body += chunk;
+        });
+        response.on('end', () => {
+          resolve({
+            statusCode: response.statusCode ?? 0,
+            body,
+            headers: response.headers,
+          });
+        });
+      },
+    );
+    request.on('error', reject);
+    request.end();
+  });
+}
+
 test('HTTP RPC does not cancel active requests after the request body completes', async (t) => {
   if (!(await supportsLoopbackBind())) {
     t.skip('loopback listeners are not permitted in this environment');
@@ -122,4 +155,40 @@ test('HTTP RPC does not cancel active requests after the request body completes'
   assert.equal(response.statusCode, 200);
   assert.equal((response.json as { result?: { ok?: boolean } }).result?.ok, true);
   assert.equal(observedCanceled, false);
+});
+
+test('HTTP artifact download streams registered files', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-http-artifact-'));
+  const artifactPath = path.join(root, 'screen.png');
+  fs.writeFileSync(artifactPath, 'png-binary', 'utf8');
+  const artifactId = trackDownloadableArtifact({
+    artifactPath,
+    fileName: 'screen.png',
+  });
+  const server = await createDaemonHttpServer({
+    handleRequest: async (): Promise<DaemonResponse> => ({ ok: true, data: {} }),
+  });
+  const port = await listen(server);
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const response = await callGet(port, `/artifacts/${artifactId}`);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body, 'png-binary');
+  assert.match(String(response.headers['content-disposition'] ?? ''), /screen\.png/);
 });

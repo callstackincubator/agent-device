@@ -21,6 +21,10 @@ export type CliFlags = {
   out?: string;
   session?: string;
   runtime?: string;
+  metroHost?: string;
+  metroPort?: number;
+  bundleUrl?: string;
+  launchUrl?: string;
   boot?: boolean;
   reuseExisting?: boolean;
   verbose?: boolean;
@@ -217,6 +221,36 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--runtime <id>',
     usageDescription: 'ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)',
+  },
+  {
+    key: 'metroHost',
+    names: ['--metro-host'],
+    type: 'string',
+    usageLabel: '--metro-host <host>',
+    usageDescription: 'runtime set: session-scoped Metro/debug host hint',
+  },
+  {
+    key: 'metroPort',
+    names: ['--metro-port'],
+    type: 'int',
+    min: 1,
+    max: 65535,
+    usageLabel: '--metro-port <port>',
+    usageDescription: 'runtime set: session-scoped Metro/debug port hint',
+  },
+  {
+    key: 'bundleUrl',
+    names: ['--bundle-url'],
+    type: 'string',
+    usageLabel: '--bundle-url <url>',
+    usageDescription: 'runtime set: session-scoped bundle URL hint',
+  },
+  {
+    key: 'launchUrl',
+    names: ['--launch-url'],
+    type: 'string',
+    usageLabel: '--launch-url <url>',
+    usageDescription: 'runtime set: session-scoped deep link / launch URL hint',
   },
   {
     key: 'boot',
@@ -580,6 +614,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Show foreground app/activity',
     positionalArgs: [],
     allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
+  runtime: {
+    usageOverride: 'runtime set|show|clear',
+    description: 'Manage session-scoped runtime hints',
+    positionalArgs: ['set|show|clear'],
+    allowedFlags: ['metroHost', 'metroPort', 'bundleUrl', 'launchUrl'],
     skipCapabilityCheck: true,
   },
   clipboard: {

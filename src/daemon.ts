@@ -8,7 +8,7 @@ import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
-import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
+import type { DaemonArtifact, DaemonRequest, DaemonResponse, DaemonResponseData } from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
 import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './daemon/context.ts';
 import { handleSessionCommands } from './daemon/handlers/session.ts';
@@ -40,6 +40,7 @@ import {
   resolveSessionIsolationMode,
 } from './daemon/config.ts';
 import { createDaemonHttpServer } from './daemon/http-server.ts';
+import { trackDownloadableArtifact } from './daemon/artifact-registry.ts';
 import { LeaseRegistry } from './daemon/lease-registry.ts';
 import { resolveLeaseScope } from './daemon/lease-context.ts';
 
@@ -146,6 +147,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         });
 
         const command = scopedReq.command;
+        const finalize = (response: DaemonResponse): DaemonResponse => finalizeDaemonResponse(scopedReq, response);
         const leaseScope = resolveLeaseScope(scopedReq);
         if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
           leaseRegistry.assertLeaseAdmission({
@@ -165,7 +167,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           req: scopedReq,
           leaseRegistry,
         });
-        if (leaseResponse) return finalizeDaemonResponse(leaseResponse);
+        if (leaseResponse) return finalize(leaseResponse);
 
         const sessionResponse = await handleSessionCommands({
           req: scopedReq,
@@ -174,7 +176,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           sessionStore,
           invoke: handleRequest,
         });
-        if (sessionResponse) return finalizeDaemonResponse(sessionResponse);
+        if (sessionResponse) return finalize(sessionResponse);
 
         const snapshotResponse = await handleSnapshotCommands({
           req: scopedReq,
@@ -182,7 +184,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           logPath,
           sessionStore,
         });
-        if (snapshotResponse) return finalizeDaemonResponse(snapshotResponse);
+        if (snapshotResponse) return finalize(snapshotResponse);
 
         const recordTraceResponse = await handleRecordTraceCommands({
           req: scopedReq,
@@ -190,7 +192,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           sessionStore,
           logPath,
         });
-        if (recordTraceResponse) return finalizeDaemonResponse(recordTraceResponse);
+        if (recordTraceResponse) return finalize(recordTraceResponse);
 
         const findResponse = await handleFindCommands({
           req: scopedReq,
@@ -199,7 +201,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           sessionStore,
           invoke: handleRequest,
         });
-        if (findResponse) return finalizeDaemonResponse(findResponse);
+        if (findResponse) return finalize(findResponse);
 
         const interactionResponse = await handleInteractionCommands({
           req: scopedReq,
@@ -207,18 +209,18 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           sessionStore,
           contextFromFlags,
         });
-        if (interactionResponse) return finalizeDaemonResponse(interactionResponse);
+        if (interactionResponse) return finalize(interactionResponse);
 
         const session = sessionStore.get(sessionName);
         if (!session) {
-          return finalizeDaemonResponse({
+          return finalize({
             ok: false,
             error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
           });
         }
 
         if (!isCommandSupportedOnDevice(command, session.device)) {
-          return finalizeDaemonResponse({
+          return finalize({
             ok: false,
             error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
           });
@@ -233,7 +235,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
           flags: scopedReq.flags ?? {},
           result: data ?? {},
         });
-        return finalizeDaemonResponse({ ok: true, data: data ?? {} });
+        return finalize({ ok: true, data: data ?? {} });
       } catch (error) {
         emitDiagnostic({
           level: 'error',
@@ -254,7 +256,7 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
   );
 }
 
-function finalizeDaemonResponse(response: DaemonResponse): DaemonResponse {
+function finalizeDaemonResponse(req: DaemonRequest, response: DaemonResponse): DaemonResponse {
   const details = getDiagnosticsMeta();
   if (!response.ok) {
     emitDiagnostic({
@@ -282,7 +284,61 @@ function finalizeDaemonResponse(response: DaemonResponse): DaemonResponse {
   }
   emitDiagnostic({ level: 'info', phase: 'request_success' });
   flushDiagnosticsToSessionFile();
-  return response;
+  return {
+    ok: true,
+    data: registerDownloadableArtifacts(req, response.data),
+  };
+}
+
+function registerDownloadableArtifacts(
+  req: DaemonRequest,
+  data: DaemonResponseData | undefined,
+): DaemonResponseData | undefined {
+  if (!data) return data;
+  const pendingArtifacts = collectPendingArtifacts(req, data);
+  if (pendingArtifacts.length === 0) return data;
+  return {
+    ...data,
+    artifacts: pendingArtifacts.map((artifact) => {
+      const artifactPath = artifact.path as string;
+      return {
+        field: artifact.field,
+        artifactId: trackDownloadableArtifact({
+          artifactPath,
+        tenantId: req.meta?.tenantId,
+        fileName: artifact.fileName,
+        }),
+        fileName: artifact.fileName,
+        localPath: artifact.localPath,
+      };
+    }),
+  };
+}
+
+function collectPendingArtifacts(req: DaemonRequest, data: DaemonResponseData): DaemonArtifact[] {
+  const artifacts = Array.isArray(data.artifacts) ? [...data.artifacts] : [];
+  const hasField = (field: string): boolean => artifacts.some((artifact) => artifact?.field === field);
+  if (
+    req.command === 'screenshot'
+    && !hasField('path')
+    && typeof data.path === 'string'
+  ) {
+    artifacts.push({
+      field: 'path',
+      path: data.path,
+      localPath: req.meta?.clientArtifactPaths?.path,
+      fileName: path.basename(req.meta?.clientArtifactPaths?.path ?? data.path),
+    });
+  }
+  return artifacts.filter((artifact): artifact is DaemonArtifact =>
+    Boolean(
+      artifact
+      && typeof artifact.field === 'string'
+      && typeof artifact.path === 'string'
+      && typeof artifact.localPath === 'string'
+      && artifact.localPath.length > 0,
+    ),
+  );
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {

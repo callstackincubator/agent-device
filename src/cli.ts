@@ -262,6 +262,39 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
         return;
       }
+      if (command === 'runtime') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const cleared = data?.cleared === true;
+        const configured = data?.configured === true;
+        if (cleared) {
+          process.stdout.write('Runtime hints cleared\n');
+          if (logTailStopper) logTailStopper();
+          return;
+        }
+        if (!configured) {
+          process.stdout.write('No runtime hints configured\n');
+          if (logTailStopper) logTailStopper();
+          return;
+        }
+        process.stdout.write(`${JSON.stringify(data?.runtime ?? {}, null, 2)}\n`);
+        if (logTailStopper) logTailStopper();
+        return;
+      }
+      if (command === 'screenshot') {
+        const pathOut = typeof (response.data as any)?.path === 'string' ? (response.data as any).path : '';
+        if (pathOut) {
+          process.stdout.write(`${pathOut}\n`);
+        }
+        if (logTailStopper) logTailStopper();
+        return;
+      }
+      if (command === 'record') {
+        const data = response.data as Record<string, unknown> | undefined;
+        const outPath = typeof data?.outPath === 'string' ? data.outPath : '';
+        if (outPath) process.stdout.write(`${outPath}\n`);
+        if (logTailStopper) logTailStopper();
+        return;
+      }
       if (command === 'logs') {
         const data = response.data as Record<string, unknown> | undefined;
         const pathOut = typeof data?.path === 'string' ? data.path : '';

@@ -9,6 +9,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import type { DaemonArtifact } from '../types.ts';
 
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
@@ -120,6 +121,7 @@ export async function handleRecordTraceCommands(params: {
         };
       }
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
+      const clientOutPath = req.meta?.clientArtifactPaths?.outPath;
       fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
@@ -184,18 +186,18 @@ export async function handleRecordTraceCommands(params: {
             return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(error)}` } };
           }
         }
-        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, remotePath };
+        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, clientOutPath, remotePath };
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground('xcrun', buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]), {
           allowFailure: true,
         });
-        activeSession.recording = { platform: 'ios', outPath: resolvedOut, child, wait };
+        activeSession.recording = { platform: 'ios', outPath: resolvedOut, clientOutPath, child, wait };
       } else {
         const remotePath = `/sdcard/agent-device-recording-${Date.now()}.mp4`;
         const { child, wait } = deps.runCmdBackground('adb', ['-s', device.id, 'shell', 'screenrecord', remotePath], {
           allowFailure: true,
         });
-        activeSession.recording = { platform: 'android', outPath: resolvedOut, remotePath, child, wait };
+        activeSession.recording = { platform: 'android', outPath: resolvedOut, clientOutPath, remotePath, child, wait };
       }
       sessionStore.set(sessionName, activeSession);
       sessionStore.recordAction(activeSession, {
@@ -204,7 +206,7 @@ export async function handleRecordTraceCommands(params: {
         flags: (req.flags ?? {}) as CommandFlags,
         result: { action: 'start' },
       });
-      return { ok: true, data: { recording: 'started', outPath } };
+      return { ok: true, data: { recording: 'started', outPath: clientOutPath ?? outPath } };
     }
 
     if (!activeSession.recording) {
@@ -287,7 +289,13 @@ export async function handleRecordTraceCommands(params: {
       flags: (req.flags ?? {}) as CommandFlags,
       result: { action: 'stop', outPath: recording.outPath },
     });
-    return { ok: true, data: { recording: 'stopped', outPath: recording.outPath } };
+    const artifacts: DaemonArtifact[] = [{
+      field: 'outPath',
+      path: recording.outPath,
+      localPath: recording.clientOutPath,
+      fileName: path.basename(recording.clientOutPath ?? recording.outPath),
+    }];
+    return { ok: true, data: { recording: 'stopped', outPath: recording.outPath, artifacts } };
   }
 
   if (command === 'trace') {

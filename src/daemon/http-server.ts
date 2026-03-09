@@ -1,4 +1,5 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
+import fs from 'node:fs';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
@@ -10,6 +11,7 @@ import {
 } from './request-cancel.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { cleanupDownloadableArtifact, prepareDownloadableArtifact } from './artifact-registry.ts';
 import { trackUploadedArtifact } from './upload-registry.ts';
 import { receiveUpload } from './upload.ts';
 
@@ -257,6 +259,11 @@ export async function createDaemonHttpServer(options: {
       return;
     }
 
+    if (req.method === 'GET' && req.url?.startsWith('/artifacts/')) {
+      void handleArtifactDownload(req, res, authHook);
+      return;
+    }
+
     if (req.method !== 'POST' || req.url !== '/rpc') {
       res.statusCode = 404;
       res.end('Not found');
@@ -412,6 +419,70 @@ async function handleUpload(
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ ok: true, uploadId }));
+  } catch (error) {
+    const normalized = normalizeError(error);
+    res.statusCode = statusCodeForNormalizedError(normalized.code);
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ ok: false, error: normalized.message, code: normalized.code }));
+  }
+}
+
+async function handleArtifactDownload(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  authHook: HttpAuthHook | null,
+): Promise<void> {
+  const artifactId = req.url?.slice('/artifacts/'.length) ?? '';
+  if (!artifactId) {
+    res.statusCode = 400;
+    res.end('Missing artifact id');
+    return;
+  }
+  try {
+    const token = resolveToken({}, req.headers);
+    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
+    const syntheticDaemon: DaemonRequest = {
+      token,
+      session: 'default',
+      command: 'download_artifact',
+      positionals: [artifactId],
+    };
+    const authResult = await runHttpAuthHook(authHook, {
+      headers: req.headers,
+      rpcRequest: syntheticRpc,
+      daemonRequest: syntheticDaemon,
+    });
+    if (!authResult.ok) {
+      res.statusCode = authResult.statusCode;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({
+        ok: false,
+        error: authResult.response.error?.data?.message ?? authResult.response.error?.message ?? 'Unauthorized',
+      }));
+      return;
+    }
+    const artifact = prepareDownloadableArtifact(artifactId, authResult.tenantId);
+    const stream = fs.createReadStream(artifact.artifactPath);
+    res.statusCode = 200;
+    res.setHeader('content-type', 'application/octet-stream');
+    if (artifact.fileName) {
+      res.setHeader('content-disposition', `attachment; filename="${artifact.fileName.replace(/"/g, '')}"`);
+    }
+    stream.on('error', (error) => {
+      if (!res.headersSent) {
+        const normalized = normalizeError(error);
+        res.statusCode = statusCodeForNormalizedError(normalized.code);
+        res.end(normalized.message);
+      } else {
+        res.destroy(error as Error);
+      }
+    });
+    res.on('close', () => {
+      if (res.writableFinished) {
+        cleanupDownloadableArtifact(artifactId);
+      }
+    });
+    stream.pipe(res);
   } catch (error) {
     const normalized = normalizeError(error);
     res.statusCode = statusCodeForNormalizedError(normalized.code);

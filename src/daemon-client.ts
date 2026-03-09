@@ -4,7 +4,11 @@ import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
-import type { DaemonRequest as SharedDaemonRequest, DaemonResponse as SharedDaemonResponse } from './daemon/types.ts';
+import type {
+  DaemonArtifact,
+  DaemonRequest as SharedDaemonRequest,
+  DaemonResponse as SharedDaemonResponse,
+} from './daemon/types.ts';
 import { runCmdDetached, runCmdSync } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { createRequestId, emitDiagnostic, withDiagnosticTimer } from './utils/diagnostics.ts';
@@ -78,11 +82,12 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     async () => await ensureDaemon(settings),
     { requestId, session: req.session },
   );
-  const preparedRemoteInstall = await prepareRemoteInstallRequest(req, info);
+  const preparedRemoteRequest = await prepareRemoteRequest(req, info);
 
   const request = {
     ...req,
-    positionals: preparedRemoteInstall.positionals,
+    positionals: preparedRemoteRequest.positionals,
+    flags: preparedRemoteRequest.flags,
     token: info.token,
     meta: {
       requestId,
@@ -92,7 +97,8 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       runId: req.meta?.runId ?? req.flags?.runId,
       leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
       sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
-      ...(preparedRemoteInstall.uploadedArtifactId ? { uploadedArtifactId: preparedRemoteInstall.uploadedArtifactId } : {}),
+      ...(preparedRemoteRequest.uploadedArtifactId ? { uploadedArtifactId: preparedRemoteRequest.uploadedArtifactId } : {}),
+      ...(preparedRemoteRequest.clientArtifactPaths ? { clientArtifactPaths: preparedRemoteRequest.clientArtifactPaths } : {}),
     },
   };
   emitDiagnostic({
@@ -111,38 +117,136 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   );
 }
 
-async function prepareRemoteInstallRequest(
+async function prepareRemoteRequest(
   req: Omit<DaemonRequest, 'token'>,
   info: DaemonInfo,
-): Promise<{ positionals: string[]; uploadedArtifactId?: string }> {
+): Promise<{
+  positionals: string[];
+  flags?: DaemonRequest['flags'];
+  uploadedArtifactId?: string;
+  clientArtifactPaths?: Record<string, string>;
+}> {
   const positionals = [...(req.positionals ?? [])];
+  let flags = req.flags ? { ...req.flags } : undefined;
+  const clientArtifactPaths: Record<string, string> = {};
+  let uploadedArtifactId: string | undefined;
+
+  if (isRemoteDaemon(info)) {
+    const remoteArtifact = prepareRemoteArtifactCommand(req, positionals);
+    if (remoteArtifact) {
+      if (remoteArtifact.positionalPath !== undefined) {
+        positionals[remoteArtifact.positionalIndex] = remoteArtifact.positionalPath;
+      }
+      if (remoteArtifact.flagPath !== undefined) {
+        flags ??= {};
+        flags.out = remoteArtifact.flagPath;
+      }
+      clientArtifactPaths[remoteArtifact.field] = remoteArtifact.localPath;
+    }
+  }
+
   if (
     !isRemoteDaemon(info)
     || (req.command !== 'install' && req.command !== 'reinstall')
     || positionals.length < 2
   ) {
-    return { positionals };
+    return {
+      positionals,
+      flags,
+      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+    };
   }
 
   const rawPath = positionals[1]!;
   if (rawPath.startsWith('remote:')) {
     positionals[1] = rawPath.slice('remote:'.length);
-    return { positionals };
+    return {
+      positionals,
+      flags,
+      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+    };
   }
 
   const localPath = path.isAbsolute(rawPath)
     ? rawPath
     : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
   if (!fs.existsSync(localPath)) {
-    return { positionals };
+    return {
+      positionals,
+      flags,
+      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+    };
   }
 
-  const uploadedArtifactId = await uploadArtifact({
+  uploadedArtifactId = await uploadArtifact({
     localPath,
     baseUrl: info.baseUrl!,
     token: info.token,
   });
-  return { positionals, uploadedArtifactId };
+  return {
+    positionals,
+    flags,
+    uploadedArtifactId,
+    ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+  };
+}
+
+function prepareRemoteArtifactCommand(
+  req: Omit<DaemonRequest, 'token'>,
+  positionals: string[],
+): {
+  field: string;
+  localPath: string;
+  positionalIndex: number;
+  positionalPath?: string;
+  flagPath?: string;
+} | null {
+  if (req.command === 'screenshot') {
+    const localPath = resolveClientArtifactOutputPath(req, 'path', '.png');
+    if (positionals[0]) {
+      return {
+        field: 'path',
+        localPath,
+        positionalIndex: 0,
+        positionalPath: buildRemoteTempArtifactPath('screenshot', '.png'),
+      };
+    }
+    return {
+      field: 'path',
+      localPath,
+      positionalIndex: 0,
+      flagPath: buildRemoteTempArtifactPath('screenshot', '.png'),
+    };
+  }
+  if (req.command === 'record' && (positionals[0] ?? '').toLowerCase() === 'start') {
+    const localPath = resolveClientArtifactOutputPath(req, 'outPath', '.mp4', 1);
+    return {
+      field: 'outPath',
+      localPath,
+      positionalIndex: 1,
+      positionalPath: buildRemoteTempArtifactPath('recording', path.extname(localPath) || '.mp4'),
+    };
+  }
+  return null;
+}
+
+function resolveClientArtifactOutputPath(
+  req: Omit<DaemonRequest, 'token'>,
+  field: 'path' | 'outPath',
+  fallbackExtension: string,
+  positionalIndex: number = 0,
+): string {
+  const requested = req.positionals?.[positionalIndex] ?? req.flags?.out;
+  const fallbackName = `${field === 'path' ? 'screenshot' : 'recording'}-${Date.now()}${fallbackExtension}`;
+  const rawPath = requested && requested.trim().length > 0 ? requested : fallbackName;
+  return path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
+}
+
+function buildRemoteTempArtifactPath(prefix: string, extension: string): string {
+  const safeExtension = extension.startsWith('.') ? extension : `.${extension}`;
+  return path.posix.join('/tmp', `agent-device-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeExtension}`);
 }
 
 function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {
@@ -664,6 +768,12 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
               );
               return;
             }
+            if (info.baseUrl && parsed.result.ok) {
+              void materializeRemoteArtifacts(info, req, parsed.result)
+                .then(resolve)
+                .catch(reject);
+              return;
+            }
             resolve(parsed.result);
           } catch (err) {
             clearTimeout(timeout);
@@ -801,6 +911,119 @@ function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
   // URL(base, relative) treats a base without trailing slash as a file path, so normalize to a directory-like base.
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
   return new URL(route, normalizedBase).toString();
+}
+
+function buildDaemonArtifactUrl(baseUrl: string, artifactId: string): string {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL(`artifacts/${encodeURIComponent(artifactId)}`, normalizedBase).toString();
+}
+
+async function materializeRemoteArtifacts(
+  info: DaemonInfo,
+  req: DaemonRequest,
+  response: Extract<DaemonResponse, { ok: true }>,
+): Promise<DaemonResponse> {
+  const artifacts = Array.isArray(response.data?.artifacts) ? response.data.artifacts : [];
+  if (artifacts.length === 0 || !info.baseUrl) return response;
+  const nextData = response.data ? { ...response.data } : {};
+  const nextArtifacts: DaemonArtifact[] = [];
+  for (const artifact of artifacts) {
+    if (!artifact || typeof artifact !== 'object' || typeof artifact.artifactId !== 'string') {
+      nextArtifacts.push(artifact);
+      continue;
+    }
+    const localPath = resolveMaterializedArtifactPath(artifact, req);
+    await downloadRemoteArtifact({
+      baseUrl: info.baseUrl,
+      token: info.token,
+      artifactId: artifact.artifactId,
+      destinationPath: localPath,
+      requestId: req.meta?.requestId,
+    });
+    nextData[artifact.field] = localPath;
+    nextArtifacts.push({
+      ...artifact,
+      localPath,
+    });
+  }
+  nextData.artifacts = nextArtifacts;
+  return { ok: true, data: nextData };
+}
+
+function resolveMaterializedArtifactPath(
+  artifact: DaemonArtifact,
+  req: DaemonRequest,
+): string {
+  if (artifact.localPath && artifact.localPath.trim().length > 0) {
+    return artifact.localPath;
+  }
+  const fallbackName = artifact.fileName?.trim() || `${artifact.field}-${Date.now()}`;
+  return path.resolve(req.meta?.cwd ?? process.cwd(), fallbackName);
+}
+
+async function downloadRemoteArtifact(params: {
+  baseUrl: string;
+  token: string;
+  artifactId: string;
+  destinationPath: string;
+  requestId?: string;
+}): Promise<void> {
+  const artifactUrl = new URL(buildDaemonArtifactUrl(params.baseUrl, params.artifactId));
+  const transport = artifactUrl.protocol === 'https:' ? https : http;
+  await fs.promises.mkdir(path.dirname(params.destinationPath), { recursive: true });
+  await new Promise<void>((resolve, reject) => {
+    const request = transport.request(
+      {
+        protocol: artifactUrl.protocol,
+        host: artifactUrl.hostname,
+        port: artifactUrl.port,
+        method: 'GET',
+        path: artifactUrl.pathname + artifactUrl.search,
+        headers: params.token
+          ? {
+            authorization: `Bearer ${params.token}`,
+            'x-agent-device-token': params.token,
+          }
+          : undefined,
+      },
+      (res) => {
+        if ((res.statusCode ?? 500) >= 400) {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => {
+            body += chunk;
+          });
+          res.on('end', () => {
+            reject(
+              new AppError('COMMAND_FAILED', 'Failed to download remote artifact', {
+                artifactId: params.artifactId,
+                statusCode: res.statusCode,
+                requestId: params.requestId,
+                body,
+              }),
+            );
+          });
+          return;
+        }
+        const output = fs.createWriteStream(params.destinationPath);
+        output.on('error', reject);
+        res.on('error', reject);
+        output.on('finish', () => {
+          output.close(() => resolve());
+        });
+        res.pipe(output);
+      },
+    );
+    request.on('error', (error) => {
+      reject(
+        new AppError('COMMAND_FAILED', 'Failed to download remote artifact', {
+          artifactId: params.artifactId,
+          requestId: params.requestId,
+        }, error instanceof Error ? error : undefined),
+      );
+    });
+    request.end();
+  });
 }
 
 export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {

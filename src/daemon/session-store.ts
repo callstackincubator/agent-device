@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
-import type { SessionAction, SessionState } from './types.ts';
+import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
 import { appendScriptSeriesFlags, formatScriptArg, isClickLikeCommand } from './script-utils.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 
 export class SessionStore {
   private readonly sessions = new Map<string, SessionState>();
+  private readonly runtimeHints = new Map<string, SessionRuntimeHints>();
   private readonly sessionsDir: string;
 
   constructor(sessionsDir: string) {
@@ -28,6 +29,7 @@ export class SessionStore {
   }
 
   delete(name: string): boolean {
+    this.runtimeHints.delete(name);
     return this.sessions.delete(name);
   }
 
@@ -37,6 +39,18 @@ export class SessionStore {
 
   toArray(): SessionState[] {
     return Array.from(this.sessions.values());
+  }
+
+  getRuntimeHints(name: string): SessionRuntimeHints | undefined {
+    return this.runtimeHints.get(name);
+  }
+
+  setRuntimeHints(name: string, hints: SessionRuntimeHints): void {
+    this.runtimeHints.set(name, hints);
+  }
+
+  clearRuntimeHints(name: string): boolean {
+    return this.runtimeHints.delete(name);
   }
 
   recordAction(

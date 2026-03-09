@@ -34,10 +34,13 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
+- `runtime set|show|clear` manages session-scoped runtime hints for remote/native daemon flows. Supported hints include `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`.
+- Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
 
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
+agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"
 ```
 
 ## Device isolation scopes
