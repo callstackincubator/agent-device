@@ -81,6 +81,22 @@ function sendJson(res: http.ServerResponse<http.IncomingMessage>, response: Json
   res.end(JSON.stringify(response));
 }
 
+function resolveRequestTrackingId(
+  rpcRequest: JsonRpcRequest,
+  daemonRequest: DaemonRequest,
+): string {
+  if (typeof daemonRequest.meta?.requestId === 'string' && daemonRequest.meta.requestId.length > 0) {
+    return daemonRequest.meta.requestId;
+  }
+  if (typeof rpcRequest.id === 'string' && rpcRequest.id.length > 0) {
+    return `rpc:${rpcRequest.id}`;
+  }
+  if (typeof rpcRequest.id === 'number' && Number.isFinite(rpcRequest.id)) {
+    return `rpc:${String(rpcRequest.id)}`;
+  }
+  return `rpc:generated:${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function statusCodeForNormalizedError(code: string): number {
   switch (code) {
     case 'INVALID_ARGS':
@@ -300,15 +316,17 @@ export async function createDaemonHttpServer(options: {
           return;
         }
 
-        requestIdForCleanup = daemonRequest.meta?.requestId;
-        if (requestIdForCleanup) {
-          registerRequestAbort(requestIdForCleanup);
-          req.on('close', () => {
-            if (!res.writableFinished) {
-              markRequestCanceled(requestIdForCleanup);
-            }
-          });
-        }
+        requestIdForCleanup = resolveRequestTrackingId(rpcRequest, daemonRequest);
+        daemonRequest.meta = {
+          ...daemonRequest.meta,
+          requestId: requestIdForCleanup,
+        };
+        registerRequestAbort(requestIdForCleanup);
+        req.on('close', () => {
+          if (!res.writableFinished) {
+            markRequestCanceled(requestIdForCleanup);
+          }
+        });
 
         const authResult = await runHttpAuthHook(authHook, {
           headers: req.headers,
@@ -350,9 +368,7 @@ export async function createDaemonHttpServer(options: {
           statusCodeForNormalizedError(normalized.code),
         );
       } finally {
-        if (requestIdForCleanup) {
-          clearRequestCanceled(requestIdForCleanup);
-        }
+        clearRequestCanceled(requestIdForCleanup);
       }
     });
   });

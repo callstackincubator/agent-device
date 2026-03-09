@@ -198,10 +198,26 @@ function computeDelay(base: number, max: number, jitter: number, attempt: number
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(); return; }
-    const timer = setTimeout(resolve, ms);
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    let onAbort: (() => void) | undefined;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (signal && onAbort) {
+        signal.removeEventListener('abort', onAbort);
+      }
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    onAbort = () => {
+      clearTimeout(timer);
+      finish();
+    };
     if (signal) {
-      const onAbort = () => { clearTimeout(timer); resolve(); };
       signal.addEventListener('abort', onAbort, { once: true });
     }
   });
