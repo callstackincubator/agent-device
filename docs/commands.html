@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.25b88baf.js"></script>
+<script defer src="/agent-device/static/js/index.4982cdb7.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -156,6 +156,7 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <li><code>install &lt;app&gt; &lt;path&gt;</code> installs from binary path without uninstalling first.</li>
 <li>Supports Android devices/emulators, iOS simulators, and iOS physical devices.</li>
 <li>Useful for upgrade flows where you want to keep existing app data when supported by the platform.</li>
+<li>Remote daemons automatically upload local app artifacts for <code>install</code>; prefix the path with <code>remote:</code> to use a daemon-side path verbatim.</li>
 <li>Supported binary formats: Android <code>.apk</code>/<code>.aab</code>, iOS <code>.app</code>/<code>.ipa</code>.</li>
 <li><code>.aab</code> requires <code>bundletool</code> in <code>PATH</code>, or <code>AGENT_DEVICE_BUNDLETOOL_JAR=&lt;path-to-bundletool-all.jar&gt;</code> with <code>java</code> in <code>PATH</code>.</li>
 <li>Optional: <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=&lt;mode&gt;</code> overrides bundletool <code>build-apks --mode</code> (default: <code>universal</code>).</li>
@@ -168,6 +169,7 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <li><code>reinstall &lt;app&gt; &lt;path&gt;</code> uninstalls and installs in one command.</li>
 <li>Supports Android devices/emulators, iOS simulators, and iOS physical devices.</li>
 <li>Useful for login/logout reset flows and deterministic test setup.</li>
+<li>Remote daemons automatically upload local app artifacts for <code>reinstall</code>; prefix the path with <code>remote:</code> to use a daemon-side path verbatim.</li>
 <li>Supported binary formats: Android <code>.apk</code>/<code>.aab</code>, iOS <code>.app</code>/<code>.ipa</code>.</li>
 <li><code>.aab</code> accepts the same bundletool requirements and optional <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE</code> override as <code>install</code>.</li>
 <li><code>.ipa</code> uses <code>&lt;app&gt;</code> as the selection hint when multiple <code>Payload/*.app</code> bundles are present.</li>
