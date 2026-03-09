@@ -1,12 +1,12 @@
 import { AppError } from '../../utils/errors.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { getRequestSignal } from '../../daemon/request-cancel.ts';
 import {
   isRetryableRunnerError,
   shouldRetryRunnerConnectError,
   isReadOnlyRunnerCommand,
   assertRunnerRequestActive,
-  resolveRequestSignal,
 } from './runner-errors.ts';
 import { waitForRunner, RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
 import {
@@ -94,7 +94,7 @@ async function executeRunnerCommand(
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
 ): Promise<Record<string, unknown>> {
   assertRunnerRequestActive(options.requestId);
-  const signal = resolveRequestSignal(options.requestId);
+  const signal = getRequestSignal(options.requestId);
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);

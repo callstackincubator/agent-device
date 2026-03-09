@@ -21,7 +21,7 @@ import {
   screenshotIos,
 } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { isRequestCanceled } from '../daemon/request-cancel.ts';
+import { createRequestCanceledError, isRequestCanceled } from '../daemon/request-cancel.ts';
 
 export type RunnerContext = {
   requestId?: string;
@@ -95,7 +95,7 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
   };
   const throwIfCanceled = () => {
     if (!isRequestCanceled(ctx.requestId)) return;
-    throw new AppError('COMMAND_FAILED', 'request canceled');
+    throw createRequestCanceledError();
   };
 
   return {

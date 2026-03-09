@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { AppError } from '../../utils/errors.ts';
+import {
+  createRequestCanceledError,
+  isRequestCanceledError,
+  resolveRequestTrackingId,
+} from '../request-cancel.ts';
+
+test('resolveRequestTrackingId keeps explicit request id', () => {
+  assert.equal(resolveRequestTrackingId('req-123'), 'req-123');
+});
+
+test('resolveRequestTrackingId generates unique ids for fallback seeds', () => {
+  const first = resolveRequestTrackingId(undefined, 42);
+  const second = resolveRequestTrackingId(undefined, 42);
+  assert.match(first, /^req:42:/);
+  assert.match(second, /^req:42:/);
+  assert.notEqual(first, second);
+});
+
+test('createRequestCanceledError includes stable cancellation reason marker', () => {
+  const err = createRequestCanceledError();
+  assert.equal(err.code, 'COMMAND_FAILED');
+  assert.equal(err.message, 'request canceled');
+  assert.equal(err.details?.reason, 'request_canceled');
+});
+
+test('isRequestCanceledError accepts structured and legacy cancellation errors', () => {
+  assert.equal(isRequestCanceledError(createRequestCanceledError()), true);
+  assert.equal(isRequestCanceledError(new AppError('COMMAND_FAILED', 'request canceled')), true);
+  assert.equal(isRequestCanceledError(new AppError('COMMAND_FAILED', 'different message')), false);
+});

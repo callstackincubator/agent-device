@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
+import { createRequestCanceledError, isRequestCanceledError } from '../../daemon/request-cancel.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
@@ -108,7 +109,7 @@ export async function waitForRunner(
             return response;
           } catch (err) {
             if (signal?.aborted || isRequestCanceledError(err)) {
-              throw new AppError('COMMAND_FAILED', 'request canceled');
+              throw createRequestCanceledError();
             }
             lastError = err;
           }
@@ -130,7 +131,7 @@ export async function waitForRunner(
     );
   } catch (error) {
     if (signal?.aborted || isRequestCanceledError(error)) {
-      throw new AppError('COMMAND_FAILED', 'request canceled');
+      throw createRequestCanceledError();
     }
     if (!lastError) {
       lastError = error;
@@ -138,7 +139,7 @@ export async function waitForRunner(
   }
 
   if (signal?.aborted) {
-    throw new AppError('COMMAND_FAILED', 'request canceled');
+    throw createRequestCanceledError();
   }
 
   if (device.kind === 'simulator') {
@@ -151,10 +152,6 @@ export async function waitForRunner(
   }
 
   throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
-}
-
-function isRequestCanceledError(error: unknown): boolean {
-  return error instanceof AppError && error.code === 'COMMAND_FAILED' && error.message === 'request canceled';
 }
 
 async function resolveRunnerCommandEndpoints(

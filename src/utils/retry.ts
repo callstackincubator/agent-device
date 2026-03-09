@@ -106,7 +106,7 @@ export async function retryWithPolicy<T>(
   let lastError: unknown;
   for (let attempt = 1; attempt <= merged.maxAttempts; attempt += 1) {
     if (options.signal?.aborted) {
-      throw new AppError('COMMAND_FAILED', 'request canceled');
+      throw new AppError('COMMAND_FAILED', 'request canceled', { reason: 'request_canceled' });
     }
     if (options.deadline?.isExpired() && attempt > 1) break;
     try {
