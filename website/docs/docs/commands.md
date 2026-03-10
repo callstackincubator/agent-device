@@ -177,17 +177,18 @@ agent-device find role button click
 ## Assertions
 
 ```bash
-agent-device is visible @e3
-agent-device is exists 'role="button" label="Continue"'
+agent-device is visible 'role="button" label="Continue"'
+agent-device is exists 'id="primary-cta"'
 agent-device is hidden 'text="Loading..."'
 agent-device is editable 'id="email"'
 agent-device is selected 'label="Wi-Fi"'
 agent-device is text 'id="greeting"' "Welcome back"
 ```
 
-- `is` evaluates UI predicates against a snapshot ref or selector and exits non-zero on failure.
+- `is` evaluates UI predicates against a selector expression and exits non-zero on failure.
 - Supported predicates are `visible`, `hidden`, `exists`, `editable`, `selected`, and `text`.
-- `is text <target> <value>` compares the resolved element text against the expected value.
+- `is text <selector> <value>` compares the resolved element text against the expected value.
+- `is` does not accept snapshot refs like `@e3`; use a selector expression instead.
 - `is` accepts the same selector-oriented snapshot flags as `click`, `fill`, `get`, and `wait`.
 
 ## Replay
