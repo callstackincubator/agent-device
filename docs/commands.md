@@ -55,6 +55,20 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
   - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
 - CLI scope flags override environment values.
 
+## Device discovery
+
+```bash
+agent-device devices
+agent-device devices --platform ios
+agent-device devices --platform android
+agent-device devices --platform ios --ios-simulator-device-set /tmp/tenant-a/simulators
+agent-device devices --platform android --android-device-allowlist emulator-5554,device-1234
+```
+
+- `devices` lists available targets after applying any platform selector or isolation scope flags.
+- Use `--platform` to narrow discovery to iOS/tvOS or Android targets.
+- Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
+
 ## Simulator provisioning
 
 ```bash
@@ -98,6 +112,27 @@ agent-device get attrs @e1
 - iOS snapshots use XCTest on simulators and physical devices.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 
+## Wait and alerts
+
+```bash
+agent-device wait 1500
+agent-device wait text "Welcome back"
+agent-device wait @e12
+agent-device wait 'role="button" label="Continue"' 5000
+agent-device alert
+agent-device alert get
+agent-device alert wait 3000
+agent-device alert accept
+agent-device alert dismiss
+```
+
+- `wait` accepts a millisecond duration, `text <value>`, a snapshot ref (`@eN`), or a selector.
+- `wait <selector> [timeoutMs]` and `wait @ref [timeoutMs]` poll until the target appears or the timeout expires.
+- `wait` shares the selector/snapshot resolution flow used by `click`, `fill`, `get`, and `is`.
+- `alert` inspects or handles system alerts on iOS simulator targets.
+- `alert` without an action is equivalent to `alert get`.
+- `alert wait [timeout]` waits for an alert to appear before returning it.
+
 ## Interactions
 
 ```bash
@@ -135,6 +170,22 @@ agent-device find label "Email" fill "user@example.com"
 agent-device find role button click
 ```
 
+## Assertions
+
+```bash
+agent-device is visible @e3
+agent-device is exists 'role="button" label="Continue"'
+agent-device is hidden 'text="Loading..."'
+agent-device is editable 'id="email"'
+agent-device is selected 'label="Wi-Fi"'
+agent-device is text 'id="greeting"' "Welcome back"
+```
+
+- `is` evaluates UI predicates against a snapshot ref or selector and exits non-zero on failure.
+- Supported predicates are `visible`, `hidden`, `exists`, `editable`, `selected`, and `text`.
+- `is text <target> <value>` compares the resolved element text against the expected value.
+- `is` accepts the same selector-oriented snapshot flags as `click`, `fill`, `get`, and `wait`.
+
 ## Replay
 
 ```bash
@@ -157,9 +208,9 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- each step has `command`, optional `positionals`, and optional `flags`.
-- stop-on-first-error is the supported behavior (`--on-error stop`).
-- use `--max-steps <n>` to tighten per-request safety limits.
+- Each step has `command`, optional `positionals`, and optional `flags`.
+- Stop-on-first-error is the supported behavior (`--on-error stop`).
+- Use `--max-steps <n>` to tighten per-request safety limits.
 
 See [Batching](/agent-device/docs/batching.md) for payload format, response shape, and usage guidelines.
 
@@ -390,6 +441,43 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Physical-device capture defaults to uncapped (max available) FPS.
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
+
+## Tracing
+
+```bash
+agent-device trace start
+agent-device trace start session.trace
+agent-device trace stop
+agent-device trace stop session.trace
+```
+
+- `trace start [path]` begins trace-log capture for the active session.
+- `trace stop [path]` stops capture and optionally writes or finalizes the trace artifact at the provided path.
+- `trace` is intended for lower-level session diagnostics than `record` or `logs`.
+
+## Runtime hints
+
+```bash
+agent-device runtime show
+agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081
+agent-device runtime set --session my-session --platform ios --bundle-url "http://10.0.0.10:8081/index.bundle?platform=ios"
+agent-device runtime clear
+```
+
+- `runtime show` prints the current session-scoped runtime hints.
+- `runtime set` updates supported hints: `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`.
+- `runtime clear` removes previously configured hints for the active session.
+- These hints are mainly for React Native and remote/native daemon launch flows.
+
+## Session inspection
+
+```bash
+agent-device session list
+agent-device session list --json
+```
+
+- `session list` shows active daemon sessions and their tracked device/app context.
+- Use `--json` when you want to inspect or script against the raw session metadata.
 
 ## iOS device prerequisites
 
