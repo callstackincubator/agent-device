@@ -127,7 +127,10 @@ agent-device alert dismiss
 ```
 
 - `wait` accepts a millisecond duration, `text <value>`, a snapshot ref (`@eN`), or a selector.
-- `wait <selector> [timeoutMs]` and `wait @ref [timeoutMs]` poll until the target appears or the timeout expires.
+- `wait <selector> [timeoutMs]` polls until the selector resolves or the timeout expires.
+- `wait @ref [timeoutMs]` requires an existing session snapshot from a prior `snapshot` command.
+- `wait @ref` resolves the ref to its label/text from that stored snapshot, then polls for that text; it does not track the original node identity.
+- Because `wait @ref` is text-based after resolution, duplicate labels can match a different element than the original ref target.
 - `wait` shares the selector/snapshot resolution flow used by `click`, `fill`, `get`, and `is`.
 - `alert` inspects or handles system alerts on iOS simulator targets.
 - `alert` without an action is equivalent to `alert get`.
@@ -173,17 +176,18 @@ agent-device find role button click
 ## Assertions
 
 ```bash
-agent-device is visible @e3
-agent-device is exists 'role="button" label="Continue"'
+agent-device is visible 'role="button" label="Continue"'
+agent-device is exists 'id="primary-cta"'
 agent-device is hidden 'text="Loading..."'
 agent-device is editable 'id="email"'
 agent-device is selected 'label="Wi-Fi"'
 agent-device is text 'id="greeting"' "Welcome back"
 ```
 
-- `is` evaluates UI predicates against a snapshot ref or selector and exits non-zero on failure.
+- `is` evaluates UI predicates against a selector expression and exits non-zero on failure.
 - Supported predicates are `visible`, `hidden`, `exists`, `editable`, `selected`, and `text`.
-- `is text <target> <value>` compares the resolved element text against the expected value.
+- `is text <selector> <value>` compares the resolved element text against the expected value.
+- `is` does not accept snapshot refs like `@e3`; use a selector expression instead.
 - `is` accepts the same selector-oriented snapshot flags as `click`, `fill`, `get`, and `wait`.
 
 ## Replay
