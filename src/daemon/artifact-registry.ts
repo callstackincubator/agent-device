@@ -24,6 +24,7 @@ export function trackDownloadableArtifact(params: {
   const timer = setTimeout(() => {
     cleanupDownloadableArtifact(artifactId);
   }, ARTIFACT_CLEANUP_TIMEOUT_MS);
+  timer.unref?.();
   pendingArtifacts.set(artifactId, {
     artifactPath: params.artifactPath,
     tenantId: params.tenantId,

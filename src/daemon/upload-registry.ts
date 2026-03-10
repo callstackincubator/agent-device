@@ -22,6 +22,7 @@ export function trackUploadedArtifact(params: {
   const timer = setTimeout(() => {
     cleanupUploadedArtifact(uploadId);
   }, UPLOAD_CLEANUP_TIMEOUT_MS);
+  timer.unref?.();
   pendingUploads.set(uploadId, {
     artifactPath: params.artifactPath,
     tempDir: params.tempDir,

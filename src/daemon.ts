@@ -16,7 +16,7 @@ import { handleSnapshotCommands } from './daemon/handlers/snapshot.ts';
 import { handleFindCommands } from './daemon/handlers/find.ts';
 import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
-import { recordTouchVisualizationEvent } from './daemon/recording-gestures.ts';
+import { augmentTouchVisualizationResult, recordTouchVisualizationEvent } from './daemon/recording-gestures.ts';
 import { handleLeaseCommands } from './daemon/handlers/lease.ts';
 import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
@@ -231,11 +231,17 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         const data = await dispatchCommand(session.device, command, scopedReq.positionals ?? [], scopedReq.flags?.out, {
           ...contextFromFlags(scopedReq.flags, session.appBundleId, session.trace?.outPath),
         });
-        recordTouchVisualizationEvent(
+        const visualizationData = augmentTouchVisualizationResult(
           session,
           command,
           scopedReq.positionals ?? [],
           data as Record<string, unknown> | void,
+        );
+        recordTouchVisualizationEvent(
+          session,
+          command,
+          scopedReq.positionals ?? [],
+          visualizationData as Record<string, unknown> | void,
           (scopedReq.flags ?? {}) as Record<string, unknown>,
           actionStartedAt,
         );

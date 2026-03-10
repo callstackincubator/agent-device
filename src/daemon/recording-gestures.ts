@@ -4,6 +4,9 @@ import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
 const DEFAULT_PINCH_DURATION_MS = 280;
+const DEFAULT_SCROLL_FRACTION = 0.4;
+const MIN_SCROLL_FRACTION = 0.2;
+const MAX_SCROLL_FRACTION = 0.7;
 
 export function recordTouchVisualizationEvent(
   session: SessionState,
@@ -19,9 +22,40 @@ export function recordTouchVisualizationEvent(
   const tMs = Math.max(0, startedAtMs - recording.startedAt);
   const merged = { ...fallback, ...(result ?? {}) };
   const referenceFrame = inferReferenceFrame(session.snapshot?.nodes ?? []);
-  const events = buildGestureEvents(command, positionals, merged, tMs, referenceFrame);
+  const normalizedCommand = command === 'scroll' && hasSwipeGeometry(merged) ? 'swipe' : command;
+  const events = buildGestureEvents(normalizedCommand, positionals, merged, tMs, referenceFrame);
   if (events.length === 0) return;
   recording.gestureEvents.push(...events);
+}
+
+export function augmentTouchVisualizationResult(
+  session: SessionState,
+  command: string,
+  positionals: string[],
+  result: Record<string, unknown> | void,
+): Record<string, unknown> | void {
+  if (command !== 'scroll') return result;
+
+  const referenceFrame = inferReferenceFrame(session.snapshot?.nodes ?? []);
+  if (!referenceFrame) return result;
+
+  const merged = { ...(result ?? {}) };
+  const contentDirection = readDirection(merged.direction) ?? readDirection(positionals[0]);
+  if (!contentDirection) return result;
+
+  const amountValue = readNumber(merged.amount) ?? readNumber(positionals[1]);
+  const travelFraction = resolveScrollTravelFraction(amountValue);
+  const start = scrollStartPoint(contentDirection, referenceFrame, travelFraction);
+  const end = scrollEndPoint(contentDirection, referenceFrame, travelFraction);
+
+  return {
+    ...merged,
+    x1: start.x,
+    y1: start.y,
+    x2: end.x,
+    y2: end.y,
+    durationMs: DEFAULT_SWIPE_DURATION_MS,
+  };
 }
 
 type ReferenceFrame = {
@@ -203,6 +237,81 @@ function inferReferenceFrame(nodes: SnapshotNode[]): ReferenceFrame | undefined 
   };
 }
 
+function hasSwipeGeometry(result: Record<string, unknown>): boolean {
+  return (
+    readNumber(result.x1) !== undefined
+    && readNumber(result.y1) !== undefined
+    && readNumber(result.x2) !== undefined
+    && readNumber(result.y2) !== undefined
+  );
+}
+
+function readDirection(value: unknown): 'up' | 'down' | 'left' | 'right' | undefined {
+  if (typeof value !== 'string') return undefined;
+  switch (value.trim().toLowerCase()) {
+    case 'up':
+    case 'down':
+    case 'left':
+    case 'right':
+      return value.trim().toLowerCase() as 'up' | 'down' | 'left' | 'right';
+    default:
+      return undefined;
+  }
+}
+
+function resolveScrollTravelFraction(amount: number | undefined): number {
+  if (amount === undefined) return DEFAULT_SCROLL_FRACTION;
+  if (!Number.isFinite(amount) || amount <= 0) return DEFAULT_SCROLL_FRACTION;
+  if (amount <= 1) {
+    return clampNumber(amount, MIN_SCROLL_FRACTION, MAX_SCROLL_FRACTION);
+  }
+  return clampNumber(amount / 100, MIN_SCROLL_FRACTION, MAX_SCROLL_FRACTION);
+}
+
+function scrollStartPoint(
+  contentDirection: 'up' | 'down' | 'left' | 'right',
+  referenceFrame: ReferenceFrame,
+  travelFraction: number,
+): { x: number; y: number } {
+  const midX = Math.round(referenceFrame.referenceWidth / 2);
+  const midY = Math.round(referenceFrame.referenceHeight / 2);
+  const travelX = Math.round(referenceFrame.referenceWidth * travelFraction / 2);
+  const travelY = Math.round(referenceFrame.referenceHeight * travelFraction / 2);
+
+  switch (contentDirection) {
+    case 'up':
+      return { x: midX, y: midY - travelY };
+    case 'down':
+      return { x: midX, y: midY + travelY };
+    case 'left':
+      return { x: midX - travelX, y: midY };
+    case 'right':
+      return { x: midX + travelX, y: midY };
+  }
+}
+
+function scrollEndPoint(
+  contentDirection: 'up' | 'down' | 'left' | 'right',
+  referenceFrame: ReferenceFrame,
+  travelFraction: number,
+): { x: number; y: number } {
+  const midX = Math.round(referenceFrame.referenceWidth / 2);
+  const midY = Math.round(referenceFrame.referenceHeight / 2);
+  const travelX = Math.round(referenceFrame.referenceWidth * travelFraction / 2);
+  const travelY = Math.round(referenceFrame.referenceHeight * travelFraction / 2);
+
+  switch (contentDirection) {
+    case 'up':
+      return { x: midX, y: midY + travelY };
+    case 'down':
+      return { x: midX, y: midY - travelY };
+    case 'left':
+      return { x: midX + travelX, y: midY };
+    case 'right':
+      return { x: midX - travelX, y: midY };
+  }
+}
+
 function inferViewportRect(nodes: SnapshotNode[]): Rect | undefined {
   const candidate = nodes
     .filter((node) => isViewportNode(node.type) && isValidRect(node.rect))
@@ -240,4 +349,8 @@ function clampInt(value: number | undefined, min: number): number | undefined {
   if (value === undefined) return undefined;
   const normalized = Math.floor(value);
   return normalized >= min ? normalized : undefined;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

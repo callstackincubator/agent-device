@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createDaemonHttpServer } from '../http-server.ts';
-import { trackDownloadableArtifact } from '../artifact-registry.ts';
+import { cleanupDownloadableArtifact, trackDownloadableArtifact } from '../artifact-registry.ts';
 import { isRequestCanceled } from '../request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 
@@ -39,6 +39,20 @@ async function listen(server: http.Server): Promise<number> {
         return;
       }
       reject(new Error('Failed to bind test server'));
+    });
+  });
+}
+
+async function closeServer(server: http.Server): Promise<void> {
+  server.closeIdleConnections?.();
+  server.closeAllConnections?.();
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
     });
   });
 }
@@ -131,15 +145,7 @@ test('HTTP RPC does not cancel active requests after the request body completes'
   });
   const port = await listen(server);
   t.after(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeServer(server);
   });
 
   const response = await callRpc(port, {
@@ -181,15 +187,8 @@ test('HTTP artifact download streams registered files', async (t) => {
   });
   const port = await listen(server);
   t.after(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeServer(server);
+    cleanupDownloadableArtifact(artifactId);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -220,15 +219,8 @@ test('HTTP artifact download rejects requests without the daemon token', async (
   });
   const port = await listen(server);
   t.after(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeServer(server);
+    cleanupDownloadableArtifact(artifactId);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
