@@ -3,9 +3,9 @@ import AVFoundation
 import Foundation
 import QuartzCore
 
-let touchDotRadius: CGFloat = 15
-let touchDotColor = NSColor(calibratedRed: 0.20, green: 0.63, blue: 0.98, alpha: 0.92).cgColor
-let touchDotBorderColor = NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.96).cgColor
+let touchDotRadius: CGFloat = 30
+let touchDotColor = NSColor(calibratedRed: 0.20, green: 0.63, blue: 0.98, alpha: 0.48).cgColor
+let touchDotBorderColor = NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.68).cgColor
 
 struct GestureEnvelope: Decodable {
   let events: [GestureEvent]
