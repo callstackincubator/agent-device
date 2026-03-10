@@ -33,7 +33,7 @@ extension RunnerTests {
       self.fps = fps
     }
 
-    func start(captureFrame: @escaping () -> UIImage?) throws {
+    func start(captureFrame: @escaping () -> UIImage?) throws -> Double {
       let url = URL(fileURLWithPath: outputPath)
       let directory = url.deletingLastPathComponent()
       try FileManager.default.createDirectory(
@@ -122,6 +122,7 @@ extension RunnerTests {
       }
       self.timer = timer
       timer.resume()
+      return currentRecordingStartUptimeMs()
     }
 
     func stop() throws {
@@ -228,6 +229,13 @@ extension RunnerTests {
       lock.lock()
       defer { lock.unlock() }
       return isStopping
+    }
+
+    private func currentRecordingStartUptimeMs() -> Double {
+      lock.lock()
+      defer { lock.unlock() }
+      let uptime = recordingStartUptime ?? ProcessInfo.processInfo.systemUptime
+      return uptime * 1000
     }
 
     private func makePixelBuffer(from image: CGImage) -> CVPixelBuffer? {

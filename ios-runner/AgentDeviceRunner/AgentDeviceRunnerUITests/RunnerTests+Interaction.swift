@@ -1,6 +1,11 @@
 import XCTest
 
 extension RunnerTests {
+  struct GestureTiming {
+    let startUptimeMs: Double
+    let endUptimeMs: Double
+  }
+
   // MARK: - Navigation Gestures
 
   func tapNavigationBack(app: XCUIApplication) -> Bool {
@@ -145,16 +150,34 @@ extension RunnerTests {
     coordinate.tap()
   }
 
+  func timedTapAt(app: XCUIApplication, x: Double, y: Double) -> GestureTiming {
+    measureGestureTiming {
+      tapAt(app: app, x: x, y: y)
+    }
+  }
+
   func doubleTapAt(app: XCUIApplication, x: Double, y: Double) {
     let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
     coordinate.doubleTap()
   }
 
+  func timedDoubleTapAt(app: XCUIApplication, x: Double, y: Double) -> GestureTiming {
+    measureGestureTiming {
+      doubleTapAt(app: app, x: x, y: y)
+    }
+  }
+
   func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) {
     let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
     coordinate.press(forDuration: duration)
+  }
+
+  func timedLongPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) -> GestureTiming {
+    measureGestureTiming {
+      longPressAt(app: app, x: x, y: y, duration: duration)
+    }
   }
 
   func dragAt(
@@ -169,6 +192,19 @@ extension RunnerTests {
     let start = origin.withOffset(CGVector(dx: x, dy: y))
     let end = origin.withOffset(CGVector(dx: x2, dy: y2))
     start.press(forDuration: holdDuration, thenDragTo: end)
+  }
+
+  func timedDragAt(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double,
+    holdDuration: TimeInterval
+  ) -> GestureTiming {
+    measureGestureTiming {
+      dragAt(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+    }
   }
 
   func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {
@@ -253,6 +289,19 @@ extension RunnerTests {
 
     // Immediately press and drag (second tap + drag)
     center.press(forDuration: 0.05, thenDragTo: endPoint)
+  }
+
+  func timedPinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> GestureTiming {
+    measureGestureTiming {
+      pinch(app: app, scale: scale, x: x, y: y)
+    }
+  }
+
+  func measureGestureTiming(_ action: () -> Void) -> GestureTiming {
+    let start = ProcessInfo.processInfo.systemUptime * 1000
+    action()
+    let end = ProcessInfo.processInfo.systemUptime * 1000
+    return GestureTiming(startUptimeMs: start, endUptimeMs: max(start, end))
   }
 
 }

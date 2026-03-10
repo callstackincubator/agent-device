@@ -94,6 +94,7 @@ type SessionRecordingBase = {
   outPath: string;
   clientOutPath?: string;
   startedAt: number;
+  runnerStartedAtUptimeMs?: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
 };

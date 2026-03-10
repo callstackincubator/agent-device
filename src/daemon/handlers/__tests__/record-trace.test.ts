@@ -84,6 +84,9 @@ function makeIosDeviceRunnerDeps(
       logPath: options?.logPath,
       traceLogPath: options?.traceLogPath,
     });
+    if (command.command === 'recordStart') {
+      return { recorderStartUptimeMs: 12_345 };
+    }
     return {};
   };
   return {
@@ -150,6 +153,9 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     ? startedRecording.remotePath
     : undefined;
   assert.match(stagedRemotePath ?? '', /^tmp\/agent-device-recording-\d+\.mp4$/);
+  if (startedRecording?.platform === 'ios-device-runner') {
+    assert.equal(startedRecording.runnerStartedAtUptimeMs, 12_345);
+  }
 
   const responseStop = await runRecordCommand({
     sessionStore,

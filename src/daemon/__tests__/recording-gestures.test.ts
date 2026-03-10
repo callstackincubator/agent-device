@@ -98,3 +98,41 @@ test('scroll augmentation synthesizes swipe geometry from viewport', () => {
   assert.equal((augmented as Record<string, unknown>).x2, 201);
   assert.equal((augmented as Record<string, unknown>).y2, 612);
 });
+
+test('gesture recording prefers native runner timing when available', () => {
+  const session = makeSession();
+  if (session.recording) {
+    session.recording.runnerStartedAtUptimeMs = 5_000;
+  }
+
+  recordTouchVisualizationEvent(
+    session,
+    'press',
+    ['201', '437'],
+    { x: 201, y: 437, gestureStartUptimeMs: 5_180 },
+    {},
+    9_999,
+  );
+
+  const event = session.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.tMs, 180);
+});
+
+test('gesture recording caches reference frame on the snapshot', () => {
+  const session = makeSession();
+  assert.equal(session.snapshot?.referenceWidth, undefined);
+  assert.equal(session.snapshot?.referenceHeight, undefined);
+
+  recordTouchVisualizationEvent(
+    session,
+    'press',
+    ['201', '437'],
+    { x: 201, y: 437 },
+    {},
+    1_500,
+  );
+
+  assert.equal(session.snapshot?.referenceWidth, 402);
+  assert.equal(session.snapshot?.referenceHeight, 874);
+});

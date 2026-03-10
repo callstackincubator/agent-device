@@ -1,6 +1,17 @@
 import XCTest
 
 extension RunnerTests {
+  private func gestureResponse(message: String, timing: GestureTiming?) -> Response {
+    Response(
+      ok: true,
+      data: DataPayload(
+        message: message,
+        gestureStartUptimeMs: timing?.startUptimeMs,
+        gestureEndUptimeMs: timing?.endUptimeMs
+      )
+    )
+  }
+
   // MARK: - Main Thread Dispatch
 
   func execute(command: Command) throws -> Response {
@@ -183,11 +194,17 @@ extension RunnerTests {
           fpsLabel
         )
         let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: command.fps.map { Int32($0) })
-        try recorder.start { [weak self] in
+        let recorderStartUptimeMs = try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }
         activeRecording = recorder
-        return Response(ok: true, data: DataPayload(message: "recording started"))
+        return Response(
+          ok: true,
+          data: DataPayload(
+            message: "recording started",
+            recorderStartUptimeMs: recorderStartUptimeMs
+          )
+        )
       } catch {
         activeRecording = nil
         return Response(ok: false, error: ErrorPayload(message: "failed to start recording: \(error.localizedDescription)"))
@@ -207,14 +224,16 @@ extension RunnerTests {
     case .tap:
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
-          element.tap()
-          return Response(ok: true, data: DataPayload(message: "tapped"))
+          let gestureTiming = measureGestureTiming {
+            element.tap()
+          }
+          return gestureResponse(message: "tapped", timing: gestureTiming)
         }
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
-        tapAt(app: activeApp, x: x, y: y)
-        return Response(ok: true, data: DataPayload(message: "tapped"))
+        let gestureTiming = timedTapAt(app: activeApp, x: x, y: y)
+        return gestureResponse(message: "tapped", timing: gestureTiming)
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
     case .tapSeries:
@@ -225,31 +244,40 @@ extension RunnerTests {
       let intervalMs = max(command.intervalMs ?? 0, 0)
       let doubleTap = command.doubleTap ?? false
       if doubleTap {
+        var firstGestureTiming: GestureTiming?
         runSeries(count: count, pauseMs: intervalMs) { _ in
-          doubleTapAt(app: activeApp, x: x, y: y)
+          let gestureTiming = timedDoubleTapAt(app: activeApp, x: x, y: y)
+          if firstGestureTiming == nil {
+            firstGestureTiming = gestureTiming
+          }
         }
-        return Response(ok: true, data: DataPayload(message: "tap series"))
+        return gestureResponse(message: "tap series", timing: firstGestureTiming)
       }
+      var firstGestureTiming: GestureTiming?
       runSeries(count: count, pauseMs: intervalMs) { _ in
-        tapAt(app: activeApp, x: x, y: y)
+        let gestureTiming = timedTapAt(app: activeApp, x: x, y: y)
+        if firstGestureTiming == nil {
+          firstGestureTiming = gestureTiming
+        }
       }
-      return Response(ok: true, data: DataPayload(message: "tap series"))
+      return gestureResponse(message: "tap series", timing: firstGestureTiming)
     case .longPress:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "longPress requires x and y"))
       }
       let duration = (command.durationMs ?? 800) / 1000.0
-      longPressAt(app: activeApp, x: x, y: y, duration: duration)
-      return Response(ok: true, data: DataPayload(message: "long pressed"))
+      let gestureTiming = timedLongPressAt(app: activeApp, x: x, y: y, duration: duration)
+      return gestureResponse(message: "long pressed", timing: gestureTiming)
     case .drag:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      var gestureTiming: GestureTiming?
       withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+        gestureTiming = timedDragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
       }
-      return Response(ok: true, data: DataPayload(message: "dragged"))
+      return gestureResponse(message: "dragged", timing: gestureTiming)
     case .dragSeries:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))
@@ -261,17 +289,24 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      var firstGestureTiming: GestureTiming?
       withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
         runSeries(count: count, pauseMs: pauseMs) { idx in
           let reverse = pattern == "ping-pong" && (idx % 2 == 1)
           if reverse {
-            dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+            let gestureTiming = timedDragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+            if firstGestureTiming == nil {
+              firstGestureTiming = gestureTiming
+            }
           } else {
-            dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+            let gestureTiming = timedDragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+            if firstGestureTiming == nil {
+              firstGestureTiming = gestureTiming
+            }
           }
         }
       }
-      return Response(ok: true, data: DataPayload(message: "drag series"))
+      return gestureResponse(message: "drag series", timing: firstGestureTiming)
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -374,8 +409,8 @@ extension RunnerTests {
       guard let scale = command.scale, scale > 0 else {
         return Response(ok: false, error: ErrorPayload(message: "pinch requires scale > 0"))
       }
-      pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
-      return Response(ok: true, data: DataPayload(message: "pinched"))
+      let gestureTiming = timedPinch(app: activeApp, scale: scale, x: command.x, y: command.y)
+      return gestureResponse(message: "pinched", timing: gestureTiming)
     }
   }
 }

@@ -11,7 +11,7 @@ import {
   restoreAndroidShowTouchesSetting,
   setAndroidShowTouchesEnabled,
 } from '../../platforms/android/touch-visualization.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { DaemonRequest, DaemonResponse, RecordingGestureEvent, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
@@ -141,7 +141,14 @@ export async function handleRecordTraceCommands(params: {
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
       const clientOutPath = req.meta?.clientArtifactPaths?.outPath;
       const showTouches = req.flags?.showTouches === true;
-      const recordingBase = {
+      const recordingBase: {
+        outPath: string;
+        clientOutPath?: string;
+        startedAt: number;
+        runnerStartedAtUptimeMs?: number;
+        showTouches: boolean;
+        gestureEvents: RecordingGestureEvent[];
+      } = {
         outPath: resolvedOut,
         clientOutPath,
         startedAt: Date.now(),
@@ -155,7 +162,7 @@ export async function handleRecordTraceCommands(params: {
         const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
         const remotePath = `tmp/${recordingFileName}`;
         const startRunnerRecording = async () => {
-          await deps.runIosRunnerCommand(
+          return await deps.runIosRunnerCommand(
             device,
             {
               command: 'recordStart',
@@ -167,7 +174,9 @@ export async function handleRecordTraceCommands(params: {
           );
         };
         try {
-          await startRunnerRecording();
+          const startResult = await startRunnerRecording();
+          recordingBase.runnerStartedAtUptimeMs =
+            typeof startResult.recorderStartUptimeMs === 'number' ? startResult.recorderStartUptimeMs : undefined;
         } catch (error) {
           if (isRunnerRecordingAlreadyInProgressError(error)) {
             emitDiagnostic({
@@ -201,7 +210,9 @@ export async function handleRecordTraceCommands(params: {
               // best effort: stop stale runner recording and retry start
             }
             try {
-              await startRunnerRecording();
+              const startResult = await startRunnerRecording();
+              recordingBase.runnerStartedAtUptimeMs =
+                typeof startResult.recorderStartUptimeMs === 'number' ? startResult.recorderStartUptimeMs : undefined;
             } catch (retryError) {
               return {
                 ok: false,

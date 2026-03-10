@@ -36,6 +36,8 @@ export type SnapshotState = {
   createdAt: number;
   truncated?: boolean;
   backend?: 'xctest' | 'android';
+  referenceWidth?: number;
+  referenceHeight?: number;
 };
 
 export function attachRefs(nodes: RawSnapshotNode[]): SnapshotNode[] {

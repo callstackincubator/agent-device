@@ -1,5 +1,6 @@
 import type { RecordingGestureEvent, SessionState } from './types.ts';
-import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
+import type { Rect, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import { resolveGestureOffsetMs } from './recording-timing.ts';
 
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
@@ -19,9 +20,14 @@ export function recordTouchVisualizationEvent(
   const recording = session.recording;
   if (!recording?.showTouches) return;
 
-  const tMs = Math.max(0, startedAtMs - recording.startedAt);
+  const tMs = resolveGestureOffsetMs({
+    recordingStartedAt: recording.startedAt,
+    runnerStartedAtUptimeMs: recording.runnerStartedAtUptimeMs,
+    gestureStartUptimeMs: readNumber(result?.gestureStartUptimeMs),
+    fallbackStartedAtMs: startedAtMs,
+  });
   const merged = { ...fallback, ...(result ?? {}) };
-  const referenceFrame = inferReferenceFrame(session.snapshot?.nodes ?? []);
+  const referenceFrame = getReferenceFrame(session.snapshot);
   const normalizedCommand = command === 'scroll' && hasSwipeGeometry(merged) ? 'swipe' : command;
   const events = buildGestureEvents(normalizedCommand, positionals, merged, tMs, referenceFrame);
   if (events.length === 0) return;
@@ -36,7 +42,7 @@ export function augmentTouchVisualizationResult(
 ): Record<string, unknown> | void {
   if (command !== 'scroll') return result;
 
-  const referenceFrame = inferReferenceFrame(session.snapshot?.nodes ?? []);
+  const referenceFrame = getReferenceFrame(session.snapshot);
   if (!referenceFrame) return result;
 
   const merged = { ...(result ?? {}) };
@@ -235,6 +241,26 @@ function inferReferenceFrame(nodes: SnapshotNode[]): ReferenceFrame | undefined 
     referenceWidth: viewportRect.width,
     referenceHeight: viewportRect.height,
   };
+}
+
+function getReferenceFrame(snapshot: SnapshotState | undefined): ReferenceFrame | undefined {
+  if (!snapshot) return undefined;
+  if (
+    typeof snapshot.referenceWidth === 'number'
+    && snapshot.referenceWidth > 0
+    && typeof snapshot.referenceHeight === 'number'
+    && snapshot.referenceHeight > 0
+  ) {
+    return {
+      referenceWidth: snapshot.referenceWidth,
+      referenceHeight: snapshot.referenceHeight,
+    };
+  }
+  const inferred = inferReferenceFrame(snapshot.nodes ?? []);
+  if (!inferred) return undefined;
+  snapshot.referenceWidth = inferred.referenceWidth;
+  snapshot.referenceHeight = inferred.referenceHeight;
+  return inferred;
 }
 
 function hasSwipeGeometry(result: Record<string, unknown>): boolean {

@@ -22,6 +22,7 @@ import {
 } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../daemon/request-cancel.ts';
+import type { InteractionTimingResult } from './interaction-timing.ts';
 
 export type RunnerContext = {
   requestId?: string;
@@ -35,14 +36,14 @@ type Interactor = {
   open(app: string, options?: { activity?: string; appBundleId?: string; url?: string }): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
-  tap(x: number, y: number): Promise<void>;
-  doubleTap(x: number, y: number): Promise<void>;
-  swipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<void>;
-  longPress(x: number, y: number, durationMs?: number): Promise<void>;
-  focus(x: number, y: number): Promise<void>;
+  tap(x: number, y: number): Promise<InteractionTimingResult | void>;
+  doubleTap(x: number, y: number): Promise<InteractionTimingResult | void>;
+  swipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<InteractionTimingResult | void>;
+  longPress(x: number, y: number, durationMs?: number): Promise<InteractionTimingResult | void>;
+  focus(x: number, y: number): Promise<InteractionTimingResult | void>;
   type(text: string): Promise<void>;
-  fill(x: number, y: number, text: string): Promise<void>;
-  scroll(direction: string, amount?: number): Promise<void>;
+  fill(x: number, y: number, text: string): Promise<InteractionTimingResult | void>;
+  scroll(direction: string, amount?: number): Promise<InteractionTimingResult | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
 };
@@ -100,35 +101,35 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
 
   return {
     tap: async (x, y) => {
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'tap', x, y, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
     },
     doubleTap: async (x, y) => {
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'tapSeries', x, y, count: 1, intervalMs: 0, doubleTap: true, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
     },
     swipe: async (x1, y1, x2, y2, durationMs) => {
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'drag', x: x1, y: y1, x2, y2, durationMs, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
     },
     longPress: async (x, y, durationMs) => {
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'longPress', x, y, durationMs, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
     },
     focus: async (x, y) => {
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'tap', x, y, appBundleId: ctx.appBundleId },
         runnerOpts,
@@ -142,7 +143,7 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
       );
     },
     fill: async (x, y, text) => {
-      await runIosRunnerCommand(
+      const tapResult = await runIosRunnerCommand(
         device,
         { command: 'tap', x, y, appBundleId: ctx.appBundleId },
         runnerOpts,
@@ -152,13 +153,14 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
         { command: 'type', text, clearFirst: true, appBundleId: ctx.appBundleId },
         runnerOpts,
       );
+      return tapResult;
     },
     scroll: async (direction, _amount) => {
       if (!['up', 'down', 'left', 'right'].includes(direction)) {
         throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
       }
       const inverted = invertScrollDirection(direction as 'up' | 'down' | 'left' | 'right');
-      await runIosRunnerCommand(
+      return await runIosRunnerCommand(
         device,
         { command: 'swipe', direction: inverted, appBundleId: ctx.appBundleId },
         runnerOpts,

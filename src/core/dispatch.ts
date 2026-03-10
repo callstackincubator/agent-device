@@ -27,6 +27,7 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
+import { withInteractionTimingResult, type InteractionTimingResult } from '../utils/interaction-timing.ts';
 import {
   requireIntInRange,
   clampIosSwipeDuration,
@@ -152,7 +153,7 @@ export async function dispatchCommand(
       }
 
       if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
-        await runIosRunnerCommand(
+        const runnerResult = await runIosRunnerCommand(
           device,
           {
             command: 'tapSeries',
@@ -170,22 +171,26 @@ export async function dispatchCommand(
             requestId: context?.requestId,
           },
         );
-        return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, timingMode: 'runner-series' };
+        return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, timingMode: 'runner-series', ...runnerResult };
       }
 
+      let interactionResult: InteractionTimingResult | void = undefined;
       await runRepeatedSeries(count, intervalMs, async (index) => {
         const [dx, dy] = computeDeterministicJitter(index, jitterPx);
         const targetX = x + dx;
         const targetY = y + dy;
         if (doubleTap) {
-          await interactor.doubleTap(targetX, targetY);
+          interactionResult = await interactor.doubleTap(targetX, targetY);
           return;
         }
-        if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
-        else await interactor.tap(targetX, targetY);
+        if (holdMs > 0) interactionResult = await interactor.longPress(targetX, targetY, holdMs);
+        else interactionResult = await interactor.tap(targetX, targetY);
       });
 
-      return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap };
+      return withInteractionTimingResult(
+        { x, y, count, intervalMs, holdMs, jitterPx, doubleTap },
+        interactionResult,
+      );
     }
     case 'swipe': {
       const x1 = Number(positionals[0]);
@@ -207,7 +212,7 @@ export async function dispatchCommand(
       }
 
       if (shouldUseIosDragSeries(device, count)) {
-        await runIosRunnerCommand(
+        const runnerResult = await runIosRunnerCommand(
           device,
           {
             command: 'dragSeries',
@@ -239,16 +244,18 @@ export async function dispatchCommand(
           count,
           pauseMs,
           pattern,
+          ...runnerResult,
         };
       }
 
+      let interactionResult: InteractionTimingResult | void = undefined;
       await runRepeatedSeries(count, pauseMs, async (index) => {
         const reverse = pattern === 'ping-pong' && index % 2 === 1;
-        if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
-        else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
+        if (reverse) interactionResult = await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
+        else interactionResult = await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
       });
 
-      return {
+      return withInteractionTimingResult({
         x1,
         y1,
         x2,
@@ -259,7 +266,7 @@ export async function dispatchCommand(
         count,
         pauseMs,
         pattern,
-      };
+      }, interactionResult);
     }
     case 'longpress': {
       const x = Number(positionals[0]);
@@ -268,14 +275,14 @@ export async function dispatchCommand(
       if (Number.isNaN(x) || Number.isNaN(y)) {
         throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
       }
-      await interactor.longPress(x, y, durationMs);
-      return { x, y, durationMs };
+      const result = await interactor.longPress(x, y, durationMs);
+      return withInteractionTimingResult({ x, y, durationMs }, result);
     }
     case 'focus': {
       const [x, y] = positionals.map(Number);
       if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'focus requires x y');
-      await interactor.focus(x, y);
-      return { x, y };
+      const result = await interactor.focus(x, y);
+      return withInteractionTimingResult({ x, y }, result);
     }
     case 'type': {
       const text = positionals.join(' ');
@@ -290,15 +297,15 @@ export async function dispatchCommand(
       if (Number.isNaN(x) || Number.isNaN(y) || !text) {
         throw new AppError('INVALID_ARGS', 'fill requires x y text');
       }
-      await interactor.fill(x, y, text);
-      return { x, y, text };
+      const result = await interactor.fill(x, y, text);
+      return withInteractionTimingResult({ x, y, text }, result);
     }
     case 'scroll': {
       const direction = positionals[0];
       const amount = positionals[1] ? Number(positionals[1]) : undefined;
       if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-      await interactor.scroll(direction, amount);
-      return { direction, amount };
+      const result = await interactor.scroll(direction, amount);
+      return withInteractionTimingResult({ direction, amount }, result);
     }
     case 'scrollintoview': {
       const text = positionals.join(' ').trim();
@@ -320,7 +327,7 @@ export async function dispatchCommand(
       if (Number.isNaN(scale) || scale <= 0) {
         throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
       }
-      await runIosRunnerCommand(
+      const runnerResult = await runIosRunnerCommand(
         device,
         { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
         {
@@ -330,7 +337,7 @@ export async function dispatchCommand(
           requestId: context?.requestId,
         },
       );
-      return { scale, x, y };
+      return { scale, x, y, ...runnerResult };
     }
     case 'trigger-app-event': {
       const { eventName, payload } = parseTriggerAppEventArgs(positionals);
