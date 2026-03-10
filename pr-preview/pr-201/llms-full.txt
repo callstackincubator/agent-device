@@ -325,7 +325,10 @@ agent-device alert dismiss
 ```
 
 - `wait` accepts a millisecond duration, `text <value>`, a snapshot ref (`@eN`), or a selector.
-- `wait <selector> [timeoutMs]` and `wait @ref [timeoutMs]` poll until the target appears or the timeout expires.
+- `wait <selector> [timeoutMs]` polls until the selector resolves or the timeout expires.
+- `wait @ref [timeoutMs]` requires an existing session snapshot from a prior `snapshot` command.
+- `wait @ref` resolves the ref to its label/text from that stored snapshot, then polls for that text; it does not track the original node identity.
+- Because `wait @ref` is text-based after resolution, duplicate labels can match a different element than the original ref target.
 - `wait` shares the selector/snapshot resolution flow used by `click`, `fill`, `get`, and `is`.
 - `alert` inspects or handles system alerts on iOS simulator targets.
 - `alert` without an action is equivalent to `alert get`.
