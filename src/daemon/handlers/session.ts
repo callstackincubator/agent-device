@@ -1773,40 +1773,52 @@ export async function handleSessionCommands(params: {
     if (!session) {
       return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
     }
-    if (session.appLog) {
-      await appLogOps.stop(session.appLog);
+    if (session.recording) {
+      const stopRecordingResponse = await invoke({
+        ...req,
+        command: 'record',
+        positionals: ['stop'],
+        flags: req.flags?.verbose ? { verbose: req.flags.verbose } : {},
+      });
+      if (!stopRecordingResponse.ok) {
+        return stopRecordingResponse;
+      }
+    }
+    const activeSession = sessionStore.get(sessionName) ?? session;
+    if (activeSession.appLog) {
+      await appLogOps.stop(activeSession.appLog);
     }
     if (req.positionals && req.positionals.length > 0) {
-      if (session.device.platform === 'ios') {
-        await stopIosRunner(session.device.id);
+      if (activeSession.device.platform === 'ios') {
+        await stopIosRunner(activeSession.device.id);
       }
-      await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
-        ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
+      await dispatch(activeSession.device, 'close', req.positionals, req.flags?.out, {
+        ...contextFromFlags(logPath, req.flags, activeSession.appBundleId, activeSession.trace?.outPath),
       });
-      await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
+      await settleSimulator(activeSession.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
     }
-    if (session.device.platform === 'ios') {
-      await stopIosRunner(session.device.id);
+    if (activeSession.device.platform === 'ios') {
+      await stopIosRunner(activeSession.device.id);
     }
     const runtime = sessionStore.getRuntimeHints(sessionName);
-    if (hasRuntimeTransportHints(runtime) && session.appBundleId) {
+    if (hasRuntimeTransportHints(runtime) && activeSession.appBundleId) {
       await clearRuntimeHints({
-        device: session.device,
-        appId: session.appBundleId,
+        device: activeSession.device,
+        appId: activeSession.appBundleId,
       }).catch(() => {});
     }
-    sessionStore.recordAction(session, {
+    sessionStore.recordAction(activeSession, {
       command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
       result: { session: sessionName },
     });
     if (req.flags?.saveScript) {
-      session.recordSession = true;
+      activeSession.recordSession = true;
     }
-    sessionStore.writeSessionLog(session);
+    sessionStore.writeSessionLog(activeSession);
     sessionStore.delete(sessionName);
-    if (req.flags?.shutdown && isIosSimulator(session.device)) {
+    if (req.flags?.shutdown && isIosSimulator(activeSession.device)) {
       let shutdownResult: {
         success: boolean;
         exitCode: number;
@@ -1815,7 +1827,7 @@ export async function handleSessionCommands(params: {
         error?: ReturnType<typeof normalizeError>;
       };
       try {
-        shutdownResult = await doShutdownSimulator(session.device);
+        shutdownResult = await doShutdownSimulator(activeSession.device);
       } catch (error) {
         const normalized = normalizeError(error);
         shutdownResult = {

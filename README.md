@@ -486,6 +486,9 @@ Diagnostics files:
   - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
   - Physical iOS device recording defaults to uncapped (max available) FPS.
   - Use `agent-device record start [path] --fps <n>` (1-120) to set an explicit FPS cap on physical iOS devices.
+  - Use `agent-device record start [path] --show-touches` to burn agent-driven taps and gestures into the exported recording on iOS.
+- Android `record` supports emulators and physical devices via `adb shell screenrecord`.
+  - Use `agent-device record start [path] --show-touches` to temporarily enable Android's tap indicator during recording; the previous system setting is restored on `record stop`.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`, `AGENT_DEVICE_IOS_BUNDLE_ID`.
 - Free Apple Developer (Personal Team) accounts may need a unique runner bundle id; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a reverse-DNS identifier unique to your team (for example `com.yourname.agentdevice.runner`).
 

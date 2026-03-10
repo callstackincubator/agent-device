@@ -36,6 +36,7 @@ export type CliFlags = {
   appsFilter?: 'user-installed' | 'all';
   count?: number;
   fps?: number;
+  showTouches?: boolean;
   intervalMs?: number;
   holdMs?: number;
   jitterPx?: number;
@@ -311,6 +312,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 120,
     usageLabel: '--fps <n>',
     usageDescription: 'Record: target frames per second (iOS physical device runner)',
+  },
+  {
+    key: 'showTouches',
+    names: ['--show-touches'],
+    type: 'boolean',
+    usageLabel: '--show-touches',
+    usageDescription: 'Record: visualize taps and gestures in the captured video',
   },
   {
     key: 'intervalMs',
@@ -759,10 +767,10 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   record: {
-    usageOverride: 'record start [path] [--fps <n>] | record stop',
+    usageOverride: 'record start [path] [--fps <n>] [--show-touches] | record stop',
     description: 'Start/stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
-    allowedFlags: ['fps'],
+    allowedFlags: ['fps', 'showTouches'],
   },
   trace: {
     usageOverride: 'trace start [path] | trace stop [path]',

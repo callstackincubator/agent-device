@@ -264,6 +264,13 @@ test('parseArgs recognizes record --fps flag', () => {
   assert.equal(parsed.flags.fps, 30);
 });
 
+test('parseArgs recognizes record --show-touches flag', () => {
+  const parsed = parseArgs(['record', 'start', './capture.mp4', '--show-touches'], { strictFlags: true });
+  assert.equal(parsed.command, 'record');
+  assert.deepEqual(parsed.positionals, ['start', './capture.mp4']);
+  assert.equal(parsed.flags.showTouches, true);
+});
+
 test('parseArgs rejects invalid record --fps range', () => {
   assert.throws(
     () => parseArgs(['record', 'start', './capture.mp4', '--fps', '0'], { strictFlags: true }),
@@ -328,6 +335,7 @@ test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--ios-simulator-device-set <path>/);
   assert.match(usage(), /--android-device-allowlist <serials>/);
   assert.match(usage(), /--fps <n>/);
+  assert.match(usage(), /--show-touches/);
   assert.match(usage(), /network dump/);
   assert.match(usage(), /--save-script \[path\]/);
   assert.match(usage(), /clipboard read \| clipboard write <text>/);

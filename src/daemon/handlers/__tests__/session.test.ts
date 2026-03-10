@@ -1905,7 +1905,7 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
   assert.deepEqual(settleCalls[1], { deviceId: 'sim-1', delayMs: 300 });
 });
 
-test('close on iOS session with recording stops runner session before delete', async () => {
+test('close stops an active recording before tearing down the iOS session', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
   sessionStore.set(
@@ -1922,6 +1922,68 @@ test('close on iOS session with recording stops runner session before delete', a
         platform: 'ios-device-runner',
         outPath: '/tmp/device-recording.mp4',
         remotePath: 'tmp/device-recording.mp4',
+        startedAt: Date.now(),
+        showTouches: false,
+        gestureEvents: [],
+      },
+    },
+  );
+
+  const invokeCalls: Array<{ command: string; positionals: string[] }> = [];
+  const stopCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (invokeReq) => {
+      invokeCalls.push({ command: invokeReq.command, positionals: invokeReq.positionals });
+      if (invokeReq.command === 'record') {
+        const activeSession = sessionStore.get(sessionName);
+        if (activeSession) {
+          activeSession.recording = undefined;
+        }
+      }
+      return { ok: true, data: {} };
+    },
+    stopIosRunner: async (deviceId) => {
+      stopCalls.push(deviceId);
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(invokeCalls, [{ command: 'record', positionals: ['stop'] }]);
+  assert.deepEqual(stopCalls, ['ios-device-1']);
+  assert.equal(sessionStore.get(sessionName), undefined);
+});
+
+test('close aborts session teardown when record stop fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session-stop-fails';
+  sessionStore.set(
+    sessionName,
+    {
+      ...makeSession(sessionName, {
+        platform: 'ios',
+        id: 'ios-device-1',
+        name: 'My iPhone',
+        kind: 'device',
+        booted: true,
+      }),
+      recording: {
+        platform: 'ios-device-runner',
+        outPath: '/tmp/device-recording.mp4',
+        remotePath: 'tmp/device-recording.mp4',
+        startedAt: Date.now(),
+        showTouches: false,
+        gestureEvents: [],
       },
     },
   );
@@ -1938,16 +2000,23 @@ test('close on iOS session with recording stops runner session before delete', a
     sessionName,
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
-    invoke: noopInvoke,
+    invoke: async () => ({
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: 'record stop failed',
+      },
+    }),
     stopIosRunner: async (deviceId) => {
       stopCalls.push(deviceId);
     },
   });
 
   assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(stopCalls, ['ios-device-1']);
-  assert.equal(sessionStore.get(sessionName), undefined);
+  assert.equal(response?.ok, false);
+  assert.equal(response?.error?.message, 'record stop failed');
+  assert.deepEqual(stopCalls, []);
+  assert.ok(sessionStore.get(sessionName));
 });
 
 test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {

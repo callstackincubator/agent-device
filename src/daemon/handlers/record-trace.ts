@@ -4,7 +4,13 @@ import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
+import { overlayRecordingTouches } from '../../platforms/ios/recording-overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
+import {
+  readAndroidShowTouchesSetting,
+  restoreAndroidShowTouchesSetting,
+  setAndroidShowTouchesEnabled,
+} from '../../platforms/android/touch-visualization.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -60,10 +66,22 @@ export async function handleRecordTraceCommands(params: {
     runCmd: typeof runCmd;
     runCmdBackground: typeof runCmdBackground;
     runIosRunnerCommand: typeof runIosRunnerCommand;
+    readAndroidShowTouchesSetting: typeof readAndroidShowTouchesSetting;
+    setAndroidShowTouchesEnabled: typeof setAndroidShowTouchesEnabled;
+    restoreAndroidShowTouchesSetting: typeof restoreAndroidShowTouchesSetting;
+    overlayRecordingTouches: typeof overlayRecordingTouches;
   };
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, sessionStore, logPath } = params;
-  const deps = params.deps ?? { runCmd, runCmdBackground, runIosRunnerCommand };
+  const deps = params.deps ?? {
+    runCmd,
+    runCmdBackground,
+    runIosRunnerCommand,
+    readAndroidShowTouchesSetting,
+    setAndroidShowTouchesEnabled,
+    restoreAndroidShowTouchesSetting,
+    overlayRecordingTouches,
+  };
   const command = req.command;
 
   if (command === 'record') {
@@ -122,6 +140,14 @@ export async function handleRecordTraceCommands(params: {
       }
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
       const clientOutPath = req.meta?.clientArtifactPaths?.outPath;
+      const showTouches = req.flags?.showTouches === true;
+      const recordingBase = {
+        outPath: resolvedOut,
+        clientOutPath,
+        startedAt: Date.now(),
+        showTouches,
+        gestureEvents: [],
+      };
       fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
       const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
@@ -186,33 +212,69 @@ export async function handleRecordTraceCommands(params: {
             return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(error)}` } };
           }
         }
-        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, clientOutPath, remotePath };
+        activeSession.recording = { platform: 'ios-device-runner', remotePath, ...recordingBase };
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground('xcrun', buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]), {
           allowFailure: true,
         });
-        activeSession.recording = { platform: 'ios', outPath: resolvedOut, clientOutPath, child, wait };
+        activeSession.recording = { platform: 'ios', child, wait, ...recordingBase };
       } else {
         const remotePath = `/sdcard/agent-device-recording-${Date.now()}.mp4`;
         const { child, wait } = deps.runCmdBackground('adb', ['-s', device.id, 'shell', 'screenrecord', remotePath], {
           allowFailure: true,
         });
-        activeSession.recording = { platform: 'android', outPath: resolvedOut, clientOutPath, remotePath, child, wait };
+        let androidShowTouchesSetting: string | null | undefined;
+        if (showTouches) {
+          try {
+            androidShowTouchesSetting = await deps.readAndroidShowTouchesSetting(device);
+            await deps.setAndroidShowTouchesEnabled(device, true);
+          } catch (error) {
+            child.kill('SIGINT');
+            try {
+              await wait;
+            } catch {
+              // ignore cleanup failure after tap-indicator setup error
+            }
+            return {
+              ok: false,
+              error: {
+                code: 'COMMAND_FAILED',
+                message: `failed to enable Android tap indicators: ${errorMessage(error)}`,
+              },
+            };
+          }
+        }
+        activeSession.recording = {
+          platform: 'android',
+          remotePath,
+          child,
+          wait,
+          androidShowTouchesSetting,
+          ...recordingBase,
+        };
       }
       sessionStore.set(sessionName, activeSession);
       sessionStore.recordAction(activeSession, {
         command,
         positionals: req.positionals ?? [],
         flags: (req.flags ?? {}) as CommandFlags,
-        result: { action: 'start' },
+        result: { action: 'start', showTouches },
       });
-      return { ok: true, data: { recording: 'started', outPath: clientOutPath ?? outPath } };
+      return {
+        ok: true,
+        data: {
+          recording: 'started',
+          outPath: clientOutPath ?? outPath,
+          showTouches,
+        },
+      };
     }
 
     if (!activeSession.recording) {
       return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active recording' } };
     }
     const recording = activeSession.recording;
+    activeSession.recording = undefined;
     if (recording.platform === 'ios-device-runner') {
       const appBundleId = normalizeAppBundleId(activeSession);
       try {
@@ -261,10 +323,15 @@ export async function handleRecordTraceCommands(params: {
           break;
         }
       }
-      activeSession.recording = undefined;
       if (copyResult.exitCode !== 0) {
         const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
         return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to copy recording from device: ${copyError}` } };
+      }
+      if (recording.showTouches) {
+        await deps.overlayRecordingTouches({
+          videoPath: recording.outPath,
+          events: recording.gestureEvents,
+        });
       }
     } else {
       recording.child.kill('SIGINT');
@@ -274,20 +341,42 @@ export async function handleRecordTraceCommands(params: {
         // ignore
       }
       if (recording.platform === 'android' && recording.remotePath) {
+        let restoreShowTouchesError: unknown;
         try {
           await deps.runCmd('adb', ['-s', device.id, 'pull', recording.remotePath, recording.outPath], { allowFailure: true });
           await deps.runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], { allowFailure: true });
         } catch {
           // ignore
+        } finally {
+          if (recording.showTouches) {
+            try {
+              await deps.restoreAndroidShowTouchesSetting(device, recording.androidShowTouchesSetting);
+            } catch (error) {
+              restoreShowTouchesError = error;
+            }
+          }
         }
+        if (restoreShowTouchesError) {
+          return {
+            ok: false,
+            error: {
+              code: 'COMMAND_FAILED',
+              message: `failed to restore Android tap indicators: ${errorMessage(restoreShowTouchesError)}`,
+            },
+          };
+        }
+      } else if (recording.showTouches) {
+        await deps.overlayRecordingTouches({
+          videoPath: recording.outPath,
+          events: recording.gestureEvents,
+        });
       }
-      activeSession.recording = undefined;
     }
     sessionStore.recordAction(activeSession, {
       command,
       positionals: req.positionals ?? [],
       flags: (req.flags ?? {}) as CommandFlags,
-      result: { action: 'stop', outPath: recording.outPath },
+      result: { action: 'stop', outPath: recording.outPath, showTouches: recording.showTouches },
     });
     const artifacts: DaemonArtifact[] = [{
       field: 'outPath',
@@ -295,7 +384,15 @@ export async function handleRecordTraceCommands(params: {
       localPath: recording.clientOutPath,
       fileName: path.basename(recording.clientOutPath ?? recording.outPath),
     }];
-    return { ok: true, data: { recording: 'stopped', outPath: recording.outPath, artifacts } };
+    return {
+      ok: true,
+      data: {
+        recording: 'stopped',
+        outPath: recording.outPath,
+        artifacts,
+        showTouches: recording.showTouches,
+      },
+    };
   }
 
   if (command === 'trace') {

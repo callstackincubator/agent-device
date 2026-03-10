@@ -53,7 +53,7 @@ async function runRecordCommand(params: {
   deps: RecordTraceDeps;
   logPath?: string;
   cwd?: string;
-  flags?: { fps?: number };
+  flags?: { fps?: number; showTouches?: boolean };
 }) {
   return handleRecordTraceCommands({
     req: {
@@ -95,6 +95,25 @@ function makeIosDeviceRunnerDeps(
       throw new Error('runCmdBackground should not be used for iOS devices');
     },
     runIosRunnerCommand,
+    readAndroidShowTouchesSetting: async () => null,
+    setAndroidShowTouchesEnabled: async () => {},
+    restoreAndroidShowTouchesSetting: async () => {},
+    overlayRecordingTouches: async () => {},
+  };
+}
+
+function makeRecordDeps(overrides: Partial<RecordTraceDeps> = {}): RecordTraceDeps {
+  return {
+    runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+    runCmdBackground: () => {
+      throw new Error('runCmdBackground should not be used in this test');
+    },
+    runIosRunnerCommand: async () => ({}),
+    readAndroidShowTouchesSetting: async () => null,
+    setAndroidShowTouchesEnabled: async () => {},
+    restoreAndroidShowTouchesSetting: async () => {},
+    overlayRecordingTouches: async () => {},
+    ...overrides,
   };
 }
 
@@ -245,6 +264,10 @@ test('record start rejects invalid fps value', async () => {
       runIosRunnerCommand: async () => {
         throw new Error('runIosRunnerCommand should not be used for invalid args');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -270,6 +293,10 @@ test('record start on iOS device requires active app session context', async () 
       runIosRunnerCommand: async () => {
         throw new Error('runIosRunnerCommand should not be used without active app context');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -296,6 +323,10 @@ test('record start returns structured error when iOS runner start fails', async 
       runIosRunnerCommand: async () => {
         throw new Error('runner disconnected');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -332,6 +363,10 @@ test('record start recovers from stale iOS runner recording state', async () => 
         }
         return {};
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -348,6 +383,9 @@ test('record start does not stop recording owned by another session during desyn
     platform: 'ios-device-runner',
     outPath: '/tmp/owner.mp4',
     remotePath: 'tmp/owner.mp4',
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
   };
   sessionStore.set(ownerSessionName, ownerSession);
 
@@ -372,6 +410,10 @@ test('record start does not stop recording owned by another session during desyn
         }
         return {};
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -387,7 +429,14 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
   const sessionName = 'ios-device-stop-fail';
   sessionStore.set(sessionName, {
     ...makeIosDeviceSession(sessionName),
-    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4', remotePath: 'tmp/device.mp4' },
+    recording: {
+      platform: 'ios-device-runner',
+      outPath: '/tmp/device.mp4',
+      remotePath: 'tmp/device.mp4',
+      startedAt: Date.now(),
+      showTouches: false,
+      gestureEvents: [],
+    },
   });
 
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
@@ -406,6 +455,10 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       runIosRunnerCommand: async () => {
         throw new Error('runner disconnected');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -450,6 +503,10 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
       runIosRunnerCommand: async () => {
         throw new Error('runner should not be used for iOS simulators');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -468,6 +525,10 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
       runIosRunnerCommand: async () => {
         throw new Error('runner should not be used for iOS simulators');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -507,6 +568,10 @@ test('record keeps android pull + cleanup flow', async () => {
       runIosRunnerCommand: async () => {
         throw new Error('runner should not be used for Android');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
@@ -525,10 +590,213 @@ test('record keeps android pull + cleanup flow', async () => {
       runIosRunnerCommand: async () => {
         throw new Error('runner should not be used for Android');
       },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async () => {},
     },
   });
 
   assert.equal(adbCalls.length, 2);
   assert.match(adbCalls[0]?.join(' '), /pull/);
   assert.match(adbCalls[1]?.join(' '), /shell rm -f/);
+});
+
+test('record start/stop manages Android tap indicators when show-touches is enabled', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-show-touches';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Android',
+    kind: 'emulator',
+    booted: true,
+  }));
+
+  const adbCalls: Array<string[]> = [];
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
+    flags: { showTouches: true },
+    deps: {
+      runCmd: async (_cmd, args) => {
+        adbCalls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      runCmdBackground: () => ({
+        child: { kill: () => {} } as any,
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      }),
+      runIosRunnerCommand: async () => {
+        throw new Error('runner should not be used for Android');
+      },
+      readAndroidShowTouchesSetting: async () => '0',
+      setAndroidShowTouchesEnabled: async () => {
+        adbCalls.push(['shell', 'settings', 'put', 'system', 'show_touches', '1']);
+      },
+      restoreAndroidShowTouchesSetting: async (_device, value) => {
+        adbCalls.push(['restore', String(value)]);
+      },
+      overlayRecordingTouches: async () => {},
+    },
+  });
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: {
+      runCmd: async (_cmd, args) => {
+        adbCalls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be called on stop for Android');
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runner should not be used for Android');
+      },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async (_device, value) => {
+        adbCalls.push(['restore', String(value)]);
+      },
+      overlayRecordingTouches: async () => {},
+    },
+  });
+
+  assert.ok(adbCalls.some((args) => args.join(' ') === 'shell settings put system show_touches 1'));
+  assert.ok(adbCalls.some((args) => args.join(' ') === 'restore 0'));
+});
+
+test('record stop overlays gestures onto iOS recordings when show-touches is enabled', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-show-touches';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    recording: {
+      platform: 'ios',
+      outPath: '/tmp/demo.mp4',
+      startedAt: Date.now() - 500,
+      showTouches: true,
+      gestureEvents: [{ kind: 'tap', tMs: 120, x: 50, y: 80 }],
+      child: { kill: () => {} } as any,
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  const overlayCalls: Array<{ videoPath: string; events: unknown[] }> = [];
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be called on stop for simulator');
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runner should not be used for iOS simulators');
+      },
+      readAndroidShowTouchesSetting: async () => null,
+      setAndroidShowTouchesEnabled: async () => {},
+      restoreAndroidShowTouchesSetting: async () => {},
+      overlayRecordingTouches: async ({ videoPath, events }) => {
+        overlayCalls.push({ videoPath, events });
+      },
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(overlayCalls.length, 1);
+  assert.equal(overlayCalls[0]?.videoPath, '/tmp/demo.mp4');
+  assert.equal(overlayCalls[0]?.events.length, 1);
+});
+
+test('record stop clears iOS recording state when overlay export fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-show-touches-overlay-fail';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    recording: {
+      platform: 'ios',
+      outPath: '/tmp/demo.mp4',
+      startedAt: Date.now() - 500,
+      showTouches: true,
+      gestureEvents: [{ kind: 'tap', tMs: 120, x: 50, y: 80 }],
+      child: { kill: () => {} } as any,
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      runRecordCommand({
+        sessionStore,
+        sessionName,
+        positionals: ['stop'],
+        deps: makeRecordDeps({
+          overlayRecordingTouches: async () => {
+            throw new Error('overlay failed');
+          },
+        }),
+      }),
+    /overlay failed/,
+  );
+
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
+test('record stop clears Android recording state when tap indicator restore fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-show-touches-restore-fail';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'emulator',
+      booted: true,
+    }),
+    recording: {
+      platform: 'android',
+      outPath: '/tmp/demo.mp4',
+      remotePath: '/sdcard/demo.mp4',
+      startedAt: Date.now() - 500,
+      showTouches: true,
+      androidShowTouchesSetting: '0',
+      gestureEvents: [],
+      child: { kill: () => {} } as any,
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: makeRecordDeps({
+      restoreAndroidShowTouchesSetting: async () => {
+        throw new Error('permission denied');
+      },
+    }),
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(response?.error?.code, 'COMMAND_FAILED');
+  assert.match(response?.error?.message ?? '', /failed to restore Android tap indicators: permission denied/);
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });

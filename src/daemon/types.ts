@@ -58,6 +58,40 @@ export type DaemonResponse =
     };
   };
 
+export type RecordingGestureEvent =
+  | {
+    kind: 'tap' | 'longpress';
+    tMs: number;
+    x: number;
+    y: number;
+    durationMs?: number;
+  }
+  | {
+    kind: 'swipe';
+    tMs: number;
+    x: number;
+    y: number;
+    x2: number;
+    y2: number;
+    durationMs: number;
+  }
+  | {
+    kind: 'pinch';
+    tMs: number;
+    x: number;
+    y: number;
+    scale: number;
+    durationMs: number;
+  };
+
+type SessionRecordingBase = {
+  outPath: string;
+  clientOutPath?: string;
+  startedAt: number;
+  showTouches: boolean;
+  gestureEvents: RecordingGestureEvent[];
+};
+
 export type SessionState = {
   name: string;
   device: DeviceInfo;
@@ -73,20 +107,17 @@ export type SessionState = {
   saveScriptPath?: string;
   actions: SessionAction[];
   recording?:
-    | {
+    | (SessionRecordingBase & {
       platform: 'ios' | 'android';
-      outPath: string;
-      clientOutPath?: string;
       remotePath?: string;
+      androidShowTouchesSetting?: string | null;
       child: ReturnType<typeof import('node:child_process').spawn>;
       wait: Promise<ExecResult>;
-    }
-    | {
+    })
+    | (SessionRecordingBase & {
       platform: 'ios-device-runner';
-      outPath: string;
-      clientOutPath?: string;
       remotePath: string;
-    };
+    });
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
     platform: 'ios' | 'android';

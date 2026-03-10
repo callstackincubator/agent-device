@@ -59,7 +59,8 @@ test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags ar
 test('press coordinates dispatches press and records as press', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
+  const storedSession = makeSession(sessionName);
+  sessionStore.set(sessionName, storedSession);
 
   const dispatchCalls: Array<{ command: string; positionals: string[]; context: Record<string, unknown> | undefined }> =
     [];
@@ -94,6 +95,90 @@ test('press coordinates dispatches press and records as press', async () => {
   assert.equal(session?.actions.length, 1);
   assert.equal(session?.actions[0]?.command, 'press');
   assert.deepEqual(session?.actions[0]?.positionals, ['100', '200']);
+});
+
+test('press coordinates appends touch-visualization events while recording', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/demo.mp4',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['100', '200'],
+      flags: { count: 2, intervalMs: 150, doubleTap: true },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => ({ ok: true }),
+  });
+
+  assert.equal(response?.ok, true);
+  const recorded = sessionStore.get(sessionName)?.recording;
+  assert.ok(recorded);
+  assert.equal(recorded?.gestureEvents.length, 4);
+  assert.equal(recorded?.gestureEvents[0]?.kind, 'tap');
+  assert.equal(recorded?.gestureEvents[0]?.x, 100);
+  assert.equal(recorded?.gestureEvents[0]?.y, 200);
+});
+
+test('press coordinates timestamps touch visualization from action start', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/demo.mp4',
+    startedAt: 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const originalNow = Date.now;
+  let now = 1_500;
+  Date.now = () => now;
+
+  try {
+    const response = await handleInteractionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'press',
+        positionals: ['100', '200'],
+        flags: {},
+      },
+      sessionName,
+      sessionStore,
+      contextFromFlags,
+      dispatch: async () => {
+        now = 1_650;
+        return { ok: true };
+      },
+    });
+
+    assert.equal(response?.ok, true);
+  } finally {
+    Date.now = originalNow;
+  }
+
+  const recorded = sessionStore.get(sessionName)?.recording;
+  assert.equal(recorded?.gestureEvents[0]?.tMs, 500);
 });
 
 test('press @ref resolves snapshot node and records press action', async () => {

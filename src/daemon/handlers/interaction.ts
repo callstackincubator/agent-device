@@ -25,6 +25,7 @@ import {
 } from '../selectors.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { buildScrollIntoViewPlan, resolveViewportRect } from '../scroll-planner.ts';
+import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 
 type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -59,6 +60,7 @@ export async function handleInteractionCommands(params: {
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
+      const actionStartedAt = Date.now();
       const data = await dispatch(
         session.device,
         'press',
@@ -74,6 +76,14 @@ export async function handleInteractionCommands(params: {
         flags: req.flags ?? {},
         result: data ?? { x: directCoordinates.x, y: directCoordinates.y },
       });
+      recordTouchVisualizationEvent(
+        session,
+        command,
+        req.positionals ?? [String(directCoordinates.x), String(directCoordinates.y)],
+        (data ?? { x: directCoordinates.x, y: directCoordinates.y }) as Record<string, unknown>,
+        (req.flags ?? {}) as Record<string, unknown>,
+        actionStartedAt,
+      );
       return { ok: true, data: data ?? { x: directCoordinates.x, y: directCoordinates.y } };
     }
 
@@ -126,6 +136,7 @@ export async function handleInteractionCommands(params: {
       const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
       const { x, y } = pressPoint;
+      const actionStartedAt = Date.now();
       const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
@@ -135,6 +146,14 @@ export async function handleInteractionCommands(params: {
         flags: req.flags ?? {},
         result: { ref, x, y, refLabel, selectorChain },
       });
+      recordTouchVisualizationEvent(
+        session,
+        command,
+        req.positionals ?? [],
+        { ref, x, y, refLabel, selectorChain },
+        (req.flags ?? {}) as Record<string, unknown>,
+        actionStartedAt,
+      );
       return { ok: true, data: { ...(data ?? {}), ref, x, y } };
     }
 
@@ -185,6 +204,7 @@ export async function handleInteractionCommands(params: {
       };
     }
     const { x, y } = pressPoint;
+    const actionStartedAt = Date.now();
     const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
@@ -202,6 +222,14 @@ export async function handleInteractionCommands(params: {
         refLabel,
       },
     });
+    recordTouchVisualizationEvent(session, command, req.positionals ?? [], {
+      ...(data ?? {}),
+      x,
+      y,
+      selector: resolved.selector.raw,
+      selectorChain,
+      refLabel,
+    }, (req.flags ?? {}) as Record<string, unknown>, actionStartedAt);
     return { ok: true, data: { ...(data ?? {}), selector: resolved.selector.raw, x, y } };
   }
 
@@ -248,6 +276,7 @@ export async function handleInteractionCommands(params: {
       const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
       const { x, y } = centerOfRect(node.rect);
+      const actionStartedAt = Date.now();
       const data = await dispatch(
         session.device,
         'fill',
@@ -269,6 +298,11 @@ export async function handleInteractionCommands(params: {
         flags: req.flags ?? {},
         result: { ...resultPayload, refLabel, selectorChain },
       });
+      recordTouchVisualizationEvent(session, command, req.positionals ?? [], {
+        ...resultPayload,
+        refLabel,
+        selectorChain,
+      }, (req.flags ?? {}) as Record<string, unknown>, actionStartedAt);
       return { ok: true, data: resultPayload };
     }
     if (!session) {
@@ -322,6 +356,7 @@ export async function handleInteractionCommands(params: {
           ? `fill target ${resolved.selector.raw} resolved to "${nodeType}", attempting fill anyway.`
           : undefined;
       const { x, y } = centerOfRect(resolved.node.rect);
+      const actionStartedAt = Date.now();
       const data = await dispatch(session.device, 'fill', [String(x), String(y), text], req.flags?.out, {
         ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
       });
@@ -341,6 +376,14 @@ export async function handleInteractionCommands(params: {
         flags: req.flags ?? {},
         result: resultPayload,
       });
+      recordTouchVisualizationEvent(
+        session,
+        command,
+        req.positionals ?? [],
+        resultPayload,
+        (req.flags ?? {}) as Record<string, unknown>,
+        actionStartedAt,
+      );
       return { ok: true, data: resultPayload };
     }
     return {
