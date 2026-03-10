@@ -101,6 +101,17 @@ test('press coordinates appends touch-visualization events while recording', asy
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeApplication',
+        rect: { x: 0, y: 0, width: 402, height: 874 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
   session.recording = {
     platform: 'ios',
     outPath: '/tmp/demo.mp4',
@@ -133,6 +144,8 @@ test('press coordinates appends touch-visualization events while recording', asy
   assert.equal(recorded?.gestureEvents[0]?.kind, 'tap');
   assert.equal(recorded?.gestureEvents[0]?.x, 100);
   assert.equal(recorded?.gestureEvents[0]?.y, 200);
+  assert.equal(recorded?.gestureEvents[0]?.referenceWidth, 402);
+  assert.equal(recorded?.gestureEvents[0]?.referenceHeight, 874);
 });
 
 test('press coordinates timestamps touch visualization from action start', async () => {

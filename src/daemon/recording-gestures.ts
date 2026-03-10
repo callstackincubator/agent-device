@@ -1,4 +1,5 @@
 import type { RecordingGestureEvent, SessionState } from './types.ts';
+import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
@@ -17,29 +18,36 @@ export function recordTouchVisualizationEvent(
 
   const tMs = Math.max(0, startedAtMs - recording.startedAt);
   const merged = { ...fallback, ...(result ?? {}) };
-  const events = buildGestureEvents(command, positionals, merged, tMs);
+  const referenceFrame = inferReferenceFrame(session.snapshot?.nodes ?? []);
+  const events = buildGestureEvents(command, positionals, merged, tMs, referenceFrame);
   if (events.length === 0) return;
   recording.gestureEvents.push(...events);
 }
+
+type ReferenceFrame = {
+  referenceWidth: number;
+  referenceHeight: number;
+};
 
 function buildGestureEvents(
   command: string,
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   switch (command) {
     case 'press':
-      return buildPressEvents(positionals, result, tMs);
+      return buildPressEvents(positionals, result, tMs, referenceFrame);
     case 'fill':
     case 'focus':
-      return buildFocusEvents(positionals, result, tMs);
+      return buildFocusEvents(positionals, result, tMs, referenceFrame);
     case 'longpress':
-      return buildLongPressEvents(positionals, result, tMs);
+      return buildLongPressEvents(positionals, result, tMs, referenceFrame);
     case 'swipe':
-      return buildSwipeEvents(positionals, result, tMs);
+      return buildSwipeEvents(positionals, result, tMs, referenceFrame);
     case 'pinch':
-      return buildPinchEvents(positionals, result, tMs);
+      return buildPinchEvents(positionals, result, tMs, referenceFrame);
     default:
       return [];
   }
@@ -49,6 +57,7 @@ function buildPressEvents(
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   const x = readNumber(result.x) ?? readNumber(positionals[0]);
   const y = readNumber(result.y) ?? readNumber(positionals[1]);
@@ -63,12 +72,12 @@ function buildPressEvents(
   for (let index = 0; index < count; index += 1) {
     const baseTime = tMs + (index * intervalMs);
     if (holdMs !== undefined && holdMs > 0) {
-      events.push({ kind: 'longpress', tMs: baseTime, x, y, durationMs: holdMs });
+      events.push(makeLongPressEvent(baseTime, x, y, holdMs, referenceFrame));
       continue;
     }
-    events.push({ kind: 'tap', tMs: baseTime, x, y });
+    events.push(makeTapEvent(baseTime, x, y, referenceFrame));
     if (doubleTap) {
-      events.push({ kind: 'tap', tMs: baseTime + DEFAULT_TAP_GAP_MS, x, y });
+      events.push(makeTapEvent(baseTime + DEFAULT_TAP_GAP_MS, x, y, referenceFrame));
     }
   }
   return events;
@@ -78,17 +87,19 @@ function buildFocusEvents(
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   const x = readNumber(result.x) ?? readNumber(positionals[0]);
   const y = readNumber(result.y) ?? readNumber(positionals[1]);
   if (x === undefined || y === undefined) return [];
-  return [{ kind: 'tap', tMs, x, y }];
+  return [makeTapEvent(tMs, x, y, referenceFrame)];
 }
 
 function buildLongPressEvents(
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   const x = readNumber(result.x) ?? readNumber(positionals[0]);
   const y = readNumber(result.y) ?? readNumber(positionals[1]);
@@ -97,13 +108,14 @@ function buildLongPressEvents(
     clampInt(readNumber(result.durationMs), 1)
     ?? clampInt(readNumber(positionals[2]), 1)
     ?? 800;
-  return [{ kind: 'longpress', tMs, x, y, durationMs }];
+  return [makeLongPressEvent(tMs, x, y, durationMs, referenceFrame)];
 }
 
 function buildSwipeEvents(
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   const x1 = readNumber(result.x1) ?? readNumber(positionals[0]);
   const y1 = readNumber(result.y1) ?? readNumber(positionals[1]);
@@ -134,6 +146,7 @@ function buildSwipeEvents(
       y: startY,
       x2: endX,
       y2: endY,
+      ...referenceFrame,
       durationMs,
     });
   }
@@ -145,12 +158,75 @@ function buildPinchEvents(
   positionals: string[],
   result: Record<string, unknown>,
   tMs: number,
+  referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   const x = readNumber(result.x) ?? readNumber(positionals[1]);
   const y = readNumber(result.y) ?? readNumber(positionals[2]);
   const scale = readNumber(result.scale) ?? readNumber(positionals[0]);
   if (x === undefined || y === undefined || scale === undefined || scale <= 0) return [];
-  return [{ kind: 'pinch', tMs, x, y, scale, durationMs: DEFAULT_PINCH_DURATION_MS }];
+  return [{
+    kind: 'pinch',
+    tMs,
+    x,
+    y,
+    ...referenceFrame,
+    scale,
+    durationMs: DEFAULT_PINCH_DURATION_MS,
+  }];
+}
+
+function makeTapEvent(
+  tMs: number,
+  x: number,
+  y: number,
+  referenceFrame?: ReferenceFrame,
+): RecordingGestureEvent {
+  return { kind: 'tap', tMs, x, y, ...referenceFrame };
+}
+
+function makeLongPressEvent(
+  tMs: number,
+  x: number,
+  y: number,
+  durationMs: number,
+  referenceFrame?: ReferenceFrame,
+): RecordingGestureEvent {
+  return { kind: 'longpress', tMs, x, y, ...referenceFrame, durationMs };
+}
+
+function inferReferenceFrame(nodes: SnapshotNode[]): ReferenceFrame | undefined {
+  const viewportRect = inferViewportRect(nodes);
+  if (!viewportRect) return undefined;
+  return {
+    referenceWidth: viewportRect.width,
+    referenceHeight: viewportRect.height,
+  };
+}
+
+function inferViewportRect(nodes: SnapshotNode[]): Rect | undefined {
+  const candidate = nodes
+    .filter((node) => isViewportNode(node.type) && isValidRect(node.rect))
+    .map((node) => node.rect)
+    .sort((left, right) => ((right?.width ?? 0) * (right?.height ?? 0)) - ((left?.width ?? 0) * (left?.height ?? 0)))[0];
+  if (candidate) return candidate;
+
+  const rects = nodes.map((node) => node.rect).filter(isValidRect);
+  if (rects.length === 0) return undefined;
+
+  const width = Math.max(...rects.map((rect) => rect.x + rect.width));
+  const height = Math.max(...rects.map((rect) => rect.y + rect.height));
+  if (width <= 0 || height <= 0) return undefined;
+  return { x: 0, y: 0, width, height };
+}
+
+function isViewportNode(type: string | undefined): boolean {
+  if (!type) return false;
+  const normalized = type.toLowerCase();
+  return normalized.includes('application') || normalized.includes('window');
+}
+
+function isValidRect(rect: Rect | undefined): rect is Rect {
+  return !!rect && rect.width > 0 && rect.height > 0;
 }
 
 function readNumber(value: unknown): number | undefined {

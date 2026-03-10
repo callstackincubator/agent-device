@@ -64,6 +64,8 @@ export type RecordingGestureEvent =
     tMs: number;
     x: number;
     y: number;
+    referenceWidth?: number;
+    referenceHeight?: number;
     durationMs?: number;
   }
   | {
@@ -73,6 +75,8 @@ export type RecordingGestureEvent =
     y: number;
     x2: number;
     y2: number;
+    referenceWidth?: number;
+    referenceHeight?: number;
     durationMs: number;
   }
   | {
@@ -80,6 +84,8 @@ export type RecordingGestureEvent =
     tMs: number;
     x: number;
     y: number;
+    referenceWidth?: number;
+    referenceHeight?: number;
     scale: number;
     durationMs: number;
   };
