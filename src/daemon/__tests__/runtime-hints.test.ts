@@ -17,6 +17,7 @@ async function withMockedAdb(
     argsLogPath: string;
     readFilePath: string;
     scriptFilePath: string;
+    stdinFilePath: string;
   }) => Promise<void>,
 ): Promise<void> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-runtime-hints-android-'));
@@ -24,6 +25,7 @@ async function withMockedAdb(
   const argsLogPath = path.join(tmpDir, 'args.log');
   const readFilePath = path.join(tmpDir, 'existing.xml');
   const scriptFilePath = path.join(tmpDir, 'write-script.sh');
+  const stdinFilePath = path.join(tmpDir, 'write-stdin.xml');
   await fs.writeFile(
     adbPath,
     [
@@ -52,6 +54,7 @@ async function withMockedAdb(
       '  exit "${AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE:-0}"',
       'fi',
       'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "sh" ] && [ "$5" = "-c" ]; then',
+      '  cat > "$AGENT_DEVICE_TEST_STDIN_FILE"',
       '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT" ]; then',
       '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT"',
       '  fi',
@@ -76,6 +79,7 @@ async function withMockedAdb(
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
   const previousReadFile = process.env.AGENT_DEVICE_TEST_READ_FILE;
   const previousScriptFile = process.env.AGENT_DEVICE_TEST_SCRIPT_FILE;
+  const previousStdinFile = process.env.AGENT_DEVICE_TEST_STDIN_FILE;
   const previousRunAsIdExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE;
   const previousRunAsIdStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT;
   const previousRunAsIdStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR;
@@ -86,6 +90,7 @@ async function withMockedAdb(
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
   process.env.AGENT_DEVICE_TEST_READ_FILE = readFilePath;
   process.env.AGENT_DEVICE_TEST_SCRIPT_FILE = scriptFilePath;
+  process.env.AGENT_DEVICE_TEST_STDIN_FILE = stdinFilePath;
 
   const device: DeviceInfo = {
     platform: 'android',
@@ -96,12 +101,13 @@ async function withMockedAdb(
   };
 
   try {
-    await run({ device, argsLogPath, readFilePath, scriptFilePath });
+    await run({ device, argsLogPath, readFilePath, scriptFilePath, stdinFilePath });
   } finally {
     process.env.PATH = previousPath;
     restoreEnv('AGENT_DEVICE_TEST_ARGS_FILE', previousArgsFile);
     restoreEnv('AGENT_DEVICE_TEST_READ_FILE', previousReadFile);
     restoreEnv('AGENT_DEVICE_TEST_SCRIPT_FILE', previousScriptFile);
+    restoreEnv('AGENT_DEVICE_TEST_STDIN_FILE', previousStdinFile);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE', previousRunAsIdExitCode);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT', previousRunAsIdStdout);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDERR', previousRunAsIdStderr);
@@ -175,7 +181,7 @@ test('resolveRuntimeTransportHints derives host, port, and scheme from bundle UR
 });
 
 test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () => {
-  await withMockedAdb(async ({ device, argsLogPath, readFilePath, scriptFilePath }) => {
+  await withMockedAdb(async ({ device, argsLogPath, readFilePath, scriptFilePath, stdinFilePath }) => {
     await fs.writeFile(
       readFilePath,
       [
@@ -199,11 +205,13 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8');
     const script = await fs.readFile(scriptFilePath, 'utf8');
+    const stdinPayload = await fs.readFile(stdinFilePath, 'utf8');
     assert.match(loggedArgs, /shell run-as com\.example\.demo cat shared_prefs\/ReactNativeDevPrefs\.xml/);
     assert.match(loggedArgs, /shell run-as com\.example\.demo sh -c/);
-    assert.match(script, /<string name="keep">value<\/string>/);
-    assert.match(script, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
-    assert.match(script, /<boolean name="dev_server_https" value="true" \/>/);
+    assert.equal(script, 'mkdir -p shared_prefs && cat > shared_prefs/ReactNativeDevPrefs.xml');
+    assert.match(stdinPayload, /<string name="keep">value<\/string>/);
+    assert.match(stdinPayload, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
+    assert.match(stdinPayload, /<boolean name="dev_server_https" value="true" \/>/);
   });
 });
 
@@ -278,7 +286,7 @@ test('applyRuntimeHintsToApp preserves write failures after a successful run-as 
 });
 
 test('clearRuntimeHintsFromApp removes managed Android runtime prefs but preserves unrelated entries', async () => {
-  await withMockedAdb(async ({ device, readFilePath, scriptFilePath }) => {
+  await withMockedAdb(async ({ device, readFilePath, stdinFilePath }) => {
     await fs.writeFile(
       readFilePath,
       [
@@ -298,10 +306,10 @@ test('clearRuntimeHintsFromApp removes managed Android runtime prefs but preserv
       appId: 'com.example.demo',
     });
 
-    const script = await fs.readFile(scriptFilePath, 'utf8');
-    assert.match(script, /<string name="keep">value<\/string>/);
-    assert.doesNotMatch(script, /debug_http_host/);
-    assert.doesNotMatch(script, /dev_server_https/);
+    const stdinPayload = await fs.readFile(stdinFilePath, 'utf8');
+    assert.match(stdinPayload, /<string name="keep">value<\/string>/);
+    assert.doesNotMatch(stdinPayload, /debug_http_host/);
+    assert.doesNotMatch(stdinPayload, /dev_server_https/);
   });
 });
 
