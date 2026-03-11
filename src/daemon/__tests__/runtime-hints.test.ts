@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { AppError } from '../../utils/errors.ts';
 import {
   applyRuntimeHintsToApp,
   clearRuntimeHintsFromApp,
@@ -39,7 +40,27 @@ async function withMockedAdb(
       '  fi',
       '  exit 1',
       'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "id" ]; then',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT"',
+      '  else',
+      '    printf "%s\\n" "uid=10162(u0_a162) gid=10162(u0_a162) groups=10162(u0_a162)"',
+      '  fi',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_ID_STDERR" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_ID_STDERR" >&2',
+      '  fi',
+      '  exit "${AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE:-0}"',
+      'fi',
       'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "sh" ] && [ "$5" = "-c" ]; then',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT"',
+      '  fi',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR" >&2',
+      '  fi',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE" ] && [ "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE" != "0" ]; then',
+      '    exit "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE"',
+      '  fi',
       '  printf "%s" "$6" > "$AGENT_DEVICE_TEST_SCRIPT_FILE"',
       '  exit 0',
       'fi',
@@ -55,6 +76,12 @@ async function withMockedAdb(
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
   const previousReadFile = process.env.AGENT_DEVICE_TEST_READ_FILE;
   const previousScriptFile = process.env.AGENT_DEVICE_TEST_SCRIPT_FILE;
+  const previousRunAsIdExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE;
+  const previousRunAsIdStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT;
+  const previousRunAsIdStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR;
+  const previousRunAsWriteExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE;
+  const previousRunAsWriteStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT;
+  const previousRunAsWriteStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR;
   process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
   process.env.AGENT_DEVICE_TEST_READ_FILE = readFilePath;
@@ -75,6 +102,12 @@ async function withMockedAdb(
     restoreEnv('AGENT_DEVICE_TEST_ARGS_FILE', previousArgsFile);
     restoreEnv('AGENT_DEVICE_TEST_READ_FILE', previousReadFile);
     restoreEnv('AGENT_DEVICE_TEST_SCRIPT_FILE', previousScriptFile);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE', previousRunAsIdExitCode);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT', previousRunAsIdStdout);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDERR', previousRunAsIdStderr);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE', previousRunAsWriteExitCode);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT', previousRunAsWriteStdout);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR', previousRunAsWriteStderr);
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }
@@ -171,6 +204,76 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
     assert.match(script, /<string name="keep">value<\/string>/);
     assert.match(script, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
     assert.match(script, /<boolean name="dev_server_https" value="true" \/>/);
+  });
+});
+
+test('applyRuntimeHintsToApp distinguishes run-as denial from general write failures', async () => {
+  await withMockedAdb(async ({ device }) => {
+    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE = '1';
+    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR = 'run-as: package not debuggable: com.example.demo';
+    try {
+      await assert.rejects(
+        applyRuntimeHintsToApp({
+          device,
+          appId: 'com.example.demo',
+          runtime: {
+            platform: 'android',
+            metroHost: '10.0.0.10',
+            metroPort: 8081,
+          },
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.message, 'Failed to access Android app sandbox for com.example.demo');
+          assert.equal(
+            error.details?.hint,
+            'React Native runtime hints require adb run-as access to the app sandbox. Verify the app is debuggable and the selected package/device are correct.',
+          );
+          assert.equal(error.details?.exitCode, 1);
+          assert.match(String(error.details?.stderr), /not debuggable/);
+          return true;
+        },
+      );
+    } finally {
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE;
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR;
+    }
+  });
+});
+
+test('applyRuntimeHintsToApp preserves write failures after a successful run-as probe', async () => {
+  await withMockedAdb(async ({ device }) => {
+    process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE = '1';
+    process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR =
+      "sh: can't create shared_prefs/ReactNativeDevPrefs.xml: Permission denied";
+    try {
+      await assert.rejects(
+        applyRuntimeHintsToApp({
+          device,
+          appId: 'com.example.demo',
+          runtime: {
+            platform: 'android',
+            metroHost: '10.0.0.10',
+            metroPort: 8081,
+          },
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.message, 'Failed to write Android runtime hints for com.example.demo');
+          assert.equal(
+            error.details?.hint,
+            'adb run-as succeeded, but writing ReactNativeDevPrefs.xml failed. Inspect stderr/details for the failing shell command.',
+          );
+          assert.equal(error.details?.phase, 'write-runtime-hints');
+          assert.equal(error.details?.exitCode, 1);
+          assert.match(String(error.details?.stderr), /permission denied/i);
+          return true;
+        },
+      );
+    } finally {
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE;
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR;
+    }
   });
 });
 

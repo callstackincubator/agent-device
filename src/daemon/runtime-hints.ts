@@ -1,6 +1,6 @@
 import { URL } from 'node:url';
 import type { DeviceInfo } from '../utils/device.ts';
-import { AppError } from '../utils/errors.ts';
+import { AppError, asAppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import type { SessionRuntimeHints } from './types.ts';
 import { adbArgs } from '../platforms/android/adb.ts';
@@ -11,6 +11,10 @@ const ANDROID_DEBUG_HOST_KEY = 'debug_http_host';
 const ANDROID_HTTPS_KEY = 'dev_server_https';
 const IOS_JS_LOCATION_KEY = 'RCT_jsLocation';
 const IOS_PACKAGER_SCHEME_KEY = 'RCT_packager_scheme';
+const ANDROID_RUN_AS_HINT =
+  'React Native runtime hints require adb run-as access to the app sandbox. Verify the app is debuggable and the selected package/device are correct.';
+const ANDROID_WRITE_HINT =
+  'adb run-as succeeded, but writing ReactNativeDevPrefs.xml failed. Inspect stderr/details for the failing shell command.';
 const DEFAULT_ANDROID_PREFS_XML = [
   '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>',
   '<map>',
@@ -122,26 +126,53 @@ async function readAndroidDevPrefs(device: DeviceInfo, packageName: string): Pro
 }
 
 async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml: string): Promise<void> {
+  const probeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'id']);
+  const probeResult = await runCmd('adb', probeArgs, { allowFailure: true });
+  if (probeResult.exitCode !== 0) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Failed to access Android app sandbox for ${packageName}`,
+      {
+        package: packageName,
+        cmd: 'adb',
+        args: probeArgs,
+        stdout: probeResult.stdout,
+        stderr: probeResult.stderr,
+        exitCode: probeResult.exitCode,
+        hint: ANDROID_RUN_AS_HINT,
+      },
+    );
+  }
+
   const script = [
     'mkdir -p shared_prefs',
     `cat > ${ANDROID_DEV_PREFS_PATH} <<'EOF'`,
     xml.trimEnd(),
     'EOF',
   ].join('\n');
+  const writeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'sh', '-c', script]);
   try {
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'run-as', packageName, 'sh', '-c', script]),
-    );
+    await runCmd('adb', writeArgs);
   } catch (error) {
+    const appErr = asAppError(error);
+    if (appErr.code === 'TOOL_MISSING') throw appErr;
+    const stdout = typeof appErr.details?.stdout === 'string' ? appErr.details.stdout : '';
+    const stderr = typeof appErr.details?.stderr === 'string' ? appErr.details.stderr : '';
+    const runAsDenied = isAndroidRunAsDeniedOutput(stdout, stderr);
     throw new AppError(
       'COMMAND_FAILED',
-      `Failed to configure Android runtime hints for ${packageName}`,
+      runAsDenied
+        ? `Failed to access Android app sandbox for ${packageName}`
+        : `Failed to write Android runtime hints for ${packageName}`,
       {
+        ...(appErr.details ?? {}),
         package: packageName,
-        hint: 'React Native runtime hints require a debuggable Android app so adb run-as can update ReactNativeDevPrefs.xml.',
+        cmd: 'adb',
+        args: writeArgs,
+        phase: 'write-runtime-hints',
+        hint: runAsDenied ? ANDROID_RUN_AS_HINT : ANDROID_WRITE_HINT,
       },
-      error as Error,
+      appErr,
     );
   }
 }
@@ -250,4 +281,17 @@ function escapeXmlText(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll('\'', '&apos;');
+}
+
+function isAndroidRunAsDeniedOutput(stdout: string, stderr: string): boolean {
+  const output = `${stdout}\n${stderr}`.toLowerCase();
+  return [
+    'run-as: package not debuggable',
+    'run-as: permission denied',
+    'run-as: package is unknown',
+    'run-as: unknown package',
+    'is unknown',
+    'is not an application',
+    'could not set capabilities',
+  ].some((pattern) => output.includes(pattern));
 }
