@@ -229,12 +229,15 @@ agent-device app-switcher
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
 - `runtime set|show|clear` manages session-scoped runtime hints for remote/native daemon flows. Supported hints include `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`. Android applies Metro hints through React Native dev prefs before `open`, and iOS simulators apply them through app defaults before launch.
+- Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
 
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"
+agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
+agent-device open com.example.myapp --platform android --serial emulator-5554 --session my-session --relaunch
 ```
 
 ## Device isolation scopes
