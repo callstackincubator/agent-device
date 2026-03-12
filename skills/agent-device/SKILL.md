@@ -28,6 +28,14 @@ Use this skill as a router, not a full manual.
 - Remote multi-tenant run: allocate lease -> point client at remote daemon base URL -> run commands with tenant isolation flags -> heartbeat/release lease
 - Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only
 
+## Target Selection Rules
+
+- iOS local QA: use simulators unless the task explicitly requires a physical device.
+- iOS local QA in mixed simulator/device environments: run `ensure-simulator` first and pass `--device`, `--udid`, or `--ios-simulator-device-set` on later commands.
+- Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
+- Android React Native + Metro flows: set runtime hints with `runtime set` before `open <package> --relaunch`.
+- In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
+
 ## Canonical Flows
 
 ### 1) Normal Interaction Flow
@@ -40,6 +48,30 @@ agent-device diff snapshot -i
 agent-device fill @e5 "test"
 agent-device close
 ```
+
+### 1a) Local iOS Simulator QA Flow
+
+```bash
+agent-device ensure-simulator --platform ios --device "iPhone 16" --boot
+agent-device open MyApp --platform ios --device "iPhone 16" --session qa-ios --relaunch
+agent-device snapshot -i
+agent-device press @e3
+agent-device close
+```
+
+Use this when a physical iPhone is also connected and you want deterministic simulator-only automation.
+
+### 1b) Android React Native + Metro QA Flow
+
+```bash
+agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
+agent-device runtime set --session qa-android --platform android --metro-host 10.0.2.2 --metro-port 8081
+agent-device open com.example.myapp --platform android --serial emulator-5554 --session qa-android --relaunch
+agent-device snapshot -i
+agent-device close
+```
+
+Do not use `open <apk|aab> --relaunch` on Android. Install/reinstall binaries first, then relaunch by package.
 
 ### 2) Debug/Crash Flow
 
@@ -220,6 +252,12 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - Env equivalents for scoped runs: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat `IOS_SIMULATOR_DEVICE_SET`) and
   `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat `ANDROID_DEVICE_ALLOWLIST`).
 - For explicit remote client mode, prefer `AGENT_DEVICE_DAEMON_BASE_URL` / `--daemon-base-url` instead of relying on local daemon metadata or loopback-only ports.
+
+## Common Failure Patterns
+
+- `Failed to access Android app sandbox for /path/app-debug.apk`: Android relaunch/runtime-hint flow received an APK path instead of an installed package name. Use `reinstall` first, then `open <package> --relaunch`.
+- `mkdir: Needs 1 argument` while writing `ReactNativeDevPrefs.xml`: likely an older `agent-device` build or stale global install is still using the shell-based Android runtime-hint writer. Verify the exact binary being invoked.
+- `Failed to terminate iOS app`: the flow may have selected a physical iPhone or an unavailable iOS target. Re-run with `ensure-simulator`, then pin the simulator with `--device` or `--udid`.
 
 ## Security and Trust Notes
 
