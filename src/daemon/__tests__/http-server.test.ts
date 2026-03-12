@@ -193,7 +193,7 @@ test('HTTP artifact download streams registered files', async (t) => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  const response = await callGet(port, `/artifacts/${artifactId}`, {
+  const response = await callGet(port, `/upload/${artifactId}`, {
     authorization: 'Bearer test-token',
   });
   assert.equal(response.statusCode, 200);
@@ -232,7 +232,7 @@ test('HTTP artifact download rejects requests without the daemon token', async (
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  const response = await callGet(port, `/artifacts/${artifactId}`);
+  const response = await callGet(port, `/upload/${artifactId}`);
   assert.equal(response.statusCode, 401);
   assert.match(response.body, /Invalid token/);
 });

@@ -487,7 +487,7 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
             callback?.();
             return;
           }
-          if (this.options.method === 'GET' && String(this.options.path).includes('/artifacts/')) {
+          if (this.options.method === 'GET' && String(this.options.path).includes('/upload/')) {
             res.end(Buffer.from('png-binary'));
             callback?.();
             return;
@@ -544,7 +544,7 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
     });
 
     assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc', '/agent-device/artifacts/artifact-123']);
+    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc', '/agent-device/upload/artifact-123']);
     assert.match(String((rpcRequest as any)?.params?.positionals?.[0]), /^\/tmp\/agent-device-screenshot-/);
     assert.equal(
       (rpcRequest as any)?.params?.meta?.clientArtifactPaths?.path,
@@ -573,7 +573,7 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-artifact-timeout-'));
   const destinationPath = path.join(tempRoot, 'artifacts', 'screen.png');
   const server = http.createServer((req, _res) => {
-    if (req.url?.includes('/artifacts/')) {
+    if (req.url?.includes('/upload/')) {
       return;
     }
   });
