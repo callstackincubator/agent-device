@@ -175,6 +175,13 @@ function restoreEnv(key: string, value: string | undefined): void {
   process.env[key] = value;
 }
 
+function assertInvalidArgsAppError(error: unknown, message: string): boolean {
+  assert.ok(error instanceof AppError);
+  assert.equal(error.code, 'INVALID_ARGS');
+  assert.equal(error.message, message);
+  return true;
+}
+
 test('resolveRuntimeTransportHints derives host, port, and scheme from bundle URL', () => {
   assert.deepEqual(
     resolveRuntimeTransportHints({
@@ -235,15 +242,10 @@ test('applyRuntimeHintsToApp rejects Android app binary paths before run-as', as
           metroPort: 8081,
         },
       }),
-      (error: unknown) => {
-        assert.ok(error instanceof AppError);
-        assert.equal(error.code, 'INVALID_ARGS');
-        assert.equal(
-          error.message,
-          'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-        );
-        return true;
-      },
+      (error: unknown) => assertInvalidArgsAppError(
+        error,
+        'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+      ),
     );
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8').catch(() => '');
@@ -263,15 +265,10 @@ test('applyRuntimeHintsToApp rejects bare Android app binary filenames before ru
           metroPort: 8081,
         },
       }),
-      (error: unknown) => {
-        assert.ok(error instanceof AppError);
-        assert.equal(error.code, 'INVALID_ARGS');
-        assert.equal(
-          error.message,
-          'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-        );
-        return true;
-      },
+      (error: unknown) => assertInvalidArgsAppError(
+        error,
+        'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+      ),
     );
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8').catch(() => '');

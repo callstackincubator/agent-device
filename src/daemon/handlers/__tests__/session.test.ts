@@ -24,6 +24,15 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 
 const noopInvoke = async (_req: DaemonRequest): Promise<DaemonResponse> => ({ ok: true, data: {} });
 
+function assertInvalidArgsMessage(response: DaemonResponse | null, message: string): void {
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.equal(response.error.message, message);
+  }
+}
+
 test('batch executes steps sequentially and returns structured results', async () => {
   const sessionStore = makeSessionStore();
   const seenCommands: string[] = [];
@@ -2065,15 +2074,10 @@ test('open --relaunch rejects Android app binary paths', async () => {
     }),
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.equal(
-      response.error.message,
-      'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-    );
-  }
+  assertInvalidArgsMessage(
+    response,
+    'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+  );
 });
 
 test('open --relaunch rejects bare Android app binary filenames', async () => {
@@ -2099,15 +2103,10 @@ test('open --relaunch rejects bare Android app binary filenames', async () => {
     }),
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.equal(
-      response.error.message,
-      'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-    );
-  }
+  assertInvalidArgsMessage(
+    response,
+    'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+  );
 });
 
 test('open --relaunch allows Android package names ending with apk-like suffix', async () => {
@@ -2177,15 +2176,10 @@ test('open --relaunch rejects Android app binary paths for active sessions', asy
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.equal(
-      response.error.message,
-      'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-    );
-  }
+  assertInvalidArgsMessage(
+    response,
+    'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+  );
 });
 
 test('open on in-use device returns DEVICE_IN_USE before readiness checks', async () => {

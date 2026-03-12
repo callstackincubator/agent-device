@@ -637,11 +637,6 @@ function shouldPreserveAndroidPackageContext(
   return device.platform === 'android' && Boolean(openTarget && isDeepLinkTarget(openTarget));
 }
 
-function isAndroidAppBinaryPath(openTarget: string | undefined): boolean {
-  if (!openTarget) return false;
-  return classifyAndroidAppTarget(openTarget) === 'binary';
-}
-
 async function resolveSessionAppBundleIdForTarget(
   device: DeviceInfo,
   openTarget: string | undefined,
@@ -1327,7 +1322,7 @@ export async function handleSessionCommands(params: {
           },
         };
       }
-      if (shouldRelaunch && session.device.platform === 'android' && isAndroidAppBinaryPath(openTarget)) {
+      if (shouldRelaunch && session.device.platform === 'android' && classifyAndroidAppTarget(openTarget) === 'binary') {
         return {
           ok: false,
           error: {
@@ -1424,7 +1419,7 @@ export async function handleSessionCommands(params: {
       };
     }
     const device = await resolveDevice(req.flags ?? {});
-    if (shouldRelaunch && device.platform === 'android' && isAndroidAppBinaryPath(openTarget)) {
+    if (shouldRelaunch && device.platform === 'android' && openTarget && classifyAndroidAppTarget(openTarget) === 'binary') {
       return {
         ok: false,
         error: {
