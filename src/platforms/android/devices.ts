@@ -10,7 +10,7 @@ const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
 const ANDROID_EMULATOR_BOOT_POLL_MS = 1000;
 const ANDROID_EMULATOR_BOOT_TIMEOUT_MS = 120_000;
-const ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS = 1_500;
+const ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS = 10_000;
 const ANDROID_TV_FEATURES = [
   'android.software.leanback',
   'android.software.leanback_only',
