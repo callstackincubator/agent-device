@@ -7,6 +7,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { adbArgs } from './adb.ts';
+import { classifyAndroidAppTarget } from './open-target.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -20,7 +21,7 @@ export async function resolveAndroidApp(
   app: string,
 ): Promise<{ type: 'intent' | 'package'; value: string }> {
   const trimmed = app.trim();
-  if (trimmed.includes('.') && !trimmed.includes('/')) return { type: 'package', value: trimmed };
+  if (classifyAndroidAppTarget(trimmed) === 'package') return { type: 'package', value: trimmed };
 
   const alias = ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;

@@ -238,7 +238,10 @@ test('applyRuntimeHintsToApp rejects Android app binary paths before run-as', as
       (error: unknown) => {
         assert.ok(error instanceof AppError);
         assert.equal(error.code, 'INVALID_ARGS');
-        assert.match(error.message, /require an installed package name/i);
+        assert.equal(
+          error.message,
+          'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+        );
         return true;
       },
     );
@@ -263,7 +266,10 @@ test('applyRuntimeHintsToApp rejects bare Android app binary filenames before ru
       (error: unknown) => {
         assert.ok(error instanceof AppError);
         assert.equal(error.code, 'INVALID_ARGS');
-        assert.match(error.message, /require an installed package name/i);
+        assert.equal(
+          error.message,
+          'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+        );
         return true;
       },
     );

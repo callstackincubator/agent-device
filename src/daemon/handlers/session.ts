@@ -25,6 +25,10 @@ import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
+import {
+  classifyAndroidAppTarget,
+  formatAndroidInstalledPackageRequiredMessage,
+} from '../../platforms/android/open-target.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
 import {
@@ -635,18 +639,7 @@ function shouldPreserveAndroidPackageContext(
 
 function isAndroidAppBinaryPath(openTarget: string | undefined): boolean {
   if (!openTarget) return false;
-  const trimmed = openTarget.trim();
-  if (!/\.(?:apk|aab)$/i.test(trimmed)) return false;
-  const looksLikePath =
-    trimmed.includes('/')
-    || trimmed.includes('\\')
-    || trimmed.startsWith('.')
-    || trimmed.startsWith('~');
-  return looksLikePath || !looksLikeAndroidPackageName(trimmed);
-}
-
-function looksLikeAndroidPackageName(value: string): boolean {
-  return /^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$/.test(value);
+  return classifyAndroidAppTarget(openTarget) === 'binary';
 }
 
 async function resolveSessionAppBundleIdForTarget(
@@ -1339,8 +1332,7 @@ export async function handleSessionCommands(params: {
           ok: false,
           error: {
             code: 'INVALID_ARGS',
-            message:
-              'open --relaunch on Android requires an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.',
+            message: formatAndroidInstalledPackageRequiredMessage(openTarget),
           },
         };
       }
@@ -1437,8 +1429,7 @@ export async function handleSessionCommands(params: {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
-          message:
-            'open --relaunch on Android requires an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.',
+          message: formatAndroidInstalledPackageRequiredMessage(openTarget),
         },
       };
     }

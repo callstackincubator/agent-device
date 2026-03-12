@@ -2069,7 +2069,10 @@ test('open --relaunch rejects Android app binary paths', async () => {
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /requires an installed package name/i);
+    assert.equal(
+      response.error.message,
+      'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+    );
   }
 });
 
@@ -2100,7 +2103,10 @@ test('open --relaunch rejects bare Android app binary filenames', async () => {
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /requires an installed package name/i);
+    assert.equal(
+      response.error.message,
+      'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+    );
   }
 });
 
@@ -2175,7 +2181,10 @@ test('open --relaunch rejects Android app binary paths for active sessions', asy
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /requires an installed package name/i);
+    assert.equal(
+      response.error.message,
+      'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+    );
   }
 });
 

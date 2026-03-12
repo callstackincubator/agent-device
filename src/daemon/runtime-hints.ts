@@ -4,6 +4,10 @@ import { AppError, asAppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import type { SessionRuntimeHints } from './types.ts';
 import { adbArgs } from '../platforms/android/adb.ts';
+import {
+  classifyAndroidAppTarget,
+  formatAndroidInstalledPackageRequiredMessage,
+} from '../platforms/android/open-target.ts';
 import { buildSimctlArgsForDevice } from '../platforms/ios/simctl.ts';
 
 const ANDROID_DEV_PREFS_PATH = 'shared_prefs/ReactNativeDevPrefs.xml';
@@ -23,8 +27,6 @@ const DEFAULT_ANDROID_PREFS_XML = [
   '</map>',
   '',
 ].join('\n');
-const ANDROID_BINARY_RELAUNCH_MESSAGE =
-  'Android runtime hints require an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.';
 
 type ResolvedRuntimeTransport = {
   host: string;
@@ -265,22 +267,12 @@ function trimRuntimeValue(value: string | undefined): string | undefined {
 }
 
 function assertAndroidRuntimePackageName(packageName: string): void {
-  const trimmed = packageName.trim();
-  if (!/\.(?:apk|aab)$/i.test(trimmed)) return;
-  const looksLikePath =
-    trimmed.includes('/')
-    || trimmed.includes('\\')
-    || trimmed.startsWith('.')
-    || trimmed.startsWith('~');
-  if (!looksLikePath && looksLikeAndroidPackageName(trimmed)) return;
-  throw new AppError('INVALID_ARGS', ANDROID_BINARY_RELAUNCH_MESSAGE, {
+  if (classifyAndroidAppTarget(packageName) !== 'binary') return;
+  const message = formatAndroidInstalledPackageRequiredMessage(packageName);
+  throw new AppError('INVALID_ARGS', message, {
     package: packageName,
-    hint: ANDROID_BINARY_RELAUNCH_MESSAGE,
+    hint: message,
   });
-}
-
-function looksLikeAndroidPackageName(value: string): boolean {
-  return /^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$/.test(value);
 }
 
 function normalizePort(value: number | undefined): number | undefined {
