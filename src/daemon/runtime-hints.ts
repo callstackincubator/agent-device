@@ -23,6 +23,8 @@ const DEFAULT_ANDROID_PREFS_XML = [
   '</map>',
   '',
 ].join('\n');
+const ANDROID_BINARY_RELAUNCH_MESSAGE =
+  'Android runtime hints require an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.';
 
 type ResolvedRuntimeTransport = {
   host: string;
@@ -103,6 +105,7 @@ async function applyAndroidRuntimeHints(
   packageName: string,
   transport: ResolvedRuntimeTransport,
 ): Promise<void> {
+  assertAndroidRuntimePackageName(packageName);
   const currentXml = await readAndroidDevPrefs(device, packageName);
   let nextXml = upsertAndroidStringPref(currentXml, ANDROID_DEBUG_HOST_KEY, `${transport.host}:${transport.port}`);
   nextXml = upsertAndroidBooleanPref(nextXml, ANDROID_HTTPS_KEY, transport.scheme === 'https');
@@ -110,6 +113,7 @@ async function applyAndroidRuntimeHints(
 }
 
 async function clearAndroidRuntimeHints(device: DeviceInfo, packageName: string): Promise<void> {
+  assertAndroidRuntimePackageName(packageName);
   const currentXml = await readAndroidDevPrefs(device, packageName);
   const withoutHost = removeAndroidPrefEntry(currentXml, ANDROID_DEBUG_HOST_KEY);
   const withoutHttps = removeAndroidPrefEntry(withoutHost, ANDROID_HTTPS_KEY);
@@ -258,6 +262,20 @@ function removeAndroidPrefEntry(xml: string, key: string): string {
 function trimRuntimeValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function assertAndroidRuntimePackageName(packageName: string): void {
+  const trimmed = packageName.trim();
+  const looksLikePath =
+    trimmed.includes('/')
+    || trimmed.includes('\\')
+    || trimmed.startsWith('.')
+    || trimmed.startsWith('~');
+  if (!looksLikePath || !/\.(?:apk|aab)$/i.test(trimmed)) return;
+  throw new AppError('INVALID_ARGS', ANDROID_BINARY_RELAUNCH_MESSAGE, {
+    package: packageName,
+    hint: ANDROID_BINARY_RELAUNCH_MESSAGE,
+  });
 }
 
 function normalizePort(value: number | undefined): number | undefined {

@@ -223,6 +223,31 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
   });
 });
 
+test('applyRuntimeHintsToApp rejects Android app binary paths before run-as', async () => {
+  await withMockedAdb(async ({ device, argsLogPath }) => {
+    await assert.rejects(
+      applyRuntimeHintsToApp({
+        device,
+        appId: '/tmp/app-debug.apk',
+        runtime: {
+          platform: 'android',
+          metroHost: '10.0.0.10',
+          metroPort: 8081,
+        },
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.code, 'INVALID_ARGS');
+        assert.match(error.message, /require an installed package name/i);
+        return true;
+      },
+    );
+
+    const loggedArgs = await fs.readFile(argsLogPath, 'utf8').catch(() => '');
+    assert.equal(loggedArgs, '');
+  });
+});
+
 test('applyRuntimeHintsToApp distinguishes run-as denial from general write failures', async () => {
   await withMockedAdb(async ({ device }) => {
     process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE = '1';
