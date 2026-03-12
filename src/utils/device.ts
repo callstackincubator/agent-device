@@ -92,6 +92,13 @@ export async function selectDevice(
     throw new AppError('DEVICE_NOT_FOUND', 'No devices found', { selector });
   }
 
+  // Prefer virtual devices (simulators/emulators) over physical devices unless
+  // a physical device was explicitly requested via --device/--udid/--serial.
+  const virtual = candidates.filter((d) => d.kind !== 'device');
+  if (virtual.length > 0) {
+    candidates = virtual;
+  }
+
   const booted = candidates.filter((d) => d.booted);
   if (booted.length === 1) return booted[0];
 

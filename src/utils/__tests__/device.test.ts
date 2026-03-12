@@ -60,3 +60,45 @@ test('selectDevice returns a device when candidates are available', async () => 
   const result = await selectDevice([device], { platform: 'ios' });
   assert.equal(result.id, 'abc123');
 });
+
+test('selectDevice prefers simulator over physical device when no explicit device selector', async () => {
+  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const simulator: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: false,
+  };
+  const result = await selectDevice([physical, simulator], { platform: 'ios' });
+  assert.equal(result.id, 'sim-1');
+  assert.equal(result.kind, 'simulator');
+});
+
+test('selectDevice prefers booted simulator over physical device', async () => {
+  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const sim1: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
+  const sim2: DeviceInfo = { platform: 'ios', id: 'sim-2', name: 'iPhone 15', kind: 'simulator', booted: false };
+  const result = await selectDevice([physical, sim1, sim2], { platform: 'ios' });
+  assert.equal(result.id, 'sim-1');
+});
+
+test('selectDevice falls back to physical device when no simulators exist', async () => {
+  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const result = await selectDevice([physical], { platform: 'ios' });
+  assert.equal(result.id, 'phys-1');
+});
+
+test('selectDevice returns physical device when explicitly selected by deviceName', async () => {
+  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const simulator: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
+  const result = await selectDevice([physical, simulator], { platform: 'ios', deviceName: 'My iPhone' });
+  assert.equal(result.id, 'phys-1');
+});
+
+test('selectDevice returns physical device when explicitly selected by udid', async () => {
+  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const simulator: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
+  const result = await selectDevice([physical, simulator], { platform: 'ios', udid: 'phys-1' });
+  assert.equal(result.id, 'phys-1');
+});
