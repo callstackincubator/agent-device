@@ -249,6 +249,40 @@ test('applyRuntimeHintsToApp distinguishes run-as denial from general write fail
   });
 });
 
+test('applyRuntimeHintsToApp uses generic probe hint when probe fails without run-as denial output', async () => {
+  await withMockedAdb(async ({ device }) => {
+    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE = '1';
+    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR = 'error: device not found';
+    try {
+      await assert.rejects(
+        applyRuntimeHintsToApp({
+          device,
+          appId: 'com.example.demo',
+          runtime: {
+            platform: 'android',
+            metroHost: '10.0.0.10',
+            metroPort: 8081,
+          },
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.message, 'Failed to probe Android app sandbox for com.example.demo');
+          assert.equal(
+            error.details?.hint,
+            'adb shell run-as probe failed. Check adb connectivity and that the device is reachable. Inspect stderr/details for more information.',
+          );
+          assert.equal(error.details?.exitCode, 1);
+          assert.match(String(error.details?.stderr), /device not found/);
+          return true;
+        },
+      );
+    } finally {
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE;
+      delete process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR;
+    }
+  });
+});
+
 test('applyRuntimeHintsToApp preserves write failures after a successful run-as probe', async () => {
   await withMockedAdb(async ({ device }) => {
     process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE = '1';

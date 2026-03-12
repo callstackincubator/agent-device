@@ -15,6 +15,8 @@ const ANDROID_RUN_AS_HINT =
   'React Native runtime hints require adb run-as access to the app sandbox. Verify the app is debuggable and the selected package/device are correct.';
 const ANDROID_WRITE_HINT =
   'adb run-as succeeded, but writing ReactNativeDevPrefs.xml failed. Inspect stderr/details for the failing shell command.';
+const ANDROID_PROBE_HINT =
+  'adb shell run-as probe failed. Check adb connectivity and that the device is reachable. Inspect stderr/details for more information.';
 const DEFAULT_ANDROID_PREFS_XML = [
   '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>',
   '<map>',
@@ -129,9 +131,12 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
   const probeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'id']);
   const probeResult = await runCmd('adb', probeArgs, { allowFailure: true });
   if (probeResult.exitCode !== 0) {
+    const runAsDenied = isAndroidRunAsDeniedOutput(probeResult.stdout, probeResult.stderr);
     throw new AppError(
       'COMMAND_FAILED',
-      `Failed to access Android app sandbox for ${packageName}`,
+      runAsDenied
+        ? `Failed to access Android app sandbox for ${packageName}`
+        : `Failed to probe Android app sandbox for ${packageName}`,
       {
         package: packageName,
         cmd: 'adb',
@@ -139,7 +144,7 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
         stdout: probeResult.stdout,
         stderr: probeResult.stderr,
         exitCode: probeResult.exitCode,
-        hint: ANDROID_RUN_AS_HINT,
+        hint: runAsDenied ? ANDROID_RUN_AS_HINT : ANDROID_PROBE_HINT,
       },
     );
   }

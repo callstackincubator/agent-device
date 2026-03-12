@@ -13,6 +13,7 @@ import {
   listAndroidApps,
   openAndroidApp,
   parseAndroidLaunchComponent,
+  resolveAndroidApp,
   pushAndroidNotification,
   readAndroidClipboardText,
   setAndroidSetting,
@@ -770,6 +771,32 @@ test('swipeAndroid invokes adb input swipe with duration', async () => {
     }
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('resolveAndroidApp does not treat file paths as package names', async () => {
+  await withMockedAdb(
+    'agent-device-android-resolve-path-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then shift; shift; fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
+      '  echo "package:com.example.demo"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await assert.rejects(
+        resolveAndroidApp(device, '/path/to/app-debug.apk'),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.code, 'APP_NOT_INSTALLED');
+          return true;
+        },
+      );
+    },
+  );
 });
 
 test('openAndroidApp default launch uses -p package flag', async () => {

@@ -20,7 +20,7 @@ export async function resolveAndroidApp(
   app: string,
 ): Promise<{ type: 'intent' | 'package'; value: string }> {
   const trimmed = app.trim();
-  if (trimmed.includes('.')) return { type: 'package', value: trimmed };
+  if (trimmed.includes('.') && !trimmed.includes('/')) return { type: 'package', value: trimmed };
 
   const alias = ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
