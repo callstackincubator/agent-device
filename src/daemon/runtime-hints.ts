@@ -150,7 +150,7 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
   }
 
   const script = `mkdir -p shared_prefs && cat > ${ANDROID_DEV_PREFS_PATH}`;
-  const writeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'sh', '-c', script]);
+  const writeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'sh', '-c', `'${script}'`]);
   try {
     await runCmd('adb', writeArgs, { stdin: xml.trimEnd() });
   } catch (error) {
