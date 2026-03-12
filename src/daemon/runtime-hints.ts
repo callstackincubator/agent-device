@@ -266,16 +266,21 @@ function trimRuntimeValue(value: string | undefined): string | undefined {
 
 function assertAndroidRuntimePackageName(packageName: string): void {
   const trimmed = packageName.trim();
+  if (!/\.(?:apk|aab)$/i.test(trimmed)) return;
   const looksLikePath =
     trimmed.includes('/')
     || trimmed.includes('\\')
     || trimmed.startsWith('.')
     || trimmed.startsWith('~');
-  if (!looksLikePath || !/\.(?:apk|aab)$/i.test(trimmed)) return;
+  if (!looksLikePath && looksLikeAndroidPackageName(trimmed)) return;
   throw new AppError('INVALID_ARGS', ANDROID_BINARY_RELAUNCH_MESSAGE, {
     package: packageName,
     hint: ANDROID_BINARY_RELAUNCH_MESSAGE,
   });
+}
+
+function looksLikeAndroidPackageName(value: string): boolean {
+  return /^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$/.test(value);
 }
 
 function normalizePort(value: number | undefined): number | undefined {

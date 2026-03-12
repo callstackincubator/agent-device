@@ -2073,6 +2073,37 @@ test('open --relaunch rejects Android app binary paths', async () => {
   }
 });
 
+test('open --relaunch rejects bare Android app binary filenames', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['app-debug.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /requires an installed package name/i);
+  }
+});
+
 test('open --relaunch allows Android package names ending with apk-like suffix', async () => {
   const sessionStore = makeSessionStore();
   const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
@@ -2112,17 +2143,18 @@ test('open --relaunch allows Android package names ending with apk-like suffix',
 
 test('open --relaunch rejects Android app binary paths for active sessions', async () => {
   const sessionStore = makeSessionStore();
+  const session = makeSession('default', {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  });
+  session.appName = 'com.example.app';
+  session.appBundleId = 'com.example.app';
   sessionStore.set(
     'default',
-    makeSession('default', {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-      appName: 'com.example.app',
-      appBundleId: 'com.example.app',
-    }),
+    session,
   );
 
   const response = await handleSessionCommands({

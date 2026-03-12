@@ -636,12 +636,17 @@ function shouldPreserveAndroidPackageContext(
 function isAndroidAppBinaryPath(openTarget: string | undefined): boolean {
   if (!openTarget) return false;
   const trimmed = openTarget.trim();
+  if (!/\.(?:apk|aab)$/i.test(trimmed)) return false;
   const looksLikePath =
     trimmed.includes('/')
     || trimmed.includes('\\')
     || trimmed.startsWith('.')
     || trimmed.startsWith('~');
-  return looksLikePath && /\.(?:apk|aab)$/i.test(trimmed);
+  return looksLikePath || !looksLikeAndroidPackageName(trimmed);
+}
+
+function looksLikeAndroidPackageName(value: string): boolean {
+  return /^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$/.test(value);
 }
 
 async function resolveSessionAppBundleIdForTarget(
