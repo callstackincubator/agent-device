@@ -22,6 +22,12 @@ import {
   runIosDevicectl,
   type IosAppInfo,
 } from './devicectl.ts';
+import {
+  isSimulatorLaunchFBSError,
+  probeSimulatorLaunchContext,
+  classifyLaunchFailure,
+  launchFailureHint,
+} from './launch-diagnostics.ts';
 import { ensureBootedSimulator, ensureSimulator, focusIosSimulatorWindow, getSimulatorState } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 export {
@@ -856,56 +862,59 @@ function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolea
   );
 }
 
-function isTransientSimulatorLaunchFailure(error: unknown): boolean {
-  if (!(error instanceof AppError)) return false;
-  if (error.code !== 'COMMAND_FAILED') return false;
-
-  const details = (error.details ?? {}) as { exitCode?: number; stderr?: unknown };
-  if (details.exitCode !== 4) return false;
-  const stderr = String(details.stderr ?? '').toLowerCase();
-
-  return (
-    stderr.includes('fbsopenapplicationserviceerrordomain') &&
-    stderr.includes('the request to open')
-  );
-}
-
 async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Promise<void> {
   await ensureBootedSimulator(device);
   await focusIosSimulatorWindow();
 
+  let consecutiveFBSFailures = 0;
+  const MAX_CONSECUTIVE_FBS_FAILURES = 3;
+
   const launchDeadline = Deadline.fromTimeoutMs(IOS_APP_LAUNCH_TIMEOUT_MS);
-  await retryWithPolicy(
-    async ({ deadline: attemptDeadline }) => {
-      if (attemptDeadline?.isExpired()) {
-        throw new AppError('COMMAND_FAILED', 'App launch deadline exceeded', {
-          timeoutMs: IOS_APP_LAUNCH_TIMEOUT_MS,
+  try {
+    await retryWithPolicy(
+      async ({ deadline: attemptDeadline }) => {
+        if (attemptDeadline?.isExpired()) {
+          throw new AppError('COMMAND_FAILED', 'App launch deadline exceeded', {
+            timeoutMs: IOS_APP_LAUNCH_TIMEOUT_MS,
+          });
+        }
+
+        const launchArgs = simctlArgs(device, ['launch', device.id, bundleId]);
+        const result = await runCmd('xcrun', launchArgs, {
+          allowFailure: true,
         });
-      }
+        if (result.exitCode === 0) return;
 
-      const launchArgs = simctlArgs(device, ['launch', device.id, bundleId]);
-      const result = await runCmd('xcrun', launchArgs, {
-        allowFailure: true,
-      });
-      if (result.exitCode === 0) return;
-
-      throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
-        cmd: 'xcrun',
-        args: launchArgs,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-      });
-    },
-    {
-      maxAttempts: 30,
-      baseDelayMs: 1_000,
-      maxDelayMs: 5_000,
-      jitter: 0.2,
-      shouldRetry: isTransientSimulatorLaunchFailure,
-    },
-    { deadline: launchDeadline },
-  );
+        throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
+          cmd: 'xcrun',
+          args: launchArgs,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        });
+      },
+      {
+        maxAttempts: 10,
+        baseDelayMs: 1_000,
+        maxDelayMs: 5_000,
+        jitter: 0.2,
+        shouldRetry(error: unknown) {
+          if (!isSimulatorLaunchFBSError(error)) return false;
+          consecutiveFBSFailures += 1;
+          return consecutiveFBSFailures < MAX_CONSECUTIVE_FBS_FAILURES;
+        },
+      },
+      { deadline: launchDeadline },
+    );
+  } catch (error) {
+    if (isSimulatorLaunchFBSError(error)) {
+      const appError = error as AppError;
+      const probe = await probeSimulatorLaunchContext(device, bundleId);
+      const reason = classifyLaunchFailure(probe);
+      appError.details = { ...appError.details, hint: launchFailureHint(reason) };
+    }
+    throw error;
+  }
 }
 
 async function launchIosDeviceProcess(
