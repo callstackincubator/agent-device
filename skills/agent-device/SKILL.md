@@ -118,6 +118,8 @@ Use `boot` only as fallback when `open` cannot find/connect to a ready target.
 For Android emulators by AVD name, use `boot --platform android --device <avd-name>`.
 For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
+For Android React Native + Metro flows, install or reinstall the APK first, set runtime hints with `runtime set`, then use `open <package> --relaunch`; do not use `open <apk|aab> --relaunch`.
+For local iOS QA in mixed simulator/device environments, use `ensure-simulator` and pass `--device` or `--udid` so automation does not attach to a physical device by accident.
 
 Isolation scoping quick reference:
 - `--ios-simulator-device-set <path>` scopes iOS simulator discovery + command execution to one simulator set.

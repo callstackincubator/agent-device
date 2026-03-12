@@ -149,10 +149,13 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
     );
   }
 
-  const script = `mkdir -p shared_prefs && cat > ${ANDROID_DEV_PREFS_PATH}`;
-  const writeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'sh', '-c', `'${script}'`]);
   try {
-    await runCmd('adb', writeArgs, { stdin: xml.trimEnd() });
+    await runCmd('adb', adbArgs(device, ['shell', 'run-as', packageName, 'mkdir', '-p', 'shared_prefs']));
+    await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'run-as', packageName, 'tee', ANDROID_DEV_PREFS_PATH]),
+      { stdin: xml.trimEnd() },
+    );
   } catch (error) {
     const appErr = asAppError(error);
     if (appErr.code === 'TOOL_MISSING') throw appErr;
@@ -168,7 +171,6 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
         ...(appErr.details ?? {}),
         package: packageName,
         cmd: 'adb',
-        args: writeArgs,
         phase: 'write-runtime-hints',
         hint: runAsDenied ? ANDROID_RUN_AS_HINT : ANDROID_WRITE_HINT,
       },

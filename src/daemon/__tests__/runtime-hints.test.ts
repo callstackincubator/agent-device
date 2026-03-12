@@ -16,7 +16,6 @@ async function withMockedAdb(
     device: DeviceInfo;
     argsLogPath: string;
     readFilePath: string;
-    scriptFilePath: string;
     stdinFilePath: string;
   }) => Promise<void>,
 ): Promise<void> {
@@ -24,7 +23,6 @@ async function withMockedAdb(
   const adbPath = path.join(tmpDir, 'adb');
   const argsLogPath = path.join(tmpDir, 'args.log');
   const readFilePath = path.join(tmpDir, 'existing.xml');
-  const scriptFilePath = path.join(tmpDir, 'write-script.sh');
   const stdinFilePath = path.join(tmpDir, 'write-stdin.xml');
   await fs.writeFile(
     adbPath,
@@ -53,7 +51,16 @@ async function withMockedAdb(
       '  fi',
       '  exit "${AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE:-0}"',
       'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "sh" ] && [ "$5" = "-c" ]; then',
+      'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "mkdir" ] && [ "$5" = "-p" ] && [ "$6" = "shared_prefs" ]; then',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDOUT" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDOUT"',
+      '  fi',
+      '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDERR" ]; then',
+      '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDERR" >&2',
+      '  fi',
+      '  exit "${AGENT_DEVICE_TEST_RUN_AS_MKDIR_EXIT_CODE:-0}"',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "run-as" ] && [ "$4" = "tee" ] && [ "$5" = "shared_prefs/ReactNativeDevPrefs.xml" ]; then',
       '  cat > "$AGENT_DEVICE_TEST_STDIN_FILE"',
       '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT" ]; then',
       '    printf "%s" "$AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT"',
@@ -64,7 +71,6 @@ async function withMockedAdb(
       '  if [ -n "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE" ] && [ "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE" != "0" ]; then',
       '    exit "$AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE"',
       '  fi',
-      '  printf "%s" "$6" > "$AGENT_DEVICE_TEST_SCRIPT_FILE"',
       '  exit 0',
       'fi',
       'echo "unexpected args: $@" >&2',
@@ -78,18 +84,19 @@ async function withMockedAdb(
   const previousPath = process.env.PATH;
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
   const previousReadFile = process.env.AGENT_DEVICE_TEST_READ_FILE;
-  const previousScriptFile = process.env.AGENT_DEVICE_TEST_SCRIPT_FILE;
   const previousStdinFile = process.env.AGENT_DEVICE_TEST_STDIN_FILE;
   const previousRunAsIdExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE;
   const previousRunAsIdStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT;
   const previousRunAsIdStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR;
+  const previousRunAsMkdirExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_MKDIR_EXIT_CODE;
+  const previousRunAsMkdirStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDOUT;
+  const previousRunAsMkdirStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDERR;
   const previousRunAsWriteExitCode = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE;
   const previousRunAsWriteStdout = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT;
   const previousRunAsWriteStderr = process.env.AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR;
   process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
   process.env.AGENT_DEVICE_TEST_READ_FILE = readFilePath;
-  process.env.AGENT_DEVICE_TEST_SCRIPT_FILE = scriptFilePath;
   process.env.AGENT_DEVICE_TEST_STDIN_FILE = stdinFilePath;
 
   const device: DeviceInfo = {
@@ -101,16 +108,18 @@ async function withMockedAdb(
   };
 
   try {
-    await run({ device, argsLogPath, readFilePath, scriptFilePath, stdinFilePath });
+    await run({ device, argsLogPath, readFilePath, stdinFilePath });
   } finally {
     process.env.PATH = previousPath;
     restoreEnv('AGENT_DEVICE_TEST_ARGS_FILE', previousArgsFile);
     restoreEnv('AGENT_DEVICE_TEST_READ_FILE', previousReadFile);
-    restoreEnv('AGENT_DEVICE_TEST_SCRIPT_FILE', previousScriptFile);
     restoreEnv('AGENT_DEVICE_TEST_STDIN_FILE', previousStdinFile);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE', previousRunAsIdExitCode);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDOUT', previousRunAsIdStdout);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_ID_STDERR', previousRunAsIdStderr);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_MKDIR_EXIT_CODE', previousRunAsMkdirExitCode);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDOUT', previousRunAsMkdirStdout);
+    restoreEnv('AGENT_DEVICE_TEST_RUN_AS_MKDIR_STDERR', previousRunAsMkdirStderr);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_EXIT_CODE', previousRunAsWriteExitCode);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_STDOUT', previousRunAsWriteStdout);
     restoreEnv('AGENT_DEVICE_TEST_RUN_AS_WRITE_STDERR', previousRunAsWriteStderr);
@@ -181,7 +190,7 @@ test('resolveRuntimeTransportHints derives host, port, and scheme from bundle UR
 });
 
 test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () => {
-  await withMockedAdb(async ({ device, argsLogPath, readFilePath, scriptFilePath, stdinFilePath }) => {
+  await withMockedAdb(async ({ device, argsLogPath, readFilePath, stdinFilePath }) => {
     await fs.writeFile(
       readFilePath,
       [
@@ -204,11 +213,10 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
     });
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8');
-    const script = await fs.readFile(scriptFilePath, 'utf8');
     const stdinPayload = await fs.readFile(stdinFilePath, 'utf8');
     assert.match(loggedArgs, /shell run-as com\.example\.demo cat shared_prefs\/ReactNativeDevPrefs\.xml/);
-    assert.match(loggedArgs, /shell run-as com\.example\.demo sh -c/);
-    assert.equal(script, "'mkdir -p shared_prefs && cat > shared_prefs/ReactNativeDevPrefs.xml'");
+    assert.match(loggedArgs, /shell run-as com\.example\.demo mkdir -p shared_prefs/);
+    assert.match(loggedArgs, /shell run-as com\.example\.demo tee shared_prefs\/ReactNativeDevPrefs\.xml/);
     assert.match(stdinPayload, /<string name="keep">value<\/string>/);
     assert.match(stdinPayload, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
     assert.match(stdinPayload, /<boolean name="dev_server_https" value="true" \/>/);

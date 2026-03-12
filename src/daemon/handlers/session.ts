@@ -633,6 +633,11 @@ function shouldPreserveAndroidPackageContext(
   return device.platform === 'android' && Boolean(openTarget && isDeepLinkTarget(openTarget));
 }
 
+function isAndroidAppBinaryPath(openTarget: string | undefined): boolean {
+  if (!openTarget) return false;
+  return /\.(?:apk|aab)$/i.test(openTarget.trim());
+}
+
 async function resolveSessionAppBundleIdForTarget(
   device: DeviceInfo,
   openTarget: string | undefined,
@@ -1406,6 +1411,16 @@ export async function handleSessionCommands(params: {
       };
     }
     const device = await resolveDevice(req.flags ?? {});
+    if (shouldRelaunch && device.platform === 'android' && isAndroidAppBinaryPath(openTarget)) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message:
+            'open --relaunch on Android requires an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.',
+        },
+      };
+    }
     const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
     if (inUse) {
       return {

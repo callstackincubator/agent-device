@@ -2042,6 +2042,37 @@ test('open --relaunch fails without app when no session exists', async () => {
   }
 });
 
+test('open --relaunch rejects Android app binary paths', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['/tmp/app-debug.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /requires an installed package name/i);
+  }
+});
+
 test('open on in-use device returns DEVICE_IN_USE before readiness checks', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.set(
