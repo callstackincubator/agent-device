@@ -208,7 +208,7 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
     const stdinPayload = await fs.readFile(stdinFilePath, 'utf8');
     assert.match(loggedArgs, /shell run-as com\.example\.demo cat shared_prefs\/ReactNativeDevPrefs\.xml/);
     assert.match(loggedArgs, /shell run-as com\.example\.demo sh -c/);
-    assert.equal(script, 'mkdir -p shared_prefs && cat > shared_prefs/ReactNativeDevPrefs.xml');
+    assert.equal(script, "'mkdir -p shared_prefs && cat > shared_prefs/ReactNativeDevPrefs.xml'");
     assert.match(stdinPayload, /<string name="keep">value<\/string>/);
     assert.match(stdinPayload, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
     assert.match(stdinPayload, /<boolean name="dev_server_https" value="true" \/>/);
