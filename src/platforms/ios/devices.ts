@@ -117,12 +117,12 @@ type FindBootableSimulatorOptions = IosDeviceDiscoveryOptions & {
 };
 
 /**
- * Finds any iOS simulator by querying simctl directly.  Unlike `listIosDevices`
- * this intentionally skips the `isAvailable` check so that simulators whose
- * runtimes are not fully installed still surface as candidates — the caller
- * (`ensureReady`) will boot them.
+ * Finds an available iOS simulator by querying simctl directly.  This is used
+ * as a fallback when `listIosDevices` returned no simulators (e.g. all filtered
+ * out) or only a physical device.  Only simulators with `isAvailable: true` are
+ * considered so the caller can safely boot the result.
  *
- * Returns `null` when no simulator can be found at all.
+ * Returns `null` when no suitable simulator can be found.
  */
 export async function findBootableIosSimulator(
   options: FindBootableSimulatorOptions = {},
@@ -153,7 +153,7 @@ export async function findBootableIosSimulator(
     const target = resolveAppleTargetFromRuntime(runtime);
     if (targetFilter && target !== targetFilter) continue;
     for (const device of runtimes) {
-      // Intentionally not checking device.isAvailable — see docstring.
+      if (!device.isAvailable) continue;
       const info: DeviceInfo = {
         platform: 'ios',
         id: device.udid,
