@@ -3237,6 +3237,46 @@ test('close --shutdown calls shutdownSimulator for iOS simulator and includes re
   }
 });
 
+test('close --shutdown calls shutdownAndroidEmulator for Android emulator and includes result in response', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-shutdown-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel_9_API_35',
+    kind: 'emulator',
+    booted: true,
+  }));
+
+  const shutdownCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    shutdownAndroidEmulator: async (device) => {
+      shutdownCalls.push(device.id);
+      return { success: true, stdout: '', stderr: '', exitCode: 0 };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(shutdownCalls, ['emulator-5554']);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.session, sessionName);
+    assert.deepEqual(response.data?.shutdown, { success: true, stdout: '', stderr: '', exitCode: 0 });
+  }
+});
+
 test('close --shutdown is ignored for non-simulator iOS devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-shutdown-session';
@@ -3265,6 +3305,46 @@ test('close --shutdown is ignored for non-simulator iOS devices', async () => {
     shutdownSimulator: async (device) => {
       shutdownCalls.push(device.id);
       return { success: true, exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(shutdownCalls, []);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.session, sessionName);
+    assert.equal(response.data?.shutdown, undefined);
+  }
+});
+
+test('close --shutdown is ignored for Android devices', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-device-shutdown-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'android',
+    id: 'R5CT123456A',
+    name: 'Pixel 9',
+    kind: 'device',
+    booted: true,
+  }));
+
+  const shutdownCalls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    shutdownAndroidEmulator: async (device) => {
+      shutdownCalls.push(device.id);
+      return { success: true, stdout: '', stderr: '', exitCode: 0 };
     },
   });
 
@@ -3314,6 +3394,60 @@ test('close without --shutdown does not call shutdownSimulator', async () => {
   assert.deepEqual(shutdownCalls, []);
   if (response && response.ok) {
     assert.equal(response.data?.shutdown, undefined);
+  }
+});
+
+test('close --shutdown returns success and failure payload when shutdownAndroidEmulator throws', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-shutdown-failure-session';
+  sessionStore.set(sessionName, makeSession(sessionName, {
+    platform: 'android',
+    id: 'emulator-5556',
+    name: 'Pixel_9_API_35',
+    kind: 'emulator',
+    booted: true,
+  }));
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: { shutdown: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    shutdownAndroidEmulator: async () => {
+      throw new AppError('COMMAND_FAILED', 'adb emu kill failed');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  if (response && response.ok) {
+    const shutdown = response.data?.shutdown as
+      | {
+        success?: boolean;
+        exitCode?: number;
+        stdout?: string;
+        stderr?: string;
+        error?: {
+          code?: string;
+          message?: string;
+        };
+      }
+      | undefined;
+    assert.equal(response.data?.session, sessionName);
+    assert.equal(shutdown?.success, false);
+    assert.equal(shutdown?.exitCode, -1);
+    assert.equal(shutdown?.stdout, '');
+    assert.equal(shutdown?.stderr, 'adb emu kill failed');
+    assert.equal(shutdown?.error?.code, 'COMMAND_FAILED');
+    assert.equal(shutdown?.error?.message, 'adb emu kill failed');
   }
 });
 

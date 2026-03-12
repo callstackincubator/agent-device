@@ -13,6 +13,7 @@ import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
 import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
+import { runCmd } from '../../utils/exec.ts';
 import type {
   DaemonRequest,
   DaemonResponse,
@@ -327,9 +328,61 @@ function isIosSimulator(device: DeviceInfo): boolean {
   return device.platform === 'ios' && device.kind === 'simulator';
 }
 
+function isAndroidEmulator(device: DeviceInfo): boolean {
+  return device.platform === 'android' && device.kind === 'emulator';
+}
+
 async function settleIosSimulator(device: DeviceInfo, delayMs: number): Promise<void> {
   if (!isIosSimulator(device) || delayMs <= 0) return;
   await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}> {
+  const result = await runCmd('adb', ['-s', device.id, 'emu', 'kill'], { allowFailure: true, timeoutMs: 15_000 });
+  return {
+    success: result.exitCode === 0,
+    exitCode: result.exitCode,
+    stdout: String(result.stdout ?? ''),
+    stderr: String(result.stderr ?? ''),
+  };
+}
+
+type SessionShutdownResult = {
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  error?: ReturnType<typeof normalizeError>;
+};
+
+async function maybeShutdownSessionTarget(params: {
+  device: DeviceInfo;
+  shutdownRequested: boolean | undefined;
+  shutdownSimulator: typeof shutdownSimulator;
+  shutdownAndroidEmulator: typeof shutdownAndroidEmulator;
+}): Promise<SessionShutdownResult | undefined> {
+  const { device, shutdownRequested, shutdownSimulator, shutdownAndroidEmulator } = params;
+  if (!shutdownRequested) return undefined;
+  if (!isIosSimulator(device) && !isAndroidEmulator(device)) return undefined;
+  try {
+    return isIosSimulator(device)
+      ? await shutdownSimulator(device)
+      : await shutdownAndroidEmulator(device);
+  } catch (error) {
+    const normalized = normalizeError(error);
+    return {
+      success: false,
+      exitCode: -1,
+      stdout: '',
+      stderr: normalized.message,
+      error: normalized,
+    };
+  }
 }
 
 async function relaunchCloseApp(params: {
@@ -825,6 +878,7 @@ export async function handleSessionCommands(params: {
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   settleSimulator?: typeof settleIosSimulator;
   shutdownSimulator?: typeof shutdownSimulator;
+  shutdownAndroidEmulator?: typeof shutdownAndroidEmulator;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -848,6 +902,7 @@ export async function handleSessionCommands(params: {
     clearRuntimeHints: clearRuntimeHintsOverride = clearRuntimeHintsFromApp,
     settleSimulator: settleSimulatorOverride,
     shutdownSimulator: shutdownSimulatorOverride,
+    shutdownAndroidEmulator: shutdownAndroidEmulatorOverride,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
@@ -855,6 +910,7 @@ export async function handleSessionCommands(params: {
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
   const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
   const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
+  const doShutdownAndroidEmulator = shutdownAndroidEmulatorOverride ?? shutdownAndroidEmulator;
   const applyRuntimeHints = applyRuntimeHintsOverride;
   const clearRuntimeHints = clearRuntimeHintsOverride;
   const command = req.command;
@@ -1828,26 +1884,13 @@ export async function handleSessionCommands(params: {
     }
     sessionStore.writeSessionLog(session);
     sessionStore.delete(sessionName);
-    if (req.flags?.shutdown && isIosSimulator(session.device)) {
-      let shutdownResult: {
-        success: boolean;
-        exitCode: number;
-        stdout: string;
-        stderr: string;
-        error?: ReturnType<typeof normalizeError>;
-      };
-      try {
-        shutdownResult = await doShutdownSimulator(session.device);
-      } catch (error) {
-        const normalized = normalizeError(error);
-        shutdownResult = {
-          success: false,
-          exitCode: -1,
-          stdout: '',
-          stderr: normalized.message,
-          error: normalized,
-        };
-      }
+    const shutdownResult = await maybeShutdownSessionTarget({
+      device: session.device,
+      shutdownRequested: req.flags?.shutdown,
+      shutdownSimulator: doShutdownSimulator,
+      shutdownAndroidEmulator: doShutdownAndroidEmulator,
+    });
+    if (shutdownResult) {
       return {
         ok: true,
         data: { session: sessionName, shutdown: shutdownResult },
