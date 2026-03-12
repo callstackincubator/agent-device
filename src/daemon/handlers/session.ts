@@ -635,7 +635,13 @@ function shouldPreserveAndroidPackageContext(
 
 function isAndroidAppBinaryPath(openTarget: string | undefined): boolean {
   if (!openTarget) return false;
-  return /\.(?:apk|aab)$/i.test(openTarget.trim());
+  const trimmed = openTarget.trim();
+  const looksLikePath =
+    trimmed.includes('/')
+    || trimmed.includes('\\')
+    || trimmed.startsWith('.')
+    || trimmed.startsWith('~');
+  return looksLikePath && /\.(?:apk|aab)$/i.test(trimmed);
 }
 
 async function resolveSessionAppBundleIdForTarget(
@@ -1320,6 +1326,16 @@ export async function handleSessionCommands(params: {
           error: {
             code: 'INVALID_ARGS',
             message: 'open --relaunch does not support URL targets.',
+          },
+        };
+      }
+      if (shouldRelaunch && session.device.platform === 'android' && isAndroidAppBinaryPath(openTarget)) {
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message:
+              'open --relaunch on Android requires an installed package name, not an .apk/.aab path. Install or reinstall the app first, then relaunch by package.',
           },
         };
       }

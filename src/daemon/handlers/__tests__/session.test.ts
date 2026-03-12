@@ -2073,6 +2073,80 @@ test('open --relaunch rejects Android app binary paths', async () => {
   }
 });
 
+test('open --relaunch allows Android package names ending with apk-like suffix', async () => {
+  const sessionStore = makeSessionStore();
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['com.example.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return {};
+    },
+    applyRuntimeHints: async () => {},
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(dispatchCalls[0]?.command, 'close');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['com.example.apk']);
+  assert.equal(dispatchCalls[1]?.command, 'open');
+  assert.deepEqual(dispatchCalls[1]?.positionals, ['com.example.apk']);
+});
+
+test('open --relaunch rejects Android app binary paths for active sessions', async () => {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(
+    'default',
+    makeSession('default', {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+      appName: 'com.example.app',
+      appBundleId: 'com.example.app',
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['/tmp/app-debug.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /requires an installed package name/i);
+  }
+});
+
 test('open on in-use device returns DEVICE_IN_USE before readiness checks', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.set(
