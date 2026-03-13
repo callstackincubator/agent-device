@@ -122,6 +122,7 @@ function toDaemonRequest(params: Partial<DaemonRequest>, headers: IncomingHttpHe
     command: params.command ?? '',
     positionals: Array.isArray(params.positionals) ? params.positionals : [],
     flags: params.flags,
+    // JSON-RPC params are untyped here; runtime shape is validated in the session open handler.
     runtime: params.runtime,
     meta: params.meta,
   };

@@ -595,44 +595,37 @@ test('open runtime payload rejects invalid metro port before app launch', async 
   const sessionStore = makeSessionStore();
   let dispatchCalls = 0;
 
-  await assert.rejects(
-    async () => await handleSessionCommands({
-      req: {
-        token: 't',
-        session: 'runtime-open-invalid-port',
-        command: 'open',
-        positionals: ['Demo'],
-        flags: { platform: 'android' },
-        runtime: {
-          metroHost: '10.0.0.10',
-          metroPort: 70000,
-        },
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'runtime-open-invalid-port',
+      command: 'open',
+      positionals: ['Demo'],
+      flags: { platform: 'android' },
+      runtime: {
+        metroHost: '10.0.0.10',
+        metroPort: 70000,
       },
-      sessionName: 'runtime-open-invalid-port',
-      logPath: path.join(os.tmpdir(), 'daemon.log'),
-      sessionStore,
-      invoke: noopInvoke,
-      ensureReady: async () => {},
-      resolveTargetDevice: async () => ({
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      dispatch: async () => {
-        dispatchCalls += 1;
-        return {};
-      },
-    }),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, 'INVALID_ARGS');
-      assert.match(error.message, /Invalid runtime metroPort/);
-      return true;
     },
-  );
+    sessionName: 'runtime-open-invalid-port',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    dispatch: async () => {
+      dispatchCalls += 1;
+      return {};
+    },
+  });
 
+  assertInvalidArgsMessage(response, 'Invalid runtime metroPort: 70000. Use an integer between 1 and 65535.');
   assert.equal(dispatchCalls, 0);
 });
 
@@ -645,37 +638,30 @@ test('open runtime payload rejects malformed runtime objects without mutating se
     metroPort: 8081,
   });
 
-  await assert.rejects(
-    async () => await handleSessionCommands({
-      req: {
-        token: 't',
-        session: sessionName,
-        command: 'open',
-        positionals: ['Demo'],
-        flags: { platform: 'android' },
-        runtime: 'not-an-object' as unknown as DaemonRequest['runtime'],
-      },
-      sessionName,
-      logPath: path.join(os.tmpdir(), 'daemon.log'),
-      sessionStore,
-      invoke: noopInvoke,
-      ensureReady: async () => {},
-      resolveTargetDevice: async () => ({
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-    }),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, 'INVALID_ARGS');
-      assert.equal(error.message, 'open runtime must be an object.');
-      return true;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Demo'],
+      flags: { platform: 'android' },
+      runtime: 'not-an-object' as unknown as DaemonRequest['runtime'],
     },
-  );
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+  });
 
+  assertInvalidArgsMessage(response, 'open runtime must be an object.');
   assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
     platform: 'android',
     metroHost: '10.0.0.10',

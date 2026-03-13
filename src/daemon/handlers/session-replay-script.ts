@@ -4,7 +4,7 @@ import type { SessionAction, SessionState } from '../types.ts';
 import {
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
-  formatLooseScriptArg,
+  formatScriptArgQuoteIfNeeded,
   formatScriptArg,
   isClickLikeCommand,
   parseReplayRuntimeFlags,
@@ -251,7 +251,7 @@ function formatReplayActionLine(action: SessionAction): string {
   }
   if (action.command === 'runtime') {
     for (const positional of action.positionals ?? []) {
-      parts.push(formatLooseScriptArg(positional));
+      parts.push(formatScriptArgQuoteIfNeeded(positional));
     }
     appendRuntimeHintFlags(parts, action.flags);
     return parts.join(' ');

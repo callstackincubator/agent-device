@@ -7,7 +7,7 @@ import { inferFillText } from './action-utils.ts';
 import {
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
-  formatLooseScriptArg,
+  formatScriptArgQuoteIfNeeded,
   formatScriptArg,
   isClickLikeCommand,
 } from './script-utils.ts';
@@ -357,7 +357,7 @@ function formatActionLine(action: SessionAction): string {
   if (action.command === 'runtime') {
     const subcommand = action.positionals?.[0];
     if (subcommand) {
-      parts.push(formatLooseScriptArg(subcommand));
+      parts.push(formatScriptArgQuoteIfNeeded(subcommand));
     }
     appendRuntimeHintFlags(parts, action.flags);
     return parts.join(' ');

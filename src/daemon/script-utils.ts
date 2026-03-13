@@ -25,7 +25,8 @@ export function formatScriptArg(value: string): string {
   return JSON.stringify(trimmed);
 }
 
-export function formatLooseScriptArg(value: string): string {
+// Preserve readable CLI-ish script output for ordinary tokens while still quoting whitespace.
+export function formatScriptArgQuoteIfNeeded(value: string): string {
   const trimmed = value.trim();
   return /\s/.test(trimmed) ? JSON.stringify(trimmed) : trimmed;
 }
@@ -63,16 +64,16 @@ export function appendRuntimeHintFlags(
     parts.push('--platform', flags.platform);
   }
   if (typeof flags.metroHost === 'string' && flags.metroHost.length > 0) {
-    parts.push('--metro-host', formatLooseScriptArg(flags.metroHost));
+    parts.push('--metro-host', formatScriptArgQuoteIfNeeded(flags.metroHost));
   }
   if (typeof flags.metroPort === 'number') {
     parts.push('--metro-port', String(flags.metroPort));
   }
   if (typeof flags.bundleUrl === 'string' && flags.bundleUrl.length > 0) {
-    parts.push('--bundle-url', formatLooseScriptArg(flags.bundleUrl));
+    parts.push('--bundle-url', formatScriptArgQuoteIfNeeded(flags.bundleUrl));
   }
   if (typeof flags.launchUrl === 'string' && flags.launchUrl.length > 0) {
-    parts.push('--launch-url', formatLooseScriptArg(flags.launchUrl));
+    parts.push('--launch-url', formatScriptArgQuoteIfNeeded(flags.launchUrl));
   }
 }
 

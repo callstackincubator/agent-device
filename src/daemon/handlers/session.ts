@@ -314,6 +314,30 @@ function resolveOpenRuntimeHints(params: {
   };
 }
 
+function tryResolveOpenRuntimeHints(params: Parameters<typeof resolveOpenRuntimeHints>[0]):
+  | { ok: true; data: ReturnType<typeof resolveOpenRuntimeHints> }
+  | { ok: false; response: DaemonResponse } {
+  try {
+    return {
+      ok: true,
+      data: resolveOpenRuntimeHints(params),
+    };
+  } catch (error) {
+    const appErr = asAppError(error);
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: appErr.code,
+          message: appErr.message,
+          details: appErr.details,
+        },
+      },
+    };
+  }
+}
+
 function recordOpenRuntimeAction(params: {
   req: DaemonRequest;
   sessionStore: SessionStore;
@@ -1656,12 +1680,16 @@ export async function handleSessionCommands(params: {
         session.appBundleId,
         resolveAndroidPackageForOpenOverride,
       );
-      const { runtime, previousRuntime, replacedStoredRuntime } = resolveOpenRuntimeHints({
+      const runtimeResult = tryResolveOpenRuntimeHints({
         req,
         sessionStore,
         sessionName,
         device: session.device,
       });
+      if (!runtimeResult.ok) {
+        return runtimeResult.response;
+      }
+      const { runtime, previousRuntime, replacedStoredRuntime } = runtimeResult.data;
       await maybeClearRemovedRuntimeTransportHints({
         replacedStoredRuntime,
         previousRuntime,
@@ -1730,12 +1758,16 @@ export async function handleSessionCommands(params: {
     await ensureReady(device);
     const appBundleId =
       await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
-    const { runtime } = resolveOpenRuntimeHints({
+    const runtimeResult = tryResolveOpenRuntimeHints({
       req,
       sessionStore,
       sessionName,
       device,
     });
+    if (!runtimeResult.ok) {
+      return runtimeResult.response;
+    }
+    const { runtime } = runtimeResult.data;
     return await completeOpenCommand({
       req,
       sessionName,
