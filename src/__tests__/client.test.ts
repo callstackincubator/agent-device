@@ -186,12 +186,18 @@ test('apps.installFromSource forwards source payload and normalizes launch ident
       packageName: 'com.example.demo',
       appName: 'Demo',
       launchTarget: 'com.example.demo',
+      installablePath: '/tmp/materialized/installable/demo.apk',
+      archivePath: '/tmp/materialized/archive/demo.zip',
+      materializationId: 'materialized-123',
+      materializationExpiresAt: '2026-03-13T12:00:00.000Z',
     },
   }));
   const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
 
   const result = await client.apps.installFromSource({
     platform: 'android',
+    retainPaths: true,
+    retentionMs: 60_000,
     source: {
       kind: 'url',
       url: 'https://example.com/demo.apk',
@@ -206,12 +212,18 @@ test('apps.installFromSource forwards source payload and normalizes launch ident
     url: 'https://example.com/demo.apk',
     headers: { authorization: 'Bearer token' },
   });
+  assert.equal(setup.calls[0]?.meta?.retainMaterializedPaths, true);
+  assert.equal(setup.calls[0]?.meta?.materializedPathRetentionMs, 60_000);
   assert.deepEqual(result, {
     appName: 'Demo',
     appId: 'com.example.demo',
     bundleId: undefined,
     packageName: 'com.example.demo',
     launchTarget: 'com.example.demo',
+    installablePath: '/tmp/materialized/installable/demo.apk',
+    archivePath: '/tmp/materialized/archive/demo.zip',
+    materializationId: 'materialized-123',
+    materializationExpiresAt: '2026-03-13T12:00:00.000Z',
     identifiers: {
       session: 'qa',
       appId: 'com.example.demo',

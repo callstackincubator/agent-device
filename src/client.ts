@@ -169,6 +169,8 @@ export type AppCloseResult = {
 
 export type AppInstallFromSourceOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
   source: DaemonInstallSource;
+  retainPaths?: boolean;
+  retentionMs?: number;
 };
 
 export type AppInstallFromSourceResult = {
@@ -177,6 +179,10 @@ export type AppInstallFromSourceResult = {
   bundleId?: string;
   packageName?: string;
   launchTarget: string;
+  installablePath?: string;
+  archivePath?: string;
+  materializationId?: string;
+  materializationExpiresAt?: string;
   identifiers: AgentDeviceIdentifiers;
 };
 
@@ -243,6 +249,8 @@ type RequestOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
   scope?: string;
   raw?: boolean;
   installSource?: DaemonInstallSource;
+  retainMaterializedPaths?: boolean;
+  materializedPathRetentionMs?: number;
 };
 
 export type AgentDeviceClient = {
@@ -357,7 +365,12 @@ export function createAgentDeviceClient(
       install: async (options) => normalizeDeployResult(await execute('install', [options.app, options.appPath], options), options),
       reinstall: async (options) => normalizeDeployResult(await execute('reinstall', [options.app, options.appPath], options), options),
       installFromSource: async (options) => normalizeInstallFromSourceResult(
-        await execute('install_source', [], { ...options, installSource: options.source }),
+        await execute('install_source', [], {
+          ...options,
+          installSource: options.source,
+          retainMaterializedPaths: options.retainPaths,
+          materializedPathRetentionMs: options.retentionMs,
+        }),
         resolveSessionName(config.session, options.session),
       ),
       open: async (options) => {
@@ -485,6 +498,10 @@ function normalizeInstallFromSourceResult(
     bundleId,
     packageName,
     launchTarget: readRequiredString(data, 'launchTarget'),
+    installablePath: readOptionalString(data, 'installablePath'),
+    archivePath: readOptionalString(data, 'archivePath'),
+    materializationId: readOptionalString(data, 'materializationId'),
+    materializationExpiresAt: readOptionalString(data, 'materializationExpiresAt'),
     identifiers: {
       session,
       appId,
@@ -665,6 +682,8 @@ function buildMeta(options: RequestOptions): DaemonRequest['meta'] {
     leaseId: options.leaseId,
     sessionIsolation: options.sessionIsolation,
     installSource: options.installSource,
+    retainMaterializedPaths: options.retainMaterializedPaths,
+    materializedPathRetentionMs: options.materializedPathRetentionMs,
   });
 }
 
