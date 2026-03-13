@@ -140,6 +140,87 @@ test('apps.open resolves session device identifiers from open response', async (
   assert.equal(result.device?.ios?.simulatorSetPath, '/tmp/sim-set');
 });
 
+test('apps.open forwards explicit runtime hints through the daemon request', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      session: 'qa',
+      appName: 'Demo',
+      appBundleId: 'com.example.demo',
+      runtime: {
+        platform: 'ios',
+        metroHost: '127.0.0.1',
+        metroPort: 8081,
+      },
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.apps.open({
+    app: 'Demo',
+    platform: 'ios',
+    runtime: {
+      metroHost: '127.0.0.1',
+      metroPort: 8081,
+    },
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.deepEqual(setup.calls[0]?.runtime, {
+    metroHost: '127.0.0.1',
+    metroPort: 8081,
+  });
+  assert.deepEqual(result.runtime, {
+    platform: 'ios',
+    metroHost: '127.0.0.1',
+    metroPort: 8081,
+    bundleUrl: undefined,
+    launchUrl: undefined,
+  });
+});
+
+test('apps.installFromSource forwards source payload and normalizes launch identity', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      packageName: 'com.example.demo',
+      appName: 'Demo',
+      launchTarget: 'com.example.demo',
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.apps.installFromSource({
+    platform: 'android',
+    source: {
+      kind: 'url',
+      url: 'https://example.com/demo.apk',
+      headers: { authorization: 'Bearer token' },
+    },
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'install_source');
+  assert.deepEqual(setup.calls[0]?.meta?.installSource, {
+    kind: 'url',
+    url: 'https://example.com/demo.apk',
+    headers: { authorization: 'Bearer token' },
+  });
+  assert.deepEqual(result, {
+    appName: 'Demo',
+    appId: 'com.example.demo',
+    bundleId: undefined,
+    packageName: 'com.example.demo',
+    launchTarget: 'com.example.demo',
+    identifiers: {
+      session: 'qa',
+      appId: 'com.example.demo',
+      appBundleId: undefined,
+      package: 'com.example.demo',
+    },
+  });
+});
+
 test('client throws AppError for daemon failures', async () => {
   const setup = createTransport(async () => ({
     ok: false,

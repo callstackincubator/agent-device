@@ -11,6 +11,8 @@ export {
   type AppCloseResult,
   type AppDeployOptions,
   type AppDeployResult,
+  type AppInstallFromSourceOptions,
+  type AppInstallFromSourceResult,
   type AppOpenOptions,
   type AppOpenResult,
   type CaptureScreenshotOptions,

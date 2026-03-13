@@ -52,10 +52,21 @@ await client.apps.open({
   app: 'com.apple.Preferences',
   platform: 'ios',
   udid: ensured.udid,
+  runtime: {
+    metroHost: '127.0.0.1',
+    metroPort: 8081,
+  },
 });
 
 const snapshot = await client.capture.snapshot({ interactiveOnly: true });
+const androidClient = createAgentDeviceClient({ session: 'qa-android' });
+const installed = await androidClient.apps.installFromSource({
+  platform: 'android',
+  source: { kind: 'url', url: 'https://example.com/app.apk' },
+});
+await androidClient.apps.open({ app: installed.launchTarget, platform: 'android' });
 await client.sessions.close();
+await androidClient.sessions.close();
 ```
 
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).

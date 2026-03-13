@@ -1,5 +1,5 @@
 import type { CommandFlags } from './core/dispatch.ts';
-import type { DaemonRequest, DaemonResponse, SessionRuntimeHints } from './daemon/types.ts';
+import type { DaemonInstallSource, DaemonRequest, DaemonResponse, SessionRuntimeHints } from './daemon/types.ts';
 import { sendToDaemon } from './daemon-client.ts';
 import { AppError } from './utils/errors.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
@@ -141,6 +141,7 @@ export type AppOpenOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptio
   relaunch?: boolean;
   saveScript?: boolean | string;
   noRecord?: boolean;
+  runtime?: SessionRuntimeHints;
 };
 
 export type AppOpenResult = {
@@ -163,6 +164,19 @@ export type AppCloseResult = {
   session: string;
   closedApp?: string;
   shutdown?: Record<string, unknown>;
+  identifiers: AgentDeviceIdentifiers;
+};
+
+export type AppInstallFromSourceOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
+  source: DaemonInstallSource;
+};
+
+export type AppInstallFromSourceResult = {
+  appName?: string;
+  appId?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget: string;
   identifiers: AgentDeviceIdentifiers;
 };
 
@@ -210,7 +224,8 @@ export type CaptureScreenshotResult = {
 };
 
 type RequestOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
-  runtime?: string;
+  simulatorRuntimeId?: string;
+  runtime?: SessionRuntimeHints;
   boot?: boolean;
   reuseExisting?: boolean;
   activity?: string;
@@ -227,6 +242,7 @@ type RequestOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
   depth?: number;
   scope?: string;
   raw?: boolean;
+  installSource?: DaemonInstallSource;
 };
 
 export type AgentDeviceClient = {
@@ -243,6 +259,7 @@ export type AgentDeviceClient = {
   apps: {
     install: (options: AppDeployOptions) => Promise<AppDeployResult>;
     reinstall: (options: AppDeployOptions) => Promise<AppDeployResult>;
+    installFromSource: (options: AppInstallFromSourceOptions) => Promise<AppInstallFromSourceResult>;
     open: (options: AppOpenOptions) => Promise<AppOpenResult>;
     close: (options?: AppCloseOptions) => Promise<AppCloseResult>;
   };
@@ -273,6 +290,7 @@ export function createAgentDeviceClient(
       command,
       positionals,
       flags: buildFlags(merged),
+      runtime: merged.runtime,
       meta: buildMeta(merged),
     });
     if (!response.ok) {
@@ -314,7 +332,11 @@ export function createAgentDeviceClient(
     },
     simulators: {
       ensure: async (options) => {
-        const data = await execute('ensure-simulator', [], options);
+        const { runtime, ...rest } = options;
+        const data = await execute('ensure-simulator', [], {
+          ...rest,
+          simulatorRuntimeId: runtime,
+        });
         const udid = readRequiredString(data, 'udid');
         return {
           udid,
@@ -334,6 +356,10 @@ export function createAgentDeviceClient(
     apps: {
       install: async (options) => normalizeDeployResult(await execute('install', [options.app, options.appPath], options), options),
       reinstall: async (options) => normalizeDeployResult(await execute('reinstall', [options.app, options.appPath], options), options),
+      installFromSource: async (options) => normalizeInstallFromSourceResult(
+        await execute('install_source', [], { ...options, installSource: options.source }),
+        resolveSessionName(config.session, options.session),
+      ),
       open: async (options) => {
         const session = resolveSessionName(config.session, options.session);
         const positionals = options.url ? [options.app, options.url] : [options.app];
@@ -443,6 +469,28 @@ function normalizeRuntimeResult(
     cleared: data.cleared === true ? true : undefined,
     runtime: normalizeRuntimeHints(data.runtime),
     identifiers: { session },
+  };
+}
+
+function normalizeInstallFromSourceResult(
+  data: Record<string, unknown>,
+  session: string,
+): AppInstallFromSourceResult {
+  const bundleId = readOptionalString(data, 'bundleId');
+  const packageName = readOptionalString(data, 'packageName');
+  const appId = bundleId ?? packageName;
+  return {
+    appName: readOptionalString(data, 'appName'),
+    appId,
+    bundleId,
+    packageName,
+    launchTarget: readRequiredString(data, 'launchTarget'),
+    identifiers: {
+      session,
+      appId,
+      appBundleId: bundleId,
+      package: packageName,
+    },
   };
 }
 
@@ -586,7 +634,7 @@ function buildFlags(options: RequestOptions): CommandFlags {
     serial: options.serial,
     iosSimulatorDeviceSet: options.iosSimulatorDeviceSet,
     androidDeviceAllowlist: options.androidDeviceAllowlist,
-    runtime: options.runtime,
+    runtime: options.simulatorRuntimeId,
     boot: options.boot,
     reuseExisting: options.reuseExisting,
     activity: options.activity,
@@ -616,6 +664,7 @@ function buildMeta(options: RequestOptions): DaemonRequest['meta'] {
     runId: options.runId,
     leaseId: options.leaseId,
     sessionIsolation: options.sessionIsolation,
+    installSource: options.installSource,
   });
 }
 
