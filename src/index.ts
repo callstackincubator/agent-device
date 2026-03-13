@@ -21,6 +21,8 @@ export {
   type CaptureSnapshotResult,
   type EnsureSimulatorOptions,
   type EnsureSimulatorResult,
+  type MaterializationReleaseOptions,
+  type MaterializationReleaseResult,
   type RuntimeResult,
   type RuntimeSetOptions,
   type RuntimeShowOptions,

@@ -233,6 +233,30 @@ test('apps.installFromSource forwards source payload and normalizes launch ident
   });
 });
 
+test('materializations.release forwards materialization identity through the daemon request', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      released: true,
+      materializationId: 'materialized-123',
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.materializations.release({
+    materializationId: 'materialized-123',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'release_materialized_paths');
+  assert.equal(setup.calls[0]?.meta?.materializationId, 'materialized-123');
+  assert.deepEqual(result, {
+    released: true,
+    materializationId: 'materialized-123',
+    identifiers: {},
+  });
+});
+
 test('client throws AppError for daemon failures', async () => {
   const setup = createTransport(async () => ({
     ok: false,

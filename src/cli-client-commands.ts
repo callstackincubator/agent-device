@@ -5,6 +5,7 @@ import type {
   AgentDeviceClient,
   AgentDeviceDevice,
   AgentDeviceSession,
+  AppCloseResult,
   AppDeployResult,
   AppOpenResult,
   CaptureSnapshotResult,
@@ -19,9 +20,20 @@ export async function tryRunClientBackedCommand(params: {
   flags: CliFlags;
   client: AgentDeviceClient;
 }): Promise<boolean> {
-  const { command, positionals, flags, client } = params;
+  const handler = clientCommandHandlers[params.command];
+  return handler ? await handler(params) : false;
+}
 
-  if (command === 'session') {
+type ClientCommandParams = {
+  positionals: string[];
+  flags: CliFlags;
+  client: AgentDeviceClient;
+};
+
+type ClientCommandHandler = (params: ClientCommandParams) => Promise<boolean>;
+
+const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
+  session: async ({ positionals, flags, client }) => {
     const sub = positionals[0] ?? 'list';
     if (sub !== 'list') {
       throw new AppError('INVALID_ARGS', 'session only supports list');
@@ -31,17 +43,15 @@ export async function tryRunClientBackedCommand(params: {
     if (flags.json) printJson({ success: true, data });
     else process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
     return true;
-  }
-
-  if (command === 'devices') {
+  },
+  devices: async ({ flags, client }) => {
     const devices = await client.devices.list(buildSelectionOptions(flags));
     const data = { devices: devices.map(serializeDevice) };
     if (flags.json) printJson({ success: true, data });
     else process.stdout.write(`${devices.map(formatDeviceLine).join('\n')}\n`);
     return true;
-  }
-
-  if (command === 'ensure-simulator') {
+  },
+  'ensure-simulator': async ({ flags, client }) => {
     if (!flags.device) {
       throw new AppError('INVALID_ARGS', 'ensure-simulator requires --device <name>');
     }
@@ -62,48 +72,39 @@ export async function tryRunClientBackedCommand(params: {
       if (result.runtime) process.stdout.write(`Runtime: ${result.runtime}\n`);
     }
     return true;
-  }
-
-  if (command === 'runtime') {
+  },
+  runtime: async ({ positionals, flags, client }) => {
     const action = (positionals[0] ?? 'show').toLowerCase();
     if (action === 'set') {
-      const result = await client.runtime.set({
+      writeRuntimeResult(await client.runtime.set({
         platform: flags.platform,
         metroHost: flags.metroHost,
         metroPort: flags.metroPort,
         bundleUrl: flags.bundleUrl,
         launchUrl: flags.launchUrl,
-      });
-      writeRuntimeResult(result, flags);
+      }), flags);
       return true;
     }
     if (action === 'show') {
-      const result = await client.runtime.show();
-      writeRuntimeResult(result, flags);
+      writeRuntimeResult(await client.runtime.show(), flags);
       return true;
     }
     return false;
-  }
-
-  if (command === 'install' || command === 'reinstall') {
-    const app = positionals[0];
-    const appPath = positionals[1];
-    if (!app || !appPath) {
-      throw new AppError('INVALID_ARGS', `${command} requires: ${command} <app> <path-to-app-binary>`);
-    }
-    const options = {
-      app,
-      appPath,
-      ...buildSelectionOptions(flags),
-    };
-    const result = command === 'install'
-      ? await client.apps.install(options)
-      : await client.apps.reinstall(options);
+  },
+  install: async ({ positionals, flags, client }) => {
+    const result = await runDeployCommand('install', positionals, flags, client);
     if (flags.json) printJson({ success: true, data: serializeDeployResult(result) });
     return true;
-  }
-
-  if (command === 'open' && positionals[0]) {
+  },
+  reinstall: async ({ positionals, flags, client }) => {
+    const result = await runDeployCommand('reinstall', positionals, flags, client);
+    if (flags.json) printJson({ success: true, data: serializeDeployResult(result) });
+    return true;
+  },
+  open: async ({ positionals, flags, client }) => {
+    if (!positionals[0]) {
+      return false;
+    }
     const result = await client.apps.open({
       app: positionals[0],
       url: positionals[1],
@@ -115,22 +116,17 @@ export async function tryRunClientBackedCommand(params: {
     });
     if (flags.json) printJson({ success: true, data: serializeOpenResult(result) });
     return true;
-  }
-
-  if (command === 'close') {
+  },
+  close: async ({ positionals, flags, client }) => {
     const result = positionals[0]
       ? await client.apps.close({ app: positionals[0], shutdown: flags.shutdown })
       : await client.sessions.close({ shutdown: flags.shutdown });
     if (flags.json) {
-      printJson({
-        success: true,
-        data: serializeCloseResult(result),
-      });
+      printJson({ success: true, data: serializeCloseResult(result) });
     }
     return true;
-  }
-
-  if (command === 'snapshot') {
+  },
+  snapshot: async ({ flags, client }) => {
     const result = await client.capture.snapshot({
       ...buildSelectionOptions(flags),
       interactiveOnly: flags.snapshotInteractiveOnly,
@@ -151,17 +147,35 @@ export async function tryRunClientBackedCommand(params: {
       );
     }
     return true;
-  }
-
-  if (command === 'screenshot') {
+  },
+  screenshot: async ({ positionals, flags, client }) => {
     const result = await client.capture.screenshot({ path: positionals[0] ?? flags.out });
     const data = { path: result.path };
     if (flags.json) printJson({ success: true, data });
     else process.stdout.write(`${result.path}\n`);
     return true;
-  }
+  },
+};
 
-  return false;
+async function runDeployCommand(
+  command: 'install' | 'reinstall',
+  positionals: string[],
+  flags: CliFlags,
+  client: AgentDeviceClient,
+): Promise<AppDeployResult> {
+  const app = positionals[0];
+  const appPath = positionals[1];
+  if (!app || !appPath) {
+    throw new AppError('INVALID_ARGS', `${command} requires: ${command} <app> <path-to-app-binary>`);
+  }
+  const options = {
+    app,
+    appPath,
+    ...buildSelectionOptions(flags),
+  };
+  return command === 'install'
+    ? await client.apps.install(options)
+    : await client.apps.reinstall(options);
 }
 
 function writeRuntimeResult(result: RuntimeResult, flags: CliFlags): void {
@@ -288,7 +302,7 @@ function serializeOpenResult(result: AppOpenResult): Record<string, unknown> {
   };
 }
 
-function serializeCloseResult(result: SessionCloseResult): Record<string, unknown> {
+function serializeCloseResult(result: SessionCloseResult | AppCloseResult): Record<string, unknown> {
   return {
     session: result.session,
     ...(result.shutdown ? { shutdown: result.shutdown } : {}),

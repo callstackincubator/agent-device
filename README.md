@@ -68,6 +68,11 @@ const installed = await androidClient.apps.installFromSource({
 });
 await androidClient.apps.open({ app: installed.launchTarget, platform: 'android' });
 console.log(installed.installablePath, installed.materializationId);
+if (installed.materializationId) {
+  await androidClient.materializations.release({
+    materializationId: installed.materializationId,
+  });
+}
 await client.sessions.close();
 await androidClient.sessions.close();
 ```
