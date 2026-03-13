@@ -669,6 +669,62 @@ test('open runtime payload rejects malformed runtime objects without mutating se
   });
 });
 
+test('open runtime payload does not persist replacement when launch fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'runtime-open-launch-fails';
+  sessionStore.setRuntimeHints(sessionName, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    launchUrl: 'myapp://stale',
+  });
+
+  await assert.rejects(
+    async () => await handleSessionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'open',
+        positionals: ['Demo'],
+        flags: { platform: 'android' },
+        runtime: {
+          metroHost: '127.0.0.1',
+          metroPort: 9090,
+        },
+      },
+      sessionName,
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+      ensureReady: async () => {},
+      resolveTargetDevice: async () => ({
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      applyRuntimeHints: async () => {},
+      dispatch: async () => {
+        throw new AppError('COMMAND_FAILED', 'launch failed');
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.equal(error.message, 'launch failed');
+      return true;
+    },
+  );
+
+  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    launchUrl: 'myapp://stale',
+  });
+});
+
 test('close clears applied runtime transport hints before deleting the session', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'runtime-close-active';

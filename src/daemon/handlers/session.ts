@@ -308,7 +308,7 @@ function resolveOpenRuntimeHints(params: {
     };
   }
   return {
-    runtime: setSessionRuntimeHintsForOpen(sessionStore, sessionName, explicitRuntime),
+    runtime: explicitRuntime && countConfiguredRuntimeHints(explicitRuntime) > 0 ? explicitRuntime : undefined,
     previousRuntime,
     replacedStoredRuntime: true,
   };
@@ -509,6 +509,9 @@ async function completeOpenCommand(params: {
     openTarget,
     saveScript: Boolean(req.flags?.saveScript),
   });
+  if (req.runtime !== undefined) {
+    setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
+  }
   const openResult = buildOpenResult({
     sessionName,
     appName: openTarget,
