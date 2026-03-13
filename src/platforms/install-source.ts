@@ -132,16 +132,37 @@ async function downloadToTempFile(
   const timeoutHandle = setTimeout(() => {
     controller.abort(new Error('download timeout'));
   }, timeoutMs);
-  let response: Response;
   try {
-    response = await fetch(parsedUrl, {
+    const response = await fetch(parsedUrl, {
       headers,
       redirect: 'follow',
       signal: controller.signal,
     });
+    if (!response.ok) {
+      throw new AppError('COMMAND_FAILED', `Failed to download app source: ${response.status} ${response.statusText}`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: parsedUrl.toString(),
+      });
+    }
+    const downloadName = resolveDownloadFileName(response, parsedUrl);
+    const destinationPath = path.join(tempDir, downloadName);
+    const body = response.body;
+    if (!body) {
+      throw new AppError('COMMAND_FAILED', 'Download response body was empty', {
+        url: parsedUrl.toString(),
+      });
+    }
+    const file = await fs.open(destinationPath, 'w');
+    try {
+      for await (const chunk of body) {
+        await file.write(chunk);
+      }
+    } finally {
+      await file.close();
+    }
+    return destinationPath;
   } catch (error) {
-    requestSignal?.removeEventListener('abort', onAbort);
-    clearTimeout(timeoutHandle);
     if (requestSignal?.aborted) {
       throw new AppError('COMMAND_FAILED', 'request canceled', { reason: 'request_canceled' }, error);
     }
@@ -152,33 +173,10 @@ async function downloadToTempFile(
       }, error);
     }
     throw error;
-  }
-  requestSignal?.removeEventListener('abort', onAbort);
-  clearTimeout(timeoutHandle);
-  if (!response.ok) {
-    throw new AppError('COMMAND_FAILED', `Failed to download app source: ${response.status} ${response.statusText}`, {
-      status: response.status,
-      statusText: response.statusText,
-      url: parsedUrl.toString(),
-    });
-  }
-  const downloadName = resolveDownloadFileName(response, parsedUrl);
-  const destinationPath = path.join(tempDir, downloadName);
-  const body = response.body;
-  if (!body) {
-    throw new AppError('COMMAND_FAILED', 'Download response body was empty', {
-      url: parsedUrl.toString(),
-    });
-  }
-  const file = await fs.open(destinationPath, 'w');
-  try {
-    for await (const chunk of body) {
-      await file.write(chunk);
-    }
   } finally {
-    await file.close();
+    requestSignal?.removeEventListener('abort', onAbort);
+    clearTimeout(timeoutHandle);
   }
-  return destinationPath;
 }
 
 function resolveDownloadFileName(response: Response, parsedUrl: URL): string {
