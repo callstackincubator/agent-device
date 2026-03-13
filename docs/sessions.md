@@ -30,7 +30,7 @@ Notes:
 - `open <app> <url>` in iOS sessions opens deep links.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
-- `runtime set|show|clear` stores session-scoped runtime hints independently of `open`, so remote daemon flows can set Metro/debug details before the first launch. Android sessions apply those hints to React Native dev prefs, and iOS simulator sessions apply them to app defaults before launch.
+- `runtime set|show|clear` stores session-scoped runtime hints independently of `open`, so remote daemon flows can set Metro/debug details before the first launch. Typed daemon clients can also include `runtime: { ... }` on `open` to replace the session runtime atomically before launch. Android sessions apply those hints to React Native dev prefs, and iOS simulator sessions apply them to app defaults before launch.
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
