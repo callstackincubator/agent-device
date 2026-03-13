@@ -196,8 +196,20 @@ function normalizeArchiveExtension(
     return archivePath;
   }
   const normalizedPath = `${archivePath}${desiredExtension}`;
-  fs.renameSync(archivePath, normalizedPath);
-  return normalizedPath;
+  try {
+    fs.renameSync(archivePath, normalizedPath);
+    return normalizedPath;
+  } catch (error) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Failed to normalize artifact path to ${desiredExtension}`,
+      {
+        from: archivePath,
+        to: normalizedPath,
+      },
+      error instanceof Error ? error : undefined,
+    );
+  }
 }
 
 function isTarLikePath(filePath: string): boolean {

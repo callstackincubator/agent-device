@@ -4,10 +4,16 @@ import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../utils/errors.ts';
+import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
 const MAX_ARTIFACT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+const MAX_ERROR_BODY_CHARS = 4096;
 const TEMP_PREFIX = 'agent-device-artifact-';
-const REQUEST_TIMEOUT_MS = 60_000;
+const REQUEST_IDLE_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_ARTIFACT_IDLE_TIMEOUT_MS,
+  60_000,
+  1_000,
+);
 const MAX_REDIRECTS = 5;
 
 export function sanitizeArtifactFilename(raw: string): string {
@@ -27,6 +33,7 @@ export function createArtifactTempDir(requestId?: string): string {
 export function validateArtifactContentLength(rawLength: string | number | undefined): void {
   if (rawLength === undefined) return;
   const parsed = Number(rawLength);
+  // Ignore malformed content-length values; the streaming byte cap still enforces the hard limit.
   if (Number.isFinite(parsed) && parsed > MAX_ARTIFACT_BYTES) {
     throw new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`);
   }
@@ -45,10 +52,12 @@ export function streamReadableToFile(
     };
     let settled = false;
     let bytesWritten = 0;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
     const settle = (error?: unknown) => {
       if (settled) return;
       settled = true;
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       if (error) {
         output.destroy();
         fs.rmSync(destPath, { force: true });
@@ -57,14 +66,27 @@ export function streamReadableToFile(
       }
       resolve();
     };
+    const armTimeout = () => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      timeoutHandle = setTimeout(() => {
+        const error = new AppError('COMMAND_FAILED', 'Artifact transfer timed out due to inactivity', {
+          timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
+        });
+        destroySource(error);
+        output.destroy(error);
+        settle(error);
+      }, REQUEST_IDLE_TIMEOUT_MS);
+    };
 
     source.on('data', (chunk: Buffer | string) => {
+      armTimeout();
       const size = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
       bytesWritten += size;
       if (bytesWritten > MAX_ARTIFACT_BYTES) {
         const error = new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`);
         destroySource(error);
         output.destroy(error);
+        settle(error);
       }
     });
 
@@ -74,6 +96,7 @@ export function streamReadableToFile(
     });
     output.on('error', settle);
     output.on('finish', () => settle());
+    armTimeout();
     source.pipe(output);
   });
 }
@@ -128,10 +151,11 @@ async function requestArtifact(
   const transport = url.protocol === 'https:' ? https : http;
   return await new Promise((resolve, reject) => {
     let settled = false;
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const settle = (error?: Error, response?: IncomingMessage, finalUrl?: URL) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutHandle);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       if (error) {
         reject(error);
         return;
@@ -180,7 +204,9 @@ async function requestArtifact(
           let body = '';
           response.setEncoding('utf8');
           response.on('data', (chunk) => {
-            body += chunk;
+            if (body.length >= MAX_ERROR_BODY_CHARS) return;
+            const remaining = MAX_ERROR_BODY_CHARS - body.length;
+            body += chunk.slice(0, remaining);
           });
           response.on('end', () => {
             settle(
@@ -188,7 +214,7 @@ async function requestArtifact(
                 requestId,
                 url: url.toString(),
                 statusCode,
-                body,
+                body: body.length === MAX_ERROR_BODY_CHARS ? `${body}...<truncated>` : body,
               }),
             );
           });
@@ -199,13 +225,13 @@ async function requestArtifact(
       },
     );
 
-    const timeoutHandle = setTimeout(() => {
-      request.destroy(new AppError('COMMAND_FAILED', 'Artifact download timed out', {
+    timeoutHandle = setTimeout(() => {
+      request.destroy(new AppError('COMMAND_FAILED', 'Artifact request timed out waiting for response', {
         requestId,
         url: url.toString(),
-        timeoutMs: REQUEST_TIMEOUT_MS,
+        timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
       }));
-    }, REQUEST_TIMEOUT_MS);
+    }, REQUEST_IDLE_TIMEOUT_MS);
 
     request.on('error', (error) => {
       if (error instanceof AppError) {
@@ -216,7 +242,7 @@ async function requestArtifact(
         new AppError('COMMAND_FAILED', 'Failed to download artifact', {
           requestId,
           url: url.toString(),
-          timeoutMs: REQUEST_TIMEOUT_MS,
+          timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
         }, error instanceof Error ? error : undefined),
       );
     });

@@ -4,16 +4,17 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { AppError } from '../../utils/errors.ts';
 import { runCmdSync } from '../../utils/exec.ts';
 import {
   cleanupMaterializedArtifact,
   materializeArtifact,
 } from '../artifact-materialization.ts';
 
-async function withHttpServer(
-  handler: http.RequestListener,
-  run: (baseUrl: string) => Promise<void>,
-): Promise<void> {
+async function startHttpServer(handler: http.RequestListener): Promise<{
+  server: http.Server;
+  baseUrl: string;
+}> {
   const server = http.createServer(handler);
   await new Promise<void>((resolve, reject) => {
     server.listen(0, '127.0.0.1', () => resolve());
@@ -26,8 +27,20 @@ async function withHttpServer(
     throw new Error('Failed to determine test server address');
   }
 
+  return {
+    server,
+    baseUrl: `http://127.0.0.1:${address.port}`,
+  };
+}
+
+async function withHttpServer(
+  handler: http.RequestListener,
+  run: (baseUrl: string) => Promise<void>,
+): Promise<void> {
+  const { server, baseUrl } = await startHttpServer(handler);
+
   try {
-    await run(`http://127.0.0.1:${address.port}`);
+    await run(baseUrl);
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
@@ -137,7 +150,7 @@ test('materializeArtifact rejects iOS tar archives containing symlinks', async (
       res.end(fs.readFileSync(archivePath));
     }, async (baseUrl) => {
       await assert.rejects(
-        async () => await materializeArtifact({
+        () => materializeArtifact({
           platform: 'ios',
           url: `${baseUrl}/artifact`,
           requestId: 'bad-ios-materialize',
@@ -151,37 +164,30 @@ test('materializeArtifact rejects iOS tar archives containing symlinks', async (
 });
 
 test('materializeArtifact rejects cross-origin redirects when custom headers are provided', async () => {
-  await withHttpServer((_req, redirectRes) => {
-    const target = http.createServer((_targetReq, targetRes) => {
-      targetRes.statusCode = 200;
-      targetRes.end('apk-binary');
-    });
+  const target = await startHttpServer((_targetReq, targetRes) => {
+    targetRes.statusCode = 200;
+    targetRes.end('apk-binary');
+  });
+  const redirect = await startHttpServer((_req, redirectRes) => {
+    redirectRes.statusCode = 302;
+    redirectRes.setHeader('location', `${target.baseUrl}/download`);
+    redirectRes.end();
+  });
 
-    target.listen(0, '127.0.0.1', async () => {
-      const address = target.address();
-      if (!address || typeof address === 'string') {
-        target.close();
-        redirectRes.statusCode = 500;
-        redirectRes.end('bad target');
-        return;
-      }
-
-      redirectRes.statusCode = 302;
-      redirectRes.setHeader('location', `http://127.0.0.1:${address.port}/download`);
-      redirectRes.end();
-      target.close();
-    });
-  }, async (baseUrl) => {
+  try {
     await assert.rejects(
-      async () => await materializeArtifact({
+      () => materializeArtifact({
         platform: 'android',
-        url: `${baseUrl}/redirect`,
+        url: `${redirect.baseUrl}/redirect`,
         headers: { authorization: 'Bearer ephemeral-token' },
         requestId: 'cross-origin-redirect',
       }),
       /redirect changed origin while custom headers were provided/i,
     );
-  });
+  } finally {
+    await new Promise<void>((resolve) => redirect.server.close(() => resolve()));
+    await new Promise<void>((resolve) => target.server.close(() => resolve()));
+  }
 });
 
 test('materializeArtifact infers APK type for opaque Android downloads', async () => {
@@ -250,4 +256,30 @@ test('materializeArtifact infers AAB type for opaque Android downloads', async (
     if (result) cleanupMaterializedArtifact(result);
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+});
+
+test('materializeArtifact truncates large HTTP error bodies', async () => {
+  const hugeBody = 'x'.repeat(10_000);
+
+  await withHttpServer((_req, res) => {
+    res.statusCode = 502;
+    res.end(hugeBody);
+  }, async (baseUrl) => {
+    await assert.rejects(
+      () => materializeArtifact({
+        platform: 'android',
+        url: `${baseUrl}/artifact`,
+        requestId: 'huge-error-body',
+      }),
+      (error) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.message, 'Failed to download artifact');
+        assert.equal(error.details?.statusCode, 502);
+        assert.equal(typeof error.details?.body, 'string');
+        assert.ok((error.details?.body as string).endsWith('...<truncated>'));
+        assert.ok((error.details?.body as string).length <= 4096 + '...<truncated>'.length);
+        return true;
+      },
+    );
+  });
 });
