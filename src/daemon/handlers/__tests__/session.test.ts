@@ -2135,6 +2135,7 @@ test('open --relaunch allows Android package names ending with apk-like suffix',
       dispatchCalls.push({ command, positionals });
       return {};
     },
+    ensureReady: async () => {},
     applyRuntimeHints: async () => {},
   });
 
