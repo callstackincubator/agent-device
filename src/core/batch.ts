@@ -8,6 +8,7 @@ export type NormalizedBatchStep = {
   command: string;
   positionals: string[];
   flags: Partial<CommandFlags>;
+  runtime?: unknown;
 };
 
 export type BatchStepResult = {
@@ -65,10 +66,14 @@ export function validateAndNormalizeBatchSteps(
     if (step.flags !== undefined && (typeof step.flags !== 'object' || Array.isArray(step.flags) || !step.flags)) {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} flags must be an object.`);
     }
+    if (step.runtime !== undefined && (typeof step.runtime !== 'object' || Array.isArray(step.runtime) || !step.runtime)) {
+      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} runtime must be an object.`);
+    }
     normalized.push({
       command,
       positionals: positionals as string[],
       flags: (step.flags ?? {}) as Partial<CommandFlags>,
+      runtime: step.runtime,
     });
   }
   return normalized;

@@ -4,7 +4,13 @@ import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
-import { appendScriptSeriesFlags, formatScriptArg, isClickLikeCommand } from './script-utils.ts';
+import {
+  appendRuntimeHintFlags,
+  appendScriptSeriesFlags,
+  formatLooseScriptArg,
+  formatScriptArg,
+  isClickLikeCommand,
+} from './script-utils.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 
 export class SessionStore {
@@ -214,6 +220,10 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     serial,
     out,
     verbose,
+    metroHost,
+    metroPort,
+    bundleUrl,
+    launchUrl,
     snapshotInteractiveOnly,
     snapshotCompact,
     snapshotDepth,
@@ -237,6 +247,10 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     serial,
     out,
     verbose,
+    metroHost,
+    metroPort,
+    bundleUrl,
+    launchUrl,
     snapshotInteractiveOnly,
     snapshotCompact,
     snapshotDepth,
@@ -338,6 +352,14 @@ function formatActionLine(action: SessionAction): string {
     if (action.flags?.relaunch) {
       parts.push('--relaunch');
     }
+    return parts.join(' ');
+  }
+  if (action.command === 'runtime') {
+    const subcommand = action.positionals?.[0];
+    if (subcommand) {
+      parts.push(formatLooseScriptArg(subcommand));
+    }
+    appendRuntimeHintFlags(parts, action.flags);
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {

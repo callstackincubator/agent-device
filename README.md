@@ -314,7 +314,7 @@ Navigation helpers:
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
 - When `AGENT_DEVICE_DAEMON_BASE_URL` targets a remote daemon, local `.apk`/`.aab`/`.ipa` files and `.app` bundles are uploaded automatically before `install`/`reinstall`.
-- Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`; Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. Example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
+- Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`, or pass a typed `runtime` object on the `open` daemon request to replace the session runtime atomically for that launch. Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. CLI example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
 - Remote daemon screenshots and recordings are materialized back to the caller path instead of returning host-local daemon paths.
 - To force a daemon-side path instead of uploading a local file, prefix it with `remote:`, for example `remote:/srv/builds/MyApp.app`.
 - Supported binary formats for `install`/`reinstall`: Android `.apk` and `.aab`, iOS `.app` and `.ipa`.

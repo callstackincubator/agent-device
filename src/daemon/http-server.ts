@@ -122,6 +122,7 @@ function toDaemonRequest(params: Partial<DaemonRequest>, headers: IncomingHttpHe
     command: params.command ?? '',
     positionals: Array.isArray(params.positionals) ? params.positionals : [],
     flags: params.flags,
+    runtime: params.runtime,
     meta: params.meta,
   };
 }

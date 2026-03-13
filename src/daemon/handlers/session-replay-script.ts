@@ -2,9 +2,12 @@ import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
+  appendRuntimeHintFlags,
   appendScriptSeriesFlags,
+  formatLooseScriptArg,
   formatScriptArg,
   isClickLikeCommand,
+  parseReplayRuntimeFlags,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
 
@@ -83,6 +86,13 @@ function parseReplayScriptLine(line: string): SessionAction | null {
       }
       action.positionals.push(token);
     }
+    return action;
+  }
+
+  if (command === 'runtime') {
+    const parsed = parseReplayRuntimeFlags(args);
+    action.positionals = parsed.positionals;
+    Object.assign(action.flags, parsed.flags);
     return action;
   }
 
@@ -237,6 +247,13 @@ function formatReplayActionLine(action: SessionAction): string {
     if (action.flags?.relaunch) {
       parts.push('--relaunch');
     }
+    return parts.join(' ');
+  }
+  if (action.command === 'runtime') {
+    for (const positional of action.positionals ?? []) {
+      parts.push(formatLooseScriptArg(positional));
+    }
+    appendRuntimeHintFlags(parts, action.flags);
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {

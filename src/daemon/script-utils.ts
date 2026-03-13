@@ -25,6 +25,11 @@ export function formatScriptArg(value: string): string {
   return JSON.stringify(trimmed);
 }
 
+export function formatLooseScriptArg(value: string): string {
+  const trimmed = value.trim();
+  return /\s/.test(trimmed) ? JSON.stringify(trimmed) : trimmed;
+}
+
 export function formatScriptActionSummary(action: SessionAction): string {
   const values = (action.positionals ?? []).map((value) => formatScriptArg(value));
   return [action.command, ...values].join(' ');
@@ -46,6 +51,28 @@ export function appendScriptSeriesFlags(parts: string[], action: Pick<SessionAct
     if (flags.pattern === 'one-way' || flags.pattern === 'ping-pong') {
       parts.push('--pattern', flags.pattern);
     }
+  }
+}
+
+export function appendRuntimeHintFlags(
+  parts: string[],
+  flags: Pick<SessionAction, 'flags'>['flags'],
+): void {
+  if (!flags) return;
+  if (flags.platform === 'ios' || flags.platform === 'android') {
+    parts.push('--platform', flags.platform);
+  }
+  if (typeof flags.metroHost === 'string' && flags.metroHost.length > 0) {
+    parts.push('--metro-host', formatLooseScriptArg(flags.metroHost));
+  }
+  if (typeof flags.metroPort === 'number') {
+    parts.push('--metro-port', String(flags.metroPort));
+  }
+  if (typeof flags.bundleUrl === 'string' && flags.bundleUrl.length > 0) {
+    parts.push('--bundle-url', formatLooseScriptArg(flags.bundleUrl));
+  }
+  if (typeof flags.launchUrl === 'string' && flags.launchUrl.length > 0) {
+    parts.push('--launch-url', formatLooseScriptArg(flags.launchUrl));
   }
 }
 
@@ -86,6 +113,49 @@ export function parseReplaySeriesFlags(command: string, args: string[]): { posit
       continue;
     }
 
+    positionals.push(token);
+  }
+
+  return { positionals, flags };
+}
+
+export function parseReplayRuntimeFlags(args: string[]): { positionals: string[]; flags: SessionAction['flags'] } {
+  const positionals: string[] = [];
+  const flags: SessionAction['flags'] = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (token === '--platform' && index + 1 < args.length) {
+      const platform = args[index + 1];
+      if (platform === 'ios' || platform === 'android') {
+        flags.platform = platform;
+      }
+      index += 1;
+      continue;
+    }
+    if (token === '--metro-host' && index + 1 < args.length) {
+      flags.metroHost = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--metro-port' && index + 1 < args.length) {
+      const parsedPort = parseNonNegativeIntToken(args[index + 1]);
+      if (parsedPort !== null) {
+        flags.metroPort = parsedPort;
+      }
+      index += 1;
+      continue;
+    }
+    if (token === '--bundle-url' && index + 1 < args.length) {
+      flags.bundleUrl = args[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--launch-url' && index + 1 < args.length) {
+      flags.launchUrl = args[index + 1];
+      index += 1;
+      continue;
+    }
     positionals.push(token);
   }
 

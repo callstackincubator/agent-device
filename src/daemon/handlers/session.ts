@@ -87,6 +87,7 @@ const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
 const STARTUP_SAMPLE_DESCRIPTION =
   'Elapsed wall-clock time around dispatching the open command for the active session app target.';
 const PERF_STARTUP_SAMPLE_LIMIT = 20;
+const RUNTIME_HINT_FIELD_NAMES = ['platform', 'metroHost', 'metroPort', 'bundleUrl', 'launchUrl'] as const;
 // Default simulator cool-down after terminate/close to reduce SpringBoard/XCTest attach races.
 const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
@@ -146,15 +147,62 @@ function trimRuntimeString(value: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
+function normalizeRuntimeStringInput(
+  value: unknown,
+  fieldName: 'metroHost' | 'bundleUrl' | 'launchUrl',
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    throw new AppError('INVALID_ARGS', `Invalid open runtime ${fieldName}: expected string.`);
+  }
+  return trimRuntimeString(value);
+}
+
+function validateRuntimePort(port: number | undefined): number | undefined {
+  if (port === undefined) return undefined;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid runtime metroPort: ${String(port)}. Use an integer between 1 and 65535.`,
+    );
+  }
+  return port;
+}
+
+function normalizeRuntimePortInput(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number') {
+    throw new AppError('INVALID_ARGS', 'Invalid open runtime metroPort: expected integer.');
+  }
+  return validateRuntimePort(value);
+}
+
+function normalizeRuntimePlatformInput(
+  value: unknown,
+  sessionName: string,
+  platform?: 'ios' | 'android',
+): 'ios' | 'android' | undefined {
+  if (value === undefined) return platform;
+  if (value !== 'ios' && value !== 'android') {
+    throw new AppError('INVALID_ARGS', `Invalid open runtime platform: ${String(value)}. Use "ios" or "android".`);
+  }
+  if (platform && value !== platform) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `open runtime targets ${value}, but session "${sessionName}" is bound to ${platform}.`,
+    );
+  }
+  return value;
+}
+
 function buildRuntimeHints(
   flags: CommandFlags | undefined,
   platform?: 'ios' | 'android',
 ): SessionRuntimeHints {
-  const metroPort = flags?.metroPort;
   return {
     platform,
     metroHost: trimRuntimeString(flags?.metroHost),
-    metroPort: Number.isInteger(metroPort) ? metroPort : undefined,
+    metroPort: validateRuntimePort(flags?.metroPort),
     bundleUrl: trimRuntimeString(flags?.bundleUrl),
     launchUrl: trimRuntimeString(flags?.launchUrl),
   };
@@ -171,6 +219,49 @@ function mergeRuntimeHints(
     bundleUrl: next.bundleUrl ?? current?.bundleUrl,
     launchUrl: next.launchUrl ?? current?.launchUrl,
   };
+}
+
+function normalizeExplicitRuntimeHints(params: {
+  runtime: unknown;
+  sessionName: string;
+  platform?: 'ios' | 'android';
+}): SessionRuntimeHints | undefined {
+  const { runtime, sessionName, platform } = params;
+  if (runtime === undefined) return undefined;
+  if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
+    throw new AppError('INVALID_ARGS', 'open runtime must be an object.');
+  }
+  const runtimeRecord = runtime as Record<string, unknown>;
+  const unknownField = Object.keys(runtimeRecord).find(
+    (fieldName) => !RUNTIME_HINT_FIELD_NAMES.includes(fieldName as typeof RUNTIME_HINT_FIELD_NAMES[number]),
+  );
+  if (unknownField) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid open runtime field: ${unknownField}. Supported fields are ${RUNTIME_HINT_FIELD_NAMES.join(', ')}.`,
+    );
+  }
+  return {
+    platform: normalizeRuntimePlatformInput(runtimeRecord.platform, sessionName, platform),
+    metroHost: normalizeRuntimeStringInput(runtimeRecord.metroHost, 'metroHost'),
+    metroPort: normalizeRuntimePortInput(runtimeRecord.metroPort),
+    bundleUrl: normalizeRuntimeStringInput(runtimeRecord.bundleUrl, 'bundleUrl'),
+    launchUrl: normalizeRuntimeStringInput(runtimeRecord.launchUrl, 'launchUrl'),
+  };
+}
+
+function setSessionRuntimeHintsForOpen(
+  sessionStore: SessionStore,
+  sessionName: string,
+  runtime: SessionRuntimeHints | undefined,
+): SessionRuntimeHints | undefined {
+  if (!runtime) return undefined;
+  if (countConfiguredRuntimeHints(runtime) === 0) {
+    sessionStore.clearRuntimeHints(sessionName);
+    return undefined;
+  }
+  sessionStore.setRuntimeHints(sessionName, runtime);
+  return runtime;
 }
 
 function resolveSessionRuntimeHints(
@@ -190,6 +281,233 @@ function resolveSessionRuntimeHints(
     return { ...runtime, platform: device.platform };
   }
   return runtime;
+}
+
+function resolveOpenRuntimeHints(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  sessionName: string;
+  device: DeviceInfo;
+}): {
+  runtime: SessionRuntimeHints | undefined;
+  previousRuntime: SessionRuntimeHints | undefined;
+  replacedStoredRuntime: boolean;
+} {
+  const { req, sessionStore, sessionName, device } = params;
+  const previousRuntime = sessionStore.getRuntimeHints(sessionName);
+  const explicitRuntime = normalizeExplicitRuntimeHints({
+    runtime: req.runtime,
+    sessionName,
+    platform: device.platform,
+  });
+  if (req.runtime === undefined) {
+    return {
+      runtime: resolveSessionRuntimeHints(sessionStore, sessionName, device),
+      previousRuntime,
+      replacedStoredRuntime: false,
+    };
+  }
+  return {
+    runtime: setSessionRuntimeHintsForOpen(sessionStore, sessionName, explicitRuntime),
+    previousRuntime,
+    replacedStoredRuntime: true,
+  };
+}
+
+function recordOpenRuntimeAction(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  session: SessionState;
+  sessionName: string;
+  runtime: SessionRuntimeHints | undefined;
+}): void {
+  const { req, sessionStore, session, sessionName, runtime } = params;
+  if (req.runtime === undefined) return;
+  if (runtime) {
+    sessionStore.recordAction(session, {
+      command: 'runtime',
+      positionals: ['set'],
+      flags: {
+        ...(req.flags ?? {}),
+        platform: session.device.platform,
+        metroHost: runtime.metroHost,
+        metroPort: runtime.metroPort,
+        bundleUrl: runtime.bundleUrl,
+        launchUrl: runtime.launchUrl,
+      },
+      result: {
+        session: sessionName,
+        configured: true,
+        runtime,
+      },
+    });
+    return;
+  }
+  sessionStore.recordAction(session, {
+    command: 'runtime',
+    positionals: ['clear'],
+    flags: req.flags ?? {},
+    result: {
+      session: sessionName,
+      cleared: true,
+    },
+  });
+}
+
+async function maybeClearRemovedRuntimeTransportHints(params: {
+  replacedStoredRuntime: boolean;
+  previousRuntime: SessionRuntimeHints | undefined;
+  runtime: SessionRuntimeHints | undefined;
+  session: SessionState | undefined;
+  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
+}): Promise<void> {
+  const { replacedStoredRuntime, previousRuntime, runtime, session, clearRuntimeHints } = params;
+  if (
+    !replacedStoredRuntime
+    || !session?.appBundleId
+    || !hasRuntimeTransportHints(previousRuntime)
+    || hasRuntimeTransportHints(runtime)
+  ) {
+    return;
+  }
+  await clearRuntimeHints({
+    device: session.device,
+    appId: session.appBundleId,
+  });
+}
+
+function buildNextOpenSession(params: {
+  existingSession?: SessionState;
+  sessionName: string;
+  device: DeviceInfo;
+  appBundleId?: string;
+  openTarget?: string;
+  saveScript: boolean;
+}): SessionState {
+  const { existingSession, sessionName, device, appBundleId, openTarget, saveScript } = params;
+  if (existingSession) {
+    return {
+      ...existingSession,
+      appBundleId,
+      appName: openTarget,
+      recordSession: existingSession.recordSession || saveScript,
+      snapshot: undefined,
+    };
+  }
+  return {
+    name: sessionName,
+    device,
+    createdAt: Date.now(),
+    appBundleId,
+    appName: openTarget,
+    recordSession: saveScript,
+    actions: [],
+  };
+}
+
+async function completeOpenCommand(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  sessionStore: SessionStore;
+  logPath: string;
+  device: DeviceInfo;
+  dispatch: typeof dispatchCommand;
+  applyRuntimeHints: typeof applyRuntimeHintsToApp;
+  stopIosRunner: typeof stopIosRunnerSession;
+  settleSimulator: typeof settleIosSimulator;
+  openTarget?: string;
+  openPositionals: string[];
+  appBundleId?: string;
+  runtime: SessionRuntimeHints | undefined;
+  existingSession?: SessionState;
+}): Promise<DaemonResponse> {
+  const {
+    req,
+    sessionName,
+    sessionStore,
+    logPath,
+    device,
+    dispatch,
+    applyRuntimeHints,
+    stopIosRunner,
+    settleSimulator,
+    openTarget,
+    openPositionals,
+    appBundleId,
+    runtime,
+    existingSession,
+  } = params;
+  const shouldRelaunch = req.flags?.relaunch === true;
+  const traceLogPath = existingSession?.trace?.outPath;
+
+  if (shouldRelaunch && openTarget) {
+    const closeTarget = appBundleId ?? openTarget;
+    await relaunchCloseApp({
+      device,
+      closeTarget,
+      stopIosRunner,
+      dispatch,
+      outFlag: req.flags?.out,
+      context: {
+        ...contextFromFlags(logPath, req.flags, appBundleId ?? existingSession?.appBundleId, traceLogPath),
+      },
+      settleSimulator,
+    });
+  }
+
+  await applyRuntimeHints({
+    device,
+    appId: appBundleId,
+    runtime,
+  });
+  const openStartedAtMs = Date.now();
+  await dispatch(device, 'open', openPositionals, req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags, appBundleId),
+  });
+  await maybeApplySessionLaunchUrl({
+    runtime,
+    device,
+    dispatch,
+    req,
+    logPath,
+    appBundleId,
+    traceLogPath,
+    openPositionals,
+  });
+  const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
+  await settleSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
+
+  const nextSession = buildNextOpenSession({
+    existingSession,
+    sessionName,
+    device,
+    appBundleId,
+    openTarget,
+    saveScript: Boolean(req.flags?.saveScript),
+  });
+  const openResult = buildOpenResult({
+    sessionName,
+    appName: openTarget,
+    appBundleId,
+    startup: startupSample,
+    device,
+    runtime,
+  });
+  recordOpenRuntimeAction({
+    req,
+    sessionStore,
+    session: nextSession,
+    sessionName,
+    runtime,
+  });
+  sessionStore.recordAction(nextSession, {
+    command: 'open',
+    positionals: openPositionals,
+    flags: req.flags ?? {},
+    result: openResult,
+  });
+  sessionStore.set(sessionName, nextSession);
+  return { ok: true, data: openResult };
 }
 
 async function maybeApplySessionLaunchUrl(params: {
@@ -1332,72 +1650,42 @@ export async function handleSessionCommands(params: {
         };
       }
       await ensureReady(session.device);
-      const runtime = resolveSessionRuntimeHints(sessionStore, sessionName, session?.device);
       const appBundleId = await resolveSessionAppBundleIdForTarget(
         session.device,
         openTarget,
         session.appBundleId,
         resolveAndroidPackageForOpenOverride,
       );
-      const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
-      if (shouldRelaunch) {
-        const closeTarget = appBundleId ?? openTarget;
-        await relaunchCloseApp({
-          device: session.device,
-          closeTarget,
-          stopIosRunner,
-          dispatch,
-          outFlag: req.flags?.out,
-          context: {
-            ...contextFromFlags(logPath, req.flags, appBundleId ?? session.appBundleId, session.trace?.outPath),
-          },
-          settleSimulator,
-        });
-      }
-      await applyRuntimeHints({
+      const { runtime, previousRuntime, replacedStoredRuntime } = resolveOpenRuntimeHints({
+        req,
+        sessionStore,
+        sessionName,
         device: session.device,
-        appId: appBundleId,
-        runtime,
       });
-      const openStartedAtMs = Date.now();
-      await dispatch(session.device, 'open', openPositionals, req.flags?.out, {
-        ...contextFromFlags(logPath, req.flags, appBundleId),
-      });
-      await maybeApplySessionLaunchUrl({
+      await maybeClearRemovedRuntimeTransportHints({
+        replacedStoredRuntime,
+        previousRuntime,
         runtime,
+        session,
+        clearRuntimeHints,
+      });
+      const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
+      return await completeOpenCommand({
+        req,
+        sessionName,
+        sessionStore,
+        logPath,
         device: session.device,
         dispatch,
-        req,
-        logPath,
-        appBundleId,
-        traceLogPath: session.trace?.outPath,
+        applyRuntimeHints,
+        stopIosRunner,
+        settleSimulator,
+        openTarget,
         openPositionals,
-      });
-      const startupSample = buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId);
-      await settleSimulator(session.device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
-      const nextSession: SessionState = {
-        ...session,
         appBundleId,
-        appName: openTarget,
-        recordSession: session.recordSession || Boolean(req.flags?.saveScript),
-        snapshot: undefined,
-      };
-      const openResult = buildOpenResult({
-        sessionName,
-        appName: openTarget,
-        appBundleId,
-        startup: startupSample,
-        device: session.device,
         runtime,
+        existingSession: session,
       });
-      sessionStore.recordAction(nextSession, {
-        command,
-        positionals: openPositionals,
-        flags: req.flags ?? {},
-        result: openResult,
-      });
-      sessionStore.set(sessionName, nextSession);
-      return { ok: true, data: openResult };
     }
     const openTarget = req.positionals?.[0];
     if (shouldRelaunch && !openTarget) {
@@ -1440,68 +1728,29 @@ export async function handleSessionCommands(params: {
       };
     }
     await ensureReady(device);
-    const runtime = resolveSessionRuntimeHints(sessionStore, sessionName, device);
     const appBundleId =
       await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
-    if (shouldRelaunch && openTarget) {
-      const closeTarget = appBundleId ?? openTarget;
-      await relaunchCloseApp({
-        device,
-        closeTarget,
-        stopIosRunner,
-        dispatch,
-        outFlag: req.flags?.out,
-        context: {
-          ...contextFromFlags(logPath, req.flags, appBundleId),
-        },
-        settleSimulator,
-      });
-    }
-    await applyRuntimeHints({
+    const { runtime } = resolveOpenRuntimeHints({
+      req,
+      sessionStore,
+      sessionName,
       device,
-      appId: appBundleId,
-      runtime,
     });
-    const openStartedAtMs = Date.now();
-    await dispatch(device, 'open', req.positionals ?? [], req.flags?.out, {
-      ...contextFromFlags(logPath, req.flags, appBundleId),
-    });
-    await maybeApplySessionLaunchUrl({
-      runtime,
+    return await completeOpenCommand({
+      req,
+      sessionName,
+      sessionStore,
+      logPath,
       device,
       dispatch,
-      req,
-      logPath,
-      appBundleId,
+      applyRuntimeHints,
+      stopIosRunner,
+      settleSimulator,
+      openTarget,
       openPositionals: req.positionals ?? [],
-    });
-    const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
-    await settleSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
-    const session: SessionState = {
-      name: sessionName,
-      device,
-      createdAt: Date.now(),
       appBundleId,
-      appName: openTarget,
-      recordSession: Boolean(req.flags?.saveScript),
-      actions: [],
-    };
-    const openResult = buildOpenResult({
-      sessionName,
-      appName: openTarget,
-      appBundleId,
-      startup: startupSample,
-      device,
       runtime,
     });
-    sessionStore.recordAction(session, {
-      command,
-      positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
-      result: openResult,
-    });
-    sessionStore.set(sessionName, session);
-    return { ok: true, data: openResult };
   }
 
   if (command === 'replay') {
@@ -1969,6 +2218,7 @@ async function runBatchStep(
     command: step.command,
     positionals: step.positionals,
     flags: buildBatchStepFlags(req.flags, step.flags),
+    runtime: step.runtime as DaemonRequest['runtime'],
     meta: req.meta,
   });
   const durationMs = Date.now() - stepStartedAt;

@@ -44,6 +44,7 @@ export type BatchStep = {
   command: string;
   positionals?: string[];
   flags?: Partial<CommandFlags>;
+  runtime?: unknown;
 };
 
 export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSteps'> & {

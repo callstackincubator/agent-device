@@ -228,6 +228,45 @@ test('batch step flags override parent selector flags', async () => {
   assert.equal(response?.ok, true);
 });
 
+test('batch step forwards typed runtime payload', async () => {
+  const sessionStore = makeSessionStore();
+  const seenRuntimes: Array<DaemonRequest['runtime']> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchSteps: [
+          {
+            command: 'open',
+            positionals: ['Demo'],
+            flags: { platform: 'android' },
+            runtime: {
+              metroHost: '10.0.0.10',
+              metroPort: 8081,
+            },
+          },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      seenRuntimes.push(stepReq.runtime);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(seenRuntimes, [{
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+  }]);
+});
+
 test('runtime set/show/clear manages session-scoped runtime hints before open', async () => {
   const sessionStore = makeSessionStore();
   const baseRequest = {
@@ -400,6 +439,248 @@ test('open applies stored runtime launchUrl and reports runtime hints', async ()
       launchUrl: 'myapp://dev-client',
     });
   }
+});
+
+test('open runtime payload replaces stored session runtime atomically', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'runtime-open-inline';
+  sessionStore.setRuntimeHints(sessionName, {
+    platform: 'android',
+    metroHost: '127.0.0.1',
+    metroPort: 9000,
+    launchUrl: 'myapp://stale',
+  });
+
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const runtimeApplyCalls: Array<{ appId?: string; host?: string; port?: number; launchUrl?: string }> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Demo'],
+      flags: { platform: 'android' },
+      runtime: {
+        metroHost: '10.0.0.10',
+        metroPort: 8081,
+      },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => ({
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    resolveAndroidPackageForOpen: async () => 'com.example.demo',
+    applyRuntimeHints: async ({ appId, runtime }) => {
+      runtimeApplyCalls.push({
+        appId,
+        host: runtime?.metroHost,
+        port: runtime?.metroPort,
+        launchUrl: runtime?.launchUrl,
+      });
+    },
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return {};
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(runtimeApplyCalls, [
+    { appId: 'com.example.demo', host: '10.0.0.10', port: 8081, launchUrl: undefined },
+  ]);
+  assert.deepEqual(dispatchCalls, [{ command: 'open', positionals: ['Demo'] }]);
+  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    bundleUrl: undefined,
+    launchUrl: undefined,
+  });
+  assert.deepEqual(sessionStore.get(sessionName)?.actions.map((action) => action.command), ['runtime', 'open']);
+  if (response && response.ok) {
+    assert.deepEqual(response.data?.runtime, {
+      platform: 'android',
+      metroHost: '10.0.0.10',
+      metroPort: 8081,
+      bundleUrl: undefined,
+      launchUrl: undefined,
+    });
+  }
+});
+
+test('open runtime payload clears stale applied transport hints before launch', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'runtime-open-clear';
+  sessionStore.setRuntimeHints(sessionName, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+  });
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.demo',
+    appName: 'Demo',
+  });
+
+  const callOrder: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Demo'],
+      flags: {},
+      runtime: {
+        launchUrl: 'myapp://fresh',
+      },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    resolveAndroidPackageForOpen: async () => 'com.example.demo',
+    clearRuntimeHints: async ({ device, appId }) => {
+      callOrder.push(`clear:${device.id}:${appId}`);
+    },
+    applyRuntimeHints: async () => {
+      callOrder.push('runtime');
+    },
+    dispatch: async (_device, command, positionals) => {
+      callOrder.push(`dispatch:${command}:${positionals.join('|')}`);
+      return {};
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(callOrder, [
+    'clear:emulator-5554:com.example.demo',
+    'runtime',
+    'dispatch:open:Demo',
+    'dispatch:open:myapp://fresh',
+  ]);
+  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
+    platform: 'android',
+    metroHost: undefined,
+    metroPort: undefined,
+    bundleUrl: undefined,
+    launchUrl: 'myapp://fresh',
+  });
+  if (response && response.ok) {
+    assert.deepEqual(response.data?.runtime, {
+      platform: 'android',
+      metroHost: undefined,
+      metroPort: undefined,
+      bundleUrl: undefined,
+      launchUrl: 'myapp://fresh',
+    });
+  }
+});
+
+test('open runtime payload rejects invalid metro port before app launch', async () => {
+  const sessionStore = makeSessionStore();
+  let dispatchCalls = 0;
+
+  await assert.rejects(
+    async () => await handleSessionCommands({
+      req: {
+        token: 't',
+        session: 'runtime-open-invalid-port',
+        command: 'open',
+        positionals: ['Demo'],
+        flags: { platform: 'android' },
+        runtime: {
+          metroHost: '10.0.0.10',
+          metroPort: 70000,
+        },
+      },
+      sessionName: 'runtime-open-invalid-port',
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+      ensureReady: async () => {},
+      resolveTargetDevice: async () => ({
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+      dispatch: async () => {
+        dispatchCalls += 1;
+        return {};
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INVALID_ARGS');
+      assert.match(error.message, /Invalid runtime metroPort/);
+      return true;
+    },
+  );
+
+  assert.equal(dispatchCalls, 0);
+});
+
+test('open runtime payload rejects malformed runtime objects without mutating session state', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'runtime-open-malformed';
+  sessionStore.setRuntimeHints(sessionName, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+  });
+
+  await assert.rejects(
+    async () => await handleSessionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'open',
+        positionals: ['Demo'],
+        flags: { platform: 'android' },
+        runtime: 'not-an-object' as unknown as DaemonRequest['runtime'],
+      },
+      sessionName,
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+      ensureReady: async () => {},
+      resolveTargetDevice: async () => ({
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel',
+        kind: 'emulator',
+        booted: true,
+      }),
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INVALID_ARGS');
+      assert.equal(error.message, 'open runtime must be an object.');
+      return true;
+    },
+  );
+
+  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+  });
 });
 
 test('close clears applied runtime transport hints before deleting the session', async () => {
@@ -2261,6 +2542,45 @@ test('replay parses open --relaunch flag and replays open with relaunch semantic
   assert.equal(invoked[0]?.command, 'open');
   assert.deepEqual(invoked[0]?.positionals, ['Settings']);
   assert.equal(invoked[0]?.flags?.relaunch, true);
+});
+
+test('replay parses runtime set flags and replays runtime command', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-runtime-'));
+  const replayPath = path.join(replayRoot, 'runtime.ad');
+  fs.writeFileSync(
+    replayPath,
+    'runtime set --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"\n',
+  );
+  const invoked: DaemonRequest[] = [];
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+      meta: { cwd: replayRoot },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (request) => {
+      invoked.push(request);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(invoked[0]?.command, 'runtime');
+  assert.deepEqual(invoked[0]?.positionals, ['set']);
+  assert.deepEqual(invoked[0]?.flags, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    launchUrl: 'myapp://dev',
+  });
 });
 
 test('replay resolves relative script path against request cwd', async () => {

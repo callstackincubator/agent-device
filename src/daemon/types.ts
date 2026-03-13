@@ -9,6 +9,7 @@ export type DaemonRequest = {
   command: string;
   positionals: string[];
   flags?: CommandFlags;
+  runtime?: SessionRuntimeHints;
   meta?: {
     requestId?: string;
     debug?: boolean;
