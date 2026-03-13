@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { extractTarInstallableArtifact, readZipEntries, resolveTarArchiveRootName } from './artifact-archive.ts';
 import { createArtifactTempDir, downloadArtifactToTempDir } from './artifact-download.ts';
+import { readInfoPlistString } from '../platforms/ios/plist.ts';
 import { AppError } from '../utils/errors.ts';
-import { runCmd } from '../utils/exec.ts';
 
 export type MaterializeArtifactParams = {
   platform: 'ios' | 'android';
@@ -165,18 +165,7 @@ async function detectIosAppMetadata(installablePath: string): Promise<Materializ
 
 async function readIosPlistValue(appBundlePath: string, key: string): Promise<string | undefined> {
   const infoPlistPath = path.join(appBundlePath, 'Info.plist');
-  try {
-    const result = await runCmd(
-      'plutil',
-      ['-extract', key, 'raw', '-o', '-', infoPlistPath],
-      { allowFailure: true },
-    );
-    if (result.exitCode !== 0) return undefined;
-    const value = String(result.stdout ?? '').trim();
-    return value.length > 0 ? value : undefined;
-  } catch {
-    return undefined;
-  }
+  return await readInfoPlistString(infoPlistPath, key);
 }
 
 function readBaseNameIfMeaningful(filePath: string, suffix?: string): string | undefined {
