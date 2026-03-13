@@ -49,14 +49,13 @@ const ensured = await client.simulators.ensure({
 });
 
 await client.apps.open({
-  session: 'qa-ios',
   app: 'com.apple.Preferences',
   platform: 'ios',
   udid: ensured.udid,
 });
 
-const snapshot = await client.capture.snapshot({ session: 'qa-ios', interactiveOnly: true });
-await client.sessions.close({ session: 'qa-ios' });
+const snapshot = await client.capture.snapshot({ interactiveOnly: true });
+await client.sessions.close();
 ```
 
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).

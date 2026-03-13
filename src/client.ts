@@ -10,6 +10,7 @@ type DaemonTransport = (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResp
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
 type SessionIsolationMode = 'none' | 'tenant';
+const DEFAULT_SESSION_NAME = 'default';
 
 export type AgentDeviceClientConfig = {
   session?: string;
@@ -559,6 +560,7 @@ function normalizeStartupSample(value: unknown): StartupPerfSample | undefined {
 }
 
 function readSnapshotNodes(value: unknown): SnapshotNode[] {
+  // Snapshot nodes are produced by the daemon snapshot pipeline and treated as trusted here.
   return Array.isArray(value) ? value as SnapshotNode[] : [];
 }
 
@@ -612,7 +614,7 @@ function buildMeta(options: RequestOptions): DaemonRequest['meta'] {
 }
 
 function resolveSessionName(defaultSession: string | undefined, session: string | undefined): string {
-  return session ?? defaultSession ?? 'default';
+  return session ?? defaultSession ?? DEFAULT_SESSION_NAME;
 }
 
 function stripUndefined<T extends Record<string, unknown>>(value: T): T {
