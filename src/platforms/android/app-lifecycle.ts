@@ -522,11 +522,14 @@ export async function installAndroidApp(
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }
-  const beforePackages = await listInstalledAndroidPackages(device);
   const prepared = await prepareAndroidInstallArtifact({ kind: 'path', path: appPath });
   try {
+    const beforePackages = prepared.packageName
+      ? undefined
+      : await listInstalledAndroidPackages(device);
     await installAndroidInstallablePath(device, prepared.installablePath);
-    const packageName = prepared.packageName ?? (await resolveInstalledAndroidPackageName(device, beforePackages));
+    const packageName = prepared.packageName
+      ?? (beforePackages ? await resolveInstalledAndroidPackageName(device, beforePackages) : undefined);
     const appName = packageName ? inferAndroidAppName(packageName) : undefined;
     return {
       archivePath: prepared.archivePath,
@@ -549,10 +552,13 @@ export async function reinstallAndroidApp(
     await waitForAndroidBoot(device.id);
   }
   const { package: pkg } = await uninstallAndroidApp(device, app);
-  const prepared = await prepareAndroidInstallArtifact({ kind: 'path', path: appPath });
+  const prepared = await prepareAndroidInstallArtifact(
+    { kind: 'path', path: appPath },
+    { resolveIdentity: false },
+  );
   try {
     await installAndroidInstallablePath(device, prepared.installablePath);
-    return { package: prepared.packageName ?? pkg };
+    return { package: pkg };
   } finally {
     await prepared.cleanup();
   }

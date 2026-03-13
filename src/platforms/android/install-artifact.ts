@@ -11,7 +11,7 @@ export type PreparedAndroidInstallArtifact = {
 
 export async function prepareAndroidInstallArtifact(
   source: MaterializeInstallSource,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; resolveIdentity?: boolean },
 ): Promise<PreparedAndroidInstallArtifact> {
   const materialized = await materializeInstallablePath({
     source,
@@ -20,7 +20,9 @@ export async function prepareAndroidInstallArtifact(
     installableLabel: 'Android installable (.apk or .aab)',
     signal: options?.signal,
   });
-  const identity = await inspectAndroidArtifactIdentity(materialized.installablePath);
+  const identity = options?.resolveIdentity === false
+    ? {}
+    : await inspectAndroidArtifactIdentity(materialized.installablePath);
   return {
     archivePath: materialized.archivePath,
     installablePath: materialized.installablePath,

@@ -36,6 +36,7 @@ export type MaterializedInstallable = {
 };
 
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tgz'] as const;
+const MAX_INSTALL_SOURCE_SEARCH_DEPTH = 5;
 const DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS,
   120_000,
@@ -266,21 +267,21 @@ async function collectMatchingPaths(
   matcher: (candidatePath: string, stat: { isFile(): boolean; isDirectory(): boolean }) => boolean,
 ): Promise<string[]> {
   const matches: string[] = [];
-  const queue: string[] = [rootPath];
+  const queue: Array<{ path: string; depth: number }> = [{ path: rootPath, depth: 0 }];
 
   while (queue.length > 0) {
-    const currentPath = queue.shift();
-    if (!currentPath) continue;
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+    const current = queue.shift();
+    if (!current) continue;
+    const entries = await fs.readdir(current.path, { withFileTypes: true });
     entries.sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
-      const entryPath = path.join(currentPath, entry.name);
+      const entryPath = path.join(current.path, entry.name);
       if (matcher(entryPath, entry)) {
         matches.push(entryPath);
         continue;
       }
-      if (entry.isDirectory()) {
-        queue.push(entryPath);
+      if (entry.isDirectory() && current.depth < MAX_INSTALL_SOURCE_SEARCH_DEPTH) {
+        queue.push({ path: entryPath, depth: current.depth + 1 });
       }
     }
   }

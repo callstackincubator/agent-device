@@ -1,18 +1,10 @@
+import type { MaterializeInstallSource } from '../platforms/install-source.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 
-export type DaemonInstallSource =
-  | {
-    kind: 'url';
-    url: string;
-    headers?: Record<string, string>;
-  }
-  | {
-    kind: 'path';
-    path: string;
-  };
+export type DaemonInstallSource = MaterializeInstallSource;
 
 export type DaemonRequest = {
   token: string;

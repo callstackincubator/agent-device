@@ -367,6 +367,7 @@ test('installAndroidApp resolves packageName and launchTarget from nested archiv
     assert.equal(result.launchTarget, 'com.example.archive');
     assert.equal(result.installablePath.endsWith('/nested/Sample.apk'), true);
     assert.match(logged, /adb -s emulator-5554 install -r .*nested\/Sample\.apk/);
+    assert.doesNotMatch(logged, /adb -s emulator-5554 shell pm list packages/);
   } finally {
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) {

@@ -79,6 +79,30 @@ type AppDeployOps = {
 
 type InstallOps = AppDeployOps;
 
+type DeployCommandResultBase = {
+  app: string;
+  appPath: string;
+  archivePath?: string;
+  installablePath?: string;
+  appName?: string;
+  launchTarget?: string;
+};
+
+type IosDeployCommandResult = DeployCommandResultBase & {
+  platform: 'ios';
+  appId?: string;
+  bundleId?: string;
+};
+
+type AndroidDeployCommandResult = DeployCommandResultBase & {
+  platform: 'android';
+  appId?: string;
+  package?: string;
+  packageName?: string;
+};
+
+type DeployCommandResult = IosDeployCommandResult | AndroidDeployCommandResult;
+
 type EnsureAndroidEmulatorBoot = (params: {
   avdName: string;
   serial?: string;
@@ -567,30 +591,7 @@ async function handleAppDeployCommand(params: {
       };
     }
 
-    let result:
-      | {
-        app: string;
-        appPath: string;
-        platform: 'ios';
-        appId?: string;
-        archivePath?: string;
-        installablePath?: string;
-        bundleId?: string;
-        appName?: string;
-        launchTarget?: string;
-      }
-      | {
-        app: string;
-        appPath: string;
-        platform: 'android';
-        appId?: string;
-        archivePath?: string;
-        installablePath?: string;
-        package?: string;
-        packageName?: string;
-        appName?: string;
-        launchTarget?: string;
-      };
+    let result: DeployCommandResult;
 
     if (device.platform === 'ios') {
       const iosResult = await deployOps.ios(device, app, appPath);
