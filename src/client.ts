@@ -139,6 +139,8 @@ export type AppOpenOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptio
   url?: string;
   activity?: string;
   relaunch?: boolean;
+  saveScript?: boolean | string;
+  noRecord?: boolean;
 };
 
 export type AppOpenResult = {
@@ -214,6 +216,8 @@ type RequestOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
   activity?: string;
   relaunch?: boolean;
   shutdown?: boolean;
+  saveScript?: boolean | string;
+  noRecord?: boolean;
   metroHost?: string;
   metroPort?: number;
   bundleUrl?: string;
@@ -588,6 +592,8 @@ function buildFlags(options: RequestOptions): CommandFlags {
     activity: options.activity,
     relaunch: options.relaunch,
     shutdown: options.shutdown,
+    saveScript: options.saveScript,
+    noRecord: options.noRecord,
     metroHost: options.metroHost,
     metroPort: options.metroPort,
     bundleUrl: options.bundleUrl,

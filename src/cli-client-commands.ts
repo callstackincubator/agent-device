@@ -109,6 +109,8 @@ export async function tryRunClientBackedCommand(params: {
       url: positionals[1],
       activity: flags.activity,
       relaunch: flags.relaunch,
+      saveScript: flags.saveScript,
+      noRecord: flags.noRecord,
       ...buildSelectionOptions(flags),
     });
     if (flags.json) printJson({ success: true, data: serializeOpenResult(result) });
@@ -152,7 +154,7 @@ export async function tryRunClientBackedCommand(params: {
   }
 
   if (command === 'screenshot') {
-    const result = await client.capture.screenshot({ path: positionals[0] });
+    const result = await client.capture.screenshot({ path: positionals[0] ?? flags.out });
     const data = { path: result.path };
     if (flags.json) printJson({ success: true, data });
     else process.stdout.write(`${result.path}\n`);
