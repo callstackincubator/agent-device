@@ -29,6 +29,23 @@ import { uploadArtifact } from './upload-client.ts';
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
 
+export type OpenAppOptions = {
+  session?: string;
+  app?: string;
+  url?: string;
+  platform?: NonNullable<DaemonRequest['flags']>['platform'];
+  target?: NonNullable<DaemonRequest['flags']>['target'];
+  device?: NonNullable<DaemonRequest['flags']>['device'];
+  udid?: NonNullable<DaemonRequest['flags']>['udid'];
+  serial?: NonNullable<DaemonRequest['flags']>['serial'];
+  activity?: NonNullable<DaemonRequest['flags']>['activity'];
+  out?: NonNullable<DaemonRequest['flags']>['out'];
+  saveScript?: NonNullable<DaemonRequest['flags']>['saveScript'];
+  relaunch?: boolean;
+  runtime?: DaemonRequest['runtime'];
+  meta?: Omit<NonNullable<DaemonRequest['meta']>, 'uploadedArtifactId' | 'clientArtifactPaths'>;
+};
+
 type DaemonInfo = {
   port?: number;
   httpPort?: number;
@@ -115,6 +132,48 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     async () => await sendRequest(info, request, settings.transportPreference),
     { requestId, command: req.command },
   );
+}
+
+export async function openApp(options: OpenAppOptions = {}): Promise<DaemonResponse> {
+  const {
+    session = 'default',
+    app,
+    url,
+    platform,
+    target,
+    device,
+    udid,
+    serial,
+    activity,
+    out,
+    saveScript,
+    relaunch,
+    runtime,
+    meta,
+  } = options;
+
+  const positionals = app
+    ? (url ? [app, url] : [app])
+    : (url ? [url] : []);
+
+  return await sendToDaemon({
+    session,
+    command: 'open',
+    positionals,
+    flags: {
+      ...(platform !== undefined ? { platform } : {}),
+      ...(target !== undefined ? { target } : {}),
+      ...(device !== undefined ? { device } : {}),
+      ...(udid !== undefined ? { udid } : {}),
+      ...(serial !== undefined ? { serial } : {}),
+      ...(activity !== undefined ? { activity } : {}),
+      ...(out !== undefined ? { out } : {}),
+      ...(saveScript !== undefined ? { saveScript } : {}),
+      ...(relaunch ? { relaunch: true } : {}),
+    },
+    ...(runtime !== undefined ? { runtime } : {}),
+    meta,
+  });
 }
 
 async function prepareRemoteRequest(
