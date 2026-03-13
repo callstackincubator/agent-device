@@ -1,0 +1,30 @@
+export {
+  createAgentDeviceClient,
+  type AgentDeviceClient,
+  type AgentDeviceClientConfig,
+  type AgentDeviceDevice,
+  type AgentDeviceIdentifiers,
+  type AgentDeviceSelectionOptions,
+  type AgentDeviceSession,
+  type AgentDeviceSessionDevice,
+  type AppCloseOptions,
+  type AppCloseResult,
+  type AppDeployOptions,
+  type AppDeployResult,
+  type AppOpenOptions,
+  type AppOpenResult,
+  type CaptureScreenshotOptions,
+  type CaptureScreenshotResult,
+  type CaptureSnapshotOptions,
+  type CaptureSnapshotResult,
+  type EnsureSimulatorOptions,
+  type EnsureSimulatorResult,
+  type RuntimeResult,
+  type RuntimeSetOptions,
+  type RuntimeShowOptions,
+  type SessionCloseResult,
+  type StartupPerfSample,
+} from './client.ts';
+export { AppError, type NormalizedError } from './utils/errors.ts';
+export type { SessionRuntimeHints } from './daemon/types.ts';
+export type { SnapshotNode } from './utils/snapshot.ts';

@@ -70,10 +70,17 @@ async function runCliCapture(
 test('cli forwards --debug as verbose/debug metadata', async () => {
   const result = await runCliCapture(['open', 'settings', '--debug', '--json'], async () => ({
     ok: true,
-    data: { app: 'settings' },
+    data: {
+      app: 'settings',
+      platform: 'ios',
+      target: 'mobile',
+      device: 'iPhone 16',
+      id: 'SIM-001',
+    },
   }));
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.command, 'open');
   assert.equal(result.calls[0]?.flags?.verbose, true);
   assert.equal(result.calls[0]?.meta?.debug, true);
   assert.equal(result.calls[0]?.meta?.cwd, process.cwd());

@@ -433,6 +433,11 @@ test('open applies stored runtime launchUrl and reports runtime hints', async ()
     { command: 'open', positionals: ['myapp://dev-client'] },
   ]);
   if (response && response.ok) {
+    assert.equal(response.data?.platform, 'android');
+    assert.equal(response.data?.target, 'mobile');
+    assert.equal(response.data?.device, 'Pixel');
+    assert.equal(response.data?.id, 'emulator-5554');
+    assert.equal(response.data?.serial, 'emulator-5554');
     assert.deepEqual(response.data?.runtime, {
       platform: 'android',
       metroHost: '10.0.0.10',

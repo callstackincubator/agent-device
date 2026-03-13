@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
+import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
+import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
 
@@ -103,6 +105,22 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const logTailStopper = flags.verbose && !flags.json && !remoteDaemonBaseUrl
         ? startDaemonLogTail(daemonPaths.logPath)
         : null;
+      const clientConfig: AgentDeviceClientConfig = {
+        session: sessionName,
+        requestId,
+        stateDir: flags.stateDir,
+        daemonBaseUrl: flags.daemonBaseUrl,
+        daemonAuthToken: flags.daemonAuthToken,
+        daemonTransport: flags.daemonTransport,
+        daemonServerMode: flags.daemonServerMode,
+        tenant: flags.tenant,
+        sessionIsolation: flags.sessionIsolation,
+        runId: flags.runId,
+        leaseId: flags.leaseId,
+        cwd: process.cwd(),
+        debug: Boolean(flags.verbose),
+      };
+      const client = createAgentDeviceClient(clientConfig, { transport: deps.sendToDaemon });
       const sendDaemonRequest = async (payload: { command: string; positionals: string[]; flags?: Record<string, unknown> }) =>
         await deps.sendToDaemon({
           session: sessionName,
@@ -151,26 +169,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       return;
     }
 
-    if (command === 'session') {
-      const sub = positionals[0] ?? 'list';
-      if (sub !== 'list') {
-        throw new AppError('INVALID_ARGS', 'session only supports list');
-      }
-      const response = await sendDaemonRequest({
-        command: 'session_list',
-        positionals: [],
-        flags: daemonFlags,
-      });
-      if (!response.ok) {
-        throw new AppError(response.error.code as any, response.error.message, {
-          ...(response.error.details ?? {}),
-          hint: response.error.hint,
-          diagnosticId: response.error.diagnosticId,
-          logPath: response.error.logPath,
-        });
-      }
-      if (flags.json) printJson({ success: true, data: response.data ?? {} });
-      else process.stdout.write(`${JSON.stringify(response.data ?? {}, null, 2)}\n`);
+    if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
       if (logTailStopper) logTailStopper();
       return;
     }

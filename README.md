@@ -35,6 +35,30 @@ Or use it without installing:
 npx agent-device open SampleApp
 ```
 
+Use the typed daemon client from application code:
+
+```ts
+import { createAgentDeviceClient } from 'agent-device';
+
+const client = createAgentDeviceClient({ session: 'qa-ios' });
+
+const devices = await client.devices.list({ platform: 'ios' });
+const ensured = await client.simulators.ensure({
+  device: 'iPhone 16',
+  boot: true,
+});
+
+await client.apps.open({
+  session: 'qa-ios',
+  app: 'com.apple.Preferences',
+  platform: 'ios',
+  udid: ensured.udid,
+});
+
+const snapshot = await client.capture.snapshot({ session: 'qa-ios', interactiveOnly: true });
+await client.sessions.close({ session: 'qa-ios' });
+```
+
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).
 For structured exploratory QA workflows, use the dogfood skill at [skills/dogfood/SKILL.md](skills/dogfood/SKILL.md).
 
