@@ -201,6 +201,8 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
       session: 'bootstrap',
       platform: 'android',
       requestId: 'req-install-source',
+      retainPaths: true,
+      retentionMs: 30000,
       source: {
         kind: 'url',
         url: 'https://example.com/app.zip',
@@ -217,6 +219,8 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
   assert.equal(observedRequest?.session, 'bootstrap');
   assert.equal(observedRequest?.flags?.platform, 'android');
   assert.equal(observedRequest?.meta?.requestId, 'req-install-source');
+  assert.equal(observedRequest?.meta?.retainMaterializedPaths, true);
+  assert.equal(observedRequest?.meta?.materializedPathRetentionMs, 30000);
   assert.deepEqual(observedRequest?.meta?.installSource, {
     kind: 'url',
     url: 'https://example.com/app.zip',
@@ -224,6 +228,53 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
       authorization: 'Bearer signed-token',
     },
   });
+});
+
+test('HTTP release_materialized_paths RPC maps typed params to a release_materialized_paths daemon request', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  let observedRequest: DaemonRequest | undefined;
+  const server = await createDaemonHttpServer({
+    handleRequest: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      observedRequest = req;
+      return { ok: true, data: { released: true } };
+    },
+    token: 'test-token',
+  });
+  const port = await listen(server);
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  });
+
+  const response = await callRpc(port, {
+    jsonrpc: '2.0',
+    id: 'rpc-release-materialized',
+    method: 'agent_device.release_materialized_paths',
+    params: {
+      token: 'test-token',
+      session: 'bootstrap',
+      requestId: 'req-release-materialized',
+      materializationId: 'materialized-123',
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal((response.json as { result?: { ok?: boolean } }).result?.ok, true);
+  assert.equal(observedRequest?.command, 'release_materialized_paths');
+  assert.equal(observedRequest?.session, 'bootstrap');
+  assert.equal(observedRequest?.meta?.requestId, 'req-release-materialized');
+  assert.equal(observedRequest?.meta?.materializationId, 'materialized-123');
 });
 
 test('HTTP artifact download streams registered files', async (t) => {

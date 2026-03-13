@@ -22,11 +22,17 @@ import { emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, with
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 
-const selectorValidationExemptCommands = new Set(['session_list', 'devices', 'ensure-simulator']);
+const selectorValidationExemptCommands = new Set([
+  'session_list',
+  'devices',
+  'ensure-simulator',
+  'release_materialized_paths',
+]);
 const leaseAdmissionExemptCommands = new Set([
   'session_list',
   'devices',
   'ensure-simulator',
+  'release_materialized_paths',
   'lease_allocate',
   'lease_heartbeat',
   'lease_release',

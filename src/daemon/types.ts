@@ -25,6 +25,9 @@ export type DaemonRequest = {
     uploadedArtifactId?: string;
     clientArtifactPaths?: Record<string, string>;
     installSource?: DaemonInstallSource;
+    retainMaterializedPaths?: boolean;
+    materializedPathRetentionMs?: number;
+    materializationId?: string;
   };
 };
 

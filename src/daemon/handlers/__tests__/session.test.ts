@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
+import { retainMaterializedPaths } from '../../materialized-path-registry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -444,6 +445,82 @@ test('close clears applied runtime transport hints before deleting the session',
   assert.deepEqual(clearCalls, [{ deviceId: 'sim-1', appId: 'com.example.demo' }]);
   assert.equal(sessionStore.get(sessionName), undefined);
   assert.equal(sessionStore.getRuntimeHints(sessionName), undefined);
+});
+
+test('close clears retained materialized install paths bound to the session', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'materialized-close-active';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+  });
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-materialized-'));
+  const appPath = path.join(tempRoot, 'Sample.app');
+  fs.mkdirSync(appPath, { recursive: true });
+  fs.writeFileSync(path.join(appPath, 'Info.plist'), 'plist');
+  const retained = await retainMaterializedPaths({
+    installablePath: appPath,
+    sessionName,
+    ttlMs: 60_000,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async () => {},
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(sessionStore.get(sessionName), undefined);
+  assert.equal(fs.existsSync(retained.installablePath), false);
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('release_materialized_paths removes retained install artifacts', async () => {
+  const sessionStore = makeSessionStore();
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-release-materialized-'));
+  const appPath = path.join(tempRoot, 'Sample.app');
+  fs.mkdirSync(appPath, { recursive: true });
+  fs.writeFileSync(path.join(appPath, 'Info.plist'), 'plist');
+  const retained = await retainMaterializedPaths({
+    installablePath: appPath,
+    ttlMs: 60_000,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'release_materialized_paths',
+      positionals: [],
+      flags: {},
+      meta: {
+        materializationId: retained.materializationId,
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(fs.existsSync(retained.installablePath), false);
+  fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
 test('boot requires session or explicit selector', async () => {

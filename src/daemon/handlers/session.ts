@@ -56,7 +56,11 @@ import {
   parseSelectorWaitPositionals,
 } from './session-replay-heal.ts';
 import { parseReplayScript, writeReplayScript } from './session-replay-script.ts';
-import { handleInstallFromSourceCommand } from './install-source.ts';
+import {
+  handleInstallFromSourceCommand,
+  handleReleaseMaterializedPathsCommand,
+} from './install-source.ts';
+import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
 
 type ReinstallOps = {
@@ -1303,6 +1307,10 @@ export async function handleSessionCommands(params: {
     });
   }
 
+  if (command === 'release_materialized_paths') {
+    return await handleReleaseMaterializedPathsCommand({ req });
+  }
+
   if (command === 'push') {
     const appId = req.positionals?.[0]?.trim();
     const payloadArg = req.positionals?.[1]?.trim();
@@ -1899,6 +1907,7 @@ export async function handleSessionCommands(params: {
       session.recordSession = true;
     }
     sessionStore.writeSessionLog(session);
+    await cleanupRetainedMaterializedPathsForSession(sessionName).catch(() => {});
     sessionStore.delete(sessionName);
     if (req.flags?.shutdown && isIosSimulator(session.device)) {
       let shutdownResult: {

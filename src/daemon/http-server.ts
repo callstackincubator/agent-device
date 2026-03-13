@@ -62,6 +62,10 @@ const INSTALL_FROM_SOURCE_RPC_METHODS = new Set([
   'agent_device.install_from_source',
   'agent-device.install_from_source',
 ]);
+const RELEASE_MATERIALIZED_PATHS_RPC_METHODS = new Set([
+  'agent_device.release_materialized_paths',
+  'agent-device.release_materialized_paths',
+]);
 const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_heartbeat' | 'lease_release'> = {
   'agent_device.lease.allocate': 'lease_allocate',
   'agent-device.lease.allocate': 'lease_allocate',
@@ -73,6 +77,7 @@ const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_hear
 const SUPPORTED_RPC_METHODS = new Set([
   ...COMMAND_RPC_METHODS,
   ...INSTALL_FROM_SOURCE_RPC_METHODS,
+  ...RELEASE_MATERIALIZED_PATHS_RPC_METHODS,
   ...Object.keys(LEASE_RPC_METHOD_TO_COMMAND),
 ]);
 
@@ -139,6 +144,11 @@ function readStringParam(params: Record<string, unknown>, key: string): string |
 function readIntParam(params: Record<string, unknown>, key: string): number | undefined {
   const value = params[key];
   return Number.isInteger(value) ? Number(value) : undefined;
+}
+
+function readBooleanParam(params: Record<string, unknown>, key: string): boolean | undefined {
+  const value = params[key];
+  return typeof value === 'boolean' ? value : undefined;
 }
 
 function toLeaseDaemonRequest(
@@ -216,6 +226,28 @@ function toInstallFromSourceDaemonRequest(
     meta: {
       requestId: readStringParam(params, 'requestId'),
       installSource: parseInstallSource(params),
+      retainMaterializedPaths: readBooleanParam(params, 'retainPaths'),
+      materializedPathRetentionMs: readIntParam(params, 'retentionMs'),
+    },
+  };
+}
+
+function toReleaseMaterializedPathsDaemonRequest(
+  params: Record<string, unknown>,
+  headers: IncomingHttpHeaders,
+): DaemonRequest {
+  const materializationId = readStringParam(params, 'materializationId')?.trim();
+  if (!materializationId) {
+    throw new AppError('INVALID_ARGS', 'Invalid params: materializationId is required');
+  }
+  return {
+    token: resolveToken(params, headers),
+    session: readStringParam(params, 'session') ?? 'default',
+    command: 'release_materialized_paths',
+    positionals: [],
+    meta: {
+      requestId: readStringParam(params, 'requestId'),
+      materializationId,
     },
   };
 }
@@ -230,6 +262,9 @@ function methodToDaemonRequest(
   }
   if (INSTALL_FROM_SOURCE_RPC_METHODS.has(method)) {
     return toInstallFromSourceDaemonRequest(params, headers);
+  }
+  if (RELEASE_MATERIALIZED_PATHS_RPC_METHODS.has(method)) {
+    return toReleaseMaterializedPathsDaemonRequest(params, headers);
   }
   const leaseCommand = LEASE_RPC_METHOD_TO_COMMAND[method];
   if (leaseCommand) {
