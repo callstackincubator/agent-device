@@ -1,6 +1,7 @@
 export {
   closeIosApp,
   installIosApp,
+  installIosInstallablePath,
   listIosApps,
   listSimulatorApps,
   openIosApp,

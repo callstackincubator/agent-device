@@ -1,7 +1,7 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError } from '../utils/errors.ts';
-import type { DaemonRequest, DaemonResponse } from './types.ts';
+import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import {
   clearRequestCanceled,
@@ -58,6 +58,10 @@ type HttpAuthDecision =
 
 const MAX_HTTP_RPC_BODY_BYTES = 1024 * 1024;
 const COMMAND_RPC_METHODS = new Set(['agent_device.command', 'agent-device.command']);
+const INSTALL_FROM_SOURCE_RPC_METHODS = new Set([
+  'agent_device.install_from_source',
+  'agent-device.install_from_source',
+]);
 const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_heartbeat' | 'lease_release'> = {
   'agent_device.lease.allocate': 'lease_allocate',
   'agent-device.lease.allocate': 'lease_allocate',
@@ -68,6 +72,7 @@ const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_hear
 };
 const SUPPORTED_RPC_METHODS = new Set([
   ...COMMAND_RPC_METHODS,
+  ...INSTALL_FROM_SOURCE_RPC_METHODS,
   ...Object.keys(LEASE_RPC_METHOD_TO_COMMAND),
 ]);
 
@@ -156,6 +161,65 @@ function toLeaseDaemonRequest(
   };
 }
 
+function parseInstallSource(params: Record<string, unknown>): DaemonInstallSource {
+  const source = params.source;
+  if (!source || typeof source !== 'object') {
+    throw new AppError('INVALID_ARGS', 'Invalid params: source is required');
+  }
+  const record = source as Record<string, unknown>;
+  if (record.kind === 'url') {
+    const url = typeof record.url === 'string' ? record.url.trim() : '';
+    if (!url) {
+      throw new AppError('INVALID_ARGS', 'Invalid params: source.url is required for url sources');
+    }
+    const rawHeaders = record.headers;
+    const headers: Record<string, string> = {};
+    if (rawHeaders !== undefined) {
+      if (!rawHeaders || typeof rawHeaders !== 'object' || Array.isArray(rawHeaders)) {
+        throw new AppError('INVALID_ARGS', 'Invalid params: source.headers must be a string map');
+      }
+      for (const [key, value] of Object.entries(rawHeaders as Record<string, unknown>)) {
+        if (typeof value !== 'string') {
+          throw new AppError('INVALID_ARGS', 'Invalid params: source.headers values must be strings');
+        }
+        headers[key] = value;
+      }
+    }
+    return Object.keys(headers).length > 0
+      ? { kind: 'url', url, headers }
+      : { kind: 'url', url };
+  }
+  if (record.kind === 'path') {
+    const artifactPath = typeof record.path === 'string' ? record.path.trim() : '';
+    if (!artifactPath) {
+      throw new AppError('INVALID_ARGS', 'Invalid params: source.path is required for path sources');
+    }
+    return { kind: 'path', path: artifactPath };
+  }
+  throw new AppError('INVALID_ARGS', 'Invalid params: source.kind must be "url" or "path"');
+}
+
+function toInstallFromSourceDaemonRequest(
+  params: Record<string, unknown>,
+  headers: IncomingHttpHeaders,
+): DaemonRequest {
+  const platform = readStringParam(params, 'platform');
+  if (platform !== 'ios' && platform !== 'android') {
+    throw new AppError('INVALID_ARGS', 'Invalid params: platform must be "ios" or "android"');
+  }
+  return {
+    token: resolveToken(params, headers),
+    session: readStringParam(params, 'session') ?? 'default',
+    command: 'install_source',
+    positionals: [],
+    flags: { platform },
+    meta: {
+      requestId: readStringParam(params, 'requestId'),
+      installSource: parseInstallSource(params),
+    },
+  };
+}
+
 function methodToDaemonRequest(
   method: string,
   params: Record<string, unknown>,
@@ -163,6 +227,9 @@ function methodToDaemonRequest(
 ): DaemonRequest {
   if (COMMAND_RPC_METHODS.has(method)) {
     return toDaemonRequest(params as unknown as Partial<DaemonRequest>, headers);
+  }
+  if (INSTALL_FROM_SOURCE_RPC_METHODS.has(method)) {
+    return toInstallFromSourceDaemonRequest(params, headers);
   }
   const leaseCommand = LEASE_RPC_METHOD_TO_COMMAND[method];
   if (leaseCommand) {

@@ -10,6 +10,7 @@ export {
   parseAndroidLaunchComponent,
   openAndroidDevice,
   closeAndroidApp,
+  installAndroidInstallablePath,
   installAndroidApp,
   reinstallAndroidApp,
 } from './app-lifecycle.ts';

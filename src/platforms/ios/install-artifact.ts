@@ -1,0 +1,183 @@
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { AppError } from '../../utils/errors.ts';
+import { runCmd } from '../../utils/exec.ts';
+import { materializeInstallablePath, type MaterializeInstallSource } from '../install-source.ts';
+
+type InstallIosArtifactOptions = {
+  appIdentifierHint?: string;
+  signal?: AbortSignal;
+};
+
+type IosPayloadAppBundle = {
+  installPath: string;
+  bundleName: string;
+  bundleId?: string;
+  appName?: string;
+};
+
+export type PreparedIosInstallArtifact = {
+  archivePath?: string;
+  installablePath: string;
+  bundleId?: string;
+  appName?: string;
+  cleanup: () => Promise<void>;
+};
+
+export async function prepareIosInstallArtifact(
+  source: MaterializeInstallSource,
+  options?: InstallIosArtifactOptions,
+): Promise<PreparedIosInstallArtifact> {
+  const materialized = await materializeInstallablePath({
+    source,
+    isInstallablePath: (candidatePath, stat) =>
+      (stat.isDirectory() && candidatePath.toLowerCase().endsWith('.app'))
+      || (stat.isFile() && candidatePath.toLowerCase().endsWith('.ipa')),
+    installableLabel: 'iOS installable (.app or .ipa)',
+    signal: options?.signal,
+  });
+
+  const resolved = await resolveIosInstallablePath(materialized.installablePath, options);
+  const bundleInfo = await readIosBundleInfo(resolved.installPath);
+  const archivePath = materialized.archivePath
+    ?? (materialized.installablePath.toLowerCase().endsWith('.ipa') ? materialized.installablePath : undefined);
+
+  return {
+    archivePath,
+    installablePath: resolved.installPath,
+    bundleId: bundleInfo.bundleId,
+    appName: bundleInfo.appName,
+    cleanup: async () => {
+      await resolved.cleanup();
+      await materialized.cleanup();
+    },
+  };
+}
+
+export async function readIosBundleInfo(
+  appBundlePath: string,
+): Promise<{ bundleId?: string; appName?: string }> {
+  const infoPlistPath = path.join(appBundlePath, 'Info.plist');
+  const [bundleId, displayName, bundleName] = await Promise.all([
+    readInfoPlistString(infoPlistPath, 'CFBundleIdentifier'),
+    readInfoPlistString(infoPlistPath, 'CFBundleDisplayName'),
+    readInfoPlistString(infoPlistPath, 'CFBundleName'),
+  ]);
+  return {
+    bundleId,
+    appName: displayName ?? bundleName,
+  };
+}
+
+async function readInfoPlistString(
+  infoPlistPath: string,
+  key: string,
+): Promise<string | undefined> {
+  try {
+    const result = await runCmd(
+      'plutil',
+      ['-extract', key, 'raw', '-o', '-', infoPlistPath],
+      { allowFailure: true },
+    );
+    if (result.exitCode !== 0) return undefined;
+    const value = String(result.stdout ?? '').trim();
+    return value.length > 0 ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveIosInstallablePath(
+  appPath: string,
+  options?: InstallIosArtifactOptions,
+): Promise<{ installPath: string; cleanup: () => Promise<void> }> {
+  if (!appPath.toLowerCase().endsWith('.ipa')) {
+    return { installPath: appPath, cleanup: async () => {} };
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-ipa-'));
+  const cleanup = async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  };
+  try {
+    await runCmd('ditto', ['-x', '-k', appPath, tempDir]);
+    const payloadDir = path.join(tempDir, 'Payload');
+    const payloadEntries = await fs.readdir(payloadDir, { withFileTypes: true }).catch(() => {
+      throw new AppError('INVALID_ARGS', 'Invalid IPA: missing Payload directory');
+    });
+    const appBundles: IosPayloadAppBundle[] = payloadEntries
+      .filter((entry) => entry.isDirectory() && entry.name.toLowerCase().endsWith('.app'))
+      .map((entry) => ({
+        installPath: path.join(payloadDir, entry.name),
+        bundleName: entry.name.replace(/\.app$/i, ''),
+      }));
+    if (appBundles.length === 1) {
+      return { installPath: appBundles[0].installPath, cleanup };
+    }
+    if (appBundles.length === 0) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid IPA: expected at least one .app under Payload, found 0',
+      );
+    }
+
+    await ensureIosPayloadBundleDetails(appBundles);
+    const hint = options?.appIdentifierHint?.trim();
+    if (hint) {
+      const resolved = resolveIosPayloadBundleByHint(appBundles, hint);
+      if (resolved) return { installPath: resolved.installPath, cleanup };
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid IPA: found ${appBundles.length} .app bundles under Payload and none matched "${hint}". Available bundles: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,
+      );
+    }
+
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid IPA: found ${appBundles.length} .app bundles under Payload. Pass an app identifier or bundle name matching one of: ${appBundles.map(formatIosPayloadBundleDetails).join(', ')}`,
+    );
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+}
+
+async function ensureIosPayloadBundleDetails(bundles: IosPayloadAppBundle[]): Promise<void> {
+  await Promise.all(
+    bundles.map(async (bundle) => {
+      if (bundle.bundleId && bundle.appName) return;
+      const bundleInfo = await readIosBundleInfo(bundle.installPath);
+      bundle.bundleId = bundle.bundleId ?? bundleInfo.bundleId;
+      bundle.appName = bundle.appName ?? bundleInfo.appName;
+    }),
+  );
+}
+
+function resolveIosPayloadBundleByHint(
+  bundles: IosPayloadAppBundle[],
+  hint: string,
+): IosPayloadAppBundle | undefined {
+  const hintLower = hint.toLowerCase();
+  const directNameMatches = bundles.filter((bundle) => bundle.bundleName.toLowerCase() === hintLower);
+  if (directNameMatches.length === 1) return directNameMatches[0];
+  if (directNameMatches.length > 1) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid IPA: multiple app bundles matched "${hint}" by name. Use a bundle id hint instead.`,
+    );
+  }
+
+  if (hint.includes('.')) {
+    const bundleIdMatches = bundles.filter((bundle) => bundle.bundleId?.toLowerCase() === hintLower);
+    if (bundleIdMatches.length === 1) return bundleIdMatches[0];
+  }
+
+  return undefined;
+}
+
+function formatIosPayloadBundleDetails(bundle: IosPayloadAppBundle): string {
+  const identity = bundle.bundleId ?? bundle.appName;
+  if (identity) return `${bundle.bundleName}.app (${identity})`;
+  return `${bundle.bundleName}.app`;
+}

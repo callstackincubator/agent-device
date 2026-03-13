@@ -284,15 +284,98 @@ test('listAndroidApps user-installed excludes non-launchable packages', async ()
 });
 
 test('installAndroidApp installs .apk via adb install -r', async () => {
+  const apkPath = path.join(os.tmpdir(), `agent-device-test-${Date.now()}.apk`);
+  await fs.writeFile(apkPath, 'placeholder', 'utf8');
   await withMockedAdb(
     'agent-device-android-install-apk-',
     '#!/bin/sh\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
     async ({ argsLogPath, device }) => {
-      await installAndroidApp(device, '/tmp/Sample.apk');
+      await installAndroidApp(device, apkPath);
       const logged = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').join(' ');
-      assert.match(logged, /install -r \/tmp\/Sample\.apk/);
+      assert.match(logged, /install -r .*agent-device-test-.*\.apk/);
     },
   );
+  await fs.rm(apkPath, { force: true });
+});
+
+test('installAndroidApp resolves packageName and launchTarget from nested archive artifacts', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-archive-'));
+  const adbPath = path.join(tmpDir, 'adb');
+  const dittoPath = path.join(tmpDir, 'ditto');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const installMarkerPath = path.join(tmpDir, 'installed.marker');
+  const archivePath = path.join(tmpDir, 'Sample.zip');
+  await fs.writeFile(archivePath, 'placeholder', 'utf8');
+
+  await fs.writeFile(
+    adbPath,
+    [
+      '#!/bin/sh',
+      'printf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ]; then',
+      `  if [ -f "${installMarkerPath}" ]; then`,
+      '    echo "package:com.example.archive"',
+      '  fi',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "install" ] && [ "$2" = "-r" ]; then',
+      `  : > "${installMarkerPath}"`,
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(adbPath, 0o755);
+  await fs.writeFile(
+    dittoPath,
+    [
+      '#!/bin/sh',
+      'mkdir -p "$4/nested/apk"',
+      'cat > "$4/nested/apk/AndroidManifest.xml" <<\'XML\'',
+      '<manifest package="com.example.archive" />',
+      'XML',
+      '(cd "$4/nested/apk" && zip -qr ../Sample.apk AndroidManifest.xml)',
+      'rm -rf "$4/nested/apk"',
+      'exit 0',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(dittoPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    const result = await installAndroidApp(device, archivePath);
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.equal(result.archivePath, archivePath);
+    assert.equal(result.packageName, 'com.example.archive');
+    assert.equal(result.appName, 'Archive');
+    assert.equal(result.launchTarget, 'com.example.archive');
+    assert.equal(result.installablePath.endsWith('/nested/Sample.apk'), true);
+    assert.match(logged, /adb -s emulator-5554 install -r .*nested\/Sample\.apk/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('installAndroidApp installs .aab via bundletool build-apks + install-apks', async () => {

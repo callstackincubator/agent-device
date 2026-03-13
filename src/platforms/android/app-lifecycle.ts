@@ -8,6 +8,7 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { adbArgs } from './adb.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
+import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -487,11 +488,56 @@ async function installAndroidAppFiles(device: DeviceInfo, appPath: string): Prom
   await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
 }
 
-export async function installAndroidApp(device: DeviceInfo, appPath: string): Promise<void> {
+async function listInstalledAndroidPackages(device: DeviceInfo): Promise<Set<string>> {
+  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages']));
+  return new Set(
+    result.stdout
+      .split('\n')
+      .map((line: string) => line.replace('package:', '').trim())
+      .filter(Boolean),
+  );
+}
+
+async function resolveInstalledAndroidPackageName(
+  device: DeviceInfo,
+  beforePackages: Set<string>,
+): Promise<string | undefined> {
+  const afterPackages = await listInstalledAndroidPackages(device);
+  const installedNow = Array.from(afterPackages).filter((pkg) => !beforePackages.has(pkg));
+  if (installedNow.length === 1) return installedNow[0];
+  return undefined;
+}
+
+export async function installAndroidInstallablePath(device: DeviceInfo, installablePath: string): Promise<void> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }
-  await installAndroidAppFiles(device, appPath);
+  await installAndroidAppFiles(device, installablePath);
+}
+
+export async function installAndroidApp(
+  device: DeviceInfo,
+  appPath: string,
+): Promise<{ archivePath?: string; installablePath: string; packageName?: string; appName?: string; launchTarget?: string }> {
+  if (!device.booted) {
+    await waitForAndroidBoot(device.id);
+  }
+  const beforePackages = await listInstalledAndroidPackages(device);
+  const prepared = await prepareAndroidInstallArtifact({ kind: 'path', path: appPath });
+  try {
+    await installAndroidInstallablePath(device, prepared.installablePath);
+    const packageName = prepared.packageName ?? (await resolveInstalledAndroidPackageName(device, beforePackages));
+    const appName = packageName ? inferAndroidAppName(packageName) : undefined;
+    return {
+      archivePath: prepared.archivePath,
+      installablePath: prepared.installablePath,
+      packageName,
+      appName,
+      launchTarget: packageName,
+    };
+  } finally {
+    await prepared.cleanup();
+  }
 }
 
 export async function reinstallAndroidApp(
@@ -503,6 +549,11 @@ export async function reinstallAndroidApp(
     await waitForAndroidBoot(device.id);
   }
   const { package: pkg } = await uninstallAndroidApp(device, app);
-  await installAndroidAppFiles(device, appPath);
-  return { package: pkg };
+  const prepared = await prepareAndroidInstallArtifact({ kind: 'path', path: appPath });
+  try {
+    await installAndroidInstallablePath(device, prepared.installablePath);
+    return { package: prepared.packageName ?? pkg };
+  } finally {
+    await prepared.cleanup();
+  }
 }

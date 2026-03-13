@@ -604,7 +604,7 @@ exit 0
 `,
     async ({ tmpDir, argsLogPath, device }) => {
     const appPath = path.join(tmpDir, 'Sample.app');
-    await fs.writeFile(appPath, 'placeholder', 'utf8');
+    await fs.mkdir(appPath, { recursive: true });
     const result = await reinstallIosApp(device, 'Demo', appPath);
     assert.equal(result.bundleId, 'com.example.demo');
 
@@ -672,7 +672,7 @@ exit 1
 `,
     async ({ tmpDir, argsLogPath, device }) => {
     const appPath = path.join(tmpDir, 'Sample.app');
-    await fs.writeFile(appPath, 'placeholder', 'utf8');
+    await fs.mkdir(appPath, { recursive: true });
     const result = await reinstallIosApp(device, 'Demo', appPath);
     assert.equal(result.bundleId, 'com.example.demo');
 
@@ -732,6 +732,95 @@ test('installIosApp on iOS physical device accepts .ipa and installs extracted .
     assert.equal(typeof installedPath, 'string');
     assert.equal(installedPath?.endsWith('/Payload/Sample.app'), true);
     assert.notEqual(installedPath, ipaPath);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installIosApp returns bundleId and launchTarget for nested archive sources', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-archive-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const dittoPath = path.join(tmpDir, 'ditto');
+  const plutilPath = path.join(tmpDir, 'plutil');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const archivePath = path.join(tmpDir, 'Sample.zip');
+  await fs.writeFile(archivePath, 'placeholder', 'utf8');
+
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.writeFile(
+    dittoPath,
+    [
+      '#!/bin/sh',
+      'src="$3"',
+      'out="$4"',
+      'case "$src" in',
+      '  *.zip)',
+      '    mkdir -p "$out/Build"',
+      '    printf "ipa" > "$out/Build/Sample.ipa"',
+      '    exit 0',
+      '    ;;',
+      '  *.ipa)',
+      '    mkdir -p "$out/Payload/Sample.app"',
+      '    exit 0',
+      '    ;;',
+      'esac',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(dittoPath, 0o755);
+  await fs.writeFile(
+    plutilPath,
+    [
+      '#!/bin/sh',
+      'key="$2"',
+      'last_arg=""',
+      'for arg in "$@"; do',
+      '  last_arg="$arg"',
+      'done',
+      'case "$key" in',
+      '  CFBundleIdentifier) echo "com.example.archive"; exit 0 ;;',
+      '  CFBundleDisplayName) echo "Archive App"; exit 0 ;;',
+      '  CFBundleName) echo "Archive App"; exit 0 ;;',
+      'esac',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(plutilPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    const result = await installIosApp(IOS_TEST_DEVICE, archivePath);
+    const args = (await fs.readFile(argsLogPath, 'utf8'))
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    assert.equal(result.archivePath, archivePath);
+    assert.equal(result.bundleId, 'com.example.archive');
+    assert.equal(result.appName, 'Archive App');
+    assert.equal(result.launchTarget, 'com.example.archive');
+    assert.equal(result.installablePath.endsWith('/Payload/Sample.app'), true);
+    const installIdx = args.indexOf('install');
+    assert.notEqual(installIdx, -1);
+    assert.equal(args[installIdx + 4]?.endsWith('/Payload/Sample.app'), true);
   } finally {
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) {

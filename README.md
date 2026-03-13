@@ -522,6 +522,8 @@ Environment selectors:
 - `AGENT_DEVICE_STATE_DIR=<path>` override daemon state directory (metadata, logs, session artifacts).
 - `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]` connect directly to a remote HTTP daemon and skip local daemon metadata/startup.
 - Remote daemon installs upload local artifacts through `POST /upload`; use a `remote:` path prefix when you need the daemon to read an existing server-side artifact path as-is.
+- HTTP JSON-RPC also exposes `agent_device.install_from_source` for typed host-side download/materialize/install flows. It accepts `{ platform, source: { kind: "url" | "path", ... }, session?, requestId? }` and returns normalized app identity (`packageName`/`bundleId`, `launchTarget`, and materialized paths).
+- `AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS=<ms>` timeout for host-side `install_from_source` URL downloads (default: `120000`).
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>` auth token for remote HTTP daemon mode; sent in both the JSON-RPC request token and HTTP auth headers (`Authorization: Bearer` and `x-agent-device-token`).
 - `AGENT_DEVICE_DAEMON_SERVER_MODE=socket|http|dual` daemon server mode. `http` and `dual` expose JSON-RPC 2.0 at `POST /rpc` (`GET /health` available for liveness).
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
