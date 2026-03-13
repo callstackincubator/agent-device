@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-218/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-218/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-218/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-218/static/js/index.6d72a065.js"></script>
+<script defer src="/agent-device/pr-preview/pr-218/static/js/index.dc50cbdb.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -48,7 +48,7 @@
 <li>Tenant-scoped daemon runs can pass <code>--tenant</code>, <code>--session-isolation tenant</code>, <code>--run-id</code>, and <code>--lease-id</code> to enforce lease admission.</li>
 <li>Remote daemon clients can pass <code>--daemon-base-url http(s)://host:port[/base-path]</code> to skip local daemon discovery/startup and call a remote HTTP daemon directly.</li>
 <li>Use <code>--daemon-auth-token &lt;token&gt;</code> (or <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.</li>
-<li><code>runtime set|show|clear</code> manages session-scoped runtime hints for remote/native daemon flows. Supported hints include <code>--metro-host</code>, <code>--metro-port</code>, <code>--bundle-url</code>, and <code>--launch-url</code>. Android applies Metro hints through React Native dev prefs before <code>open</code>, and iOS simulators apply them through app defaults before launch.</li>
+<li><code>runtime set|show|clear</code> manages session-scoped runtime hints for remote/native daemon flows. Supported hints include <code>--metro-host</code>, <code>--metro-port</code>, <code>--bundle-url</code>, and <code>--launch-url</code>. Typed daemon clients can also pass <code>runtime: { ... }</code> on <code>open</code> to replace the stored session runtime atomically for that launch. Android applies Metro hints through React Native dev prefs before <code>open</code>, and iOS simulators apply them through app defaults before launch.</li>
 <li>Android React Native relaunch flows require an installed package name for <code>open --relaunch</code>; install/reinstall the APK first, then relaunch by package. <code>open &lt;apk|aab&gt; --relaunch</code> is rejected because runtime hints are written through the installed app sandbox.</li>
 <li>Remote daemon screenshots and recordings are downloaded back to the caller path, so <code>screenshot page.png</code> and <code>record start session.mp4</code> remain usable when the daemon runs on another host.</li>
 </ul>
