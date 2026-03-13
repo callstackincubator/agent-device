@@ -128,6 +128,8 @@ test('reinstall succeeds on active iOS physical device session', async () => {
     assert.equal(response.data?.appId, 'com.example.app');
     assert.equal(response.data?.bundleId, 'com.example.app');
     assert.equal(response.data?.appPath, appPath);
+    assert.equal(response.data?.archivePath, undefined);
+    assert.equal(response.data?.installablePath, undefined);
   }
 });
 
@@ -176,6 +178,8 @@ test('reinstall succeeds on active iOS simulator session and records action', as
     assert.equal(response.data?.appId, 'com.example.app');
     assert.equal(response.data?.bundleId, 'com.example.app');
     assert.equal(response.data?.appPath, appPath);
+    assert.equal(response.data?.archivePath, undefined);
+    assert.equal(response.data?.installablePath, undefined);
   }
   assert.equal(session.actions.length, 1);
   assert.equal(session.actions[0]?.command, 'reinstall');
@@ -228,6 +232,8 @@ test('reinstall succeeds on active Android session with normalized appId', async
     assert.equal(response.data?.appId, 'com.example.app');
     assert.equal(response.data?.package, 'com.example.app');
     assert.equal(response.data?.appPath, appPath);
+    assert.equal(response.data?.archivePath, undefined);
+    assert.equal(response.data?.installablePath, undefined);
   }
 });
 
@@ -299,6 +305,8 @@ test('install succeeds on active iOS simulator session and records action', asyn
     assert.equal(response.data?.appId, 'com.example.app');
     assert.equal(response.data?.bundleId, 'com.example.app');
     assert.equal(response.data?.appPath, appPath);
+    assert.equal(response.data?.archivePath, undefined);
+    assert.equal(response.data?.installablePath, undefined);
   }
   assert.equal(session.actions.length, 1);
   assert.equal(session.actions[0]?.command, 'install');
@@ -347,6 +355,8 @@ test('install omits app id fields when platform op cannot resolve them', async (
     assert.equal(response.data?.appId, undefined);
     assert.equal(response.data?.package, undefined);
     assert.equal(response.data?.appPath, appPath);
+    assert.equal(response.data?.archivePath, undefined);
+    assert.equal(response.data?.installablePath, undefined);
   }
 });
 

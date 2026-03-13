@@ -69,12 +69,12 @@ type AppDeployOps = {
     device: DeviceInfo,
     app: string,
     appPath: string,
-  ) => Promise<{ archivePath?: string; installablePath?: string; bundleId?: string; appName?: string; launchTarget?: string }>;
+  ) => Promise<{ bundleId?: string; appName?: string; launchTarget?: string }>;
   android: (
     device: DeviceInfo,
     app: string,
     appPath: string,
-  ) => Promise<{ archivePath?: string; installablePath?: string; package?: string; appName?: string; launchTarget?: string }>;
+  ) => Promise<{ package?: string; appName?: string; launchTarget?: string }>;
 };
 
 type InstallOps = AppDeployOps;
@@ -82,8 +82,6 @@ type InstallOps = AppDeployOps;
 type DeployCommandResultBase = {
   app: string;
   appPath: string;
-  archivePath?: string;
-  installablePath?: string;
   appName?: string;
   launchTarget?: string;
 };
@@ -523,8 +521,6 @@ const defaultInstallOps: InstallOps = {
     const { installIosApp } = await import('../../platforms/ios/index.ts');
     const result = await installIosApp(device, appPath, { appIdentifierHint: app });
     return {
-      archivePath: result.archivePath,
-      installablePath: result.installablePath,
       bundleId: result.bundleId,
       appName: result.appName,
       launchTarget: result.launchTarget,
@@ -534,8 +530,6 @@ const defaultInstallOps: InstallOps = {
     const { installAndroidApp } = await import('../../platforms/android/index.ts');
     const result = await installAndroidApp(device, appPath);
     return {
-      archivePath: result.archivePath,
-      installablePath: result.installablePath,
       package: result.packageName,
       appName: result.appName,
       launchTarget: result.launchTarget,
@@ -602,8 +596,6 @@ async function handleAppDeployCommand(params: {
           appPath,
           platform: 'ios',
           appId: bundleId,
-          archivePath: iosResult.archivePath,
-          installablePath: iosResult.installablePath,
           bundleId,
           appName: iosResult.appName,
           launchTarget: iosResult.launchTarget,
@@ -612,8 +604,6 @@ async function handleAppDeployCommand(params: {
           app,
           appPath,
           platform: 'ios',
-          archivePath: iosResult.archivePath,
-          installablePath: iosResult.installablePath,
           appName: iosResult.appName,
           launchTarget: iosResult.launchTarget,
         };
@@ -626,8 +616,6 @@ async function handleAppDeployCommand(params: {
           appPath,
           platform: 'android',
           appId: pkg,
-          archivePath: androidResult.archivePath,
-          installablePath: androidResult.installablePath,
           package: pkg,
           packageName: pkg,
           appName: androidResult.appName,
@@ -637,8 +625,6 @@ async function handleAppDeployCommand(params: {
           app,
           appPath,
           platform: 'android',
-          archivePath: androidResult.archivePath,
-          installablePath: androidResult.installablePath,
           appName: androidResult.appName,
           launchTarget: androidResult.launchTarget,
         };

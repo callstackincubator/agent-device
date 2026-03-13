@@ -85,8 +85,6 @@ export async function handleInstallFromSourceCommand(params: {
           throw new AppError('COMMAND_FAILED', 'Installed iOS app identity could not be resolved from the artifact');
         }
         const result = {
-          ...(prepared.archivePath ? { archivePath: prepared.archivePath } : {}),
-          installablePath: prepared.installablePath,
           bundleId: prepared.bundleId,
           ...(prepared.appName ? { appName: prepared.appName } : {}),
           launchTarget: prepared.bundleId,
@@ -115,8 +113,6 @@ export async function handleInstallFromSourceCommand(params: {
       }
       const { inferAndroidAppName } = await import('../../platforms/android/index.ts');
       const result = {
-        ...(prepared.archivePath ? { archivePath: prepared.archivePath } : {}),
-        installablePath: prepared.installablePath,
         packageName: prepared.packageName,
         appName: inferAndroidAppName(prepared.packageName),
         launchTarget: prepared.packageName,
