@@ -116,13 +116,13 @@ test('batch --steps-file rejects invalid JSON payload', async () => {
   assert.match(result.stderr, /Batch steps must be valid JSON/);
 });
 
-test('batch strips conflicting step selectors in session-locked strip mode', async () => {
+test('batch strips conflicting step selectors when bound session uses strip mode', async () => {
+  const previousSession = process.env.AGENT_DEVICE_SESSION;
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
-  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
-  const previousConflicts = process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS;
+  const previousLock = process.env.AGENT_DEVICE_SESSION_LOCK;
+  process.env.AGENT_DEVICE_SESSION = 'qa-ios';
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
-  process.env.AGENT_DEVICE_SESSION_LOCKED = '1';
-  process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS = 'strip';
+  process.env.AGENT_DEVICE_SESSION_LOCK = 'strip';
 
   try {
     const result = await runCliCapture([
@@ -138,12 +138,12 @@ test('batch strips conflicting step selectors in session-locked strip mode', asy
     assert.equal(stepFlags.target, undefined);
     assert.equal(stepFlags.serial, undefined);
   } finally {
+    if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
+    else process.env.AGENT_DEVICE_SESSION = previousSession;
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
-    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
-    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
-    if (previousConflicts === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS;
-    else process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS = previousConflicts;
+    if (previousLock === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCK;
+    else process.env.AGENT_DEVICE_SESSION_LOCK = previousLock;
   }
 });
 
@@ -182,8 +182,7 @@ test('batch session lock flags apply to nested steps without env configuration',
   try {
     const result = await runCliCapture([
       'batch',
-      '--session-locked',
-      '--session-lock-conflicts',
+      '--session-lock',
       'strip',
       '--steps',
       '[{"command":"snapshot","flags":{"target":"tv","serial":"emulator-5554"}}]',

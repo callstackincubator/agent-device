@@ -6,11 +6,10 @@ type BindingConflictMode = 'reject' | 'strip';
 
 type BindingSettings = {
   defaultPlatform?: CliFlags['platform'];
-  sessionLocked: boolean;
-  conflictMode: BindingConflictMode;
+  lockMode?: BindingConflictMode;
 };
 
-type BindingPolicyOverrides = Pick<Partial<CliFlags>, 'sessionLocked' | 'sessionLockConflicts'>;
+type BindingPolicyOverrides = Pick<Partial<CliFlags>, 'sessionLock' | 'sessionLocked' | 'sessionLockConflicts'>;
 
 type LockableFlags = Pick<
   Partial<CliFlags>,
@@ -44,7 +43,7 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
     nextFlags.platform = settings.defaultPlatform as T['platform'];
   }
 
-  if (!settings.sessionLocked) {
+  if (!settings.lockMode) {
     return nextFlags;
   }
 
@@ -67,7 +66,7 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
     return nextFlags;
   }
 
-  if (settings.conflictMode === 'strip') {
+  if (settings.lockMode === 'strip') {
     if (settings.defaultPlatform) {
       nextFlags.platform = settings.defaultPlatform as T['platform'];
     }
@@ -80,20 +79,38 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
   throw new AppError(
     'INVALID_ARGS',
     `${commandLabel} cannot override session-locked device binding with ${conflicts.join(', ')}. ` +
-      'Unset those selectors or disable AGENT_DEVICE_SESSION_LOCKED.',
+      'Unset those selectors or remove the bound-session lock policy.',
   );
 }
 
 function resolveBindingSettings(options: BindingOptions): BindingSettings {
   const env = options.env ?? process.env;
   const defaultPlatform = options.inheritedPlatform ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
-  const sessionLocked = options.policyOverrides?.sessionLocked ?? isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED);
-  const conflictMode = options.policyOverrides?.sessionLockConflicts ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+  const defaultSessionConfigured = hasConfiguredSession(env.AGENT_DEVICE_SESSION);
+  const lockMode = resolveLockMode(options.policyOverrides, env, defaultSessionConfigured);
   return {
     defaultPlatform,
-    sessionLocked,
-    conflictMode,
+    lockMode,
   };
+}
+
+function resolveLockMode(
+  overrides: BindingPolicyOverrides | undefined,
+  env: NodeJS.ProcessEnv,
+  defaultSessionConfigured: boolean,
+): BindingConflictMode | undefined {
+  const explicitPolicy =
+    overrides?.sessionLock
+    ?? overrides?.sessionLockConflicts
+    ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK)
+    ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+  if (explicitPolicy) {
+    return explicitPolicy;
+  }
+  if (overrides?.sessionLocked === true || isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED) || defaultSessionConfigured) {
+    return 'reject';
+  }
+  return undefined;
 }
 
 function readConfiguredPlatform(raw: string | undefined): CliFlags['platform'] | undefined {
@@ -109,16 +126,16 @@ function readConfiguredPlatform(raw: string | undefined): CliFlags['platform'] |
   );
 }
 
-function readConflictMode(raw: string | undefined): BindingConflictMode {
-  if (raw === undefined) return 'reject';
+function readConflictMode(raw: string | undefined): BindingConflictMode | undefined {
+  if (raw === undefined) return undefined;
   const value = raw.trim().toLowerCase();
-  if (!value) return 'reject';
+  if (!value) return undefined;
   if (value === 'reject' || value === 'strip') {
     return value;
   }
   throw new AppError(
     'INVALID_ARGS',
-    `Invalid AGENT_DEVICE_SESSION_LOCK_CONFLICTS: ${raw}. Use reject or strip.`,
+    `Invalid session lock mode: ${raw}. Use reject or strip.`,
   );
 }
 
@@ -133,6 +150,10 @@ function isEnvTruthy(raw: string | undefined): boolean {
     default:
       return false;
   }
+}
+
+function hasConfiguredSession(raw: string | undefined): boolean {
+  return typeof raw === 'string' && raw.trim().length > 0;
 }
 
 function flagNameForKey(key: keyof LockableFlags): string {

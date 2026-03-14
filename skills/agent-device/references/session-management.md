@@ -34,17 +34,19 @@ Use this when an external orchestrator must keep every CLI call on the same sess
 ```bash
 export AGENT_DEVICE_SESSION=qa-ios
 export AGENT_DEVICE_PLATFORM=ios
+export AGENT_DEVICE_SESSION_LOCK=strip
 
-agent-device --session-locked --session-lock-conflicts strip open MyApp --relaunch
-agent-device --session-locked snapshot -i
-agent-device --session-locked press @e3
-agent-device --session-locked close
+agent-device open MyApp --relaunch
+agent-device snapshot -i
+agent-device press @e3
+agent-device close
 ```
 
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` provide the default binding when `--session` and `--platform` are omitted.
-- `--session-locked` or `AGENT_DEVICE_SESSION_LOCKED=1` enables lock policy enforcement for the request.
-- `--session-lock-conflicts reject|strip` or `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=reject|strip` controls whether conflicting selectors fail or are ignored.
+- A configured `AGENT_DEVICE_SESSION` enables lock policy enforcement by convention. The default mode is `reject`.
+- `--session-lock reject|strip` or `AGENT_DEVICE_SESSION_LOCK=reject|strip` controls whether conflicting selectors fail or are ignored.
 - Conflicts include explicit retargeting selectors such as `--platform`, `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`.
+- `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` remain supported as compatibility aliases.
 - Lock policy applies to nested `batch` steps too. If a step omits `platform`, it still inherits the parent batch `--platform` instead of being silently replaced by an environment default.
 
 ## Scoped device isolation

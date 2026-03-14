@@ -25,12 +25,24 @@ test('rejects conflicting platform override in session-locked mode', () => {
   );
 });
 
+test('default session binding implies reject-mode locking by convention', () => {
+  assert.throws(
+    () => applyConfiguredSessionBinding('snapshot', { device: 'Pixel 9' }, {
+      env: {
+        AGENT_DEVICE_SESSION: 'qa-ios',
+        AGENT_DEVICE_PLATFORM: 'ios',
+      } as NodeJS.ProcessEnv,
+    }),
+    /--device=Pixel 9/i,
+  );
+});
+
 test('rejects explicit platform in session-locked mode without configured default', () => {
   assert.throws(
     () => applyConfiguredSessionBinding('snapshot', { platform: 'android' }, {
       env: {} as NodeJS.ProcessEnv,
       policyOverrides: {
-        sessionLocked: true,
+        sessionLock: 'reject',
       },
     }),
     /--platform=android/i,
@@ -92,13 +104,28 @@ test('policy overrides take precedence over environment lock settings', () => {
       AGENT_DEVICE_SESSION_LOCK_CONFLICTS: 'reject',
     } as NodeJS.ProcessEnv,
     policyOverrides: {
-      sessionLocked: true,
-      sessionLockConflicts: 'strip',
+      sessionLock: 'strip',
     },
   });
 
   assert.equal(flags.platform, 'ios');
   assert.equal(flags.device, undefined);
+});
+
+test('single session lock env enables strip mode by convention', () => {
+  const flags = applyConfiguredSessionBinding<{
+    platform?: 'ios' | 'android' | 'apple';
+    serial?: string;
+  }>('snapshot', { serial: 'emulator-5554' }, {
+    env: {
+      AGENT_DEVICE_SESSION: 'qa-android',
+      AGENT_DEVICE_PLATFORM: 'android',
+      AGENT_DEVICE_SESSION_LOCK: 'strip',
+    } as NodeJS.ProcessEnv,
+  });
+
+  assert.equal(flags.platform, 'android');
+  assert.equal(flags.serial, undefined);
 });
 
 test('inherited platform takes precedence over env default for batch-style step normalization', () => {

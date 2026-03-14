@@ -208,11 +208,11 @@ test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => 
   }
 });
 
-test('cli rejects conflicting selectors in session-locked mode before dispatch', async () => {
+test('cli rejects conflicting selectors when bound session defaults imply lock mode', async () => {
+  const previousSession = process.env.AGENT_DEVICE_SESSION;
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
-  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  process.env.AGENT_DEVICE_SESSION = 'qa-ios';
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
-  process.env.AGENT_DEVICE_SESSION_LOCKED = '1';
   try {
     const result = await runCliCapture(['snapshot', '--device', 'Pixel 9', '--json'], async () => ({
       ok: true,
@@ -225,20 +225,20 @@ test('cli rejects conflicting selectors in session-locked mode before dispatch',
     assert.equal(payload.error.code, 'INVALID_ARGS');
     assert.match(payload.error.message, /session-locked device binding/i);
   } finally {
+    if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
+    else process.env.AGENT_DEVICE_SESSION = previousSession;
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
-    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
-    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
   }
 });
 
-test('cli session lock flags override environment for a single invocation', async () => {
+test('cli session lock flag overrides environment for a single invocation', async () => {
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
   const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
   process.env.AGENT_DEVICE_SESSION_LOCKED = '0';
   try {
-    const result = await runCliCapture(['snapshot', '--session-locked', '--device', 'Pixel 9', '--json'], async () => ({
+    const result = await runCliCapture(['snapshot', '--session-lock', 'reject', '--device', 'Pixel 9', '--json'], async () => ({
       ok: true,
       data: {},
     }));

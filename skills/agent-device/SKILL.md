@@ -35,8 +35,8 @@ Use this skill as a router, not a full manual.
 - Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
 - Android React Native + Metro flows: set runtime hints with `runtime set` before `open <package> --relaunch`.
 - In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
-- For session-bound automation runs, prefer a pre-bound session/platform with lock mode instead of repeating selectors on every command: set `AGENT_DEVICE_SESSION`, set `AGENT_DEVICE_PLATFORM`, then use `--session-locked` or `AGENT_DEVICE_SESSION_LOCKED=1`.
-- Use `--session-lock-conflicts reject|strip` (or `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`) to decide whether conflicting selectors fail fast or are ignored. Lock mode applies to nested `batch` steps too.
+- For session-bound automation runs, prefer a pre-bound session/platform instead of repeating selectors on every command: set `AGENT_DEVICE_SESSION`, set `AGENT_DEVICE_PLATFORM`, and the CLI will lock the run by convention.
+- Use `--session-lock reject|strip` (or `AGENT_DEVICE_SESSION_LOCK`) only when you need to override the default reject behavior. Lock mode applies to nested `batch` steps too.
 
 ## Canonical Flows
 
@@ -80,11 +80,12 @@ Do not use `open <apk|aab> --relaunch` on Android. Install/reinstall binaries fi
 ```bash
 export AGENT_DEVICE_SESSION=qa-ios
 export AGENT_DEVICE_PLATFORM=ios
+export AGENT_DEVICE_SESSION_LOCK=strip
 
-agent-device --session-locked --session-lock-conflicts strip open MyApp --relaunch
-agent-device --session-locked snapshot -i
-agent-device --session-locked batch --steps-file /tmp/qa-steps.json --json
-agent-device --session-locked close
+agent-device open MyApp --relaunch
+agent-device snapshot -i
+agent-device batch --steps-file /tmp/qa-steps.json --json
+agent-device close
 ```
 
 Use this for orchestrators that must preserve one bound session/device across many plain CLI calls without a wrapper script. In `strip` mode, conflicting selectors such as `--target`, `--device`, `--udid`, `--serial`, and isolation-scope overrides are ignored instead of retargeting the run.
@@ -168,14 +169,14 @@ For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
 For Android React Native + Metro flows, install or reinstall the APK first, set runtime hints with `runtime set`, then use `open <package> --relaunch`; do not use `open <apk|aab> --relaunch`.
 For local iOS QA in mixed simulator/device environments, use `ensure-simulator` and pass `--device` or `--udid` so automation does not attach to a physical device by accident.
-For session-bound automation, prefer `AGENT_DEVICE_SESSION` + `AGENT_DEVICE_PLATFORM` with `--session-locked` instead of repeating selectors on every command.
+For session-bound automation, prefer `AGENT_DEVICE_SESSION` + `AGENT_DEVICE_PLATFORM`; that bound-session default now enables lock mode automatically.
 
 Isolation scoping quick reference:
 - `--ios-simulator-device-set <path>` scopes iOS simulator discovery + command execution to one simulator set.
 - `--android-device-allowlist <serials>` scopes Android discovery/selection to comma/space separated serials.
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`); out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
 - With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
-- In session-locked `strip` mode, conflicting per-call scope/selectors are ignored and the configured binding is restored for the request. Batch steps still inherit the parent `--platform` when they do not set their own.
+- In bound-session `strip` mode, conflicting per-call scope/selectors are ignored and the configured binding is restored for the request. Batch steps still inherit the parent `--platform` when they do not set their own.
 
 Simulator provisioning quick reference:
 - Use `ensure-simulator` to create or reuse a named iOS simulator inside a device set before starting a session.

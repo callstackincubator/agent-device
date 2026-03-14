@@ -11,6 +11,7 @@ export type CliFlags = {
   sessionIsolation?: 'none' | 'tenant';
   runId?: string;
   leaseId?: string;
+  sessionLock?: 'reject' | 'strip';
   sessionLocked?: boolean;
   sessionLockConflicts?: 'reject' | 'strip';
   platform?: 'ios' | 'android' | 'apple';
@@ -174,11 +175,19 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Lease identifier bound to tenant/run admission scope',
   },
   {
+    key: 'sessionLock',
+    names: ['--session-lock'],
+    type: 'enum',
+    enumValues: ['reject', 'strip'],
+    usageLabel: '--session-lock reject|strip',
+    usageDescription: 'Lock bound-session device routing for this CLI invocation and nested batch steps',
+  },
+  {
     key: 'sessionLocked',
     names: ['--session-locked'],
     type: 'boolean',
     usageLabel: '--session-locked',
-    usageDescription: 'Reject or strip conflicting device selectors for this CLI invocation and its batch steps',
+    usageDescription: 'Deprecated alias for --session-lock reject',
   },
   {
     key: 'sessionLockConflicts',
@@ -186,7 +195,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     enumValues: ['reject', 'strip'],
     usageLabel: '--session-lock-conflicts reject|strip',
-    usageDescription: 'Conflict handling mode for session-locked CLI runs',
+    usageDescription: 'Deprecated alias for --session-lock',
   },
   {
     key: 'platform',
@@ -553,6 +562,7 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'sessionIsolation',
   'runId',
   'leaseId',
+  'sessionLock',
   'sessionLocked',
   'sessionLockConflicts',
   'help',
