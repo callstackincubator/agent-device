@@ -136,6 +136,12 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
   assert.equal(parsed.flags.leaseId, 'abcd1234ef567890');
 });
 
+test('parseArgs recognizes explicit config file flag', () => {
+  const parsed = parseArgs(['open', 'settings', '--config', './agent-device.json'], { strictFlags: true });
+  assert.equal(parsed.command, 'open');
+  assert.equal(parsed.flags.config, './agent-device.json');
+});
+
 test('parseArgs recognizes session lock policy flag', () => {
   const parsed = parseArgs([
     'snapshot',

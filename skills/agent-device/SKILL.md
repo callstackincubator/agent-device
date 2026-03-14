@@ -178,6 +178,9 @@ agent-device session list
 ```
 
 Use `boot` only as fallback when `open` cannot find/connect to a ready target.
+If the workspace repeats the same selectors or device/session flags, prefer a checked-in `agent-device.json` or `--config <path>` over repeating them inline.
+Environment-level defaults follow the same fields via `AGENT_DEVICE_*` names, so persistent host-specific values belong there rather than in committed project config.
+That includes bound-session defaults such as `sessionLock` / `AGENT_DEVICE_SESSION_LOCK` when automation should consistently reject or strip conflicting device routing flags.
 For Android emulators by AVD name, use `boot --platform android --device <avd-name>`.
 For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).

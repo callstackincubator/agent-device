@@ -6,6 +6,8 @@ title: Commands
 
 This page summarizes the primary command groups.
 
+For persistent defaults and project-scoped CLI settings, see [Configuration](/docs/configuration).
+
 ## Navigation
 
 ```bash

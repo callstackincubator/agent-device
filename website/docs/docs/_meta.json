@@ -20,6 +20,11 @@
     "label": "Commands"
   },
   {
+    "name": "configuration",
+    "type": "file",
+    "label": "Configuration"
+  },
+  {
     "name": "batching",
     "type": "file",
     "label": "Batching"

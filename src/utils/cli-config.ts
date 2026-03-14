@@ -1,0 +1,144 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { AppError } from './errors.ts';
+import {
+  type CliFlags,
+  type FlagKey,
+} from './command-schema.ts';
+import {
+  getConfigurableFlagDefinitions,
+  getEnvVarNamesForFlag,
+  getFlagDefinitionByKey,
+  isFlagConfigurable,
+  parseFlagValueFromSource,
+} from './cli-option-schema.ts';
+
+type EnvMap = Record<string, string | undefined>;
+
+export function resolveConfigBackedFlagDefaults(options: {
+  command: string | null;
+  cwd: string;
+  cliFlags: CliFlags;
+  env?: EnvMap;
+}): Partial<CliFlags> {
+  const env = options.env ?? process.env;
+  const defaults = mergeDefinedFlags(
+    {} as Partial<CliFlags>,
+    loadConfigFileDefaults(resolveConfigPaths(options.cwd, options.cliFlags.config, env)),
+  );
+  return mergeDefinedFlags(defaults, readEnvFlagDefaults(env, options.command));
+}
+
+function resolveConfigPaths(
+  cwd: string,
+  explicitCliConfigPath: string | undefined,
+  env: EnvMap,
+): Array<{ path: string; required: boolean }> {
+  const explicitConfig = explicitCliConfigPath ?? env.AGENT_DEVICE_CONFIG;
+  if (explicitConfig) {
+    return [{ path: resolveInputPath(explicitConfig, cwd, env), required: true }];
+  }
+  return [
+    { path: resolveUserConfigPath(env), required: false },
+    { path: path.resolve(cwd, 'agent-device.json'), required: false },
+  ];
+}
+
+function resolveUserConfigPath(env: EnvMap): string {
+  const home = env.HOME?.trim() || os.homedir();
+  return path.join(home, '.agent-device', 'config.json');
+}
+
+function resolveInputPath(inputPath: string, cwd: string, env: EnvMap): string {
+  if (path.isAbsolute(inputPath)) return inputPath;
+  if (inputPath.startsWith('~')) {
+    return path.join(env.HOME?.trim() || os.homedir(), inputPath.slice(1));
+  }
+  return path.resolve(cwd, inputPath);
+}
+
+function loadConfigFileDefaults(pathsToCheck: Array<{ path: string; required: boolean }>): Partial<CliFlags> {
+  const merged: Partial<CliFlags> = {};
+  for (const entry of pathsToCheck) {
+    const parsed = loadSingleConfigFile(entry.path, entry.required);
+    mergeDefinedFlags(merged, parsed);
+  }
+  return merged;
+}
+
+function loadSingleConfigFile(filePath: string, required: boolean): Partial<CliFlags> {
+  if (!fs.existsSync(filePath)) {
+    if (required) {
+      throw new AppError('INVALID_ARGS', `Config file not found: ${filePath}`);
+    }
+    return {};
+  }
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    throw new AppError('INVALID_ARGS', `Failed to read config file: ${filePath}`, {
+      cause: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new AppError('INVALID_ARGS', `Invalid JSON in config file: ${filePath}`, {
+      cause: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new AppError('INVALID_ARGS', `Config file must contain a JSON object: ${filePath}`);
+  }
+
+  return parseConfigObject(parsed as Record<string, unknown>, `config file ${filePath}`);
+}
+
+function parseConfigObject(source: Record<string, unknown>, sourceLabel: string): Partial<CliFlags> {
+  const flags: Partial<CliFlags> = {};
+  for (const [rawKey, rawValue] of Object.entries(source)) {
+    const key = rawKey as FlagKey;
+    if (!isFlagConfigurable(key)) {
+      throw new AppError('INVALID_ARGS', `Unsupported config key "${rawKey}" in ${sourceLabel}.`);
+    }
+    const definition = getFlagDefinitionByKey(key);
+    if (!definition) {
+      throw new AppError('INVALID_ARGS', `Unknown config key "${rawKey}" in ${sourceLabel}.`);
+    }
+    (flags as Record<string, unknown>)[key] = parseFlagValueFromSource(definition, rawValue, sourceLabel, rawKey);
+  }
+  return flags;
+}
+
+function readEnvFlagDefaults(env: EnvMap, command: string | null): Partial<CliFlags> {
+  const flags: Partial<CliFlags> = {};
+  for (const definition of getConfigurableFlagDefinitions(command)) {
+    const envNames = getEnvVarNamesForFlag(definition.key);
+    const envValue = envNames
+      .map((name) => ({ name, value: env[name] }))
+      .find((entry) => typeof entry.value === 'string' && entry.value.trim().length > 0);
+    if (!envValue) continue;
+    (flags as Record<string, unknown>)[definition.key] = parseFlagValueFromSource(
+      definition,
+      envValue.value as string,
+      `environment variable ${envValue.name}`,
+      envValue.name,
+    );
+  }
+  return flags;
+}
+
+function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+  for (const [key, value] of Object.entries(source)) {
+    if (value !== undefined) {
+      target[key as keyof T] = value as T[keyof T];
+    }
+  }
+  return target;
+}
