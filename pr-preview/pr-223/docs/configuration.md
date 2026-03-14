@@ -62,6 +62,9 @@ Common keys include:
 - `sessionIsolation`
 - `runId`
 - `leaseId`
+- `sessionLock`
+- `sessionLocked`
+- `sessionLockConflicts`
 - `platform`
 - `target`
 - `device`
@@ -74,6 +77,12 @@ Common keys include:
 - `json`
 
 Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `stepsFile`, or `saveScript`.
+
+Bound-session defaults use the same config and env mapping too:
+
+- `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
+- `sessionLocked` -> `AGENT_DEVICE_SESSION_LOCKED`
+- `sessionLockConflicts` -> `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`
 
 ## Command-specific defaults
 

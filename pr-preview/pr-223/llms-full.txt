@@ -227,6 +227,12 @@ agent-device app-switcher
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
+- `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
+- A configured `AGENT_DEVICE_SESSION` now implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
+- `--session-lock reject|strip` sets the lock policy for a single CLI invocation, including nested batch steps.
+- `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. The older `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` forms remain supported as compatibility aliases.
+- Direct RPC callers can pass `meta.lockPolicy` and optional `meta.lockPlatform` on `agent_device.command` requests for the same daemon-enforced behavior.
+- In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
@@ -256,7 +262,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - Environment equivalents:
   - iOS: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
   - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
-- CLI scope flags override environment values.
+- CLI scope flags override environment values unless bound-session lock mode is active with `strip`, in which case conflicting per-call selectors are ignored.
 
 ## Device discovery
 
@@ -418,6 +424,7 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 - Each step has `command`, optional `positionals`, and optional `flags`.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.
+- Batch requests inherit the same daemon lock policy and session binding metadata as the parent command.
 
 See [Batching](/agent-device/pr-preview/pr-223/docs/batching.md) for payload format, response shape, and usage guidelines.
 
@@ -771,6 +778,9 @@ Common keys include:
 - `sessionIsolation`
 - `runId`
 - `leaseId`
+- `sessionLock`
+- `sessionLocked`
+- `sessionLockConflicts`
 - `platform`
 - `target`
 - `device`
@@ -783,6 +793,12 @@ Common keys include:
 - `json`
 
 Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `stepsFile`, or `saveScript`.
+
+Bound-session defaults use the same config and env mapping too:
+
+- `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
+- `sessionLocked` -> `AGENT_DEVICE_SESSION_LOCKED`
+- `sessionLockConflicts` -> `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`
 
 ## Command-specific defaults
 

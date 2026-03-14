@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-223/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-223/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-223/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-223/static/js/index.ed4e395a.js"></script>
+<script defer src="/agent-device/pr-preview/pr-223/static/js/index.d2ed26cf.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -97,6 +97,9 @@
 <li><code>sessionIsolation</code></li>
 <li><code>runId</code></li>
 <li><code>leaseId</code></li>
+<li><code>sessionLock</code></li>
+<li><code>sessionLocked</code></li>
+<li><code>sessionLockConflicts</code></li>
 <li><code>platform</code></li>
 <li><code>target</code></li>
 <li><code>device</code></li>
@@ -109,6 +112,12 @@
 <li><code>json</code></li>
 </ul>
 <p>Command-specific defaults are supported too, for example <code>snapshotDepth</code>, <code>snapshotScope</code>, <code>activity</code>, <code>relaunch</code>, <code>shutdown</code>, <code>fps</code>, <code>stepsFile</code>, or <code>saveScript</code>.</p>
+<p>Bound-session defaults use the same config and env mapping too:</p>
+<ul>
+<li><code>sessionLock</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK</code></li>
+<li><code>sessionLocked</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCKED</code></li>
+<li><code>sessionLockConflicts</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK_CONFLICTS</code></li>
+</ul>
 <h2 class="rp-toc-include" id="command-specific-defaults"><a href="#command-specific-defaults" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Command-specific defaults</h2>
 <p>Command-specific keys are applied only when the current command supports them.</p>
 <p>Examples:</p>
