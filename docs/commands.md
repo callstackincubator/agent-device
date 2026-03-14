@@ -2,6 +2,8 @@
 
 This page summarizes the primary command groups.
 
+For persistent defaults and project-scoped CLI settings, see [Configuration](/agent-device/docs/configuration.md).
+
 ## Navigation
 
 ```bash

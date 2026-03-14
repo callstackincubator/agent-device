@@ -11,7 +11,8 @@ For exploratory QA and bug-hunting workflows, see skills/dogfood/SKILL.md in thi
 
 - [](/agent-device/404.md)
 - [Batching](/agent-device/docs/batching.md): Use batch to run multiple commands in a single daemon request. This is useful for agent workflows that already know the next sequence of actions and want to reduce orchestration overhead.
-- [Commands](/agent-device/docs/commands.md): This page summarizes the primary command groups.
+- [Commands](/agent-device/docs/commands.md): This page summarizes the primary command groups. For persistent defaults and project-scoped CLI settings, see Configuration.
+- [Configuration](/agent-device/docs/configuration.md): Create an agent-device.json file to set persistent CLI defaults instead of repeating flags on every command.
 - [Installation](/agent-device/docs/installation.md)
 - [Known Limitations](/agent-device/docs/known-limitations.md): Platform constraints that affect automation behavior.
 - [Quick Start](/agent-device/docs/quick-start.md): Every device automation follows this pattern: Boot target if there is no ready device/simulator:
