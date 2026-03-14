@@ -180,6 +180,7 @@ Notes:
 - Config keys use the existing camelCase flag names, for example `stateDir`, `daemonAuthToken`, `iosSimulatorDeviceSet`, and `androidDeviceAllowlist`.
 - Environment overrides use `AGENT_DEVICE_*` uppercase snake case names, for example `AGENT_DEVICE_SESSION`, `AGENT_DEVICE_DAEMON_BASE_URL`, and `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET`.
 - Bound-session routing defaults also work through config or env, for example `sessionLock` / `AGENT_DEVICE_SESSION_LOCK`.
+- For options that have CLI aliases, config/env use the canonical value rather than the alias flag. Example: use `"appsFilter": "user-installed"` or `AGENT_DEVICE_APPS_FILTER=user-installed`, not `--user-installed`.
 - Command-specific defaults are applied only when that command supports them, so a `snapshotDepth` default does not break `open` or `devices`.
 
 Basic flow:
