@@ -17,6 +17,12 @@ type LockableFlags = Pick<
   'platform' | 'target' | 'device' | 'udid' | 'serial' | 'iosSimulatorDeviceSet' | 'androidDeviceAllowlist'
 >;
 
+type BindingOptions = {
+  env?: NodeJS.ProcessEnv;
+  policyOverrides?: BindingPolicyOverrides;
+  inheritedPlatform?: CliFlags['platform'];
+};
+
 const LOCKED_SELECTOR_KEYS: Array<keyof LockableFlags> = [
   'target',
   'device',
@@ -29,12 +35,9 @@ const LOCKED_SELECTOR_KEYS: Array<keyof LockableFlags> = [
 export function applyConfiguredSessionBinding<T extends LockableFlags>(
   commandLabel: string,
   flags: T,
-  options: {
-    env?: NodeJS.ProcessEnv;
-    policyOverrides?: BindingPolicyOverrides;
-  } = {},
+  options: BindingOptions = {},
 ): T {
-  const settings = resolveBindingSettings(options.policyOverrides, options.env);
+  const settings = resolveBindingSettings(options);
   const nextFlags = { ...flags };
 
   if (settings.defaultPlatform && nextFlags.platform === undefined) {
@@ -47,12 +50,10 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
 
   const conflicts: string[] = [];
   const normalizedConfiguredPlatform = normalizePlatformSelector(settings.defaultPlatform);
-  if (
-    settings.defaultPlatform
-    && flags.platform !== undefined
-    && normalizePlatformSelector(flags.platform) !== normalizedConfiguredPlatform
-  ) {
-    conflicts.push(`--platform=${flags.platform}`);
+  if (flags.platform !== undefined) {
+    if (!normalizedConfiguredPlatform || normalizePlatformSelector(flags.platform) !== normalizedConfiguredPlatform) {
+      conflicts.push(`--platform=${flags.platform}`);
+    }
   }
 
   for (const key of LOCKED_SELECTOR_KEYS) {
@@ -83,13 +84,11 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
   );
 }
 
-function resolveBindingSettings(
-  policyOverrides: BindingPolicyOverrides | undefined,
-  env: NodeJS.ProcessEnv = process.env,
-): BindingSettings {
-  const defaultPlatform = readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
-  const sessionLocked = policyOverrides?.sessionLocked ?? isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED);
-  const conflictMode = policyOverrides?.sessionLockConflicts ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+function resolveBindingSettings(options: BindingOptions): BindingSettings {
+  const env = options.env ?? process.env;
+  const defaultPlatform = options.inheritedPlatform ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
+  const sessionLocked = options.policyOverrides?.sessionLocked ?? isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED);
+  const conflictMode = options.policyOverrides?.sessionLockConflicts ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
   return {
     defaultPlatform,
     sessionLocked,

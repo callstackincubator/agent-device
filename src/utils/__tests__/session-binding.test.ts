@@ -25,6 +25,18 @@ test('rejects conflicting platform override in session-locked mode', () => {
   );
 });
 
+test('rejects explicit platform in session-locked mode without configured default', () => {
+  assert.throws(
+    () => applyConfiguredSessionBinding('snapshot', { platform: 'android' }, {
+      env: {} as NodeJS.ProcessEnv,
+      policyOverrides: {
+        sessionLocked: true,
+      },
+    }),
+    /--platform=android/i,
+  );
+});
+
 test('rejects explicit device selectors in session-locked mode', () => {
   assert.throws(
     () => applyConfiguredSessionBinding('open', { device: 'iPhone 16', udid: 'SIM-001' }, {
@@ -87,4 +99,17 @@ test('policy overrides take precedence over environment lock settings', () => {
 
   assert.equal(flags.platform, 'ios');
   assert.equal(flags.device, undefined);
+});
+
+test('inherited platform takes precedence over env default for batch-style step normalization', () => {
+  const flags = applyConfiguredSessionBinding<{
+    platform?: 'ios' | 'android' | 'apple';
+  }>('batch step 1 (snapshot)', {}, {
+    env: {
+      AGENT_DEVICE_PLATFORM: 'ios',
+    } as NodeJS.ProcessEnv,
+    inheritedPlatform: 'android',
+  });
+
+  assert.equal(flags.platform, 'android');
 });

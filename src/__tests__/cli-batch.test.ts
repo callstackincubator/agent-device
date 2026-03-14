@@ -202,3 +202,26 @@ test('batch session lock flags apply to nested steps without env configuration',
     else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
   }
 });
+
+test('batch step without explicit platform inherits parent platform over env default', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+
+  try {
+    const result = await runCliCapture([
+      'batch',
+      '--platform',
+      'android',
+      '--steps',
+      '[{"command":"snapshot"}]',
+      '--json',
+    ]);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
+    assert.equal(stepFlags.platform, 'android');
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+  }
+});

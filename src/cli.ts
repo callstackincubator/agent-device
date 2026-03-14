@@ -175,6 +175,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           (step.flags ?? {}) as Partial<typeof daemonFlags>,
           {
             policyOverrides: flags,
+            inheritedPlatform: flags.platform,
           },
         ),
       }));
