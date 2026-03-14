@@ -28,8 +28,10 @@ agent-device app-switcher
 - `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
-- `--session-locked` and `--session-lock-conflicts reject|strip` make the lock policy first-class for a single CLI invocation, including nested batch steps.
-- `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked mode for automation runs. Conflicting per-call device selectors, including `--target`, are rejected by default; set `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=strip` to ignore them instead.
+- A configured `AGENT_DEVICE_SESSION` now implies bound-session lock mode by default. Conflicting per-call device selectors, including `--target`, are rejected unless you opt into `strip`.
+- `--session-lock reject|strip` sets the lock policy for a single CLI invocation, including nested batch steps.
+- `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. The older `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` forms remain supported as compatibility aliases.
+- In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
@@ -59,7 +61,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - Environment equivalents:
   - iOS: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
   - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
-- CLI scope flags override environment values unless `AGENT_DEVICE_SESSION_LOCKED=1` is enabled and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=strip` is configured, in which case conflicting per-call selectors are ignored.
+- CLI scope flags override environment values unless bound-session lock mode is active with `strip`, in which case conflicting per-call selectors are ignored.
 
 ## Device discovery
 
