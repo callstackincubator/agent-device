@@ -50,6 +50,17 @@ curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
 ```
 
+Example session-locked command request:
+
+```bash
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":"cmd-1","method":"agent_device.command","params":{"session":"qa-ios","command":"snapshot","positionals":[],"meta":{"lockPolicy":"reject","lockPlatform":"ios","tenantId":"acme","runId":"run-123","leaseId":"<lease-id>"}}}'
+```
+
+Direct RPC callers can send the same session lock concept as the CLI and typed client through `meta.lockPolicy` and optional `meta.lockPlatform`.
+
 ## Command admission contract
 
 For tenant-isolated command execution, pass all four flags:

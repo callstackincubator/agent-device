@@ -50,6 +50,18 @@ agent-device close
 - `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` remain supported as compatibility aliases.
 - Lock policy applies to nested `batch` steps too. If a step omits `platform`, it still inherits the parent batch `--platform` instead of being silently replaced by an environment default.
 
+Android emulator variant:
+
+```bash
+export AGENT_DEVICE_SESSION=qa-android
+export AGENT_DEVICE_PLATFORM=android
+
+agent-device reinstall MyApp /path/to/app-debug.apk --serial emulator-5554
+agent-device --session-lock reject open com.example.myapp --relaunch
+agent-device snapshot -i
+agent-device close --shutdown
+```
+
 ## Scoped device isolation
 
 Use scoped discovery when sessions must not see host-global device lists.

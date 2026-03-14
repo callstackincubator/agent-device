@@ -90,6 +90,20 @@ agent-device close
 
 Use this for orchestrators that must preserve one bound session/device across many plain CLI calls without a wrapper script. In `strip` mode, conflicting selectors such as `--target`, `--device`, `--udid`, `--serial`, and isolation-scope overrides are ignored instead of retargeting the run.
 
+### 1d) Android Emulator Session-Bound Flow
+
+```bash
+export AGENT_DEVICE_SESSION=qa-android
+export AGENT_DEVICE_PLATFORM=android
+
+agent-device reinstall MyApp /path/to/app-debug.apk --serial emulator-5554
+agent-device --session-lock reject open com.example.myapp --relaunch
+agent-device snapshot -i
+agent-device close --shutdown
+```
+
+Use this when an Android emulator session must stay pinned while an agent or test runner issues plain CLI commands over time.
+
 ### 2) Debug/Crash Flow
 
 ```bash
