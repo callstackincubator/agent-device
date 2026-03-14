@@ -126,6 +126,27 @@ test('CLI merges config defaults with precedence user < project < env < CLI', as
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('config and env can set appsFilter through canonical enum values', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });
+  fs.writeFileSync(
+    path.join(project, 'agent-device.json'),
+    JSON.stringify({ appsFilter: 'user-installed' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(['apps', '--json'], {
+    cwd: project,
+    env: { HOME: home, AGENT_DEVICE_APPS_FILTER: 'all' },
+  });
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.flags?.appsFilter, 'all');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('command-specific config defaults are ignored for commands that do not support them', async () => {
   const { root, home, project } = makeTempWorkspace();
   fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });

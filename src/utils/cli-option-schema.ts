@@ -63,7 +63,7 @@ export function parseOptionValueFromSource(
   sourceLabel: string,
   rawKey: string,
 ): unknown {
-  const definition = primaryFlagDefinition(spec);
+  const definition = resolveSourceValueDefinition(spec);
   if (definition.type === 'boolean') {
     return parseBooleanValue(value, sourceLabel, rawKey);
   }
@@ -155,6 +155,24 @@ function primaryFlagDefinition(spec: OptionSpec): FlagDefinition {
     throw new Error(`Missing flag definition for option ${spec.key}`);
   }
   return definition;
+}
+
+function resolveSourceValueDefinition(spec: OptionSpec): FlagDefinition {
+  const explicitValueDefinition = spec.flagDefinitions.find((definition) => definition.setValue === undefined);
+  if (explicitValueDefinition) return explicitValueDefinition;
+
+  const baseDefinition = primaryFlagDefinition(spec);
+  if (baseDefinition.type === 'enum') {
+    const enumValues = spec.flagDefinitions
+      .map((definition) => definition.setValue)
+      .filter((value): value is NonNullable<typeof value> => value !== undefined);
+    return {
+      ...baseDefinition,
+      setValue: undefined,
+      enumValues: enumValues as readonly string[],
+    };
+  }
+  return baseDefinition;
 }
 
 function buildPrimaryEnvVarName(key: FlagKey): string {

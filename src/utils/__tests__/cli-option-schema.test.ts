@@ -51,12 +51,15 @@ test('isFlagSupportedForCommand consults option schema support map', () => {
   assert.equal(isFlagSupportedForCommand('platform', 'open'), true);
 });
 
-test('option schema parses enum set-value options from env/config sources', () => {
+test('option schema parses enum options with multiple CLI aliases from env/config sources', () => {
   const spec = getOptionSpec('appsFilter');
   assert.ok(spec);
-  assert.equal(parseOptionValueFromSource(spec, true, 'environment variable AGENT_DEVICE_ALL', 'AGENT_DEVICE_ALL'), 'user-installed');
-  assert.equal(parseOptionValueFromSource(spec, 'true', 'config file /tmp/test.json', 'appsFilter'), 'user-installed');
-  assert.equal(parseOptionValueFromSource(spec, 'false', 'config file /tmp/test.json', 'appsFilter'), undefined);
+  assert.equal(parseOptionValueFromSource(spec, 'user-installed', 'environment variable AGENT_DEVICE_APPS_FILTER', 'AGENT_DEVICE_APPS_FILTER'), 'user-installed');
+  assert.equal(parseOptionValueFromSource(spec, 'all', 'config file /tmp/test.json', 'appsFilter'), 'all');
+  assert.throws(
+    () => parseOptionValueFromSource(spec, true, 'environment variable AGENT_DEVICE_APPS_FILTER', 'AGENT_DEVICE_APPS_FILTER'),
+    (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
+  );
 });
 
 test('option schema rejects invalid source values with INVALID_ARGS', () => {
