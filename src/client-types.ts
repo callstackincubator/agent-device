@@ -1,4 +1,4 @@
-import type { DaemonInstallSource, DaemonRequest, DaemonResponse, SessionRuntimeHints } from './daemon/types.ts';
+import type { DaemonInstallSource, DaemonLockPolicy, DaemonRequest, DaemonResponse, SessionRuntimeHints } from './daemon/types.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { SnapshotNode } from './utils/snapshot.ts';
 
@@ -10,6 +10,8 @@ export type AgentDeviceDaemonTransport = (req: Omit<DaemonRequest, 'token'>) => 
 
 export type AgentDeviceClientConfig = {
   session?: string;
+  lockPolicy?: DaemonLockPolicy;
+  lockPlatform?: PlatformSelector;
   requestId?: string;
   stateDir?: string;
   daemonBaseUrl?: string;
@@ -26,7 +28,7 @@ export type AgentDeviceClientConfig = {
 
 export type AgentDeviceRequestOverrides = Pick<
   AgentDeviceClientConfig,
-  'session' | 'requestId' | 'tenant' | 'sessionIsolation' | 'runId' | 'leaseId' | 'cwd' | 'debug'
+  'session' | 'lockPolicy' | 'lockPlatform' | 'requestId' | 'tenant' | 'sessionIsolation' | 'runId' | 'leaseId' | 'cwd' | 'debug'
 >;
 
 export type AgentDeviceIdentifiers = {

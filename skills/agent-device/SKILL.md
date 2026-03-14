@@ -35,7 +35,7 @@ Use this skill as a router, not a full manual.
 - Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
 - Android React Native + Metro flows: set runtime hints with `runtime set` before `open <package> --relaunch`.
 - In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
-- For session-bound automation runs, prefer a pre-bound session/platform instead of repeating selectors on every command: set `AGENT_DEVICE_SESSION`, set `AGENT_DEVICE_PLATFORM`, and the CLI will lock the run by convention.
+- For session-bound automation runs, prefer a pre-bound session/platform instead of repeating selectors on every command: set `AGENT_DEVICE_SESSION`, set `AGENT_DEVICE_PLATFORM`, and the daemon will enforce the shared lock policy across CLI, typed client, and RPC entry points.
 - Use `--session-lock reject|strip` (or `AGENT_DEVICE_SESSION_LOCK`) only when you need to override the default reject behavior. Lock mode applies to nested `batch` steps too.
 
 ## Canonical Flows

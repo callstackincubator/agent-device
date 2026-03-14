@@ -33,6 +33,8 @@ export type OpenAppOptions = {
   session?: string;
   app?: string;
   url?: string;
+  lockPolicy?: NonNullable<DaemonRequest['meta']>['lockPolicy'];
+  lockPlatform?: NonNullable<DaemonRequest['meta']>['lockPlatform'];
   platform?: NonNullable<DaemonRequest['flags']>['platform'];
   target?: NonNullable<DaemonRequest['flags']>['target'];
   device?: NonNullable<DaemonRequest['flags']>['device'];
@@ -113,7 +115,9 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       tenantId: req.meta?.tenantId ?? req.flags?.tenant,
       runId: req.meta?.runId ?? req.flags?.runId,
       leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
-      sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+    sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+      lockPolicy: req.meta?.lockPolicy,
+      lockPlatform: req.meta?.lockPlatform,
       ...(preparedRemoteRequest.uploadedArtifactId ? { uploadedArtifactId: preparedRemoteRequest.uploadedArtifactId } : {}),
       ...(preparedRemoteRequest.clientArtifactPaths ? { clientArtifactPaths: preparedRemoteRequest.clientArtifactPaths } : {}),
     },
@@ -139,6 +143,8 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     session = 'default',
     app,
     url,
+    lockPolicy,
+    lockPlatform,
     platform,
     target,
     device,
@@ -172,7 +178,11 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
       ...(relaunch ? { relaunch: true } : {}),
     },
     ...(runtime !== undefined ? { runtime } : {}),
-    meta,
+    meta: {
+      ...(meta ?? {}),
+      ...(lockPolicy !== undefined ? { lockPolicy } : {}),
+      ...(lockPlatform !== undefined ? { lockPlatform } : {}),
+    },
   });
 }
 

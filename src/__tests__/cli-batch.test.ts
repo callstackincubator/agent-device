@@ -116,7 +116,7 @@ test('batch --steps-file rejects invalid JSON payload', async () => {
   assert.match(result.stderr, /Batch steps must be valid JSON/);
 });
 
-test('batch strips conflicting step selectors when bound session uses strip mode', async () => {
+test('batch forwards strip lock policy for nested steps when bound session uses strip mode', async () => {
   const previousSession = process.env.AGENT_DEVICE_SESSION;
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
   const previousLock = process.env.AGENT_DEVICE_SESSION_LOCK;
@@ -133,10 +133,11 @@ test('batch strips conflicting step selectors when bound session uses strip mode
     ]);
     assert.equal(result.code, null);
     assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.meta?.lockPolicy, 'strip');
+    assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
     const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
-    assert.equal(stepFlags.platform, 'ios');
-    assert.equal(stepFlags.target, undefined);
-    assert.equal(stepFlags.serial, undefined);
+    assert.equal(stepFlags.platform, 'android');
+    assert.equal(stepFlags.serial, 'emulator-5554');
   } finally {
     if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
     else process.env.AGENT_DEVICE_SESSION = previousSession;
@@ -147,7 +148,7 @@ test('batch strips conflicting step selectors when bound session uses strip mode
   }
 });
 
-test('batch rejects target retargeting in session-locked mode', async () => {
+test('batch forwards reject lock policy for target retargeting', async () => {
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
   const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
@@ -160,11 +161,11 @@ test('batch rejects target retargeting in session-locked mode', async () => {
       '[{"command":"open","flags":{"target":"tv"}}]',
       '--json',
     ]);
-    assert.equal(result.code, 1);
-    assert.equal(result.calls.length, 0);
-    const payload = JSON.parse(result.stdout);
-    assert.equal(payload.success, false);
-    assert.match(payload.error.message, /--target=tv/i);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
+    const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
+    assert.equal(stepFlags.target, 'tv');
   } finally {
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
@@ -190,10 +191,12 @@ test('batch session lock flags apply to nested steps without env configuration',
     ]);
     assert.equal(result.code, null);
     assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.meta?.lockPolicy, 'strip');
+    assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
     const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
     assert.equal(stepFlags.platform, 'ios');
-    assert.equal(stepFlags.target, undefined);
-    assert.equal(stepFlags.serial, undefined);
+    assert.equal(stepFlags.target, 'tv');
+    assert.equal(stepFlags.serial, 'emulator-5554');
   } finally {
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;

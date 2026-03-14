@@ -255,6 +255,8 @@ export function buildMeta(options: InternalRequestOptions): DaemonRequest['meta'
     requestId: options.requestId,
     cwd: options.cwd,
     debug: options.debug,
+    lockPolicy: options.lockPolicy,
+    lockPlatform: options.lockPlatform,
     tenantId: options.tenant,
     runId: options.runId,
     leaseId: options.leaseId,

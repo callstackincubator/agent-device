@@ -1,12 +1,12 @@
 import { AppError } from './errors.ts';
 import type { CliFlags } from './command-schema.ts';
-import { normalizePlatformSelector } from './device.ts';
+import type { DaemonLockPolicy } from '../daemon/types.ts';
 
-type BindingConflictMode = 'reject' | 'strip';
+type BindingConflictMode = DaemonLockPolicy;
 
-type BindingSettings = {
+export type BindingSettings = {
   defaultPlatform?: CliFlags['platform'];
-  lockMode?: BindingConflictMode;
+  lockPolicy?: DaemonLockPolicy;
 };
 
 type BindingPolicyOverrides = Pick<Partial<CliFlags>, 'sessionLock' | 'sessionLocked' | 'sessionLockConflicts'>;
@@ -22,17 +22,8 @@ type BindingOptions = {
   inheritedPlatform?: CliFlags['platform'];
 };
 
-const LOCKED_SELECTOR_KEYS: Array<keyof LockableFlags> = [
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'iosSimulatorDeviceSet',
-  'androidDeviceAllowlist',
-];
-
 export function applyConfiguredSessionBinding<T extends LockableFlags>(
-  commandLabel: string,
+  _commandLabel: string,
   flags: T,
   options: BindingOptions = {},
 ): T {
@@ -43,54 +34,17 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
     nextFlags.platform = settings.defaultPlatform as T['platform'];
   }
 
-  if (!settings.lockMode) {
-    return nextFlags;
-  }
-
-  const conflicts: string[] = [];
-  const normalizedConfiguredPlatform = normalizePlatformSelector(settings.defaultPlatform);
-  if (flags.platform !== undefined) {
-    if (!normalizedConfiguredPlatform || normalizePlatformSelector(flags.platform) !== normalizedConfiguredPlatform) {
-      conflicts.push(`--platform=${flags.platform}`);
-    }
-  }
-
-  for (const key of LOCKED_SELECTOR_KEYS) {
-    const value = flags[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
-      conflicts.push(`${flagNameForKey(key)}=${value}`);
-    }
-  }
-
-  if (conflicts.length === 0) {
-    return nextFlags;
-  }
-
-  if (settings.lockMode === 'strip') {
-    if (settings.defaultPlatform) {
-      nextFlags.platform = settings.defaultPlatform as T['platform'];
-    }
-    for (const key of LOCKED_SELECTOR_KEYS) {
-      delete nextFlags[key];
-    }
-    return nextFlags;
-  }
-
-  throw new AppError(
-    'INVALID_ARGS',
-    `${commandLabel} cannot override session-locked device binding with ${conflicts.join(', ')}. ` +
-      'Unset those selectors or remove the bound-session lock policy.',
-  );
+  return nextFlags;
 }
 
-function resolveBindingSettings(options: BindingOptions): BindingSettings {
+export function resolveBindingSettings(options: BindingOptions): BindingSettings {
   const env = options.env ?? process.env;
   const defaultPlatform = options.inheritedPlatform ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
   const defaultSessionConfigured = hasConfiguredSession(env.AGENT_DEVICE_SESSION);
   const lockMode = resolveLockMode(options.policyOverrides, env, defaultSessionConfigured);
   return {
     defaultPlatform,
-    lockMode,
+    lockPolicy: lockMode,
   };
 }
 
@@ -154,15 +108,4 @@ function isEnvTruthy(raw: string | undefined): boolean {
 
 function hasConfiguredSession(raw: string | undefined): boolean {
   return typeof raw === 'string' && raw.trim().length > 0;
-}
-
-function flagNameForKey(key: keyof LockableFlags): string {
-  switch (key) {
-    case 'iosSimulatorDeviceSet':
-      return '--ios-simulator-device-set';
-    case 'androidDeviceAllowlist':
-      return '--android-device-allowlist';
-    default:
-      return `--${key}`;
-  }
 }

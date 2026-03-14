@@ -5,6 +5,7 @@ import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 
 export type DaemonInstallSource = MaterializeInstallSource;
+export type DaemonLockPolicy = 'reject' | 'strip';
 
 export type DaemonRequest = {
   token: string;
@@ -29,6 +30,8 @@ export type DaemonRequest = {
     retainMaterializedPaths?: boolean;
     materializedPathRetentionMs?: number;
     materializationId?: string;
+    lockPolicy?: DaemonLockPolicy;
+    lockPlatform?: 'ios' | 'android' | 'apple';
   };
 };
 

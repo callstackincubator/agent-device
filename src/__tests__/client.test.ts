@@ -95,6 +95,29 @@ test('devices.list maps daemon devices into normalized identifiers', async () =>
   ]);
 });
 
+test('typed client forwards shared request lock policy metadata', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      devices: [],
+    },
+  }));
+  const client = createAgentDeviceClient({
+    ...setup.config,
+    lockPolicy: 'reject',
+    lockPlatform: 'ios',
+  }, { transport: setup.transport });
+
+  await client.devices.list({
+    device: 'Pixel 9',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.meta?.lockPolicy, 'reject');
+  assert.equal(setup.calls[0]?.meta?.lockPlatform, 'ios');
+  assert.equal(setup.calls[0]?.flags?.device, 'Pixel 9');
+});
+
 test('apps.open resolves session device identifiers from open response', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'open') {

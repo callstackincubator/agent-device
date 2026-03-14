@@ -45,6 +45,7 @@ agent-device close
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` provide the default binding when `--session` and `--platform` are omitted.
 - A configured `AGENT_DEVICE_SESSION` enables lock policy enforcement by convention. The default mode is `reject`.
 - `--session-lock reject|strip` or `AGENT_DEVICE_SESSION_LOCK=reject|strip` controls whether conflicting selectors fail or are ignored.
+- The daemon enforces the same lock policy for CLI requests, typed client calls, and direct RPC commands.
 - Conflicts include explicit retargeting selectors such as `--platform`, `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`.
 - `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` remain supported as compatibility aliases.
 - Lock policy applies to nested `batch` steps too. If a step omits `platform`, it still inherits the parent batch `--platform` instead of being silently replaced by an environment default.

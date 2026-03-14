@@ -208,7 +208,7 @@ test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => 
   }
 });
 
-test('cli rejects conflicting selectors when bound session defaults imply lock mode', async () => {
+test('cli forwards bound-session lock policy when session defaults are configured', async () => {
   const previousSession = process.env.AGENT_DEVICE_SESSION;
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
   process.env.AGENT_DEVICE_SESSION = 'qa-ios';
@@ -218,12 +218,11 @@ test('cli rejects conflicting selectors when bound session defaults imply lock m
       ok: true,
       data: {},
     }));
-    assert.equal(result.code, 1);
-    assert.equal(result.calls.length, 0);
-    const payload = JSON.parse(result.stdout);
-    assert.equal(payload.success, false);
-    assert.equal(payload.error.code, 'INVALID_ARGS');
-    assert.match(payload.error.message, /session-locked device binding/i);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
+    assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
+    assert.equal(result.calls[0]?.flags?.device, 'Pixel 9');
   } finally {
     if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
     else process.env.AGENT_DEVICE_SESSION = previousSession;
@@ -242,11 +241,9 @@ test('cli session lock flag overrides environment for a single invocation', asyn
       ok: true,
       data: {},
     }));
-    assert.equal(result.code, 1);
-    assert.equal(result.calls.length, 0);
-    const payload = JSON.parse(result.stdout);
-    assert.equal(payload.success, false);
-    assert.match(payload.error.message, /session-locked device binding/i);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
   } finally {
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;

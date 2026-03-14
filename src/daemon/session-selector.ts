@@ -8,7 +8,20 @@ export function assertSessionSelectorMatches(
   session: SessionState,
   flags?: CommandFlags,
 ): void {
-  if (!flags) return;
+  const mismatches = listSessionSelectorConflicts(session, flags);
+  if (mismatches.length === 0) return;
+
+  throw new AppError(
+    'INVALID_ARGS',
+    `Session "${session.name}" is bound to ${describeDevice(session)} and cannot be used with ${mismatches.join(', ')}. Use a different --session name or close this session first.`,
+  );
+}
+
+export function listSessionSelectorConflicts(
+  session: SessionState,
+  flags?: CommandFlags,
+): string[] {
+  if (!flags) return [];
 
   const mismatches: string[] = [];
   const device = session.device;
@@ -52,12 +65,7 @@ export function assertSessionSelectorMatches(
     }
   }
 
-  if (mismatches.length === 0) return;
-
-  throw new AppError(
-    'INVALID_ARGS',
-    `Session "${session.name}" is bound to ${describeDevice(session)} and cannot be used with ${mismatches.join(', ')}. Use a different --session name or close this session first.`,
-  );
+  return mismatches;
 }
 
 function describeDevice(session: SessionState): string {

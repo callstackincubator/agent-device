@@ -12,7 +12,7 @@ import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
-import { applyConfiguredSessionBinding } from './utils/session-binding.ts';
+import { applyConfiguredSessionBinding, resolveBindingSettings } from './utils/session-binding.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -99,31 +99,12 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       const { command, positionals } = parsed;
-      let flags;
-      try {
-        flags = applyConfiguredSessionBinding(command, parsed.flags, {
-          policyOverrides: parsed.flags,
-        });
-      } catch (error) {
-        emitDiagnostic({
-          level: 'error',
-          phase: 'cli_binding_failed',
-          data: {
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
-        const normalized = normalizeError(error, {
-          diagnosticId: getDiagnosticsMeta().diagnosticId,
-          logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
-        });
-        if (parsed.flags.json) {
-          printJson({ success: false, error: normalized });
-        } else {
-          printHumanError(normalized, { showDetails: Boolean(parsed.flags.verbose) });
-        }
-        process.exit(1);
-        return;
-      }
+      const binding = resolveBindingSettings({
+        policyOverrides: parsed.flags,
+      });
+      const flags = applyConfiguredSessionBinding(command, parsed.flags, {
+        policyOverrides: parsed.flags,
+      });
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
@@ -143,6 +124,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         sessionIsolation: flags.sessionIsolation,
         runId: flags.runId,
         leaseId: flags.leaseId,
+        lockPolicy: binding.lockPolicy,
+        lockPlatform: binding.defaultPlatform,
         cwd: process.cwd(),
         debug: Boolean(flags.verbose),
       };
@@ -161,6 +144,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             runId: flags.runId,
             leaseId: flags.leaseId,
             sessionIsolation: flags.sessionIsolation,
+            lockPolicy: binding.lockPolicy,
+            lockPlatform: binding.defaultPlatform,
           },
         });
       try {

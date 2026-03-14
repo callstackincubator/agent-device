@@ -13,6 +13,7 @@ import { handleRecordTraceCommands } from './handlers/record-trace.ts';
 import { handleInteractionCommands } from './handlers/interaction.ts';
 import { handleLeaseCommands } from './handlers/lease.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
+import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
 import {
   normalizeTenantId,
@@ -217,8 +218,6 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           });
 
           const command = scopedReq.command;
-          const finalize = (response: DaemonResponse): DaemonResponse =>
-            finalizeDaemonResponse(scopedReq, response, trackDownloadableArtifact);
           const leaseScope = resolveLeaseScope(scopedReq);
           if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
             leaseRegistry.assertLeaseAdmission({
@@ -230,18 +229,21 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           }
           const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
           const existingSession = sessionStore.get(sessionName);
+          const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
+          const finalize = (response: DaemonResponse): DaemonResponse =>
+            finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
           if (existingSession && !selectorValidationExemptCommands.has(command)) {
-            assertSessionSelectorMatches(existingSession, scopedReq.flags);
+            assertSessionSelectorMatches(existingSession, lockedReq.flags);
           }
 
           const leaseResponse = await handleLeaseCommands({
-            req: scopedReq,
+            req: lockedReq,
             leaseRegistry,
           });
           if (leaseResponse) return finalize(leaseResponse);
 
           const sessionResponse = await handleSessionCommands({
-            req: scopedReq,
+            req: lockedReq,
             sessionName,
             logPath,
             sessionStore,
@@ -250,7 +252,7 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           if (sessionResponse) return finalize(sessionResponse);
 
           const snapshotResponse = await handleSnapshotCommands({
-            req: scopedReq,
+            req: lockedReq,
             sessionName,
             logPath,
             sessionStore,
@@ -258,7 +260,7 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           if (snapshotResponse) return finalize(snapshotResponse);
 
           const recordTraceResponse = await handleRecordTraceCommands({
-            req: scopedReq,
+            req: lockedReq,
             sessionName,
             sessionStore,
             logPath,
@@ -266,7 +268,7 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           if (recordTraceResponse) return finalize(recordTraceResponse);
 
           const findResponse = await handleFindCommands({
-            req: scopedReq,
+            req: lockedReq,
             sessionName,
             logPath,
             sessionStore,
@@ -275,7 +277,7 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           if (findResponse) return finalize(findResponse);
 
           const interactionResponse = await handleInteractionCommands({
-            req: scopedReq,
+            req: lockedReq,
             sessionName,
             sessionStore,
             contextFromFlags: (flags, appBundleId, traceLogPath) =>
@@ -298,23 +300,23 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
             });
           }
 
-          const positionals = scopedReq.positionals ?? [];
-          const outFlag = scopedReq.flags?.out;
+          const positionals = lockedReq.positionals ?? [];
+          const outFlag = lockedReq.flags?.out;
           const resolvedPositionals =
             command === 'screenshot' && positionals[0]
-              ? [SessionStore.expandHome(positionals[0], scopedReq.meta?.cwd), ...positionals.slice(1)]
+              ? [SessionStore.expandHome(positionals[0], lockedReq.meta?.cwd), ...positionals.slice(1)]
               : positionals;
           const resolvedOut =
             command === 'screenshot' && outFlag
-              ? SessionStore.expandHome(outFlag, scopedReq.meta?.cwd)
+              ? SessionStore.expandHome(outFlag, lockedReq.meta?.cwd)
               : outFlag;
           const recordedPositionals = command === 'screenshot' ? resolvedPositionals : positionals;
           const recordedFlags =
             command === 'screenshot' && resolvedOut
-              ? { ...(scopedReq.flags ?? {}), out: resolvedOut }
-              : (scopedReq.flags ?? {});
+              ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
+              : (lockedReq.flags ?? {});
           const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
-            ...contextFromFlags(logPath, scopedReq.flags, session.appBundleId, session.trace?.outPath),
+            ...contextFromFlags(logPath, lockedReq.flags, session.appBundleId, session.trace?.outPath),
           });
           sessionStore.recordAction(session, {
             command,

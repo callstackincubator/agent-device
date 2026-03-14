@@ -40,7 +40,11 @@ Use the typed daemon client from application code:
 ```ts
 import { createAgentDeviceClient } from 'agent-device';
 
-const client = createAgentDeviceClient({ session: 'qa-ios' });
+const client = createAgentDeviceClient({
+  session: 'qa-ios',
+  lockPolicy: 'reject',
+  lockPlatform: 'ios',
+});
 
 const devices = await client.devices.list({ platform: 'ios' });
 const ensured = await client.simulators.ensure({
@@ -558,9 +562,10 @@ Environment selectors:
 - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
 - `AGENT_DEVICE_SESSION=<name>` sets the default CLI session when `--session` is omitted.
 - `AGENT_DEVICE_PLATFORM=ios|android|apple` sets the default CLI platform when `--platform` is omitted.
-- When `AGENT_DEVICE_SESSION` is set, the CLI treats the run as session-bound by default and rejects conflicting per-call device selectors unless you opt into `strip` mode.
+- When `AGENT_DEVICE_SESSION` is set, the CLI treats the run as session-bound by default and sends a shared daemon lock policy with the request.
 - `--session-lock reject|strip` sets the lock policy for the current CLI invocation and nested batch steps.
 - `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. `strip` ignores `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`, and restores the configured platform.
+- The daemon is the source of truth for lock-policy enforcement across CLI requests, typed client calls, and direct RPC.
 - `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` remain supported as compatibility aliases.
 - For `batch`, steps that omit `platform` continue to inherit the parent batch `--platform` even when session-bound defaults are configured.
 - `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.
