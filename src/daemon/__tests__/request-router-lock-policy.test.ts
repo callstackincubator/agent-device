@@ -113,3 +113,44 @@ test('batch steps cannot bypass reject lock policy on nested direct requests', a
     assert.match(response.error.message, /--serial=emulator-5554/i);
   }
 });
+
+test('direct daemon requests apply strip lock policy for existing sessions before dispatch', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set('qa-ios', makeIosSession('qa-ios'));
+  let dispatchCalls = 0;
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+    dispatchCommand: async () => {
+      dispatchCalls += 1;
+      return {};
+    },
+  });
+
+  const response = await handler({
+    token: 'test-token',
+    session: 'qa-ios',
+    command: 'home',
+    positionals: [],
+    flags: {
+      target: 'tv',
+      udid: 'SIM-999',
+      device: 'iPhone 16',
+    },
+    meta: {
+      lockPolicy: 'strip',
+    },
+  });
+
+  assert.equal(dispatchCalls, 1);
+  assert.equal(response.ok, true);
+  const action = sessionStore.get('qa-ios')?.actions.at(-1);
+  assert.equal(action?.flags.platform, 'ios');
+  assert.equal(action?.flags.udid, undefined);
+  assert.equal(action?.flags.target, undefined);
+  assert.equal(action?.flags.device, 'iPhone 16');
+});
