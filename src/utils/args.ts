@@ -4,12 +4,12 @@ import {
   buildUsageText,
   getCommandSchema,
   getFlagDefinition,
-  GLOBAL_FLAG_KEYS,
   isStrictFlagModeEnabled,
   type CliFlags,
   type FlagDefinition,
   type FlagKey,
 } from './command-schema.ts';
+import { isFlagSupportedForCommand } from './cli-option-schema.ts';
 
 type ParsedArgs = {
   command: string | null;
@@ -27,8 +27,19 @@ type ParsedFlagRecord = {
   token: string;
 };
 
-export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArgs {
-  const strictFlags = options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
+type RawParsedArgs = ParsedArgs & {
+  providedFlags: ParsedFlagRecord[];
+};
+
+type FinalizeArgsOptions = ParseArgsOptions & {
+  defaultFlags?: Partial<CliFlags>;
+};
+
+export function parseArgs(argv: string[], options?: FinalizeArgsOptions): ParsedArgs {
+  return finalizeParsedArgs(parseRawArgs(argv), options);
+}
+
+export function parseRawArgs(argv: string[]): RawParsedArgs {
   const flags: CliFlags = { json: false, help: false, version: false };
   let command: string | null = null;
   const positionals: string[] = [];
@@ -72,21 +83,34 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
     providedFlags.push({ key: definition.key, token });
   }
 
-  const commandSchema = getCommandSchema(command);
-  const allowedFlagKeys = new Set<FlagKey>([
-    ...GLOBAL_FLAG_KEYS,
-    ...(commandSchema?.allowedFlags ?? []),
-  ]);
-  const disallowed = providedFlags.filter((entry) => !allowedFlagKeys.has(entry.key));
+  return { command, positionals, flags, warnings, providedFlags };
+}
+
+export function finalizeParsedArgs(parsed: RawParsedArgs, options?: FinalizeArgsOptions): ParsedArgs {
+  const strictFlags = options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
+  const warnings = [...parsed.warnings];
+  const flags = mergeDefinedFlags(
+    { json: false, help: false, version: false } as CliFlags,
+    options?.defaultFlags ?? {},
+  );
+  mergeDefinedFlags(flags, parsed.flags);
+  const commandSchema = getCommandSchema(parsed.command);
+  const disallowed = parsed.providedFlags.filter((entry) => !isFlagSupportedForCommand(entry.key, parsed.command));
   if (disallowed.length > 0) {
     const unsupported = disallowed.map((entry) => entry.token);
-    const message = formatUnsupportedFlagMessage(command, unsupported);
+    const message = formatUnsupportedFlagMessage(parsed.command, unsupported);
     if (strictFlags) {
       throw new AppError('INVALID_ARGS', message);
     }
     warnings.push(`${message} Enable AGENT_DEVICE_STRICT_FLAGS=1 to fail fast.`);
     for (const entry of disallowed) {
       delete (flags as Record<string, unknown>)[entry.key];
+    }
+  }
+  for (const key of Object.keys(flags) as FlagKey[]) {
+    if (flags[key] === undefined) continue;
+    if (!isFlagSupportedForCommand(key, parsed.command)) {
+      delete (flags as Record<string, unknown>)[key];
     }
   }
   if (commandSchema?.defaults) {
@@ -96,7 +120,7 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
       }
     }
   }
-  if (command === 'batch') {
+  if (parsed.command === 'batch') {
     const stepSourceCount =
       (flags.steps ? 1 : 0) +
       (flags.stepsFile ? 1 : 0);
@@ -107,7 +131,7 @@ export function parseArgs(argv: string[], options?: ParseArgsOptions): ParsedArg
       );
     }
   }
-  return { command, positionals, flags, warnings };
+  return { command: parsed.command, positionals: parsed.positionals, flags, warnings };
 }
 
 function splitLongFlag(flag: string): [string, string | undefined] {
@@ -231,9 +255,10 @@ function formatUnsupportedFlagMessage(command: string | null, unsupported: strin
     : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
 }
 
-export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' | 'version'> {
+export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'config' | 'help' | 'version'> {
   const {
     json: _json,
+    config: _config,
     help: _help,
     version: _version,
     sessionLock: _sessionLock,
@@ -256,4 +281,13 @@ function normalizeCommandAlias(command: string): string {
   if (command === 'long-press') return 'longpress';
   if (command === 'metrics') return 'perf';
   return command;
+}
+
+function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+  for (const [key, value] of Object.entries(source)) {
+    if (value !== undefined) {
+      target[key as keyof T] = value as T[keyof T];
+    }
+  }
+  return target;
 }

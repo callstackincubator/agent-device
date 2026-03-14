@@ -1,4 +1,4 @@
-import { parseArgs, toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
+import { toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { formatSnapshotDiffText, formatSnapshotText, printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
@@ -13,6 +13,7 @@ import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
 import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
+import { resolveCliOptions } from './utils/cli-options.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -38,9 +39,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       debug: debugEnabled,
     },
     async () => {
-      let parsed: ReturnType<typeof parseArgs>;
+      let parsed: ReturnType<typeof resolveCliOptions>;
       try {
-        parsed = parseArgs(argv);
+        parsed = resolveCliOptions(argv, { cwd: process.cwd(), env: process.env });
       } catch (error) {
         emitDiagnostic({
           level: 'error',
@@ -101,16 +102,20 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const { command, positionals } = parsed;
       const binding = resolveBindingSettings({
         policyOverrides: parsed.flags,
+        configuredPlatform: parsed.flags.platform,
+        configuredSession: parsed.flags.session,
       });
       const flags = binding.lockPolicy
         ? { ...parsed.flags }
         : applyDefaultPlatformBinding(parsed.flags, {
           policyOverrides: parsed.flags,
+          configuredPlatform: parsed.flags.platform,
+          configuredSession: parsed.flags.session,
         });
       const daemonFlags = toDaemonFlags(flags);
-      const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
-      const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
-      const remoteDaemonBaseUrl = flags.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+      const daemonPaths = resolveDaemonPaths(flags.stateDir);
+      const sessionName = flags.session ?? 'default';
+      const remoteDaemonBaseUrl = flags.daemonBaseUrl;
       const logTailStopper = flags.verbose && !flags.json && !remoteDaemonBaseUrl
         ? startDaemonLogTail(daemonPaths.logPath)
         : null;
@@ -163,6 +168,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
                 (step.flags ?? {}) as Partial<typeof daemonFlags>,
                 {
                   policyOverrides: flags,
+                  configuredPlatform: flags.platform,
+                  configuredSession: flags.session,
                   inheritedPlatform: flags.platform,
                 },
               ),
@@ -567,7 +574,7 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   );
 }
 
-function readBatchSteps(flags: ReturnType<typeof parseArgs>['flags']): BatchStep[] {
+function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {
   let raw = '';
   if (flags.steps) {
     raw = flags.steps;

@@ -99,6 +99,7 @@ test('help unknown command prints error plus global usage and skips daemon dispa
   assert.match(result.stderr, /Error \(INVALID_ARGS\): Unknown command: not-a-command/);
   assert.match(result.stdout, /Commands:/);
   assert.match(result.stdout, /Flags:/);
+  assert.match(result.stdout, /--config <path>/);
 });
 
 test('unknown command --help prints error plus global usage and skips daemon dispatch', async () => {

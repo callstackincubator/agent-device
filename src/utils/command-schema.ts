@@ -2,6 +2,7 @@ import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 
 export type CliFlags = {
   json: boolean;
+  config?: string;
   stateDir?: string;
   daemonBaseUrl?: string;
   daemonAuthToken?: string;
@@ -108,6 +109,13 @@ const SELECTOR_SNAPSHOT_FLAGS = [
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
+  {
+    key: 'config',
+    names: ['--config'],
+    type: 'string',
+    usageLabel: '--config <path>',
+    usageDescription: 'Load CLI defaults from a specific config file',
+  },
   {
     key: 'stateDir',
     names: ['--state-dir'],
@@ -553,6 +561,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
 
 export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'json',
+  'config',
   'stateDir',
   'daemonBaseUrl',
   'daemonAuthToken',
@@ -854,6 +863,10 @@ for (const definition of FLAG_DEFINITIONS) {
 
 export function getFlagDefinition(token: string): FlagDefinition | undefined {
   return flagDefinitionByName.get(token);
+}
+
+export function getFlagDefinitions(): readonly FlagDefinition[] {
+  return FLAG_DEFINITIONS;
 }
 
 export function getCommandSchema(command: string | null): CommandSchema | undefined {
