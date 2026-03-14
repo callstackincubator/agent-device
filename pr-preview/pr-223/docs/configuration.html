@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-223/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-223/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-223/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-223/static/js/index.7ddcc00f.js"></script>
+<script defer src="/agent-device/pr-preview/pr-223/static/js/index.ed4e395a.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -66,6 +66,12 @@
 <li><code>daemonBaseUrl</code> -&gt; <code>AGENT_DEVICE_DAEMON_BASE_URL</code></li>
 <li><code>iosSimulatorDeviceSet</code> -&gt; <code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code></li>
 <li><code>androidDeviceAllowlist</code> -&gt; <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></li>
+</ul>
+<p>When a CLI option has multiple flag aliases, config and environment sources use the canonical option value rather than a flag alias. Example:</p>
+<ul>
+<li>config: <code>&quot;appsFilter&quot;: &quot;user-installed&quot;</code></li>
+<li>env: <code>AGENT_DEVICE_APPS_FILTER=user-installed</code></li>
+<li>not: <code>--user-installed</code></li>
 </ul>
 <p>Legacy compatibility env vars are still accepted for device scoping:</p>
 <ul>
