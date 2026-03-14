@@ -185,3 +185,49 @@ test('cli preserves --out for client-backed screenshot', async () => {
   assert.equal(result.calls[0]?.command, 'screenshot');
   assert.deepEqual(result.calls[0]?.positionals, ['/tmp/shot.png']);
 });
+
+test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  process.env.AGENT_DEVICE_PLATFORM = 'android';
+  try {
+    const result = await runCliCapture(['open', 'com.example.app', '--json'], async () => ({
+      ok: true,
+      data: {
+        app: 'com.example.app',
+        platform: 'android',
+        target: 'mobile',
+        device: 'Pixel 9',
+        id: 'emulator-5554',
+      },
+    }));
+    assert.equal(result.code, null);
+    assert.equal(result.calls[0]?.flags?.platform, 'android');
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+  }
+});
+
+test('cli rejects conflicting selectors in session-locked mode before dispatch', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+  process.env.AGENT_DEVICE_SESSION_LOCKED = '1';
+  try {
+    const result = await runCliCapture(['snapshot', '--device', 'Pixel 9', '--json'], async () => ({
+      ok: true,
+      data: {},
+    }));
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.success, false);
+    assert.equal(payload.error.code, 'INVALID_ARGS');
+    assert.match(payload.error.message, /session-locked device binding/i);
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
+    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+  }
+});

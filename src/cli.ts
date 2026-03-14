@@ -12,6 +12,7 @@ import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
+import { applyConfiguredSessionBinding } from './utils/session-binding.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -97,7 +98,30 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         process.exit(1);
       }
 
-      const { command, positionals, flags } = parsed;
+      const { command, positionals } = parsed;
+      let flags;
+      try {
+        flags = applyConfiguredSessionBinding(command, parsed.flags);
+      } catch (error) {
+        emitDiagnostic({
+          level: 'error',
+          phase: 'cli_binding_failed',
+          data: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        const normalized = normalizeError(error, {
+          diagnosticId: getDiagnosticsMeta().diagnosticId,
+          logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
+        });
+        if (parsed.flags.json) {
+          printJson({ success: false, error: normalized });
+        } else {
+          printHumanError(normalized, { showDetails: Boolean(parsed.flags.verbose) });
+        }
+        process.exit(1);
+        return;
+      }
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
@@ -142,7 +166,13 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       if (positionals.length > 0) {
         throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
       }
-      const batchSteps = readBatchSteps(flags);
+      const batchSteps = readBatchSteps(flags).map((step, index) => ({
+        ...step,
+        flags: applyConfiguredSessionBinding(
+          `batch step ${index + 1} (${step.command})`,
+          (step.flags ?? {}) as Partial<typeof daemonFlags>,
+        ),
+      }));
       const batchFlags = { ...daemonFlags, batchSteps };
       delete (batchFlags as Record<string, unknown>).steps;
       delete (batchFlags as Record<string, unknown>).stepsFile;

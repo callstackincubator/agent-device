@@ -115,3 +115,60 @@ test('batch --steps-file rejects invalid JSON payload', async () => {
   assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Batch steps must be valid JSON/);
 });
+
+test('batch strips conflicting step selectors in session-locked strip mode', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  const previousConflicts = process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+  process.env.AGENT_DEVICE_SESSION_LOCKED = '1';
+  process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS = 'strip';
+
+  try {
+    const result = await runCliCapture([
+      'batch',
+      '--steps',
+      '[{"command":"snapshot","flags":{"platform":"android","serial":"emulator-5554"}}]',
+      '--json',
+    ]);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
+    assert.equal(stepFlags.platform, 'ios');
+    assert.equal(stepFlags.target, undefined);
+    assert.equal(stepFlags.serial, undefined);
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
+    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+    if (previousConflicts === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS;
+    else process.env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS = previousConflicts;
+  }
+});
+
+test('batch rejects target retargeting in session-locked mode', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+  process.env.AGENT_DEVICE_SESSION_LOCKED = '1';
+
+  try {
+    const result = await runCliCapture([
+      'batch',
+      '--steps',
+      '[{"command":"open","flags":{"target":"tv"}}]',
+      '--json',
+    ]);
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.success, false);
+    assert.match(payload.error.message, /--target=tv/i);
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
+    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+  }
+});

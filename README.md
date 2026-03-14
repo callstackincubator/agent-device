@@ -556,6 +556,10 @@ Environment selectors:
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET=<path>` (or `IOS_SIMULATOR_DEVICE_SET=<path>`) to scope all iOS simulator discovery/commands to one simulator set.
 - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
+- `AGENT_DEVICE_SESSION=<name>` sets the default CLI session when `--session` is omitted.
+- `AGENT_DEVICE_PLATFORM=ios|android|apple` sets the default CLI platform when `--platform` is omitted.
+- `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked CLI mode for automation runs. In this mode, explicit per-call device selectors are treated as binding conflicts.
+- `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=reject|strip` controls session-locked conflict handling (default: `reject`). `strip` ignores `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`, and restores the configured platform.
 - `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.
 - `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` optional bundletool `build-apks --mode` override for Android `.aab` installs (default: `universal`).
 - CLI flags `--ios-simulator-device-set` / `--android-device-allowlist` override environment values.
