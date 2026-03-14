@@ -34,6 +34,7 @@ agent-device app-switcher
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
 - `--session-locked` and `--session-lock-conflicts reject|strip` make the lock policy first-class for a single CLI invocation, including nested batch steps.
 - `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked mode for automation runs. Conflicting per-call device selectors, including `--target`, are rejected by default; set `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=strip` to ignore them instead.
+- In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.

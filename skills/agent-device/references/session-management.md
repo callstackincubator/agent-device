@@ -14,6 +14,7 @@ Sessions isolate device context. A device can only be held by one session at a t
 - Name sessions semantically.
 - Close sessions when done.
 - Use separate sessions for parallel work.
+- For orchestrated QA runs, prefer a pre-bound session/platform over repeating per-command selectors.
 - For remote tenant-scoped automation, run commands with:
   `--tenant <id> --session-isolation tenant --run-id <id> --lease-id <id>`
 - In iOS sessions, use `open <app>`. `open <url>` opens deep links; on devices `http(s)://` opens Safari when no app is active, and custom schemes require an active app in the session.
@@ -25,6 +26,26 @@ Sessions isolate device context. A device can only be held by one session at a t
 - For ambiguous bare `--save-script` values, prefer `--save-script=workflow.ad` or `./workflow.ad`.
 - For deterministic replay scripts, prefer selector-based actions and assertions.
 - Use `replay -u` to update selector drift during maintenance.
+
+## Session-bound automation
+
+Use this when an external orchestrator must keep every CLI call on the same session/device without a wrapper script.
+
+```bash
+export AGENT_DEVICE_SESSION=qa-ios
+export AGENT_DEVICE_PLATFORM=ios
+
+agent-device --session-locked --session-lock-conflicts strip open MyApp --relaunch
+agent-device --session-locked snapshot -i
+agent-device --session-locked press @e3
+agent-device --session-locked close
+```
+
+- `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` provide the default binding when `--session` and `--platform` are omitted.
+- `--session-locked` or `AGENT_DEVICE_SESSION_LOCKED=1` enables lock policy enforcement for the request.
+- `--session-lock-conflicts reject|strip` or `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=reject|strip` controls whether conflicting selectors fail or are ignored.
+- Conflicts include explicit retargeting selectors such as `--platform`, `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`.
+- Lock policy applies to nested `batch` steps too. If a step omits `platform`, it still inherits the parent batch `--platform` instead of being silently replaced by an environment default.
 
 ## Scoped device isolation
 

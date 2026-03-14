@@ -562,6 +562,7 @@ Environment selectors:
 - `--session-lock-conflicts reject|strip` controls per-invocation conflict handling and overrides `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`.
 - `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked CLI mode for automation runs. In this mode, explicit per-call device selectors are treated as binding conflicts.
 - `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=reject|strip` controls session-locked conflict handling (default: `reject`). `strip` ignores `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`, and restores the configured platform.
+- For `batch`, steps that omit `platform` continue to inherit the parent batch `--platform` even when session-bound defaults are configured.
 - `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.
 - `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` optional bundletool `build-apks --mode` override for Android `.aab` installs (default: `universal`).
 - CLI flags `--ios-simulator-device-set` / `--android-device-allowlist` override environment values.
