@@ -17,6 +17,8 @@ type LockableFlags = Pick<
 type BindingOptions = {
   env?: NodeJS.ProcessEnv;
   policyOverrides?: BindingPolicyOverrides;
+  configuredPlatform?: CliFlags['platform'];
+  configuredSession?: string;
   inheritedPlatform?: CliFlags['platform'];
 };
 
@@ -36,8 +38,11 @@ export function applyDefaultPlatformBinding<T extends LockableFlags>(
 
 export function resolveBindingSettings(options: BindingOptions): BindingSettings {
   const env = options.env ?? process.env;
-  const defaultPlatform = options.inheritedPlatform ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
-  const defaultSessionConfigured = hasConfiguredSession(env.AGENT_DEVICE_SESSION);
+  const defaultPlatform =
+    options.inheritedPlatform
+    ?? options.configuredPlatform
+    ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
+  const defaultSessionConfigured = hasConfiguredSession(options.configuredSession ?? env.AGENT_DEVICE_SESSION);
   const lockMode = resolveLockMode(options.policyOverrides, env, defaultSessionConfigured);
   return {
     defaultPlatform,

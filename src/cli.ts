@@ -102,11 +102,15 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const { command, positionals } = parsed;
       const binding = resolveBindingSettings({
         policyOverrides: parsed.flags,
+        configuredPlatform: parsed.flags.platform,
+        configuredSession: parsed.flags.session,
       });
       const flags = binding.lockPolicy
         ? { ...parsed.flags }
         : applyDefaultPlatformBinding(parsed.flags, {
           policyOverrides: parsed.flags,
+          configuredPlatform: parsed.flags.platform,
+          configuredSession: parsed.flags.session,
         });
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir);
@@ -164,6 +168,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
                 (step.flags ?? {}) as Partial<typeof daemonFlags>,
                 {
                   policyOverrides: flags,
+                  configuredPlatform: flags.platform,
+                  configuredSession: flags.session,
                   inheritedPlatform: flags.platform,
                 },
               ),

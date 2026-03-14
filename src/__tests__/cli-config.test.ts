@@ -247,6 +247,29 @@ test('config and env defaults include session lock policy flags', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('config defaults drive bound-session metadata without env-only fallbacks', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  fs.writeFileSync(
+    path.join(project, 'agent-device.json'),
+    JSON.stringify({ session: 'qa-ios', platform: 'ios', sessionLock: 'reject' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(['snapshot', '--json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.session, 'qa-ios');
+  assert.equal(result.calls[0]?.flags?.platform, 'ios');
+  assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
+  assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('missing explicit config path returns parse error before daemon dispatch', async () => {
   const { root, home, project } = makeTempWorkspace();
 

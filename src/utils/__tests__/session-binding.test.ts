@@ -73,6 +73,20 @@ test('env and explicit lock inputs resolve to the same binding policy object', (
   assert.deepEqual(fromFlags, fromEnv);
 });
 
+test('resolved config values participate in binding defaults', () => {
+  const binding = resolveBindingSettings({
+    env: {} as NodeJS.ProcessEnv,
+    configuredSession: 'qa-ios',
+    configuredPlatform: 'ios',
+    policyOverrides: {
+      sessionLock: 'strip',
+    },
+  });
+
+  assert.equal(binding.defaultPlatform, 'ios');
+  assert.equal(binding.lockPolicy, 'strip');
+});
+
 test('inherited platform takes precedence over env default for batch-style step normalization', () => {
   const flags = applyDefaultPlatformBinding<{
     platform?: 'ios' | 'android' | 'apple';

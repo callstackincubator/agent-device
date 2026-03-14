@@ -222,7 +222,7 @@ test('cli forwards bound-session lock policy when session defaults are configure
     assert.equal(result.calls.length, 1);
     assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
     assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
-    assert.equal(result.calls[0]?.flags?.platform, undefined);
+    assert.equal(result.calls[0]?.flags?.platform, 'ios');
     assert.equal(result.calls[0]?.flags?.device, 'Pixel 9');
   } finally {
     if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
