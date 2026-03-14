@@ -12,7 +12,7 @@ import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import { createRequestId, emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
-import { applyConfiguredSessionBinding, resolveBindingSettings } from './utils/session-binding.ts';
+import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -102,7 +102,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const binding = resolveBindingSettings({
         policyOverrides: parsed.flags,
       });
-      const flags = applyConfiguredSessionBinding(command, parsed.flags, {
+      const flags = applyDefaultPlatformBinding(parsed.flags, {
         policyOverrides: parsed.flags,
       });
       const daemonFlags = toDaemonFlags(flags);
@@ -155,8 +155,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           }
           const batchSteps = readBatchSteps(flags).map((step, index) => ({
             ...step,
-            flags: applyConfiguredSessionBinding(
-              `batch step ${index + 1} (${step.command})`,
+            flags: applyDefaultPlatformBinding(
               (step.flags ?? {}) as Partial<typeof daemonFlags>,
               {
                 policyOverrides: flags,

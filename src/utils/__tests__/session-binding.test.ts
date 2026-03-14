@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyConfiguredSessionBinding, resolveBindingSettings } from '../session-binding.ts';
+import { applyDefaultPlatformBinding, resolveBindingSettings } from '../session-binding.ts';
 
 test('applies AGENT_DEVICE_PLATFORM when command flags omit platform', () => {
-  const flags = applyConfiguredSessionBinding<{
+  const flags = applyDefaultPlatformBinding<{
     platform?: 'ios' | 'android' | 'apple';
-  }>('open', {}, {
+  }>({}, {
     env: {
       AGENT_DEVICE_PLATFORM: 'android',
     } as NodeJS.ProcessEnv,
@@ -53,9 +53,9 @@ test('policy overrides take precedence over environment lock settings', () => {
 });
 
 test('inherited platform takes precedence over env default for batch-style step normalization', () => {
-  const flags = applyConfiguredSessionBinding<{
+  const flags = applyDefaultPlatformBinding<{
     platform?: 'ios' | 'android' | 'apple';
-  }>('batch step 1 (snapshot)', {}, {
+  }>({}, {
     env: {
       AGENT_DEVICE_PLATFORM: 'ios',
     } as NodeJS.ProcessEnv,

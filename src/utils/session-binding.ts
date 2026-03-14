@@ -2,8 +2,6 @@ import { AppError } from './errors.ts';
 import type { CliFlags } from './command-schema.ts';
 import type { DaemonLockPolicy } from '../daemon/types.ts';
 
-type BindingConflictMode = DaemonLockPolicy;
-
 export type BindingSettings = {
   defaultPlatform?: CliFlags['platform'];
   lockPolicy?: DaemonLockPolicy;
@@ -22,8 +20,7 @@ type BindingOptions = {
   inheritedPlatform?: CliFlags['platform'];
 };
 
-export function applyConfiguredSessionBinding<T extends LockableFlags>(
-  _commandLabel: string,
+export function applyDefaultPlatformBinding<T extends LockableFlags>(
   flags: T,
   options: BindingOptions = {},
 ): T {
@@ -52,7 +49,7 @@ function resolveLockMode(
   overrides: BindingPolicyOverrides | undefined,
   env: NodeJS.ProcessEnv,
   defaultSessionConfigured: boolean,
-): BindingConflictMode | undefined {
+): DaemonLockPolicy | undefined {
   const explicitPolicy =
     overrides?.sessionLock
     ?? overrides?.sessionLockConflicts
@@ -80,7 +77,7 @@ function readConfiguredPlatform(raw: string | undefined): CliFlags['platform'] |
   );
 }
 
-function readConflictMode(raw: string | undefined): BindingConflictMode | undefined {
+function readConflictMode(raw: string | undefined): DaemonLockPolicy | undefined {
   if (raw === undefined) return undefined;
   const value = raw.trim().toLowerCase();
   if (!value) return undefined;

@@ -232,7 +232,7 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
           const finalize = (response: DaemonResponse): DaemonResponse =>
             finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
-          if (existingSession && !selectorValidationExemptCommands.has(command)) {
+          if (existingSession && !lockedReq.meta?.lockPolicy && !selectorValidationExemptCommands.has(command)) {
             assertSessionSelectorMatches(existingSession, lockedReq.flags);
           }
 

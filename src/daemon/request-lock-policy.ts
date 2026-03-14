@@ -1,7 +1,12 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState, DaemonRequest } from './types.ts';
-import { listSessionSelectorConflicts } from './session-selector.ts';
+import {
+  formatSessionSelectorConflict,
+  listSessionSelectorConflicts,
+  type SessionSelectorConflict,
+  type SessionSelectorConflictKey,
+} from './session-selector.ts';
 import { normalizePlatformSelector } from '../utils/device.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
@@ -54,7 +59,7 @@ export function applyRequestLockPolicy(
 
   throw new AppError(
     'INVALID_ARGS',
-    `${req.command} cannot override session lock policy with ${conflicts.join(', ')}. ` +
+    `${req.command} cannot override session lock policy with ${conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
       'Unset those selectors or remove the request lock policy.',
   );
 }
@@ -62,20 +67,20 @@ export function applyRequestLockPolicy(
 function listFreshSessionConflicts(
   flags: CommandFlags,
   lockPlatform: LockPlatform,
-): string[] {
-  const conflicts: string[] = [];
+): SessionSelectorConflict[] {
+  const conflicts: SessionSelectorConflict[] = [];
   const normalizedLockPlatform = normalizePlatformSelector(lockPlatform);
   if (
     flags.platform !== undefined
     && normalizedLockPlatform
     && normalizePlatformSelector(flags.platform) !== normalizedLockPlatform
   ) {
-    conflicts.push(`--platform=${flags.platform}`);
+    conflicts.push({ key: 'platform', value: flags.platform });
   }
   for (const key of LOCKABLE_SELECTOR_KEYS) {
     const value = flags[key];
     if (typeof value === 'string' && value.trim().length > 0) {
-      conflicts.push(`${flagNameForKey(key)}=${value}`);
+      conflicts.push({ key: key as SessionSelectorConflictKey, value });
     }
   }
   return conflicts;
@@ -93,47 +98,8 @@ function stripFreshSessionConflicts(
   }
 }
 
-function stripSessionConflicts(flags: CommandFlags, conflicts: string[]): void {
+function stripSessionConflicts(flags: CommandFlags, conflicts: SessionSelectorConflict[]): void {
   for (const conflict of conflicts) {
-    if (conflict.startsWith('--platform=')) {
-      delete flags.platform;
-      continue;
-    }
-    const key = flagKeyForName(conflict.slice(0, conflict.indexOf('=')));
-    if (key) {
-      delete flags[key];
-    }
-  }
-}
-
-function flagNameForKey(key: keyof CommandFlags): string {
-  switch (key) {
-    case 'iosSimulatorDeviceSet':
-      return '--ios-simulator-device-set';
-    case 'androidDeviceAllowlist':
-      return '--android-device-allowlist';
-    default:
-      return `--${key}`;
-  }
-}
-
-function flagKeyForName(name: string): keyof CommandFlags | undefined {
-  switch (name) {
-    case '--platform':
-      return 'platform';
-    case '--target':
-      return 'target';
-    case '--device':
-      return 'device';
-    case '--udid':
-      return 'udid';
-    case '--serial':
-      return 'serial';
-    case '--ios-simulator-device-set':
-      return 'iosSimulatorDeviceSet';
-    case '--android-device-allowlist':
-      return 'androidDeviceAllowlist';
-    default:
-      return undefined;
+    delete flags[conflict.key];
   }
 }
