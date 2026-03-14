@@ -7,11 +7,9 @@ import {
   type FlagKey,
 } from './command-schema.ts';
 import {
-  getConfigurableFlagDefinitions,
-  getEnvVarNamesForFlag,
-  getFlagDefinitionByKey,
-  isFlagConfigurable,
-  parseFlagValueFromSource,
+  getConfigurableOptionSpecs,
+  getOptionSpec,
+  parseOptionValueFromSource,
 } from './cli-option-schema.ts';
 
 type EnvMap = Record<string, string | undefined>;
@@ -104,28 +102,28 @@ function parseConfigObject(source: Record<string, unknown>, sourceLabel: string)
   const flags: Partial<CliFlags> = {};
   for (const [rawKey, rawValue] of Object.entries(source)) {
     const key = rawKey as FlagKey;
-    if (!isFlagConfigurable(key)) {
-      throw new AppError('INVALID_ARGS', `Unsupported config key "${rawKey}" in ${sourceLabel}.`);
-    }
-    const definition = getFlagDefinitionByKey(key);
-    if (!definition) {
+    const spec = getOptionSpec(key);
+    if (!spec) {
       throw new AppError('INVALID_ARGS', `Unknown config key "${rawKey}" in ${sourceLabel}.`);
     }
-    (flags as Record<string, unknown>)[key] = parseFlagValueFromSource(definition, rawValue, sourceLabel, rawKey);
+    if (!spec.config.enabled) {
+      throw new AppError('INVALID_ARGS', `Unsupported config key "${rawKey}" in ${sourceLabel}.`);
+    }
+    (flags as Record<string, unknown>)[key] = parseOptionValueFromSource(spec, rawValue, sourceLabel, rawKey);
   }
   return flags;
 }
 
 function readEnvFlagDefaults(env: EnvMap, command: string | null): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
-  for (const definition of getConfigurableFlagDefinitions(command)) {
-    const envNames = getEnvVarNamesForFlag(definition.key);
+  for (const spec of getConfigurableOptionSpecs(command)) {
+    const envNames = spec.env.names;
     const envValue = envNames
       .map((name) => ({ name, value: env[name] }))
       .find((entry) => typeof entry.value === 'string' && entry.value.trim().length > 0);
     if (!envValue) continue;
-    (flags as Record<string, unknown>)[definition.key] = parseFlagValueFromSource(
-      definition,
+    (flags as Record<string, unknown>)[spec.key] = parseOptionValueFromSource(
+      spec,
       envValue.value as string,
       `environment variable ${envValue.name}`,
       envValue.name,
