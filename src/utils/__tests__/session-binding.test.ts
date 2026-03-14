@@ -6,7 +6,9 @@ test('applies AGENT_DEVICE_PLATFORM when command flags omit platform', () => {
   const flags = applyConfiguredSessionBinding<{
     platform?: 'ios' | 'android' | 'apple';
   }>('open', {}, {
-    AGENT_DEVICE_PLATFORM: 'android',
+    env: {
+      AGENT_DEVICE_PLATFORM: 'android',
+    } as NodeJS.ProcessEnv,
   });
   assert.equal(flags.platform, 'android');
 });
@@ -14,8 +16,10 @@ test('applies AGENT_DEVICE_PLATFORM when command flags omit platform', () => {
 test('rejects conflicting platform override in session-locked mode', () => {
   assert.throws(
     () => applyConfiguredSessionBinding('snapshot', { platform: 'android' }, {
-      AGENT_DEVICE_PLATFORM: 'ios',
-      AGENT_DEVICE_SESSION_LOCKED: '1',
+      env: {
+        AGENT_DEVICE_PLATFORM: 'ios',
+        AGENT_DEVICE_SESSION_LOCKED: '1',
+      } as NodeJS.ProcessEnv,
     }),
     /snapshot cannot override session-locked device binding with --platform=android/i,
   );
@@ -24,8 +28,10 @@ test('rejects conflicting platform override in session-locked mode', () => {
 test('rejects explicit device selectors in session-locked mode', () => {
   assert.throws(
     () => applyConfiguredSessionBinding('open', { device: 'iPhone 16', udid: 'SIM-001' }, {
-      AGENT_DEVICE_PLATFORM: 'ios',
-      AGENT_DEVICE_SESSION_LOCKED: 'true',
+      env: {
+        AGENT_DEVICE_PLATFORM: 'ios',
+        AGENT_DEVICE_SESSION_LOCKED: 'true',
+      } as NodeJS.ProcessEnv,
     }),
     /--device=iPhone 16, --udid=SIM-001/i,
   );
@@ -34,8 +40,10 @@ test('rejects explicit device selectors in session-locked mode', () => {
 test('rejects target retargeting in session-locked mode', () => {
   assert.throws(
     () => applyConfiguredSessionBinding('open', { target: 'tv' }, {
-      AGENT_DEVICE_PLATFORM: 'ios',
-      AGENT_DEVICE_SESSION_LOCKED: '1',
+      env: {
+        AGENT_DEVICE_PLATFORM: 'ios',
+        AGENT_DEVICE_SESSION_LOCKED: '1',
+      } as NodeJS.ProcessEnv,
     }),
     /--target=tv/i,
   );
@@ -48,13 +56,35 @@ test('strip mode preserves configured platform and removes explicit device selec
     device: 'Pixel 9',
     serial: 'emulator-5554',
   }, {
-    AGENT_DEVICE_PLATFORM: 'ios',
-    AGENT_DEVICE_SESSION_LOCKED: '1',
-    AGENT_DEVICE_SESSION_LOCK_CONFLICTS: 'strip',
+    env: {
+      AGENT_DEVICE_PLATFORM: 'ios',
+      AGENT_DEVICE_SESSION_LOCKED: '1',
+      AGENT_DEVICE_SESSION_LOCK_CONFLICTS: 'strip',
+    } as NodeJS.ProcessEnv,
   });
 
   assert.equal(flags.platform, 'ios');
   assert.equal(flags.target, undefined);
   assert.equal(flags.device, undefined);
   assert.equal(flags.serial, undefined);
+});
+
+test('policy overrides take precedence over environment lock settings', () => {
+  const flags = applyConfiguredSessionBinding<{
+    platform?: 'ios' | 'android' | 'apple';
+    device?: string;
+  }>('snapshot', { device: 'Pixel 9' }, {
+    env: {
+      AGENT_DEVICE_PLATFORM: 'ios',
+      AGENT_DEVICE_SESSION_LOCKED: '0',
+      AGENT_DEVICE_SESSION_LOCK_CONFLICTS: 'reject',
+    } as NodeJS.ProcessEnv,
+    policyOverrides: {
+      sessionLocked: true,
+      sessionLockConflicts: 'strip',
+    },
+  });
+
+  assert.equal(flags.platform, 'ios');
+  assert.equal(flags.device, undefined);
 });

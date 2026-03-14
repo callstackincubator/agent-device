@@ -136,6 +136,18 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
   assert.equal(parsed.flags.leaseId, 'abcd1234ef567890');
 });
 
+test('parseArgs recognizes session lock policy flags', () => {
+  const parsed = parseArgs([
+    'snapshot',
+    '--session-locked',
+    '--session-lock-conflicts',
+    'strip',
+  ], { strictFlags: true });
+  assert.equal(parsed.command, 'snapshot');
+  assert.equal(parsed.flags.sessionLocked, true);
+  assert.equal(parsed.flags.sessionLockConflicts, 'strip');
+});
+
 test('batch requires exactly one step source', () => {
   assert.throws(
     () => parseArgs(['batch'], { strictFlags: true }),
@@ -155,11 +167,13 @@ test('batch requires exactly one step source', () => {
 });
 
 test('toDaemonFlags strips CLI-only flags', () => {
-  const parsed = parseArgs(['open', 'settings', '--json']);
+  const parsed = parseArgs(['open', 'settings', '--json', '--session-locked', '--session-lock-conflicts', 'strip']);
   const daemonFlags = toDaemonFlags(parsed.flags);
   assert.equal(Object.hasOwn(daemonFlags, 'json'), false);
   assert.equal(Object.hasOwn(daemonFlags, 'help'), false);
   assert.equal(Object.hasOwn(daemonFlags, 'version'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'sessionLocked'), false);
+  assert.equal(Object.hasOwn(daemonFlags, 'sessionLockConflicts'), false);
 });
 
 test('parseArgs accepts --save-script with optional path value', () => {

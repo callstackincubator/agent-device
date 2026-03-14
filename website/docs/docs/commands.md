@@ -32,6 +32,7 @@ agent-device app-switcher
 - `open <app> <url>` opens a deep link on iOS.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
+- `--session-locked` and `--session-lock-conflicts reject|strip` make the lock policy first-class for a single CLI invocation, including nested batch steps.
 - `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked mode for automation runs. Conflicting per-call device selectors, including `--target`, are rejected by default; set `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=strip` to ignore them instead.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.

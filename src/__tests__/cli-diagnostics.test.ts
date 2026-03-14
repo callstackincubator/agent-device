@@ -231,3 +231,26 @@ test('cli rejects conflicting selectors in session-locked mode before dispatch',
     else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
   }
 });
+
+test('cli session lock flags override environment for a single invocation', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+  process.env.AGENT_DEVICE_SESSION_LOCKED = '0';
+  try {
+    const result = await runCliCapture(['snapshot', '--session-locked', '--device', 'Pixel 9', '--json'], async () => ({
+      ok: true,
+      data: {},
+    }));
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.success, false);
+    assert.match(payload.error.message, /session-locked device binding/i);
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
+    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+  }
+});

@@ -558,6 +558,8 @@ Environment selectors:
 - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST=<serials>` (or `ANDROID_DEVICE_ALLOWLIST=<serials>`) to scope Android discovery to allowlisted serials.
 - `AGENT_DEVICE_SESSION=<name>` sets the default CLI session when `--session` is omitted.
 - `AGENT_DEVICE_PLATFORM=ios|android|apple` sets the default CLI platform when `--platform` is omitted.
+- `--session-locked` enables session-locked selector handling for the current CLI invocation and nested batch steps.
+- `--session-lock-conflicts reject|strip` controls per-invocation conflict handling and overrides `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`.
 - `AGENT_DEVICE_SESSION_LOCKED=1` enables session-locked CLI mode for automation runs. In this mode, explicit per-call device selectors are treated as binding conflicts.
 - `AGENT_DEVICE_SESSION_LOCK_CONFLICTS=reject|strip` controls session-locked conflict handling (default: `reject`). `strip` ignores `--target`, `--device`, `--udid`, `--serial`, `--ios-simulator-device-set`, and `--android-device-allowlist`, and restores the configured platform.
 - `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` optional bundletool jar path used for Android `.aab` installs when `bundletool` is not in `PATH`.

@@ -101,7 +101,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const { command, positionals } = parsed;
       let flags;
       try {
-        flags = applyConfiguredSessionBinding(command, parsed.flags);
+        flags = applyConfiguredSessionBinding(command, parsed.flags, {
+          policyOverrides: parsed.flags,
+        });
       } catch (error) {
         emitDiagnostic({
           level: 'error',
@@ -171,6 +173,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         flags: applyConfiguredSessionBinding(
           `batch step ${index + 1} (${step.command})`,
           (step.flags ?? {}) as Partial<typeof daemonFlags>,
+          {
+            policyOverrides: flags,
+          },
         ),
       }));
       const batchFlags = { ...daemonFlags, batchSteps };

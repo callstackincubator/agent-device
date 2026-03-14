@@ -172,3 +172,33 @@ test('batch rejects target retargeting in session-locked mode', async () => {
     else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
   }
 });
+
+test('batch session lock flags apply to nested steps without env configuration', async () => {
+  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
+  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  process.env.AGENT_DEVICE_PLATFORM = 'ios';
+  process.env.AGENT_DEVICE_SESSION_LOCKED = '0';
+
+  try {
+    const result = await runCliCapture([
+      'batch',
+      '--session-locked',
+      '--session-lock-conflicts',
+      'strip',
+      '--steps',
+      '[{"command":"snapshot","flags":{"target":"tv","serial":"emulator-5554"}}]',
+      '--json',
+    ]);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
+    assert.equal(stepFlags.platform, 'ios');
+    assert.equal(stepFlags.target, undefined);
+    assert.equal(stepFlags.serial, undefined);
+  } finally {
+    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
+    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
+    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
+    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+  }
+});

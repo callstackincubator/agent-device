@@ -236,6 +236,8 @@ export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'help' |
     json: _json,
     help: _help,
     version: _version,
+    sessionLocked: _sessionLocked,
+    sessionLockConflicts: _sessionLockConflicts,
     ...daemonFlags
   } = flags;
   return daemonFlags;

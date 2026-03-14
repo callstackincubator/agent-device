@@ -10,6 +10,8 @@ type BindingSettings = {
   conflictMode: BindingConflictMode;
 };
 
+type BindingPolicyOverrides = Pick<Partial<CliFlags>, 'sessionLocked' | 'sessionLockConflicts'>;
+
 type LockableFlags = Pick<
   Partial<CliFlags>,
   'platform' | 'target' | 'device' | 'udid' | 'serial' | 'iosSimulatorDeviceSet' | 'androidDeviceAllowlist'
@@ -27,9 +29,12 @@ const LOCKED_SELECTOR_KEYS: Array<keyof LockableFlags> = [
 export function applyConfiguredSessionBinding<T extends LockableFlags>(
   commandLabel: string,
   flags: T,
-  env: NodeJS.ProcessEnv = process.env,
+  options: {
+    env?: NodeJS.ProcessEnv;
+    policyOverrides?: BindingPolicyOverrides;
+  } = {},
 ): T {
-  const settings = resolveBindingSettings(env);
+  const settings = resolveBindingSettings(options.policyOverrides, options.env);
   const nextFlags = { ...flags };
 
   if (settings.defaultPlatform && nextFlags.platform === undefined) {
@@ -78,10 +83,13 @@ export function applyConfiguredSessionBinding<T extends LockableFlags>(
   );
 }
 
-function resolveBindingSettings(env: NodeJS.ProcessEnv): BindingSettings {
+function resolveBindingSettings(
+  policyOverrides: BindingPolicyOverrides | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): BindingSettings {
   const defaultPlatform = readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
-  const sessionLocked = isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED);
-  const conflictMode = readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+  const sessionLocked = policyOverrides?.sessionLocked ?? isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED);
+  const conflictMode = policyOverrides?.sessionLockConflicts ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
   return {
     defaultPlatform,
     sessionLocked,
