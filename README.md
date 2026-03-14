@@ -35,6 +35,48 @@ Or use it without installing:
 npx agent-device open SampleApp
 ```
 
+Use the typed daemon client from application code:
+
+```ts
+import { createAgentDeviceClient } from 'agent-device';
+
+const client = createAgentDeviceClient({ session: 'qa-ios' });
+
+const devices = await client.devices.list({ platform: 'ios' });
+const ensured = await client.simulators.ensure({
+  device: 'iPhone 16',
+  boot: true,
+});
+
+await client.apps.open({
+  app: 'com.apple.Preferences',
+  platform: 'ios',
+  udid: ensured.udid,
+  runtime: {
+    metroHost: '127.0.0.1',
+    metroPort: 8081,
+  },
+});
+
+const snapshot = await client.capture.snapshot({ interactiveOnly: true });
+const androidClient = createAgentDeviceClient({ session: 'qa-android' });
+const installed = await androidClient.apps.installFromSource({
+  platform: 'android',
+  retainPaths: true,
+  retentionMs: 60_000,
+  source: { kind: 'url', url: 'https://example.com/app.apk' },
+});
+await androidClient.apps.open({ app: installed.launchTarget, platform: 'android' });
+console.log(installed.installablePath, installed.materializationId);
+if (installed.materializationId) {
+  await androidClient.materializations.release({
+    materializationId: installed.materializationId,
+  });
+}
+await client.sessions.close();
+await androidClient.sessions.close();
+```
+
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).
 For structured exploratory QA workflows, use the dogfood skill at [skills/dogfood/SKILL.md](skills/dogfood/SKILL.md).
 
@@ -314,7 +356,7 @@ Navigation helpers:
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
 - When `AGENT_DEVICE_DAEMON_BASE_URL` targets a remote daemon, local `.apk`/`.aab`/`.ipa` files and `.app` bundles are uploaded automatically before `install`/`reinstall`.
-- Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`, or pass a typed `runtime` object on the `open` daemon request to replace the session runtime atomically for that launch. Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. CLI example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
+- Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`; Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. Example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
 - Remote daemon screenshots and recordings are materialized back to the caller path instead of returning host-local daemon paths.
 - To force a daemon-side path instead of uploading a local file, prefix it with `remote:`, for example `remote:/srv/builds/MyApp.app`.
 - Supported binary formats for `install`/`reinstall`: Android `.apk` and `.aab`, iOS `.app` and `.ipa`.
@@ -522,11 +564,6 @@ Environment selectors:
 - `AGENT_DEVICE_STATE_DIR=<path>` override daemon state directory (metadata, logs, session artifacts).
 - `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]` connect directly to a remote HTTP daemon and skip local daemon metadata/startup.
 - Remote daemon installs upload local artifacts through `POST /upload`; use a `remote:` path prefix when you need the daemon to read an existing server-side artifact path as-is.
-- HTTP JSON-RPC also exposes `agent_device.install_from_source` for typed host-side download/materialize/install flows. It accepts `{ platform, source: { kind: "url" | "path", ... }, session?, requestId?, retainPaths?, retentionMs? }` and returns normalized app identity (`packageName`/`bundleId`, `launchTarget`).
-- Set `retainPaths: true` to opt into daemon-managed retained materialization. In that mode the response also includes `installablePath`, optional `archivePath`, `materializationId`, and `materializationExpiresAt`.
-- Retained paths are server-side paths intended for later daemon-side reuse. They are cleaned automatically on TTL expiry, on session close when bound to a session, or immediately via `agent_device.release_materialized_paths({ materializationId, session?, requestId? })`.
-- `AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS=<ms>` timeout for host-side `install_from_source` URL downloads (default: `120000`).
-- `AGENT_DEVICE_INSTALL_SOURCE_RETAIN_TTL_MS=<ms>` default retention TTL for `install_from_source retainPaths:true` materializations (default: `900000`).
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>` auth token for remote HTTP daemon mode; sent in both the JSON-RPC request token and HTTP auth headers (`Authorization: Bearer` and `x-agent-device-token`).
 - `AGENT_DEVICE_DAEMON_SERVER_MODE=socket|http|dual` daemon server mode. `http` and `dual` expose JSON-RPC 2.0 at `POST /rpc` (`GET /health` available for liveness).
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.

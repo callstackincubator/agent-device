@@ -6,7 +6,7 @@ export default defineConfig({
     {
       format: 'esm',
       syntax: 'esnext',
-      dts: false,
+      dts: true,
       shims: {
         esm: {
           __filename: true,
@@ -14,6 +14,7 @@ export default defineConfig({
       },
       source: {
         entry: {
+          index: 'src/index.ts',
           bin: 'src/bin.ts',
           daemon: 'src/daemon.ts',
         },

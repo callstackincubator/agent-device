@@ -70,10 +70,17 @@ async function runCliCapture(
 test('cli forwards --debug as verbose/debug metadata', async () => {
   const result = await runCliCapture(['open', 'settings', '--debug', '--json'], async () => ({
     ok: true,
-    data: { app: 'settings' },
+    data: {
+      app: 'settings',
+      platform: 'ios',
+      target: 'mobile',
+      device: 'iPhone 16',
+      id: 'SIM-001',
+    },
   }));
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.command, 'open');
   assert.equal(result.calls[0]?.flags?.verbose, true);
   assert.equal(result.calls[0]?.meta?.debug, true);
   assert.equal(result.calls[0]?.meta?.cwd, process.cwd());
@@ -148,4 +155,33 @@ test('cli parse failures include diagnostic references in JSON mode', async () =
   } finally {
     process.env.HOME = previousHome;
   }
+});
+
+test('cli forwards save-script and no-record flags for client-backed open', async () => {
+  const result = await runCliCapture(['open', 'settings', '--save-script', '--no-record', '--json'], async () => ({
+    ok: true,
+    data: {
+      app: 'settings',
+      platform: 'ios',
+      target: 'mobile',
+      device: 'iPhone 16',
+      id: 'SIM-001',
+    },
+  }));
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.command, 'open');
+  assert.equal(result.calls[0]?.flags?.saveScript, true);
+  assert.equal(result.calls[0]?.flags?.noRecord, true);
+});
+
+test('cli preserves --out for client-backed screenshot', async () => {
+  const result = await runCliCapture(['screenshot', '--out', '/tmp/shot.png', '--json'], async () => ({
+    ok: true,
+    data: { path: '/tmp/shot.png' },
+  }));
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.command, 'screenshot');
+  assert.deepEqual(result.calls[0]?.positionals, ['/tmp/shot.png']);
 });

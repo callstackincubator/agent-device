@@ -161,6 +161,16 @@ function buildOpenResult(params: {
   if (runtime && countConfiguredRuntimeHints(runtime) > 0) {
     result.runtime = runtime;
   }
+  if (device) {
+    result.platform = device.platform;
+    result.target = device.target ?? 'mobile';
+    result.device = device.name;
+    result.id = device.id;
+    result.kind = device.kind;
+    if (device.platform === 'android') {
+      result.serial = device.id;
+    }
+  }
   if (device?.platform === 'ios') {
     result.device_udid = device.id;
     result.ios_simulator_device_set = device.simulatorSetPath ?? null;

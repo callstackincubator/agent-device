@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { readInfoPlistString } from './plist.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { materializeInstallablePath, type MaterializeInstallSource } from '../install-source.ts';
@@ -68,24 +69,6 @@ export async function readIosBundleInfo(
     bundleId,
     appName: displayName ?? bundleName,
   };
-}
-
-async function readInfoPlistString(
-  infoPlistPath: string,
-  key: string,
-): Promise<string | undefined> {
-  try {
-    const result = await runCmd(
-      'plutil',
-      ['-extract', key, 'raw', '-o', '-', infoPlistPath],
-      { allowFailure: true },
-    );
-    if (result.exitCode !== 0) return undefined;
-    const value = String(result.stdout ?? '').trim();
-    return value.length > 0 ? value : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 async function resolveIosInstallablePath(
