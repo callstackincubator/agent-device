@@ -102,9 +102,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const binding = resolveBindingSettings({
         policyOverrides: parsed.flags,
       });
-      const flags = applyDefaultPlatformBinding(parsed.flags, {
-        policyOverrides: parsed.flags,
-      });
+      const flags = binding.lockPolicy
+        ? { ...parsed.flags }
+        : applyDefaultPlatformBinding(parsed.flags, {
+          policyOverrides: parsed.flags,
+        });
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
       const sessionName = flags.session ?? process.env.AGENT_DEVICE_SESSION ?? 'default';
@@ -155,13 +157,15 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           }
           const batchSteps = readBatchSteps(flags).map((step, index) => ({
             ...step,
-            flags: applyDefaultPlatformBinding(
-              (step.flags ?? {}) as Partial<typeof daemonFlags>,
-              {
-                policyOverrides: flags,
-                inheritedPlatform: flags.platform,
-              },
-            ),
+            flags: binding.lockPolicy && flags.platform === undefined
+              ? { ...((step.flags ?? {}) as Partial<typeof daemonFlags>) }
+              : applyDefaultPlatformBinding(
+                (step.flags ?? {}) as Partial<typeof daemonFlags>,
+                {
+                  policyOverrides: flags,
+                  inheritedPlatform: flags.platform,
+                },
+              ),
           }));
           const batchFlags = { ...daemonFlags, batchSteps };
           delete (batchFlags as Record<string, unknown>).steps;

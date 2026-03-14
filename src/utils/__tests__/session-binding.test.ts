@@ -52,6 +52,27 @@ test('policy overrides take precedence over environment lock settings', () => {
   assert.equal(binding.lockPolicy, 'strip');
 });
 
+test('env and explicit lock inputs resolve to the same binding policy object', () => {
+  const fromEnv = resolveBindingSettings({
+    env: {
+      AGENT_DEVICE_SESSION: 'qa-ios',
+      AGENT_DEVICE_PLATFORM: 'ios',
+      AGENT_DEVICE_SESSION_LOCK: 'reject',
+    } as NodeJS.ProcessEnv,
+  });
+  const fromFlags = resolveBindingSettings({
+    env: {
+      AGENT_DEVICE_SESSION: 'qa-ios',
+      AGENT_DEVICE_PLATFORM: 'ios',
+    } as NodeJS.ProcessEnv,
+    policyOverrides: {
+      sessionLock: 'reject',
+    },
+  });
+
+  assert.deepEqual(fromFlags, fromEnv);
+});
+
 test('inherited platform takes precedence over env default for batch-style step normalization', () => {
   const flags = applyDefaultPlatformBinding<{
     platform?: 'ios' | 'android' | 'apple';

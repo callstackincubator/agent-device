@@ -193,8 +193,9 @@ test('batch session lock flags apply to nested steps without env configuration',
     assert.equal(result.calls.length, 1);
     assert.equal(result.calls[0]?.meta?.lockPolicy, 'strip');
     assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
+    assert.equal(result.calls[0]?.flags?.platform, undefined);
     const stepFlags = (result.calls[0]?.flags?.batchSteps ?? [])[0]?.flags ?? {};
-    assert.equal(stepFlags.platform, 'ios');
+    assert.equal(stepFlags.platform, undefined);
     assert.equal(stepFlags.target, 'tv');
     assert.equal(stepFlags.serial, 'emulator-5554');
   } finally {
