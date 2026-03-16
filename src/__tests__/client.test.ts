@@ -256,6 +256,44 @@ test('apps.installFromSource forwards source payload and normalizes launch ident
   });
 });
 
+test('apps.installFromSource derives Android launchTarget from packageName when daemon omits it', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      packageName: 'com.example.package-name-only',
+      appName: 'PackageNameOnly',
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.apps.installFromSource({
+    platform: 'android',
+    source: {
+      kind: 'url',
+      url: 'https://example.com/package-name-only.apk',
+      headers: {},
+    },
+  });
+
+  assert.deepEqual(result, {
+    appName: 'PackageNameOnly',
+    appId: 'com.example.package-name-only',
+    bundleId: undefined,
+    packageName: 'com.example.package-name-only',
+    launchTarget: 'com.example.package-name-only',
+    installablePath: undefined,
+    archivePath: undefined,
+    materializationId: undefined,
+    materializationExpiresAt: undefined,
+    identifiers: {
+      session: 'qa',
+      appId: 'com.example.package-name-only',
+      appBundleId: undefined,
+      package: 'com.example.package-name-only',
+    },
+  });
+});
+
 test('materializations.release forwards materialization identity through the daemon request', async () => {
   const setup = createTransport(async () => ({
     ok: true,

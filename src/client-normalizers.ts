@@ -59,13 +59,17 @@ export function normalizeInstallFromSourceResult(
 ): AppInstallFromSourceResult {
   const bundleId = readOptionalString(data, 'bundleId');
   const packageName = readOptionalString(data, 'packageName');
-  const appId = bundleId ?? packageName;
+  const appId = bundleId ?? packageName ?? readOptionalString(data, 'appId');
+  const launchTarget = readOptionalString(data, 'launchTarget') ?? packageName ?? bundleId ?? appId;
+  if (!launchTarget) {
+    throw new AppError('COMMAND_FAILED', 'Daemon response is missing "launchTarget".', { response: data });
+  }
   return {
     appName: readOptionalString(data, 'appName'),
     appId,
     bundleId,
     packageName,
-    launchTarget: readRequiredString(data, 'launchTarget'),
+    launchTarget,
     installablePath: readOptionalString(data, 'installablePath'),
     archivePath: readOptionalString(data, 'archivePath'),
     materializationId: readOptionalString(data, 'materializationId'),
