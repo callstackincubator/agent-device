@@ -35,56 +35,7 @@ Or use it without installing:
 npx agent-device open SampleApp
 ```
 
-Use the typed daemon client from application code:
-
-```ts
-import { createAgentDeviceClient } from 'agent-device';
-
-const client = createAgentDeviceClient({
-  session: 'qa-ios',
-  lockPolicy: 'reject',
-  lockPlatform: 'ios',
-});
-
-const devices = await client.devices.list({ platform: 'ios' });
-const ensured = await client.simulators.ensure({
-  device: 'iPhone 16',
-  boot: true,
-});
-
-await client.apps.open({
-  app: 'com.apple.Preferences',
-  platform: 'ios',
-  udid: ensured.udid,
-  runtime: {
-    metroHost: '127.0.0.1',
-    metroPort: 8081,
-  },
-});
-
-const snapshot = await client.capture.snapshot({ interactiveOnly: true });
-const androidClient = createAgentDeviceClient({ session: 'qa-android' });
-const installed = await androidClient.apps.installFromSource({
-  platform: 'android',
-  retainPaths: true,
-  retentionMs: 60_000,
-  source: { kind: 'url', url: 'https://example.com/app.apk' },
-});
-await androidClient.apps.open({ app: installed.launchTarget, platform: 'android' });
-console.log(installed.installablePath, installed.materializationId);
-if (installed.materializationId) {
-  await androidClient.materializations.release({
-    materializationId: installed.materializationId,
-  });
-}
-await client.sessions.close();
-await androidClient.sessions.close();
-```
-
-`installFromSource` URL sources are intentionally limited:
-- Private and loopback hosts are blocked by default.
-- Archive-backed URL installs are only supported for trusted artifact services, currently GitHub Actions and EAS.
-- For other hosts, prefer `source: { kind: 'path', path: ... }` so the client downloads/uploads the artifact explicitly.
+For the typed daemon client and `installFromSource` behavior, see [website/docs/docs/client-api.md](website/docs/docs/client-api.md).
 
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).
 For structured exploratory QA workflows, use the dogfood skill at [skills/dogfood/SKILL.md](skills/dogfood/SKILL.md).

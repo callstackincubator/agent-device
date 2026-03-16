@@ -15,6 +15,11 @@
     "label": "Quick Start"
   },
   {
+    "name": "client-api",
+    "type": "file",
+    "label": "Typed Client"
+  },
+  {
     "name": "commands",
     "type": "file",
     "label": "Commands"
