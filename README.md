@@ -81,6 +81,11 @@ await client.sessions.close();
 await androidClient.sessions.close();
 ```
 
+`installFromSource` URL sources are intentionally limited:
+- Private and loopback hosts are blocked by default.
+- Archive-backed URL installs are only supported for trusted artifact services, currently GitHub Actions and EAS.
+- For other hosts, prefer `source: { kind: 'path', path: ... }` so the client downloads/uploads the artifact explicitly.
+
 The skill is also accessible on [ClawHub](https://clawhub.ai/okwasniewski/agent-device).
 For structured exploratory QA workflows, use the dogfood skill at [skills/dogfood/SKILL.md](skills/dogfood/SKILL.md).
 
@@ -613,6 +618,8 @@ Environment selectors:
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
 - `AGENT_DEVICE_HTTP_AUTH_HOOK=<module-path>` optional HTTP auth hook module path for JSON-RPC server mode.
 - `AGENT_DEVICE_HTTP_AUTH_EXPORT=<export-name>` optional export name from auth hook module (default: `default`).
+- `AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS=<ms>` timeout for `installFromSource` URL downloads (default: `120000`).
+- `AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1` opt out of the default SSRF guard that blocks loopback/private-network artifact URLs for `installFromSource`.
 - `AGENT_DEVICE_MAX_SIMULATOR_LEASES=<n>` optional max concurrent simulator leases for HTTP lease allocation (default: unlimited).
 - `AGENT_DEVICE_LEASE_TTL_MS=<ms>` default lease TTL used by `agent_device.lease.allocate` and `agent_device.lease.heartbeat` (default: `60000`).
 - `AGENT_DEVICE_LEASE_MIN_TTL_MS=<ms>` minimum accepted lease TTL (default: `5000`).

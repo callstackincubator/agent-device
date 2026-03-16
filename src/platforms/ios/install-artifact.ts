@@ -4,7 +4,11 @@ import path from 'node:path';
 import { readInfoPlistString } from './plist.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
-import { materializeInstallablePath, type MaterializeInstallSource } from '../install-source.ts';
+import {
+  isTrustedInstallSourceUrl,
+  materializeInstallablePath,
+  type MaterializeInstallSource,
+} from '../install-source.ts';
 
 type InstallIosArtifactOptions = {
   appIdentifierHint?: string;
@@ -30,12 +34,19 @@ export async function prepareIosInstallArtifact(
   source: MaterializeInstallSource,
   options?: InstallIosArtifactOptions,
 ): Promise<PreparedIosInstallArtifact> {
+  if (source.kind === 'url' && !isTrustedInstallSourceUrl(source.url)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'iOS install_from_source URL sources are only supported for trusted artifact services such as GitHub Actions and EAS. Use a path source for other hosts.',
+    );
+  }
   const materialized = await materializeInstallablePath({
     source,
     isInstallablePath: (candidatePath, stat) =>
       (stat.isDirectory() && candidatePath.toLowerCase().endsWith('.app'))
       || (stat.isFile() && candidatePath.toLowerCase().endsWith('.ipa')),
     installableLabel: 'iOS installable (.app or .ipa)',
+    allowArchiveExtraction: source.kind !== 'url' || isTrustedInstallSourceUrl(source.url),
     signal: options?.signal,
   });
 
