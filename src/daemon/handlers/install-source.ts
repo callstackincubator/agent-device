@@ -6,29 +6,13 @@ import {
   cleanupRetainedMaterializedPaths,
   retainMaterializedPaths,
 } from '../materialized-path-registry.ts';
+import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
-import type { DaemonInstallSource, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
-}
-
-function requireInstallSource(req: DaemonRequest): DaemonInstallSource {
-  const source = req.meta?.installSource;
-  if (!source) {
-    throw new AppError('INVALID_ARGS', 'install_from_source requires a source payload');
-  }
-  if (source.kind === 'url') {
-    if (!source.url || source.url.trim().length === 0) {
-      throw new AppError('INVALID_ARGS', 'install_from_source url source requires a non-empty url');
-    }
-    return source;
-  }
-  if (!source.path || source.path.trim().length === 0) {
-    throw new AppError('INVALID_ARGS', 'install_from_source path source requires a non-empty path');
-  }
-  return source;
 }
 
 function resolveRetainMaterializedPaths(req: DaemonRequest): { enabled: boolean; ttlMs?: number } {
@@ -73,7 +57,7 @@ export async function handleInstallFromSourceCommand(params: {
   const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   try {
-    const source = requireInstallSource(req);
+    const resolvedSource = resolveInstallSource(req);
     const retention = resolveRetainMaterializedPaths(req);
     const device = await resolveInstallDevice({
       session,
@@ -93,7 +77,7 @@ export async function handleInstallFromSourceCommand(params: {
     if (device.platform === 'ios') {
       const { installIosInstallablePath } = await import('../../platforms/ios/index.ts');
       const { prepareIosInstallArtifact } = await import('../../platforms/ios/install-artifact.ts');
-      const prepared = await prepareIosInstallArtifact(source, { signal: requestSignal });
+      const prepared = await prepareIosInstallArtifact(resolvedSource.source, { signal: requestSignal });
       let retained: Awaited<ReturnType<typeof retainMaterializedPaths>> | undefined;
       try {
         if (retention.enabled) {
@@ -136,12 +120,13 @@ export async function handleInstallFromSourceCommand(params: {
         throw error;
       } finally {
         await prepared.cleanup();
+        resolvedSource.cleanup();
       }
     }
 
     const { installAndroidInstallablePath } = await import('../../platforms/android/index.ts');
     const { prepareAndroidInstallArtifact } = await import('../../platforms/android/install-artifact.ts');
-    const prepared = await prepareAndroidInstallArtifact(source, { signal: requestSignal });
+    const prepared = await prepareAndroidInstallArtifact(resolvedSource.source, { signal: requestSignal });
     let retained: Awaited<ReturnType<typeof retainMaterializedPaths>> | undefined;
     try {
       if (retention.enabled) {
@@ -154,16 +139,14 @@ export async function handleInstallFromSourceCommand(params: {
         });
       }
       await installAndroidInstallablePath(device, prepared.installablePath);
-      if (!prepared.packageName) {
-        throw new AppError('COMMAND_FAILED', 'Installed Android package identity could not be resolved from the artifact');
-      }
       const { inferAndroidAppName } = await import('../../platforms/android/index.ts');
+      const appName = prepared.packageName ? inferAndroidAppName(prepared.packageName) : undefined;
       const result = {
         ...(retained?.archivePath ? { archivePath: retained.archivePath } : {}),
         ...(retained ? { installablePath: retained.installablePath } : {}),
-        packageName: prepared.packageName,
-        appName: inferAndroidAppName(prepared.packageName),
-        launchTarget: prepared.packageName,
+        ...(prepared.packageName ? { packageName: prepared.packageName } : {}),
+        ...(appName ? { appName } : {}),
+        ...(prepared.packageName ? { launchTarget: prepared.packageName } : {}),
         ...(retained ? {
           materializationId: retained.materializationId,
           materializationExpiresAt: retained.expiresAt,
@@ -185,6 +168,7 @@ export async function handleInstallFromSourceCommand(params: {
       throw error;
     } finally {
       await prepared.cleanup();
+      resolvedSource.cleanup();
     }
   } catch (error) {
     const normalized = normalizeError(error);

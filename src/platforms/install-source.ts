@@ -1,3 +1,5 @@
+import dns from 'node:dns/promises';
+import net from 'node:net';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,6 +27,7 @@ type MaterializeInstallableOptions = {
   source: MaterializeInstallSource;
   isInstallablePath: (candidatePath: string, stat: { isFile(): boolean; isDirectory(): boolean }) => boolean;
   installableLabel: string;
+  allowArchiveExtraction?: boolean;
   signal?: AbortSignal;
   downloadTimeoutMs?: number;
 };
@@ -42,6 +45,7 @@ const DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS = resolveTimeoutMs(
   120_000,
   1_000,
 );
+const ALLOW_PRIVATE_SOURCE_URLS = ['1', 'true', 'yes', 'on'];
 
 export async function materializeInstallablePath(
   options: MaterializeInstallableOptions,
@@ -57,6 +61,7 @@ export async function materializeInstallablePath(
       archivePath: undefined,
       isInstallablePath: options.isInstallablePath,
       installableLabel: options.installableLabel,
+      allowArchiveExtraction: options.allowArchiveExtraction !== false,
       registerCleanup: (cleanup) => {
         cleanupTasks.push(cleanup);
       },
@@ -119,6 +124,7 @@ async function downloadToTempFile(
   } catch {
     throw new AppError('INVALID_ARGS', `Invalid source URL: ${url}`);
   }
+  await validateDownloadSourceUrl(parsedUrl);
   const requestSignal = options?.signal;
   if (requestSignal?.aborted) {
     throw new AppError('COMMAND_FAILED', 'request canceled', { reason: 'request_canceled' });
@@ -179,6 +185,61 @@ async function downloadToTempFile(
   }
 }
 
+export async function validateDownloadSourceUrl(parsedUrl: URL): Promise<void> {
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new AppError('INVALID_ARGS', `Unsupported source URL protocol: ${parsedUrl.protocol}`);
+  }
+  if (ALLOW_PRIVATE_SOURCE_URLS.includes((process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS ?? '').toLowerCase())) {
+    return;
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (isBlockedSourceHostname(hostname)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Source URL host is not allowed: ${parsedUrl.hostname}`,
+      {
+        hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
+      },
+    );
+  }
+
+  const resolved = await dns.lookup(parsedUrl.hostname, { all: true, verbatim: true }).catch(() => []);
+  if (resolved.some((entry) => isBlockedIpAddress(entry.address))) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Source URL host resolved to a private or loopback address: ${parsedUrl.hostname}`,
+      {
+        hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
+      },
+    );
+  }
+}
+
+export function isTrustedInstallSourceUrl(sourceUrl: string | URL): boolean {
+  const parsed = sourceUrl instanceof URL ? sourceUrl : new URL(sourceUrl);
+  const hostname = parsed.hostname.toLowerCase();
+  if (!hostname) return false;
+  const pathname = parsed.pathname;
+  return isTrustedGithubActionsArtifactUrl(hostname, pathname)
+    || isTrustedEasArtifactUrl(hostname, pathname);
+}
+
+function isTrustedGithubActionsArtifactUrl(hostname: string, pathname: string): boolean {
+  if (hostname === 'api.github.com') {
+    return /^\/repos\/[^/]+\/[^/]+\/actions\/artifacts\/\d+\/zip$/i.test(pathname);
+  }
+  if (hostname !== 'github.com') return false;
+  return /^\/[^/]+\/[^/]+\/(?:actions\/runs\/\d+\/artifacts\/\d+|suites\/\d+\/artifacts\/\d+)$/i.test(pathname);
+}
+
+function isTrustedEasArtifactUrl(hostname: string, pathname: string): boolean {
+  if (hostname !== 'expo.dev' && !hostname.endsWith('.expo.dev')) {
+    return false;
+  }
+  return /^\/(?:artifacts\/eas\/|accounts\/[^/]+\/projects\/[^/]+\/builds\/)/i.test(pathname);
+}
+
 function resolveDownloadFileName(response: Response, parsedUrl: URL): string {
   const contentDisposition = response.headers.get('content-disposition');
   const filenameMatch = contentDisposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
@@ -189,12 +250,47 @@ function resolveDownloadFileName(response: Response, parsedUrl: URL): string {
   return 'downloaded-artifact.bin';
 }
 
+function isBlockedSourceHostname(hostname: string): boolean {
+  if (!hostname) return true;
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) return true;
+  return isBlockedIpAddress(hostname);
+}
+
+function isBlockedIpAddress(address: string): boolean {
+  const family = net.isIP(address);
+  if (family === 4) return isBlockedIpv4(address);
+  if (family === 6) return isBlockedIpv6(address);
+  return false;
+}
+
+function isBlockedIpv4(address: string): boolean {
+  const octets = address.split('.').map((part) => Number.parseInt(part, 10));
+  if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b] = octets;
+  if (a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+}
+
+function isBlockedIpv6(address: string): boolean {
+  const normalized = address.toLowerCase();
+  if (normalized === '::1') return true;
+  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  if (normalized.startsWith('fe80:')) return true;
+  return false;
+}
+
 async function resolveInstallableCandidate(
   candidatePath: string,
   params: {
     archivePath: string | undefined;
     isInstallablePath: MaterializeInstallableOptions['isInstallablePath'];
     installableLabel: string;
+    allowArchiveExtraction: boolean;
     registerCleanup: (cleanup: () => Promise<void>) => void;
   },
 ): Promise<{ archivePath?: string; installablePath: string }> {
@@ -211,6 +307,13 @@ async function resolveInstallableCandidate(
   }
 
   if (stat.isFile() && isArchivePath(candidatePath)) {
+    if (!params.allowArchiveExtraction) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `URL sources must point directly to a ${params.installableLabel}; archive extraction is not allowed`,
+        { path: candidatePath },
+      );
+    }
     const extracted = await extractArchive(candidatePath);
     params.registerCleanup(extracted.cleanup);
     return await resolveInstallableCandidate(extracted.outputPath, {
@@ -238,6 +341,13 @@ async function resolveInstallableCandidate(
     const archives = await collectMatchingPaths(candidatePath, (entryPath, entryStat) =>
       entryStat.isFile() && isArchivePath(entryPath));
     if (archives.length === 1) {
+      if (!params.allowArchiveExtraction) {
+        throw new AppError(
+          'INVALID_ARGS',
+          `URL sources must point directly to a ${params.installableLabel}; nested archives are not allowed`,
+          { path: archives[0] },
+        );
+      }
       const extracted = await extractArchive(archives[0]);
       params.registerCleanup(extracted.cleanup);
       return await resolveInstallableCandidate(extracted.outputPath, {

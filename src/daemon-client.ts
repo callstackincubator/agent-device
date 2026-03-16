@@ -109,6 +109,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     flags: preparedRemoteRequest.flags,
     token: info.token,
     meta: {
+      ...(req.meta ?? {}),
       requestId,
       debug,
       cwd: req.meta?.cwd,
@@ -120,6 +121,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       lockPlatform: req.meta?.lockPlatform,
       ...(preparedRemoteRequest.uploadedArtifactId ? { uploadedArtifactId: preparedRemoteRequest.uploadedArtifactId } : {}),
       ...(preparedRemoteRequest.clientArtifactPaths ? { clientArtifactPaths: preparedRemoteRequest.clientArtifactPaths } : {}),
+      ...(preparedRemoteRequest.installSource ? { installSource: preparedRemoteRequest.installSource } : {}),
     },
   };
   emitDiagnostic({
@@ -192,11 +194,13 @@ async function prepareRemoteRequest(
 ): Promise<{
   positionals: string[];
   flags?: DaemonRequest['flags'];
+  installSource?: NonNullable<DaemonRequest['meta']>['installSource'];
   uploadedArtifactId?: string;
   clientArtifactPaths?: Record<string, string>;
 }> {
   const positionals = [...(req.positionals ?? [])];
   let flags = req.flags ? { ...req.flags } : undefined;
+  let installSource = req.meta?.installSource;
   const clientArtifactPaths: Record<string, string> = {};
   let uploadedArtifactId: string | undefined;
 
@@ -212,6 +216,12 @@ async function prepareRemoteRequest(
       }
       clientArtifactPaths[remoteArtifact.field] = remoteArtifact.localPath;
     }
+
+    const remoteInstallSource = await prepareRemoteInstallSource(req, info);
+    if (remoteInstallSource) {
+      installSource = remoteInstallSource.installSource;
+      uploadedArtifactId = remoteInstallSource.uploadedArtifactId ?? uploadedArtifactId;
+    }
   }
 
   if (
@@ -222,6 +232,8 @@ async function prepareRemoteRequest(
     return {
       positionals,
       flags,
+      installSource,
+      uploadedArtifactId,
       ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
     };
   }
@@ -255,8 +267,60 @@ async function prepareRemoteRequest(
   return {
     positionals,
     flags,
+    installSource,
     uploadedArtifactId,
     ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+  };
+}
+
+async function prepareRemoteInstallSource(
+  req: Omit<DaemonRequest, 'token'>,
+  info: DaemonInfo,
+): Promise<{
+  installSource: NonNullable<DaemonRequest['meta']>['installSource'];
+  uploadedArtifactId?: string;
+} | null> {
+  const source = req.meta?.installSource;
+  if (req.command !== 'install_source' || !source || source.kind !== 'path') {
+    return null;
+  }
+
+  const rawPath = source.path.trim();
+  if (!rawPath) {
+    return { installSource: source };
+  }
+  if (rawPath.startsWith('remote:')) {
+    return {
+      installSource: {
+        ...source,
+        path: rawPath.slice('remote:'.length),
+      },
+    };
+  }
+
+  const localPath = path.isAbsolute(rawPath)
+    ? rawPath
+    : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
+  if (!fs.existsSync(localPath)) {
+    return {
+      installSource: {
+        ...source,
+        path: localPath,
+      },
+    };
+  }
+
+  const uploadedArtifactId = await uploadArtifact({
+    localPath,
+    baseUrl: info.baseUrl!,
+    token: info.token,
+  });
+  return {
+    installSource: {
+      ...source,
+      path: localPath,
+    },
+    uploadedArtifactId,
   };
 }
 

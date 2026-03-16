@@ -1,5 +1,9 @@
 import path from 'node:path';
-import { materializeInstallablePath, type MaterializeInstallSource } from '../install-source.ts';
+import {
+  isTrustedInstallSourceUrl,
+  materializeInstallablePath,
+  type MaterializeInstallSource,
+} from '../install-source.ts';
 import { resolveAndroidArchivePackageName } from './manifest.ts';
 
 export type PreparedAndroidInstallArtifact = {
@@ -13,14 +17,16 @@ export async function prepareAndroidInstallArtifact(
   source: MaterializeInstallSource,
   options?: { signal?: AbortSignal; resolveIdentity?: boolean },
 ): Promise<PreparedAndroidInstallArtifact> {
+  const trustedUrlSource = source.kind === 'url' && isTrustedInstallSourceUrl(source.url);
   const materialized = await materializeInstallablePath({
     source,
     isInstallablePath: (candidatePath, stat) =>
       stat.isFile() && isAndroidInstallablePath(candidatePath),
     installableLabel: 'Android installable (.apk or .aab)',
+    allowArchiveExtraction: source.kind !== 'url' || trustedUrlSource,
     signal: options?.signal,
   });
-  const identity = options?.resolveIdentity === false
+  const identity = options?.resolveIdentity === false || (source.kind === 'url' && !trustedUrlSource)
     ? {}
     : await inspectAndroidArtifactIdentity(materialized.installablePath);
   return {
