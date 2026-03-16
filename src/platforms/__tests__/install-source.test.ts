@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import http from 'node:http';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +10,7 @@ import {
   materializeInstallablePath,
   validateDownloadSourceUrl,
 } from '../install-source.ts';
+import { prepareAndroidInstallArtifact } from '../android/install-artifact.ts';
 import { prepareIosInstallArtifact } from '../ios/install-artifact.ts';
 
 test('validateDownloadSourceUrl rejects localhost and private literal addresses by default', async () => {
@@ -81,4 +84,47 @@ test('prepareIosInstallArtifact rejects untrusted URL sources', async () => {
     }),
     /only supported for trusted artifact services/i,
   );
+});
+
+test('prepareAndroidInstallArtifact resolves package identity for direct APK URL sources even when untrusted', async (t) => {
+  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
+  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-direct-apk-url-'));
+  const manifestPath = path.join(tempRoot, 'AndroidManifest.xml');
+  const apkPath = path.join(tempRoot, 'fixture.apk');
+  await fs.writeFile(
+    manifestPath,
+    '<manifest package="io.example.directurl" xmlns:android="http://schemas.android.com/apk/res/android" />',
+    'utf8',
+  );
+  execFileSync('zip', ['-q', apkPath, 'AndroidManifest.xml'], { cwd: tempRoot });
+  const apkBytes = await fs.readFile(apkPath);
+
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/vnd.android.package-archive' });
+    res.end(apkBytes);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+    await fs.rm(tempRoot, { recursive: true, force: true });
+    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
+    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
+  });
+
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+  const result = await prepareAndroidInstallArtifact({
+    kind: 'url',
+    url: `http://127.0.0.1:${address.port}/app.apk`,
+  });
+
+  try {
+    assert.equal(result.packageName, 'io.example.directurl');
+  } finally {
+    await result.cleanup();
+  }
 });

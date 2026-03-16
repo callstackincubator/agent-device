@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { runCmd } from '../../utils/exec.ts';
 
@@ -9,6 +11,7 @@ const TYPE_STRING = 0x03;
 const NO_INDEX = 0xffffffff;
 
 const utf16Decoder = new TextDecoder('utf-16le');
+let aaptPathCache: string | null | undefined;
 
 export async function resolveAndroidArchivePackageName(archivePath: string): Promise<string | undefined> {
   for (const entry of ['AndroidManifest.xml', 'base/manifest/AndroidManifest.xml']) {
@@ -17,7 +20,7 @@ export async function resolveAndroidArchivePackageName(archivePath: string): Pro
     const packageName = parseAndroidManifestPackageName(manifest);
     if (packageName) return packageName;
   }
-  return undefined;
+  return await resolveAndroidArchivePackageNameWithAapt(archivePath);
 }
 
 async function readZipEntry(archivePath: string, entry: string): Promise<Buffer | undefined> {
@@ -158,4 +161,46 @@ function readLength16(chunk: Buffer, offset: number): [number, number] {
   if ((first & 0x8000) === 0) return [first, 2];
   const second = chunk.readUInt16LE(offset + 2);
   return [((first & 0x7fff) << 16) | second, 4];
+}
+
+async function resolveAndroidArchivePackageNameWithAapt(archivePath: string): Promise<string | undefined> {
+  const aaptPath = await resolveAaptPath();
+  if (!aaptPath) return undefined;
+  const result = await runCmd(aaptPath, ['dump', 'badging', archivePath], { allowFailure: true });
+  if (result.exitCode !== 0) return undefined;
+  const match = result.stdout.match(/package:\s+name='([^']+)'/);
+  return match?.[1];
+}
+
+async function resolveAaptPath(): Promise<string | undefined> {
+  if (aaptPathCache !== undefined) {
+    return aaptPathCache ?? undefined;
+  }
+
+  const androidHome = process.env.ANDROID_HOME?.trim();
+  if (!androidHome) {
+    aaptPathCache = null;
+    return undefined;
+  }
+
+  try {
+    const buildToolsDir = path.join(androidHome, 'build-tools');
+    const versions = await fs.readdir(buildToolsDir);
+    const sortedVersions = versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    for (const version of sortedVersions) {
+      const candidate = path.join(buildToolsDir, version, 'aapt');
+      try {
+        await fs.access(candidate);
+        aaptPathCache = candidate;
+        return candidate;
+      } catch {
+        // Continue searching other build-tools versions.
+      }
+    }
+  } catch {
+    // Ignore SDK lookup failures and fall back to undefined.
+  }
+
+  aaptPathCache = null;
+  return undefined;
 }

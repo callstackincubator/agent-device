@@ -4,7 +4,7 @@ import {
   materializeInstallablePath,
   type MaterializeInstallSource,
 } from '../install-source.ts';
-import { resolveAndroidArchivePackageName } from './manifest.ts';
+import * as manifest from './manifest.ts';
 
 export type PreparedAndroidInstallArtifact = {
   archivePath?: string;
@@ -26,7 +26,7 @@ export async function prepareAndroidInstallArtifact(
     allowArchiveExtraction: source.kind !== 'url' || trustedUrlSource,
     signal: options?.signal,
   });
-  const identity = options?.resolveIdentity === false || (source.kind === 'url' && !trustedUrlSource)
+  const identity = options?.resolveIdentity === false
     ? {}
     : await inspectAndroidArtifactIdentity(materialized.installablePath);
   return {
@@ -49,7 +49,7 @@ async function inspectAndroidArtifactIdentity(
   if (extension !== '.apk' && extension !== '.aab') {
     return {};
   }
-  const packageName = await resolveAndroidArchivePackageName(installablePath);
+  const packageName = await manifest.resolveAndroidArchivePackageName(installablePath);
   return {
     packageName,
   };
