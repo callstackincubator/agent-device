@@ -11,6 +11,7 @@ export {
   openAndroidDevice,
   closeAndroidApp,
   installAndroidInstallablePath,
+  installAndroidInstallablePathAndResolvePackageName,
   installAndroidApp,
   reinstallAndroidApp,
 } from './app-lifecycle.ts';

@@ -515,6 +515,19 @@ export async function installAndroidInstallablePath(device: DeviceInfo, installa
   await installAndroidAppFiles(device, installablePath);
 }
 
+export async function installAndroidInstallablePathAndResolvePackageName(
+  device: DeviceInfo,
+  installablePath: string,
+  packageNameHint?: string,
+): Promise<string | undefined> {
+  const beforePackages = packageNameHint
+    ? undefined
+    : await listInstalledAndroidPackages(device);
+  await installAndroidInstallablePath(device, installablePath);
+  return packageNameHint
+    ?? (beforePackages ? await resolveInstalledAndroidPackageName(device, beforePackages) : undefined);
+}
+
 export async function installAndroidApp(
   device: DeviceInfo,
   appPath: string,
@@ -524,12 +537,11 @@ export async function installAndroidApp(
   }
   const prepared = await prepareAndroidInstallArtifact({ kind: 'path', path: appPath });
   try {
-    const beforePackages = prepared.packageName
-      ? undefined
-      : await listInstalledAndroidPackages(device);
-    await installAndroidInstallablePath(device, prepared.installablePath);
-    const packageName = prepared.packageName
-      ?? (beforePackages ? await resolveInstalledAndroidPackageName(device, beforePackages) : undefined);
+    const packageName = await installAndroidInstallablePathAndResolvePackageName(
+      device,
+      prepared.installablePath,
+      prepared.packageName,
+    );
     const appName = packageName ? inferAndroidAppName(packageName) : undefined;
     return {
       archivePath: prepared.archivePath,
