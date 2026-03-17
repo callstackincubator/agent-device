@@ -276,7 +276,7 @@ test('focusIosSimulatorWindow times out instead of hanging indefinitely', async 
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'COMMAND_FAILED');
-        assert.match((error as AppError).message, /open timed out after 5000ms/);
+        assert.match((error as AppError).message, /open timed out after 10000ms/);
         return true;
       },
     );

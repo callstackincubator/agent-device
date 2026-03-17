@@ -27,7 +27,7 @@ export const IOS_DEVICECTL_TIMEOUT_MS = resolveTimeoutMs(
 
 export const IOS_SIMULATOR_FOCUS_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
-  5_000,
+  10_000,
   1_000,
 );
 
