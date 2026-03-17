@@ -1,17 +1,19 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArgs, toDaemonFlags, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
 
-test('parseArgs recognizes command-specific flag combinations', () => {
+test('parseArgs recognizes command-specific flag combinations', async (t: TestContext) => {
   const scenarios: Array<{
+    label: string;
     argv: string[];
     strictFlags?: boolean;
     assertParsed: (parsed: ReturnType<typeof parseArgs>) => void;
   }> = [
     {
+      label: 'open --relaunch',
       argv: ['open', 'settings', '--relaunch'],
       assertParsed: (parsed) => {
         assert.equal(parsed.command, 'open');
@@ -20,6 +22,7 @@ test('parseArgs recognizes command-specific flag combinations', () => {
       },
     },
     {
+      label: 'open --platform ios --target tv',
       argv: ['open', 'Settings', '--platform', 'ios', '--target', 'tv'],
       strictFlags: true,
       assertParsed: (parsed) => {
@@ -29,6 +32,7 @@ test('parseArgs recognizes command-specific flag combinations', () => {
       },
     },
     {
+      label: 'boot --headless on android',
       argv: ['boot', '--platform', 'android', '--device', 'Pixel_9_Pro_XL', '--headless'],
       strictFlags: true,
       assertParsed: (parsed) => {
@@ -39,6 +43,7 @@ test('parseArgs recognizes command-specific flag combinations', () => {
       },
     },
     {
+      label: 'open --platform apple alias',
       argv: ['open', 'Settings', '--platform', 'apple', '--target', 'tv'],
       strictFlags: true,
       assertParsed: (parsed) => {
@@ -50,7 +55,9 @@ test('parseArgs recognizes command-specific flag combinations', () => {
   ];
 
   for (const scenario of scenarios) {
-    scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
+    await t.test(scenario.label, () => {
+      scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
+    });
   }
 });
 
@@ -321,7 +328,7 @@ test('parseArgs rejects invalid record --fps range', () => {
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('Invalid fps'),
+      error.message === 'Invalid fps: 0',
   );
 });
 
@@ -462,7 +469,7 @@ test('unknown short flags are rejected', () => {
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('Unknown flag'),
+      error.message === 'Unknown flag: -x',
   );
 });
 
@@ -514,14 +521,14 @@ test('invalid range errors are deterministic', () => {
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('Unknown flag'),
+      error.message === 'Unknown flag: --backend',
   );
   assert.throws(
     () => parseArgs(['snapshot', '--depth', '-1'], { strictFlags: true }),
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('Invalid depth'),
+      error.message === 'Invalid depth: -1',
   );
 });
 

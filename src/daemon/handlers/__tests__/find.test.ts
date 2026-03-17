@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -170,7 +170,7 @@ test('parseFindArgs with bare locator yields empty query', () => {
   assert.equal(parsed.action, 'click');
 });
 
-test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
+test('handleFindCommands click returns deterministic metadata across locator variants', async (t: TestContext) => {
   const hittableParentNoRect = { index: 0, type: 'View', hittable: true, depth: 0 };
   const nonHittableChildWithRect = {
     index: 1,
@@ -183,6 +183,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
   };
 
   const scenarios: Array<{
+    label: string;
     positionals: string[];
     nodes: Array<Record<string, unknown>>;
     invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
@@ -192,6 +193,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
     expectedCoordinates?: { x: number; y: number };
   }> = [
     {
+      label: 'returns deterministic matched-target metadata',
       positionals: ['Increment', 'click'],
       nodes: [INCREMENT_NODE],
       invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeApplication', x: 0, y: 0 }),
@@ -201,6 +203,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
       expectedCoordinates: { x: 100, y: 50 },
     },
     {
+      label: 'falls back to deterministic key set when resolved node has no rect',
       positionals: ['Increment', 'click'],
       nodes: [hittableParentNoRect, nonHittableChildWithRect],
       invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeView' }),
@@ -209,6 +212,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
       expectedQuery: 'Increment',
     },
     {
+      label: 'keeps explicit label locator in metadata',
       positionals: ['label', 'Increment', 'click'],
       nodes: [INCREMENT_NODE],
       expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
@@ -219,24 +223,26 @@ test('handleFindCommands click returns deterministic metadata across locator var
   ];
 
   for (const scenario of scenarios) {
-    const { response, invokeCalls } = await runFindClickScenario(scenario);
-    assert.ok(response.ok, 'expected success');
+    await t.test(scenario.label, async () => {
+      const { response, invokeCalls } = await runFindClickScenario(scenario);
+      assert.ok(response.ok, 'expected success');
 
-    const data = response.data as Record<string, unknown>;
-    assert.deepEqual(Object.keys(data).sort(), scenario.expectedKeys);
-    assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
-    assert.equal(data.locator, scenario.expectedLocator);
-    assert.equal(data.query, scenario.expectedQuery);
+      const data = response.data as Record<string, unknown>;
+      assert.deepEqual(Object.keys(data).sort(), scenario.expectedKeys);
+      assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
+      assert.equal(data.locator, scenario.expectedLocator);
+      assert.equal(data.query, scenario.expectedQuery);
 
-    if (scenario.expectedCoordinates) {
-      assert.equal(data.x, scenario.expectedCoordinates.x);
-      assert.equal(data.y, scenario.expectedCoordinates.y);
-    } else {
-      assert.equal(Object.hasOwn(data, 'x'), false);
-      assert.equal(Object.hasOwn(data, 'y'), false);
-    }
+      if (scenario.expectedCoordinates) {
+        assert.equal(data.x, scenario.expectedCoordinates.x);
+        assert.equal(data.y, scenario.expectedCoordinates.y);
+      } else {
+        assert.equal(Object.hasOwn(data, 'x'), false);
+        assert.equal(Object.hasOwn(data, 'y'), false);
+      }
 
-    assert.equal(invokeCalls.length, 1);
-    assert.equal(invokeCalls[0].positionals?.[0], '@e1');
+      assert.equal(invokeCalls.length, 1);
+      assert.equal(invokeCalls[0].positionals?.[0], '@e1');
+    });
   }
 });
