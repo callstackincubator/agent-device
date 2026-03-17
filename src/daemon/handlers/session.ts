@@ -1,24 +1,13 @@
 import fs from 'node:fs';
-import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload-registry.ts';
 import { dispatchCommand, resolveTargetDevice, type BatchStep, type CommandFlags } from '../../core/dispatch.ts';
-import {
-  DEFAULT_BATCH_MAX_STEPS,
-  type BatchStepResult,
-  type NormalizedBatchStep,
-  validateAndNormalizeBatchSteps,
-} from '../../core/batch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
 import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
-import { resolveTimeoutMs } from '../../utils/timeouts.ts';
-import { runCmd } from '../../utils/exec.ts';
 import type {
   DaemonRequest,
   DaemonResponse,
   SessionAction,
-  SessionRuntimeHints,
   SessionState,
 } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -26,10 +15,6 @@ import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
-import {
-  classifyAndroidAppTarget,
-  formatAndroidInstalledPackageRequiredMessage,
-} from '../../platforms/android/open-target.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
 import {
@@ -50,7 +35,7 @@ import {
   stopAppLog,
 } from '../app-log.ts';
 import { readRecentNetworkTraffic } from '../network-log.ts';
-import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
+import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 import {
   collectReplaySelectorCandidates,
   healNumericGetTextDrift,
@@ -61,50 +46,31 @@ import {
   handleInstallFromSourceCommand,
   handleReleaseMaterializedPathsCommand,
 } from './install-source.ts';
-import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
-
-type ReinstallOps = {
-  ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
-  android: (device: DeviceInfo, app: string, appPath: string) => Promise<{ package: string }>;
-};
-
-type AppDeployOps = {
-  ios: (
-    device: DeviceInfo,
-    app: string,
-    appPath: string,
-  ) => Promise<{ bundleId?: string; appName?: string; launchTarget?: string }>;
-  android: (
-    device: DeviceInfo,
-    app: string,
-    appPath: string,
-  ) => Promise<{ package?: string; appName?: string; launchTarget?: string }>;
-};
-
-type InstallOps = AppDeployOps;
-
-type DeployCommandResultBase = {
-  app: string;
-  appPath: string;
-  appName?: string;
-  launchTarget?: string;
-};
-
-type IosDeployCommandResult = DeployCommandResultBase & {
-  platform: 'ios';
-  appId?: string;
-  bundleId?: string;
-};
-
-type AndroidDeployCommandResult = DeployCommandResultBase & {
-  platform: 'android';
-  appId?: string;
-  package?: string;
-  packageName?: string;
-};
-
-type DeployCommandResult = IosDeployCommandResult | AndroidDeployCommandResult;
+import {
+  hasExplicitSessionFlag,
+  requireSessionOrExplicitSelector,
+  resolveAndroidEmulatorAvdName,
+  resolveCommandDevice,
+  selectorTargetsSessionDevice,
+  settleIosSimulator,
+} from './session-device-utils.ts';
+import { handleRuntimeCommand } from './session-runtime-command.ts';
+import { handleOpenCommand } from './session-open.ts';
+import { buildPerfResponseData } from './session-perf.ts';
+import {
+  resolveAndroidPackageForOpen,
+  resolveSessionAppBundleIdForTarget,
+} from './session-open-target.ts';
+import { handleCloseCommand, type ShutdownAndroidEmulatorFn } from './session-close.ts';
+import {
+  defaultInstallOps,
+  defaultReinstallOps,
+  handleAppDeployCommand,
+  type InstallOps,
+  type ReinstallOps,
+} from './session-deploy.ts';
+import { runBatchCommands } from './session-batch.ts';
 
 type EnsureAndroidEmulatorBoot = (params: {
   avdName: string;
@@ -114,734 +80,14 @@ type EnsureAndroidEmulatorBoot = (params: {
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
-const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
-const PERF_UNAVAILABLE_REASON = 'Not implemented for this platform in this release.';
-const STARTUP_SAMPLE_METHOD = 'open-command-roundtrip';
-const STARTUP_SAMPLE_DESCRIPTION =
-  'Elapsed wall-clock time around dispatching the open command for the active session app target.';
-const PERF_STARTUP_SAMPLE_LIMIT = 20;
-const RUNTIME_HINT_FIELD_NAMES = ['platform', 'metroHost', 'metroPort', 'bundleUrl', 'launchUrl'] as const;
-// Default simulator cool-down after terminate/close to reduce SpringBoard/XCTest attach races.
-const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
-  300,
-  0,
-);
-// Default simulator cool-down after launch/open before follow-up interactions/attach.
-const IOS_SIMULATOR_POST_OPEN_SETTLE_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
-  300,
-  0,
-);
-
-type StartupPerfSample = {
-  durationMs: number;
-  measuredAt: string;
-  method: typeof STARTUP_SAMPLE_METHOD;
-  appTarget?: string;
-  appBundleId?: string;
-};
-
-function buildOpenResult(params: {
-  sessionName: string;
-  appName?: string;
-  appBundleId?: string;
-  startup?: StartupPerfSample;
-  device?: DeviceInfo;
-  runtime?: SessionRuntimeHints;
-}): Record<string, unknown> {
-  const { sessionName, appName, appBundleId, startup, device, runtime } = params;
-  const result: Record<string, unknown> = { session: sessionName };
-  if (appName) result.appName = appName;
-  if (appBundleId) result.appBundleId = appBundleId;
-  if (startup) result.startup = startup;
-  if (runtime && countConfiguredRuntimeHints(runtime) > 0) {
-    result.runtime = runtime;
-  }
-  if (device) {
-    result.platform = device.platform;
-    result.target = device.target ?? 'mobile';
-    result.device = device.name;
-    result.id = device.id;
-    result.kind = device.kind;
-    if (device.platform === 'android') {
-      result.serial = device.id;
-    }
-  }
-  if (device?.platform === 'ios') {
-    result.device_udid = device.id;
-    result.ios_simulator_device_set = device.simulatorSetPath ?? null;
-  }
-  return result;
-}
-
-function countConfiguredRuntimeHints(runtime: SessionRuntimeHints | undefined): number {
-  if (!runtime) return 0;
-  return [
-    runtime.metroHost,
-    runtime.metroPort,
-    runtime.bundleUrl,
-    runtime.launchUrl,
-  ].filter((value) => value !== undefined && value !== '').length;
-}
-
-function trimRuntimeString(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
-
-function normalizeRuntimeStringInput(
-  value: unknown,
-  fieldName: 'metroHost' | 'bundleUrl' | 'launchUrl',
-): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== 'string') {
-    throw new AppError('INVALID_ARGS', `Invalid open runtime ${fieldName}: expected string.`);
-  }
-  return trimRuntimeString(value);
-}
-
-function validateRuntimePort(port: number | undefined): number | undefined {
-  if (port === undefined) return undefined;
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Invalid runtime metroPort: ${String(port)}. Use an integer between 1 and 65535.`,
-    );
-  }
-  return port;
-}
-
-function normalizeRuntimePortInput(value: unknown): number | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== 'number') {
-    throw new AppError('INVALID_ARGS', 'Invalid open runtime metroPort: expected integer.');
-  }
-  return validateRuntimePort(value);
-}
-
-function normalizeRuntimePlatformInput(
-  value: unknown,
-  sessionName: string,
-  platform?: 'ios' | 'android',
-): 'ios' | 'android' | undefined {
-  if (value === undefined) return platform;
-  if (value !== 'ios' && value !== 'android') {
-    throw new AppError('INVALID_ARGS', `Invalid open runtime platform: ${String(value)}. Use "ios" or "android".`);
-  }
-  if (platform && value !== platform) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `open runtime targets ${value}, but session "${sessionName}" is bound to ${platform}.`,
-    );
-  }
-  return value;
-}
-
-function buildRuntimeHints(
-  flags: CommandFlags | undefined,
-  platform?: 'ios' | 'android',
-): SessionRuntimeHints {
-  return {
-    platform,
-    metroHost: trimRuntimeString(flags?.metroHost),
-    metroPort: validateRuntimePort(flags?.metroPort),
-    bundleUrl: trimRuntimeString(flags?.bundleUrl),
-    launchUrl: trimRuntimeString(flags?.launchUrl),
-  };
-}
-
-function mergeRuntimeHints(
-  current: SessionRuntimeHints | undefined,
-  next: SessionRuntimeHints,
-): SessionRuntimeHints {
-  return {
-    platform: next.platform ?? current?.platform,
-    metroHost: next.metroHost ?? current?.metroHost,
-    metroPort: next.metroPort ?? current?.metroPort,
-    bundleUrl: next.bundleUrl ?? current?.bundleUrl,
-    launchUrl: next.launchUrl ?? current?.launchUrl,
-  };
-}
-
-function normalizeExplicitRuntimeHints(params: {
-  runtime: unknown;
-  sessionName: string;
-  platform?: 'ios' | 'android';
-}): SessionRuntimeHints | undefined {
-  const { runtime, sessionName, platform } = params;
-  if (runtime === undefined) return undefined;
-  if (!runtime || typeof runtime !== 'object' || Array.isArray(runtime)) {
-    throw new AppError('INVALID_ARGS', 'open runtime must be an object.');
-  }
-  const runtimeRecord = runtime as Record<string, unknown>;
-  const unknownField = Object.keys(runtimeRecord).find(
-    (fieldName) => !RUNTIME_HINT_FIELD_NAMES.includes(fieldName as typeof RUNTIME_HINT_FIELD_NAMES[number]),
-  );
-  if (unknownField) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Invalid open runtime field: ${unknownField}. Supported fields are ${RUNTIME_HINT_FIELD_NAMES.join(', ')}.`,
-    );
-  }
-  return {
-    platform: normalizeRuntimePlatformInput(runtimeRecord.platform, sessionName, platform),
-    metroHost: normalizeRuntimeStringInput(runtimeRecord.metroHost, 'metroHost'),
-    metroPort: normalizeRuntimePortInput(runtimeRecord.metroPort),
-    bundleUrl: normalizeRuntimeStringInput(runtimeRecord.bundleUrl, 'bundleUrl'),
-    launchUrl: normalizeRuntimeStringInput(runtimeRecord.launchUrl, 'launchUrl'),
-  };
-}
-
-function setSessionRuntimeHintsForOpen(
-  sessionStore: SessionStore,
-  sessionName: string,
-  runtime: SessionRuntimeHints | undefined,
-): SessionRuntimeHints | undefined {
-  if (!runtime) return undefined;
-  if (countConfiguredRuntimeHints(runtime) === 0) {
-    sessionStore.clearRuntimeHints(sessionName);
-    return undefined;
-  }
-  sessionStore.setRuntimeHints(sessionName, runtime);
-  return runtime;
-}
-
-function resolveSessionRuntimeHints(
-  sessionStore: SessionStore,
-  sessionName: string,
-  device?: DeviceInfo,
-): SessionRuntimeHints | undefined {
-  const runtime = sessionStore.getRuntimeHints(sessionName);
-  if (!runtime) return undefined;
-  if (runtime.platform && device && runtime.platform !== device.platform) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Session runtime hints target ${runtime.platform}, but session "${sessionName}" is bound to ${device.platform}. Clear the runtime hints or use a different session.`,
-    );
-  }
-  if (device?.platform && runtime.platform !== device.platform) {
-    return { ...runtime, platform: device.platform };
-  }
-  return runtime;
-}
-
-function resolveOpenRuntimeHints(params: {
-  req: DaemonRequest;
-  sessionStore: SessionStore;
-  sessionName: string;
-  device: DeviceInfo;
-}): {
-  runtime: SessionRuntimeHints | undefined;
-  previousRuntime: SessionRuntimeHints | undefined;
-  replacedStoredRuntime: boolean;
-} {
-  const { req, sessionStore, sessionName, device } = params;
-  const previousRuntime = sessionStore.getRuntimeHints(sessionName);
-  const explicitRuntime = normalizeExplicitRuntimeHints({
-    runtime: req.runtime,
-    sessionName,
-    platform: device.platform,
-  });
-  if (req.runtime === undefined) {
-    return {
-      runtime: resolveSessionRuntimeHints(sessionStore, sessionName, device),
-      previousRuntime,
-      replacedStoredRuntime: false,
-    };
-  }
-  return {
-    runtime: explicitRuntime && countConfiguredRuntimeHints(explicitRuntime) > 0 ? explicitRuntime : undefined,
-    previousRuntime,
-    replacedStoredRuntime: true,
-  };
-}
-
-function tryResolveOpenRuntimeHints(params: Parameters<typeof resolveOpenRuntimeHints>[0]):
-  | { ok: true; data: ReturnType<typeof resolveOpenRuntimeHints> }
-  | { ok: false; response: DaemonResponse } {
-  try {
-    return {
-      ok: true,
-      data: resolveOpenRuntimeHints(params),
-    };
-  } catch (error) {
-    const appErr = asAppError(error);
-    return {
-      ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: appErr.code,
-          message: appErr.message,
-          details: appErr.details,
-        },
-      },
-    };
-  }
-}
-
-function recordOpenRuntimeAction(params: {
-  req: DaemonRequest;
-  sessionStore: SessionStore;
-  session: SessionState;
-  sessionName: string;
-  runtime: SessionRuntimeHints | undefined;
-}): void {
-  const { req, sessionStore, session, sessionName, runtime } = params;
-  if (req.runtime === undefined) return;
-  if (runtime) {
-    sessionStore.recordAction(session, {
-      command: 'runtime',
-      positionals: ['set'],
-      flags: {
-        ...(req.flags ?? {}),
-        platform: session.device.platform,
-        metroHost: runtime.metroHost,
-        metroPort: runtime.metroPort,
-        bundleUrl: runtime.bundleUrl,
-        launchUrl: runtime.launchUrl,
-      },
-      result: {
-        session: sessionName,
-        configured: true,
-        runtime,
-      },
-    });
-    return;
-  }
-  sessionStore.recordAction(session, {
-    command: 'runtime',
-    positionals: ['clear'],
-    flags: req.flags ?? {},
-    result: {
-      session: sessionName,
-      cleared: true,
-    },
-  });
-}
-
-async function maybeClearRemovedRuntimeTransportHints(params: {
-  replacedStoredRuntime: boolean;
-  previousRuntime: SessionRuntimeHints | undefined;
-  runtime: SessionRuntimeHints | undefined;
-  session: SessionState | undefined;
-  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
-}): Promise<void> {
-  const { replacedStoredRuntime, previousRuntime, runtime, session, clearRuntimeHints } = params;
-  if (
-    !replacedStoredRuntime
-    || !session?.appBundleId
-    || !hasRuntimeTransportHints(previousRuntime)
-    || hasRuntimeTransportHints(runtime)
-  ) {
-    return;
-  }
-  await clearRuntimeHints({
-    device: session.device,
-    appId: session.appBundleId,
-  });
-}
-
-function buildNextOpenSession(params: {
-  existingSession?: SessionState;
-  sessionName: string;
-  device: DeviceInfo;
-  appBundleId?: string;
-  openTarget?: string;
-  saveScript: boolean;
-}): SessionState {
-  const { existingSession, sessionName, device, appBundleId, openTarget, saveScript } = params;
-  if (existingSession) {
-    return {
-      ...existingSession,
-      appBundleId,
-      appName: openTarget,
-      recordSession: existingSession.recordSession || saveScript,
-      snapshot: undefined,
-    };
-  }
-  return {
-    name: sessionName,
-    device,
-    createdAt: Date.now(),
-    appBundleId,
-    appName: openTarget,
-    recordSession: saveScript,
-    actions: [],
-  };
-}
-
-async function completeOpenCommand(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  sessionStore: SessionStore;
-  logPath: string;
-  device: DeviceInfo;
-  dispatch: typeof dispatchCommand;
-  applyRuntimeHints: typeof applyRuntimeHintsToApp;
-  stopIosRunner: typeof stopIosRunnerSession;
-  settleSimulator: typeof settleIosSimulator;
-  openTarget?: string;
-  openPositionals: string[];
-  appBundleId?: string;
-  runtime: SessionRuntimeHints | undefined;
-  existingSession?: SessionState;
-}): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-    logPath,
-    device,
-    dispatch,
-    applyRuntimeHints,
-    stopIosRunner,
-    settleSimulator,
-    openTarget,
-    openPositionals,
-    appBundleId,
-    runtime,
-    existingSession,
-  } = params;
-  const shouldRelaunch = req.flags?.relaunch === true;
-  const traceLogPath = existingSession?.trace?.outPath;
-
-  if (shouldRelaunch && openTarget) {
-    const closeTarget = appBundleId ?? openTarget;
-    await relaunchCloseApp({
-      device,
-      closeTarget,
-      stopIosRunner,
-      dispatch,
-      outFlag: req.flags?.out,
-      context: {
-        ...contextFromFlags(logPath, req.flags, appBundleId ?? existingSession?.appBundleId, traceLogPath),
-      },
-      settleSimulator,
-    });
-  }
-
-  await applyRuntimeHints({
-    device,
-    appId: appBundleId,
-    runtime,
-  });
-  const openStartedAtMs = Date.now();
-  await dispatch(device, 'open', openPositionals, req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, appBundleId),
-  });
-  await maybeApplySessionLaunchUrl({
-    runtime,
-    device,
-    dispatch,
-    req,
-    logPath,
-    appBundleId,
-    traceLogPath,
-    openPositionals,
-  });
-  const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
-  await settleSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
-
-  const nextSession = buildNextOpenSession({
-    existingSession,
-    sessionName,
-    device,
-    appBundleId,
-    openTarget,
-    saveScript: Boolean(req.flags?.saveScript),
-  });
-  if (req.runtime !== undefined) {
-    setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
-  }
-  const openResult = buildOpenResult({
-    sessionName,
-    appName: openTarget,
-    appBundleId,
-    startup: startupSample,
-    device,
-    runtime,
-  });
-  recordOpenRuntimeAction({
-    req,
-    sessionStore,
-    session: nextSession,
-    sessionName,
-    runtime,
-  });
-  sessionStore.recordAction(nextSession, {
-    command: 'open',
-    positionals: openPositionals,
-    flags: req.flags ?? {},
-    result: openResult,
-  });
-  sessionStore.set(sessionName, nextSession);
-  return { ok: true, data: openResult };
-}
-
-async function maybeApplySessionLaunchUrl(params: {
-  runtime: SessionRuntimeHints | undefined;
-  device: DeviceInfo;
-  dispatch: typeof dispatchCommand;
-  req: DaemonRequest;
-  logPath: string;
-  appBundleId?: string;
-  traceLogPath?: string;
-  openPositionals: string[];
-}): Promise<void> {
-  const { runtime, device, dispatch, req, logPath, appBundleId, traceLogPath, openPositionals } = params;
-  const launchUrl = runtime?.launchUrl;
-  if (!launchUrl) return;
-  if (openPositionals.length === 0) return;
-  if (openPositionals.length > 1) return;
-  const openTarget = openPositionals[0]?.trim();
-  if (!openTarget || isDeepLinkTarget(openTarget)) return;
-  await dispatch(device, 'open', [launchUrl], req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, appBundleId, traceLogPath),
-  });
-}
-
-function buildStartupPerfSample(
-  startedAtMs: number,
-  appTarget: string | undefined,
-  appBundleId: string | undefined,
-): StartupPerfSample {
-  return {
-    durationMs: Math.max(0, Date.now() - startedAtMs),
-    measuredAt: new Date().toISOString(),
-    method: STARTUP_SAMPLE_METHOD,
-    appTarget,
-    appBundleId,
-  };
-}
-
-function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
-  const samples: StartupPerfSample[] = [];
-  for (const action of actions) {
-    if (action.command !== 'open') continue;
-    const startup = action.result?.startup;
-    if (!startup || typeof startup !== 'object') continue;
-    const record = startup as Record<string, unknown>;
-    if (
-      typeof record.durationMs !== 'number'
-      || !Number.isFinite(record.durationMs)
-      || typeof record.measuredAt !== 'string'
-      || record.measuredAt.trim().length === 0
-      || record.method !== STARTUP_SAMPLE_METHOD
-    ) {
-      continue;
-    }
-    samples.push({
-      durationMs: Math.max(0, Math.round(record.durationMs)),
-      measuredAt: record.measuredAt,
-      method: STARTUP_SAMPLE_METHOD,
-      appTarget: typeof record.appTarget === 'string' && record.appTarget.length > 0 ? record.appTarget : undefined,
-      appBundleId: typeof record.appBundleId === 'string' && record.appBundleId.length > 0 ? record.appBundleId : undefined,
-    });
-  }
-  return samples.slice(-PERF_STARTUP_SAMPLE_LIMIT);
-}
-
-function buildPerfResponseData(session: SessionState): Record<string, unknown> {
-  const startupSamples = readStartupPerfSamples(session.actions);
-  const latestStartupSample = startupSamples.at(-1);
-  const startupMetric = latestStartupSample
-    ? {
-      available: true,
-      lastDurationMs: latestStartupSample.durationMs,
-      lastMeasuredAt: latestStartupSample.measuredAt,
-      method: STARTUP_SAMPLE_METHOD,
-      sampleCount: startupSamples.length,
-      samples: startupSamples,
-    }
-    : {
-      available: false,
-      reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
-      method: STARTUP_SAMPLE_METHOD,
-    };
-  return {
-    session: session.name,
-    platform: session.device.platform,
-    device: session.device.name,
-    deviceId: session.device.id,
-    metrics: {
-      startup: startupMetric,
-      fps: { available: false, reason: PERF_UNAVAILABLE_REASON },
-      memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
-      cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
-    },
-    sampling: {
-      startup: {
-        method: STARTUP_SAMPLE_METHOD,
-        description: STARTUP_SAMPLE_DESCRIPTION,
-        unit: 'ms',
-      },
-    },
-  };
-}
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
 const NETWORK_ACTIONS_MESSAGE = `network requires ${NETWORK_ACTIONS.join(' or ')}`;
 const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
 type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
-
-function requireSessionOrExplicitSelector(
-  command: string,
-  session: SessionState | undefined,
-  flags: DaemonRequest['flags'] | undefined,
-): DaemonResponse | null {
-  if (session || hasExplicitDeviceSelector(flags)) {
-    return null;
-  }
-  return {
-    ok: false,
-    error: {
-      code: 'INVALID_ARGS',
-      message: `${command} requires an active session or an explicit device selector (e.g. --platform ios).`,
-    },
-  };
-}
-
-function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {
-  return Boolean(flags?.platform || flags?.target || flags?.device || flags?.udid || flags?.serial);
-}
-
-function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
-  return typeof flags?.session === 'string' && flags.session.trim().length > 0;
-}
-
-function isIosSimulator(device: DeviceInfo): boolean {
-  return device.platform === 'ios' && device.kind === 'simulator';
-}
-
-function isAndroidEmulator(device: DeviceInfo): boolean {
-  return device.platform === 'android' && device.kind === 'emulator';
-}
-
-async function settleIosSimulator(device: DeviceInfo, delayMs: number): Promise<void> {
-  if (!isIosSimulator(device) || delayMs <= 0) return;
-  await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-}
-
-async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
-  success: boolean;
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}> {
-  const result = await runCmd('adb', ['-s', device.id, 'emu', 'kill'], { allowFailure: true, timeoutMs: 15_000 });
-  return {
-    success: result.exitCode === 0,
-    exitCode: result.exitCode,
-    stdout: String(result.stdout ?? ''),
-    stderr: String(result.stderr ?? ''),
-  };
-}
-
-type SessionShutdownResult = {
-  success: boolean;
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-  error?: ReturnType<typeof normalizeError>;
-};
-
-async function maybeShutdownSessionTarget(params: {
-  device: DeviceInfo;
-  shutdownRequested: boolean | undefined;
-  shutdownSimulator: typeof shutdownSimulator;
-  shutdownAndroidEmulator: typeof shutdownAndroidEmulator;
-}): Promise<SessionShutdownResult | undefined> {
-  const { device, shutdownRequested, shutdownSimulator, shutdownAndroidEmulator } = params;
-  if (!shutdownRequested) return undefined;
-  if (!isIosSimulator(device) && !isAndroidEmulator(device)) return undefined;
-  try {
-    return isIosSimulator(device)
-      ? await shutdownSimulator(device)
-      : await shutdownAndroidEmulator(device);
-  } catch (error) {
-    const normalized = normalizeError(error);
-    return {
-      success: false,
-      exitCode: -1,
-      stdout: '',
-      stderr: normalized.message,
-      error: normalized,
-    };
-  }
-}
-
-async function relaunchCloseApp(params: {
-  device: DeviceInfo;
-  closeTarget: string;
-  stopIosRunner: (deviceId: string) => Promise<void>;
-  dispatch: typeof dispatchCommand;
-  outFlag: string | undefined;
-  context: Parameters<typeof dispatchCommand>[4];
-  settleSimulator: (device: DeviceInfo, delayMs: number) => Promise<void>;
-}): Promise<void> {
-  const { device, closeTarget, stopIosRunner, dispatch, outFlag, context, settleSimulator } = params;
-  if (device.platform === 'ios') {
-    await stopIosRunner(device.id);
-  }
-  await dispatch(device, 'close', [closeTarget], outFlag, context);
-  await settleSimulator(device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
-}
-
-function selectorTargetsSessionDevice(
-  flags: DaemonRequest['flags'] | undefined,
-  session: SessionState | undefined,
-): boolean {
-  if (!session) return false;
-  if (!hasExplicitDeviceSelector(flags)) return true;
-  const normalizedPlatform = normalizePlatformSelector(flags?.platform);
-  if (normalizedPlatform && normalizedPlatform !== session.device.platform) return false;
-  if (flags?.target && flags.target !== (session.device.target ?? 'mobile')) return false;
-  if (flags?.udid && flags.udid !== session.device.id) return false;
-  if (flags?.serial && flags.serial !== session.device.id) return false;
-  if (flags?.device) {
-    return flags.device.trim().toLowerCase() === session.device.name.trim().toLowerCase();
-  }
-  return true;
-}
-
-async function resolveCommandDevice(params: {
-  session: SessionState | undefined;
-  flags: DaemonRequest['flags'] | undefined;
-  ensureReadyFn: typeof ensureDeviceReady;
-  resolveTargetDeviceFn: typeof resolveTargetDevice;
-  ensureReady?: boolean;
-}): Promise<DeviceInfo> {
-  const shouldUseExplicitSelector = hasExplicitDeviceSelector(params.flags);
-  const device =
-    shouldUseExplicitSelector || !params.session
-      ? await params.resolveTargetDeviceFn(params.flags ?? {})
-      : params.session.device;
-  if (params.ensureReady !== false) {
-    await params.ensureReadyFn(device);
-  }
-  return device;
-}
-
-function resolveAndroidEmulatorAvdName(params: {
-  flags: DaemonRequest['flags'] | undefined;
-  sessionDevice?: DeviceInfo;
-  resolvedDevice?: DeviceInfo;
-}): string | undefined {
-  const explicit = params.flags?.device?.trim();
-  if (explicit) return explicit;
-  if (params.resolvedDevice?.platform === 'android' && params.resolvedDevice.kind === 'emulator') {
-    return params.resolvedDevice.name;
-  }
-  if (params.sessionDevice?.platform === 'android' && params.sessionDevice.kind === 'emulator') {
-    return params.sessionDevice.name;
-  }
-  return undefined;
-}
 
 const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avdName, serial, headless }) => {
   const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
@@ -917,216 +163,19 @@ async function runSessionOrSelectorDispatch(params: {
   }
   return { ok: true, data: result ?? {} };
 }
-const defaultReinstallOps: ReinstallOps = {
-  ios: async (device, app, appPath) => {
-    const { reinstallIosApp } = await import('../../platforms/ios/index.ts');
-    return await reinstallIosApp(device, app, appPath);
-  },
-  android: async (device, app, appPath) => {
-    const { reinstallAndroidApp } = await import('../../platforms/android/index.ts');
-    return await reinstallAndroidApp(device, app, appPath);
-  },
-};
-
-const defaultInstallOps: InstallOps = {
-  ios: async (device, app, appPath) => {
-    const { installIosApp } = await import('../../platforms/ios/index.ts');
-    const result = await installIosApp(device, appPath, { appIdentifierHint: app });
-    return {
-      bundleId: result.bundleId,
-      appName: result.appName,
-      launchTarget: result.launchTarget,
-    };
-  },
-  android: async (device, app, appPath) => {
-    const { installAndroidApp } = await import('../../platforms/android/index.ts');
-    const result = await installAndroidApp(device, appPath);
-    return {
-      package: result.packageName,
-      appName: result.appName,
-      launchTarget: result.launchTarget,
-    };
-  },
-};
-
-async function handleAppDeployCommand(params: {
-  req: DaemonRequest;
-  command: 'install' | 'reinstall';
-  sessionName: string;
-  sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
-  deployOps: AppDeployOps;
-}): Promise<DaemonResponse> {
-  const { req, command, sessionName, sessionStore, ensureReady, resolveDevice, deployOps } = params;
-  const session = sessionStore.get(sessionName);
-  const flags = req.flags ?? {};
-  const guard = requireSessionOrExplicitSelector(command, session, flags);
-  if (guard) return guard;
-  const app = req.positionals?.[0]?.trim();
-  const appPathInput = req.positionals?.[1]?.trim();
-  if (!app || !appPathInput) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: `${command} requires: ${command} <app> <path-to-app-binary>` },
-    };
-  }
-  const uploadedArtifactId = req.meta?.uploadedArtifactId;
-
-  try {
-    const appPath = uploadedArtifactId
-      ? prepareUploadedArtifact(uploadedArtifactId, req.meta?.tenantId)
-      : SessionStore.expandHome(appPathInput);
-    if (!fs.existsSync(appPath)) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
-      };
-    }
-    const device = await resolveCommandDevice({
-      session,
-      flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
-      ensureReady: false,
-    });
-    if (!isCommandSupportedOnDevice(command, device)) {
-      return {
-        ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
-      };
-    }
-
-    let result: DeployCommandResult;
-
-    if (device.platform === 'ios') {
-      const iosResult = await deployOps.ios(device, app, appPath);
-      const bundleId = iosResult.bundleId;
-      result = bundleId
-        ? {
-          app,
-          appPath,
-          platform: 'ios',
-          appId: bundleId,
-          bundleId,
-          appName: iosResult.appName,
-          launchTarget: iosResult.launchTarget,
-        }
-        : {
-          app,
-          appPath,
-          platform: 'ios',
-          appName: iosResult.appName,
-          launchTarget: iosResult.launchTarget,
-        };
-    } else {
-      const androidResult = await deployOps.android(device, app, appPath);
-      const pkg = androidResult.package;
-      result = pkg
-        ? {
-          app,
-          appPath,
-          platform: 'android',
-          appId: pkg,
-          package: pkg,
-          packageName: pkg,
-          appName: androidResult.appName,
-          launchTarget: androidResult.launchTarget,
-        }
-        : {
-          app,
-          appPath,
-          platform: 'android',
-          appName: androidResult.appName,
-          launchTarget: androidResult.launchTarget,
-        };
-    }
-
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result,
-      });
-    }
-    return { ok: true, data: result };
-  } finally {
-    if (uploadedArtifactId) {
-      cleanupUploadedArtifact(uploadedArtifactId);
-    }
-  }
-}
-
-async function resolveIosBundleIdForOpen(
-  device: DeviceInfo,
-  openTarget: string | undefined,
-  currentAppBundleId?: string,
-): Promise<string | undefined> {
-  if (device.platform !== 'ios' || !openTarget) return undefined;
-  if (isDeepLinkTarget(openTarget)) {
-    if (device.kind === 'device') {
-      return resolveIosDeviceDeepLinkBundleId(currentAppBundleId, openTarget);
-    }
-    return undefined;
-  }
-  return await tryResolveIosAppBundleId(device, openTarget);
-}
-
-async function tryResolveIosAppBundleId(device: DeviceInfo, openTarget: string): Promise<string | undefined> {
-  try {
-    const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-    return await resolveIosApp(device, openTarget);
-  } catch {
-    return undefined;
-  }
-}
-
-async function resolveAndroidPackageForOpen(
-  device: DeviceInfo,
-  openTarget: string | undefined,
-): Promise<string | undefined> {
-  if (device.platform !== 'android' || !openTarget || isDeepLinkTarget(openTarget)) return undefined;
-  try {
-    const { resolveAndroidApp } = await import('../../platforms/android/index.ts');
-    const resolved = await resolveAndroidApp(device, openTarget);
-    return resolved.type === 'package' ? resolved.value : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 async function resolveInstalledAppIdentifier(
   device: DeviceInfo,
   app: string,
 ): Promise<{ bundleId?: string; package?: string }> {
   if (device.platform === 'ios') {
-    return { bundleId: await tryResolveIosAppBundleId(device, app) };
+    const { resolveIosApp } = await import('../../platforms/ios/index.ts');
+    try {
+      return { bundleId: await resolveIosApp(device, app) };
+    } catch {
+      return {};
+    }
   }
   return { package: await resolveAndroidPackageForOpen(device, app) };
-}
-
-function shouldPreserveAndroidPackageContext(
-  device: DeviceInfo,
-  openTarget: string | undefined,
-): boolean {
-  return device.platform === 'android' && Boolean(openTarget && isDeepLinkTarget(openTarget));
-}
-
-async function resolveSessionAppBundleIdForTarget(
-  device: DeviceInfo,
-  openTarget: string | undefined,
-  currentAppBundleId: string | undefined,
-  resolveAndroidPackageForOpenFn: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>,
-): Promise<string | undefined> {
-  return (
-    (await resolveIosBundleIdForOpen(device, openTarget, currentAppBundleId))
-    ?? (await resolveAndroidPackageForOpenFn(device, openTarget))
-    ?? (shouldPreserveAndroidPackageContext(device, openTarget) ? currentAppBundleId : undefined)
-  );
 }
 
 async function handleAppStateCommand(params: {
@@ -1301,7 +350,7 @@ export async function handleSessionCommands(params: {
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   settleSimulator?: typeof settleIosSimulator;
   shutdownSimulator?: typeof shutdownSimulator;
-  shutdownAndroidEmulator?: typeof shutdownAndroidEmulator;
+  shutdownAndroidEmulator?: ShutdownAndroidEmulatorFn;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -1333,7 +382,6 @@ export async function handleSessionCommands(params: {
   const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
   const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
   const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
-  const doShutdownAndroidEmulator = shutdownAndroidEmulatorOverride ?? shutdownAndroidEmulator;
   const applyRuntimeHints = applyRuntimeHintsOverride;
   const clearRuntimeHints = clearRuntimeHintsOverride;
   const command = req.command;
@@ -1357,71 +405,12 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'runtime') {
-    const action = (req.positionals?.[0] ?? 'show').toLowerCase();
-    const session = sessionStore.get(sessionName);
-    const current = sessionStore.getRuntimeHints(sessionName);
-    if (!['set', 'show', 'clear'].includes(action)) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'runtime requires set, show, or clear' } };
-    }
-    if (action === 'clear') {
-      if (hasRuntimeTransportHints(current) && session?.appBundleId) {
-        await clearRuntimeHints({
-          device: session.device,
-          appId: session.appBundleId,
-        });
-      }
-      const cleared = sessionStore.clearRuntimeHints(sessionName);
-      return { ok: true, data: { session: sessionName, cleared } };
-    }
-    if (action === 'show') {
-      return {
-        ok: true,
-        data: {
-          session: sessionName,
-          configured: Boolean(current),
-          runtime: current,
-        },
-      };
-    }
-
-    const platform = normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform;
-    if (!platform) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'runtime set requires --platform when the session has not been opened yet.',
-        },
-      };
-    }
-    if (session && session.device.platform !== platform) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: `runtime set targets ${platform}, but session "${sessionName}" is already bound to ${session.device.platform}.`,
-        },
-      };
-    }
-    const nextRuntime = mergeRuntimeHints(current, buildRuntimeHints(req.flags, platform));
-    if (countConfiguredRuntimeHints(nextRuntime) === 0) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'runtime set requires at least one hint such as --metro-host, --metro-port, --bundle-url, or --launch-url.',
-        },
-      };
-    }
-    sessionStore.setRuntimeHints(sessionName, nextRuntime);
-    return {
-      ok: true,
-      data: {
-        session: sessionName,
-        configured: true,
-        runtime: nextRuntime,
-      },
-    };
+    return await handleRuntimeCommand({
+      req,
+      sessionName,
+      sessionStore,
+      clearRuntimeHints,
+    });
   }
 
   if (command === 'ensure-simulator') {
@@ -1781,156 +770,19 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'open') {
-    const shouldRelaunch = req.flags?.relaunch === true;
-    if (sessionStore.has(sessionName)) {
-      const session = sessionStore.get(sessionName);
-      const requestedOpenTarget = req.positionals?.[0];
-      const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session?.appName : undefined);
-      if (!session || !openTarget) {
-        if (shouldRelaunch) {
-          return {
-            ok: false,
-            error: {
-              code: 'INVALID_ARGS',
-              message: 'open --relaunch requires an app name or an active session app.',
-            },
-          };
-        }
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'Session already active. Close it first or pass a new --session name.',
-          },
-        };
-      }
-      if (shouldRelaunch && isDeepLinkTarget(openTarget)) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'open --relaunch does not support URL targets.',
-          },
-        };
-      }
-      if (shouldRelaunch && session.device.platform === 'android' && classifyAndroidAppTarget(openTarget) === 'binary') {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: formatAndroidInstalledPackageRequiredMessage(openTarget),
-          },
-        };
-      }
-      await ensureReady(session.device);
-      const appBundleId = await resolveSessionAppBundleIdForTarget(
-        session.device,
-        openTarget,
-        session.appBundleId,
-        resolveAndroidPackageForOpenOverride,
-      );
-      const runtimeResult = tryResolveOpenRuntimeHints({
-        req,
-        sessionStore,
-        sessionName,
-        device: session.device,
-      });
-      if (!runtimeResult.ok) {
-        return runtimeResult.response;
-      }
-      const { runtime, previousRuntime, replacedStoredRuntime } = runtimeResult.data;
-      await maybeClearRemovedRuntimeTransportHints({
-        replacedStoredRuntime,
-        previousRuntime,
-        runtime,
-        session,
-        clearRuntimeHints,
-      });
-      const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
-      return await completeOpenCommand({
-        req,
-        sessionName,
-        sessionStore,
-        logPath,
-        device: session.device,
-        dispatch,
-        applyRuntimeHints,
-        stopIosRunner,
-        settleSimulator,
-        openTarget,
-        openPositionals,
-        appBundleId,
-        runtime,
-        existingSession: session,
-      });
-    }
-    const openTarget = req.positionals?.[0];
-    if (shouldRelaunch && !openTarget) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'open --relaunch requires an app argument.',
-        },
-      };
-    }
-    if (shouldRelaunch && openTarget && isDeepLinkTarget(openTarget)) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'open --relaunch does not support URL targets.',
-        },
-      };
-    }
-    const device = await resolveDevice(req.flags ?? {});
-    if (shouldRelaunch && device.platform === 'android' && openTarget && classifyAndroidAppTarget(openTarget) === 'binary') {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: formatAndroidInstalledPackageRequiredMessage(openTarget),
-        },
-      };
-    }
-    const inUse = sessionStore.toArray().find((s) => s.device.id === device.id);
-    if (inUse) {
-      return {
-        ok: false,
-        error: {
-          code: 'DEVICE_IN_USE',
-          message: `Device is already in use by session "${inUse.name}".`,
-          details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
-        },
-      };
-    }
-    await ensureReady(device);
-    const appBundleId =
-      await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenOverride);
-    const runtimeResult = tryResolveOpenRuntimeHints({
-      req,
-      sessionStore,
-      sessionName,
-      device,
-    });
-    if (!runtimeResult.ok) {
-      return runtimeResult.response;
-    }
-    const { runtime } = runtimeResult.data;
-    return await completeOpenCommand({
+    return await handleOpenCommand({
       req,
       sessionName,
-      sessionStore,
       logPath,
-      device,
+      sessionStore,
       dispatch,
+      ensureReady,
+      resolveDevice,
       applyRuntimeHints,
+      clearRuntimeHints,
       stopIosRunner,
       settleSimulator,
-      openTarget,
-      openPositionals: req.positionals ?? [],
-      appBundleId,
-      runtime,
+      resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride,
     });
   }
 
@@ -2221,57 +1073,21 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'close') {
-    const session = sessionStore.get(sessionName);
-    if (!session) {
-      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
-    }
-    if (session.appLog) {
-      await appLogOps.stop(session.appLog);
-    }
-    if (req.positionals && req.positionals.length > 0) {
-      if (session.device.platform === 'ios') {
-        await stopIosRunner(session.device.id);
-      }
-      await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
-        ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
-      });
-      await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
-    }
-    if (session.device.platform === 'ios') {
-      await stopIosRunner(session.device.id);
-    }
-    const runtime = sessionStore.getRuntimeHints(sessionName);
-    if (hasRuntimeTransportHints(runtime) && session.appBundleId) {
-      await clearRuntimeHints({
-        device: session.device,
-        appId: session.appBundleId,
-      }).catch(() => {});
-    }
-    sessionStore.recordAction(session, {
-      command,
-      positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
-      result: { session: sessionName },
-    });
-    if (req.flags?.saveScript) {
-      session.recordSession = true;
-    }
-    sessionStore.writeSessionLog(session);
-    await cleanupRetainedMaterializedPathsForSession(sessionName).catch(() => {});
-    sessionStore.delete(sessionName);
-    const shutdownResult = await maybeShutdownSessionTarget({
-      device: session.device,
-      shutdownRequested: req.flags?.shutdown,
+    return await handleCloseCommand({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      dispatch,
+      stopIosRunner,
+      clearRuntimeHints,
+      settleSimulator,
       shutdownSimulator: doShutdownSimulator,
-      shutdownAndroidEmulator: doShutdownAndroidEmulator,
+      shutdownAndroidEmulator: shutdownAndroidEmulatorOverride,
+      appLogOps: {
+        stop: appLogOps.stop,
+      },
     });
-    if (shutdownResult) {
-      return {
-        ok: true,
-        data: { session: sessionName, shutdown: shutdownResult },
-      };
-    }
-    return { ok: true, data: { session: sessionName } };
   }
 
   return null;
@@ -2284,145 +1100,6 @@ function maybeResolvePushPayloadPath(payloadArg: string, cwd?: string): string {
     expandPath: (value, currentCwd) => SessionStore.expandHome(value, currentCwd),
   });
   return resolved.kind === 'file' ? resolved.path : resolved.text;
-}
-
-async function runBatchCommands(
-  req: DaemonRequest,
-  sessionName: string,
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>,
-): Promise<DaemonResponse> {
-  const batchOnError = req.flags?.batchOnError ?? 'stop';
-  if (batchOnError !== 'stop') {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `Unsupported batch on-error mode: ${batchOnError}.`,
-      },
-    };
-  }
-  const batchMaxSteps = req.flags?.batchMaxSteps ?? DEFAULT_BATCH_MAX_STEPS;
-  if (!Number.isInteger(batchMaxSteps) || batchMaxSteps < 1 || batchMaxSteps > 1000) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`,
-      },
-    };
-  }
-  try {
-    const steps = validateAndNormalizeBatchSteps(req.flags?.batchSteps, batchMaxSteps);
-    const startedAt = Date.now();
-    const partialResults: BatchStepResult[] = [];
-    for (let index = 0; index < steps.length; index += 1) {
-      const step = steps[index];
-      const stepResponse = await runBatchStep(req, sessionName, step, invoke, index + 1);
-      if (!stepResponse.ok) {
-        return {
-          ok: false,
-          error: {
-            code: stepResponse.error.code,
-            message: `Batch failed at step ${stepResponse.step} (${step.command}): ${stepResponse.error.message}`,
-            hint: stepResponse.error.hint,
-            diagnosticId: stepResponse.error.diagnosticId,
-            logPath: stepResponse.error.logPath,
-            details: {
-              ...(stepResponse.error.details ?? {}),
-              step: stepResponse.step,
-              command: step.command,
-              positionals: step.positionals,
-              executed: index,
-              total: steps.length,
-              partialResults,
-            },
-          },
-        };
-      }
-      partialResults.push(stepResponse.result);
-    }
-    return {
-      ok: true,
-      data: {
-        total: steps.length,
-        executed: steps.length,
-        totalDurationMs: Date.now() - startedAt,
-        results: partialResults,
-      },
-    };
-  } catch (error) {
-    const appErr = asAppError(error);
-    return {
-      ok: false,
-      error: { code: appErr.code, message: appErr.message, details: appErr.details },
-    };
-  }
-}
-
-async function runBatchStep(
-  req: DaemonRequest,
-  sessionName: string,
-  step: NormalizedBatchStep,
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>,
-  stepNumber: number,
-): Promise<
-  | { ok: true; step: number; result: BatchStepResult }
-  | {
-    ok: false;
-    step: number;
-    error: {
-      code: string;
-      message: string;
-      hint?: string;
-      diagnosticId?: string;
-      logPath?: string;
-      details?: Record<string, unknown>;
-    };
-  }
-> {
-  const stepStartedAt = Date.now();
-  const response = await invoke({
-    token: req.token,
-    session: sessionName,
-    command: step.command,
-    positionals: step.positionals,
-    flags: buildBatchStepFlags(req.flags, step.flags),
-    runtime: step.runtime as DaemonRequest['runtime'],
-    meta: req.meta,
-  });
-  const durationMs = Date.now() - stepStartedAt;
-  if (!response.ok) {
-    return { ok: false, step: stepNumber, error: response.error };
-  }
-  return {
-    ok: true,
-    step: stepNumber,
-    result: {
-      step: stepNumber,
-      command: step.command,
-      ok: true,
-      data: response.data ?? {},
-      durationMs,
-    },
-  };
-}
-
-function buildBatchStepFlags(
-  parentFlags: CommandFlags | undefined,
-  stepFlags: BatchStep['flags'] | undefined,
-): CommandFlags {
-  const merged: CommandFlags = { ...(stepFlags ?? {}) };
-  const mergedRecord = merged as Record<string, unknown>;
-  delete mergedRecord.batchSteps;
-  delete mergedRecord.batchOnError;
-  delete mergedRecord.batchMaxSteps;
-  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
-  for (const key of BATCH_PARENT_FLAG_KEYS) {
-    if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
-      mergedRecord[key] = parentRecord[key];
-    }
-  }
-  return merged;
 }
 
 function withReplayFailureContext(
