@@ -20,9 +20,7 @@ export function resolvePayloadInput(
     throw new AppError('INVALID_ARGS', `${subject} cannot be empty`);
   }
 
-  const resolvedPath = options?.expandPath
-    ? options.expandPath(trimmed, options.cwd)
-    : trimmed;
+  const resolvedPath = options?.expandPath ? options.expandPath(trimmed, options.cwd) : trimmed;
 
   try {
     const stat = fs.statSync(resolvedPath);
@@ -48,4 +46,3 @@ export function resolvePayloadInput(
   }
   throw new AppError('INVALID_ARGS', `${subject} file not found: ${resolvedPath}`);
 }
-

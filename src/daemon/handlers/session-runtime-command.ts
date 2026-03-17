@@ -14,17 +14,15 @@ export async function handleRuntimeCommand(params: {
   sessionStore: SessionStore;
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
 }): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-    clearRuntimeHints = clearRuntimeHintsFromApp,
-  } = params;
+  const { req, sessionName, sessionStore, clearRuntimeHints = clearRuntimeHintsFromApp } = params;
   const action = (req.positionals?.[0] ?? 'show').toLowerCase();
   const session = sessionStore.get(sessionName);
   const current = sessionStore.getRuntimeHints(sessionName);
   if (!['set', 'show', 'clear'].includes(action)) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'runtime requires set, show, or clear' } };
+    return {
+      ok: false,
+      error: { code: 'INVALID_ARGS', message: 'runtime requires set, show, or clear' },
+    };
   }
   if (action === 'clear') {
     if (hasRuntimeTransportHints(current) && session?.appBundleId) {
@@ -47,7 +45,8 @@ export async function handleRuntimeCommand(params: {
     };
   }
 
-  const platform = normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform;
+  const platform =
+    normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform;
   if (!platform) {
     return {
       ok: false,
@@ -72,7 +71,8 @@ export async function handleRuntimeCommand(params: {
       ok: false,
       error: {
         code: 'INVALID_ARGS',
-        message: 'runtime set requires at least one hint such as --metro-host, --metro-port, --bundle-url, or --launch-url.',
+        message:
+          'runtime set requires at least one hint such as --metro-host, --metro-port, --bundle-url, or --launch-url.',
       },
     };
   }

@@ -24,7 +24,10 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 }
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
-  return { ok: false, error: { code: 'INVALID_ARGS', message: 'invoke should not be called in push tests' } };
+  return {
+    ok: false,
+    error: { code: 'INVALID_ARGS', message: 'invoke should not be called in push tests' },
+  };
 };
 
 test('push requires active session or explicit device selector', async () => {

@@ -4,13 +4,22 @@ import { listAndroidDevices } from '../platforms/android/devices.ts';
 import { ensureAdb } from '../platforms/android/index.ts';
 import { findBootableIosSimulator, listIosDevices } from '../platforms/ios/devices.ts';
 import { withDiagnosticTimer } from '../utils/diagnostics.ts';
-import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../utils/device-isolation.ts';
+import {
+  resolveAndroidSerialAllowlist,
+  resolveIosSimulatorDeviceSetPath,
+} from '../utils/device-isolation.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import type { DeviceTarget } from '../utils/device.ts';
 
 type ResolveDeviceFlags = Pick<
   CliFlags,
-  'platform' | 'target' | 'device' | 'udid' | 'serial' | 'iosSimulatorDeviceSet' | 'androidDeviceAllowlist'
+  | 'platform'
+  | 'target'
+  | 'device'
+  | 'udid'
+  | 'serial'
+  | 'iosSimulatorDeviceSet'
+  | 'androidDeviceAllowlist'
 >;
 
 type IosDeviceSelector = {

@@ -27,7 +27,10 @@ test('buildIosLogPredicate includes bundle-aware filters', () => {
 
 test('assertAndroidPackageArgSafe rejects unsafe values', () => {
   assert.doesNotThrow(() => assertAndroidPackageArgSafe('com.example.app'));
-  assert.throws(() => assertAndroidPackageArgSafe('com.example.app;rm -rf /'), /Invalid Android package/);
+  assert.throws(
+    () => assertAndroidPackageArgSafe('com.example.app;rm -rf /'),
+    /Invalid Android package/,
+  );
 });
 
 test('rotateAppLogIfNeeded rotates and truncates oldest by configured max files', () => {

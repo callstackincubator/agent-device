@@ -183,7 +183,9 @@ test('splitSelectorFromArgs extracts selector prefix and trailing value', () => 
 });
 
 test('splitSelectorFromArgs prefers trailing token for value when requested', () => {
-  const split = splitSelectorFromArgs(['label="Filter"', 'visible=true'], { preferTrailingValue: true });
+  const split = splitSelectorFromArgs(['label="Filter"', 'visible=true'], {
+    preferTrailingValue: true,
+  });
   assert.ok(split);
   assert.equal(split.selectorExpression, 'label="Filter"');
   assert.deepEqual(split.rest, ['visible=true']);

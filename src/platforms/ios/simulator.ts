@@ -4,7 +4,11 @@ import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
-import { IOS_BOOT_TIMEOUT_MS, IOS_SIMCTL_LIST_TIMEOUT_MS, IOS_SIMULATOR_FOCUS_TIMEOUT_MS } from './config.ts';
+import {
+  IOS_BOOT_TIMEOUT_MS,
+  IOS_SIMCTL_LIST_TIMEOUT_MS,
+  IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
+} from './config.ts';
 import { buildSimctlArgs, buildSimctlArgsForDevice } from './simctl.ts';
 
 export function ensureSimulator(device: DeviceInfo, command: string): void {
@@ -29,17 +33,17 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
   const deadline = Deadline.fromTimeoutMs(IOS_BOOT_TIMEOUT_MS);
   let bootResult:
     | {
-      stdout: string;
-      stderr: string;
-      exitCode: number;
-    }
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+      }
     | undefined;
   let bootStatusResult:
     | {
-      stdout: string;
-      stderr: string;
-      exitCode: number;
-    }
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+      }
     | undefined;
 
   try {
@@ -74,10 +78,14 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
           });
         }
 
-        const bootStatus = await runCmd('xcrun', buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
-          allowFailure: true,
-          timeoutMs: remainingMs,
-        });
+        const bootStatus = await runCmd(
+          'xcrun',
+          buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']),
+          {
+            allowFailure: true,
+            timeoutMs: remainingMs,
+          },
+        );
         bootStatusResult = {
           stdout: String(bootStatus.stdout ?? ''),
           stderr: String(bootStatus.stderr ?? ''),
@@ -163,9 +171,10 @@ export async function shutdownSimulator(device: DeviceInfo): Promise<{
 
 export async function getSimulatorState(deviceOrUdid: DeviceInfo | string): Promise<string | null> {
   const udid = typeof deviceOrUdid === 'string' ? deviceOrUdid : deviceOrUdid.id;
-  const simctlArgs = typeof deviceOrUdid === 'string'
-    ? buildSimctlArgs(['list', 'devices', '-j'])
-    : buildSimctlArgsForDevice(deviceOrUdid, ['list', 'devices', '-j']);
+  const simctlArgs =
+    typeof deviceOrUdid === 'string'
+      ? buildSimctlArgs(['list', 'devices', '-j'])
+      : buildSimctlArgsForDevice(deviceOrUdid, ['list', 'devices', '-j']);
   const result = await runCmd('xcrun', simctlArgs, {
     allowFailure: true,
     timeoutMs: IOS_SIMCTL_LIST_TIMEOUT_MS,

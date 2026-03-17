@@ -31,7 +31,10 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 function getAppLogConfig(): { maxBytes: number; maxRotatedFiles: number } {
   return {
     maxBytes: parsePositiveIntEnv('AGENT_DEVICE_APP_LOG_MAX_BYTES', DEFAULT_MAX_APP_LOG_BYTES),
-    maxRotatedFiles: parsePositiveIntEnv('AGENT_DEVICE_APP_LOG_MAX_FILES', DEFAULT_MAX_ROTATED_FILES),
+    maxRotatedFiles: parsePositiveIntEnv(
+      'AGENT_DEVICE_APP_LOG_MAX_FILES',
+      DEFAULT_MAX_ROTATED_FILES,
+    ),
   };
 }
 
@@ -127,7 +130,9 @@ export async function runAppLogDoctor(
   const checks: Record<string, boolean> = {};
   const notes: string[] = [];
   if (!appBundleId) {
-    notes.push('No app bundle is tracked in this session. Run open <app> first for app-scoped logs.');
+    notes.push(
+      'No app bundle is tracked in this session. Run open <app> first for app-scoped logs.',
+    );
   }
   if (device.platform === 'android') {
     try {
@@ -138,7 +143,9 @@ export async function runAppLogDoctor(
     }
     if (appBundleId) {
       try {
-        const pidof = await runCmd('adb', ['-s', device.id, 'shell', 'pidof', appBundleId], { allowFailure: true });
+        const pidof = await runCmd('adb', ['-s', device.id, 'shell', 'pidof', appBundleId], {
+          allowFailure: true,
+        });
         checks.androidPidVisible = pidof.stdout.trim().length > 0;
       } catch {
         checks.androidPidVisible = false;
@@ -170,7 +177,11 @@ export function appendAppLogMarker(outPath: string, marker: string): void {
   fs.appendFileSync(outPath, line, 'utf8');
 }
 
-export function clearAppLogFiles(outPath: string): { path: string; cleared: boolean; removedRotatedFiles: number } {
+export function clearAppLogFiles(outPath: string): {
+  path: string;
+  cleared: boolean;
+  removedRotatedFiles: number;
+} {
   const dir = path.dirname(outPath);
   const base = path.basename(outPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

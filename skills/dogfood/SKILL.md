@@ -12,14 +12,14 @@ Systematically explore a mobile app, find issues, and produce a report with full
 
 Only the **Target app** is required. Everything else has sensible defaults.
 
-| Parameter | Default | Example override |
-|-----------|---------|-----------------|
-| **Target app** | _(required)_ | `Settings`, `com.example.app`, deep link URL |
-| **Platform** | Infer from user context; otherwise ask (`ios` or `android`) | `--platform ios` |
-| **Session name** | Slugified app/platform (for example `settings-ios`) | `--session my-session` |
-| **Output directory** | `./dogfood-output/` | `Output directory: /tmp/mobile-qa` |
-| **Scope** | Full app | `Focus on onboarding and profile` |
-| **Authentication** | None | `Sign in to user@example.com` |
+| Parameter            | Default                                                     | Example override                             |
+| -------------------- | ----------------------------------------------------------- | -------------------------------------------- |
+| **Target app**       | _(required)_                                                | `Settings`, `com.example.app`, deep link URL |
+| **Platform**         | Infer from user context; otherwise ask (`ios` or `android`) | `--platform ios`                             |
+| **Session name**     | Slugified app/platform (for example `settings-ios`)         | `--session my-session`                       |
+| **Output directory** | `./dogfood-output/`                                         | `Output directory: /tmp/mobile-qa`           |
+| **Scope**            | Full app                                                    | `Focus on onboarding and profile`            |
+| **Authentication**   | None                                                        | `Sign in to user@example.com`                |
 
 If the user gives enough context to start, begin immediately with defaults. Ask follow-up only when a required detail is missing (for example platform or credentials).
 
@@ -172,12 +172,12 @@ agent-device --session {SESSION} close
 
 ## References
 
-| Reference | When to Read |
-|-----------|--------------|
+| Reference                                                    | When to Read                                    |
+| ------------------------------------------------------------ | ----------------------------------------------- |
 | [references/issue-taxonomy.md](references/issue-taxonomy.md) | Start of session; severity/categories/checklist |
 
 ## Templates
 
-| Template | Purpose |
-|----------|---------|
+| Template                                                                     | Purpose                                       |
+| ---------------------------------------------------------------------------- | --------------------------------------------- |
 | [templates/dogfood-report-template.md](templates/dogfood-report-template.md) | Copy into output directory as the report file |

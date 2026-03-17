@@ -1,10 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { findProjectRoot, readVersion } from '../utils/version.ts';
-import {
-  isAgentDeviceDaemonProcess,
-  readProcessStartTime,
-} from '../utils/process-identity.ts';
+import { isAgentDeviceDaemonProcess, readProcessStartTime } from '../utils/process-identity.ts';
 
 export type DaemonLockInfo = {
   pid: number;
@@ -41,11 +38,7 @@ export function writeInfo(
 ): void {
   if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
   fs.writeFileSync(logPath, '');
-  const transport = opts.socketPort && opts.httpPort
-    ? 'dual'
-    : opts.httpPort
-      ? 'http'
-      : 'socket';
+  const transport = opts.socketPort && opts.httpPort ? 'dual' : opts.httpPort ? 'http' : 'socket';
   fs.writeFileSync(
     infoPath,
     JSON.stringify(
@@ -105,9 +98,9 @@ export function acquireDaemonLock(
   if (tryWriteLock()) return true;
   const existing = readLockInfo(lockPath);
   if (
-    existing?.pid
-    && existing.pid !== process.pid
-    && isAgentDeviceDaemonProcess(existing.pid, existing.processStartTime)
+    existing?.pid &&
+    existing.pid !== process.pid &&
+    isAgentDeviceDaemonProcess(existing.pid, existing.processStartTime)
   ) {
     return false;
   }

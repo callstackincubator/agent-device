@@ -9,14 +9,14 @@ import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
 export type MaterializeInstallSource =
   | {
-    kind: 'url';
-    url: string;
-    headers?: Record<string, string>;
-  }
+      kind: 'url';
+      url: string;
+      headers?: Record<string, string>;
+    }
   | {
-    kind: 'path';
-    path: string;
-  };
+      kind: 'path';
+      path: string;
+    };
 
 type MaterializeLocalSourceResult = {
   localPath: string;
@@ -25,7 +25,10 @@ type MaterializeLocalSourceResult = {
 
 type MaterializeInstallableOptions = {
   source: MaterializeInstallSource;
-  isInstallablePath: (candidatePath: string, stat: { isFile(): boolean; isDirectory(): boolean }) => boolean;
+  isInstallablePath: (
+    candidatePath: string,
+    stat: { isFile(): boolean; isDirectory(): boolean },
+  ) => boolean;
   installableLabel: string;
   allowArchiveExtraction?: boolean;
   signal?: AbortSignal;
@@ -145,11 +148,15 @@ async function downloadToTempFile(
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new AppError('COMMAND_FAILED', `Failed to download app source: ${response.status} ${response.statusText}`, {
-        status: response.status,
-        statusText: response.statusText,
-        url: parsedUrl.toString(),
-      });
+      throw new AppError(
+        'COMMAND_FAILED',
+        `Failed to download app source: ${response.status} ${response.statusText}`,
+        {
+          status: response.status,
+          statusText: response.statusText,
+          url: parsedUrl.toString(),
+        },
+      );
     }
     const downloadName = resolveDownloadFileName(response, parsedUrl);
     const destinationPath = path.join(tempDir, downloadName);
@@ -170,13 +177,23 @@ async function downloadToTempFile(
     return destinationPath;
   } catch (error) {
     if (requestSignal?.aborted) {
-      throw new AppError('COMMAND_FAILED', 'request canceled', { reason: 'request_canceled' }, error);
+      throw new AppError(
+        'COMMAND_FAILED',
+        'request canceled',
+        { reason: 'request_canceled' },
+        error,
+      );
     }
     if (controller.signal.aborted) {
-      throw new AppError('COMMAND_FAILED', `App source download timed out after ${timeoutMs}ms`, {
-        timeoutMs,
-        url: parsedUrl.toString(),
-      }, error);
+      throw new AppError(
+        'COMMAND_FAILED',
+        `App source download timed out after ${timeoutMs}ms`,
+        {
+          timeoutMs,
+          url: parsedUrl.toString(),
+        },
+        error,
+      );
     }
     throw error;
   } finally {
@@ -189,22 +206,24 @@ export async function validateDownloadSourceUrl(parsedUrl: URL): Promise<void> {
   if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
     throw new AppError('INVALID_ARGS', `Unsupported source URL protocol: ${parsedUrl.protocol}`);
   }
-  if (ALLOW_PRIVATE_SOURCE_URLS.includes((process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS ?? '').toLowerCase())) {
+  if (
+    ALLOW_PRIVATE_SOURCE_URLS.includes(
+      (process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS ?? '').toLowerCase(),
+    )
+  ) {
     return;
   }
 
   const hostname = parsedUrl.hostname.toLowerCase();
   if (isBlockedSourceHostname(hostname)) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Source URL host is not allowed: ${parsedUrl.hostname}`,
-      {
-        hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
-      },
-    );
+    throw new AppError('INVALID_ARGS', `Source URL host is not allowed: ${parsedUrl.hostname}`, {
+      hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
+    });
   }
 
-  const resolved = await dns.lookup(parsedUrl.hostname, { all: true, verbatim: true }).catch(() => []);
+  const resolved = await dns
+    .lookup(parsedUrl.hostname, { all: true, verbatim: true })
+    .catch(() => []);
   if (resolved.some((entry) => isBlockedIpAddress(entry.address))) {
     throw new AppError(
       'INVALID_ARGS',
@@ -221,8 +240,10 @@ export function isTrustedInstallSourceUrl(sourceUrl: string | URL): boolean {
   const hostname = parsed.hostname.toLowerCase();
   if (!hostname) return false;
   const pathname = parsed.pathname;
-  return isTrustedGithubActionsArtifactUrl(hostname, pathname)
-    || isTrustedEasArtifactUrl(hostname, pathname);
+  return (
+    isTrustedGithubActionsArtifactUrl(hostname, pathname) ||
+    isTrustedEasArtifactUrl(hostname, pathname)
+  );
 }
 
 function isTrustedGithubActionsArtifactUrl(hostname: string, pathname: string): boolean {
@@ -230,7 +251,9 @@ function isTrustedGithubActionsArtifactUrl(hostname: string, pathname: string): 
     return /^\/repos\/[^/]+\/[^/]+\/actions\/artifacts\/\d+\/zip$/i.test(pathname);
   }
   if (hostname !== 'github.com') return false;
-  return /^\/[^/]+\/[^/]+\/(?:actions\/runs\/\d+\/artifacts\/\d+|suites\/\d+\/artifacts\/\d+)$/i.test(pathname);
+  return /^\/[^/]+\/[^/]+\/(?:actions\/runs\/\d+\/artifacts\/\d+|suites\/\d+\/artifacts\/\d+)$/i.test(
+    pathname,
+  );
 }
 
 function isTrustedEasArtifactUrl(hostname: string, pathname: string): boolean {
@@ -338,8 +361,10 @@ async function resolveInstallableCandidate(
       );
     }
 
-    const archives = await collectMatchingPaths(candidatePath, (entryPath, entryStat) =>
-      entryStat.isFile() && isArchivePath(entryPath));
+    const archives = await collectMatchingPaths(
+      candidatePath,
+      (entryPath, entryStat) => entryStat.isFile() && isArchivePath(entryPath),
+    );
     if (archives.length === 1) {
       if (!params.allowArchiveExtraction) {
         throw new AppError(
@@ -404,7 +429,10 @@ async function extractArchive(
   try {
     if (archivePath.toLowerCase().endsWith('.zip')) {
       await runCmd('ditto', ['-x', '-k', archivePath, tempDir]);
-    } else if (archivePath.toLowerCase().endsWith('.tar.gz') || archivePath.toLowerCase().endsWith('.tgz')) {
+    } else if (
+      archivePath.toLowerCase().endsWith('.tar.gz') ||
+      archivePath.toLowerCase().endsWith('.tgz')
+    ) {
       await runCmd('tar', ['-xzf', archivePath, '-C', tempDir]);
     } else {
       await runCmd('tar', ['-xf', archivePath, '-C', tempDir]);

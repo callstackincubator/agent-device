@@ -3,17 +3,9 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { contextFromFlags } from '../context.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
-import {
-  applyRuntimeHintsToApp,
-  clearRuntimeHintsFromApp,
-} from '../runtime-hints.ts';
+import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import type {
-  DaemonRequest,
-  DaemonResponse,
-  SessionRuntimeHints,
-  SessionState,
-} from '../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import {
   classifyAndroidAppTarget,
@@ -35,10 +27,7 @@ import {
   resolveAndroidPackageForOpen,
   resolveSessionAppBundleIdForTarget,
 } from './session-open-target.ts';
-import {
-  STARTUP_SAMPLE_METHOD,
-  type StartupPerfSample,
-} from './session-startup-metrics.ts';
+import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
 
 function buildOpenResult(params: {
   sessionName: string;
@@ -111,7 +100,8 @@ async function relaunchCloseApp(params: {
   context: Parameters<typeof dispatchCommand>[4];
   settleSimulator: (device: DeviceInfo, delayMs: number) => Promise<void>;
 }): Promise<void> {
-  const { device, closeTarget, stopIosRunner, dispatch, outFlag, context, settleSimulator } = params;
+  const { device, closeTarget, stopIosRunner, dispatch, outFlag, context, settleSimulator } =
+    params;
   if (device.platform === 'ios') {
     await stopIosRunner(device.id);
   }
@@ -129,7 +119,8 @@ async function maybeApplySessionLaunchUrl(params: {
   traceLogPath?: string;
   openPositionals: string[];
 }): Promise<void> {
-  const { runtime, device, dispatch, req, logPath, appBundleId, traceLogPath, openPositionals } = params;
+  const { runtime, device, dispatch, req, logPath, appBundleId, traceLogPath, openPositionals } =
+    params;
   const launchUrl = runtime?.launchUrl;
   if (!launchUrl) return;
   if (openPositionals.length === 0) return;
@@ -199,7 +190,12 @@ async function completeOpenCommand(params: {
       dispatch,
       outFlag: req.flags?.out,
       context: {
-        ...contextFromFlags(logPath, req.flags, appBundleId ?? existingSession?.appBundleId, traceLogPath),
+        ...contextFromFlags(
+          logPath,
+          req.flags,
+          appBundleId ?? existingSession?.appBundleId,
+          traceLogPath,
+        ),
       },
       settleSimulator,
     });
@@ -224,7 +220,9 @@ async function completeOpenCommand(params: {
     traceLogPath,
     openPositionals,
   });
-  const startupSample = openTarget ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId) : undefined;
+  const startupSample = openTarget
+    ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId)
+    : undefined;
   await settleSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
 
   const nextSession = buildNextOpenSession({
@@ -327,7 +325,11 @@ export async function handleOpenCommand(params: {
         },
       };
     }
-    if (shouldRelaunch && session.device.platform === 'android' && classifyAndroidAppTarget(openTarget) === 'binary') {
+    if (
+      shouldRelaunch &&
+      session.device.platform === 'android' &&
+      classifyAndroidAppTarget(openTarget) === 'binary'
+    ) {
       return {
         ok: false,
         error: {
@@ -399,7 +401,12 @@ export async function handleOpenCommand(params: {
     };
   }
   const device = await resolveDevice(req.flags ?? {});
-  if (shouldRelaunch && device.platform === 'android' && openTarget && classifyAndroidAppTarget(openTarget) === 'binary') {
+  if (
+    shouldRelaunch &&
+    device.platform === 'android' &&
+    openTarget &&
+    classifyAndroidAppTarget(openTarget) === 'binary'
+  ) {
     return {
       ok: false,
       error: {
@@ -420,8 +427,12 @@ export async function handleOpenCommand(params: {
     };
   }
   await ensureReady(device);
-  const appBundleId =
-    await resolveSessionAppBundleIdForTarget(device, openTarget, undefined, resolveAndroidPackageForOpenFn);
+  const appBundleId = await resolveSessionAppBundleIdForTarget(
+    device,
+    openTarget,
+    undefined,
+    resolveAndroidPackageForOpenFn,
+  );
   const runtimeResult = tryResolveOpenRuntimeHints({
     req,
     sessionStore,

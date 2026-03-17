@@ -32,12 +32,14 @@ export function classifyBootFailure(input: {
   const detailMessage = typeof details.message === 'string' ? details.message : undefined;
   const detailStdout = typeof details.stdout === 'string' ? details.stdout : undefined;
   const detailStderr = typeof details.stderr === 'string' ? details.stderr : undefined;
-  const nestedBoot = details.boot && typeof details.boot === 'object'
-    ? (details.boot as Record<string, unknown>)
-    : null;
-  const nestedBootstatus = details.bootstatus && typeof details.bootstatus === 'object'
-    ? (details.bootstatus as Record<string, unknown>)
-    : null;
+  const nestedBoot =
+    details.boot && typeof details.boot === 'object'
+      ? (details.boot as Record<string, unknown>)
+      : null;
+  const nestedBootstatus =
+    details.bootstatus && typeof details.bootstatus === 'object'
+      ? (details.bootstatus as Record<string, unknown>)
+      : null;
 
   const haystack = [
     input.message,
@@ -58,25 +60,29 @@ export function classifyBootFailure(input: {
 
   if (
     platform === 'ios' &&
-    (
-      haystack.includes('runner did not accept connection') ||
+    (haystack.includes('runner did not accept connection') ||
       (phase === 'connect' &&
-        (
-          haystack.includes('timed out') ||
+        (haystack.includes('timed out') ||
           haystack.includes('timeout') ||
           haystack.includes('econnrefused') ||
           haystack.includes('connection refused') ||
           haystack.includes('fetch failed') ||
-          haystack.includes('socket hang up')
-        ))
-    )
+          haystack.includes('socket hang up'))))
   ) {
     return 'IOS_RUNNER_CONNECT_TIMEOUT';
   }
-  if (platform === 'ios' && phase === 'boot' && (haystack.includes('timed out') || haystack.includes('timeout'))) {
+  if (
+    platform === 'ios' &&
+    phase === 'boot' &&
+    (haystack.includes('timed out') || haystack.includes('timeout'))
+  ) {
     return 'IOS_BOOT_TIMEOUT';
   }
-  if (platform === 'android' && phase === 'boot' && (haystack.includes('timed out') || haystack.includes('timeout'))) {
+  if (
+    platform === 'android' &&
+    phase === 'boot' &&
+    (haystack.includes('timed out') || haystack.includes('timeout'))
+  ) {
     return 'ANDROID_BOOT_TIMEOUT';
   }
   if (
@@ -89,16 +95,14 @@ export function classifyBootFailure(input: {
   }
   if (
     platform === 'android' &&
-    (
-      haystack.includes('device not found') ||
+    (haystack.includes('device not found') ||
       haystack.includes('no devices') ||
       haystack.includes('device offline') ||
       haystack.includes('offline') ||
       haystack.includes('unauthorized') ||
       haystack.includes('not authorized') ||
       haystack.includes('unable to locate device') ||
-      haystack.includes('invalid device')
-    )
+      haystack.includes('invalid device'))
   ) {
     return 'ADB_TRANSPORT_UNAVAILABLE';
   }

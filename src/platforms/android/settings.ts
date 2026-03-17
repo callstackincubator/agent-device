@@ -20,26 +20,50 @@ export async function setAndroidSetting(
   switch (normalized) {
     case 'wifi': {
       const enabled = parseSettingState(state);
-      await runCmd('adb', adbArgs(device, ['shell', 'svc', 'wifi', enabled ? 'enable' : 'disable']));
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'svc', 'wifi', enabled ? 'enable' : 'disable']),
+      );
       return;
     }
     case 'airplane': {
       const enabled = parseSettingState(state);
       const flag = enabled ? '1' : '0';
       const bool = enabled ? 'true' : 'false';
-      await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'global', 'airplane_mode_on', flag]));
-      await runCmd('adb', adbArgs(device, ['shell', 'am', 'broadcast', '-a', 'android.intent.action.AIRPLANE_MODE', '--ez', 'state', bool]));
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'settings', 'put', 'global', 'airplane_mode_on', flag]),
+      );
+      await runCmd(
+        'adb',
+        adbArgs(device, [
+          'shell',
+          'am',
+          'broadcast',
+          '-a',
+          'android.intent.action.AIRPLANE_MODE',
+          '--ez',
+          'state',
+          bool,
+        ]),
+      );
       return;
     }
     case 'location': {
       const enabled = parseSettingState(state);
       const mode = enabled ? '3' : '0';
-      await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]));
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]),
+      );
       return;
     }
     case 'appearance': {
       const target = await resolveAndroidAppearanceTarget(device, state);
-      await runCmd('adb', adbArgs(device, ['shell', 'cmd', 'uimode', 'night', target === 'dark' ? 'yes' : 'no']));
+      await runCmd(
+        'adb',
+        adbArgs(device, ['shell', 'cmd', 'uimode', 'night', target === 'dark' ? 'yes' : 'no']),
+      );
       return;
     }
     case 'fingerprint': {
@@ -49,13 +73,13 @@ export async function setAndroidSetting(
     }
     case 'permission': {
       if (!appPackage) {
-        throw new AppError(
-          'INVALID_ARGS',
-          'permission setting requires an active app in session',
-        );
+        throw new AppError('INVALID_ARGS', 'permission setting requires an active app in session');
       }
       const action = parsePermissionAction(state);
-      const target = parseAndroidPermissionTarget(options?.permissionTarget, options?.permissionMode);
+      const target = parseAndroidPermissionTarget(
+        options?.permissionTarget,
+        options?.permissionMode,
+      );
       if (target.kind === 'notifications') {
         await setAndroidNotificationPermission(device, appPackage, action, target);
         return;
@@ -79,10 +103,7 @@ function parseAndroidFingerprintAction(state: string): AndroidFingerprintAction 
   const normalized = state.trim().toLowerCase();
   if (normalized === 'match') return 'match';
   if (normalized === 'nonmatch') return 'nonmatch';
-  throw new AppError(
-    'INVALID_ARGS',
-    `Invalid fingerprint state: ${state}. Use match|nonmatch.`,
-  );
+  throw new AppError('INVALID_ARGS', `Invalid fingerprint state: ${state}. Use match|nonmatch.`);
 }
 
 async function runAndroidFingerprintCommand(
@@ -108,9 +129,11 @@ async function runAndroidFingerprintCommand(
     exitCode: failure.exitCode,
     stderr: failure.stderr.slice(0, 400),
   }));
-  const capabilityMissing = failures.length > 0 && failures.every((failure) =>
-    isAndroidFingerprintCapabilityMissing(failure.stdout, failure.stderr)
-  );
+  const capabilityMissing =
+    failures.length > 0 &&
+    failures.every((failure) =>
+      isAndroidFingerprintCapabilityMissing(failure.stdout, failure.stderr),
+    );
   if (capabilityMissing) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
@@ -184,10 +207,14 @@ async function resolveAndroidAppearanceTarget(
   }
   const current = parseAndroidAppearance(currentResult.stdout, currentResult.stderr);
   if (!current) {
-    throw new AppError('COMMAND_FAILED', 'Unable to determine current Android appearance for toggle', {
-      stdout: currentResult.stdout,
-      stderr: currentResult.stderr,
-    });
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Unable to determine current Android appearance for toggle',
+      {
+        stdout: currentResult.stdout,
+        stderr: currentResult.stderr,
+      },
+    );
   }
   if (current === 'auto') return 'dark';
   return current === 'dark' ? 'light' : 'dark';
@@ -216,7 +243,8 @@ function parseAndroidPermissionTarget(
       `Permission mode is only supported for photos. Received: ${permissionMode}.`,
     );
   }
-  if (normalized === 'camera') return { kind: 'pm', value: 'android.permission.CAMERA', type: 'camera' };
+  if (normalized === 'camera')
+    return { kind: 'pm', value: 'android.permission.CAMERA', type: 'camera' };
   if (normalized === 'microphone') {
     return { kind: 'pm', value: 'android.permission.RECORD_AUDIO', type: 'microphone' };
   }
@@ -276,37 +304,54 @@ async function setAndroidNotificationPermission(
 ): Promise<void> {
   const appOpsMode = action === 'grant' ? 'allow' : action === 'deny' ? 'deny' : 'default';
   if (action === 'grant') {
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'pm', 'grant', appPackage, target.permission]),
-      { allowFailure: true },
-    );
+    await runCmd('adb', adbArgs(device, ['shell', 'pm', 'grant', appPackage, target.permission]), {
+      allowFailure: true,
+    });
   } else {
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'pm', 'revoke', appPackage, target.permission]),
-      { allowFailure: true },
-    );
+    await runCmd('adb', adbArgs(device, ['shell', 'pm', 'revoke', appPackage, target.permission]), {
+      allowFailure: true,
+    });
     if (action === 'reset') {
       await runCmd(
         'adb',
-        adbArgs(device, ['shell', 'pm', 'clear-permission-flags', appPackage, target.permission, 'user-set']),
+        adbArgs(device, [
+          'shell',
+          'pm',
+          'clear-permission-flags',
+          appPackage,
+          target.permission,
+          'user-set',
+        ]),
         { allowFailure: true },
       );
       await runCmd(
         'adb',
-        adbArgs(device, ['shell', 'pm', 'clear-permission-flags', appPackage, target.permission, 'user-fixed']),
+        adbArgs(device, [
+          'shell',
+          'pm',
+          'clear-permission-flags',
+          appPackage,
+          target.permission,
+          'user-fixed',
+        ]),
         { allowFailure: true },
       );
     }
   }
-  await runCmd('adb', adbArgs(device, ['shell', 'appops', 'set', appPackage, target.appOps, appOpsMode]));
+  await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'appops', 'set', appPackage, target.appOps, appOpsMode]),
+  );
 }
 
 async function getAndroidSdkInt(device: DeviceInfo): Promise<number | null> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'getprop', 'ro.build.version.sdk']), {
-    allowFailure: true,
-  });
+  const result = await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'getprop', 'ro.build.version.sdk']),
+    {
+      allowFailure: true,
+    },
+  );
   if (result.exitCode !== 0) return null;
   const value = Number.parseInt(result.stdout.trim(), 10);
   if (!Number.isFinite(value) || value <= 0) return null;

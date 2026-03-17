@@ -6,16 +6,16 @@ import { styleText } from 'node:util';
 type JsonResult =
   | { success: true; data?: Record<string, unknown> }
   | {
-    success: false;
-    error: {
-      code: string;
-      message: string;
-      hint?: string;
-      diagnosticId?: string;
-      logPath?: string;
-      details?: Record<string, unknown>;
+      success: false;
+      error: {
+        code: string;
+        message: string;
+        hint?: string;
+        diagnosticId?: string;
+        logPath?: string;
+        details?: Record<string, unknown>;
+      };
     };
-  };
 
 export function printJson(result: JsonResult): void {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);

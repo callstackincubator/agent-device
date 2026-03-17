@@ -71,9 +71,9 @@ function listFreshSessionConflicts(
   const conflicts: SessionSelectorConflict[] = [];
   const normalizedLockPlatform = normalizePlatformSelector(lockPlatform);
   if (
-    flags.platform !== undefined
-    && normalizedLockPlatform
-    && normalizePlatformSelector(flags.platform) !== normalizedLockPlatform
+    flags.platform !== undefined &&
+    normalizedLockPlatform &&
+    normalizePlatformSelector(flags.platform) !== normalizedLockPlatform
   ) {
     conflicts.push({ key: 'platform', value: flags.platform });
   }
@@ -86,10 +86,7 @@ function listFreshSessionConflicts(
   return conflicts;
 }
 
-function stripFreshSessionConflicts(
-  flags: CommandFlags,
-  lockPlatform: LockPlatform,
-): void {
+function stripFreshSessionConflicts(flags: CommandFlags, lockPlatform: LockPlatform): void {
   for (const key of LOCKABLE_SELECTOR_KEYS) {
     delete flags[key];
   }

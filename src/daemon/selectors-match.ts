@@ -2,7 +2,11 @@ import type { SnapshotNode } from '../utils/snapshot.ts';
 import { extractNodeText, isFillableType, normalizeType } from './snapshot-processing.ts';
 import type { Selector, SelectorTerm } from './selectors-parse.ts';
 
-export function matchesSelector(node: SnapshotNode, selector: Selector, platform: 'ios' | 'android'): boolean {
+export function matchesSelector(
+  node: SnapshotNode,
+  selector: Selector,
+  platform: 'ios' | 'android',
+): boolean {
   return selector.terms.every((term) => matchesTerm(node, term, platform));
 }
 
@@ -34,7 +38,7 @@ function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: 'ios' | '
     case 'visible':
       return isNodeVisible(node) === Boolean(term.value);
     case 'hidden':
-      return (!isNodeVisible(node)) === Boolean(term.value);
+      return !isNodeVisible(node) === Boolean(term.value);
     case 'editable':
       return isNodeEditable(node, platform) === Boolean(term.value);
     case 'selected':

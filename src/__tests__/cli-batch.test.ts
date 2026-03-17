@@ -22,9 +22,7 @@ type RunResult = {
   calls: Omit<DaemonRequest, 'token'>[];
 };
 
-async function runCliCapture(
-  argv: string[],
-): Promise<RunResult> {
+async function runCliCapture(argv: string[]): Promise<RunResult> {
   let stdout = '';
   let stderr = '';
   let code: number | null = null;
@@ -100,7 +98,11 @@ test('batch --steps-file parses file payload', async () => {
 });
 
 test('batch --steps-file returns clear error for missing file', async () => {
-  const result = await runCliCapture(['batch', '--steps-file', '/tmp/definitely-missing-batch-steps.json']);
+  const result = await runCliCapture([
+    'batch',
+    '--steps-file',
+    '/tmp/definitely-missing-batch-steps.json',
+  ]);
   assert.equal(result.code, 1);
   assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Failed to read --steps-file/);

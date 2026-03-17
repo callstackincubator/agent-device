@@ -386,7 +386,11 @@ test('installAndroidApp installs .aab via bundletool build-apks + install-apks',
   const argsLogPath = path.join(tmpDir, 'args.log');
   const aabPath = path.join(tmpDir, 'Sample.aab');
   await fs.writeFile(aabPath, 'placeholder', 'utf8');
-  await fs.writeFile(adbPath, '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n', 'utf8');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
   await fs.chmod(adbPath, 0o755);
   await fs.writeFile(
     bundletoolPath,
@@ -461,7 +465,11 @@ test('installAndroidApp honors AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE for .aab ins
   const argsLogPath = path.join(tmpDir, 'args.log');
   const aabPath = path.join(tmpDir, 'Sample.aab');
   await fs.writeFile(aabPath, 'placeholder', 'utf8');
-  await fs.writeFile(adbPath, '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n', 'utf8');
+  await fs.writeFile(
+    adbPath,
+    '#!/bin/sh\nprintf "adb %s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
   await fs.chmod(adbPath, 0o755);
   await fs.writeFile(
     bundletoolPath,
@@ -535,7 +543,9 @@ test('installAndroidApp honors AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE for .aab ins
 });
 
 test('installAndroidApp .aab reports missing bundletool tooling', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-aab-missing-tool-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-android-install-aab-missing-tool-'),
+  );
   const adbPath = path.join(tmpDir, 'adb');
   const aabPath = path.join(tmpDir, 'Sample.aab');
   await fs.writeFile(aabPath, 'placeholder', 'utf8');
@@ -601,10 +611,7 @@ test('setAndroidSetting appearance dark uses cmd uimode night yes', async () => 
     '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
     async ({ argsLogPath, device }) => {
       await setAndroidSetting(device, 'appearance', 'dark');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /shell cmd uimode night yes/);
     },
@@ -627,10 +634,7 @@ test('setAndroidSetting appearance toggle flips current mode', async () => {
     ].join('\n'),
     async ({ argsLogPath, device }) => {
       await setAndroidSetting(device, 'appearance', 'toggle');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /shell cmd uimode night __CMD__/);
       assert.match(logged, /shell cmd uimode night no/);
@@ -654,10 +658,7 @@ test('setAndroidSetting appearance toggle from auto sets dark mode', async () =>
     ].join('\n'),
     async ({ argsLogPath, device }) => {
       await setAndroidSetting(device, 'appearance', 'toggle');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /shell cmd uimode night yes/);
     },
@@ -682,7 +683,10 @@ test('setAndroidSetting appearance toggle rejects unknown current mode output', 
         (error: unknown) => {
           assert.equal(error instanceof AppError, true);
           assert.equal((error as AppError).code, 'COMMAND_FAILED');
-          assert.match((error as AppError).message, /Unable to determine current Android appearance/);
+          assert.match(
+            (error as AppError).message,
+            /Unable to determine current Android appearance/,
+          );
           return true;
         },
       );
@@ -756,12 +760,7 @@ test('setAndroidSetting fingerprint rejects unsupported action', async () => {
 test('setAndroidSetting fingerprint returns COMMAND_FAILED for transport/runtime failures', async () => {
   await withMockedAdb(
     'agent-device-android-fingerprint-command-failed-',
-    [
-      '#!/bin/sh',
-      'echo "error: device offline" >&2',
-      'exit 1',
-      '',
-    ].join('\n'),
+    ['#!/bin/sh', 'echo "error: device offline" >&2', 'exit 1', ''].join('\n'),
     async ({ device }) => {
       await assert.rejects(
         () => setAndroidSetting(device, 'fingerprint', 'match'),
@@ -777,7 +776,9 @@ test('setAndroidSetting fingerprint returns COMMAND_FAILED for transport/runtime
 });
 
 test('setAndroidSetting fingerprint does not use adb emu command on physical devices', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-fingerprint-device-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-android-fingerprint-device-'),
+  );
   const adbPath = path.join(tmpDir, 'adb');
   const argsLogPath = path.join(tmpDir, 'args.log');
   await fs.writeFile(
@@ -841,11 +842,19 @@ test('swipeAndroid invokes adb input swipe with duration', async () => {
 
   try {
     await swipeAndroid(device, 10, 20, 30, 40, 250);
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
-    assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'swipe', '10', '20', '30', '40', '250']);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, [
+      '-s',
+      'emulator-5554',
+      'shell',
+      'input',
+      'swipe',
+      '10',
+      '20',
+      '30',
+      '40',
+      '250',
+    ]);
   } finally {
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) {
@@ -986,9 +995,15 @@ test('openAndroidApp fallback resolve-activity includes MAIN/LAUNCHER flags', as
       await openAndroidApp(device, 'com.microsoft.office.outlook');
       const logged = await fs.readFile(argsLogPath, 'utf8');
       // Verify resolve-activity was called with MAIN/LAUNCHER flags
-      assert.match(logged, /resolve-activity\n--brief\n-a\nandroid\.intent\.action\.MAIN\n-c\nandroid\.intent\.category\.LAUNCHER\ncom\.microsoft\.office\.outlook/);
+      assert.match(
+        logged,
+        /resolve-activity\n--brief\n-a\nandroid\.intent\.action\.MAIN\n-c\nandroid\.intent\.category\.LAUNCHER\ncom\.microsoft\.office\.outlook/,
+      );
       // Verify fallback launch used the resolved component
-      assert.match(logged, /-n\ncom\.microsoft\.office\.outlook\/com\.microsoft\.office\.outlook\.ui\.miit\.MiitLauncherActivity/);
+      assert.match(
+        logged,
+        /-n\ncom\.microsoft\.office\.outlook\/com\.microsoft\.office\.outlook\.ui\.miit\.MiitLauncherActivity/,
+      );
     },
   );
 });
@@ -1045,18 +1060,8 @@ test('typeAndroid uses adb input text for ascii text', async () => {
     '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
     async ({ argsLogPath, device }) => {
       await typeAndroid(device, 'hello world');
-      const args = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
-      assert.deepEqual(args, [
-        '-s',
-        'emulator-5554',
-        'shell',
-        'input',
-        'text',
-        'hello%sworld',
-      ]);
+      const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'text', 'hello%sworld']);
     },
   );
 });
@@ -1067,10 +1072,7 @@ test('typeAndroid passes shell-sensitive ascii text to adb input text', async ()
     '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
     async ({ argsLogPath, device }) => {
       await typeAndroid(device, 'curtis.layne+test+73kmc@uber.com');
-      const args = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       assert.deepEqual(args, [
         '-s',
         'emulator-5554',
@@ -1089,18 +1091,8 @@ test('typeAndroid preserves percent signs while encoding spaces', async () => {
     '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
     async ({ argsLogPath, device }) => {
       await typeAndroid(device, '50% complete');
-      const args = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
-      assert.deepEqual(args, [
-        '-s',
-        'emulator-5554',
-        'shell',
-        'input',
-        'text',
-        '50%%scomplete',
-      ]);
+      const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'text', '50%%scomplete']);
     },
   );
 });
@@ -1162,7 +1154,10 @@ test('fillAndroid falls back to clipboard paste when adb input text truncates', 
       await fillAndroid(device, 10, 10, 'curtis.layne+test+73kmc@uber.com');
       const logged = await fs.readFile(argsLogPath, 'utf8');
       assert.match(logged, /shell\ninput\ntext\ncurtis\.layne\+test\+73kmc@uber\.com/);
-      assert.match(logged, /shell\ncmd\nclipboard\nset\ntext\ncurtis\.layne\+test\+73kmc@uber\.com/);
+      assert.match(
+        logged,
+        /shell\ncmd\nclipboard\nset\ntext\ncurtis\.layne\+test\+73kmc@uber\.com/,
+      );
       assert.match(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
       const shellInputTextCount = (logged.match(/shell\ninput\ntext\n/g) ?? []).length;
       assert.equal(shellInputTextCount, 1);
@@ -1184,7 +1179,7 @@ test('typeAndroid reports clear error when unicode input is unsupported', async 
       '  exit 0',
       'fi',
       'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
-      "  echo \"Exception occurred while executing 'text':\" >&2",
+      '  echo "Exception occurred while executing \'text\':" >&2',
       '  echo "java.lang.NullPointerException" >&2',
       '  exit 255',
       'fi',
@@ -1427,7 +1422,10 @@ test('setAndroidSetting permission deny notifications revokes runtime permission
         permissionTarget: 'notifications',
       });
       const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/);
+      assert.match(
+        logged,
+        /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/,
+      );
       assert.match(logged, /shell\nappops\nset\ncom\.example\.app\nPOST_NOTIFICATION\ndeny/);
     },
   );
@@ -1442,7 +1440,10 @@ test('setAndroidSetting permission reset notifications clears permission flags f
         permissionTarget: 'notifications',
       });
       const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/);
+      assert.match(
+        logged,
+        /shell\npm\nrevoke\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS/,
+      );
       assert.match(
         logged,
         /shell\npm\nclear-permission-flags\ncom\.example\.app\nandroid\.permission\.POST_NOTIFICATIONS\nuser-set/,
@@ -1543,7 +1544,10 @@ test('setAndroidSetting permission grant photos falls back to legacy permission 
       });
       const logged = await fs.readFile(argsLogPath, 'utf8');
       assert.match(logged, /shell\ngetprop\nro\.build\.version\.sdk/);
-      assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.READ_EXTERNAL_STORAGE/);
+      assert.match(
+        logged,
+        /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.READ_EXTERNAL_STORAGE/,
+      );
     },
   );
 });
@@ -1584,10 +1588,7 @@ test('pushAndroidNotification broadcasts action with typed extras', async () => 
     });
     assert.equal(result.action, 'com.example.app.PUSH');
     assert.equal(result.extrasCount, 4);
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, [
       '-s',
       'emulator-5554',
@@ -1623,7 +1624,9 @@ test('pushAndroidNotification broadcasts action with typed extras', async () => 
 });
 
 test('pushAndroidNotification ignores empty extra keys when reporting extrasCount', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-push-empty-key-test-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-android-push-empty-key-test-'),
+  );
   const adbPath = path.join(tmpDir, 'adb');
   const argsLogPath = path.join(tmpDir, 'args.log');
   await fs.writeFile(

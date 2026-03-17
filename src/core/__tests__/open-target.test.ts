@@ -48,8 +48,5 @@ test('resolveIosDeviceDeepLinkBundleId falls back to Safari for web URLs', () =>
 });
 
 test('resolveIosDeviceDeepLinkBundleId returns undefined for custom scheme without app context', () => {
-  assert.equal(
-    resolveIosDeviceDeepLinkBundleId(undefined, 'myapp://home'),
-    undefined,
-  );
+  assert.equal(resolveIosDeviceDeepLinkBundleId(undefined, 'myapp://home'), undefined);
 });

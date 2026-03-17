@@ -306,7 +306,10 @@ test('resolveSimulatorRunnerScreenshotCandidatePaths includes tmp-based and base
     '/var/mobile/Containers/Data/Application/abc/tmp/screenshot-1.png',
   );
   assert.equal(candidates.includes(path.join(containerPath, 'tmp', 'screenshot-1.png')), true);
-  assert.equal(candidates.includes('/var/mobile/Containers/Data/Application/abc/tmp/screenshot-1.png'), true);
+  assert.equal(
+    candidates.includes('/var/mobile/Containers/Data/Application/abc/tmp/screenshot-1.png'),
+    true,
+  );
 });
 
 test('resolveSimulatorRunnerScreenshotCandidatePaths handles empty runner path', () => {
@@ -314,7 +317,9 @@ test('resolveSimulatorRunnerScreenshotCandidatePaths handles empty runner path',
 });
 
 test('screenshotIos retries simulator capture timeouts and eventually succeeds', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-screenshot-retry-test-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-ios-screenshot-retry-test-'),
+  );
   const xcrunPath = path.join(tmpDir, 'xcrun');
   const openPath = path.join(tmpDir, 'open');
   const commandLogPath = path.join(tmpDir, 'commands.log');
@@ -352,7 +357,11 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
     'utf8',
   );
   await fs.chmod(xcrunPath, 0o755);
-  await fs.writeFile(openPath, '#!/bin/sh\necho "__OPEN__ $*" >> "$AGENT_DEVICE_TEST_COMMAND_LOG"\nexit 0\n', 'utf8');
+  await fs.writeFile(
+    openPath,
+    '#!/bin/sh\necho "__OPEN__ $*" >> "$AGENT_DEVICE_TEST_COMMAND_LOG"\nexit 0\n',
+    'utf8',
+  );
   await fs.chmod(openPath, 0o755);
 
   const previousPath = process.env.PATH;
@@ -367,10 +376,7 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
     assert.equal(await fs.readFile(outPath, 'utf8'), 'png-bytes');
     assert.equal(await fs.readFile(screenshotCountPath, 'utf8'), '3\n');
 
-    const logLines = (await fs.readFile(commandLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const logLines = (await fs.readFile(commandLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(
       logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
       3,
@@ -385,7 +391,8 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
     process.env.PATH = previousPath;
     if (previousCommandLog === undefined) delete process.env.AGENT_DEVICE_TEST_COMMAND_LOG;
     else process.env.AGENT_DEVICE_TEST_COMMAND_LOG = previousCommandLog;
-    if (previousScreenshotCountFile === undefined) delete process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE;
+    if (previousScreenshotCountFile === undefined)
+      delete process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE;
     else process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE = previousScreenshotCountFile;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
@@ -417,10 +424,7 @@ test('openIosApp web URL on iOS device without app falls back to Safari', async 
 
   try {
     await openIosApp(device, 'https://example.com/path');
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, [
       'devicectl',
       'device',
@@ -469,10 +473,7 @@ test('openIosApp custom scheme on iOS device uses active app context', async () 
 
   try {
     await openIosApp(device, 'myapp://item/42', { appBundleId: 'com.example.app' });
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, [
       'devicectl',
       'device',
@@ -529,10 +530,7 @@ test('writeIosClipboardText uses simctl pbcopy with stdin', async () => {
 
   try {
     await writeIosClipboardText(IOS_TEST_SIMULATOR, 'hello otp');
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, ['simctl', 'pbcopy', 'sim-1']);
     assert.equal(await fs.readFile(stdinLogPath, 'utf8'), 'hello otp');
   } finally {
@@ -629,39 +627,36 @@ fi
 exit 0
 `,
     async ({ tmpDir, argsLogPath, device }) => {
-    const appPath = path.join(tmpDir, 'Sample.app');
-    await fs.mkdir(appPath, { recursive: true });
-    const result = await reinstallIosApp(device, 'Demo', appPath);
-    assert.equal(result.bundleId, 'com.example.demo');
+      const appPath = path.join(tmpDir, 'Sample.app');
+      await fs.mkdir(appPath, { recursive: true });
+      const result = await reinstallIosApp(device, 'Demo', appPath);
+      assert.equal(result.bundleId, 'com.example.demo');
 
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+      const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
 
-    const uninstallIdx = args.indexOf('uninstall');
-    const installIdx = args.indexOf('install');
-    assert.notEqual(uninstallIdx, -1);
-    assert.notEqual(installIdx, -1);
-    assert.equal(uninstallIdx < installIdx, true, 'reinstall should uninstall before install');
-    assert.deepEqual(args.slice(uninstallIdx - 2, uninstallIdx + 5), [
-      'devicectl',
-      'device',
-      'uninstall',
-      'app',
-      '--device',
-      'ios-device-1',
-      'com.example.demo',
-    ]);
-    assert.deepEqual(args.slice(installIdx - 2, installIdx + 5), [
-      'devicectl',
-      'device',
-      'install',
-      'app',
-      '--device',
-      'ios-device-1',
-      appPath,
-    ]);
+      const uninstallIdx = args.indexOf('uninstall');
+      const installIdx = args.indexOf('install');
+      assert.notEqual(uninstallIdx, -1);
+      assert.notEqual(installIdx, -1);
+      assert.equal(uninstallIdx < installIdx, true, 'reinstall should uninstall before install');
+      assert.deepEqual(args.slice(uninstallIdx - 2, uninstallIdx + 5), [
+        'devicectl',
+        'device',
+        'uninstall',
+        'app',
+        '--device',
+        'ios-device-1',
+        'com.example.demo',
+      ]);
+      assert.deepEqual(args.slice(installIdx - 2, installIdx + 5), [
+        'devicectl',
+        'device',
+        'install',
+        'app',
+        '--device',
+        'ios-device-1',
+        appPath,
+      ]);
     },
   );
 });
@@ -697,17 +692,14 @@ echo "unexpected xcrun args: $@" >&2
 exit 1
 `,
     async ({ tmpDir, argsLogPath, device }) => {
-    const appPath = path.join(tmpDir, 'Sample.app');
-    await fs.mkdir(appPath, { recursive: true });
-    const result = await reinstallIosApp(device, 'Demo', appPath);
-    assert.equal(result.bundleId, 'com.example.demo');
+      const appPath = path.join(tmpDir, 'Sample.app');
+      await fs.mkdir(appPath, { recursive: true });
+      const result = await reinstallIosApp(device, 'Demo', appPath);
+      assert.equal(result.bundleId, 'com.example.demo');
 
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
-    assert.equal(args.includes('uninstall'), true);
-    assert.equal(args.includes('install'), true);
+      const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      assert.equal(args.includes('uninstall'), true);
+      assert.equal(args.includes('install'), true);
     },
   );
 });
@@ -726,11 +718,7 @@ test('installIosApp on iOS physical device accepts .ipa and installs extracted .
     'utf8',
   );
   await fs.chmod(xcrunPath, 0o755);
-  await fs.writeFile(
-    dittoPath,
-    '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nexit 0\n',
-    'utf8',
-  );
+  await fs.writeFile(dittoPath, '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nexit 0\n', 'utf8');
   await fs.chmod(dittoPath, 0o755);
 
   const previousPath = process.env.PATH;
@@ -740,10 +728,7 @@ test('installIosApp on iOS physical device accepts .ipa and installs extracted .
 
   try {
     await installIosApp(IOS_TEST_DEVICE, ipaPath);
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     const installIdx = args.indexOf('install');
     assert.notEqual(installIdx, -1);
     assert.deepEqual(args.slice(installIdx - 2, installIdx + 4), [
@@ -835,10 +820,7 @@ test('installIosApp returns bundleId and launchTarget for nested archive sources
 
   try {
     const result = await installIosApp(IOS_TEST_DEVICE, archivePath);
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(result.archivePath, archivePath);
     assert.equal(result.bundleId, 'com.example.archive');
     assert.equal(result.appName, 'Archive App');
@@ -859,7 +841,9 @@ test('installIosApp returns bundleId and launchTarget for nested archive sources
 });
 
 test('installIosApp on iOS physical device resolves multi-app .ipa using bundle identifier hint', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-test-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-test-'),
+  );
   const xcrunPath = path.join(tmpDir, 'xcrun');
   const dittoPath = path.join(tmpDir, 'ditto');
   const plutilPath = path.join(tmpDir, 'plutil');
@@ -906,10 +890,7 @@ test('installIosApp on iOS physical device resolves multi-app .ipa using bundle 
 
   try {
     await installIosApp(IOS_TEST_DEVICE, ipaPath, { appIdentifierHint: 'com.example.sample' });
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     const installIdx = args.indexOf('install');
     assert.notEqual(installIdx, -1);
     const installedPath = args[installIdx + 4];
@@ -927,7 +908,9 @@ test('installIosApp on iOS physical device resolves multi-app .ipa using bundle 
 });
 
 test('installIosApp rejects multi-app .ipa when no hint is provided', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-missing-hint-test-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-missing-hint-test-'),
+  );
   const xcrunPath = path.join(tmpDir, 'xcrun');
   const dittoPath = path.join(tmpDir, 'ditto');
   const plutilPath = path.join(tmpDir, 'plutil');
@@ -982,7 +965,9 @@ test('installIosApp rejects multi-app .ipa when no hint is provided', async () =
 });
 
 test('installIosApp rejects invalid .ipa payloads without embedded .app', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-invalid-test-'));
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-ios-install-ipa-invalid-test-'),
+  );
   const xcrunPath = path.join(tmpDir, 'xcrun');
   const dittoPath = path.join(tmpDir, 'ditto');
   const ipaPath = path.join(tmpDir, 'Broken.ipa');
@@ -1037,10 +1022,7 @@ test('openIosApp with app and URL on iOS device launches app bundle with payload
 
   try {
     await openIosApp(device, 'MyApp', { appBundleId: 'com.example.app', url: 'myapp://screen/to' });
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, [
       'devicectl',
       'device',
@@ -1104,16 +1086,15 @@ test('pushIosNotification uses simctl push with temporary payload file', async (
 
   try {
     await pushIosNotification(device, 'com.example.app', { aps: { alert: 'hello', badge: 4 } });
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(args[0], 'simctl');
     assert.equal(args[1], 'push');
     assert.equal(args[2], 'sim-1');
     assert.equal(args[3], 'com.example.app');
     assert.match(args[4] ?? '', /payload\.apns$/);
-    const payload = JSON.parse(await fs.readFile(payloadCapturePath, 'utf8')) as { aps: { alert: string; badge: number } };
+    const payload = JSON.parse(await fs.readFile(payloadCapturePath, 'utf8')) as {
+      aps: { alert: string; badge: number };
+    };
     assert.deepEqual(payload, { aps: { alert: 'hello', badge: 4 } });
   } finally {
     process.env.PATH = previousPath;
@@ -1152,12 +1133,7 @@ test('parseIosDeviceAppsPayload maps devicectl app entries', () => {
 test('parseIosDeviceAppsPayload ignores malformed entries', () => {
   const apps = parseIosDeviceAppsPayload({
     result: {
-      apps: [
-        null,
-        {},
-        { name: 'Missing bundle id' },
-        { bundleIdentifier: '' },
-      ],
+      apps: [null, {}, { name: 'Missing bundle id' }, { bundleIdentifier: '' }],
     },
   });
   assert.deepEqual(apps, []);
@@ -1180,7 +1156,7 @@ test('resolveIosApp resolves app display name on iOS physical devices', async ()
       '    fi',
       '    shift',
       '  done',
-      "  cat > \"$out\" <<'JSON'",
+      '  cat > "$out" <<\'JSON\'',
       '{"result":{"apps":[{"bundleIdentifier":"com.apple.Maps","name":"Maps"},{"bundleIdentifier":"com.example.demo","name":"Demo"}]}}',
       'JSON',
       '  exit 0',
@@ -1281,10 +1257,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'faceid', 'match');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl biometric sim-1 match face/);
     },
@@ -1321,10 +1294,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'faceid', 'match');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl biometric sim-1 match face/);
       assert.match(logged, /simctl biometric match sim-1 face/);
@@ -1359,10 +1329,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'touchid', 'match');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl biometric sim-1 match finger/);
     },
@@ -1402,10 +1369,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'touchid', 'match');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl biometric sim-1 match finger/);
       assert.match(logged, /simctl biometric match sim-1 finger/);
@@ -1509,10 +1473,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'appearance', 'dark');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl ui sim-1 appearance dark/);
     },
@@ -1550,10 +1511,7 @@ exit 1
         booted: true,
       };
       await setIosSetting(device, 'appearance', 'toggle');
-      const lines = (await fs.readFile(argsLogPath, 'utf8'))
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl ui sim-1 appearance/);
       assert.match(logged, /simctl ui sim-1 appearance light/);
@@ -1831,7 +1789,10 @@ exit 1
         (error: unknown) => {
           assert.equal(error instanceof AppError, true);
           assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
-          assert.match((error as AppError).message, /does not support setting notifications permission/i);
+          assert.match(
+            (error as AppError).message,
+            /does not support setting notifications permission/i,
+          );
           return true;
         },
       );

@@ -52,7 +52,9 @@ export const TIMEOUT_PROFILES: Record<string, TimeoutProfile> = {
   android_boot: { startupMs: 60_000, operationMs: 10_000, totalMs: 60_000 },
 };
 
-const defaultOptions: Required<Pick<RetryOptions, 'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'jitter'>> = {
+const defaultOptions: Required<
+  Pick<RetryOptions, 'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'jitter'>
+> = {
   attempts: 3,
   baseDelayMs: 200,
   maxDelayMs: 2000,
@@ -110,7 +112,11 @@ export async function retryWithPolicy<T>(
     }
     if (options.deadline?.isExpired() && attempt > 1) break;
     try {
-      const result = await fn({ attempt, maxAttempts: merged.maxAttempts, deadline: options.deadline });
+      const result = await fn({
+        attempt,
+        maxAttempts: merged.maxAttempts,
+        deadline: options.deadline,
+      });
       options.onEvent?.({
         phase: options.phase,
         event: 'succeeded',
@@ -145,7 +151,9 @@ export async function retryWithPolicy<T>(
       if (attempt >= merged.maxAttempts) break;
       if (merged.shouldRetry && !merged.shouldRetry(err, attempt)) break;
       const delay = computeDelay(merged.baseDelayMs, merged.maxDelayMs, merged.jitter, attempt);
-      const boundedDelay = options.deadline ? Math.min(delay, options.deadline.remainingMs()) : delay;
+      const boundedDelay = options.deadline
+        ? Math.min(delay, options.deadline.remainingMs())
+        : delay;
       if (boundedDelay <= 0) break;
       const retryEvent: RetryTelemetryEvent = {
         phase: options.phase,
@@ -177,10 +185,7 @@ export async function retryWithPolicy<T>(
   throw new AppError('COMMAND_FAILED', 'retry failed');
 }
 
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {},
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   return retryWithPolicy(() => fn(), {
     maxAttempts: options.attempts,
     baseDelayMs: options.baseDelayMs,

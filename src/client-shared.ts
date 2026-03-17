@@ -28,7 +28,11 @@ export function buildAppIdentifiers(params: {
   };
 }
 
-export function buildDeviceIdentifiers(platform: Platform, id: string, name: string): AgentDeviceIdentifiers {
+export function buildDeviceIdentifiers(
+  platform: Platform,
+  id: string,
+  name: string,
+): AgentDeviceIdentifiers {
   return {
     deviceId: id,
     deviceName: name,
@@ -48,14 +52,14 @@ export function serializeSessionDevice(
     id: device.id,
     ...(device.platform === 'ios'
       ? {
-        device_udid: device.ios?.udid ?? device.id,
-        ios_simulator_device_set: device.ios?.simulatorSetPath ?? null,
-      }
+          device_udid: device.ios?.udid ?? device.id,
+          ios_simulator_device_set: device.ios?.simulatorSetPath ?? null,
+        }
       : {}),
     ...(device.platform === 'android' && includeAndroidSerial
       ? {
-        serial: device.android?.serial ?? device.id,
-      }
+          serial: device.android?.serial ?? device.id,
+        }
       : {}),
   };
 }
@@ -79,7 +83,9 @@ export function serializeDevice(device: AgentDeviceDevice): Record<string, unkno
   };
 }
 
-export function serializeEnsureSimulatorResult(result: EnsureSimulatorResult): Record<string, unknown> {
+export function serializeEnsureSimulatorResult(
+  result: EnsureSimulatorResult,
+): Record<string, unknown> {
   return {
     udid: result.udid,
     device: result.device,
@@ -121,7 +127,9 @@ export function serializeOpenResult(result: AppOpenResult): Record<string, unkno
   };
 }
 
-export function serializeCloseResult(result: SessionCloseResult | AppCloseResult): Record<string, unknown> {
+export function serializeCloseResult(
+  result: SessionCloseResult | AppCloseResult,
+): Record<string, unknown> {
   return {
     session: result.session,
     ...(result.shutdown ? { shutdown: result.shutdown } : {}),

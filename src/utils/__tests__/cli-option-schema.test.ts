@@ -22,7 +22,10 @@ test('option schema exposes config/env metadata for global options', () => {
 test('option schema exposes legacy env aliases and command scoping', () => {
   const spec = getOptionSpec('iosSimulatorDeviceSet');
   assert.ok(spec);
-  assert.deepEqual(spec.env.names, ['AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET', 'IOS_SIMULATOR_DEVICE_SET']);
+  assert.deepEqual(spec.env.names, [
+    'AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET',
+    'IOS_SIMULATOR_DEVICE_SET',
+  ]);
   assert.equal(spec.supportsCommand('devices'), true);
   assert.equal(spec.supportsCommand('snapshot'), true);
 
@@ -54,10 +57,27 @@ test('isFlagSupportedForCommand consults option schema support map', () => {
 test('option schema parses enum options with multiple CLI aliases from env/config sources', () => {
   const spec = getOptionSpec('appsFilter');
   assert.ok(spec);
-  assert.equal(parseOptionValueFromSource(spec, 'user-installed', 'environment variable AGENT_DEVICE_APPS_FILTER', 'AGENT_DEVICE_APPS_FILTER'), 'user-installed');
-  assert.equal(parseOptionValueFromSource(spec, 'all', 'config file /tmp/test.json', 'appsFilter'), 'all');
+  assert.equal(
+    parseOptionValueFromSource(
+      spec,
+      'user-installed',
+      'environment variable AGENT_DEVICE_APPS_FILTER',
+      'AGENT_DEVICE_APPS_FILTER',
+    ),
+    'user-installed',
+  );
+  assert.equal(
+    parseOptionValueFromSource(spec, 'all', 'config file /tmp/test.json', 'appsFilter'),
+    'all',
+  );
   assert.throws(
-    () => parseOptionValueFromSource(spec, true, 'environment variable AGENT_DEVICE_APPS_FILTER', 'AGENT_DEVICE_APPS_FILTER'),
+    () =>
+      parseOptionValueFromSource(
+        spec,
+        true,
+        'environment variable AGENT_DEVICE_APPS_FILTER',
+        'AGENT_DEVICE_APPS_FILTER',
+      ),
     (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
   );
 });

@@ -53,10 +53,7 @@ test('resolveRunnerDestination uses simulator destination for simulators', () =>
 });
 
 test('resolveRunnerDestination uses device destination for physical devices', () => {
-  assert.equal(
-    resolveRunnerDestination(iosDevice),
-    'platform=iOS,id=00008110-000E12341234002E',
-  );
+  assert.equal(resolveRunnerDestination(iosDevice), 'platform=iOS,id=00008110-000E12341234002E');
 });
 
 test('resolveRunnerBuildDestination uses generic iOS destination for physical devices', () => {
@@ -68,10 +65,7 @@ test('resolveRunnerDestination uses tvOS simulator destination for tvOS simulato
 });
 
 test('resolveRunnerDestination uses tvOS destination for tvOS devices', () => {
-  assert.equal(
-    resolveRunnerDestination(tvOsDevice),
-    'platform=tvOS,id=00008120-000E12341234003F',
-  );
+  assert.equal(resolveRunnerDestination(tvOsDevice), 'platform=tvOS,id=00008120-000E12341234003F');
 });
 
 test('resolveRunnerBuildDestination uses tvOS destinations for tvOS devices and simulators', () => {
@@ -98,25 +92,32 @@ test('resolveRunnerSigningBuildSettings returns empty args without env overrides
 });
 
 test('resolveRunnerSigningBuildSettings enables automatic signing for device builds without forcing identity', () => {
-  assert.deepEqual(resolveRunnerSigningBuildSettings({}, true), [
-    'CODE_SIGN_STYLE=Automatic',
-  ]);
+  assert.deepEqual(resolveRunnerSigningBuildSettings({}, true), ['CODE_SIGN_STYLE=Automatic']);
 });
 
 test('resolveRunnerSigningBuildSettings ignores device signing overrides for simulator builds', () => {
-  assert.deepEqual(resolveRunnerSigningBuildSettings({
-    AGENT_DEVICE_IOS_TEAM_ID: 'ABCDE12345',
-    AGENT_DEVICE_IOS_SIGNING_IDENTITY: 'Apple Development',
-    AGENT_DEVICE_IOS_PROVISIONING_PROFILE: 'My Profile',
-  }, false), []);
+  assert.deepEqual(
+    resolveRunnerSigningBuildSettings(
+      {
+        AGENT_DEVICE_IOS_TEAM_ID: 'ABCDE12345',
+        AGENT_DEVICE_IOS_SIGNING_IDENTITY: 'Apple Development',
+        AGENT_DEVICE_IOS_PROVISIONING_PROFILE: 'My Profile',
+      },
+      false,
+    ),
+    [],
+  );
 });
 
 test('resolveRunnerSigningBuildSettings applies optional overrides when provided', () => {
-  const settings = resolveRunnerSigningBuildSettings({
-    AGENT_DEVICE_IOS_TEAM_ID: 'ABCDE12345',
-    AGENT_DEVICE_IOS_SIGNING_IDENTITY: 'Apple Development',
-    AGENT_DEVICE_IOS_PROVISIONING_PROFILE: 'My Profile',
-  }, true);
+  const settings = resolveRunnerSigningBuildSettings(
+    {
+      AGENT_DEVICE_IOS_TEAM_ID: 'ABCDE12345',
+      AGENT_DEVICE_IOS_SIGNING_IDENTITY: 'Apple Development',
+      AGENT_DEVICE_IOS_PROVISIONING_PROFILE: 'My Profile',
+    },
+    true,
+  );
   assert.deepEqual(settings, [
     'CODE_SIGN_STYLE=Automatic',
     'DEVELOPMENT_TEAM=ABCDE12345',
@@ -133,12 +134,15 @@ test('resolveRunnerBundleBuildSettings returns default bundle identifiers', () =
 });
 
 test('resolveRunnerBundleBuildSettings uses AGENT_DEVICE_IOS_BUNDLE_ID when provided', () => {
-  assert.deepEqual(resolveRunnerBundleBuildSettings({
-    AGENT_DEVICE_IOS_BUNDLE_ID: 'com.example.agent-device.runner',
-  }), [
-    'AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID=com.example.agent-device.runner',
-    'AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID=com.example.agent-device.runner.uitests',
-  ]);
+  assert.deepEqual(
+    resolveRunnerBundleBuildSettings({
+      AGENT_DEVICE_IOS_BUNDLE_ID: 'com.example.agent-device.runner',
+    }),
+    [
+      'AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID=com.example.agent-device.runner',
+      'AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID=com.example.agent-device.runner.uitests',
+    ],
+  );
 });
 
 test('assertSafeDerivedCleanup allows cleaning when no override is set', () => {
@@ -148,14 +152,11 @@ test('assertSafeDerivedCleanup allows cleaning when no override is set', () => {
 });
 
 test('assertSafeDerivedCleanup rejects cleaning override path by default', () => {
-  assert.throws(
-    () => {
-      assertSafeDerivedCleanup('/tmp/custom', {
-        AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: '/tmp/custom',
-      });
-    },
-    /Refusing to clean AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH automatically/,
-  );
+  assert.throws(() => {
+    assertSafeDerivedCleanup('/tmp/custom', {
+      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: '/tmp/custom',
+    });
+  }, /Refusing to clean AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH automatically/);
 });
 
 test('assertSafeDerivedCleanup allows cleaning override path with explicit opt-in', () => {
@@ -186,7 +187,10 @@ test('resolveRunnerEarlyExitHint falls back to runner connect timeout hint', () 
 });
 
 test('shouldRetryRunnerConnectError does not retry xcodebuild early-exit errors', () => {
-  const err = new AppError('COMMAND_FAILED', 'Runner did not accept connection (xcodebuild exited early)');
+  const err = new AppError(
+    'COMMAND_FAILED',
+    'Runner did not accept connection (xcodebuild exited early)',
+  );
   assert.equal(shouldRetryRunnerConnectError(err), false);
 });
 
@@ -196,7 +200,10 @@ test('shouldRetryRunnerConnectError retries transient connect errors', () => {
 });
 
 test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () => {
-  const err = new AppError('COMMAND_FAILED', 'Runner did not accept connection (xcodebuild exited early)');
+  const err = new AppError(
+    'COMMAND_FAILED',
+    'Runner did not accept connection (xcodebuild exited early)',
+  );
   assert.equal(isRetryableRunnerError(err), false);
 });
 

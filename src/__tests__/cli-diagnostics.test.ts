@@ -97,13 +97,16 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
   process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
 
   try {
-    const result = await runCliCapture(['clipboard', 'write', 'hello', '--debug', '--state-dir', stateDir], async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      return {
-        ok: true,
-        data: { action: 'write' },
-      };
-    });
+    const result = await runCliCapture(
+      ['clipboard', 'write', 'hello', '--debug', '--state-dir', stateDir],
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return {
+          ok: true,
+          data: { action: 'write' },
+        };
+      },
+    );
     assert.equal(result.code, null);
     assert.equal(result.stdout.includes('REMOTE_TAIL_SENTINEL'), false);
     assert.match(result.stdout, /Clipboard updated/);
@@ -158,16 +161,19 @@ test('cli parse failures include diagnostic references in JSON mode', async () =
 });
 
 test('cli forwards save-script and no-record flags for client-backed open', async () => {
-  const result = await runCliCapture(['open', 'settings', '--save-script', '--no-record', '--json'], async () => ({
-    ok: true,
-    data: {
-      app: 'settings',
-      platform: 'ios',
-      target: 'mobile',
-      device: 'iPhone 16',
-      id: 'SIM-001',
-    },
-  }));
+  const result = await runCliCapture(
+    ['open', 'settings', '--save-script', '--no-record', '--json'],
+    async () => ({
+      ok: true,
+      data: {
+        app: 'settings',
+        platform: 'ios',
+        target: 'mobile',
+        device: 'iPhone 16',
+        id: 'SIM-001',
+      },
+    }),
+  );
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
   assert.equal(result.calls[0]?.command, 'open');
@@ -176,10 +182,13 @@ test('cli forwards save-script and no-record flags for client-backed open', asyn
 });
 
 test('cli preserves --out for client-backed screenshot', async () => {
-  const result = await runCliCapture(['screenshot', '--out', '/tmp/shot.png', '--json'], async () => ({
-    ok: true,
-    data: { path: '/tmp/shot.png' },
-  }));
+  const result = await runCliCapture(
+    ['screenshot', '--out', '/tmp/shot.png', '--json'],
+    async () => ({
+      ok: true,
+      data: { path: '/tmp/shot.png' },
+    }),
+  );
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
   assert.equal(result.calls[0]?.command, 'screenshot');
@@ -238,10 +247,13 @@ test('cli session lock flag overrides environment for a single invocation', asyn
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
   process.env.AGENT_DEVICE_SESSION_LOCKED = '0';
   try {
-    const result = await runCliCapture(['snapshot', '--session-lock', 'reject', '--device', 'Pixel 9', '--json'], async () => ({
-      ok: true,
-      data: {},
-    }));
+    const result = await runCliCapture(
+      ['snapshot', '--session-lock', 'reject', '--device', 'Pixel 9', '--json'],
+      async () => ({
+        ok: true,
+        data: {},
+      }),
+    );
     assert.equal(result.code, null);
     assert.equal(result.calls.length, 1);
     assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');

@@ -1,6 +1,11 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { findBestMatchesByLocator, type FindLocator } from '../../utils/finders.ts';
-import { attachRefs, centerOfRect, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  centerOfRect,
+  type RawSnapshotNode,
+  type SnapshotState,
+} from '../../utils/snapshot.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -28,14 +33,18 @@ export async function handleFindCommands(params: {
 
   const args = req.positionals ?? [];
   if (args.length === 0) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find requires a locator or text' } };
+    return {
+      ok: false,
+      error: { code: 'INVALID_ARGS', message: 'find requires a locator or text' },
+    };
   }
   const { locator, query, action, value, timeoutMs } = parseFindArgs(args);
   if (!query) {
     return { ok: false, error: { code: 'INVALID_ARGS', message: 'find requires a value' } };
   }
   const session = sessionStore.get(sessionName);
-  const isReadOnly = action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
+  const isReadOnly =
+    action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
   if (!session && !isReadOnly) {
     return {
       ok: false,
@@ -48,7 +57,8 @@ export async function handleFindCommands(params: {
   }
   const appBundleId = session?.appBundleId;
   const scope = shouldScopeFind(locator) ? query : undefined;
-  const requiresRect = action === 'click' || action === 'focus' || action === 'fill' || action === 'type';
+  const requiresRect =
+    action === 'click' || action === 'focus' || action === 'fill' || action === 'type';
   const interactiveOnly = requiresRect;
   let lastSnapshotAt = 0;
   let lastNodes: SnapshotState['nodes'] | null = null;
@@ -99,7 +109,8 @@ export async function handleFindCommands(params: {
     const start = Date.now();
     while (Date.now() - start < timeout) {
       const { nodes } = await fetchNodes();
-      const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false }).matches[0];
+      const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false })
+        .matches[0];
       if (match) {
         if (session) {
           sessionStore.recordAction(session, {
@@ -116,10 +127,17 @@ export async function handleFindCommands(params: {
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
   }
   const { nodes } = await fetchNodes();
-  const bestMatches = findBestMatchesByLocator(nodes, locator, query, { requireRect: requiresRect });
+  const bestMatches = findBestMatchesByLocator(nodes, locator, query, {
+    requireRect: requiresRect,
+  });
   if (requiresRect && bestMatches.matches.length > 1) {
     const candidates = bestMatches.matches.slice(0, 8).map((candidate) => {
-      const label = extractNodeText(candidate) || candidate.label || candidate.identifier || candidate.type || '';
+      const label =
+        extractNodeText(candidate) ||
+        candidate.label ||
+        candidate.identifier ||
+        candidate.type ||
+        '';
       return `@${candidate.ref}${label ? `(${label})` : ''}`;
     });
     return {
@@ -138,11 +156,14 @@ export async function handleFindCommands(params: {
   }
   const node = bestMatches.matches[0] ?? null;
   if (!node) {
-    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find did not match any element' } };
+    return {
+      ok: false,
+      error: { code: 'COMMAND_FAILED', message: 'find did not match any element' },
+    };
   }
   const resolvedNode =
     action === 'click' || action === 'focus' || action === 'fill' || action === 'type'
-      ? findNearestHittableAncestor(nodes, node) ?? node
+      ? (findNearestHittableAncestor(nodes, node) ?? node)
       : node;
   const ref = `@${resolvedNode.ref}`;
   const actionFlags = { ...(req.flags ?? {}), noRecord: true };
@@ -230,11 +251,20 @@ export async function handleFindCommands(params: {
   if (action === 'focus') {
     const coords = node.rect ? centerOfRect(node.rect) : null;
     if (!coords) {
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' } };
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
+      };
     }
-    const response = await dispatch(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
-      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
-    });
+    const response = await dispatch(
+      device,
+      'focus',
+      [String(coords.x), String(coords.y)],
+      req.flags?.out,
+      {
+        ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+      },
+    );
     if (session) {
       sessionStore.recordAction(session, {
         command,
@@ -251,7 +281,10 @@ export async function handleFindCommands(params: {
     }
     const coords = node.rect ? centerOfRect(node.rect) : null;
     if (!coords) {
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' } };
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
+      };
     }
     await dispatch(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),

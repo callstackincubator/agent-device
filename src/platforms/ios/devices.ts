@@ -132,7 +132,10 @@ export async function findBootableIosSimulator(
 
   let simResult;
   try {
-    simResult = await runCmd('xcrun', buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }));
+    simResult = await runCmd(
+      'xcrun',
+      buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
+    );
   } catch {
     return null;
   }
@@ -177,7 +180,9 @@ export async function findBootableIosSimulator(
   return bestBooted ?? bestMobile ?? bestAny;
 }
 
-export async function listIosDevices(options: IosDeviceDiscoveryOptions = {}): Promise<DeviceInfo[]> {
+export async function listIosDevices(
+  options: IosDeviceDiscoveryOptions = {},
+): Promise<DeviceInfo[]> {
   if (process.platform !== 'darwin') {
     throw new AppError('UNSUPPORTED_PLATFORM', 'iOS tools are only available on macOS');
   }
@@ -190,7 +195,10 @@ export async function listIosDevices(options: IosDeviceDiscoveryOptions = {}): P
   const devices: DeviceInfo[] = [];
   const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
 
-  const simResult = await runCmd('xcrun', buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }));
+  const simResult = await runCmd(
+    'xcrun',
+    buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
+  );
   try {
     const payload = JSON.parse(simResult.stdout as string) as SimctlListDevicesPayload;
     for (const [runtime, runtimes] of Object.entries(payload.devices)) {
@@ -224,10 +232,14 @@ export async function listIosDevices(options: IosDeviceDiscoveryOptions = {}): P
       os.tmpdir(),
       `agent-device-devicectl-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
     );
-    const devicectlResult = await runCmd('xcrun', ['devicectl', 'list', 'devices', '--json-output', jsonPath], {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICECTL_LIST_TIMEOUT_MS,
-    });
+    const devicectlResult = await runCmd(
+      'xcrun',
+      ['devicectl', 'list', 'devices', '--json-output', jsonPath],
+      {
+        allowFailure: true,
+        timeoutMs: IOS_DEVICECTL_LIST_TIMEOUT_MS,
+      },
+    );
     if (devicectlResult.exitCode !== 0) {
       return devices;
     }

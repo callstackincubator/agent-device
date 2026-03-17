@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { extractTarInstallableArtifact, readZipEntries, resolveTarArchiveRootName } from './artifact-archive.ts';
+import {
+  extractTarInstallableArtifact,
+  readZipEntries,
+  resolveTarArchiveRootName,
+} from './artifact-archive.ts';
 import { createArtifactTempDir, downloadArtifactToTempDir } from './artifact-download.ts';
 import { readInfoPlistString } from '../platforms/ios/plist.ts';
 import { AppError } from '../utils/errors.ts';
@@ -26,7 +30,9 @@ export function cleanupMaterializedArtifact(result: MaterializedArtifact): void 
   fs.rmSync(path.dirname(result.archivePath), { recursive: true, force: true });
 }
 
-export async function materializeArtifact(params: MaterializeArtifactParams): Promise<MaterializedArtifact> {
+export async function materializeArtifact(
+  params: MaterializeArtifactParams,
+): Promise<MaterializedArtifact> {
   const tempDir = createArtifactTempDir(params.requestId);
 
   try {
@@ -61,7 +67,10 @@ async function resolveMaterializedArtifact(params: {
 
 async function resolveAndroidArtifact(archivePath: string): Promise<MaterializedArtifact> {
   const kind = await detectAndroidArtifactKind(archivePath);
-  const normalizedArchivePath = normalizeArchiveExtension(archivePath, kind === 'aab' ? '.aab' : '.apk');
+  const normalizedArchivePath = normalizeArchiveExtension(
+    archivePath,
+    kind === 'aab' ? '.aab' : '.apk',
+  );
   return {
     archivePath: normalizedArchivePath,
     installablePath: normalizedArchivePath,
@@ -75,7 +84,11 @@ async function resolveIosArtifact(
 ): Promise<MaterializedArtifact> {
   const kind = await detectIosArtifactKind(archivePath);
   if (kind === 'app-tar') {
-    const normalizedArchivePath = normalizeArchiveExtension(archivePath, '.tar', ['.tar', '.tgz', '.tar.gz']);
+    const normalizedArchivePath = normalizeArchiveExtension(archivePath, '.tar', [
+      '.tar',
+      '.tgz',
+      '.tar.gz',
+    ]);
     const installablePath = await extractTarInstallableArtifact({
       archivePath: normalizedArchivePath,
       tempDir,
@@ -136,7 +149,9 @@ function detectAndroidMetadata(archivePath: string): MaterializedArtifact['detec
   return appName ? { appName } : {};
 }
 
-async function detectIosIpaMetadata(archivePath: string): Promise<MaterializedArtifact['detected']> {
+async function detectIosIpaMetadata(
+  archivePath: string,
+): Promise<MaterializedArtifact['detected']> {
   const entries = await readZipEntries(archivePath);
   const appEntry = entries?.find((entry) => /^Payload\/[^/]+\.app(\/|$)/.test(entry));
   if (!appEntry) {
@@ -151,7 +166,9 @@ async function detectIosIpaMetadata(archivePath: string): Promise<MaterializedAr
   return appName ? { appName } : {};
 }
 
-async function detectIosAppMetadata(installablePath: string): Promise<MaterializedArtifact['detected']> {
+async function detectIosAppMetadata(
+  installablePath: string,
+): Promise<MaterializedArtifact['detected']> {
   const bundleId = await readIosPlistValue(installablePath, 'CFBundleIdentifier');
   const displayName = await readIosPlistValue(installablePath, 'CFBundleDisplayName');
   const bundleName = await readIosPlistValue(installablePath, 'CFBundleName');

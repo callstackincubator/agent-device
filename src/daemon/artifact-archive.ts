@@ -13,7 +13,10 @@ export async function extractTarInstallableArtifact(params: {
   await runCmd('tar', ['xf', params.archivePath, '-C', params.tempDir]);
   const installablePath = path.join(params.tempDir, rootName);
   if (!fs.existsSync(installablePath)) {
-    throw new AppError('INVALID_ARGS', `Expected extracted bundle "${rootName}" not found in archive`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Expected extracted bundle "${rootName}" not found in archive`,
+    );
   }
   return installablePath;
 }
@@ -42,10 +45,16 @@ export async function resolveTarArchiveRootName(params: {
   }
 
   const normalizedEntries = entries.map((entry) => normalizeArchiveEntry(entry));
-  const rootName = params.expectedRootName ?? resolveArchiveRootName(normalizedEntries, params.platform);
-  const hasExpectedRoot = normalizedEntries.some((entry) => entry === rootName || entry.startsWith(`${rootName}/`));
+  const rootName =
+    params.expectedRootName ?? resolveArchiveRootName(normalizedEntries, params.platform);
+  const hasExpectedRoot = normalizedEntries.some(
+    (entry) => entry === rootName || entry.startsWith(`${rootName}/`),
+  );
   if (!hasExpectedRoot) {
-    throw new AppError('INVALID_ARGS', `Uploaded archive must contain a top-level "${rootName}" bundle`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Uploaded archive must contain a top-level "${rootName}" bundle`,
+    );
   }
 
   for (const entry of normalizedEntries) {
@@ -57,7 +66,10 @@ export async function resolveTarArchiveRootName(params: {
   for (const line of lines) {
     const entryType = line[0];
     if (entryType === 'l' || entryType === 'h') {
-      throw new AppError('INVALID_ARGS', 'Uploaded app bundle archive cannot contain symlinks or hard links');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Uploaded app bundle archive cannot contain symlinks or hard links',
+      );
     }
   }
 
@@ -84,7 +96,10 @@ function resolveArchiveRootName(entries: string[], platform: 'ios' | 'android'):
     const appRoots = rootEntries.filter((entry) => entry.toLowerCase().endsWith('.app'));
     if (appRoots.length === 1) return appRoots[0];
     if (appRoots.length === 0) {
-      throw new AppError('INVALID_ARGS', 'iOS app bundle archives must contain a single top-level .app directory');
+      throw new AppError(
+        'INVALID_ARGS',
+        'iOS app bundle archives must contain a single top-level .app directory',
+      );
     }
     throw new AppError(
       'INVALID_ARGS',
@@ -92,7 +107,10 @@ function resolveArchiveRootName(entries: string[], platform: 'ios' | 'android'):
     );
   }
   if (rootEntries.length === 1) return rootEntries[0];
-  throw new AppError('INVALID_ARGS', `Archive must contain a single top-level bundle, found: ${rootEntries.join(', ')}`);
+  throw new AppError(
+    'INVALID_ARGS',
+    `Archive must contain a single top-level bundle, found: ${rootEntries.join(', ')}`,
+  );
 }
 
 function normalizeArchiveEntry(entry: string): string {
@@ -111,6 +129,9 @@ function normalizeArchiveEntry(entry: string): string {
 
 function validateArchiveEntryPath(entry: string, rootName: string): void {
   if (entry !== rootName && !entry.startsWith(`${rootName}/`)) {
-    throw new AppError('INVALID_ARGS', `Archive entry must stay inside top-level "${rootName}" bundle: ${entry}`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Archive entry must stay inside top-level "${rootName}" bundle: ${entry}`,
+    );
   }
 }

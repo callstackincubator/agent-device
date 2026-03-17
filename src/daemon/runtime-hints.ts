@@ -52,11 +52,18 @@ export function resolveRuntimeTransportHints(
     try {
       parsed = new URL(bundleUrl);
     } catch (error) {
-      throw new AppError('INVALID_ARGS', `Invalid runtime bundle URL: ${bundleUrl}`, {}, error as Error);
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid runtime bundle URL: ${bundleUrl}`,
+        {},
+        error as Error,
+      );
     }
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
       host ??= trimRuntimeValue(parsed.hostname);
-      port ??= normalizePort(parsed.port.length > 0 ? Number(parsed.port) : defaultPortForProtocol(parsed.protocol));
+      port ??= normalizePort(
+        parsed.port.length > 0 ? Number(parsed.port) : defaultPortForProtocol(parsed.protocol),
+      );
       scheme = parsed.protocol === 'https:' ? 'https' : 'http';
     }
   }
@@ -109,7 +116,11 @@ async function applyAndroidRuntimeHints(
 ): Promise<void> {
   assertAndroidRuntimePackageName(packageName);
   const currentXml = await readAndroidDevPrefs(device, packageName);
-  let nextXml = upsertAndroidStringPref(currentXml, ANDROID_DEBUG_HOST_KEY, `${transport.host}:${transport.port}`);
+  let nextXml = upsertAndroidStringPref(
+    currentXml,
+    ANDROID_DEBUG_HOST_KEY,
+    `${transport.host}:${transport.port}`,
+  );
   nextXml = upsertAndroidBooleanPref(nextXml, ANDROID_HTTPS_KEY, transport.scheme === 'https');
   await writeAndroidDevPrefs(device, packageName, nextXml);
 }
@@ -133,7 +144,11 @@ async function readAndroidDevPrefs(device: DeviceInfo, packageName: string): Pro
   return normalizeAndroidPrefsXml(result.stdout);
 }
 
-async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml: string): Promise<void> {
+async function writeAndroidDevPrefs(
+  device: DeviceInfo,
+  packageName: string,
+  xml: string,
+): Promise<void> {
   const probeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'id']);
   const probeResult = await runCmd('adb', probeArgs, { allowFailure: true });
   if (probeResult.exitCode !== 0) {
@@ -156,7 +171,10 @@ async function writeAndroidDevPrefs(device: DeviceInfo, packageName: string, xml
   }
 
   try {
-    await runCmd('adb', adbArgs(device, ['shell', 'run-as', packageName, 'mkdir', '-p', 'shared_prefs']));
+    await runCmd(
+      'adb',
+      adbArgs(device, ['shell', 'run-as', packageName, 'mkdir', '-p', 'shared_prefs']),
+    );
     await runCmd(
       'adb',
       adbArgs(device, ['shell', 'run-as', packageName, 'tee', ANDROID_DEV_PREFS_PATH]),
@@ -221,12 +239,26 @@ async function applyIosSimulatorRuntimeHints(
 async function clearIosSimulatorRuntimeHints(device: DeviceInfo, bundleId: string): Promise<void> {
   await runCmd(
     'xcrun',
-    buildSimctlArgsForDevice(device, ['spawn', device.id, 'defaults', 'delete', bundleId, IOS_JS_LOCATION_KEY]),
+    buildSimctlArgsForDevice(device, [
+      'spawn',
+      device.id,
+      'defaults',
+      'delete',
+      bundleId,
+      IOS_JS_LOCATION_KEY,
+    ]),
     { allowFailure: true },
   );
   await runCmd(
     'xcrun',
-    buildSimctlArgsForDevice(device, ['spawn', device.id, 'defaults', 'delete', bundleId, IOS_PACKAGER_SCHEME_KEY]),
+    buildSimctlArgsForDevice(device, [
+      'spawn',
+      device.id,
+      'defaults',
+      'delete',
+      bundleId,
+      IOS_PACKAGER_SCHEME_KEY,
+    ]),
     { allowFailure: true },
   );
 }
@@ -258,7 +290,10 @@ function removeAndroidPrefEntry(xml: string, key: string): string {
   const escapedKey = escapeRegex(key);
   return normalizeAndroidPrefsXml(xml)
     .replace(new RegExp(`^\\s*<string name="${escapedKey}">[\\s\\S]*?<\\/string>\\n?`, 'm'), '')
-    .replace(new RegExp(`^\\s*<boolean name="${escapedKey}" value="(?:true|false)"\\s*\\/?>\\n?`, 'm'), '');
+    .replace(
+      new RegExp(`^\\s*<boolean name="${escapedKey}" value="(?:true|false)"\\s*\\/?>\\n?`, 'm'),
+      '',
+    );
 }
 
 function trimRuntimeValue(value: string | undefined): string | undefined {
@@ -297,7 +332,7 @@ function escapeXmlText(value: string): string {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
-    .replaceAll('\'', '&apos;');
+    .replaceAll("'", '&apos;');
 }
 
 function isAndroidRunAsDeniedOutput(stdout: string, stderr: string): boolean {

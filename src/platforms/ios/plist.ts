@@ -6,11 +6,9 @@ export async function readInfoPlistString(
   key: string,
 ): Promise<string | undefined> {
   try {
-    const result = await runCmd(
-      'plutil',
-      ['-extract', key, 'raw', '-o', '-', infoPlistPath],
-      { allowFailure: true },
-    );
+    const result = await runCmd('plutil', ['-extract', key, 'raw', '-o', '-', infoPlistPath], {
+      allowFailure: true,
+    });
     if (result.exitCode === 0) {
       const value = String(result.stdout ?? '').trim();
       if (value.length > 0) {
@@ -31,7 +29,9 @@ export async function readInfoPlistString(
 
 function readXmlPlistString(plist: string, key: string): string | undefined {
   const escapedKey = escapeRegExp(key);
-  const match = plist.match(new RegExp(`<key>\\s*${escapedKey}\\s*<\\/key>\\s*<string>([\\s\\S]*?)<\\/string>`, 'i'));
+  const match = plist.match(
+    new RegExp(`<key>\\s*${escapedKey}\\s*<\\/key>\\s*<string>([\\s\\S]*?)<\\/string>`, 'i'),
+  );
   if (!match?.[1]) {
     return undefined;
   }
@@ -44,7 +44,7 @@ function decodeXmlEntities(value: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, '\'')
+    .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&');
 }
 

@@ -14,16 +14,20 @@ export async function pushAndroidNotification(
   packageName: string,
   payload: AndroidBroadcastPayload,
 ): Promise<{ action: string; extrasCount: number }> {
-  const action = typeof payload.action === 'string' && payload.action.trim()
-    ? payload.action.trim()
-    : `${packageName}.TEST_PUSH`;
+  const action =
+    typeof payload.action === 'string' && payload.action.trim()
+      ? payload.action.trim()
+      : `${packageName}.TEST_PUSH`;
   const args = ['shell', 'am', 'broadcast', '-a', action, '-p', packageName];
   const receiver = typeof payload.receiver === 'string' ? payload.receiver.trim() : '';
   if (receiver) {
     args.push('-n', receiver);
   }
   const rawExtras = payload.extras;
-  if (rawExtras !== undefined && (typeof rawExtras !== 'object' || rawExtras === null || Array.isArray(rawExtras))) {
+  if (
+    rawExtras !== undefined &&
+    (typeof rawExtras !== 'object' || rawExtras === null || Array.isArray(rawExtras))
+  ) {
     throw new AppError('INVALID_ARGS', 'Android push payload extras must be an object');
   }
   const extras = rawExtras ?? {};

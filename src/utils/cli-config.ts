@@ -2,10 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './errors.ts';
-import {
-  type CliFlags,
-  type FlagKey,
-} from './command-schema.ts';
+import { type CliFlags, type FlagKey } from './command-schema.ts';
 import {
   getConfigurableOptionSpecs,
   getOptionSpec,
@@ -56,7 +53,9 @@ function resolveInputPath(inputPath: string, cwd: string, env: EnvMap): string {
   return path.resolve(cwd, inputPath);
 }
 
-function loadConfigFileDefaults(pathsToCheck: Array<{ path: string; required: boolean }>): Partial<CliFlags> {
+function loadConfigFileDefaults(
+  pathsToCheck: Array<{ path: string; required: boolean }>,
+): Partial<CliFlags> {
   const merged: Partial<CliFlags> = {};
   for (const entry of pathsToCheck) {
     const parsed = loadSingleConfigFile(entry.path, entry.required);
@@ -98,7 +97,10 @@ function loadSingleConfigFile(filePath: string, required: boolean): Partial<CliF
   return parseConfigObject(parsed as Record<string, unknown>, `config file ${filePath}`);
 }
 
-function parseConfigObject(source: Record<string, unknown>, sourceLabel: string): Partial<CliFlags> {
+function parseConfigObject(
+  source: Record<string, unknown>,
+  sourceLabel: string,
+): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
   for (const [rawKey, rawValue] of Object.entries(source)) {
     const key = rawKey as FlagKey;
@@ -109,7 +111,12 @@ function parseConfigObject(source: Record<string, unknown>, sourceLabel: string)
     if (!spec.config.enabled) {
       throw new AppError('INVALID_ARGS', `Unsupported config key "${rawKey}" in ${sourceLabel}.`);
     }
-    (flags as Record<string, unknown>)[key] = parseOptionValueFromSource(spec, rawValue, sourceLabel, rawKey);
+    (flags as Record<string, unknown>)[key] = parseOptionValueFromSource(
+      spec,
+      rawValue,
+      sourceLabel,
+      rawKey,
+    );
   }
   return flags;
 }

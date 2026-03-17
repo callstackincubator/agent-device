@@ -1,5 +1,10 @@
 import type { SnapshotNode } from '../utils/snapshot.ts';
-import { buildSnapshotDisplayLines, displayLabel, formatRole, formatSnapshotLine } from '../utils/snapshot-lines.ts';
+import {
+  buildSnapshotDisplayLines,
+  displayLabel,
+  formatRole,
+  formatSnapshotLine,
+} from '../utils/snapshot-lines.ts';
 
 type SnapshotDiffLine = {
   kind: 'added' | 'removed' | 'unchanged';
@@ -60,7 +65,10 @@ export function countSnapshotComparableLines(
   return snapshotNodesToLines(nodes, options).length;
 }
 
-function snapshotNodesToLines(nodes: SnapshotNode[], options: SnapshotDiffOptions): SnapshotComparableLine[] {
+function snapshotNodesToLines(
+  nodes: SnapshotNode[],
+  options: SnapshotDiffOptions,
+): SnapshotComparableLine[] {
   if (options.flatten) {
     return nodes.map((node) => ({
       text: formatSnapshotLine(node, 0, false),
@@ -73,7 +81,10 @@ function snapshotNodesToLines(nodes: SnapshotNode[], options: SnapshotDiffOption
   }));
 }
 
-function diffComparableLinesMyers(previous: SnapshotComparableLine[], current: SnapshotComparableLine[]): SnapshotDiffLine[] {
+function diffComparableLinesMyers(
+  previous: SnapshotComparableLine[],
+  current: SnapshotComparableLine[],
+): SnapshotDiffLine[] {
   // Myers diff is efficient for normal UI snapshots; very large trees may still be expensive.
   const n = previous.length;
   const m = current.length;

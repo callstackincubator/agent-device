@@ -274,7 +274,13 @@ test('alert accept does not retry on non-alert errors', async () => {
   await assert.rejects(
     () =>
       handleSnapshotCommands({
-        req: { token: 't', session: sessionName, command: 'alert', positionals: ['accept'], flags: {} },
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'alert',
+          positionals: ['accept'],
+          flags: {},
+        },
         sessionName,
         logPath: '/tmp/daemon.log',
         sessionStore,
@@ -299,7 +305,13 @@ test('alert dismiss retries on "no alert" message', async () => {
   };
 
   const response = await handleSnapshotCommands({
-    req: { token: 't', session: sessionName, command: 'alert', positionals: ['dismiss'], flags: {} },
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'alert',
+      positionals: ['dismiss'],
+      flags: {},
+    },
     sessionName,
     logPath: '/tmp/daemon.log',
     sessionStore,
@@ -322,15 +334,14 @@ test('alert get does not retry on failure', async () => {
     throw new AppError('COMMAND_FAILED', 'alert not found');
   };
 
-  await assert.rejects(
-    () =>
-      handleSnapshotCommands({
-        req: { token: 't', session: sessionName, command: 'alert', positionals: ['get'], flags: {} },
-        sessionName,
-        logPath: '/tmp/daemon.log',
-        sessionStore,
-        runnerCommand: runnerCommand as any,
-      }),
+  await assert.rejects(() =>
+    handleSnapshotCommands({
+      req: { token: 't', session: sessionName, command: 'alert', positionals: ['get'], flags: {} },
+      sessionName,
+      logPath: '/tmp/daemon.log',
+      sessionStore,
+      runnerCommand: runnerCommand as any,
+    }),
   );
 
   assert.equal(calls, 1);

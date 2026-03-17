@@ -5,7 +5,10 @@ import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonArtifact, DaemonRequest, DaemonResponse, DaemonResponseData } from './types.ts';
 import { SessionStore } from './session-store.ts';
-import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './context.ts';
+import {
+  contextFromFlags as contextFromFlagsWithLog,
+  type DaemonCommandContext,
+} from './context.ts';
 import { handleSessionCommands } from './handlers/session.ts';
 import { handleSnapshotCommands } from './handlers/snapshot.ts';
 import { handleFindCommands } from './handlers/find.ts';
@@ -15,11 +18,13 @@ import { handleLeaseCommands } from './handlers/lease.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
 import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
+import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
 import {
-  normalizeTenantId,
-  resolveSessionIsolationMode,
-} from './config.ts';
-import { emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from '../utils/diagnostics.ts';
+  emitDiagnostic,
+  flushDiagnosticsToSessionFile,
+  getDiagnosticsMeta,
+  withDiagnosticsScope,
+} from '../utils/diagnostics.ts';
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 
@@ -60,18 +65,26 @@ function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
 }
 
 function scopeRequestSession(req: DaemonRequest): DaemonRequest {
-  const isolation = resolveSessionIsolationMode(req.meta?.sessionIsolation ?? req.flags?.sessionIsolation);
+  const isolation = resolveSessionIsolationMode(
+    req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+  );
   const rawTenant = req.meta?.tenantId ?? req.flags?.tenant;
   const tenant = normalizeTenantId(rawTenant);
 
   if (rawTenant && !tenant) {
-    throw new AppError('INVALID_ARGS', 'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+    throw new AppError(
+      'INVALID_ARGS',
+      'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+    );
   }
   if (isolation !== 'tenant') {
     return req;
   }
   if (!tenant) {
-    throw new AppError('INVALID_ARGS', 'session isolation mode tenant requires --tenant (or meta.tenantId).');
+    throw new AppError(
+      'INVALID_ARGS',
+      'session isolation mode tenant requires --tenant (or meta.tenantId).',
+    );
   }
   return {
     ...req,
@@ -150,12 +163,9 @@ function registerDownloadableArtifacts(
 
 function collectPendingArtifacts(req: DaemonRequest, data: DaemonResponseData): DaemonArtifact[] {
   const artifacts = Array.isArray(data.artifacts) ? [...data.artifacts] : [];
-  const hasField = (field: string): boolean => artifacts.some((artifact) => artifact?.field === field);
-  if (
-    req.command === 'screenshot'
-    && !hasField('path')
-    && typeof data.path === 'string'
-  ) {
+  const hasField = (field: string): boolean =>
+    artifacts.some((artifact) => artifact?.field === field);
+  if (req.command === 'screenshot' && !hasField('path') && typeof data.path === 'string') {
     artifacts.push({
       field: 'path',
       path: data.path,
@@ -165,11 +175,11 @@ function collectPendingArtifacts(req: DaemonRequest, data: DaemonResponseData): 
   }
   return artifacts.filter((artifact): artifact is DaemonArtifact =>
     Boolean(
-      artifact
-      && typeof artifact.field === 'string'
-      && typeof artifact.path === 'string'
-      && typeof artifact.localPath === 'string'
-      && artifact.localPath.length > 0,
+      artifact &&
+      typeof artifact.field === 'string' &&
+      typeof artifact.path === 'string' &&
+      typeof artifact.localPath === 'string' &&
+      artifact.localPath.length > 0,
     ),
   );
 }
@@ -179,11 +189,17 @@ export type RequestRouterDeps = {
   token: string;
   sessionStore: SessionStore;
   leaseRegistry: LeaseRegistry;
-  trackDownloadableArtifact: (opts: { artifactPath: string; tenantId?: string; fileName?: string }) => string;
+  trackDownloadableArtifact: (opts: {
+    artifactPath: string;
+    tenantId?: string;
+    fileName?: string;
+  }) => string;
   dispatchCommand?: typeof dispatchCommand;
 };
 
-export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonRequest) => Promise<DaemonResponse> {
+export function createRequestHandler(
+  deps: RequestRouterDeps,
+): (req: DaemonRequest) => Promise<DaemonResponse> {
   const { logPath, token, sessionStore, leaseRegistry, trackDownloadableArtifact } = deps;
   const dispatch = deps.dispatchCommand ?? dispatchCommand;
 
@@ -219,7 +235,10 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
 
           const command = scopedReq.command;
           const leaseScope = resolveLeaseScope(scopedReq);
-          if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
+          if (
+            !leaseAdmissionExemptCommands.has(command) &&
+            scopedReq.meta?.sessionIsolation === 'tenant'
+          ) {
             leaseRegistry.assertLeaseAdmission({
               tenantId: leaseScope.tenantId,
               runId: leaseScope.runId,
@@ -232,7 +251,11 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
           const finalize = (response: DaemonResponse): DaemonResponse =>
             finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
-          if (existingSession && !lockedReq.meta?.lockPolicy && !selectorValidationExemptCommands.has(command)) {
+          if (
+            existingSession &&
+            !lockedReq.meta?.lockPolicy &&
+            !selectorValidationExemptCommands.has(command)
+          ) {
             assertSessionSelectorMatches(existingSession, lockedReq.flags);
           }
 
@@ -296,7 +319,10 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           if (!isCommandSupportedOnDevice(command, session.device)) {
             return finalize({
               ok: false,
-              error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
+              error: {
+                code: 'UNSUPPORTED_OPERATION',
+                message: `${command} is not supported on this device`,
+              },
             });
           }
 
@@ -304,7 +330,10 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
           const outFlag = lockedReq.flags?.out;
           const resolvedPositionals =
             command === 'screenshot' && positionals[0]
-              ? [SessionStore.expandHome(positionals[0], lockedReq.meta?.cwd), ...positionals.slice(1)]
+              ? [
+                  SessionStore.expandHome(positionals[0], lockedReq.meta?.cwd),
+                  ...positionals.slice(1),
+                ]
               : positionals;
           const resolvedOut =
             command === 'screenshot' && outFlag
@@ -316,7 +345,12 @@ export function createRequestHandler(deps: RequestRouterDeps): (req: DaemonReque
               ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
               : (lockedReq.flags ?? {});
           const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
-            ...contextFromFlags(logPath, lockedReq.flags, session.appBundleId, session.trace?.outPath),
+            ...contextFromFlags(
+              logPath,
+              lockedReq.flags,
+              session.appBundleId,
+              session.trace?.outPath,
+            ),
           });
           sessionStore.recordAction(session, {
             command,

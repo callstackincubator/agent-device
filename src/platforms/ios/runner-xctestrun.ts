@@ -22,8 +22,9 @@ function normalizeBundleId(value: string | undefined): string {
 }
 
 function resolveRunnerAppBundleId(env: NodeJS.ProcessEnv = process.env): string {
-  const configured = normalizeBundleId(env.AGENT_DEVICE_IOS_BUNDLE_ID)
-    || normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID);
+  const configured =
+    normalizeBundleId(env.AGENT_DEVICE_IOS_BUNDLE_ID) ||
+    normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID);
   return configured || DEFAULT_IOS_RUNNER_APP_BUNDLE_ID;
 }
 
@@ -38,14 +39,20 @@ function resolveRunnerTestBundleId(env: NodeJS.ProcessEnv = process.env): string
 function resolveRunnerContainerBundleIds(env: NodeJS.ProcessEnv = process.env): string[] {
   const appBundleId = resolveRunnerAppBundleId(env);
   const testBundleId = resolveRunnerTestBundleId(env);
-  return Array.from(new Set([
-    normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID),
-    `${testBundleId}.xctrunner`,
-    appBundleId,
-  ].filter((id) => id.length > 0)));
+  return Array.from(
+    new Set(
+      [
+        normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_CONTAINER_BUNDLE_ID),
+        `${testBundleId}.xctrunner`,
+        appBundleId,
+      ].filter((id) => id.length > 0),
+    ),
+  );
 }
 
-export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerBundleIds(process.env);
+export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerBundleIds(
+  process.env,
+);
 
 export async function ensureXctestrun(
   device: DeviceInfo,
@@ -65,14 +72,22 @@ export async function ensureXctestrun(
     if (existing) return existing;
 
     const projectRoot = findProjectRoot();
-    const projectPath = path.join(projectRoot, 'ios-runner', 'AgentDeviceRunner', 'AgentDeviceRunner.xcodeproj');
+    const projectPath = path.join(
+      projectRoot,
+      'ios-runner',
+      'AgentDeviceRunner',
+      'AgentDeviceRunner.xcodeproj',
+    );
 
     if (!fs.existsSync(projectPath)) {
       throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
     }
 
     const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
-    const signingBuildSettings = resolveRunnerSigningBuildSettings(process.env, device.kind === 'device');
+    const signingBuildSettings = resolveRunnerSigningBuildSettings(
+      process.env,
+      device.kind === 'device',
+    );
     const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
     const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
     try {
@@ -203,12 +218,18 @@ export async function prepareXctestrunWithEnv(
 
   const applyEnvToTarget = (target: Record<string, any>) => {
     target.EnvironmentVariables = { ...(target.EnvironmentVariables ?? {}), ...envVars };
-    target.UITestEnvironmentVariables = { ...(target.UITestEnvironmentVariables ?? {}), ...envVars };
+    target.UITestEnvironmentVariables = {
+      ...(target.UITestEnvironmentVariables ?? {}),
+      ...envVars,
+    };
     target.UITargetAppEnvironmentVariables = {
       ...(target.UITargetAppEnvironmentVariables ?? {}),
       ...envVars,
     };
-    target.TestingEnvironmentVariables = { ...(target.TestingEnvironmentVariables ?? {}), ...envVars };
+    target.TestingEnvironmentVariables = {
+      ...(target.TestingEnvironmentVariables ?? {}),
+      ...envVars,
+    };
   };
 
   const configs = parsed.TestConfigurations;
@@ -232,9 +253,13 @@ export async function prepareXctestrunWithEnv(
   }
 
   fs.writeFileSync(tmpJsonPath, JSON.stringify(parsed, null, 2));
-  const plistResult = await runCmd('plutil', ['-convert', 'xml1', '-o', tmpXctestrunPath, tmpJsonPath], {
-    allowFailure: true,
-  });
+  const plistResult = await runCmd(
+    'plutil',
+    ['-convert', 'xml1', '-o', tmpXctestrunPath, tmpJsonPath],
+    {
+      allowFailure: true,
+    },
+  );
   if (plistResult.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to write xctestrun plist', {
       tmpXctestrunPath,
@@ -274,7 +299,10 @@ export function resolveRunnerBuildDestination(device: DeviceInfo): string {
 
 function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' {
   if (device.platform !== 'ios') {
-    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+    throw new AppError(
+      'UNSUPPORTED_PLATFORM',
+      `Unsupported platform for iOS runner: ${device.platform}`,
+    );
   }
   return resolveApplePlatformName(device.target);
 }
@@ -306,9 +334,7 @@ export function resolveRunnerSigningBuildSettings(
   return args;
 }
 
-export function resolveRunnerBundleBuildSettings(
-  env: NodeJS.ProcessEnv = process.env,
-): string[] {
+export function resolveRunnerBundleBuildSettings(env: NodeJS.ProcessEnv = process.env): string[] {
   const appBundleId = resolveRunnerAppBundleId(env);
   const testBundleId = resolveRunnerTestBundleId(env);
   return [
@@ -349,4 +375,3 @@ export function assertSafeDerivedCleanup(
 function isCleanupOverrideAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
   return isEnvTruthy(env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN);
 }
-

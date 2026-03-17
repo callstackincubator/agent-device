@@ -6,10 +6,7 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import {
-  requireSessionOrExplicitSelector,
-  resolveCommandDevice,
-} from './session-device-utils.ts';
+import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 
 export type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -104,7 +101,10 @@ export async function handleAppDeployCommand(params: {
   if (!app || !appPathInput) {
     return {
       ok: false,
-      error: { code: 'INVALID_ARGS', message: `${command} requires: ${command} <app> <path-to-app-binary>` },
+      error: {
+        code: 'INVALID_ARGS',
+        message: `${command} requires: ${command} <app> <path-to-app-binary>`,
+      },
     };
   }
   const uploadedArtifactId = req.meta?.uploadedArtifactId;
@@ -129,7 +129,10 @@ export async function handleAppDeployCommand(params: {
     if (!isCommandSupportedOnDevice(command, device)) {
       return {
         ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: `${command} is not supported on this device`,
+        },
       };
     }
 
@@ -140,42 +143,42 @@ export async function handleAppDeployCommand(params: {
       const bundleId = iosResult.bundleId;
       result = bundleId
         ? {
-          app,
-          appPath,
-          platform: 'ios',
-          appId: bundleId,
-          bundleId,
-          appName: iosResult.appName,
-          launchTarget: iosResult.launchTarget,
-        }
+            app,
+            appPath,
+            platform: 'ios',
+            appId: bundleId,
+            bundleId,
+            appName: iosResult.appName,
+            launchTarget: iosResult.launchTarget,
+          }
         : {
-          app,
-          appPath,
-          platform: 'ios',
-          appName: iosResult.appName,
-          launchTarget: iosResult.launchTarget,
-        };
+            app,
+            appPath,
+            platform: 'ios',
+            appName: iosResult.appName,
+            launchTarget: iosResult.launchTarget,
+          };
     } else {
       const androidResult = await deployOps.android(device, app, appPath);
       const pkg = androidResult.package;
       result = pkg
         ? {
-          app,
-          appPath,
-          platform: 'android',
-          appId: pkg,
-          package: pkg,
-          packageName: pkg,
-          appName: androidResult.appName,
-          launchTarget: androidResult.launchTarget,
-        }
+            app,
+            appPath,
+            platform: 'android',
+            appId: pkg,
+            package: pkg,
+            packageName: pkg,
+            appName: androidResult.appName,
+            launchTarget: androidResult.launchTarget,
+          }
         : {
-          app,
-          appPath,
-          platform: 'android',
-          appName: androidResult.appName,
-          launchTarget: androidResult.launchTarget,
-        };
+            app,
+            appPath,
+            platform: 'android',
+            appName: androidResult.appName,
+            launchTarget: androidResult.launchTarget,
+          };
     }
 
     if (session) {

@@ -67,7 +67,12 @@ export function findSelectorChainMatch(
     platform: 'ios' | 'android';
     requireRect?: boolean;
   },
-): { selectorIndex: number; selector: Selector; matches: number; diagnostics: SelectorDiagnostics[] } | null {
+): {
+  selectorIndex: number;
+  selector: Selector;
+  matches: number;
+  diagnostics: SelectorDiagnostics[];
+} | null {
   const requireRect = options.requireRect ?? false;
   const diagnostics: SelectorDiagnostics[] = [];
   for (let i = 0; i < chain.selectors.length; i += 1) {

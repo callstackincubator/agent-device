@@ -61,8 +61,11 @@ test('press coordinates dispatches press and records as press', async () => {
   const sessionName = 'default';
   sessionStore.set(sessionName, makeSession(sessionName));
 
-  const dispatchCalls: Array<{ command: string; positionals: string[]; context: Record<string, unknown> | undefined }> =
-    [];
+  const dispatchCalls: Array<{
+    command: string;
+    positionals: string[];
+    context: Record<string, unknown> | undefined;
+  }> = [];
   const response = await handleInteractionCommands({
     req: {
       token: 't',
@@ -75,7 +78,11 @@ test('press coordinates dispatches press and records as press', async () => {
     sessionStore,
     contextFromFlags,
     dispatch: async (_device, command, positionals, _out, context) => {
-      dispatchCalls.push({ command, positionals, context: context as Record<string, unknown> | undefined });
+      dispatchCalls.push({
+        command,
+        positionals,
+        context: context as Record<string, unknown> | undefined,
+      });
       return { ok: true };
     },
   });
@@ -381,7 +388,11 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
     sessionStore,
     contextFromFlags,
     dispatch: async (_device, command, positionals, _out, context) => {
-      dispatchCalls.push({ command, positionals, context: context as Record<string, unknown> | undefined });
+      dispatchCalls.push({
+        command,
+        positionals,
+        context: context as Record<string, unknown> | undefined,
+      });
       return { ok: true };
     },
   });
@@ -495,7 +506,12 @@ test('scrollintoview @ref does not run post-scroll verification snapshot', async
         return {
           nodes: [
             { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-            { index: 1, type: 'XCUIElementTypeStaticText', label: 'Far item', rect: { x: 20, y: 2600, width: 120, height: 40 } },
+            {
+              index: 1,
+              type: 'XCUIElementTypeStaticText',
+              label: 'Far item',
+              rect: { x: 20, y: 2600, width: 120, height: 40 },
+            },
           ],
           backend: 'xctest',
         };

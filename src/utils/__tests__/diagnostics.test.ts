@@ -31,7 +31,11 @@ test('diagnostics writes NDJSON entries with timer metadata', async () => {
     assert.equal(typeof outputPath, 'string');
     assert.ok(outputPath);
     assert.equal(fs.existsSync(outputPath as string), true);
-    const rows = fs.readFileSync(outputPath as string, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const rows = fs
+      .readFileSync(outputPath as string, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
     assert.equal(rows.length >= 2, true);
     assert.equal(rows[0]?.phase, 'request_start');
     const timed = rows.find((row) => row.phase === 'platform_command');
@@ -68,7 +72,11 @@ test('diagnostics redacts sensitive fields', async () => {
     );
 
     assert.ok(outputPath);
-    const rows = fs.readFileSync(outputPath as string, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const rows = fs
+      .readFileSync(outputPath as string, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
     const payload = rows[0]?.data ?? {};
     assert.equal(payload.token, '[REDACTED]');
     assert.equal(payload.text, 'sensitive text');

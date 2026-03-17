@@ -157,7 +157,9 @@ export class SessionStore {
           : [];
       if (
         selectorChain.length > 0 &&
-        (isClickLikeCommand(action.command) || action.command === 'fill' || action.command === 'get')
+        (isClickLikeCommand(action.command) ||
+          action.command === 'fill' ||
+          action.command === 'get')
       ) {
         const selectorExpr = selectorChain.join(' || ');
         if (isClickLikeCommand(action.command)) {
@@ -188,7 +190,11 @@ export class SessionStore {
           }
         }
       }
-      if (isClickLikeCommand(action.command) || action.command === 'fill' || action.command === 'get') {
+      if (
+        isClickLikeCommand(action.command) ||
+        action.command === 'fill' ||
+        action.command === 'get'
+      ) {
         const refLabel = action.result?.refLabel;
         if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
           optimized.push({
@@ -274,7 +280,9 @@ function formatScript(session: SessionState, actions: SessionAction[]): string {
   const deviceLabel = session.device.name.replace(/"/g, '\\"');
   const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
   const theme = 'unknown';
-  lines.push(`context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=${theme}`);
+  lines.push(
+    `context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=${theme}`,
+  );
   for (const action of actions) {
     if (action.flags?.noRecord) continue;
     lines.push(formatActionLine(action));

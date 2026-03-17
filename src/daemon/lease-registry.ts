@@ -104,11 +104,17 @@ export class LeaseRegistry {
     const backend = normalizeLeaseBackend(request.backend);
     const tenantId = normalizeTenantId(request.tenantId);
     if (!tenantId) {
-      throw new AppError('INVALID_ARGS', 'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+      );
     }
     const runId = normalizeRunId(request.runId);
     if (!runId) {
-      throw new AppError('INVALID_ARGS', 'Invalid run id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid run id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+      );
     }
     this.cleanupExpiredLeases();
     const leaseTtlMs = this.resolveLeaseTtlMs(request.ttlMs);
@@ -215,9 +221,9 @@ export class LeaseRegistry {
   private enforceCapacity(backend: LeaseBackend): void {
     if (backend !== 'ios-simulator') return;
     if (this.maxActiveSimulatorLeases <= 0) return;
-    const activeSimulatorLeases = Array.from(this.leases.values())
-      .filter((lease) => lease.backend === 'ios-simulator')
-      .length;
+    const activeSimulatorLeases = Array.from(this.leases.values()).filter(
+      (lease) => lease.backend === 'ios-simulator',
+    ).length;
     if (activeSimulatorLeases < this.maxActiveSimulatorLeases) return;
     throw new AppError('COMMAND_FAILED', 'No simulator lease capacity available', {
       reason: 'LEASE_CAPACITY_EXCEEDED',
@@ -248,7 +254,10 @@ export class LeaseRegistry {
       expiresAt: now + ttlMs,
     };
     this.leases.set(updated.leaseId, updated);
-    this.runBindings.set(this.bindingKey(updated.tenantId, updated.runId, updated.backend), updated.leaseId);
+    this.runBindings.set(
+      this.bindingKey(updated.tenantId, updated.runId, updated.backend),
+      updated.leaseId,
+    );
     return { ...updated };
   }
 
@@ -264,10 +273,16 @@ export class LeaseRegistry {
     const tenantId = normalizeTenantId(tenantRaw);
     const runId = normalizeRunId(runRaw);
     if (tenantRaw && !tenantId) {
-      throw new AppError('INVALID_ARGS', 'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+      );
     }
     if (runRaw && !runId) {
-      throw new AppError('INVALID_ARGS', 'Invalid run id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid run id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+      );
     }
     if (tenantId && lease.tenantId !== tenantId) {
       throw new AppError('UNAUTHORIZED', 'Lease does not match tenant/run scope', {

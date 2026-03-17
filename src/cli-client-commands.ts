@@ -80,13 +80,16 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
   runtime: async ({ positionals, flags, client }) => {
     const action = (positionals[0] ?? 'show').toLowerCase();
     if (action === 'set') {
-      writeRuntimeResult(await client.runtime.set({
-        platform: flags.platform,
-        metroHost: flags.metroHost,
-        metroPort: flags.metroPort,
-        bundleUrl: flags.bundleUrl,
-        launchUrl: flags.launchUrl,
-      }), flags);
+      writeRuntimeResult(
+        await client.runtime.set({
+          platform: flags.platform,
+          metroHost: flags.metroHost,
+          metroPort: flags.metroPort,
+          bundleUrl: flags.bundleUrl,
+          launchUrl: flags.launchUrl,
+        }),
+        flags,
+      );
       return true;
     }
     if (action === 'show') {
@@ -170,7 +173,10 @@ async function runDeployCommand(
   const app = positionals[0];
   const appPath = positionals[1];
   if (!app || !appPath) {
-    throw new AppError('INVALID_ARGS', `${command} requires: ${command} <app> <path-to-app-binary>`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `${command} requires: ${command} <app> <path-to-app-binary>`,
+    );
   }
   const options = {
     app,

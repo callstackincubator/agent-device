@@ -47,13 +47,31 @@ test('validateDownloadSourceUrl rejects unsupported protocols', async () => {
 });
 
 test('isTrustedInstallSourceUrl recognizes supported artifact services', () => {
-  assert.equal(isTrustedInstallSourceUrl('https://api.github.com/repos/acme/app/actions/artifacts/1/zip'), true);
-  assert.equal(isTrustedInstallSourceUrl('https://github.com/acme/app/actions/runs/123/artifacts/456'), true);
-  assert.equal(isTrustedInstallSourceUrl('https://github.com/acme/app/suites/789/artifacts/456'), true);
-  assert.equal(isTrustedInstallSourceUrl('https://expo.dev/accounts/acme/projects/app/builds/123'), true);
-  assert.equal(isTrustedInstallSourceUrl('https://download.expo.dev/artifacts/eas/build-123/app.apk'), true);
+  assert.equal(
+    isTrustedInstallSourceUrl('https://api.github.com/repos/acme/app/actions/artifacts/1/zip'),
+    true,
+  );
+  assert.equal(
+    isTrustedInstallSourceUrl('https://github.com/acme/app/actions/runs/123/artifacts/456'),
+    true,
+  );
+  assert.equal(
+    isTrustedInstallSourceUrl('https://github.com/acme/app/suites/789/artifacts/456'),
+    true,
+  );
+  assert.equal(
+    isTrustedInstallSourceUrl('https://expo.dev/accounts/acme/projects/app/builds/123'),
+    true,
+  );
+  assert.equal(
+    isTrustedInstallSourceUrl('https://download.expo.dev/artifacts/eas/build-123/app.apk'),
+    true,
+  );
   assert.equal(isTrustedInstallSourceUrl('https://example.com/app.zip'), false);
-  assert.equal(isTrustedInstallSourceUrl('https://github.com/acme/app/archive/refs/heads/main.zip'), false);
+  assert.equal(
+    isTrustedInstallSourceUrl('https://github.com/acme/app/archive/refs/heads/main.zip'),
+    false,
+  );
   assert.equal(isTrustedInstallSourceUrl('https://expo.dev/pricing'), false);
 });
 
@@ -63,12 +81,13 @@ test('materializeInstallablePath rejects archive extraction when disabled', asyn
   await fs.writeFile(archivePath, 'placeholder');
   try {
     await assert.rejects(
-      async () => await materializeInstallablePath({
-        source: { kind: 'path', path: archivePath },
-        isInstallablePath: () => false,
-        installableLabel: 'Android installable (.apk or .aab)',
-        allowArchiveExtraction: false,
-      }),
+      async () =>
+        await materializeInstallablePath({
+          source: { kind: 'path', path: archivePath },
+          isInstallablePath: () => false,
+          installableLabel: 'Android installable (.apk or .aab)',
+          allowArchiveExtraction: false,
+        }),
       /archive extraction is not allowed/i,
     );
   } finally {
@@ -78,10 +97,11 @@ test('materializeInstallablePath rejects archive extraction when disabled', asyn
 
 test('prepareIosInstallArtifact rejects untrusted URL sources', async () => {
   await assert.rejects(
-    async () => await prepareIosInstallArtifact({
-      kind: 'url',
-      url: 'https://example.com/app.ipa',
-    }),
+    async () =>
+      await prepareIosInstallArtifact({
+        kind: 'url',
+        url: 'https://example.com/app.ipa',
+      }),
     /only supported for trusted artifact services/i,
   );
 });

@@ -3,7 +3,12 @@ import fs from 'node:fs';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
-import { attachChildToStream, createLineWriter, sleep, waitForChildExit } from './app-log-stream.ts';
+import {
+  attachChildToStream,
+  createLineWriter,
+  sleep,
+  waitForChildExit,
+} from './app-log-stream.ts';
 
 export function assertAndroidPackageArgSafe(appBundleId: string): void {
   if (!/^[a-zA-Z0-9._:-]+$/.test(appBundleId)) {

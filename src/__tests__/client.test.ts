@@ -1,9 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createAgentDeviceClient,
-  type AgentDeviceClientConfig,
-} from '../client.ts';
+import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon/types.ts';
 import { AppError } from '../utils/errors.ts';
 
@@ -102,11 +99,14 @@ test('typed client forwards shared request lock policy metadata', async () => {
       devices: [],
     },
   }));
-  const client = createAgentDeviceClient({
-    ...setup.config,
-    lockPolicy: 'reject',
-    lockPlatform: 'ios',
-  }, { transport: setup.transport });
+  const client = createAgentDeviceClient(
+    {
+      ...setup.config,
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+    { transport: setup.transport },
+  );
 
   await client.devices.list({
     device: 'Pixel 9',

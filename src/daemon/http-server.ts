@@ -43,14 +43,16 @@ export type HttpAuthHookResult =
   | boolean
   | void
   | {
-    ok?: boolean;
-    tenantId?: string;
-    code?: string;
-    message?: string;
-    details?: Record<string, unknown>;
-  };
+      ok?: boolean;
+      tenantId?: string;
+      code?: string;
+      message?: string;
+      details?: Record<string, unknown>;
+    };
 
-export type HttpAuthHook = (context: HttpAuthHookContext) => Promise<HttpAuthHookResult> | HttpAuthHookResult;
+export type HttpAuthHook = (
+  context: HttpAuthHookContext,
+) => Promise<HttpAuthHookResult> | HttpAuthHookResult;
 
 type HttpAuthDecision =
   | { ok: true; tenantId?: string }
@@ -66,7 +68,10 @@ const RELEASE_MATERIALIZED_PATHS_RPC_METHODS = new Set([
   'agent_device.release_materialized_paths',
   'agent-device.release_materialized_paths',
 ]);
-const LEASE_RPC_METHOD_TO_COMMAND: Record<string, 'lease_allocate' | 'lease_heartbeat' | 'lease_release'> = {
+const LEASE_RPC_METHOD_TO_COMMAND: Record<
+  string,
+  'lease_allocate' | 'lease_heartbeat' | 'lease_release'
+> = {
   'agent_device.lease.allocate': 'lease_allocate',
   'agent-device.lease.allocate': 'lease_allocate',
   'agent_device.lease.heartbeat': 'lease_heartbeat',
@@ -94,7 +99,11 @@ function createRpcError(
   };
 }
 
-function sendJson(res: http.ServerResponse<http.IncomingMessage>, response: JsonRpcResponse, httpCode: number = 200): void {
+function sendJson(
+  res: http.ServerResponse<http.IncomingMessage>,
+  response: JsonRpcResponse,
+  httpCode: number = 200,
+): void {
   res.statusCode = httpCode;
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify(response));
@@ -113,18 +122,23 @@ function statusCodeForNormalizedError(code: string): number {
   }
 }
 
-function resolveToken(
-  params: Record<string, unknown>,
-  headers: IncomingHttpHeaders,
-): string {
+function resolveToken(params: Record<string, unknown>, headers: IncomingHttpHeaders): string {
   const authHeader = typeof headers.authorization === 'string' ? headers.authorization : '';
-  const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice('bearer '.length) : undefined;
-  const headerToken = typeof headers['x-agent-device-token'] === 'string' ? headers['x-agent-device-token'] : undefined;
+  const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice('bearer '.length)
+    : undefined;
+  const headerToken =
+    typeof headers['x-agent-device-token'] === 'string'
+      ? headers['x-agent-device-token']
+      : undefined;
   const paramToken = typeof params.token === 'string' ? params.token : undefined;
   return paramToken ?? headerToken ?? bearerToken ?? '';
 }
 
-function toDaemonRequest(params: Partial<DaemonRequest>, headers: IncomingHttpHeaders): DaemonRequest {
+function toDaemonRequest(
+  params: Partial<DaemonRequest>,
+  headers: IncomingHttpHeaders,
+): DaemonRequest {
   const raw = params as Record<string, unknown>;
   return {
     token: resolveToken(raw, headers),
@@ -192,19 +206,23 @@ function parseInstallSource(params: Record<string, unknown>): DaemonInstallSourc
       }
       for (const [key, value] of Object.entries(rawHeaders as Record<string, unknown>)) {
         if (typeof value !== 'string') {
-          throw new AppError('INVALID_ARGS', 'Invalid params: source.headers values must be strings');
+          throw new AppError(
+            'INVALID_ARGS',
+            'Invalid params: source.headers values must be strings',
+          );
         }
         headers[key] = value;
       }
     }
-    return Object.keys(headers).length > 0
-      ? { kind: 'url', url, headers }
-      : { kind: 'url', url };
+    return Object.keys(headers).length > 0 ? { kind: 'url', url, headers } : { kind: 'url', url };
   }
   if (record.kind === 'path') {
     const artifactPath = typeof record.path === 'string' ? record.path.trim() : '';
     if (!artifactPath) {
-      throw new AppError('INVALID_ARGS', 'Invalid params: source.path is required for path sources');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Invalid params: source.path is required for path sources',
+      );
     }
     return { kind: 'path', path: artifactPath };
   }
@@ -287,21 +305,37 @@ async function runHttpAuthHook(
   const result = await authHook(context);
   if (result === undefined || result === true) return { ok: true };
   if (result === false) {
-    const normalized = normalizeError(new AppError('UNAUTHORIZED', 'Request rejected by auth hook'));
-    return {
-      ok: false,
-      statusCode: 401,
-      response: createRpcError(context.rpcRequest.id ?? null, -32001, normalized.message, normalized),
-    };
-  }
-  if (result.ok === false) {
     const normalized = normalizeError(
-      new AppError(result.code as any ?? 'UNAUTHORIZED', result.message ?? 'Request rejected by auth hook', result.details),
+      new AppError('UNAUTHORIZED', 'Request rejected by auth hook'),
     );
     return {
       ok: false,
       statusCode: 401,
-      response: createRpcError(context.rpcRequest.id ?? null, -32001, normalized.message, normalized),
+      response: createRpcError(
+        context.rpcRequest.id ?? null,
+        -32001,
+        normalized.message,
+        normalized,
+      ),
+    };
+  }
+  if (result.ok === false) {
+    const normalized = normalizeError(
+      new AppError(
+        (result.code as any) ?? 'UNAUTHORIZED',
+        result.message ?? 'Request rejected by auth hook',
+        result.details,
+      ),
+    );
+    return {
+      ok: false,
+      statusCode: 401,
+      response: createRpcError(
+        context.rpcRequest.id ?? null,
+        -32001,
+        normalized.message,
+        normalized,
+      ),
     };
   }
   if (typeof result.tenantId === 'string' && result.tenantId.length > 0) {
@@ -313,7 +347,12 @@ async function runHttpAuthHook(
       return {
         ok: false,
         statusCode: 500,
-        response: createRpcError(context.rpcRequest.id ?? null, -32000, normalized.message, normalized),
+        response: createRpcError(
+          context.rpcRequest.id ?? null,
+          -32000,
+          normalized.message,
+          normalized,
+        ),
       };
     }
     return { ok: true, tenantId };
@@ -328,7 +367,7 @@ async function loadHttpAuthHook(): Promise<HttpAuthHook | null> {
   const resolvedPath = path.isAbsolute(hookPath) ? hookPath : path.resolve(hookPath);
   let imported: Record<string, unknown>;
   try {
-    imported = await import(pathToFileURL(resolvedPath).href) as Record<string, unknown>;
+    imported = (await import(pathToFileURL(resolvedPath).href)) as Record<string, unknown>;
   } catch (error) {
     throw new AppError('COMMAND_FAILED', 'Failed to load AGENT_DEVICE_HTTP_AUTH_HOOK module', {
       hookPath: resolvedPath,
@@ -404,7 +443,11 @@ export async function createDaemonHttpServer(options: {
         return;
       }
       if (!SUPPORTED_RPC_METHODS.has(rpcRequest.method)) {
-        sendJson(res, createRpcError(rpcRequest.id ?? null, -32601, `Method not found: ${rpcRequest.method}`), 404);
+        sendJson(
+          res,
+          createRpcError(rpcRequest.id ?? null, -32601, `Method not found: ${rpcRequest.method}`),
+          404,
+        );
         return;
       }
       if (!rpcRequest.params || typeof rpcRequest.params !== 'object') {
@@ -417,14 +460,21 @@ export async function createDaemonHttpServer(options: {
         const params = rpcRequest.params as Record<string, unknown>;
         const daemonRequest = methodToDaemonRequest(rpcRequest.method, params, req.headers);
         if (
-          isCommandRpcMethod(rpcRequest.method)
-          && (typeof daemonRequest.command !== 'string' || daemonRequest.command.length === 0)
+          isCommandRpcMethod(rpcRequest.method) &&
+          (typeof daemonRequest.command !== 'string' || daemonRequest.command.length === 0)
         ) {
-          sendJson(res, createRpcError(rpcRequest.id ?? null, -32602, 'Invalid params: command is required'), 400);
+          sendJson(
+            res,
+            createRpcError(rpcRequest.id ?? null, -32602, 'Invalid params: command is required'),
+            400,
+          );
           return;
         }
 
-        requestIdForCleanup = resolveRequestTrackingId(daemonRequest.meta?.requestId, rpcRequest.id);
+        requestIdForCleanup = resolveRequestTrackingId(
+          daemonRequest.meta?.requestId,
+          rpcRequest.id,
+        );
         daemonRequest.meta = {
           ...daemonRequest.meta,
           requestId: requestIdForCleanup,
@@ -451,7 +501,10 @@ export async function createDaemonHttpServer(options: {
           daemonRequest.meta = {
             ...daemonRequest.meta,
             tenantId: authResult.tenantId,
-            sessionIsolation: daemonRequest.meta?.sessionIsolation ?? daemonRequest.flags?.sessionIsolation ?? 'tenant',
+            sessionIsolation:
+              daemonRequest.meta?.sessionIsolation ??
+              daemonRequest.flags?.sessionIsolation ??
+              'tenant',
           };
         }
 
@@ -500,7 +553,11 @@ async function handleUpload(
       res.end(JSON.stringify({ ok: false, error: tokenError.message, code: tokenError.code }));
       return;
     }
-    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
+    const syntheticRpc: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      id: null,
+      method: 'agent_device.command',
+    };
     const syntheticDaemon: DaemonRequest = {
       token,
       session: 'default',
@@ -515,10 +572,15 @@ async function handleUpload(
     if (!authResult.ok) {
       res.statusCode = authResult.statusCode;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({
-        ok: false,
-        error: authResult.response.error?.data?.message ?? authResult.response.error?.message ?? 'Unauthorized',
-      }));
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error:
+            authResult.response.error?.data?.message ??
+            authResult.response.error?.message ??
+            'Unauthorized',
+        }),
+      );
       return;
     }
 
@@ -561,7 +623,11 @@ async function handleArtifactDownload(
       res.end(JSON.stringify({ ok: false, error: tokenError.message, code: tokenError.code }));
       return;
     }
-    const syntheticRpc: JsonRpcRequest = { jsonrpc: '2.0', id: null, method: 'agent_device.command' };
+    const syntheticRpc: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      id: null,
+      method: 'agent_device.command',
+    };
     const syntheticDaemon: DaemonRequest = {
       token,
       session: 'default',
@@ -576,10 +642,15 @@ async function handleArtifactDownload(
     if (!authResult.ok) {
       res.statusCode = authResult.statusCode;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({
-        ok: false,
-        error: authResult.response.error?.data?.message ?? authResult.response.error?.message ?? 'Unauthorized',
-      }));
+      res.end(
+        JSON.stringify({
+          ok: false,
+          error:
+            authResult.response.error?.data?.message ??
+            authResult.response.error?.message ??
+            'Unauthorized',
+        }),
+      );
       return;
     }
     const artifact = prepareDownloadableArtifact(artifactId, authResult.tenantId);
@@ -587,7 +658,10 @@ async function handleArtifactDownload(
     res.statusCode = 200;
     res.setHeader('content-type', 'application/octet-stream');
     if (artifact.fileName) {
-      res.setHeader('content-disposition', `attachment; filename="${artifact.fileName.replace(/"/g, '')}"`);
+      res.setHeader(
+        'content-disposition',
+        `attachment; filename="${artifact.fileName.replace(/"/g, '')}"`,
+      );
     }
     stream.on('error', (error) => {
       if (!res.headersSent) {

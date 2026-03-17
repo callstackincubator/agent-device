@@ -262,10 +262,12 @@ test('batch step forwards typed runtime payload', async () => {
   });
 
   assert.equal(response?.ok, true);
-  assert.deepEqual(seenRuntimes, [{
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-  }]);
+  assert.deepEqual(seenRuntimes, [
+    {
+      metroHost: '10.0.0.10',
+      metroPort: 8081,
+    },
+  ]);
 });
 
 test('runtime set/show/clear manages session-scoped runtime hints before open', async () => {
@@ -458,7 +460,12 @@ test('open runtime payload replaces stored session runtime atomically', async ()
   });
 
   const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
-  const runtimeApplyCalls: Array<{ appId?: string; host?: string; port?: number; launchUrl?: string }> = [];
+  const runtimeApplyCalls: Array<{
+    appId?: string;
+    host?: string;
+    port?: number;
+    launchUrl?: string;
+  }> = [];
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -510,7 +517,10 @@ test('open runtime payload replaces stored session runtime atomically', async ()
     bundleUrl: undefined,
     launchUrl: undefined,
   });
-  assert.deepEqual(sessionStore.get(sessionName)?.actions.map((action) => action.command), ['runtime', 'open']);
+  assert.deepEqual(
+    sessionStore.get(sessionName)?.actions.map((action) => action.command),
+    ['runtime', 'open'],
+  );
   if (response && response.ok) {
     assert.deepEqual(response.data?.runtime, {
       platform: 'android',
@@ -631,7 +641,10 @@ test('open runtime payload rejects invalid metro port before app launch', async 
     },
   });
 
-  assertInvalidArgsMessage(response, 'Invalid runtime metroPort: 70000. Use an integer between 1 and 65535.');
+  assertInvalidArgsMessage(
+    response,
+    'Invalid runtime metroPort: 70000. Use an integer between 1 and 65535.',
+  );
   assert.equal(dispatchCalls, 0);
 });
 
@@ -686,35 +699,36 @@ test('open runtime payload does not persist replacement when launch fails', asyn
   });
 
   await assert.rejects(
-    async () => await handleSessionCommands({
-      req: {
-        token: 't',
-        session: sessionName,
-        command: 'open',
-        positionals: ['Demo'],
-        flags: { platform: 'android' },
-        runtime: {
-          metroHost: '127.0.0.1',
-          metroPort: 9090,
+    async () =>
+      await handleSessionCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'open',
+          positionals: ['Demo'],
+          flags: { platform: 'android' },
+          runtime: {
+            metroHost: '127.0.0.1',
+            metroPort: 9090,
+          },
         },
-      },
-      sessionName,
-      logPath: path.join(os.tmpdir(), 'daemon.log'),
-      sessionStore,
-      invoke: noopInvoke,
-      ensureReady: async () => {},
-      resolveTargetDevice: async () => ({
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
+        sessionName,
+        logPath: path.join(os.tmpdir(), 'daemon.log'),
+        sessionStore,
+        invoke: noopInvoke,
+        ensureReady: async () => {},
+        resolveTargetDevice: async () => ({
+          platform: 'android',
+          id: 'emulator-5554',
+          name: 'Pixel',
+          kind: 'emulator',
+          booted: true,
+        }),
+        applyRuntimeHints: async () => {},
+        dispatch: async () => {
+          throw new AppError('COMMAND_FAILED', 'launch failed');
+        },
       }),
-      applyRuntimeHints: async () => {},
-      dispatch: async () => {
-        throw new AppError('COMMAND_FAILED', 'launch failed');
-      },
-    }),
     (error: unknown) => {
       assert.ok(error instanceof AppError);
       assert.equal(error.code, 'COMMAND_FAILED');
@@ -1081,7 +1095,9 @@ test('boot launches Android emulator with GUI when no running device matches', a
 
   assert.ok(response);
   assert.equal(response?.ok, true);
-  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
+  assert.deepEqual(launchCalls, [
+    { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
+  ]);
   if (response && response.ok) {
     assert.equal(response.data?.platform, 'android');
     assert.equal(response.data?.id, 'emulator-5554');
@@ -1195,7 +1211,9 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
   assert.ok(response);
   assert.equal(response?.ok, false);
   assert.equal(ensured, false);
-  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
+  assert.deepEqual(launchCalls, [
+    { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
+  ]);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'DEVICE_NOT_FOUND');
     assert.match(response.error.message, /matching --target tv/i);
@@ -1205,20 +1223,17 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
 test('appstate on iOS requires active session on selected device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 15',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.apple.Preferences',
-      appName: 'Settings',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.Preferences',
+    appName: 'Settings',
+  });
   const selectedDevice: SessionState['device'] = {
     platform: 'ios',
     id: 'sim-2',
@@ -1257,20 +1272,17 @@ test('appstate on iOS requires active session on selected device', async () => {
 test('appstate with explicit selector matching session returns session state', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 17 Pro',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.apple.Maps',
-      appName: 'Maps',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.Maps',
+    appName: 'Maps',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -1308,19 +1320,16 @@ test('appstate with explicit selector matching session returns session state', a
 test('appstate returns session appName when bundle id is unavailable', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 17 Pro',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appName: 'Maps',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appName: 'Maps',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -1470,7 +1479,10 @@ test('clipboard requires an active session or explicit device selector', async (
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /clipboard requires an active session or an explicit device selector/i);
+    assert.match(
+      response.error.message,
+      /clipboard requires an active session or an explicit device selector/i,
+    );
   }
 });
 
@@ -1494,7 +1506,10 @@ test('keyboard requires an active session or explicit device selector', async ()
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /keyboard requires an active session or an explicit device selector/i);
+    assert.match(
+      response.error.message,
+      /keyboard requires an active session or an explicit device selector/i,
+    );
   }
 });
 
@@ -1823,20 +1838,17 @@ test('perf reports startup metric as unavailable when no sample exists', async (
 test('open URL on existing iOS session clears stale app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 15',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.old',
-      appName: 'Old App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
 
   let dispatchedContext: Record<string, unknown> | undefined;
   const response = await handleSessionCommands({
@@ -1869,20 +1881,17 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
 test('open URL on existing iOS device session preserves app bundle id context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'ios-device-1',
-        name: 'iPhone Device',
-        kind: 'device',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-      appName: 'Example App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appName: 'Example App',
+  });
 
   let dispatchedContext: Record<string, unknown> | undefined;
   const response = await handleSessionCommands({
@@ -1957,20 +1966,17 @@ test('open web URL on iOS device session without active app falls back to Safari
 test('open app and URL on existing iOS device session keeps app context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'ios-device-1',
-        name: 'iPhone Device',
-        kind: 'device',
-        booted: true,
-      }),
-      appBundleId: 'com.example.previous',
-      appName: 'Previous App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+    appBundleId: 'com.example.previous',
+    appName: 'Previous App',
+  });
 
   let dispatchedPositionals: string[] | undefined;
   let dispatchedContext: Record<string, unknown> | undefined;
@@ -2006,20 +2012,17 @@ test('open app and URL on existing iOS device session keeps app context', async 
 test('open app on existing iOS session resolves and stores bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 15',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.old',
-      appName: 'Old App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
 
   let dispatchedContext: Record<string, unknown> | undefined;
   const response = await handleSessionCommands({
@@ -2056,19 +2059,16 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
 test('open app on existing Android session resolves and stores package id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel Emulator',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appName: 'Old App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appName: 'Old App',
+  });
 
   let dispatchedContext: Record<string, unknown> | undefined;
   const response = await handleSessionCommands({
@@ -2102,20 +2102,17 @@ test('open app on existing Android session resolves and stores package id', asyn
 test('open intent target on existing Android session clears stale package context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel Emulator',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.old',
-      appName: 'Old App',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
 
   let dispatchedContext: Record<string, unknown> | undefined;
   const response = await handleSessionCommands({
@@ -2149,19 +2146,16 @@ test('open intent target on existing Android session clears stale package contex
 test('open --relaunch closes and reopens active session app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel Emulator',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appName: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
 
   const calls: Array<{ command: string; positionals: string[] }> = [];
   const response = await handleSessionCommands({
@@ -2193,19 +2187,16 @@ test('open --relaunch closes and reopens active session app', async () => {
 test('open --relaunch on iOS stops runner before close/open', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'ios-device-1',
-        name: 'My iPhone',
-        kind: 'device',
-        booted: true,
-      }),
-      appName: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
 
   const calls: string[] = [];
   const response = await handleSessionCommands({
@@ -2277,19 +2268,16 @@ test('open --relaunch on iOS without existing session closes then opens target a
 test('open --relaunch on iOS simulator reaches settle path for close and open', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone 16',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appName: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 16',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
 
   const settleCalls: Array<{ deviceId: string; delayMs: number }> = [];
   const response = await handleSessionCommands({
@@ -2322,23 +2310,20 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
 test('close on iOS session with recording stops runner session before delete', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'ios-device-1',
-        name: 'My iPhone',
-        kind: 'device',
-        booted: true,
-      }),
-      recording: {
-        platform: 'ios-device-runner',
-        outPath: '/tmp/device-recording.mp4',
-        remotePath: 'tmp/device-recording.mp4',
-      },
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    recording: {
+      platform: 'ios-device-runner',
+      outPath: '/tmp/device-recording.mp4',
+      remotePath: 'tmp/device-recording.mp4',
     },
-  );
+  });
 
   const stopCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -2367,19 +2352,16 @@ test('close on iOS session with recording stops runner session before delete', a
 test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-close-session';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'ios-device-1',
-        name: 'My iPhone',
-        kind: 'device',
-        booted: true,
-      }),
-      appName: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
 
   const calls: string[] = [];
   const response = await handleSessionCommands({
@@ -2563,10 +2545,7 @@ test('open --relaunch rejects Android app binary paths for active sessions', asy
   });
   session.appName = 'com.example.app';
   session.appBundleId = 'com.example.app';
-  sessionStore.set(
-    'default',
-    session,
-  );
+  sessionStore.set('default', session);
 
   const response = await handleSessionCommands({
     req: {
@@ -2745,7 +2724,10 @@ test('replay parses press series flags and passes them to invoke', async () => {
   const sessionStore = makeSessionStore();
   const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-press-series-'));
   const replayPath = path.join(replayRoot, 'press-series.ad');
-  fs.writeFileSync(replayPath, 'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap\n');
+  fs.writeFileSync(
+    replayPath,
+    'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap\n',
+  );
 
   const invoked: DaemonRequest[] = [];
   const response = await handleSessionCommands({
@@ -2779,7 +2761,9 @@ test('replay parses press series flags and passes them to invoke', async () => {
 
 test('replay inherits parent device selectors for each invoked step', async () => {
   const sessionStore = makeSessionStore();
-  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-parent-selectors-'));
+  const replayRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-replay-parent-selectors-'),
+  );
   const replayPath = path.join(replayRoot, 'selectors.ad');
   fs.writeFileSync(replayPath, 'open "com.whoop.iphone"\n');
 
@@ -2974,19 +2958,16 @@ test('logs stop requires active app log stream', async () => {
 test('logs start stores session app log state on success', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   let startCalls = 0;
   const response = await handleSessionCommands({
     req: {
@@ -3027,28 +3008,25 @@ test('logs start stores session app log state on success', async () => {
 test('logs stop clears active session app log state', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-      appLog: {
-        platform: 'android',
-        backend: 'android',
-        outPath: '/tmp/app.log',
-        startedAt: Date.now(),
-        getState: () => 'active',
-        stop: async () => {},
-        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-      },
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
-  );
+  });
   let stopCalls = 0;
   const response = await handleSessionCommands({
     req: {
@@ -3081,28 +3059,25 @@ test('logs stop clears active session app log state', async () => {
 test('close auto-stops active app log stream', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-      appLog: {
-        platform: 'android',
-        backend: 'android',
-        outPath: '/tmp/app.log',
-        startedAt: Date.now(),
-        getState: () => 'active',
-        stop: async () => {},
-        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-      },
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
-  );
+  });
   let stopCalls = 0;
   const response = await handleSessionCommands({
     req: {
@@ -3134,19 +3109,16 @@ test('close auto-stops active app log stream', async () => {
 test('logs mark appends marker and returns path', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone Simulator',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3172,19 +3144,16 @@ test('logs mark appends marker and returns path', async () => {
 test('logs clear truncates log file and removes rotated files', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone Simulator',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   const outPath = sessionStore.resolveAppLogPath(sessionName);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, 'before-clear');
@@ -3217,28 +3186,25 @@ test('logs clear truncates log file and removes rotated files', async () => {
 test('logs clear requires stream to be stopped first', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-      appLog: {
-        platform: 'android',
-        backend: 'android',
-        outPath: '/tmp/app.log',
-        startedAt: Date.now(),
-        getState: () => 'active',
-        stop: async () => {},
-        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-      },
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
-  );
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -3265,19 +3231,16 @@ test('logs clear requires stream to be stopped first', async () => {
 test('logs --restart is only supported with logs clear', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone Simulator',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3306,28 +3269,25 @@ test('logs clear --restart stops active stream, clears logs, and restarts stream
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, 'before-restart');
   fs.writeFileSync(`${outPath}.1`, 'older');
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-      appLog: {
-        platform: 'android',
-        backend: 'android',
-        outPath,
-        startedAt: Date.now(),
-        getState: () => 'active',
-        stop: async () => {},
-        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-      },
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath,
+      startedAt: Date.now(),
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
-  );
+  });
   let stopCalls = 0;
   let startCalls = 0;
   const response = await handleSessionCommands({
@@ -3412,19 +3372,16 @@ test('logs clear --restart requires app session bundle id', async () => {
 test('logs doctor returns check payload', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'ios',
-        id: 'sim-1',
-        name: 'iPhone Simulator',
-        kind: 'simulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3471,19 +3428,16 @@ test('network requires an active session', async () => {
 test('network dump returns recent parsed HTTP entries', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    {
-      ...makeSession(sessionName, {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel',
-        kind: 'emulator',
-        booted: true,
-      }),
-      appBundleId: 'com.example.app',
-    },
-  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
   const appLogPath = sessionStore.resolveAppLogPath(sessionName);
   fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
   fs.writeFileSync(
@@ -3644,13 +3598,16 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
 test('close --shutdown calls shutdownSimulator for iOS simulator and includes result in response', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-shutdown-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'sim-udid-1',
-    name: 'iPhone 15',
-    kind: 'simulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-udid-1',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
 
   const shutdownCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -3678,20 +3635,28 @@ test('close --shutdown calls shutdownSimulator for iOS simulator and includes re
   assert.equal(sessionStore.get(sessionName), undefined);
   if (response && response.ok) {
     assert.equal(response.data?.session, sessionName);
-    assert.deepEqual(response.data?.shutdown, { success: true, exitCode: 0, stdout: '', stderr: '' });
+    assert.deepEqual(response.data?.shutdown, {
+      success: true,
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
   }
 });
 
 test('close --shutdown calls shutdownAndroidEmulator for Android emulator and includes result in response', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-shutdown-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel_9_API_35',
-    kind: 'emulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel_9_API_35',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
 
   const shutdownCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -3718,20 +3683,28 @@ test('close --shutdown calls shutdownAndroidEmulator for Android emulator and in
   assert.equal(sessionStore.get(sessionName), undefined);
   if (response && response.ok) {
     assert.equal(response.data?.session, sessionName);
-    assert.deepEqual(response.data?.shutdown, { success: true, stdout: '', stderr: '', exitCode: 0 });
+    assert.deepEqual(response.data?.shutdown, {
+      success: true,
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+    });
   }
 });
 
 test('close --shutdown is ignored for non-simulator iOS devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-shutdown-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'physical-device-1',
-    name: 'My iPhone',
-    kind: 'device',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'physical-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+  );
 
   const shutdownCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -3766,13 +3739,16 @@ test('close --shutdown is ignored for non-simulator iOS devices', async () => {
 test('close --shutdown is ignored for Android devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-device-shutdown-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'android',
-    id: 'R5CT123456A',
-    name: 'Pixel 9',
-    kind: 'device',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'R5CT123456A',
+      name: 'Pixel 9',
+      kind: 'device',
+      booted: true,
+    }),
+  );
 
   const shutdownCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -3806,13 +3782,16 @@ test('close --shutdown is ignored for Android devices', async () => {
 test('close without --shutdown does not call shutdownSimulator', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-no-shutdown-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'sim-udid-2',
-    name: 'iPhone 15',
-    kind: 'simulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-udid-2',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
 
   const shutdownCalls: string[] = [];
   const response = await handleSessionCommands({
@@ -3845,13 +3824,16 @@ test('close without --shutdown does not call shutdownSimulator', async () => {
 test('close --shutdown returns success and failure payload when shutdownAndroidEmulator throws', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-shutdown-failure-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'android',
-    id: 'emulator-5556',
-    name: 'Pixel_9_API_35',
-    kind: 'emulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5556',
+      name: 'Pixel_9_API_35',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
 
   const response = await handleSessionCommands({
     req: {
@@ -3876,15 +3858,15 @@ test('close --shutdown returns success and failure payload when shutdownAndroidE
   if (response && response.ok) {
     const shutdown = response.data?.shutdown as
       | {
-        success?: boolean;
-        exitCode?: number;
-        stdout?: string;
-        stderr?: string;
-        error?: {
-          code?: string;
-          message?: string;
-        };
-      }
+          success?: boolean;
+          exitCode?: number;
+          stdout?: string;
+          stderr?: string;
+          error?: {
+            code?: string;
+            message?: string;
+          };
+        }
       | undefined;
     assert.equal(response.data?.session, sessionName);
     assert.equal(shutdown?.success, false);
@@ -3899,13 +3881,16 @@ test('close --shutdown returns success and failure payload when shutdownAndroidE
 test('close --shutdown returns success and failure payload when shutdownSimulator throws', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-shutdown-failure-session';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'sim-udid-3',
-    name: 'iPhone 15',
-    kind: 'simulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-udid-3',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
 
   const response = await handleSessionCommands({
     req: {
@@ -3931,15 +3916,15 @@ test('close --shutdown returns success and failure payload when shutdownSimulato
   if (response && response.ok) {
     const shutdown = response.data?.shutdown as
       | {
-        success?: boolean;
-        exitCode?: number;
-        stdout?: string;
-        stderr?: string;
-        error?: {
-          code?: string;
-          message?: string;
-        };
-      }
+          success?: boolean;
+          exitCode?: number;
+          stdout?: string;
+          stderr?: string;
+          error?: {
+            code?: string;
+            message?: string;
+          };
+        }
       | undefined;
     assert.equal(response.data?.session, sessionName);
     assert.equal(shutdown?.success, false);

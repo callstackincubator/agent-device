@@ -100,38 +100,41 @@ test('device capability matrix stays consistent across shared command groups', (
 });
 
 test('core commands support iOS simulator, iOS device, and Android', () => {
-  assertCommandSupport([
-    'app-switcher',
-    'apps',
-    'back',
-    'boot',
-    'click',
-    'close',
-    'diff',
-    'fill',
-    'find',
-    'focus',
-    'get',
-    'home',
-    'install',
-    'longpress',
-    'logs',
-    'open',
-    'perf',
-    'press',
-    'record',
-    'screenshot',
-    'scroll',
-    'scrollintoview',
-    'snapshot',
-    'trigger-app-event',
-    'type',
-    'wait',
-  ], [
-    { device: iosSimulator, expected: true, label: 'on iOS sim' },
-    { device: iosDevice, expected: true, label: 'on iOS device' },
-    { device: androidDevice, expected: true, label: 'on Android' },
-  ]);
+  assertCommandSupport(
+    [
+      'app-switcher',
+      'apps',
+      'back',
+      'boot',
+      'click',
+      'close',
+      'diff',
+      'fill',
+      'find',
+      'focus',
+      'get',
+      'home',
+      'install',
+      'longpress',
+      'logs',
+      'open',
+      'perf',
+      'press',
+      'record',
+      'screenshot',
+      'scroll',
+      'scrollintoview',
+      'snapshot',
+      'trigger-app-event',
+      'type',
+      'wait',
+    ],
+    [
+      { device: iosSimulator, expected: true, label: 'on iOS sim' },
+      { device: iosDevice, expected: true, label: 'on iOS device' },
+      { device: androidDevice, expected: true, label: 'on Android' },
+    ],
+  );
 });
 
 test('Android TV uses Android capabilities for core commands', () => {
@@ -142,25 +145,34 @@ test('Android TV uses Android capabilities for core commands', () => {
 });
 
 test('tvOS follows iOS capability matrix by device kind', () => {
-  assertCommandSupport([
-    'open',
-    'close',
-    'apps',
-    'screenshot',
-    'trigger-app-event',
-    'logs',
-    'reinstall',
-    'boot',
-  ], [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }]);
   assertCommandSupport(
-    ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record'],
+    ['open', 'close', 'apps', 'screenshot', 'trigger-app-event', 'logs', 'reinstall', 'boot'],
+    [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }],
+  );
+  assertCommandSupport(
+    [
+      'snapshot',
+      'wait',
+      'press',
+      'get',
+      'fill',
+      'scroll',
+      'back',
+      'home',
+      'app-switcher',
+      'record',
+    ],
     [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }],
   );
   assertCommandSupport(
     ['pinch', 'push', 'settings', 'alert'],
     [{ device: tvOsSimulator, expected: true, label: 'on tvOS simulator' }],
   );
-  assert.equal(isCommandSupportedOnDevice('keyboard', tvOsSimulator), false, 'keyboard on tvOS simulator');
+  assert.equal(
+    isCommandSupportedOnDevice('keyboard', tvOsSimulator),
+    false,
+    'keyboard on tvOS simulator',
+  );
 });
 
 test('unknown commands default to supported', () => {

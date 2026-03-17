@@ -10,6 +10,10 @@ export {
 
 export { isNodeVisible, isNodeEditable } from './selectors-match.ts';
 
-export { resolveSelectorChain, findSelectorChainMatch, formatSelectorFailure } from './selectors-resolve.ts';
+export {
+  resolveSelectorChain,
+  findSelectorChainMatch,
+  formatSelectorFailure,
+} from './selectors-resolve.ts';
 
 export { buildSelectorChainForNode } from './selectors-build.ts';

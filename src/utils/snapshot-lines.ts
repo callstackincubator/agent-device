@@ -12,7 +12,10 @@ export function buildSnapshotDisplayLines(nodes: SnapshotNode[]): SnapshotDispla
   const lines: SnapshotDisplayLine[] = [];
   for (const node of nodes) {
     const depth = node.depth ?? 0;
-    while (hiddenGroupDepths.length > 0 && depth <= hiddenGroupDepths[hiddenGroupDepths.length - 1]) {
+    while (
+      hiddenGroupDepths.length > 0 &&
+      depth <= hiddenGroupDepths[hiddenGroupDepths.length - 1]
+    ) {
       hiddenGroupDepths.pop();
     }
     const label = node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
@@ -63,7 +66,10 @@ export function displayLabel(node: SnapshotNode, type: string): string {
   if (value) return value;
   const identifier = node.identifier?.trim();
   if (!identifier) return '';
-  if (isGenericResourceId(identifier) && (type === 'group' || type === 'image' || type === 'list' || type === 'collection')) {
+  if (
+    isGenericResourceId(identifier) &&
+    (type === 'group' || type === 'image' || type === 'list' || type === 'collection')
+  ) {
     return '';
   }
   return identifier;

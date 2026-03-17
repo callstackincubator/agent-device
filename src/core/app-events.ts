@@ -17,14 +17,15 @@ export function parseTriggerAppEventArgs(positionals: string[]): {
     throw new AppError('INVALID_ARGS', 'trigger-app-event requires <event> [payloadJson]');
   }
   if (!APP_EVENT_NAME_PATTERN.test(eventName)) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Invalid trigger-app-event event name: ${eventName}`,
-      { hint: 'Use 1-64 chars: letters, numbers, underscore, dot, colon, or dash.' },
-    );
+    throw new AppError('INVALID_ARGS', `Invalid trigger-app-event event name: ${eventName}`, {
+      hint: 'Use 1-64 chars: letters, numbers, underscore, dot, colon, or dash.',
+    });
   }
   if (positionals.length > 2) {
-    throw new AppError('INVALID_ARGS', 'trigger-app-event accepts at most two arguments: <event> [payloadJson]');
+    throw new AppError(
+      'INVALID_ARGS',
+      'trigger-app-event accepts at most two arguments: <event> [payloadJson]',
+    );
   }
   const payload = parseTriggerEventPayload(payloadArg, eventName);
   return { eventName, payload };
@@ -61,12 +62,18 @@ export function resolveAppEventUrl(
   return eventUrl;
 }
 
-function parseTriggerEventPayload(payloadArg: string | undefined, eventName: string): AppEventPayload {
+function parseTriggerEventPayload(
+  payloadArg: string | undefined,
+  eventName: string,
+): AppEventPayload {
   if (!payloadArg) return undefined;
   try {
     const parsed = JSON.parse(payloadArg) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new AppError('INVALID_ARGS', `trigger-app-event payload for "${eventName}" must be a JSON object`);
+      throw new AppError(
+        'INVALID_ARGS',
+        `trigger-app-event payload for "${eventName}" must be a JSON object`,
+      );
     }
     const payloadText = JSON.stringify(parsed);
     if (Buffer.byteLength(payloadText, 'utf8') > MAX_APP_EVENT_PAYLOAD_BYTES) {

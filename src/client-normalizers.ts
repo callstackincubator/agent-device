@@ -57,7 +57,9 @@ export function normalizeInstallFromSourceResult(
   const appId = bundleId ?? packageName ?? readOptionalString(data, 'appId');
   const launchTarget = readOptionalString(data, 'launchTarget') ?? packageName ?? bundleId ?? appId;
   if (!launchTarget) {
-    throw new AppError('COMMAND_FAILED', 'Daemon response is missing "launchTarget".', { response: data });
+    throw new AppError('COMMAND_FAILED', 'Daemon response is missing "launchTarget".', {
+      response: data,
+    });
   }
   return {
     appName: readOptionalString(data, 'appName'),
@@ -122,12 +124,13 @@ export function normalizeSession(value: unknown): AgentDeviceSession {
       id,
       name: deviceName,
       identifiers,
-      ios: platform === 'ios'
-        ? {
-          udid: id,
-          simulatorSetPath: readNullableString(record, 'ios_simulator_device_set'),
-        }
-        : undefined,
+      ios:
+        platform === 'ios'
+          ? {
+              udid: id,
+              simulatorSetPath: readNullableString(record, 'ios_simulator_device_set'),
+            }
+          : undefined,
       android: platform === 'android' ? { serial: id } : undefined,
     },
     identifiers,
@@ -150,7 +153,9 @@ export function normalizeRuntimeHints(value: unknown): SessionRuntimeHints | und
   };
 }
 
-export function normalizeOpenDevice(value: Record<string, unknown>): AgentDeviceSessionDevice | undefined {
+export function normalizeOpenDevice(
+  value: Record<string, unknown>,
+): AgentDeviceSessionDevice | undefined {
   const platform = value.platform;
   const id = readOptionalString(value, 'id');
   const name = readOptionalString(value, 'device');
@@ -165,21 +170,25 @@ export function normalizeOpenDevice(value: Record<string, unknown>): AgentDevice
     id,
     name,
     identifiers,
-    ios: platform === 'ios'
-      ? {
-        udid: readOptionalString(value, 'device_udid') ?? id,
-        simulatorSetPath: readNullableString(value, 'ios_simulator_device_set'),
-      }
-      : undefined,
-    android: platform === 'android'
-      ? { serial: readOptionalString(value, 'serial') ?? id }
-      : undefined,
+    ios:
+      platform === 'ios'
+        ? {
+            udid: readOptionalString(value, 'device_udid') ?? id,
+            simulatorSetPath: readNullableString(value, 'ios_simulator_device_set'),
+          }
+        : undefined,
+    android:
+      platform === 'android' ? { serial: readOptionalString(value, 'serial') ?? id } : undefined,
   };
 }
 
 export function normalizeStartupSample(value: unknown): StartupPerfSample | undefined {
   if (!isRecord(value)) return undefined;
-  if (typeof value.durationMs !== 'number' || typeof value.measuredAt !== 'string' || typeof value.method !== 'string') {
+  if (
+    typeof value.durationMs !== 'number' ||
+    typeof value.measuredAt !== 'string' ||
+    typeof value.method !== 'string'
+  ) {
     return undefined;
   }
   return {
@@ -193,7 +202,7 @@ export function normalizeStartupSample(value: unknown): StartupPerfSample | unde
 
 export function readSnapshotNodes(value: unknown): SnapshotNode[] {
   // Snapshot nodes are produced by the daemon snapshot pipeline and treated as trusted here.
-  return Array.isArray(value) ? value as SnapshotNode[] : [];
+  return Array.isArray(value) ? (value as SnapshotNode[]) : [];
 }
 
 export function buildFlags(options: InternalRequestOptions): CommandFlags {
@@ -253,7 +262,10 @@ export function buildMeta(options: InternalRequestOptions): DaemonRequest['meta'
   });
 }
 
-export function resolveSessionName(defaultSession: string | undefined, session: string | undefined): string {
+export function resolveSessionName(
+  defaultSession: string | undefined,
+  session: string | undefined,
+): string {
   return session ?? defaultSession ?? DEFAULT_SESSION_NAME;
 }
 
@@ -284,16 +296,27 @@ export function readRequiredString(record: Record<string, unknown>, key: string)
   return readRequired(record, key, parseNonEmptyString, `Daemon response is missing "${key}".`);
 }
 
-export function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
+export function readOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
   return readOptional(record, key, parseNonEmptyString);
 }
 
-export function readNullableString(record: Record<string, unknown>, key: string): string | null | undefined {
+export function readNullableString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null | undefined {
   return readNullable(record, key, parseNonEmptyString);
 }
 
 function readRequiredNumber(record: Record<string, unknown>, key: string): number {
-  return readRequired(record, key, parseFiniteNumber, `Daemon response is missing numeric "${key}".`);
+  return readRequired(
+    record,
+    key,
+    parseFiniteNumber,
+    `Daemon response is missing numeric "${key}".`,
+  );
 }
 
 function readRequiredPlatform(record: Record<string, unknown>, key: string): Platform {

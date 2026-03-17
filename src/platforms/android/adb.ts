@@ -13,7 +13,9 @@ export async function ensureAdb(): Promise<void> {
 
 export function isClipboardShellUnsupported(stdout: string, stderr: string): boolean {
   const haystack = `${stdout}\n${stderr}`.toLowerCase();
-  return haystack.includes('no shell command implementation') || haystack.includes('unknown command');
+  return (
+    haystack.includes('no shell command implementation') || haystack.includes('unknown command')
+  );
 }
 
 export async function sleep(ms: number): Promise<void> {

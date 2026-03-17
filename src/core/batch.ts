@@ -40,7 +40,10 @@ export function validateAndNormalizeBatchSteps(
     throw new AppError('INVALID_ARGS', 'batch requires a non-empty batchSteps array.');
   }
   if (steps.length > maxSteps) {
-    throw new AppError('INVALID_ARGS', `batch has ${steps.length} steps; max allowed is ${maxSteps}.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `batch has ${steps.length} steps; max allowed is ${maxSteps}.`,
+    );
   }
 
   const normalized: NormalizedBatchStep[] = [];
@@ -61,12 +64,21 @@ export function validateAndNormalizeBatchSteps(
     }
     const positionals = (step.positionals ?? []) as unknown[];
     if (positionals.some((value) => typeof value !== 'string')) {
-      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} positionals must contain only strings.`);
+      throw new AppError(
+        'INVALID_ARGS',
+        `Batch step ${index + 1} positionals must contain only strings.`,
+      );
     }
-    if (step.flags !== undefined && (typeof step.flags !== 'object' || Array.isArray(step.flags) || !step.flags)) {
+    if (
+      step.flags !== undefined &&
+      (typeof step.flags !== 'object' || Array.isArray(step.flags) || !step.flags)
+    ) {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} flags must be an object.`);
     }
-    if (step.runtime !== undefined && (typeof step.runtime !== 'object' || Array.isArray(step.runtime) || !step.runtime)) {
+    if (
+      step.runtime !== undefined &&
+      (typeof step.runtime !== 'object' || Array.isArray(step.runtime) || !step.runtime)
+    ) {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} runtime must be an object.`);
     }
     normalized.push({

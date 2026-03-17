@@ -62,15 +62,18 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
 });
 
 test('parseArgs recognizes device isolation flags', () => {
-  const parsed = parseArgs([
-    'devices',
-    '--platform',
-    'ios',
-    '--ios-simulator-device-set',
-    '/tmp/tenant-a/simulators',
-    '--android-device-allowlist',
-    'emulator-5554,device-1234',
-  ], { strictFlags: true });
+  const parsed = parseArgs(
+    [
+      'devices',
+      '--platform',
+      'ios',
+      '--ios-simulator-device-set',
+      '/tmp/tenant-a/simulators',
+      '--android-device-allowlist',
+      'emulator-5554,device-1234',
+    ],
+    { strictFlags: true },
+  );
   assert.equal(parsed.command, 'devices');
   assert.equal(parsed.flags.platform, 'ios');
   assert.equal(parsed.flags.iosSimulatorDeviceSet, '/tmp/tenant-a/simulators');
@@ -97,7 +100,9 @@ test('parseArgs accepts push with payload file', () => {
 });
 
 test('parseArgs accepts install command args', () => {
-  const parsed = parseArgs(['install', 'com.example.app', './build/app.apk'], { strictFlags: true });
+  const parsed = parseArgs(['install', 'com.example.app', './build/app.apk'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'install');
   assert.deepEqual(parsed.positionals, ['com.example.app', './build/app.apk']);
 });
@@ -130,28 +135,31 @@ test('parseArgs recognizes --debug alias for verbose mode', () => {
 });
 
 test('parseArgs recognizes daemon transport/state/tenant isolation flags', () => {
-  const parsed = parseArgs([
-    'open',
-    'settings',
-    '--state-dir',
-    './tmp/ad-state',
-    '--daemon-base-url',
-    'https://remote-mac.example.test:7777/agent-device',
-    '--daemon-auth-token',
-    'remote-secret',
-    '--daemon-transport',
-    'http',
-    '--daemon-server-mode',
-    'dual',
-    '--tenant',
-    'team_alpha',
-    '--session-isolation',
-    'tenant',
-    '--run-id',
-    'run_42',
-    '--lease-id',
-    'abcd1234ef567890',
-  ], { strictFlags: true });
+  const parsed = parseArgs(
+    [
+      'open',
+      'settings',
+      '--state-dir',
+      './tmp/ad-state',
+      '--daemon-base-url',
+      'https://remote-mac.example.test:7777/agent-device',
+      '--daemon-auth-token',
+      'remote-secret',
+      '--daemon-transport',
+      'http',
+      '--daemon-server-mode',
+      'dual',
+      '--tenant',
+      'team_alpha',
+      '--session-isolation',
+      'tenant',
+      '--run-id',
+      'run_42',
+      '--lease-id',
+      'abcd1234ef567890',
+    ],
+    { strictFlags: true },
+  );
   assert.equal(parsed.flags.stateDir, './tmp/ad-state');
   assert.equal(parsed.flags.daemonBaseUrl, 'https://remote-mac.example.test:7777/agent-device');
   assert.equal(parsed.flags.daemonAuthToken, 'remote-secret');
@@ -164,28 +172,23 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
 });
 
 test('parseArgs recognizes explicit config file flag', () => {
-  const parsed = parseArgs(['open', 'settings', '--config', './agent-device.json'], { strictFlags: true });
+  const parsed = parseArgs(['open', 'settings', '--config', './agent-device.json'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'open');
   assert.equal(parsed.flags.config, './agent-device.json');
 });
 
 test('parseArgs recognizes session lock policy flag', () => {
-  const parsed = parseArgs([
-    'snapshot',
-    '--session-lock',
-    'strip',
-  ], { strictFlags: true });
+  const parsed = parseArgs(['snapshot', '--session-lock', 'strip'], { strictFlags: true });
   assert.equal(parsed.command, 'snapshot');
   assert.equal(parsed.flags.sessionLock, 'strip');
 });
 
 test('parseArgs keeps deprecated session lock aliases for compatibility', () => {
-  const parsed = parseArgs([
-    'snapshot',
-    '--session-locked',
-    '--session-lock-conflicts',
-    'strip',
-  ], { strictFlags: true });
+  const parsed = parseArgs(['snapshot', '--session-locked', '--session-lock-conflicts', 'strip'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'snapshot');
   assert.equal(parsed.flags.sessionLocked, true);
   assert.equal(parsed.flags.sessionLockConflicts, 'strip');
@@ -197,7 +200,8 @@ test('batch requires exactly one step source', () => {
     /requires exactly one step source/,
   );
   assert.throws(
-    () => parseArgs(['batch', '--steps', '[]', '--steps-file', './steps.json'], { strictFlags: true }),
+    () =>
+      parseArgs(['batch', '--steps', '[]', '--steps-file', './steps.json'], { strictFlags: true }),
     /requires exactly one step source/,
   );
   const inline = parseArgs(['batch', '--steps', '[]'], { strictFlags: true });
@@ -269,7 +273,9 @@ test('parseArgs recognizes press series flags', () => {
 });
 
 test('parseArgs recognizes press selector + snapshot flags', () => {
-  const parsed = parseArgs(['press', '@e2', '--depth', '3', '--scope', 'Sign In', '--raw'], { strictFlags: true });
+  const parsed = parseArgs(['press', '@e2', '--depth', '3', '--scope', 'Sign In', '--raw'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'press');
   assert.deepEqual(parsed.positionals, ['@e2']);
   assert.equal(parsed.flags.snapshotDepth, 3);
@@ -278,7 +284,9 @@ test('parseArgs recognizes press selector + snapshot flags', () => {
 });
 
 test('parseArgs recognizes click series flags', () => {
-  const parsed = parseArgs(['click', '@e5', '--count', '4', '--interval-ms', '10'], { strictFlags: true });
+  const parsed = parseArgs(['click', '@e5', '--count', '4', '--interval-ms', '10'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'click');
   assert.deepEqual(parsed.positionals, ['@e5']);
   assert.equal(parsed.flags.count, 4);
@@ -286,7 +294,9 @@ test('parseArgs recognizes click series flags', () => {
 });
 
 test('parseArgs recognizes double-tap flag for repeated press', () => {
-  const parsed = parseArgs(['press', '201', '545', '--count', '5', '--double-tap'], { strictFlags: true });
+  const parsed = parseArgs(['press', '201', '545', '--count', '5', '--double-tap'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'press');
   assert.deepEqual(parsed.positionals, ['201', '545']);
   assert.equal(parsed.flags.count, 5);
@@ -316,7 +326,9 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
 });
 
 test('parseArgs recognizes record --fps flag', () => {
-  const parsed = parseArgs(['record', 'start', './capture.mp4', '--fps', '30'], { strictFlags: true });
+  const parsed = parseArgs(['record', 'start', './capture.mp4', '--fps', '30'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'record');
   assert.deepEqual(parsed.positionals, ['start', './capture.mp4']);
   assert.equal(parsed.flags.fps, 30);
@@ -351,7 +363,9 @@ test('parseArgs supports metrics alias for perf', () => {
 });
 
 test('parseArgs supports trigger-app-event payload argument', () => {
-  const parsed = parseArgs(['trigger-app-event', 'screenshot_taken', '{"source":"qa"}'], { strictFlags: true });
+  const parsed = parseArgs(['trigger-app-event', 'screenshot_taken', '{"source":"qa"}'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'trigger-app-event');
   assert.deepEqual(parsed.positionals, ['screenshot_taken', '{"source":"qa"}']);
 });
@@ -445,7 +459,9 @@ test('strict mode rejects unsupported pilot-command flags', () => {
 });
 
 test('snapshot command accepts command-specific flags', () => {
-  const parsed = parseArgs(['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login'], { strictFlags: true });
+  const parsed = parseArgs(['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'snapshot');
   assert.equal(parsed.flags.snapshotInteractiveOnly, true);
   assert.equal(parsed.flags.snapshotCompact, true);
@@ -454,7 +470,10 @@ test('snapshot command accepts command-specific flags', () => {
 });
 
 test('diff snapshot command accepts snapshot flags', () => {
-  const parsed = parseArgs(['diff', 'snapshot', '-i', '--depth', '4', '--scope', 'Counter', '--raw'], { strictFlags: true });
+  const parsed = parseArgs(
+    ['diff', 'snapshot', '-i', '--depth', '4', '--scope', 'Counter', '--raw'],
+    { strictFlags: true },
+  );
   assert.equal(parsed.command, 'diff');
   assert.deepEqual(parsed.positionals, ['snapshot']);
   assert.equal(parsed.flags.snapshotInteractiveOnly, true);
@@ -580,7 +599,10 @@ test('settings usage documents canonical faceid states', () => {
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /light\|dark\|toggle/);
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
-  assert.match(help, /camera\|microphone\|photos\|contacts\|contacts-limited\|notifications\|calendar\|location\|location-always\|media-library\|motion\|reminders\|siri/);
+  assert.match(
+    help,
+    /camera\|microphone\|photos\|contacts\|contacts-limited\|notifications\|calendar\|location\|location-always\|media-library\|motion\|reminders\|siri/,
+  );
   assert.doesNotMatch(help, /validate\|unvalidate/);
 });
 

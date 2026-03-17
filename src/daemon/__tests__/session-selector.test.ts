@@ -54,7 +54,9 @@ test('accepts --platform apple alias for ios sessions', () => {
       booted: true,
     },
   });
-  assert.doesNotThrow(() => assertSessionSelectorMatches(session, { platform: 'apple', target: 'tv' }));
+  assert.doesNotThrow(() =>
+    assertSessionSelectorMatches(session, { platform: 'apple', target: 'tv' }),
+  );
 });
 
 test('rejects mismatched serial selector', () => {

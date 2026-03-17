@@ -28,7 +28,7 @@
     "build:xcuitest:tvos": "rm -rf ~/.agent-device/ios-runner/derived/tvos && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=tvOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived/tvos",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
-    "format": "prettier --write .",
+    "format": "prettier --write src test skills",
     "prepublishOnly": "pnpm build:all",
     "prepack": "pnpm build:all",
     "typecheck": "tsc -p tsconfig.json",

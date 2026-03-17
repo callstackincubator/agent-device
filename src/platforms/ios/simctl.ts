@@ -5,19 +5,13 @@ type SimctlArgsOptions = {
   simulatorSetPath?: string;
 };
 
-export function buildSimctlArgs(
-  args: string[],
-  options: SimctlArgsOptions = {},
-): string[] {
+export function buildSimctlArgs(args: string[], options: SimctlArgsOptions = {}): string[] {
   const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
   if (!simulatorSetPath) return ['simctl', ...args];
   return ['simctl', '--set', simulatorSetPath, ...args];
 }
 
-export function buildSimctlArgsForDevice(
-  device: DeviceInfo,
-  args: string[],
-): string[] {
+export function buildSimctlArgsForDevice(device: DeviceInfo, args: string[]): string[] {
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     return ['simctl', ...args];
   }

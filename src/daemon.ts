@@ -37,7 +37,13 @@ const token = crypto.randomBytes(24).toString('hex');
 const daemonProcessStartTime = readProcessStartTime(process.pid) ?? undefined;
 const daemonCodeSignature = resolveDaemonCodeSignature();
 
-const handleRequest = createRequestHandler({ logPath, token, sessionStore, leaseRegistry, trackDownloadableArtifact });
+const handleRequest = createRequestHandler({
+  logPath,
+  token,
+  sessionStore,
+  leaseRegistry,
+  trackDownloadableArtifact,
+});
 
 async function start(): Promise<void> {
   const lockData = {

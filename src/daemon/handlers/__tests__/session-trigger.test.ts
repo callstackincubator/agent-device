@@ -24,7 +24,10 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 }
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
-  return { ok: false, error: { code: 'INVALID_ARGS', message: 'invoke should not be called in trigger tests' } };
+  return {
+    ok: false,
+    error: { code: 'INVALID_ARGS', message: 'invoke should not be called in trigger tests' },
+  };
 };
 
 test('trigger-app-event requires active session or explicit device selector', async () => {
@@ -79,7 +82,10 @@ test('trigger-app-event supports explicit selector without active session', asyn
       assert.equal(device.platform, 'android');
       assert.equal(command, 'trigger-app-event');
       assert.deepEqual(positionals, ['screenshot_taken']);
-      return { event: 'screenshot_taken', eventUrl: 'myapp://agent-device/event?name=screenshot_taken' };
+      return {
+        event: 'screenshot_taken',
+        eventUrl: 'myapp://agent-device/event?name=screenshot_taken',
+      };
     },
   });
 

@@ -70,8 +70,15 @@ test('retryWithPolicy publishes retry diagnostics events', async () => {
       },
     );
     assert.ok(outPath);
-    const rows = fs.readFileSync(outPath as string, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-    assert.equal(rows.some((row) => row.phase === 'retry'), true);
+    const rows = fs
+      .readFileSync(outPath as string, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert.equal(
+      rows.some((row) => row.phase === 'retry'),
+      true,
+    );
   } finally {
     process.env.HOME = previousHome;
   }

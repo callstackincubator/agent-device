@@ -40,19 +40,23 @@ test('trigger-app-event reports missing URL template as UNSUPPORTED_OPERATION', 
       },
     );
   } finally {
-    if (previousGlobalTemplate === undefined) delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
+    if (previousGlobalTemplate === undefined)
+      delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = previousGlobalTemplate;
-    if (previousAndroidTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousAndroidTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousAndroidTemplate;
   }
 });
 
 test('trigger-app-event validates payload JSON', async () => {
   const previousTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
-  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = 'myapp://agent-device/event?name={event}&payload={payload}';
+  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE =
+    'myapp://agent-device/event?name={event}&payload={payload}';
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken', '{invalid-json']),
+      () =>
+        dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken', '{invalid-json']),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -61,7 +65,8 @@ test('trigger-app-event validates payload JSON', async () => {
       },
     );
   } finally {
-    if (previousTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousTemplate;
   }
 });
@@ -86,35 +91,34 @@ test('trigger-app-event opens deep link with encoded event payload', async () =>
     'myapp://agent-device/event?name={event}&payload={payload}&platform={platform}';
 
   try {
-    const result = await dispatchCommand(
-      ANDROID_DEVICE,
-      'trigger-app-event',
-      ['screenshot_taken', '{"source":"qa","count":2}'],
-    );
+    const result = await dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', [
+      'screenshot_taken',
+      '{"source":"qa","count":2}',
+    ]);
     assert.equal(result?.event, 'screenshot_taken');
     assert.equal(result?.transport, 'deep-link');
     const expectedUrl =
       'myapp://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22qa%22%2C%22count%22%3A2%7D&platform=android';
     assert.equal(result?.eventUrl, expectedUrl);
 
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(args.includes('-d'), true);
     assert.equal(args.includes(expectedUrl), true);
   } finally {
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
     else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    if (previousTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousTemplate;
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 });
 
 test('trigger-app-event prefers platform-specific template over global template', async () => {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-dispatch-trigger-template-'));
+  const tempDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-dispatch-trigger-template-'),
+  );
   const adbPath = path.join(tempDir, 'adb');
   const argsLogPath = path.join(tempDir, 'args.log');
   await fs.writeFile(
@@ -140,9 +144,11 @@ test('trigger-app-event prefers platform-specific template over global template'
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
     else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    if (previousGlobalTemplate === undefined) delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
+    if (previousGlobalTemplate === undefined)
+      delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = previousGlobalTemplate;
-    if (previousAndroidTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousAndroidTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousAndroidTemplate;
     await fs.rm(tempDir, { recursive: true, force: true });
   }
@@ -166,7 +172,8 @@ test('trigger-app-event supports iOS device path and prefers iOS template', asyn
   process.env.PATH = `${tempDir}${path.delimiter}${previousPath ?? ''}`;
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
   process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = 'myapp://global?name={event}';
-  process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE = 'myapp://ios?name={event}&payload={payload}';
+  process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE =
+    'myapp://ios?name={event}&payload={payload}';
 
   try {
     const result = await dispatchCommand(
@@ -178,10 +185,7 @@ test('trigger-app-event supports iOS device path and prefers iOS template', asyn
     );
     const expectedUrl = 'myapp://ios?name=screenshot_taken&payload=%7B%22source%22%3A%22ios%22%7D';
     assert.equal(result?.eventUrl, expectedUrl);
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.deepEqual(args, [
       'devicectl',
       'device',
@@ -197,9 +201,11 @@ test('trigger-app-event supports iOS device path and prefers iOS template', asyn
     process.env.PATH = previousPath;
     if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
     else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-    if (previousGlobalTemplate === undefined) delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
+    if (previousGlobalTemplate === undefined)
+      delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = previousGlobalTemplate;
-    if (previousIosTemplate === undefined) delete process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE;
+    if (previousIosTemplate === undefined)
+      delete process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE = previousIosTemplate;
     await fs.rm(tempDir, { recursive: true, force: true });
   }
@@ -207,7 +213,8 @@ test('trigger-app-event supports iOS device path and prefers iOS template', asyn
 
 test('trigger-app-event rejects invalid event names', async () => {
   const previousTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
-  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = 'myapp://agent-device/event?name={event}';
+  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE =
+    'myapp://agent-device/event?name={event}';
   try {
     await assert.rejects(
       () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['bad event']),
@@ -219,18 +226,24 @@ test('trigger-app-event rejects invalid event names', async () => {
       },
     );
   } finally {
-    if (previousTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousTemplate;
   }
 });
 
 test('trigger-app-event rejects payloads that exceed size limits', async () => {
   const previousTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
-  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = 'myapp://agent-device/event?name={event}&payload={payload}';
+  process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE =
+    'myapp://agent-device/event?name={event}&payload={payload}';
   const oversizedPayload = JSON.stringify({ value: 'x'.repeat(9000) });
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken', oversizedPayload]),
+      () =>
+        dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', [
+          'screenshot_taken',
+          oversizedPayload,
+        ]),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -239,7 +252,8 @@ test('trigger-app-event rejects payloads that exceed size limits', async () => {
       },
     );
   } finally {
-    if (previousTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousTemplate;
   }
 });
@@ -258,7 +272,8 @@ test('trigger-app-event rejects event URLs that exceed length limits', async () 
       },
     );
   } finally {
-    if (previousTemplate === undefined) delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    if (previousTemplate === undefined)
+      delete process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = previousTemplate;
   }
 });

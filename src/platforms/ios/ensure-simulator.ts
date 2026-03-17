@@ -32,7 +32,9 @@ type EnsureSimulatorOptions = {
   ensureReady: (device: DeviceInfo) => Promise<void>;
 };
 
-export async function ensureSimulatorExists(options: EnsureSimulatorOptions): Promise<EnsureSimulatorResult> {
+export async function ensureSimulatorExists(
+  options: EnsureSimulatorOptions,
+): Promise<EnsureSimulatorResult> {
   const { deviceName, runtime, simulatorSetPath, reuseExisting, boot, ensureReady } = options;
 
   if (process.platform !== 'darwin') {

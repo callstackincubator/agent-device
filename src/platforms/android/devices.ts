@@ -87,7 +87,9 @@ export function parseAndroidTargetFromCharacteristics(rawOutput: string): 'tv' |
 }
 
 export function parseAndroidFeatureListForTv(rawOutput: string): boolean {
-  return /feature:android\.(software\.leanback(_only)?|hardware\.type\.television)\b/i.test(rawOutput);
+  return /feature:android\.(software\.leanback(_only)?|hardware\.type\.television)\b/i.test(
+    rawOutput,
+  );
 }
 
 async function probeAndroidFeature(serial: string, feature: string): Promise<boolean | null> {
@@ -113,11 +115,17 @@ async function hasAnyAndroidTvFeature(serial: string): Promise<boolean> {
 }
 
 async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
-  const characteristicsResult = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']), {
-    allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
-  });
-  const characteristicsTarget = parseAndroidTargetFromCharacteristics(commandOutput(characteristicsResult));
+  const characteristicsResult = await runCmd(
+    'adb',
+    adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']),
+    {
+      allowFailure: true,
+      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+    },
+  );
+  const characteristicsTarget = parseAndroidTargetFromCharacteristics(
+    commandOutput(characteristicsResult),
+  );
   if (characteristicsTarget === 'tv') {
     return 'tv';
   }
@@ -141,34 +149,37 @@ async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
   return 'mobile';
 }
 
-export async function listAndroidDevices(options: AndroidDeviceDiscoveryOptions = {}): Promise<DeviceInfo[]> {
+export async function listAndroidDevices(
+  options: AndroidDeviceDiscoveryOptions = {},
+): Promise<DeviceInfo[]> {
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
     throw new AppError('TOOL_MISSING', 'adb not found in PATH');
   }
-  const serialAllowlist =
-    options.serialAllowlist
-    ?? resolveAndroidSerialAllowlist(undefined);
+  const serialAllowlist = options.serialAllowlist ?? resolveAndroidSerialAllowlist(undefined);
 
   const entries = await listAndroidDeviceEntries();
-  const filteredEntries = entries.filter((entry) =>
-    !serialAllowlist || serialAllowlist.has(entry.serial));
+  const filteredEntries = entries.filter(
+    (entry) => !serialAllowlist || serialAllowlist.has(entry.serial),
+  );
 
-  const devices = await Promise.all(filteredEntries.map(async ({ serial, rawModel }) => {
-    const [name, booted, target] = await Promise.all([
-      resolveAndroidDeviceName(serial, rawModel),
-      isAndroidBooted(serial),
-      resolveAndroidTarget(serial),
-    ]);
-    return {
-      platform: 'android',
-      id: serial,
-      name,
-      kind: isEmulatorSerial(serial) ? 'emulator' : 'device',
-      target,
-      booted,
-    } satisfies DeviceInfo;
-  }));
+  const devices = await Promise.all(
+    filteredEntries.map(async ({ serial, rawModel }) => {
+      const [name, booted, target] = await Promise.all([
+        resolveAndroidDeviceName(serial, rawModel),
+        isAndroidBooted(serial),
+        resolveAndroidTarget(serial),
+      ]);
+      return {
+        platform: 'android',
+        id: serial,
+        name,
+        kind: isEmulatorSerial(serial) ? 'emulator' : 'device',
+        target,
+        booted,
+      } satisfies DeviceInfo;
+    }),
+  );
 
   return devices;
 }
@@ -204,7 +215,10 @@ export function parseAndroidAvdList(rawOutput: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-export function resolveAndroidAvdName(avdNames: string[], requestedName: string): string | undefined {
+export function resolveAndroidAvdName(
+  avdNames: string[],
+  requestedName: string,
+): string | undefined {
   const direct = avdNames.find((name) => name === requestedName);
   if (direct) return direct;
   const target = normalizeAndroidName(requestedName);
@@ -334,7 +348,11 @@ export async function ensureAndroidEmulatorBooted(params: {
   }
 
   const startedAt = Date.now();
-  const existing = findAndroidEmulatorByAvdName(await listAndroidDevices(), resolvedAvdName, params.serial);
+  const existing = findAndroidEmulatorByAvdName(
+    await listAndroidDevices(),
+    resolvedAvdName,
+    params.serial,
+  );
   if (!existing) {
     const launchArgs = ['-avd', resolvedAvdName];
     if (params.headless) {
@@ -344,8 +362,8 @@ export async function ensureAndroidEmulatorBooted(params: {
   }
 
   const discovered =
-    existing
-    ?? (await waitForAndroidEmulatorByAvdName({
+    existing ??
+    (await waitForAndroidEmulatorByAvdName({
       avdName: resolvedAvdName,
       serial: params.serial,
       timeoutMs,
@@ -464,7 +482,11 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
       exitCode,
     };
     if (timedOut || reason === 'ANDROID_BOOT_TIMEOUT') {
-      throw new AppError('COMMAND_FAILED', 'Android device did not finish booting in time', baseDetails);
+      throw new AppError(
+        'COMMAND_FAILED',
+        'Android device did not finish booting in time',
+        baseDetails,
+      );
     }
     if (appErr.code === 'TOOL_MISSING') {
       throw new AppError('TOOL_MISSING', appErr.message, {
@@ -478,9 +500,14 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
         ...(appErr.details ?? {}),
       });
     }
-    throw new AppError(appErr.code, appErr.message, {
-      ...baseDetails,
-      ...(appErr.details ?? {}),
-    }, appErr.cause);
+    throw new AppError(
+      appErr.code,
+      appErr.message,
+      {
+        ...baseDetails,
+        ...(appErr.details ?? {}),
+      },
+      appErr.cause,
+    );
   }
 }

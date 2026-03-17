@@ -13,7 +13,9 @@ const NO_INDEX = 0xffffffff;
 const utf16Decoder = new TextDecoder('utf-16le');
 let aaptPathCache: string | null | undefined;
 
-export async function resolveAndroidArchivePackageName(archivePath: string): Promise<string | undefined> {
+export async function resolveAndroidArchivePackageName(
+  archivePath: string,
+): Promise<string | undefined> {
   for (const entry of ['AndroidManifest.xml', 'base/manifest/AndroidManifest.xml']) {
     const manifest = await readZipEntry(archivePath, entry);
     if (!manifest) continue;
@@ -39,7 +41,10 @@ async function readZipEntry(archivePath: string, entry: string): Promise<Buffer 
 }
 
 function parseAndroidManifestPackageName(manifest: Buffer): string | undefined {
-  const textCandidate = manifest.subarray(0, Math.min(manifest.length, 128)).toString('utf8').trimStart();
+  const textCandidate = manifest
+    .subarray(0, Math.min(manifest.length, 128))
+    .toString('utf8')
+    .trimStart();
   if (textCandidate.startsWith('<')) {
     return parseTextManifestPackageName(manifest.toString('utf8'));
   }
@@ -57,7 +62,7 @@ function parseBinaryManifestPackageName(buffer: Buffer): string | undefined {
   }
 
   let strings: string[] | undefined;
-  for (let offset = buffer.readUInt16LE(2); offset + 8 <= buffer.length;) {
+  for (let offset = buffer.readUInt16LE(2); offset + 8 <= buffer.length; ) {
     const type = buffer.readUInt16LE(offset);
     const headerSize = buffer.readUInt16LE(offset + 2);
     const chunkSize = buffer.readUInt32LE(offset + 4);
@@ -95,7 +100,7 @@ function parseStartElementPackageName(
   const attributeCount = buffer.readUInt16LE(chunkOffset + 28);
   const firstAttributeOffset = chunkOffset + attributeStart;
   for (let index = 0; index < attributeCount; index += 1) {
-    const attributeOffset = firstAttributeOffset + (index * attributeSize);
+    const attributeOffset = firstAttributeOffset + index * attributeSize;
     if (attributeOffset + 20 > buffer.length) {
       return undefined;
     }
@@ -126,11 +131,13 @@ function parseStringPool(chunk: Buffer): string[] {
   const strings: string[] = [];
 
   for (let index = 0; index < stringCount; index += 1) {
-    const offsetPosition = offsetsStart + (index * 4);
+    const offsetPosition = offsetsStart + index * 4;
     if (offsetPosition + 4 > chunk.length) return strings;
     const stringOffset = chunk.readUInt32LE(offsetPosition);
     const absoluteOffset = stringsStart + stringOffset;
-    strings.push(isUtf8 ? readUtf8String(chunk, absoluteOffset) : readUtf16String(chunk, absoluteOffset));
+    strings.push(
+      isUtf8 ? readUtf8String(chunk, absoluteOffset) : readUtf16String(chunk, absoluteOffset),
+    );
   }
 
   return strings;
@@ -146,7 +153,7 @@ function readUtf8String(chunk: Buffer, offset: number): string {
 function readUtf16String(chunk: Buffer, offset: number): string {
   const [charLength, lengthBytes] = readLength16(chunk, offset);
   const start = offset + lengthBytes;
-  return utf16Decoder.decode(chunk.subarray(start, start + (charLength * 2)));
+  return utf16Decoder.decode(chunk.subarray(start, start + charLength * 2));
 }
 
 function readLength8(chunk: Buffer, offset: number): [number, number] {
@@ -163,7 +170,9 @@ function readLength16(chunk: Buffer, offset: number): [number, number] {
   return [((first & 0x7fff) << 16) | second, 4];
 }
 
-async function resolveAndroidArchivePackageNameWithAapt(archivePath: string): Promise<string | undefined> {
+async function resolveAndroidArchivePackageNameWithAapt(
+  archivePath: string,
+): Promise<string | undefined> {
   const aaptPath = await resolveAaptPath();
   if (!aaptPath) return undefined;
   const result = await runCmd(aaptPath, ['dump', 'badging', archivePath], { allowFailure: true });
@@ -186,7 +195,9 @@ async function resolveAaptPath(): Promise<string | undefined> {
   try {
     const buildToolsDir = path.join(androidHome, 'build-tools');
     const versions = await fs.readdir(buildToolsDir);
-    const sortedVersions = versions.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    const sortedVersions = versions.sort((a, b) =>
+      b.localeCompare(a, undefined, { numeric: true }),
+    );
     for (const version of sortedVersions) {
       const candidate = path.join(buildToolsDir, version, 'aapt');
       try {

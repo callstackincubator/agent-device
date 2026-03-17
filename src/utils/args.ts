@@ -86,8 +86,12 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
   return { command, positionals, flags, warnings, providedFlags };
 }
 
-export function finalizeParsedArgs(parsed: RawParsedArgs, options?: FinalizeArgsOptions): ParsedArgs {
-  const strictFlags = options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
+export function finalizeParsedArgs(
+  parsed: RawParsedArgs,
+  options?: FinalizeArgsOptions,
+): ParsedArgs {
+  const strictFlags =
+    options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
   const warnings = [...parsed.warnings];
   const flags = mergeDefinedFlags(
     { json: false, help: false, version: false } as CliFlags,
@@ -95,7 +99,9 @@ export function finalizeParsedArgs(parsed: RawParsedArgs, options?: FinalizeArgs
   );
   mergeDefinedFlags(flags, parsed.flags);
   const commandSchema = getCommandSchema(parsed.command);
-  const disallowed = parsed.providedFlags.filter((entry) => !isFlagSupportedForCommand(entry.key, parsed.command));
+  const disallowed = parsed.providedFlags.filter(
+    (entry) => !isFlagSupportedForCommand(entry.key, parsed.command),
+  );
   if (disallowed.length > 0) {
     const unsupported = disallowed.map((entry) => entry.token);
     const message = formatUnsupportedFlagMessage(parsed.command, unsupported);
@@ -114,16 +120,16 @@ export function finalizeParsedArgs(parsed: RawParsedArgs, options?: FinalizeArgs
     }
   }
   if (commandSchema?.defaults) {
-    for (const [key, value] of Object.entries(commandSchema.defaults) as Array<[FlagKey, unknown]>) {
+    for (const [key, value] of Object.entries(commandSchema.defaults) as Array<
+      [FlagKey, unknown]
+    >) {
       if ((flags as Record<string, unknown>)[key] === undefined) {
         (flags as Record<string, unknown>)[key] = value;
       }
     }
   }
   if (parsed.command === 'batch') {
-    const stepSourceCount =
-      (flags.steps ? 1 : 0) +
-      (flags.stepsFile ? 1 : 0);
+    const stepSourceCount = (flags.steps ? 1 : 0) + (flags.stepsFile ? 1 : 0);
     if (stepSourceCount !== 1) {
       throw new AppError(
         'INVALID_ARGS',
@@ -161,7 +167,10 @@ function parseFlagValue(
   if (definition.type === 'booleanOrString') {
     if (inlineValue !== undefined) {
       if (inlineValue.trim().length === 0) {
-        throw new AppError('INVALID_ARGS', `Flag ${token} requires a non-empty value when provided.`);
+        throw new AppError(
+          'INVALID_ARGS',
+          `Flag ${token} requires a non-empty value when provided.`,
+        );
       }
       return { value: inlineValue, consumeNext: false };
     }
@@ -218,7 +227,12 @@ function shouldConsumeOptionalPathValue(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) return false;
-  if (trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('~/') || trimmed.startsWith('/')) {
+  if (
+    trimmed.startsWith('./') ||
+    trimmed.startsWith('../') ||
+    trimmed.startsWith('~/') ||
+    trimmed.startsWith('/')
+  ) {
     return true;
   }
   if (trimmed.includes('/') || trimmed.includes('\\')) return true;
@@ -255,7 +269,9 @@ function formatUnsupportedFlagMessage(command: string | null, unsupported: strin
     : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
 }
 
-export function toDaemonFlags(flags: CliFlags): Omit<CliFlags, 'json' | 'config' | 'help' | 'version'> {
+export function toDaemonFlags(
+  flags: CliFlags,
+): Omit<CliFlags, 'json' | 'config' | 'help' | 'version'> {
   const {
     json: _json,
     config: _config,

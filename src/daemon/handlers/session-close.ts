@@ -6,10 +6,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
-import {
-  clearRuntimeHintsFromApp,
-  hasRuntimeTransportHints,
-} from '../runtime-hints.ts';
+import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
@@ -26,7 +23,10 @@ async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   stdout: string;
   stderr: string;
 }> {
-  const result = await runCmd('adb', ['-s', device.id, 'emu', 'kill'], { allowFailure: true, timeoutMs: 15_000 });
+  const result = await runCmd('adb', ['-s', device.id, 'emu', 'kill'], {
+    allowFailure: true,
+    timeoutMs: 15_000,
+  });
   return {
     success: result.exitCode === 0,
     exitCode: result.exitCode,
@@ -75,7 +75,13 @@ export async function handleCloseCommand(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatch: (device: DeviceInfo, command: string, positionals: string[], out?: string, context?: Record<string, unknown>) => Promise<Record<string, unknown> | void>;
+  dispatch: (
+    device: DeviceInfo,
+    command: string,
+    positionals: string[],
+    out?: string,
+    context?: Record<string, unknown>,
+  ) => Promise<Record<string, unknown> | void>;
   stopIosRunner?: typeof stopIosRunnerSession;
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   settleSimulator?: typeof settleIosSimulator;

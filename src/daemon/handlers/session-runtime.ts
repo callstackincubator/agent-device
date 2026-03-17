@@ -1,25 +1,23 @@
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
-import type {
-  DaemonRequest,
-  DaemonResponse,
-  SessionRuntimeHints,
-  SessionState,
-} from '../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { hasRuntimeTransportHints, type clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 
-const RUNTIME_HINT_FIELD_NAMES = ['platform', 'metroHost', 'metroPort', 'bundleUrl', 'launchUrl'] as const;
+const RUNTIME_HINT_FIELD_NAMES = [
+  'platform',
+  'metroHost',
+  'metroPort',
+  'bundleUrl',
+  'launchUrl',
+] as const;
 
 export function countConfiguredRuntimeHints(runtime: SessionRuntimeHints | undefined): number {
   if (!runtime) return 0;
-  return [
-    runtime.metroHost,
-    runtime.metroPort,
-    runtime.bundleUrl,
-    runtime.launchUrl,
-  ].filter((value) => value !== undefined && value !== '').length;
+  return [runtime.metroHost, runtime.metroPort, runtime.bundleUrl, runtime.launchUrl].filter(
+    (value) => value !== undefined && value !== '',
+  ).length;
 }
 
 function trimRuntimeString(value: string | undefined): string | undefined {
@@ -64,7 +62,10 @@ function normalizeRuntimePlatformInput(
 ): 'ios' | 'android' | undefined {
   if (value === undefined) return platform;
   if (value !== 'ios' && value !== 'android') {
-    throw new AppError('INVALID_ARGS', `Invalid open runtime platform: ${String(value)}. Use "ios" or "android".`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid open runtime platform: ${String(value)}. Use "ios" or "android".`,
+    );
   }
   if (platform && value !== platform) {
     throw new AppError(
@@ -113,7 +114,8 @@ function normalizeExplicitRuntimeHints(params: {
   }
   const runtimeRecord = runtime as Record<string, unknown>;
   const unknownField = Object.keys(runtimeRecord).find(
-    (fieldName) => !RUNTIME_HINT_FIELD_NAMES.includes(fieldName as typeof RUNTIME_HINT_FIELD_NAMES[number]),
+    (fieldName) =>
+      !RUNTIME_HINT_FIELD_NAMES.includes(fieldName as (typeof RUNTIME_HINT_FIELD_NAMES)[number]),
   );
   if (unknownField) {
     throw new AppError(
@@ -188,13 +190,18 @@ function resolveOpenRuntimeHints(params: {
     };
   }
   return {
-    runtime: explicitRuntime && countConfiguredRuntimeHints(explicitRuntime) > 0 ? explicitRuntime : undefined,
+    runtime:
+      explicitRuntime && countConfiguredRuntimeHints(explicitRuntime) > 0
+        ? explicitRuntime
+        : undefined,
     previousRuntime,
     replacedStoredRuntime: true,
   };
 }
 
-export function tryResolveOpenRuntimeHints(params: Parameters<typeof resolveOpenRuntimeHints>[0]):
+export function tryResolveOpenRuntimeHints(
+  params: Parameters<typeof resolveOpenRuntimeHints>[0],
+):
   | { ok: true; data: ReturnType<typeof resolveOpenRuntimeHints> }
   | { ok: false; response: DaemonResponse } {
   try {
@@ -267,10 +274,10 @@ export async function maybeClearRemovedRuntimeTransportHints(params: {
 }): Promise<void> {
   const { replacedStoredRuntime, previousRuntime, runtime, session, clearRuntimeHints } = params;
   if (
-    !replacedStoredRuntime
-    || !session?.appBundleId
-    || !hasRuntimeTransportHints(previousRuntime)
-    || hasRuntimeTransportHints(runtime)
+    !replacedStoredRuntime ||
+    !session?.appBundleId ||
+    !hasRuntimeTransportHints(previousRuntime) ||
+    hasRuntimeTransportHints(runtime)
   ) {
     return;
   }

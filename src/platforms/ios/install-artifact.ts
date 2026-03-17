@@ -43,8 +43,8 @@ export async function prepareIosInstallArtifact(
   const materialized = await materializeInstallablePath({
     source,
     isInstallablePath: (candidatePath, stat) =>
-      (stat.isDirectory() && candidatePath.toLowerCase().endsWith('.app'))
-      || (stat.isFile() && candidatePath.toLowerCase().endsWith('.ipa')),
+      (stat.isDirectory() && candidatePath.toLowerCase().endsWith('.app')) ||
+      (stat.isFile() && candidatePath.toLowerCase().endsWith('.ipa')),
     installableLabel: 'iOS installable (.app or .ipa)',
     allowArchiveExtraction: source.kind !== 'url' || isTrustedInstallSourceUrl(source.url),
     signal: options?.signal,
@@ -52,8 +52,11 @@ export async function prepareIosInstallArtifact(
 
   const resolved = await resolveIosInstallablePath(materialized.installablePath, options);
   const bundleInfo = await readIosBundleInfo(resolved.installPath);
-  const archivePath = materialized.archivePath
-    ?? (materialized.installablePath.toLowerCase().endsWith('.ipa') ? materialized.installablePath : undefined);
+  const archivePath =
+    materialized.archivePath ??
+    (materialized.installablePath.toLowerCase().endsWith('.ipa')
+      ? materialized.installablePath
+      : undefined);
 
   return {
     archivePath,
@@ -153,7 +156,9 @@ function resolveIosPayloadBundleByHint(
   hint: string,
 ): IosPayloadAppBundle | undefined {
   const hintLower = hint.toLowerCase();
-  const directNameMatches = bundles.filter((bundle) => bundle.bundleName.toLowerCase() === hintLower);
+  const directNameMatches = bundles.filter(
+    (bundle) => bundle.bundleName.toLowerCase() === hintLower,
+  );
   if (directNameMatches.length === 1) return directNameMatches[0];
   if (directNameMatches.length > 1) {
     throw new AppError(
@@ -163,7 +168,9 @@ function resolveIosPayloadBundleByHint(
   }
 
   if (hint.includes('.')) {
-    const bundleIdMatches = bundles.filter((bundle) => bundle.bundleId?.toLowerCase() === hintLower);
+    const bundleIdMatches = bundles.filter(
+      (bundle) => bundle.bundleId?.toLowerCase() === hintLower,
+    );
     if (bundleIdMatches.length === 1) return bundleIdMatches[0];
   }
 

@@ -287,7 +287,8 @@ function isAndroidInputTextUnsupported(error: unknown): boolean {
   if (error.code !== 'COMMAND_FAILED') return false;
   const stderr = String((error.details as any)?.stderr ?? '').toLowerCase();
   if (stderr.includes("exception occurred while executing 'text'")) return true;
-  if (stderr.includes('nullpointerexception') && stderr.includes('inputshellcommand.sendtext')) return true;
+  if (stderr.includes('nullpointerexception') && stderr.includes('inputshellcommand.sendtext'))
+    return true;
   return false;
 }
 
@@ -332,10 +333,7 @@ async function readInputValueAtPoint(
     if (!text) continue;
     const area = Math.max(1, rect.width * rect.height);
     const containsPoint =
-      x >= rect.x &&
-      x <= rect.x + rect.width &&
-      y >= rect.y &&
-      y <= rect.y + rect.height;
+      x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 
     if (focused && isEditTextClass(className)) {
       if (!focusedEdit || area <= focusedEdit.area) {

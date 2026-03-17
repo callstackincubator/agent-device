@@ -88,9 +88,10 @@ export function createAgentDeviceClient(
         const shutdown = data.shutdown;
         return {
           session,
-          shutdown: typeof shutdown === 'object' && shutdown !== null
-            ? shutdown as Record<string, unknown>
-            : undefined,
+          shutdown:
+            typeof shutdown === 'object' && shutdown !== null
+              ? (shutdown as Record<string, unknown>)
+              : undefined,
           identifiers: { session },
         };
       },
@@ -120,23 +121,26 @@ export function createAgentDeviceClient(
       },
     },
     apps: {
-      install: async (options: AppDeployOptions) => normalizeDeployResult(
-        await execute('install', [options.app, options.appPath], options),
-        resolveSessionName(config.session, options.session),
-      ),
-      reinstall: async (options: AppDeployOptions) => normalizeDeployResult(
-        await execute('reinstall', [options.app, options.appPath], options),
-        resolveSessionName(config.session, options.session),
-      ),
-      installFromSource: async (options: AppInstallFromSourceOptions) => normalizeInstallFromSourceResult(
-        await execute('install_source', [], {
-          ...options,
-          installSource: options.source,
-          retainMaterializedPaths: options.retainPaths,
-          materializedPathRetentionMs: options.retentionMs,
-        }),
-        resolveSessionName(config.session, options.session),
-      ),
+      install: async (options: AppDeployOptions) =>
+        normalizeDeployResult(
+          await execute('install', [options.app, options.appPath], options),
+          resolveSessionName(config.session, options.session),
+        ),
+      reinstall: async (options: AppDeployOptions) =>
+        normalizeDeployResult(
+          await execute('reinstall', [options.app, options.appPath], options),
+          resolveSessionName(config.session, options.session),
+        ),
+      installFromSource: async (options: AppInstallFromSourceOptions) =>
+        normalizeInstallFromSourceResult(
+          await execute('install_source', [], {
+            ...options,
+            installSource: options.source,
+            retainMaterializedPaths: options.retainPaths,
+            materializedPathRetentionMs: options.retentionMs,
+          }),
+          resolveSessionName(config.session, options.session),
+        ),
       open: async (options: AppOpenOptions) => {
         const session = resolveSessionName(config.session, options.session);
         const positionals = options.url ? [options.app, options.url] : [options.app];
@@ -170,30 +174,34 @@ export function createAgentDeviceClient(
         return {
           session,
           closedApp: options.app,
-          shutdown: typeof shutdown === 'object' && shutdown !== null
-            ? shutdown as Record<string, unknown>
-            : undefined,
+          shutdown:
+            typeof shutdown === 'object' && shutdown !== null
+              ? (shutdown as Record<string, unknown>)
+              : undefined,
           identifiers: { session },
         };
       },
     },
     materializations: {
-      release: async (options: MaterializationReleaseOptions) => normalizeMaterializationReleaseResult(
-        await execute('release_materialized_paths', [], {
-          ...options,
-          materializationId: options.materializationId,
-        }),
-      ),
+      release: async (options: MaterializationReleaseOptions) =>
+        normalizeMaterializationReleaseResult(
+          await execute('release_materialized_paths', [], {
+            ...options,
+            materializationId: options.materializationId,
+          }),
+        ),
     },
     runtime: {
-      set: async (options: RuntimeSetOptions) => normalizeRuntimeResult(
-        await execute('runtime', ['set'], options),
-        resolveSessionName(config.session, options.session),
-      ),
-      show: async (options: RuntimeShowOptions = {}) => normalizeRuntimeResult(
-        await execute('runtime', ['show'], options),
-        resolveSessionName(config.session, options.session),
-      ),
+      set: async (options: RuntimeSetOptions) =>
+        normalizeRuntimeResult(
+          await execute('runtime', ['set'], options),
+          resolveSessionName(config.session, options.session),
+        ),
+      show: async (options: RuntimeShowOptions = {}) =>
+        normalizeRuntimeResult(
+          await execute('runtime', ['show'], options),
+          resolveSessionName(config.session, options.session),
+        ),
     },
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {

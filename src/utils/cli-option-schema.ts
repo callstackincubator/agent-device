@@ -73,11 +73,17 @@ export function parseOptionValueFromSource(
       return parseBooleanLiteral(value);
     }
     if (typeof value === 'string' && value.trim().length > 0) return value;
-    throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean or non-empty string.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean or non-empty string.`,
+    );
   }
   if (definition.type === 'string') {
     if (typeof value === 'string' && value.trim().length > 0) return value;
-    throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Expected non-empty string.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid value for "${rawKey}" in ${sourceLabel}. Expected non-empty string.`,
+    );
   }
   if (definition.type === 'enum') {
     if (definition.setValue !== undefined) {
@@ -91,15 +97,25 @@ export function parseOptionValueFromSource(
     }
     return value;
   }
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+  const parsed =
+    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
   if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
-    throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Expected integer.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid value for "${rawKey}" in ${sourceLabel}. Expected integer.`,
+    );
   }
   if (typeof definition.min === 'number' && parsed < definition.min) {
-    throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Must be >= ${definition.min}.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid value for "${rawKey}" in ${sourceLabel}. Must be >= ${definition.min}.`,
+    );
   }
   if (typeof definition.max === 'number' && parsed > definition.max) {
-    throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Must be <= ${definition.max}.`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid value for "${rawKey}" in ${sourceLabel}. Must be <= ${definition.max}.`,
+    );
   }
   return parsed;
 }
@@ -158,7 +174,9 @@ function primaryFlagDefinition(spec: OptionSpec): FlagDefinition {
 }
 
 function resolveSourceValueDefinition(spec: OptionSpec): FlagDefinition {
-  const explicitValueDefinition = spec.flagDefinitions.find((definition) => definition.setValue === undefined);
+  const explicitValueDefinition = spec.flagDefinitions.find(
+    (definition) => definition.setValue === undefined,
+  );
   if (explicitValueDefinition) return explicitValueDefinition;
 
   const baseDefinition = primaryFlagDefinition(spec);
@@ -188,7 +206,10 @@ function parseBooleanValue(value: unknown, sourceLabel: string, rawKey: string):
     const parsed = parseBooleanLiteral(value);
     if (parsed !== undefined) return parsed;
   }
-  throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean.`);
+  throw new AppError(
+    'INVALID_ARGS',
+    `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean.`,
+  );
 }
 
 function parseBooleanLiteral(value: string): boolean | undefined {
@@ -213,5 +234,8 @@ function parseEnumSetValue(
   }
   if (value === true) return expectedValue;
   if (value === false) return undefined;
-  throw new AppError('INVALID_ARGS', `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean or ${String(expectedValue)}.`);
+  throw new AppError(
+    'INVALID_ARGS',
+    `Invalid value for "${rawKey}" in ${sourceLabel}. Expected boolean or ${String(expectedValue)}.`,
+  );
 }

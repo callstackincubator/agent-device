@@ -11,10 +11,10 @@ export function classifyAndroidAppTarget(target: string): AndroidAppTargetKind {
   }
 
   const looksLikePath =
-    trimmed.includes('/')
-    || trimmed.includes('\\')
-    || trimmed.startsWith('.')
-    || trimmed.startsWith('~');
+    trimmed.includes('/') ||
+    trimmed.includes('\\') ||
+    trimmed.startsWith('.') ||
+    trimmed.startsWith('~');
   if (looksLikePath || !looksLikeAndroidPackageName(trimmed)) {
     return 'binary';
   }

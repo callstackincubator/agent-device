@@ -11,7 +11,11 @@ export function inferFillText(action: SessionAction): string {
     if (positionals.length >= 3) return positionals.slice(2).join(' ').trim();
     return positionals.slice(1).join(' ').trim();
   }
-  if (positionals.length >= 3 && !Number.isNaN(Number(positionals[0])) && !Number.isNaN(Number(positionals[1]))) {
+  if (
+    positionals.length >= 3 &&
+    !Number.isNaN(Number(positionals[0])) &&
+    !Number.isNaN(Number(positionals[1]))
+  ) {
     return positionals.slice(2).join(' ').trim();
   }
   return positionals.slice(1).join(' ').trim();

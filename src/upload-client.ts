@@ -61,16 +61,12 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
           try {
             const parsed = JSON.parse(body) as UploadResponse;
             if (!parsed.ok || !parsed.uploadId) {
-              reject(
-                new AppError('COMMAND_FAILED', `Upload failed: ${body}`),
-              );
+              reject(new AppError('COMMAND_FAILED', `Upload failed: ${body}`));
               return;
             }
             resolve(parsed.uploadId);
           } catch {
-            reject(
-              new AppError('COMMAND_FAILED', `Invalid upload response: ${body}`),
-            );
+            reject(new AppError('COMMAND_FAILED', `Invalid upload response: ${body}`));
           }
         });
       },
@@ -123,9 +119,7 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
       fileStream.pipe(req);
       fileStream.on('error', (err) => {
         req.destroy();
-        reject(
-          new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err),
-        );
+        reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err));
       });
     }
   });

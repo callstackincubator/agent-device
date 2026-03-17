@@ -155,6 +155,7 @@ curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
 ```
 
 Notes:
+
 - `AGENT_DEVICE_DAEMON_BASE_URL` makes the CLI skip local daemon discovery/startup and call the remote HTTP daemon directly.
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN` is sent in both the JSON-RPC request token and HTTP auth headers.
 - In remote daemon mode, `--debug` does not tail a local `daemon.log`; inspect logs on the remote host instead.
@@ -189,6 +190,7 @@ For local iOS QA in mixed simulator/device environments, use `ensure-simulator` 
 For session-bound automation, prefer `AGENT_DEVICE_SESSION` + `AGENT_DEVICE_PLATFORM`; that bound-session default now enables lock mode automatically.
 
 Isolation scoping quick reference:
+
 - `--ios-simulator-device-set <path>` scopes iOS simulator discovery + command execution to one simulator set.
 - `--android-device-allowlist <serials>` scopes Android discovery/selection to comma/space separated serials.
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`); out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
@@ -196,12 +198,14 @@ Isolation scoping quick reference:
 - In bound-session `strip` mode, conflicting per-call scope/selectors are ignored and the configured binding is restored for the request. Batch steps still inherit the parent `--platform` when they do not set their own.
 
 Simulator provisioning quick reference:
+
 - Use `ensure-simulator` to create or reuse a named iOS simulator inside a device set before starting a session.
 - `--device <name>` is required (e.g. `"iPhone 16 Pro"`). `--runtime <id>` pins the runtime; omit to use the newest compatible one.
 - `--boot` boots it immediately. Returns `udid`, `device`, `runtime`, `ios_simulator_device_set`, `created`, `booted`.
 - Idempotent: safe to call repeatedly; reuses an existing matching simulator by default.
 
 TV quick reference:
+
 - AndroidTV: `open`/`apps` use TV launcher discovery automatically.
 - TV target selection works on emulators/simulators and connected physical devices (AndroidTV + AppleTV).
 - tvOS: runner-driven interactions and snapshots are supported (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record` and related selector flows).

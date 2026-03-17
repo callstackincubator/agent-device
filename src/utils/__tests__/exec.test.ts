@@ -7,10 +7,12 @@ test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
     runCmd(process.execPath, ['-e', 'setTimeout(() => {}, 10_000)'], { timeoutMs: 100 }),
     (error: unknown) => {
       const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
-      return err?.code === 'COMMAND_FAILED' &&
+      return (
+        err?.code === 'COMMAND_FAILED' &&
         typeof err?.message === 'string' &&
         err.message.includes('timed out') &&
-        err.details?.timeoutMs === 100;
+        err.details?.timeoutMs === 100
+      );
     },
   );
 });

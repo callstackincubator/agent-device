@@ -18,7 +18,14 @@ const ANDROID_TEXT_VARIATION_VISIBLE_PASSWORD = 0x00000090;
 const ANDROID_KEYBOARD_DISMISS_MAX_ATTEMPTS = 2;
 const ANDROID_KEYBOARD_DISMISS_RETRY_DELAY_MS = 120;
 
-type AndroidKeyboardType = 'text' | 'number' | 'email' | 'phone' | 'password' | 'datetime' | 'unknown';
+type AndroidKeyboardType =
+  | 'text'
+  | 'number'
+  | 'email'
+  | 'phone'
+  | 'password'
+  | 'datetime'
+  | 'unknown';
 
 export type AndroidKeyboardState = {
   visible: boolean;
@@ -26,9 +33,7 @@ export type AndroidKeyboardState = {
   type?: AndroidKeyboardType;
 };
 
-export async function getAndroidKeyboardState(
-  device: DeviceInfo,
-): Promise<AndroidKeyboardState> {
+export async function getAndroidKeyboardState(device: DeviceInfo): Promise<AndroidKeyboardState> {
   const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'input_method']), {
     allowFailure: true,
   });
@@ -85,9 +90,8 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
   }
 
   const inputTypeMatches = Array.from(stdout.matchAll(/\binputType=0x([0-9a-fA-F]+)\b/gi));
-  const lastInputType = inputTypeMatches.length > 0
-    ? inputTypeMatches[inputTypeMatches.length - 1]?.[1]
-    : undefined;
+  const lastInputType =
+    inputTypeMatches.length > 0 ? inputTypeMatches[inputTypeMatches.length - 1]?.[1] : undefined;
   const inputType = lastInputType ? `0x${lastInputType.toLowerCase()}` : undefined;
 
   return {
@@ -123,7 +127,10 @@ function classifyAndroidKeyboardType(inputType: string): AndroidKeyboardType {
   if (inputClass !== ANDROID_INPUT_TYPE_CLASS_TEXT) return 'unknown';
 
   const variation = parsed & ANDROID_INPUT_TYPE_VARIATION_MASK;
-  if (variation === ANDROID_TEXT_VARIATION_EMAIL_ADDRESS || variation === ANDROID_TEXT_VARIATION_WEB_EMAIL_ADDRESS) {
+  if (
+    variation === ANDROID_TEXT_VARIATION_EMAIL_ADDRESS ||
+    variation === ANDROID_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+  ) {
     return 'email';
   }
   if (

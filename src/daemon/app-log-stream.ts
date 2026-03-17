@@ -2,7 +2,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import type { ExecResult } from '../utils/exec.ts';
 
-export async function waitForChildExit(wait: Promise<ExecResult>, timeoutMs = 2_000): Promise<void> {
+export async function waitForChildExit(
+  wait: Promise<ExecResult>,
+  timeoutMs = 2_000,
+): Promise<void> {
   await Promise.race([
     wait.then(() => undefined).catch(() => undefined),
     new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
@@ -57,7 +60,10 @@ export function createLineWriter(
 export function attachChildToStream(
   child: ReturnType<typeof spawn>,
   stream: fs.WriteStream,
-  options: { endStreamOnClose: boolean; writer: { onChunk: (chunk: string) => void; flush: () => void } },
+  options: {
+    endStreamOnClose: boolean;
+    writer: { onChunk: (chunk: string) => void; flush: () => void };
+  },
 ): Promise<ExecResult> {
   const stdout = child.stdout;
   const stderr = child.stderr;

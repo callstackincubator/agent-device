@@ -2,9 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { IncomingMessage } from 'node:http';
 import { AppError } from '../utils/errors.ts';
-import {
-  extractTarInstallableArtifact,
-} from './artifact-archive.ts';
+import { extractTarInstallableArtifact } from './artifact-archive.ts';
 import {
   createArtifactTempDir,
   sanitizeArtifactFilename,
@@ -12,15 +10,23 @@ import {
   validateArtifactContentLength,
 } from './artifact-download.ts';
 
-export async function receiveUpload(req: IncomingMessage): Promise<{ artifactPath: string; tempDir: string }> {
+export async function receiveUpload(
+  req: IncomingMessage,
+): Promise<{ artifactPath: string; tempDir: string }> {
   const artifactType = req.headers['x-artifact-type'] as string | undefined;
   const rawFilename = req.headers['x-artifact-filename'] as string | undefined;
 
   if (!artifactType || !rawFilename) {
-    throw new AppError('INVALID_ARGS', 'Missing required headers: x-artifact-type and x-artifact-filename');
+    throw new AppError(
+      'INVALID_ARGS',
+      'Missing required headers: x-artifact-type and x-artifact-filename',
+    );
   }
   if (artifactType !== 'file' && artifactType !== 'app-bundle') {
-    throw new AppError('INVALID_ARGS', `Invalid x-artifact-type: ${artifactType}. Must be "file" or "app-bundle".`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid x-artifact-type: ${artifactType}. Must be "file" or "app-bundle".`,
+    );
   }
 
   validateArtifactContentLength(req.headers['content-length']);

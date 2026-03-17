@@ -1,4 +1,10 @@
-import type { DaemonInstallSource, DaemonLockPolicy, DaemonRequest, DaemonResponse, SessionRuntimeHints } from './daemon/types.ts';
+import type {
+  DaemonInstallSource,
+  DaemonLockPolicy,
+  DaemonRequest,
+  DaemonResponse,
+  SessionRuntimeHints,
+} from './daemon/types.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { SnapshotNode } from './utils/snapshot.ts';
 
@@ -6,7 +12,9 @@ type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
 type SessionIsolationMode = 'none' | 'tenant';
 
-export type AgentDeviceDaemonTransport = (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>;
+export type AgentDeviceDaemonTransport = (
+  req: Omit<DaemonRequest, 'token'>,
+) => Promise<DaemonResponse>;
 
 export type AgentDeviceClientConfig = {
   session?: string;
@@ -28,7 +36,16 @@ export type AgentDeviceClientConfig = {
 
 export type AgentDeviceRequestOverrides = Pick<
   AgentDeviceClientConfig,
-  'session' | 'lockPolicy' | 'lockPlatform' | 'requestId' | 'tenant' | 'sessionIsolation' | 'runId' | 'leaseId' | 'cwd' | 'debug'
+  | 'session'
+  | 'lockPolicy'
+  | 'lockPlatform'
+  | 'requestId'
+  | 'tenant'
+  | 'sessionIsolation'
+  | 'runId'
+  | 'leaseId'
+  | 'cwd'
+  | 'debug'
 >;
 
 export type AgentDeviceIdentifiers = {
@@ -122,10 +139,11 @@ export type EnsureSimulatorResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type AppDeployOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions & {
-  app: string;
-  appPath: string;
-};
+export type AppDeployOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    app: string;
+    appPath: string;
+  };
 
 export type AppDeployResult = {
   app: string;
@@ -137,15 +155,16 @@ export type AppDeployResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type AppOpenOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions & {
-  app: string;
-  url?: string;
-  activity?: string;
-  relaunch?: boolean;
-  saveScript?: boolean | string;
-  noRecord?: boolean;
-  runtime?: SessionRuntimeHints;
-};
+export type AppOpenOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    app: string;
+    url?: string;
+    activity?: string;
+    relaunch?: boolean;
+    saveScript?: boolean | string;
+    noRecord?: boolean;
+    runtime?: SessionRuntimeHints;
+  };
 
 export type AppOpenResult = {
   session: string;
@@ -170,11 +189,12 @@ export type AppCloseResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type AppInstallFromSourceOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions & {
-  source: DaemonInstallSource;
-  retainPaths?: boolean;
-  retentionMs?: number;
-};
+export type AppInstallFromSourceOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    source: DaemonInstallSource;
+    retainPaths?: boolean;
+    retentionMs?: number;
+  };
 
 export type AppInstallFromSourceResult = {
   appName?: string;
@@ -217,13 +237,14 @@ export type RuntimeResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type CaptureSnapshotOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions & {
-  interactiveOnly?: boolean;
-  compact?: boolean;
-  depth?: number;
-  scope?: string;
-  raw?: boolean;
-};
+export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    interactiveOnly?: boolean;
+    compact?: boolean;
+    depth?: number;
+    scope?: string;
+    raw?: boolean;
+  };
 
 export type CaptureSnapshotResult = {
   nodes: SnapshotNode[];
@@ -242,38 +263,43 @@ export type CaptureScreenshotResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type InternalRequestOptions = AgentDeviceClientConfig & AgentDeviceSelectionOptions & {
-  simulatorRuntimeId?: string;
-  runtime?: SessionRuntimeHints;
-  boot?: boolean;
-  reuseExisting?: boolean;
-  activity?: string;
-  relaunch?: boolean;
-  shutdown?: boolean;
-  saveScript?: boolean | string;
-  noRecord?: boolean;
-  metroHost?: string;
-  metroPort?: number;
-  bundleUrl?: string;
-  launchUrl?: string;
-  interactiveOnly?: boolean;
-  compact?: boolean;
-  depth?: number;
-  scope?: string;
-  raw?: boolean;
-  installSource?: DaemonInstallSource;
-  retainMaterializedPaths?: boolean;
-  materializedPathRetentionMs?: number;
-  materializationId?: string;
-};
+export type InternalRequestOptions = AgentDeviceClientConfig &
+  AgentDeviceSelectionOptions & {
+    simulatorRuntimeId?: string;
+    runtime?: SessionRuntimeHints;
+    boot?: boolean;
+    reuseExisting?: boolean;
+    activity?: string;
+    relaunch?: boolean;
+    shutdown?: boolean;
+    saveScript?: boolean | string;
+    noRecord?: boolean;
+    metroHost?: string;
+    metroPort?: number;
+    bundleUrl?: string;
+    launchUrl?: string;
+    interactiveOnly?: boolean;
+    compact?: boolean;
+    depth?: number;
+    scope?: string;
+    raw?: boolean;
+    installSource?: DaemonInstallSource;
+    retainMaterializedPaths?: boolean;
+    materializedPathRetentionMs?: number;
+    materializationId?: string;
+  };
 
 export type AgentDeviceClient = {
   devices: {
-    list: (options?: AgentDeviceRequestOverrides & AgentDeviceSelectionOptions) => Promise<AgentDeviceDevice[]>;
+    list: (
+      options?: AgentDeviceRequestOverrides & AgentDeviceSelectionOptions,
+    ) => Promise<AgentDeviceDevice[]>;
   };
   sessions: {
     list: (options?: AgentDeviceRequestOverrides) => Promise<AgentDeviceSession[]>;
-    close: (options?: AgentDeviceRequestOverrides & { shutdown?: boolean }) => Promise<SessionCloseResult>;
+    close: (
+      options?: AgentDeviceRequestOverrides & { shutdown?: boolean },
+    ) => Promise<SessionCloseResult>;
   };
   simulators: {
     ensure: (options: EnsureSimulatorOptions) => Promise<EnsureSimulatorResult>;
@@ -281,7 +307,9 @@ export type AgentDeviceClient = {
   apps: {
     install: (options: AppDeployOptions) => Promise<AppDeployResult>;
     reinstall: (options: AppDeployOptions) => Promise<AppDeployResult>;
-    installFromSource: (options: AppInstallFromSourceOptions) => Promise<AppInstallFromSourceResult>;
+    installFromSource: (
+      options: AppInstallFromSourceOptions,
+    ) => Promise<AppInstallFromSourceResult>;
     open: (options: AppOpenOptions) => Promise<AppOpenResult>;
     close: (options?: AppCloseOptions) => Promise<AppCloseResult>;
   };

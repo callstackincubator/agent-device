@@ -129,7 +129,9 @@ export function healNumericGetTextDrift(
 
   const targetNode = numericNodes[0];
   if (!targetNode) return null;
-  const selectorChain = buildSelectorChainForNode(targetNode, session.device.platform, { action: 'get' });
+  const selectorChain = buildSelectorChainForNode(targetNode, session.device.platform, {
+    action: 'get',
+  });
   if (selectorChain.length === 0) return null;
   return {
     ...action,

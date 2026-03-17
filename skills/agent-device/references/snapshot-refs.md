@@ -62,6 +62,7 @@ agent-device diff snapshot -i           # Shows +/− structural lines vs prior 
 ```
 
 Efficient pattern:
+
 - Initialize once at a stable point.
 - Mutate UI (`press`, `fill`, `swipe`).
 - Run `diff snapshot` after interactions to confirm expected change shape with bounded output.

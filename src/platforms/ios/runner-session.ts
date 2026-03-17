@@ -1,5 +1,10 @@
 import { AppError } from '../../utils/errors.ts';
-import { runCmd, runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
+import {
+  runCmd,
+  runCmdBackground,
+  type ExecResult,
+  type ExecBackgroundResult,
+} from '../../utils/exec.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { isProcessAlive } from '../../utils/process-identity.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -118,13 +123,22 @@ export async function stopRunnerSession(session: RunnerSession): Promise<void> {
   });
 }
 
-async function stopRunnerSessionInternal(deviceId: string, sessionOverride?: RunnerSession): Promise<void> {
+async function stopRunnerSessionInternal(
+  deviceId: string,
+  sessionOverride?: RunnerSession,
+): Promise<void> {
   const session = sessionOverride ?? runnerSessions.get(deviceId);
   if (!session) return;
   try {
-    await waitForRunner(session.device, session.port, {
-      command: 'shutdown',
-    } as RunnerCommand, undefined, RUNNER_SHUTDOWN_TIMEOUT_MS);
+    await waitForRunner(
+      session.device,
+      session.port,
+      {
+        command: 'shutdown',
+      } as RunnerCommand,
+      undefined,
+      RUNNER_SHUTDOWN_TIMEOUT_MS,
+    );
   } catch {
     await killRunnerProcessTree(session.child.pid, 'SIGTERM');
   }
@@ -153,42 +167,58 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
 export async function abortAllIosRunnerSessions(): Promise<void> {
   const activeSessions = Array.from(runnerSessions.values());
   const prepProcesses = Array.from(runnerPrepProcesses);
-  await Promise.allSettled(activeSessions.map(async (session) => {
-    await killRunnerProcessTree(session.child.pid, 'SIGINT');
-  }));
-  await Promise.allSettled(prepProcesses.map(async (child) => {
-    await killRunnerProcessTree(child.pid, 'SIGINT');
-  }));
-  await Promise.allSettled(activeSessions.map(async (session) => {
-    await killRunnerProcessTree(session.child.pid, 'SIGTERM');
-  }));
-  await Promise.allSettled(prepProcesses.map(async (child) => {
-    await killRunnerProcessTree(child.pid, 'SIGTERM');
-  }));
-  await Promise.allSettled(activeSessions.map(async (session) => {
-    await killRunnerProcessTree(session.child.pid, 'SIGKILL');
-  }));
-  await Promise.allSettled(prepProcesses.map(async (child) => {
-    await killRunnerProcessTree(child.pid, 'SIGKILL');
-    runnerPrepProcesses.delete(child);
-  }));
+  await Promise.allSettled(
+    activeSessions.map(async (session) => {
+      await killRunnerProcessTree(session.child.pid, 'SIGINT');
+    }),
+  );
+  await Promise.allSettled(
+    prepProcesses.map(async (child) => {
+      await killRunnerProcessTree(child.pid, 'SIGINT');
+    }),
+  );
+  await Promise.allSettled(
+    activeSessions.map(async (session) => {
+      await killRunnerProcessTree(session.child.pid, 'SIGTERM');
+    }),
+  );
+  await Promise.allSettled(
+    prepProcesses.map(async (child) => {
+      await killRunnerProcessTree(child.pid, 'SIGTERM');
+    }),
+  );
+  await Promise.allSettled(
+    activeSessions.map(async (session) => {
+      await killRunnerProcessTree(session.child.pid, 'SIGKILL');
+    }),
+  );
+  await Promise.allSettled(
+    prepProcesses.map(async (child) => {
+      await killRunnerProcessTree(child.pid, 'SIGKILL');
+      runnerPrepProcesses.delete(child);
+    }),
+  );
 }
 
 export async function stopAllIosRunnerSessions(): Promise<void> {
   await abortAllIosRunnerSessions();
   const pending = Array.from(runnerSessions.keys());
-  await Promise.allSettled(pending.map(async (deviceId) => {
-    await stopIosRunnerSession(deviceId);
-  }));
+  await Promise.allSettled(
+    pending.map(async (deviceId) => {
+      await stopIosRunnerSession(deviceId);
+    }),
+  );
   const prepProcesses = Array.from(runnerPrepProcesses);
-  await Promise.allSettled(prepProcesses.map(async (child) => {
-    try {
-      await killRunnerProcessTree(child.pid, 'SIGTERM');
-      await killRunnerProcessTree(child.pid, 'SIGKILL');
-    } finally {
-      runnerPrepProcesses.delete(child);
-    }
-  }));
+  await Promise.allSettled(
+    prepProcesses.map(async (child) => {
+      try {
+        await killRunnerProcessTree(child.pid, 'SIGTERM');
+        await killRunnerProcessTree(child.pid, 'SIGKILL');
+      } finally {
+        runnerPrepProcesses.delete(child);
+      }
+    }),
+  );
 }
 
 function isRunnerProcessAlive(pid: number | undefined): boolean {
@@ -234,10 +264,16 @@ async function ensureBooted(device: DeviceInfo): Promise<void> {
 
 export function validateRunnerDevice(device: DeviceInfo): void {
   if (device.platform !== 'ios') {
-    throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform for iOS runner: ${device.platform}`);
+    throw new AppError(
+      'UNSUPPORTED_PLATFORM',
+      `Unsupported platform for iOS runner: ${device.platform}`,
+    );
   }
   if (device.kind !== 'simulator' && device.kind !== 'device') {
-    throw new AppError('UNSUPPORTED_OPERATION', `Unsupported iOS device kind for runner: ${device.kind}`);
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `Unsupported iOS device kind for runner: ${device.kind}`,
+    );
   }
 }
 
@@ -249,7 +285,15 @@ export async function executeRunnerCommandWithSession(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
-  const response = await waitForRunner(device, session.port, command, logPath, timeoutMs, session, signal);
+  const response = await waitForRunner(
+    device,
+    session.port,
+    command,
+    logPath,
+    timeoutMs,
+    session,
+    signal,
+  );
   return await parseRunnerResponse(response, session, logPath);
 }
 

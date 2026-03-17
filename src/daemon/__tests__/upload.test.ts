@@ -19,10 +19,7 @@ test('receiveUpload rejects uploads that exceed the configured content-length li
     'content-length': String(2 * 1024 * 1024 * 1024 + 1),
   });
 
-  await assert.rejects(
-    async () => await receiveUpload(req),
-    /Upload exceeds maximum size/i,
-  );
+  await assert.rejects(async () => await receiveUpload(req), /Upload exceeds maximum size/i);
 });
 
 test('receiveUpload rejects app bundle archives containing symlinks', async () => {

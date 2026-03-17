@@ -116,7 +116,10 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
   const seenPaths: string[] = [];
   let healthcheckTimeout: number | undefined;
   const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
     const req = new EventEmitter() as EventEmitter & {
       write: (chunk: string) => void;
       end: () => void;
@@ -159,14 +162,17 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
       res.setEncoding = () => {};
       process.nextTick(() => {
         callback(res);
-        res.emit('data', JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'req-remote',
-          result: {
-            ok: true,
-            data: { source: 'remote-daemon' },
-          },
-        }));
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'req-remote',
+            result: {
+              ok: true,
+              data: { source: 'remote-daemon' },
+            },
+          }),
+        );
         res.emit('end');
       });
     };
@@ -209,7 +215,10 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
 test('openApp forwards typed runtime hints on open requests', async () => {
   let rpcRequest: Record<string, unknown> | null = null;
   const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
     const req = new EventEmitter() as EventEmitter & {
       write: (chunk: string) => void;
       end: () => void;
@@ -248,14 +257,17 @@ test('openApp forwards typed runtime hints on open requests', async () => {
       res.setEncoding = () => {};
       process.nextTick(() => {
         callback(res);
-        res.emit('data', JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'req-open-app',
-          result: {
-            ok: true,
-            data: { launched: true },
-          },
-        }));
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'req-open-app',
+            result: {
+              ok: true,
+              data: { launched: true },
+            },
+          }),
+        );
         res.emit('end');
       });
     };
@@ -309,13 +321,14 @@ test('sendToDaemon rejects socket transport when remote daemon base URL is set',
 
   try {
     await assert.rejects(
-      async () => await sendToDaemon({
-        session: 'default',
-        command: 'remote-smoke',
-        positionals: [],
-        flags: { daemonTransport: 'socket' },
-        meta: { requestId: 'req-remote-socket' },
-      }),
+      async () =>
+        await sendToDaemon({
+          session: 'default',
+          command: 'remote-smoke',
+          positionals: [],
+          flags: { daemonTransport: 'socket' },
+          meta: { requestId: 'req-remote-socket' },
+        }),
       /only supports HTTP transport/,
     );
   } finally {
@@ -334,26 +347,34 @@ test('sendToDaemon uploads local install artifacts for remote daemons and passes
   class MockRequest extends Writable {
     private chunks: Buffer[] = [];
     private readonly options: Record<string, unknown>;
-    private readonly callbackFn: (res: EventEmitter & {
-      statusCode?: number;
-      resume?: () => void;
-      setEncoding: (_encoding: string) => void;
-    }) => void;
-
-    constructor(
-      options: Record<string, unknown>,
-      callbackFn: (res: EventEmitter & {
+    private readonly callbackFn: (
+      res: EventEmitter & {
         statusCode?: number;
         resume?: () => void;
         setEncoding: (_encoding: string) => void;
-      }) => void,
+      },
+    ) => void;
+
+    constructor(
+      options: Record<string, unknown>,
+      callbackFn: (
+        res: EventEmitter & {
+          statusCode?: number;
+          resume?: () => void;
+          setEncoding: (_encoding: string) => void;
+        },
+      ) => void,
     ) {
       super();
       this.options = options;
       this.callbackFn = callbackFn;
     }
 
-    _write(chunk: Buffer | string, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
+    _write(
+      chunk: Buffer | string,
+      _encoding: BufferEncoding,
+      callback: (error?: Error | null) => void,
+    ): void {
       this.chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       callback();
     }
@@ -399,14 +420,17 @@ test('sendToDaemon uploads local install artifacts for remote daemons and passes
           }
 
           rpcRequest = JSON.parse(body) as Record<string, unknown>;
-          res.emit('data', JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'req-remote-upload',
-            result: {
-              ok: true,
-              data: { source: 'remote-daemon' },
-            },
-          }));
+          res.emit(
+            'data',
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'req-remote-upload',
+              result: {
+                ok: true,
+                data: { source: 'remote-daemon' },
+              },
+            }),
+          );
           res.emit('end');
           callback?.();
         });
@@ -420,7 +444,10 @@ test('sendToDaemon uploads local install artifacts for remote daemons and passes
     }
   }
 
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: any) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: any,
+  ) => {
     return new MockRequest(options, callback) as any;
   }) as typeof http.request;
 
@@ -442,7 +469,11 @@ test('sendToDaemon uploads local install artifacts for remote daemons and passes
     });
 
     assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/upload', '/agent-device/rpc']);
+    assert.deepEqual(seenPaths, [
+      '/agent-device/health',
+      '/agent-device/upload',
+      '/agent-device/rpc',
+    ]);
     assert.equal(uploadHeaders?.authorization, 'Bearer remote-secret');
     assert.equal(uploadHeaders?.['x-agent-device-token'], 'remote-secret');
     assert.equal(uploadHeaders?.['x-artifact-type'], 'file');
@@ -464,7 +495,10 @@ test('sendToDaemon preserves explicit remote install paths without uploading', a
   const seenPaths: string[] = [];
   let rpcRequest: Record<string, unknown> | null = null;
   const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
     const req = new EventEmitter() as EventEmitter & {
       write: (chunk: string) => void;
       end: () => void;
@@ -494,14 +528,17 @@ test('sendToDaemon preserves explicit remote install paths without uploading', a
           return;
         }
         rpcRequest = JSON.parse(body) as Record<string, unknown>;
-        res.emit('data', JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'req-remote-path',
-          result: {
-            ok: true,
-            data: { source: 'remote-daemon' },
-          },
-        }));
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'req-remote-path',
+            result: {
+              ok: true,
+              data: { source: 'remote-daemon' },
+            },
+          }),
+        );
         res.emit('end');
       });
     };
@@ -535,7 +572,10 @@ test('sendToDaemon preserves install_source payload metadata for remote HTTP RPC
   const seenPaths: string[] = [];
   let rpcRequest: Record<string, unknown> | null = null;
   const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: (res: any) => void) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
     const req = new EventEmitter() as EventEmitter & {
       write: (chunk: string) => void;
       end: () => void;
@@ -565,14 +605,17 @@ test('sendToDaemon preserves install_source payload metadata for remote HTTP RPC
           return;
         }
         rpcRequest = JSON.parse(body) as Record<string, unknown>;
-        res.emit('data', JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'req-install-source',
-          result: {
-            ok: true,
-            data: { source: 'remote-daemon' },
-          },
-        }));
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'req-install-source',
+            result: {
+              ok: true,
+              data: { source: 'remote-daemon' },
+            },
+          }),
+        );
         res.emit('end');
       });
     };
@@ -626,26 +669,34 @@ test('sendToDaemon uploads local install_source path artifacts for remote daemon
   class MockRequest extends Writable {
     private chunks: Buffer[] = [];
     private readonly options: Record<string, unknown>;
-    private readonly callbackFn: (res: PassThrough & {
-      statusCode?: number;
-      resume?: () => void;
-      setEncoding: (_encoding: string) => void;
-    }) => void;
-
-    constructor(
-      options: Record<string, unknown>,
-      callbackFn: (res: PassThrough & {
+    private readonly callbackFn: (
+      res: PassThrough & {
         statusCode?: number;
         resume?: () => void;
         setEncoding: (_encoding: string) => void;
-      }) => void,
+      },
+    ) => void;
+
+    constructor(
+      options: Record<string, unknown>,
+      callbackFn: (
+        res: PassThrough & {
+          statusCode?: number;
+          resume?: () => void;
+          setEncoding: (_encoding: string) => void;
+        },
+      ) => void,
     ) {
       super();
       this.options = options;
       this.callbackFn = callbackFn;
     }
 
-    _write(chunk: Buffer | string, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
+    _write(
+      chunk: Buffer | string,
+      _encoding: BufferEncoding,
+      callback: (error?: Error | null) => void,
+    ): void {
       this.chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       callback();
     }
@@ -682,14 +733,17 @@ test('sendToDaemon uploads local install_source path artifacts for remote daemon
         }
 
         rpcRequest = JSON.parse(body) as Record<string, unknown>;
-        res.emit('data', JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'req-install-source-path',
-          result: {
-            ok: true,
-            data: { source: 'remote-daemon' },
-          },
-        }));
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'req-install-source-path',
+            result: {
+              ok: true,
+              data: { source: 'remote-daemon' },
+            },
+          }),
+        );
         res.emit('end');
         callback?.();
       });
@@ -702,7 +756,10 @@ test('sendToDaemon uploads local install_source path artifacts for remote daemon
     }
   }
 
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: any) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: any,
+  ) => {
     return new MockRequest(options, callback) as any;
   }) as typeof http.request;
 
@@ -730,7 +787,11 @@ test('sendToDaemon uploads local install_source path artifacts for remote daemon
     });
 
     assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/upload', '/agent-device/rpc']);
+    assert.deepEqual(seenPaths, [
+      '/agent-device/health',
+      '/agent-device/upload',
+      '/agent-device/rpc',
+    ]);
     assert.equal(uploadHeaders?.authorization, 'Bearer remote-secret');
     assert.equal(uploadHeaders?.['x-agent-device-token'], 'remote-secret');
     assert.equal(uploadHeaders?.['x-artifact-type'], 'file');
@@ -759,11 +820,13 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
   class MockRequest extends Writable {
     private chunks: Buffer[] = [];
     private readonly options: Record<string, unknown>;
-    private readonly callbackFn: (res: PassThrough & {
-      statusCode?: number;
-      resume?: () => void;
-      setEncoding: (_encoding: string) => void;
-    }) => void;
+    private readonly callbackFn: (
+      res: PassThrough & {
+        statusCode?: number;
+        resume?: () => void;
+        setEncoding: (_encoding: string) => void;
+      },
+    ) => void;
     private activeResponse?: PassThrough & {
       statusCode?: number;
       resume?: () => void;
@@ -772,18 +835,24 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
 
     constructor(
       options: Record<string, unknown>,
-      callbackFn: (res: PassThrough & {
-        statusCode?: number;
-        resume?: () => void;
-        setEncoding: (_encoding: string) => void;
-      }) => void,
+      callbackFn: (
+        res: PassThrough & {
+          statusCode?: number;
+          resume?: () => void;
+          setEncoding: (_encoding: string) => void;
+        },
+      ) => void,
     ) {
       super();
       this.options = options;
       this.callbackFn = callbackFn;
     }
 
-    _write(chunk: Buffer | string, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
+    _write(
+      chunk: Buffer | string,
+      _encoding: BufferEncoding,
+      callback: (error?: Error | null) => void,
+    ): void {
       this.chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       callback();
     }
@@ -821,23 +890,30 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
             callback?.();
             return;
           }
-          rpcRequest = JSON.parse(Buffer.concat(this.chunks).toString('utf8')) as Record<string, unknown>;
-          res.end(JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'req-remote-artifact',
-            result: {
-              ok: true,
-              data: {
-                path: '/tmp/remote-screenshot.png',
-                artifacts: [{
-                  field: 'path',
-                  artifactId: 'artifact-123',
-                  fileName: 'screen.png',
-                  localPath: path.join(tempRoot, 'artifacts', 'screen.png'),
-                }],
+          rpcRequest = JSON.parse(Buffer.concat(this.chunks).toString('utf8')) as Record<
+            string,
+            unknown
+          >;
+          res.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'req-remote-artifact',
+              result: {
+                ok: true,
+                data: {
+                  path: '/tmp/remote-screenshot.png',
+                  artifacts: [
+                    {
+                      field: 'path',
+                      artifactId: 'artifact-123',
+                      fileName: 'screen.png',
+                      localPath: path.join(tempRoot, 'artifacts', 'screen.png'),
+                    },
+                  ],
+                },
               },
-            },
-          }));
+            }),
+          );
           callback?.();
         });
       });
@@ -850,7 +926,10 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
     }
   }
 
-  (http as unknown as { request: typeof http.request }).request = ((options: any, callback: any) => {
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: any,
+  ) => {
     return new MockRequest(options, callback) as any;
   }) as typeof http.request;
 
@@ -873,13 +952,23 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
     });
 
     assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc', '/agent-device/upload/artifact-123']);
-    assert.match(String((rpcRequest as any)?.params?.positionals?.[0]), /^\/tmp\/agent-device-screenshot-/);
+    assert.deepEqual(seenPaths, [
+      '/agent-device/health',
+      '/agent-device/rpc',
+      '/agent-device/upload/artifact-123',
+    ]);
+    assert.match(
+      String((rpcRequest as any)?.params?.positionals?.[0]),
+      /^\/tmp\/agent-device-screenshot-/,
+    );
     assert.equal(
       (rpcRequest as any)?.params?.meta?.clientArtifactPaths?.path,
       path.join(tempRoot, 'artifacts', 'screen.png'),
     );
-    assert.equal((response as Extract<typeof response, { ok: true }>).data?.path, path.join(tempRoot, 'artifacts', 'screen.png'));
+    assert.equal(
+      (response as Extract<typeof response, { ok: true }>).data?.path,
+      path.join(tempRoot, 'artifacts', 'screen.png'),
+    );
     assert.equal(
       fs.readFileSync(path.join(tempRoot, 'artifacts', 'screen.png'), 'utf8'),
       'png-binary',
@@ -913,14 +1002,15 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
 
   try {
     await assert.rejects(
-      async () => await downloadRemoteArtifact({
-        baseUrl: `http://127.0.0.1:${port}/agent-device`,
-        token: 'remote-secret',
-        artifactId: 'artifact-timeout',
-        destinationPath,
-        requestId: 'req-remote-artifact-timeout',
-        timeoutMs: 50,
-      }),
+      async () =>
+        await downloadRemoteArtifact({
+          baseUrl: `http://127.0.0.1:${port}/agent-device`,
+          token: 'remote-secret',
+          artifactId: 'artifact-timeout',
+          destinationPath,
+          requestId: 'req-remote-artifact-timeout',
+          timeoutMs: 50,
+        }),
       (error: unknown) => {
         assert.equal(error instanceof Error, true);
         assert.match(String((error as Error).message), /timed out/i);

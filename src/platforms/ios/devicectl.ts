@@ -104,9 +104,11 @@ export function parseIosDeviceAppsPayload(payload: unknown): IosAppInfo[] {
   const parsed: IosAppInfo[] = [];
   for (const entry of apps) {
     if (!entry || typeof entry !== 'object') continue;
-    const bundleId = typeof entry.bundleIdentifier === 'string' ? entry.bundleIdentifier.trim() : '';
+    const bundleId =
+      typeof entry.bundleIdentifier === 'string' ? entry.bundleIdentifier.trim() : '';
     if (!bundleId) continue;
-    const name = typeof entry.name === 'string' && entry.name.trim().length > 0 ? entry.name.trim() : bundleId;
+    const name =
+      typeof entry.name === 'string' && entry.name.trim().length > 0 ? entry.name.trim() : bundleId;
     parsed.push({ bundleId, name });
   }
   return parsed;

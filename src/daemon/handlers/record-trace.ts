@@ -3,14 +3,16 @@ import path from 'node:path';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
+import {
+  runIosRunnerCommand,
+  IOS_RUNNER_CONTAINER_BUNDLE_IDS,
+} from '../../platforms/ios/runner-client.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DaemonArtifact } from '../types.ts';
-
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -35,12 +37,14 @@ function findOtherActiveIosRunnerRecording(
 ): SessionState | undefined {
   return sessionStore
     .toArray()
-    .find((session) =>
-      session.name !== currentSessionName &&
-      session.device.platform === 'ios' &&
-      session.device.kind === 'device' &&
-      session.device.id === deviceId &&
-      session.recording?.platform === 'ios-device-runner');
+    .find(
+      (session) =>
+        session.name !== currentSessionName &&
+        session.device.platform === 'ios' &&
+        session.device.kind === 'device' &&
+        session.device.id === deviceId &&
+        session.recording?.platform === 'ios-device-runner',
+    );
 }
 
 function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
@@ -87,12 +91,17 @@ export async function handleRecordTraceCommands(params: {
 
     if (action === 'start') {
       if (activeSession.recording) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'recording already in progress' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'recording already in progress' },
+        };
       }
       const fpsFlag = req.flags?.fps;
       if (
         fpsFlag !== undefined &&
-        (!Number.isInteger(fpsFlag) || fpsFlag < IOS_DEVICE_RECORD_MIN_FPS || fpsFlag > IOS_DEVICE_RECORD_MAX_FPS)
+        (!Number.isInteger(fpsFlag) ||
+          fpsFlag < IOS_DEVICE_RECORD_MIN_FPS ||
+          fpsFlag > IOS_DEVICE_RECORD_MAX_FPS)
       ) {
         return {
           ok: false,
@@ -106,17 +115,23 @@ export async function handleRecordTraceCommands(params: {
       if (!isCommandSupportedOnDevice('record', device)) {
         return {
           ok: false,
-          error: { code: 'UNSUPPORTED_OPERATION', message: 'record is not supported on this device' },
+          error: {
+            code: 'UNSUPPORTED_OPERATION',
+            message: 'record is not supported on this device',
+          },
         };
       }
       const iosDeviceAppBundleId =
-        device.platform === 'ios' && device.kind === 'device' ? normalizeAppBundleId(activeSession) : undefined;
+        device.platform === 'ios' && device.kind === 'device'
+          ? normalizeAppBundleId(activeSession)
+          : undefined;
       if (device.platform === 'ios' && device.kind === 'device' && !iosDeviceAppBundleId) {
         return {
           ok: false,
           error: {
             code: 'INVALID_ARGS',
-            message: 'record on physical iOS devices requires an active app session; run open <app> first',
+            message:
+              'record on physical iOS devices requires an active app session; run open <app> first',
           },
         };
       }
@@ -155,7 +170,11 @@ export async function handleRecordTraceCommands(params: {
                 error: errorMessage(error),
               },
             });
-            const otherRecordingSession = findOtherActiveIosRunnerRecording(sessionStore, device.id, activeSession.name);
+            const otherRecordingSession = findOtherActiveIosRunnerRecording(
+              sessionStore,
+              device.id,
+              activeSession.name,
+            );
             if (otherRecordingSession) {
               return {
                 ok: false,
@@ -179,25 +198,60 @@ export async function handleRecordTraceCommands(params: {
             } catch (retryError) {
               return {
                 ok: false,
-                error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(retryError)}` },
+                error: {
+                  code: 'COMMAND_FAILED',
+                  message: `failed to start recording: ${errorMessage(retryError)}`,
+                },
               };
             }
           } else {
-            return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to start recording: ${errorMessage(error)}` } };
+            return {
+              ok: false,
+              error: {
+                code: 'COMMAND_FAILED',
+                message: `failed to start recording: ${errorMessage(error)}`,
+              },
+            };
           }
         }
-        activeSession.recording = { platform: 'ios-device-runner', outPath: resolvedOut, clientOutPath, remotePath };
+        activeSession.recording = {
+          platform: 'ios-device-runner',
+          outPath: resolvedOut,
+          clientOutPath,
+          remotePath,
+        };
       } else if (device.platform === 'ios') {
-        const { child, wait } = deps.runCmdBackground('xcrun', buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]), {
-          allowFailure: true,
-        });
-        activeSession.recording = { platform: 'ios', outPath: resolvedOut, clientOutPath, child, wait };
+        const { child, wait } = deps.runCmdBackground(
+          'xcrun',
+          buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]),
+          {
+            allowFailure: true,
+          },
+        );
+        activeSession.recording = {
+          platform: 'ios',
+          outPath: resolvedOut,
+          clientOutPath,
+          child,
+          wait,
+        };
       } else {
         const remotePath = `/sdcard/agent-device-recording-${Date.now()}.mp4`;
-        const { child, wait } = deps.runCmdBackground('adb', ['-s', device.id, 'shell', 'screenrecord', remotePath], {
-          allowFailure: true,
-        });
-        activeSession.recording = { platform: 'android', outPath: resolvedOut, clientOutPath, remotePath, child, wait };
+        const { child, wait } = deps.runCmdBackground(
+          'adb',
+          ['-s', device.id, 'shell', 'screenrecord', remotePath],
+          {
+            allowFailure: true,
+          },
+        );
+        activeSession.recording = {
+          platform: 'android',
+          outPath: resolvedOut,
+          clientOutPath,
+          remotePath,
+          child,
+          wait,
+        };
       }
       sessionStore.set(sessionName, activeSession);
       sessionStore.recordAction(activeSession, {
@@ -263,8 +317,17 @@ export async function handleRecordTraceCommands(params: {
       }
       activeSession.recording = undefined;
       if (copyResult.exitCode !== 0) {
-        const copyError = copyResult.stderr.trim() || copyResult.stdout.trim() || `devicectl exited with code ${copyResult.exitCode}`;
-        return { ok: false, error: { code: 'COMMAND_FAILED', message: `failed to copy recording from device: ${copyError}` } };
+        const copyError =
+          copyResult.stderr.trim() ||
+          copyResult.stdout.trim() ||
+          `devicectl exited with code ${copyResult.exitCode}`;
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `failed to copy recording from device: ${copyError}`,
+          },
+        };
       }
     } else {
       recording.child.kill('SIGINT');
@@ -275,8 +338,14 @@ export async function handleRecordTraceCommands(params: {
       }
       if (recording.platform === 'android' && recording.remotePath) {
         try {
-          await deps.runCmd('adb', ['-s', device.id, 'pull', recording.remotePath, recording.outPath], { allowFailure: true });
-          await deps.runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], { allowFailure: true });
+          await deps.runCmd(
+            'adb',
+            ['-s', device.id, 'pull', recording.remotePath, recording.outPath],
+            { allowFailure: true },
+          );
+          await deps.runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], {
+            allowFailure: true,
+          });
         } catch {
           // ignore
         }
@@ -289,12 +358,14 @@ export async function handleRecordTraceCommands(params: {
       flags: (req.flags ?? {}) as CommandFlags,
       result: { action: 'stop', outPath: recording.outPath },
     });
-    const artifacts: DaemonArtifact[] = [{
-      field: 'outPath',
-      path: recording.outPath,
-      localPath: recording.clientOutPath,
-      fileName: path.basename(recording.clientOutPath ?? recording.outPath),
-    }];
+    const artifacts: DaemonArtifact[] = [
+      {
+        field: 'outPath',
+        path: recording.outPath,
+        localPath: recording.clientOutPath,
+        fileName: path.basename(recording.clientOutPath ?? recording.outPath),
+      },
+    ];
     return { ok: true, data: { recording: 'stopped', outPath: recording.outPath, artifacts } };
   }
 

@@ -43,7 +43,10 @@ async function listen(server: http.Server): Promise<number> {
   });
 }
 
-async function callRpc(port: number, payload: Record<string, unknown>): Promise<{ statusCode: number; json: unknown }> {
+async function callRpc(
+  port: number,
+  payload: Record<string, unknown>,
+): Promise<{ statusCode: number; json: unknown }> {
   const body = JSON.stringify(payload);
   return await new Promise((resolve, reject) => {
     const request = http.request(

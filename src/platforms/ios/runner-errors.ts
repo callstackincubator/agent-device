@@ -25,7 +25,11 @@ export function shouldRetryRunnerConnectError(error: unknown): boolean {
   return true;
 }
 
-export function resolveRunnerEarlyExitHint(message: string, stdout: string, stderr: string): string {
+export function resolveRunnerEarlyExitHint(
+  message: string,
+  stdout: string,
+  stderr: string,
+): string {
   const haystack = `${message}\n${stdout}\n${stderr}`.toLowerCase();
   if (haystack.includes('device is busy') && haystack.includes('connecting')) {
     return 'Target iOS device is still connecting. Keep it unlocked, wait for device trust/connection to settle, then retry.';
@@ -86,8 +90,8 @@ export function resolveSigningFailureHint(error: AppError): string | undefined {
   const details = error.details ? JSON.stringify(error.details) : '';
   const combined = `${error.message}\n${details}`.toLowerCase();
   if (
-    combined.includes('failed registering bundle identifier')
-    || (combined.includes('app identifier') && combined.includes('not available'))
+    combined.includes('failed registering bundle identifier') ||
+    (combined.includes('app identifier') && combined.includes('not available'))
   ) {
     return 'Set AGENT_DEVICE_IOS_BUNDLE_ID to a unique reverse-DNS value (for example, com.yourname.agentdevice.runner), then retry.';
   }
@@ -104,7 +108,12 @@ export function resolveSigningFailureHint(error: AppError): string | undefined {
 }
 
 export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
-  return command === 'snapshot' || command === 'screenshot' || command === 'findText' || command === 'alert';
+  return (
+    command === 'snapshot' ||
+    command === 'screenshot' ||
+    command === 'findText' ||
+    command === 'alert'
+  );
 }
 
 export function assertRunnerRequestActive(requestId: string | undefined): void {

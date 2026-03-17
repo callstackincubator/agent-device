@@ -15,11 +15,11 @@ function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
     if (!startup || typeof startup !== 'object') continue;
     const record = startup as Record<string, unknown>;
     if (
-      typeof record.durationMs !== 'number'
-      || !Number.isFinite(record.durationMs)
-      || typeof record.measuredAt !== 'string'
-      || record.measuredAt.trim().length === 0
-      || record.method !== STARTUP_SAMPLE_METHOD
+      typeof record.durationMs !== 'number' ||
+      !Number.isFinite(record.durationMs) ||
+      typeof record.measuredAt !== 'string' ||
+      record.measuredAt.trim().length === 0 ||
+      record.method !== STARTUP_SAMPLE_METHOD
     ) {
       continue;
     }
@@ -27,8 +27,14 @@ function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
       durationMs: Math.max(0, Math.round(record.durationMs)),
       measuredAt: record.measuredAt,
       method: STARTUP_SAMPLE_METHOD,
-      appTarget: typeof record.appTarget === 'string' && record.appTarget.length > 0 ? record.appTarget : undefined,
-      appBundleId: typeof record.appBundleId === 'string' && record.appBundleId.length > 0 ? record.appBundleId : undefined,
+      appTarget:
+        typeof record.appTarget === 'string' && record.appTarget.length > 0
+          ? record.appTarget
+          : undefined,
+      appBundleId:
+        typeof record.appBundleId === 'string' && record.appBundleId.length > 0
+          ? record.appBundleId
+          : undefined,
     });
   }
   return samples.slice(-PERF_STARTUP_SAMPLE_LIMIT);
@@ -39,18 +45,18 @@ export function buildPerfResponseData(session: SessionState): Record<string, unk
   const latestStartupSample = startupSamples.at(-1);
   const startupMetric = latestStartupSample
     ? {
-      available: true,
-      lastDurationMs: latestStartupSample.durationMs,
-      lastMeasuredAt: latestStartupSample.measuredAt,
-      method: STARTUP_SAMPLE_METHOD,
-      sampleCount: startupSamples.length,
-      samples: startupSamples,
-    }
+        available: true,
+        lastDurationMs: latestStartupSample.durationMs,
+        lastMeasuredAt: latestStartupSample.measuredAt,
+        method: STARTUP_SAMPLE_METHOD,
+        sampleCount: startupSamples.length,
+        samples: startupSamples,
+      }
     : {
-      available: false,
-      reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
-      method: STARTUP_SAMPLE_METHOD,
-    };
+        available: false,
+        reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
+        method: STARTUP_SAMPLE_METHOD,
+      };
   return {
     session: session.name,
     platform: session.device.platform,

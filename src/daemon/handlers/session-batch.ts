@@ -8,7 +8,15 @@ import type { BatchStep, CommandFlags } from '../../core/dispatch.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 
-const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
+const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = [
+  'platform',
+  'target',
+  'device',
+  'udid',
+  'serial',
+  'verbose',
+  'out',
+];
 
 export async function runBatchCommands(
   req: DaemonRequest,
@@ -92,17 +100,17 @@ async function runBatchStep(
 ): Promise<
   | { ok: true; step: number; result: BatchStepResult }
   | {
-    ok: false;
-    step: number;
-    error: {
-      code: string;
-      message: string;
-      hint?: string;
-      diagnosticId?: string;
-      logPath?: string;
-      details?: Record<string, unknown>;
-    };
-  }
+      ok: false;
+      step: number;
+      error: {
+        code: string;
+        message: string;
+        hint?: string;
+        diagnosticId?: string;
+        logPath?: string;
+        details?: Record<string, unknown>;
+      };
+    }
 > {
   const stepStartedAt = Date.now();
   const response = await invoke({

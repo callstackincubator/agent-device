@@ -27,13 +27,25 @@ export function buildSelectorChainForNode(
     );
   }
   if (label) {
-    chain.push(requireEditable ? `label=${quoteSelectorValue(label)} editable=true` : `label=${quoteSelectorValue(label)}`);
+    chain.push(
+      requireEditable
+        ? `label=${quoteSelectorValue(label)} editable=true`
+        : `label=${quoteSelectorValue(label)}`,
+    );
   }
   if (value) {
-    chain.push(requireEditable ? `value=${quoteSelectorValue(value)} editable=true` : `value=${quoteSelectorValue(value)}`);
+    chain.push(
+      requireEditable
+        ? `value=${quoteSelectorValue(value)} editable=true`
+        : `value=${quoteSelectorValue(value)}`,
+    );
   }
   if (text && text !== label && text !== value) {
-    chain.push(requireEditable ? `text=${quoteSelectorValue(text)} editable=true` : `text=${quoteSelectorValue(text)}`);
+    chain.push(
+      requireEditable
+        ? `text=${quoteSelectorValue(text)} editable=true`
+        : `text=${quoteSelectorValue(text)}`,
+    );
   }
   if (role && requireEditable && !chain.some((entry) => entry.includes('editable=true'))) {
     chain.push(`role=${quoteSelectorValue(role)} editable=true`);
@@ -41,7 +53,11 @@ export function buildSelectorChainForNode(
 
   const deduped = uniqueStrings(chain);
   if (deduped.length === 0 && role) {
-    deduped.push(requireEditable ? `role=${quoteSelectorValue(role)} editable=true` : `role=${quoteSelectorValue(role)}`);
+    deduped.push(
+      requireEditable
+        ? `role=${quoteSelectorValue(role)} editable=true`
+        : `role=${quoteSelectorValue(role)}`,
+    );
   }
   if (deduped.length === 0) {
     const visible = isNodeVisible(node);

@@ -15,7 +15,12 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
-import { findSelectorChainMatch, splitSelectorFromArgs, tryParseSelectorChain, type SelectorChain } from '../selectors.ts';
+import {
+  findSelectorChainMatch,
+  splitSelectorFromArgs,
+  tryParseSelectorChain,
+  type SelectorChain,
+} from '../selectors.ts';
 import { parseTimeout, POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS } from './parse-utils.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
 
@@ -59,13 +64,13 @@ export async function handleSnapshotCommands(params: {
       const nextSession: SessionState = session
         ? { ...session, snapshot: capture.snapshot }
         : {
-          name: sessionName,
-          device,
-          createdAt: Date.now(),
-          appBundleId,
-          snapshot: capture.snapshot,
-          actions: [],
-        };
+            name: sessionName,
+            device,
+            createdAt: Date.now(),
+            appBundleId,
+            snapshot: capture.snapshot,
+            actions: [],
+          };
       recordIfSession(sessionStore, nextSession, req, {
         nodes: capture.snapshot.nodes.length,
         truncated: capture.snapshot.truncated ?? false,
@@ -122,17 +127,19 @@ export async function handleSnapshotCommands(params: {
       const currentSnapshot = capture.snapshot;
 
       if (!session?.snapshot) {
-        const unchanged = countSnapshotComparableLines(currentSnapshot.nodes, { flatten: flattenForDiff });
+        const unchanged = countSnapshotComparableLines(currentSnapshot.nodes, {
+          flatten: flattenForDiff,
+        });
         const nextSession: SessionState = session
           ? { ...session, snapshot: currentSnapshot }
           : {
-            name: sessionName,
-            device,
-            createdAt: Date.now(),
-            appBundleId,
-            snapshot: currentSnapshot,
-            actions: [],
-          };
+              name: sessionName,
+              device,
+              createdAt: Date.now(),
+              appBundleId,
+              snapshot: currentSnapshot,
+              actions: [],
+            };
         recordIfSession(sessionStore, nextSession, req, {
           mode: 'snapshot',
           baselineInitialized: true,
@@ -158,7 +165,9 @@ export async function handleSnapshotCommands(params: {
         };
       }
 
-      const diff = buildSnapshotDiff(session.snapshot.nodes, currentSnapshot.nodes, { flatten: flattenForDiff });
+      const diff = buildSnapshotDiff(session.snapshot.nodes, currentSnapshot.nodes, {
+        flatten: flattenForDiff,
+      });
       const nextSession: SessionState = { ...session, snapshot: currentSnapshot };
       recordIfSession(sessionStore, nextSession, req, {
         mode: 'snapshot',
@@ -233,7 +242,9 @@ export async function handleSnapshotCommands(params: {
             };
             sessionStore.set(sessionName, session);
           }
-          const match = findSelectorChainMatch(nodes, parsed.selector, { platform: device.platform });
+          const match = findSelectorChainMatch(nodes, parsed.selector, {
+            platform: device.platform,
+          });
           if (match) {
             recordIfSession(sessionStore, session, req, {
               selector: match.selector.raw,
@@ -409,11 +420,7 @@ export async function handleSnapshotCommands(params: {
     const setting = req.positionals?.[0]?.toLowerCase();
     const state = req.positionals?.[1]?.toLowerCase();
     const permissionTarget = req.positionals?.[2]?.toLowerCase();
-    if (
-      !setting ||
-      !state ||
-      (setting === 'permission' && !permissionTarget)
-    ) {
+    if (!setting || !state || (setting === 'permission' && !permissionTarget)) {
       return {
         ok: false,
         error: {
@@ -439,15 +446,9 @@ export async function handleSnapshotCommands(params: {
         setting === 'permission'
           ? [setting, state, permissionTarget, req.positionals?.[3] ?? '', appBundleId ?? '']
           : [setting, state, appBundleId ?? ''];
-      const data = await dispatchCommand(
-        device,
-        'settings',
-        positionals,
-        req.flags?.out,
-        {
-          ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
-        },
-      );
+      const data = await dispatchCommand(device, 'settings', positionals, req.flags?.out, {
+        ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
+      });
       recordIfSession(sessionStore, session, req, data ?? { setting, state });
       return { ok: true, data: data ?? { setting, state } };
     });
@@ -465,7 +466,9 @@ type CaptureSnapshotParams = {
   snapshotScope?: string;
 };
 
-async function captureSnapshot(params: CaptureSnapshotParams): Promise<{ snapshot: SnapshotState }> {
+async function captureSnapshot(
+  params: CaptureSnapshotParams,
+): Promise<{ snapshot: SnapshotState }> {
   const { dispatchSnapshotCommand, device, session, req, logPath, snapshotScope } = params;
   const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
     ...contextFromFlags(
@@ -540,7 +543,12 @@ function resolveSnapshotScope(
 type WaitParsed =
   | { kind: 'sleep'; durationMs: number }
   | { kind: 'ref'; rawRef: string; timeoutMs: number | null }
-  | { kind: 'selector'; selector: SelectorChain; selectorExpression: string; timeoutMs: number | null }
+  | {
+      kind: 'selector';
+      selector: SelectorChain;
+      selectorExpression: string;
+      timeoutMs: number | null;
+    }
   | { kind: 'text'; text: string; timeoutMs: number | null };
 
 export function parseWaitArgs(args: string[]): WaitParsed | null {

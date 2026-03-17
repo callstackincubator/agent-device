@@ -18,10 +18,7 @@ export type SessionSelectorConflict = {
   value: string;
 };
 
-export function assertSessionSelectorMatches(
-  session: SessionState,
-  flags?: CommandFlags,
-): void {
+export function assertSessionSelectorMatches(session: SessionState, flags?: CommandFlags): void {
   const mismatches = listSessionSelectorConflicts(session, flags);
   if (mismatches.length === 0) return;
 
@@ -64,9 +61,9 @@ export function listSessionSelectorConflicts(
     const requestedSetPath = flags.iosSimulatorDeviceSet.trim();
     const sessionSetPath = device.simulatorSetPath?.trim();
     if (
-      device.platform !== 'ios'
-      || device.kind !== 'simulator'
-      || requestedSetPath !== sessionSetPath
+      device.platform !== 'ios' ||
+      device.kind !== 'simulator' ||
+      requestedSetPath !== sessionSetPath
     ) {
       mismatches.push({ key: 'iosSimulatorDeviceSet', value: flags.iosSimulatorDeviceSet });
     }

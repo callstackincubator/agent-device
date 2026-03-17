@@ -52,7 +52,7 @@ export function runCliJson(args: string[]): CliJsonResult {
   return {
     status: result.exitCode,
     json,
-    stdout: json ? '<JSON output>' : result.stdout ?? '',
+    stdout: json ? '<JSON output>' : (result.stdout ?? ''),
     stderr: result.stderr ?? '',
   };
 }
@@ -84,7 +84,9 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
     const errorCode =
       typeof result.json?.error?.code === 'string' ? (result.json.error.code as string) : undefined;
     const errorMessage =
-      typeof result.json?.error?.message === 'string' ? (result.json.error.message as string) : undefined;
+      typeof result.json?.error?.message === 'string'
+        ? (result.json.error.message as string)
+        : undefined;
     stepHistory.push({
       step,
       command: `agent-device ${args.join(' ')}`,
@@ -168,13 +170,19 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
     const refArg = args.find((arg) => arg.startsWith('@'));
     if (refArg) {
       const normalized = normalizeRef(refArg);
-      const refNode = lastSnapshot.nodes.find((node) => normalizeRef(String(node?.ref ?? '')) === normalized);
+      const refNode = lastSnapshot.nodes.find(
+        (node) => normalizeRef(String(node?.ref ?? '')) === normalized,
+      );
       snapshotLines.push(
         `targetRef: ${refArg}`,
-        refNode ? `targetRefInSnapshot: yes (${summarizeNode(refNode)})` : 'targetRefInSnapshot: no',
+        refNode
+          ? `targetRefInSnapshot: yes (${summarizeNode(refNode)})`
+          : 'targetRefInSnapshot: no',
       );
     }
-    const preview = lastSnapshot.nodes.slice(0, 12).map((node, i) => `${i + 1}. ${summarizeNode(node)}`);
+    const preview = lastSnapshot.nodes
+      .slice(0, 12)
+      .map((node, i) => `${i + 1}. ${summarizeNode(node)}`);
     snapshotLines.push('nodePreview:', preview.length > 0 ? preview.join('\n') : '(empty)');
     return snapshotLines.join('\n');
   }
@@ -231,7 +239,10 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
     );
     writeFileSync(path.join(dir, 'step-history.json'), JSON.stringify(stepHistory, null, 2));
     if (lastSnapshot) {
-      writeFileSync(path.join(dir, 'last-snapshot.json'), JSON.stringify(lastSnapshot.rawJson, null, 2));
+      writeFileSync(
+        path.join(dir, 'last-snapshot.json'),
+        JSON.stringify(lastSnapshot.rawJson, null, 2),
+      );
     }
   }
 
@@ -242,7 +253,11 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
 }
 
 function sanitizeSegment(input: string): string {
-  return input.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-');
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-');
 }
 
 function normalizeRef(ref: string): string {
@@ -252,7 +267,8 @@ function normalizeRef(ref: string): string {
 function summarizeNode(node: any): string {
   const ref = typeof node?.ref === 'string' ? node.ref : '(no-ref)';
   const type = typeof node?.type === 'string' ? node.type : '(no-type)';
-  const label = typeof node?.label === 'string' && node.label.length > 0 ? node.label : '(no-label)';
+  const label =
+    typeof node?.label === 'string' && node.label.length > 0 ? node.label : '(no-label)';
   const rect = node?.rect ? JSON.stringify(node.rect) : '(no-bounds)';
   return `${ref} type=${type} label=${JSON.stringify(label)} rect=${rect}`;
 }

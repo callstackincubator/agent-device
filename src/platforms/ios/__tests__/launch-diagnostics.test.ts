@@ -63,10 +63,7 @@ test('classifyLaunchFailure returns PERSISTENT_LAUNCH_FAIL when compatible', () 
 });
 
 test('classifyLaunchFailure returns PERSISTENT_LAUNCH_FAIL when compatibility unknown', () => {
-  assert.equal(
-    classifyLaunchFailure({ installed: true }),
-    'PERSISTENT_LAUNCH_FAIL',
-  );
+  assert.equal(classifyLaunchFailure({ installed: true }), 'PERSISTENT_LAUNCH_FAIL');
 });
 
 test('launchFailureHint returns actionable string for ARCH_MISMATCH', () => {

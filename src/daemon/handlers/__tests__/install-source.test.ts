@@ -46,13 +46,15 @@ test('resolveInstallSource uses uploaded artifact path for uploaded path sources
   fs.writeFileSync(artifactPath, 'apk-binary');
   const uploadedArtifactId = trackUploadedArtifact({ artifactPath, tempDir: tempRoot });
 
-  const resolved = resolveInstallSource(makeRequest({
-    uploadedArtifactId,
-    installSource: {
-      kind: 'path',
-      path: '/Users/dev/Downloads/Sample.apk',
-    },
-  }));
+  const resolved = resolveInstallSource(
+    makeRequest({
+      uploadedArtifactId,
+      installSource: {
+        kind: 'path',
+        path: '/Users/dev/Downloads/Sample.apk',
+      },
+    }),
+  );
 
   assert.equal(resolved.source.kind, 'path');
   assert.equal(resolved.source.path, artifactPath);
@@ -62,14 +64,16 @@ test('resolveInstallSource uses uploaded artifact path for uploaded path sources
 });
 
 test('resolveInstallSource leaves URL sources unchanged even when upload metadata exists', () => {
-  const resolved = resolveInstallSource(makeRequest({
-    uploadedArtifactId: 'upload-123',
-    installSource: {
-      kind: 'url',
-      url: 'https://example.com/app.apk',
-      headers: {},
-    },
-  }));
+  const resolved = resolveInstallSource(
+    makeRequest({
+      uploadedArtifactId: 'upload-123',
+      installSource: {
+        kind: 'url',
+        url: 'https://example.com/app.apk',
+        headers: {},
+      },
+    }),
+  );
 
   assert.deepEqual(resolved.source, {
     kind: 'url',

@@ -58,16 +58,16 @@ export type DaemonResponseData = Record<string, unknown> & {
 export type DaemonResponse =
   | { ok: true; data?: DaemonResponseData }
   | {
-    ok: false;
-    error: {
-      code: string;
-      message: string;
-      hint?: string;
-      diagnosticId?: string;
-      logPath?: string;
-      details?: Record<string, unknown>;
+      ok: false;
+      error: {
+        code: string;
+        message: string;
+        hint?: string;
+        diagnosticId?: string;
+        logPath?: string;
+        details?: Record<string, unknown>;
+      };
     };
-  };
 
 export type SessionState = {
   name: string;
@@ -85,19 +85,19 @@ export type SessionState = {
   actions: SessionAction[];
   recording?:
     | {
-      platform: 'ios' | 'android';
-      outPath: string;
-      clientOutPath?: string;
-      remotePath?: string;
-      child: ReturnType<typeof import('node:child_process').spawn>;
-      wait: Promise<ExecResult>;
-    }
+        platform: 'ios' | 'android';
+        outPath: string;
+        clientOutPath?: string;
+        remotePath?: string;
+        child: ReturnType<typeof import('node:child_process').spawn>;
+        wait: Promise<ExecResult>;
+      }
     | {
-      platform: 'ios-device-runner';
-      outPath: string;
-      clientOutPath?: string;
-      remotePath: string;
-    };
+        platform: 'ios-device-runner';
+        outPath: string;
+        clientOutPath?: string;
+        remotePath: string;
+      };
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
     platform: 'ios' | 'android';

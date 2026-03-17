@@ -26,9 +26,10 @@ export async function prepareAndroidInstallArtifact(
     allowArchiveExtraction: source.kind !== 'url' || trustedUrlSource,
     signal: options?.signal,
   });
-  const identity = options?.resolveIdentity === false
-    ? {}
-    : await inspectAndroidArtifactIdentity(materialized.installablePath);
+  const identity =
+    options?.resolveIdentity === false
+      ? {}
+      : await inspectAndroidArtifactIdentity(materialized.installablePath);
   return {
     archivePath: materialized.archivePath,
     installablePath: materialized.installablePath,

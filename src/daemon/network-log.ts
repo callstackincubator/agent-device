@@ -164,10 +164,7 @@ function parseEmbeddedJson(line: string): Record<string, unknown> | null {
   }
 }
 
-function readJsonString(
-  value: Record<string, unknown> | null,
-  keys: string[],
-): string | undefined {
+function readJsonString(value: Record<string, unknown> | null, keys: string[]): string | undefined {
   if (!value) return undefined;
   for (const key of keys) {
     const next = value[key];
@@ -178,10 +175,7 @@ function readJsonString(
   return undefined;
 }
 
-function readJsonNumber(
-  value: Record<string, unknown> | null,
-  keys: string[],
-): number | null {
+function readJsonNumber(value: Record<string, unknown> | null, keys: string[]): number | null {
   if (!value) return null;
   for (const key of keys) {
     const next = value[key];

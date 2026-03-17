@@ -55,7 +55,11 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
     'utf8',
   );
   await fs.chmod(adbPath, 0o755);
-  await fs.writeFile(payloadPath, '{"action":"com.example.app.PUSH","extras":{"title":"Hello"}}\n', 'utf8');
+  await fs.writeFile(
+    payloadPath,
+    '{"action":"com.example.app.PUSH","extras":{"title":"Hello"}}\n',
+    'utf8',
+  );
 
   const previousPath = process.env.PATH;
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
@@ -70,10 +74,7 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
       action: 'com.example.app.PUSH',
       extrasCount: 1,
     });
-    const args = (await fs.readFile(argsLogPath, 'utf8'))
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(args.includes('-a'), true);
     assert.equal(args.includes('com.example.app.PUSH'), true);
     assert.equal(args.includes('--es'), true);
@@ -88,4 +89,3 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 });
-

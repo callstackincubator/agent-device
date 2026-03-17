@@ -135,12 +135,7 @@ async function withMockedXcrun(
   const argsLogPath = path.join(tmpDir, 'args.log');
   await fs.writeFile(
     xcrunPath,
-    [
-      '#!/bin/sh',
-      'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      'exit 0',
-      '',
-    ].join('\n'),
+    ['#!/bin/sh', 'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"', 'exit 0', ''].join('\n'),
     'utf8',
   );
   await fs.chmod(xcrunPath, 0o755);
@@ -221,9 +216,15 @@ test('applyRuntimeHintsToApp writes React Native Android dev prefs', async () =>
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8');
     const stdinPayload = await fs.readFile(stdinFilePath, 'utf8');
-    assert.match(loggedArgs, /shell run-as com\.example\.demo cat shared_prefs\/ReactNativeDevPrefs\.xml/);
+    assert.match(
+      loggedArgs,
+      /shell run-as com\.example\.demo cat shared_prefs\/ReactNativeDevPrefs\.xml/,
+    );
     assert.match(loggedArgs, /shell run-as com\.example\.demo mkdir -p shared_prefs/);
-    assert.match(loggedArgs, /shell run-as com\.example\.demo tee shared_prefs\/ReactNativeDevPrefs\.xml/);
+    assert.match(
+      loggedArgs,
+      /shell run-as com\.example\.demo tee shared_prefs\/ReactNativeDevPrefs\.xml/,
+    );
     assert.match(stdinPayload, /<string name="keep">value<\/string>/);
     assert.match(stdinPayload, /<string name="debug_http_host">10\.0\.0\.10:8082<\/string>/);
     assert.match(stdinPayload, /<boolean name="dev_server_https" value="true" \/>/);
@@ -242,10 +243,11 @@ test('applyRuntimeHintsToApp rejects Android app binary paths before run-as', as
           metroPort: 8081,
         },
       }),
-      (error: unknown) => assertInvalidArgsAppError(
-        error,
-        'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-      ),
+      (error: unknown) =>
+        assertInvalidArgsAppError(
+          error,
+          'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+        ),
     );
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8').catch(() => '');
@@ -265,10 +267,11 @@ test('applyRuntimeHintsToApp rejects bare Android app binary filenames before ru
           metroPort: 8081,
         },
       }),
-      (error: unknown) => assertInvalidArgsAppError(
-        error,
-        'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
-      ),
+      (error: unknown) =>
+        assertInvalidArgsAppError(
+          error,
+          'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+        ),
     );
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8').catch(() => '');
@@ -279,7 +282,8 @@ test('applyRuntimeHintsToApp rejects bare Android app binary filenames before ru
 test('applyRuntimeHintsToApp distinguishes run-as denial from general write failures', async () => {
   await withMockedAdb(async ({ device }) => {
     process.env.AGENT_DEVICE_TEST_RUN_AS_ID_EXIT_CODE = '1';
-    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR = 'run-as: package not debuggable: com.example.demo';
+    process.env.AGENT_DEVICE_TEST_RUN_AS_ID_STDERR =
+      'run-as: package not debuggable: com.example.demo';
     try {
       await assert.rejects(
         applyRuntimeHintsToApp({
@@ -421,8 +425,14 @@ test('applyRuntimeHintsToApp writes iOS simulator React Native defaults', async 
     });
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(loggedArgs, /simctl spawn sim-1 defaults write com\.example\.demo RCT_jsLocation -string 127\.0\.0\.1:8081/);
-    assert.match(loggedArgs, /simctl spawn sim-1 defaults write com\.example\.demo RCT_packager_scheme -string http/);
+    assert.match(
+      loggedArgs,
+      /simctl spawn sim-1 defaults write com\.example\.demo RCT_jsLocation -string 127\.0\.0\.1:8081/,
+    );
+    assert.match(
+      loggedArgs,
+      /simctl spawn sim-1 defaults write com\.example\.demo RCT_packager_scheme -string http/,
+    );
   });
 });
 
@@ -434,7 +444,13 @@ test('clearRuntimeHintsFromApp deletes iOS simulator React Native defaults', asy
     });
 
     const loggedArgs = await fs.readFile(argsLogPath, 'utf8');
-    assert.match(loggedArgs, /simctl spawn sim-1 defaults delete com\.example\.demo RCT_jsLocation/);
-    assert.match(loggedArgs, /simctl spawn sim-1 defaults delete com\.example\.demo RCT_packager_scheme/);
+    assert.match(
+      loggedArgs,
+      /simctl spawn sim-1 defaults delete com\.example\.demo RCT_jsLocation/,
+    );
+    assert.match(
+      loggedArgs,
+      /simctl spawn sim-1 defaults delete com\.example\.demo RCT_packager_scheme/,
+    );
   });
 });

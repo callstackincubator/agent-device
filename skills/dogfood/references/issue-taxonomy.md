@@ -4,12 +4,12 @@ Reference for categorizing issues found during mobile dogfooding.
 
 ## Severity Levels
 
-| Severity | Definition |
-|----------|------------|
+| Severity     | Definition                                                                |
+| ------------ | ------------------------------------------------------------------------- |
 | **critical** | Blocks a core workflow, causes data loss, or crashes/freeze loops the app |
-| **high** | Major feature broken or unusable, no practical workaround |
-| **medium** | Feature works with notable friction or partial failure; workaround exists |
-| **low** | Minor cosmetic or polish issue |
+| **high**     | Major feature broken or unusable, no practical workaround                 |
+| **medium**   | Feature works with notable friction or partial failure; workaround exists |
+| **low**      | Minor cosmetic or polish issue                                            |
 
 ## Categories
 

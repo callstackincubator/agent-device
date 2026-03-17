@@ -15,7 +15,16 @@ const iosSimulator: DeviceInfo = {
 test('waitForRunner propagates request cancellation without fallback', async () => {
   const signal = AbortSignal.abort();
   await assert.rejects(
-    () => waitForRunner(iosSimulator, 8100, { command: 'snapshot' }, undefined, 5_000, undefined, signal),
+    () =>
+      waitForRunner(
+        iosSimulator,
+        8100,
+        { command: 'snapshot' },
+        undefined,
+        5_000,
+        undefined,
+        signal,
+      ),
     (error: unknown) => {
       assert.equal(error instanceof AppError, true);
       const appError = error as AppError;

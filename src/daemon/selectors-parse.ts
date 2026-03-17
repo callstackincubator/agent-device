@@ -231,7 +231,10 @@ function tokenize(segment: string): string[] {
 
 function unquote(value: string): string {
   const trimmed = value.trim();
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
     return trimmed.slice(1, -1).replace(/\\(["'])/g, '$1');
   }
   return trimmed;

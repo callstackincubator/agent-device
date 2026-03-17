@@ -2,11 +2,12 @@ import { promises as fs } from 'node:fs';
 import { AppError } from '../utils/errors.ts';
 import { resolvePayloadInput } from '../utils/payload-input.ts';
 
-export async function readNotificationPayload(payloadArg: string): Promise<Record<string, unknown>> {
+export async function readNotificationPayload(
+  payloadArg: string,
+): Promise<Record<string, unknown>> {
   const source = resolvePayloadInput(payloadArg, { subject: 'Push payload' });
-  const payloadText = source.kind === 'inline'
-    ? source.text
-    : await readPushPayloadFile(source.path);
+  const payloadText =
+    source.kind === 'inline' ? source.text : await readPushPayloadFile(source.path);
   try {
     const parsed = JSON.parse(payloadText) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {

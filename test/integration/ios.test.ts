@@ -11,7 +11,16 @@ let didRunIosPhysicalSession = false;
 test.after(() => {
   runCliJson(['close', ...iosTarget, '--json', ...session]);
   if (iosPhysicalUdid && didRunIosPhysicalSession) {
-    runCliJson(['close', '--platform', 'ios', '--udid', iosPhysicalUdid, '--json', '--session', 'ios-device-test']);
+    runCliJson([
+      'close',
+      '--platform',
+      'ios',
+      '--udid',
+      iosPhysicalUdid,
+      '--json',
+      '--session',
+      'ios-device-test',
+    ]);
   }
 });
 
@@ -32,9 +41,15 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
 
   const snapshotArgs = ['snapshot', '-i', '--json', ...session];
   const snapshot = integration.runStep('snapshot', snapshotArgs);
-  integration.assertResult(Array.isArray(snapshot.json?.data?.nodes), 'snapshot nodes', snapshotArgs, snapshot, {
-    detail: 'expected snapshot to include a nodes array',
-  });
+  integration.assertResult(
+    Array.isArray(snapshot.json?.data?.nodes),
+    'snapshot nodes',
+    snapshotArgs,
+    snapshot,
+    {
+      detail: 'expected snapshot to include a nodes array',
+    },
+  );
 
   const appStateArgs = ['appstate', '--json', ...session];
   const appState = integration.runStep('appstate', appStateArgs);
@@ -43,7 +58,9 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
     'appstate source is session',
     appStateArgs,
     appState,
-    { detail: `expected appstate source=session, received ${JSON.stringify(appState.json?.data?.source)}` },
+    {
+      detail: `expected appstate source=session, received ${JSON.stringify(appState.json?.data?.source)}`,
+    },
   );
 
   const openGeneralArgs = ['click', 'role=cell', 'label=General', '--json', ...session];
@@ -82,13 +99,9 @@ test('ios settings commands', { skip: shouldSkipIos() }, async () => {
 
   const findTextArgs = ['find', 'text', 'Software Update', 'exists', '--json', ...session];
   const findText = integration.runStep('find text', findTextArgs);
-  integration.assertResult(
-    findText.json?.success,
-    'find text success',
-    findTextArgs,
-    findText,
-    { detail: 'expected find command to return success=true' },
-  );
+  integration.assertResult(findText.json?.success, 'find text success', findTextArgs, findText, {
+    detail: 'expected find command to return success=true',
+  });
 
   const backArgs = ['back', '--json', ...session];
   integration.runStep('back', backArgs);

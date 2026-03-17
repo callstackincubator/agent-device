@@ -34,19 +34,20 @@ const ANDROID_SESSION: SessionState = {
 
 test('rejects fresh-session selector conflicts under request lock policy', () => {
   assert.throws(
-    () => applyRequestLockPolicy({
-      token: 'token',
-      session: 'qa-ios',
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        device: 'Pixel 9',
-      },
-      meta: {
-        lockPolicy: 'reject',
-        lockPlatform: 'ios',
-      },
-    }),
+    () =>
+      applyRequestLockPolicy({
+        token: 'token',
+        session: 'qa-ios',
+        command: 'snapshot',
+        positionals: [],
+        flags: {
+          device: 'Pixel 9',
+        },
+        meta: {
+          lockPolicy: 'reject',
+          lockPlatform: 'ios',
+        },
+      }),
     /--device=Pixel 9/i,
   );
 });
@@ -75,39 +76,46 @@ test('strips fresh-session selector conflicts and restores lock platform', () =>
 
 test('rejects existing-session selector conflicts under request lock policy', () => {
   assert.throws(
-    () => applyRequestLockPolicy({
-      token: 'token',
-      session: 'qa-ios',
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        serial: 'emulator-5554',
-      },
-      meta: {
-        lockPolicy: 'reject',
-      },
-    }, IOS_SESSION),
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'qa-ios',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            serial: 'emulator-5554',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        IOS_SESSION,
+      ),
     /--serial=emulator-5554/i,
   );
 });
 
 test('allows matching redundant selectors for existing sessions', () => {
-  const req = applyRequestLockPolicy({
-    token: 'token',
-    session: 'qa-ios',
-    command: 'snapshot',
-    positionals: [],
-    flags: {
-      platform: 'ios',
-      target: 'mobile',
-      udid: 'SIM-001',
-      device: 'iPhone 16',
-      iosSimulatorDeviceSet: '/tmp/tenant-a/set',
+  const req = applyRequestLockPolicy(
+    {
+      token: 'token',
+      session: 'qa-ios',
+      command: 'snapshot',
+      positionals: [],
+      flags: {
+        platform: 'ios',
+        target: 'mobile',
+        udid: 'SIM-001',
+        device: 'iPhone 16',
+        iosSimulatorDeviceSet: '/tmp/tenant-a/set',
+      },
+      meta: {
+        lockPolicy: 'reject',
+      },
     },
-    meta: {
-      lockPolicy: 'reject',
-    },
-  }, IOS_SESSION);
+    IOS_SESSION,
+  );
 
   assert.equal(req.flags?.udid, 'SIM-001');
   assert.equal(req.flags?.device, 'iPhone 16');
@@ -115,36 +123,43 @@ test('allows matching redundant selectors for existing sessions', () => {
 
 test('rejects mismatching udid selectors for existing sessions', () => {
   assert.throws(
-    () => applyRequestLockPolicy({
-      token: 'token',
-      session: 'qa-ios',
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        udid: 'SIM-999',
-      },
-      meta: {
-        lockPolicy: 'reject',
-      },
-    }, IOS_SESSION),
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'qa-ios',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            udid: 'SIM-999',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        IOS_SESSION,
+      ),
     /--udid=SIM-999/i,
   );
 });
 
 test('allows matching serial selectors for existing android sessions', () => {
-  const req = applyRequestLockPolicy({
-    token: 'token',
-    session: 'qa-android',
-    command: 'snapshot',
-    positionals: [],
-    flags: {
-      serial: 'emulator-5554',
-      device: 'Pixel 9',
+  const req = applyRequestLockPolicy(
+    {
+      token: 'token',
+      session: 'qa-android',
+      command: 'snapshot',
+      positionals: [],
+      flags: {
+        serial: 'emulator-5554',
+        device: 'Pixel 9',
+      },
+      meta: {
+        lockPolicy: 'reject',
+      },
     },
-    meta: {
-      lockPolicy: 'reject',
-    },
-  }, ANDROID_SESSION);
+    ANDROID_SESSION,
+  );
 
   assert.equal(req.flags?.serial, 'emulator-5554');
   assert.equal(req.flags?.device, 'Pixel 9');
@@ -152,56 +167,67 @@ test('allows matching serial selectors for existing android sessions', () => {
 
 test('rejects mismatching device selectors for existing android sessions', () => {
   assert.throws(
-    () => applyRequestLockPolicy({
-      token: 'token',
-      session: 'qa-android',
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        device: 'Pixel 8',
-      },
-      meta: {
-        lockPolicy: 'reject',
-      },
-    }, ANDROID_SESSION),
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'qa-android',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            device: 'Pixel 8',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        ANDROID_SESSION,
+      ),
     /--device=Pixel 8/i,
   );
 });
 
 test('rejects mismatching serial selectors for existing android sessions', () => {
   assert.throws(
-    () => applyRequestLockPolicy({
-      token: 'token',
-      session: 'qa-android',
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        serial: 'emulator-9999',
-      },
-      meta: {
-        lockPolicy: 'reject',
-      },
-    }, ANDROID_SESSION),
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'qa-android',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            serial: 'emulator-9999',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        ANDROID_SESSION,
+      ),
     /--serial=emulator-9999/i,
   );
 });
 
 test('strips only conflicting selectors for existing sessions', () => {
-  const req = applyRequestLockPolicy({
-    token: 'token',
-    session: 'qa-ios',
-    command: 'snapshot',
-    positionals: [],
-    flags: {
-      platform: 'ios',
-      target: 'tv',
-      device: 'iPhone 16',
-      serial: 'emulator-5554',
+  const req = applyRequestLockPolicy(
+    {
+      token: 'token',
+      session: 'qa-ios',
+      command: 'snapshot',
+      positionals: [],
+      flags: {
+        platform: 'ios',
+        target: 'tv',
+        device: 'iPhone 16',
+        serial: 'emulator-5554',
+      },
+      meta: {
+        lockPolicy: 'strip',
+      },
     },
-    meta: {
-      lockPolicy: 'strip',
-    },
-  }, IOS_SESSION);
+    IOS_SESSION,
+  );
 
   assert.equal(req.flags?.platform, 'ios');
   assert.equal(req.flags?.target, undefined);

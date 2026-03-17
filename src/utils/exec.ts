@@ -49,9 +49,9 @@ export async function runCmd(
     const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     const timeoutHandle = timeoutMs
       ? setTimeout(() => {
-        didTimeout = true;
-        child.kill('SIGKILL');
-      }, timeoutMs)
+          didTimeout = true;
+          child.kill('SIGKILL');
+        }, timeoutMs)
       : null;
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
@@ -144,11 +144,16 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
   if (result.error) {
     const code = (result.error as NodeJS.ErrnoException).code;
     if (code === 'ETIMEDOUT') {
-      throw new AppError('COMMAND_FAILED', `${cmd} timed out after ${normalizeTimeoutMs(options.timeoutMs)}ms`, {
-        cmd,
-        args,
-        timeoutMs: normalizeTimeoutMs(options.timeoutMs),
-      }, result.error);
+      throw new AppError(
+        'COMMAND_FAILED',
+        `${cmd} timed out after ${normalizeTimeoutMs(options.timeoutMs)}ms`,
+        {
+          cmd,
+          args,
+          timeoutMs: normalizeTimeoutMs(options.timeoutMs),
+        },
+        result.error,
+      );
     }
     if (code === 'ENOENT') {
       throw new AppError('TOOL_MISSING', `${cmd} not found in PATH`, { cmd }, result.error);

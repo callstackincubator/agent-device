@@ -66,12 +66,7 @@ test('resolveIosDevice falls back to physical device when no simulator is found'
 
 test('resolveIosDevice keeps physical device when udid is explicit', async () => {
   const { deps, wasFindBootableCalled } = makeDeps(simulator);
-  const result = await resolveIosDevice(
-    [physical],
-    { platform: 'ios', udid: 'phys-1' },
-    {},
-    deps,
-  );
+  const result = await resolveIosDevice([physical], { platform: 'ios', udid: 'phys-1' }, {}, deps);
   assert.equal(result.id, 'phys-1');
   assert.equal(wasFindBootableCalled(), false);
 });
@@ -106,12 +101,9 @@ test('resolveIosDevice throws DEVICE_NOT_FOUND when empty list and no fallback s
 
 test('resolveIosDevice rethrows DEVICE_NOT_FOUND from resolveDevice when explicit selector used', async () => {
   const { deps } = makeDeps(simulator);
-  const err = await resolveIosDevice(
-    [],
-    { platform: 'ios', udid: 'nonexistent' },
-    {},
-    deps,
-  ).catch((e) => e);
+  const err = await resolveIosDevice([], { platform: 'ios', udid: 'nonexistent' }, {}, deps).catch(
+    (e) => e,
+  );
   assert.ok(err instanceof AppError);
   assert.equal(err.code, 'DEVICE_NOT_FOUND');
 });
@@ -120,12 +112,7 @@ test('resolveIosDevice rethrows DEVICE_NOT_FOUND from resolveDevice when explici
 
 test('resolveIosDevice returns simulator directly when present in device list', async () => {
   const { deps, wasFindBootableCalled } = makeDeps(null);
-  const result = await resolveIosDevice(
-    [physical, bootedSimulator],
-    { platform: 'ios' },
-    {},
-    deps,
-  );
+  const result = await resolveIosDevice([physical, bootedSimulator], { platform: 'ios' }, {}, deps);
   assert.equal(result.id, 'sim-2');
   assert.equal(result.kind, 'simulator');
   assert.equal(wasFindBootableCalled(), false);

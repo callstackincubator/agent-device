@@ -43,7 +43,9 @@ export function resolveDaemonServerMode(raw: string | undefined): DaemonServerMo
   return 'socket';
 }
 
-export function resolveDaemonTransportPreference(raw: string | undefined): DaemonTransportPreference {
+export function resolveDaemonTransportPreference(
+  raw: string | undefined,
+): DaemonTransportPreference {
   const normalized = (raw ?? '').trim().toLowerCase();
   if (normalized === 'auto') return 'auto';
   if (normalized === 'socket') return 'socket';

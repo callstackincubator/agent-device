@@ -15,7 +15,9 @@ const settingsSectionLabels = [
   'Privacy',
 ];
 const settingsSectionSelector = settingsSectionLabels
-  .map((label) => (label.includes(' ') || label.includes('&') ? `label="${label}"` : `label=${label}`))
+  .map((label) =>
+    label.includes(' ') || label.includes('&') ? `label="${label}"` : `label=${label}`,
+  )
   .join(' || ');
 const settingsCrashDialogLabels = ['Wait', 'Close app'];
 const settingsCrashDialogSelector = settingsCrashDialogLabels
@@ -49,9 +51,15 @@ test('android settings commands', () => {
 
   const snapshotArgs = ['snapshot', '-i', '--json', ...session];
   let snapshot = integration.runStep('snapshot', snapshotArgs);
-  integration.assertResult(Array.isArray(snapshot.json?.data?.nodes), 'snapshot nodes', snapshotArgs, snapshot, {
-    detail: 'expected snapshot to include a nodes array',
-  });
+  integration.assertResult(
+    Array.isArray(snapshot.json?.data?.nodes),
+    'snapshot nodes',
+    snapshotArgs,
+    snapshot,
+    {
+      detail: 'expected snapshot to include a nodes array',
+    },
+  );
   if (snapshotHasAnyLabel(snapshot, settingsCrashDialogLabels)) {
     const dismissCrashDialogArgs = ['click', settingsCrashDialogSelector, '--json', ...session];
     const dismissCrashDialog = integration.runStep(

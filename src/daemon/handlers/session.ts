@@ -1,15 +1,18 @@
 import fs from 'node:fs';
-import { dispatchCommand, resolveTargetDevice, type BatchStep, type CommandFlags } from '../../core/dispatch.ts';
+import {
+  dispatchCommand,
+  resolveTargetDevice,
+  type BatchStep,
+  type CommandFlags,
+} from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
-import { resolveAndroidSerialAllowlist, resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
-import type {
-  DaemonRequest,
-  DaemonResponse,
-  SessionAction,
-  SessionState,
-} from '../types.ts';
+import {
+  resolveAndroidSerialAllowlist,
+  resolveIosSimulatorDeviceSetPath,
+} from '../../utils/device-isolation.ts';
+import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -80,7 +83,15 @@ type EnsureAndroidEmulatorBoot = (params: {
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
-const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = ['platform', 'target', 'device', 'udid', 'serial', 'verbose', 'out'];
+const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = [
+  'platform',
+  'target',
+  'device',
+  'udid',
+  'serial',
+  'verbose',
+  'out',
+];
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
@@ -89,7 +100,11 @@ const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
 type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
 
-const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({ avdName, serial, headless }) => {
+const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({
+  avdName,
+  serial,
+  headless,
+}) => {
   const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
   return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
 };
@@ -150,7 +165,9 @@ async function runSessionOrSelectorDispatch(params: {
     ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
   });
   if (session) {
-    const nextSession = deriveNextSession ? await deriveNextSession(session, result, device) : session;
+    const nextSession = deriveNextSession
+      ? await deriveNextSession(session, result, device)
+      : session;
     sessionStore.recordAction(nextSession, {
       command,
       positionals: recordPositionals ?? positionals,
@@ -205,7 +222,8 @@ async function handleAppStateCommand(params: {
   const guard = requireSessionOrExplicitSelector('appstate', session, flags);
   if (guard) return guard;
 
-  const shouldUseSessionStateForIos = session?.device.platform === 'ios' && selectorTargetsSessionDevice(flags, session);
+  const shouldUseSessionStateForIos =
+    session?.device.platform === 'ios' && selectorTargetsSessionDevice(flags, session);
   const targetsIos = normalizedPlatform === 'ios';
   if (targetsIos && !shouldUseSessionStateForIos) {
     return {
@@ -223,7 +241,8 @@ async function handleAppStateCommand(params: {
         ok: false,
         error: {
           code: 'COMMAND_FAILED',
-          message: 'No foreground app is tracked for this iOS session. Open an app in the session, then retry appstate.',
+          message:
+            'No foreground app is tracked for this iOS session. Open an app in the session, then retry appstate.',
         },
       };
     }
@@ -369,7 +388,8 @@ export async function handleSessionCommands(params: {
       stop: stopAppLog,
     },
     ensureAndroidEmulatorBoot: ensureAndroidEmulatorBootOverride = defaultEnsureAndroidEmulatorBoot,
-    resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
+    resolveAndroidPackageForOpen:
+      resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
     applyRuntimeHints: applyRuntimeHintsOverride = applyRuntimeHintsToApp,
     clearRuntimeHints: clearRuntimeHintsOverride = clearRuntimeHintsFromApp,
     settleSimulator: settleSimulatorOverride,
@@ -420,7 +440,10 @@ export async function handleSessionCommands(params: {
       const runtime = flags.runtime;
       const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(flags.iosSimulatorDeviceSet);
       if (!deviceName) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'ensure-simulator requires --device <name>' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'ensure-simulator requires --device <name>' },
+        };
       }
       const shouldBoot = flags.boot === true;
       const reuseExisting = flags.reuseExisting !== false;
@@ -445,15 +468,22 @@ export async function handleSessionCommands(params: {
       };
     } catch (err) {
       const appErr = asAppError(err);
-      return { ok: false, error: { code: appErr.code, message: appErr.message, details: appErr.details } };
+      return {
+        ok: false,
+        error: { code: appErr.code, message: appErr.message, details: appErr.details },
+      };
     }
   }
 
   if (command === 'devices') {
     try {
       const devices: DeviceInfo[] = [];
-      const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(req.flags?.iosSimulatorDeviceSet);
-      const androidSerialAllowlist = resolveAndroidSerialAllowlist(req.flags?.androidDeviceAllowlist);
+      const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(
+        req.flags?.iosSimulatorDeviceSet,
+      );
+      const androidSerialAllowlist = resolveAndroidSerialAllowlist(
+        req.flags?.androidDeviceAllowlist,
+      );
       const requestedPlatform = normalizePlatformSelector(req.flags?.platform);
       if (requestedPlatform === 'android') {
         const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
@@ -478,11 +508,16 @@ export async function handleSessionCommands(params: {
       const filtered = req.flags?.target
         ? devices.filter((device) => (device.target ?? 'mobile') === req.flags?.target)
         : devices;
-      const publicDevices = filtered.map(({ simulatorSetPath: _simulatorSetPath, ...device }) => device);
+      const publicDevices = filtered.map(
+        ({ simulatorSetPath: _simulatorSetPath, ...device }) => device,
+      );
       return { ok: true, data: { devices: publicDevices } };
     } catch (err) {
       const appErr = asAppError(err);
-      return { ok: false, error: { code: appErr.code, message: appErr.message, details: appErr.details } };
+      return {
+        ok: false,
+        error: { code: appErr.code, message: appErr.message, details: appErr.details },
+      };
     }
   }
 
@@ -499,7 +534,10 @@ export async function handleSessionCommands(params: {
       ensureReady: true,
     });
     if (!isCommandSupportedOnDevice('apps', device)) {
-      return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' } };
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' },
+      };
     }
     const appsFilter = req.flags?.appsFilter ?? 'all';
     if (device.platform === 'ios') {
@@ -523,7 +561,8 @@ export async function handleSessionCommands(params: {
     const flags = req.flags ?? {};
     const guard = requireSessionOrExplicitSelector(command, session, flags);
     if (guard) return guard;
-    const normalizedPlatform = normalizePlatformSelector(flags.platform) ?? session?.device.platform;
+    const normalizedPlatform =
+      normalizePlatformSelector(flags.platform) ?? session?.device.platform;
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
     if (wantsAndroidHeadless && !targetsAndroid) {
@@ -552,16 +591,26 @@ export async function handleSessionCommands(params: {
       });
     } catch (error) {
       const appErr = asAppError(error);
-      if (targetsAndroid && wantsAndroidHeadless && !fallbackAvdName && appErr.code === 'DEVICE_NOT_FOUND') {
+      if (
+        targetsAndroid &&
+        wantsAndroidHeadless &&
+        !fallbackAvdName &&
+        appErr.code === 'DEVICE_NOT_FOUND'
+      ) {
         return {
           ok: false,
           error: {
             code: 'INVALID_ARGS',
-            message: 'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+            message:
+              'boot --headless requires --device <avd-name> (or an Android emulator session target).',
           },
         };
       }
-      if (!canFallbackLaunchAndroidEmulator || appErr.code !== 'DEVICE_NOT_FOUND' || !fallbackAvdName) {
+      if (
+        !canFallbackLaunchAndroidEmulator ||
+        appErr.code !== 'DEVICE_NOT_FOUND' ||
+        !fallbackAvdName
+      ) {
         throw error;
       }
       device = await ensureAndroidEmulatorBootOverride({
@@ -601,7 +650,8 @@ export async function handleSessionCommands(params: {
             ok: false,
             error: {
               code: 'INVALID_ARGS',
-              message: 'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+              message:
+                'boot --headless requires --device <avd-name> (or an Android emulator session target).',
             },
           };
         }
@@ -619,7 +669,10 @@ export async function handleSessionCommands(params: {
       }
     }
     if (!isCommandSupportedOnDevice('boot', device)) {
-      return { ok: false, error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' } };
+      return {
+        ok: false,
+        error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' },
+      };
     }
     return {
       ok: true,
@@ -752,14 +805,12 @@ export async function handleSessionCommands(params: {
       deriveNextSession: async (session, result) => {
         const eventUrl = typeof result?.eventUrl === 'string' ? result.eventUrl : undefined;
         const nextAppBundleId = eventUrl
-          ? (
-            await resolveSessionAppBundleIdForTarget(
+          ? ((await resolveSessionAppBundleIdForTarget(
               session.device,
               eventUrl,
               session.appBundleId,
               resolveAndroidPackageForOpenOverride,
-            )
-          ) ?? session.appBundleId
+            )) ?? session.appBundleId)
           : session.appBundleId;
         return {
           ...session,
@@ -800,7 +851,8 @@ export async function handleSessionCommands(params: {
           ok: false,
           error: {
             code: 'INVALID_ARGS',
-            message: 'replay accepts .ad script files. JSON replay payloads are no longer supported.',
+            message:
+              'replay accepts .ad script files. JSON replay payloads are no longer supported.',
           },
         };
       }
@@ -860,7 +912,10 @@ export async function handleSessionCommands(params: {
   if (command === 'logs') {
     const session = sessionStore.get(sessionName);
     if (!session) {
-      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'logs requires an active session' } };
+      return {
+        ok: false,
+        error: { code: 'SESSION_NOT_FOUND', message: 'logs requires an active session' },
+      };
     }
     const action = (req.positionals?.[0] ?? 'path').toLowerCase();
     const restart = Boolean(req.flags?.restart);
@@ -868,14 +923,20 @@ export async function handleSessionCommands(params: {
       return { ok: false, error: { code: 'INVALID_ARGS', message: LOG_ACTIONS_MESSAGE } };
     }
     if (restart && action !== 'clear') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs --restart is only supported with logs clear' } };
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'logs --restart is only supported with logs clear',
+        },
+      };
     }
     if (action === 'path') {
       const logPath = sessionStore.resolveAppLogPath(sessionName);
       const metadata = getAppLogPathMetadata(logPath);
       const backend =
-        session.appLog?.backend
-        ?? (session.device.platform === 'ios'
+        session.appLog?.backend ??
+        (session.device.platform === 'ios'
           ? session.device.kind === 'device'
             ? 'ios-device'
             : 'ios-simulator'
@@ -889,7 +950,9 @@ export async function handleSessionCommands(params: {
           backend,
           sizeBytes: metadata.sizeBytes,
           modifiedAt: metadata.modifiedAt,
-          startedAt: session.appLog?.startedAt ? new Date(session.appLog.startedAt).toISOString() : undefined,
+          startedAt: session.appLog?.startedAt
+            ? new Date(session.appLog.startedAt).toISOString()
+            : undefined,
           hint: 'Grep the file for token-efficient debugging, e.g. grep -n "Error\\|Exception" <path>',
         },
       };
@@ -918,15 +981,26 @@ export async function handleSessionCommands(params: {
       if (session.appLog && !restart) {
         return {
           ok: false,
-          error: { code: 'INVALID_ARGS', message: 'logs clear requires logs to be stopped first; run logs stop' },
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'logs clear requires logs to be stopped first; run logs stop',
+          },
         };
       }
       if (restart) {
         if (!session.appBundleId) {
-          return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs clear --restart requires an app session; run open <app> first' } };
+          return {
+            ok: false,
+            error: {
+              code: 'INVALID_ARGS',
+              message: 'logs clear --restart requires an app session; run open <app> first',
+            },
+          };
         }
         if (!isCommandSupportedOnDevice('logs', session.device)) {
-          const unsupportedError = normalizeError(new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'));
+          const unsupportedError = normalizeError(
+            new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'),
+          );
           return {
             ok: false,
             error: unsupportedError,
@@ -941,7 +1015,12 @@ export async function handleSessionCommands(params: {
         const cleared = clearAppLogFiles(logPath);
         const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
         try {
-          const appLogStream = await appLogOps.start(session.device, session.appBundleId as string, logPath, appLogPidPath);
+          const appLogStream = await appLogOps.start(
+            session.device,
+            session.appBundleId as string,
+            logPath,
+            appLogPidPath,
+          );
           const nextSession: SessionState = {
             ...session,
             appLog: {
@@ -967,13 +1046,27 @@ export async function handleSessionCommands(params: {
     }
     if (action === 'start') {
       if (session.appLog) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'app log already streaming; run logs stop first' } };
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'app log already streaming; run logs stop first',
+          },
+        };
       }
       if (!session.appBundleId) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'logs start requires an app session; run open <app> first' } };
+        return {
+          ok: false,
+          error: {
+            code: 'INVALID_ARGS',
+            message: 'logs start requires an app session; run open <app> first',
+          },
+        };
       }
       if (!isCommandSupportedOnDevice('logs', session.device)) {
-        const unsupportedError = normalizeError(new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'));
+        const unsupportedError = normalizeError(
+          new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'),
+        );
         return {
           ok: false,
           error: unsupportedError,
@@ -982,7 +1075,12 @@ export async function handleSessionCommands(params: {
       const appLogPath = sessionStore.resolveAppLogPath(sessionName);
       const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
       try {
-        const appLogStream = await appLogOps.start(session.device, session.appBundleId, appLogPath, appLogPidPath);
+        const appLogStream = await appLogOps.start(
+          session.device,
+          session.appBundleId,
+          appLogPath,
+          appLogPidPath,
+        );
         const nextSession: SessionState = {
           ...session,
           appLog: {
@@ -1016,7 +1114,10 @@ export async function handleSessionCommands(params: {
   if (command === 'network') {
     const session = sessionStore.get(sessionName);
     if (!session) {
-      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'network requires an active session' } };
+      return {
+        ok: false,
+        error: { code: 'SESSION_NOT_FOUND', message: 'network requires an active session' },
+      };
     }
     const action = (req.positionals?.[0] ?? 'dump').toLowerCase();
     if (!NETWORK_ACTIONS.includes(action as (typeof NETWORK_ACTIONS)[number])) {
@@ -1026,11 +1127,19 @@ export async function handleSessionCommands(params: {
     const requestedLimit = req.positionals?.[1];
     const maxEntries = requestedLimit ? Number.parseInt(requestedLimit, 10) : 25;
     if (!Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 200) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'network dump limit must be an integer in range 1..200' } };
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'network dump limit must be an integer in range 1..200',
+        },
+      };
     }
 
     const requestedInclude = (req.positionals?.[2] ?? 'summary').toLowerCase();
-    if (!NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])) {
+    if (
+      !NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])
+    ) {
       return { ok: false, error: { code: 'INVALID_ARGS', message: NETWORK_INCLUDE_MESSAGE } };
     }
     const include = requestedInclude as NetworkIncludeMode;
@@ -1043,15 +1152,17 @@ export async function handleSessionCommands(params: {
       maxScanLines: 4000,
     });
     const backend =
-      session.appLog?.backend
-      ?? (session.device.platform === 'ios'
+      session.appLog?.backend ??
+      (session.device.platform === 'ios'
         ? session.device.kind === 'device'
           ? 'ios-device'
           : 'ios-simulator'
         : 'android');
     const notes: string[] = [];
     if (!session.appLog) {
-      notes.push('Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.');
+      notes.push(
+        'Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.',
+      );
     }
     if (dump.entries.length === 0) {
       notes.push('No HTTP(s) entries were found in recent session app logs.');
@@ -1118,17 +1229,17 @@ function withReplayFailureContext(
     action: action.command,
     positionals: action.positionals ?? [],
   };
-    return {
-      ok: false,
-      error: {
-        code: response.error.code,
-        message: `Replay failed at step ${step} (${summary}): ${response.error.message}`,
-        hint: response.error.hint,
-        diagnosticId: response.error.diagnosticId,
-        logPath: response.error.logPath,
-        details,
-      },
-    };
+  return {
+    ok: false,
+    error: {
+      code: response.error.code,
+      message: `Replay failed at step ${step} (${summary}): ${response.error.message}`,
+      hint: response.error.hint,
+      diagnosticId: response.error.diagnosticId,
+      logPath: response.error.logPath,
+      details,
+    },
+  };
 }
 
 function buildReplayActionFlags(
@@ -1158,7 +1269,10 @@ async function healReplayAction(params: {
   dispatch: typeof dispatchCommand;
 }): Promise<SessionAction | null> {
   const { action, sessionName, logPath, sessionStore, dispatch } = params;
-  if (!(isClickLikeCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command))) return null;
+  if (
+    !(isClickLikeCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command))
+  )
+    return null;
   const session = sessionStore.get(sessionName);
   if (!session) return null;
   const requiresRect = isClickLikeCommand(action.command) || action.command === 'fill';
@@ -1166,7 +1280,14 @@ async function healReplayAction(params: {
     isClickLikeCommand(action.command) ||
     action.command === 'fill' ||
     (action.command === 'get' && action.positionals?.[0] === 'text');
-  const snapshot = await captureSnapshotForReplay(session, action, logPath, requiresRect, dispatch, sessionStore);
+  const snapshot = await captureSnapshotForReplay(
+    session,
+    action,
+    logPath,
+    requiresRect,
+    dispatch,
+    sessionStore,
+  );
   const selectorCandidates = collectReplaySelectorCandidates(action);
   for (const candidate of selectorCandidates) {
     const chain = tryParseSelectorChain(candidate);
@@ -1179,7 +1300,11 @@ async function healReplayAction(params: {
     });
     if (!resolved) continue;
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
-      action: isClickLikeCommand(action.command) ? 'click' : action.command === 'fill' ? 'fill' : 'get',
+      action: isClickLikeCommand(action.command)
+        ? 'click'
+        : action.command === 'fill'
+          ? 'fill'
+          : 'get',
     });
     const selectorExpression = selectorChain.join(' || ');
     if (isClickLikeCommand(action.command)) {

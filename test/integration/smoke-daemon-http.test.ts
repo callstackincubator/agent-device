@@ -232,7 +232,9 @@ test('daemon HTTP JSON-RPC flow honors custom state dir and tenant isolation con
     assert.equal(okResponse.statusCode, 200);
     assert.equal(okResponse.json?.result?.ok, true, JSON.stringify(okResponse.json));
 
-    const missingTenantResponse = await callCommandRpc(info, 'session_list', { sessionIsolation: 'tenant' });
+    const missingTenantResponse = await callCommandRpc(info, 'session_list', {
+      sessionIsolation: 'tenant',
+    });
     assert.equal(missingTenantResponse.statusCode, 400);
     assert.equal(missingTenantResponse.json?.error?.code, -32000);
     assert.equal(missingTenantResponse.json?.error?.data?.code, 'INVALID_ARGS');

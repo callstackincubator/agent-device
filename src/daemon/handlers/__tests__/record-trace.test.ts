@@ -75,7 +75,11 @@ function makeIosDeviceRunnerDeps(
   runnerCalls: RunnerCall[],
   runCmdCalls: Array<{ cmd: string; args: string[] }>,
 ): RecordTraceDeps {
-  const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (_device, command, options) => {
+  const runIosRunnerCommand: RecordTraceDeps['runIosRunnerCommand'] = async (
+    _device,
+    command,
+    options,
+  ) => {
     runnerCalls.push({
       command: command.command,
       outPath: command.outPath,
@@ -127,9 +131,10 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
   const startedRecording = sessionStore.get(sessionName)?.recording;
   assert.equal(startedRecording?.platform, 'ios-device-runner');
-  const stagedRemotePath = startedRecording && startedRecording.platform === 'ios-device-runner'
-    ? startedRecording.remotePath
-    : undefined;
+  const stagedRemotePath =
+    startedRecording && startedRecording.platform === 'ios-device-runner'
+      ? startedRecording.remotePath
+      : undefined;
   assert.match(stagedRemotePath ?? '', /^tmp\/agent-device-recording-\d+\.mp4$/);
 
   const responseStop = await runRecordCommand({
@@ -387,7 +392,11 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
   const sessionName = 'ios-device-stop-fail';
   sessionStore.set(sessionName, {
     ...makeIosDeviceSession(sessionName),
-    recording: { platform: 'ios-device-runner', outPath: '/tmp/device.mp4', remotePath: 'tmp/device.mp4' },
+    recording: {
+      platform: 'ios-device-runner',
+      outPath: '/tmp/device.mp4',
+      remotePath: 'tmp/device.mp4',
+    },
   });
 
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
@@ -418,13 +427,16 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
 test('record uses simctl recordVideo for iOS simulators', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'Simulator',
-    kind: 'simulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
 
   let started = false;
   let stopped = false;
@@ -478,13 +490,16 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
 test('record keeps android pull + cleanup flow', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android';
-  sessionStore.set(sessionName, makeSession(sessionName, {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Android',
-    kind: 'emulator',
-    booted: true,
-  }));
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
 
   const adbCalls: Array<string[]> = [];
   await runRecordCommand({

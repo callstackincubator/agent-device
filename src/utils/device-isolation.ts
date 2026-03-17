@@ -13,10 +13,7 @@ function normalizeNonEmpty(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function resolveFirstEnv(
-  keys: readonly string[],
-  env: NodeJS.ProcessEnv,
-): string | undefined {
+function resolveFirstEnv(keys: readonly string[], env: NodeJS.ProcessEnv): string | undefined {
   for (const key of keys) {
     const value = normalizeNonEmpty(env[key]);
     if (value) return value;
@@ -45,8 +42,7 @@ export function resolveAndroidSerialAllowlist(
   env: NodeJS.ProcessEnv = process.env,
 ): ReadonlySet<string> | undefined {
   const configured =
-    normalizeNonEmpty(flagValue)
-    ?? resolveFirstEnv(ANDROID_DEVICE_ALLOWLIST_ENV_KEYS, env);
+    normalizeNonEmpty(flagValue) ?? resolveFirstEnv(ANDROID_DEVICE_ALLOWLIST_ENV_KEYS, env);
   if (!configured) return undefined;
   return parseSerialAllowlist(configured);
 }

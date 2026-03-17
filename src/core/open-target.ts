@@ -6,7 +6,14 @@ export function isDeepLinkTarget(input: string): boolean {
   if (!match) return false;
   const scheme = match[1]?.toLowerCase();
   const rest = match[2] ?? '';
-  if (scheme === 'http' || scheme === 'https' || scheme === 'ws' || scheme === 'wss' || scheme === 'ftp' || scheme === 'ftps') {
+  if (
+    scheme === 'http' ||
+    scheme === 'https' ||
+    scheme === 'ws' ||
+    scheme === 'wss' ||
+    scheme === 'ftp' ||
+    scheme === 'ftps'
+  ) {
     return rest.startsWith('//');
   }
   return true;
@@ -19,7 +26,10 @@ export function isWebUrl(input: string): boolean {
 
 export const IOS_SAFARI_BUNDLE_ID = 'com.apple.mobilesafari';
 
-export function resolveIosDeviceDeepLinkBundleId(appBundleId: string | undefined, url: string): string | undefined {
+export function resolveIosDeviceDeepLinkBundleId(
+  appBundleId: string | undefined,
+  url: string,
+): string | undefined {
   const bundleId = appBundleId?.trim();
   if (bundleId) return bundleId;
   if (isWebUrl(url)) return IOS_SAFARI_BUNDLE_ID;

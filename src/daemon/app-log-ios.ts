@@ -23,18 +23,24 @@ export async function startIosSimulatorAppLog(
   pidPath?: string,
 ): Promise<AppLogResult> {
   let state: 'active' | 'failed' = 'active';
-  const child = spawn('log', ['stream', '--style', 'compact', '--predicate', buildIosLogPredicate(appBundleId)], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    'log',
+    ['stream', '--style', 'compact', '--predicate', buildIosLogPredicate(appBundleId)],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
   const writer = createLineWriter(stream, { redactionPatterns });
   if (typeof child.pid === 'number') {
     writePidFile(pidPath, child.pid);
   }
-  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then((result) => {
-    if (result.exitCode !== 0) state = 'failed';
-    clearPidFile(pidPath);
-    return result;
-  });
+  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then(
+    (result) => {
+      if (result.exitCode !== 0) state = 'failed';
+      clearPidFile(pidPath);
+      return result;
+    },
+  );
   return {
     backend: 'ios-simulator',
     getState: () => state,
@@ -64,11 +70,13 @@ export async function startIosDeviceAppLog(
   if (typeof child.pid === 'number') {
     writePidFile(pidPath, child.pid);
   }
-  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then((result) => {
-    if (result.exitCode !== 0) state = 'failed';
-    clearPidFile(pidPath);
-    return result;
-  });
+  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then(
+    (result) => {
+      if (result.exitCode !== 0) state = 'failed';
+      clearPidFile(pidPath);
+      return result;
+    },
+  );
   return {
     backend: 'ios-device',
     getState: () => state,

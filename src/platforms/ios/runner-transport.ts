@@ -85,7 +85,11 @@ export async function waitForRunner(
           throw await buildRunnerEarlyExitError({ session, port, logPath });
         }
         if (device.kind === 'device') {
-          endpoints = await resolveRunnerCommandEndpoints(device, port, attemptDeadline?.remainingMs());
+          endpoints = await resolveRunnerCommandEndpoints(
+            device,
+            port,
+            attemptDeadline?.remainingMs(),
+          );
         }
         for (const endpoint of endpoints) {
           try {
@@ -198,13 +202,17 @@ async function fetchWithTimeout(
   }
 }
 
-async function resolveDeviceTunnelIp(deviceId: string, timeoutBudgetMs?: number): Promise<string | null> {
+async function resolveDeviceTunnelIp(
+  deviceId: string,
+  timeoutBudgetMs?: number,
+): Promise<string | null> {
   if (typeof timeoutBudgetMs === 'number' && timeoutBudgetMs <= 0) {
     return null;
   }
-  const timeoutMs = typeof timeoutBudgetMs === 'number'
-    ? Math.max(1, Math.min(RUNNER_DEVICE_INFO_TIMEOUT_MS, timeoutBudgetMs))
-    : RUNNER_DEVICE_INFO_TIMEOUT_MS;
+  const timeoutMs =
+    typeof timeoutBudgetMs === 'number'
+      ? Math.max(1, Math.min(RUNNER_DEVICE_INFO_TIMEOUT_MS, timeoutBudgetMs))
+      : RUNNER_DEVICE_INFO_TIMEOUT_MS;
   const jsonPath = path.join(
     os.tmpdir(),
     `agent-device-devicectl-info-${process.pid}-${Date.now()}.json`,
@@ -241,8 +249,8 @@ async function resolveDeviceTunnelIp(deviceId: string, timeoutBudgetMs?: number)
       return null;
     }
     const ip = (
-      payload.result?.connectionProperties?.tunnelIPAddress
-      ?? payload.result?.device?.connectionProperties?.tunnelIPAddress
+      payload.result?.connectionProperties?.tunnelIPAddress ??
+      payload.result?.device?.connectionProperties?.tunnelIPAddress
     )?.trim();
     return ip && ip.length > 0 ? ip : null;
   } catch {
@@ -272,11 +280,7 @@ async function postCommandViaSimulator(
     payload,
     `http://127.0.0.1:${port}/command`,
   ]);
-  const result = await runCmd(
-    'xcrun',
-    args,
-    { allowFailure: true, timeoutMs },
-  );
+  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs });
   const body = result.stdout as string;
   if (result.exitCode !== 0) {
     const reason = classifyBootFailure({
@@ -313,7 +317,12 @@ export async function getFreePort(): Promise<number> {
   });
 }
 
-export function logChunk(chunk: string, logPath?: string, traceLogPath?: string, verbose?: boolean): void {
+export function logChunk(
+  chunk: string,
+  logPath?: string,
+  traceLogPath?: string,
+  verbose?: boolean,
+): void {
   if (logPath) fs.appendFileSync(logPath, chunk);
   if (traceLogPath) fs.appendFileSync(traceLogPath, chunk);
   if (verbose) {

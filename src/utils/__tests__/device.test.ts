@@ -19,7 +19,9 @@ test('resolveApplePlatformName resolves tv targets to tvOS', () => {
 
 test('resolveDevice throws DEVICE_NOT_FOUND with scoped set guidance when simulatorSetPath is set and no devices found', async () => {
   const setPath = '/path/to/sessions/abc/Simulators';
-  const err = await resolveDevice([], { platform: 'ios' }, { simulatorSetPath: setPath }).catch((e) => e);
+  const err = await resolveDevice([], { platform: 'ios' }, { simulatorSetPath: setPath }).catch(
+    (e) => e,
+  );
   assert.ok(err instanceof AppError);
   assert.equal(err.code, 'DEVICE_NOT_FOUND');
   assert.match(err.message, /scoped simulator set/);
@@ -39,7 +41,9 @@ test('resolveDevice throws generic DEVICE_NOT_FOUND when no simulatorSetPath and
 
 test('resolveDevice does not apply scoped set guidance for non-iOS platform with simulatorSetPath', async () => {
   const setPath = '/path/to/sessions/abc/Simulators';
-  const err = await resolveDevice([], { platform: 'android' }, { simulatorSetPath: setPath }).catch((e) => e);
+  const err = await resolveDevice([], { platform: 'android' }, { simulatorSetPath: setPath }).catch(
+    (e) => e,
+  );
   assert.ok(err instanceof AppError);
   assert.equal(err.code, 'DEVICE_NOT_FOUND');
   assert.equal(err.message, 'No devices found');
@@ -56,13 +60,25 @@ test('resolveDevice applies scoped set guidance when no platform selector specif
 });
 
 test('resolveDevice returns a device when candidates are available', async () => {
-  const device: DeviceInfo = { platform: 'ios', id: 'abc123', name: 'iPhone 16', kind: 'simulator', booted: true };
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'abc123',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  };
   const result = await resolveDevice([device], { platform: 'ios' });
   assert.equal(result.id, 'abc123');
 });
 
 test('resolveDevice prefers simulator over physical device when no explicit device selector', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
   const simulator: DeviceInfo = {
     platform: 'ios',
     id: 'sim-1',
@@ -76,35 +92,92 @@ test('resolveDevice prefers simulator over physical device when no explicit devi
 });
 
 test('resolveDevice prefers booted simulator over physical device', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
-  const sim1: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
-  const sim2: DeviceInfo = { platform: 'ios', id: 'sim-2', name: 'iPhone 15', kind: 'simulator', booted: false };
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
+  const sim1: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  };
+  const sim2: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: false,
+  };
   const result = await resolveDevice([physical, sim1, sim2], { platform: 'ios' });
   assert.equal(result.id, 'sim-1');
 });
 
 test('resolveDevice falls back to physical device when no simulators exist', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
   const result = await resolveDevice([physical], { platform: 'ios' });
   assert.equal(result.id, 'phys-1');
 });
 
 test('resolveDevice returns physical device when explicitly selected by deviceName', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
-  const simulator: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
-  const result = await resolveDevice([physical, simulator], { platform: 'ios', deviceName: 'My iPhone' });
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
+  const simulator: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  };
+  const result = await resolveDevice([physical, simulator], {
+    platform: 'ios',
+    deviceName: 'My iPhone',
+  });
   assert.equal(result.id, 'phys-1');
 });
 
 test('resolveDevice returns physical device when explicitly selected by udid', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
-  const simulator: DeviceInfo = { platform: 'ios', id: 'sim-1', name: 'iPhone 16', kind: 'simulator', booted: true };
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
+  const simulator: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  };
   const result = await resolveDevice([physical, simulator], { platform: 'ios', udid: 'phys-1' });
   assert.equal(result.id, 'phys-1');
 });
 
 test('resolveDevice returns physical device when it is the only candidate (no simulators in list)', async () => {
-  const physical: DeviceInfo = { platform: 'ios', id: 'phys-1', name: 'My iPhone', kind: 'device', booted: true };
+  const physical: DeviceInfo = {
+    platform: 'ios',
+    id: 'phys-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  };
   const result = await resolveDevice([physical], { platform: 'ios' });
   assert.equal(result.id, 'phys-1');
   assert.equal(result.kind, 'device');

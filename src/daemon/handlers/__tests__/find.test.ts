@@ -41,7 +41,10 @@ async function runFindClickScenario(options: {
   positionals: string[];
   nodes: Array<Record<string, unknown>>;
   invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
-}): Promise<{ response: NonNullable<Awaited<ReturnType<typeof handleFindCommands>>>; invokeCalls: DaemonRequest[] }> {
+}): Promise<{
+  response: NonNullable<Awaited<ReturnType<typeof handleFindCommands>>>;
+  invokeCalls: DaemonRequest[];
+}> {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   sessionStore.set(sessionName, makeSession(sessionName));

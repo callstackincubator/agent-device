@@ -28,7 +28,12 @@ import {
   classifyLaunchFailure,
   launchFailureHint,
 } from './launch-diagnostics.ts';
-import { ensureBootedSimulator, ensureSimulator, focusIosSimulatorWindow, getSimulatorState } from './simulator.ts';
+import {
+  ensureBootedSimulator,
+  ensureSimulator,
+  focusIosSimulatorWindow,
+  getSimulatorState,
+} from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { prepareIosInstallArtifact } from './install-artifact.ts';
 export {
@@ -47,16 +52,16 @@ function simctlArgs(device: DeviceInfo, args: string[]): string[] {
   return buildSimctlArgsForDevice(device, args);
 }
 
-function runSimctl(
-  device: DeviceInfo,
-  args: string[],
-  options?: Parameters<typeof runCmd>[2],
-) {
+function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<typeof runCmd>[2]) {
   return runCmd('xcrun', simctlArgs(device, args), options);
 }
 
 function isMissingAppErrorOutput(output: string): boolean {
-  return output.includes('not installed') || output.includes('not found') || output.includes('no such file');
+  return (
+    output.includes('not installed') ||
+    output.includes('not found') ||
+    output.includes('no such file')
+  );
 }
 
 type InstallIosAppOptions = {
@@ -176,7 +181,10 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   });
 }
 
-export async function uninstallIosApp(device: DeviceInfo, app: string): Promise<{ bundleId: string }> {
+export async function uninstallIosApp(
+  device: DeviceInfo,
+  app: string,
+): Promise<{ bundleId: string }> {
   const bundleId = await resolveIosApp(device, app);
   if (device.kind !== 'simulator') {
     const args = ['devicectl', 'device', 'uninstall', 'app', '--device', device.id, bundleId];
@@ -226,7 +234,13 @@ export async function installIosApp(
   device: DeviceInfo,
   appPath: string,
   options?: InstallIosAppOptions,
-): Promise<{ archivePath?: string; installablePath: string; bundleId?: string; appName?: string; launchTarget?: string }> {
+): Promise<{
+  archivePath?: string;
+  installablePath: string;
+  bundleId?: string;
+  appName?: string;
+  launchTarget?: string;
+}> {
   const prepared = await prepareIosInstallArtifact({ kind: 'path', path: appPath }, options);
   try {
     await installIosInstallablePath(device, prepared.installablePath);
@@ -252,7 +266,10 @@ export async function reinstallIosApp(
   return { bundleId };
 }
 
-export async function installIosInstallablePath(device: DeviceInfo, installablePath: string): Promise<void> {
+export async function installIosInstallablePath(
+  device: DeviceInfo,
+  installablePath: string,
+): Promise<void> {
   if (device.kind !== 'simulator') {
     await runIosDevicectl(['device', 'install', 'app', '--device', device.id, installablePath], {
       action: 'install iOS app',
@@ -383,10 +400,7 @@ export async function setIosSetting(
     }
     case 'permission': {
       if (!appBundleId) {
-        throw new AppError(
-          'INVALID_ARGS',
-          'permission setting requires an active app in session',
-        );
+        throw new AppError('INVALID_ARGS', 'permission setting requires an active app in session');
       }
       const action = mapIosPermissionAction(parsePermissionAction(state));
       const target = parseIosPermissionTarget(options?.permissionTarget, options?.permissionMode);
@@ -418,7 +432,10 @@ export async function listSimulatorApps(device: DeviceInfo): Promise<IosAppInfo[
   let parsed: Record<string, { CFBundleDisplayName?: string; CFBundleName?: string }> | null = null;
   if (trimmed.startsWith('{')) {
     try {
-      parsed = JSON.parse(trimmed) as Record<string, { CFBundleDisplayName?: string; CFBundleName?: string }>;
+      parsed = JSON.parse(trimmed) as Record<
+        string,
+        { CFBundleDisplayName?: string; CFBundleName?: string }
+      >;
     } catch {
       parsed = null;
     }
@@ -455,7 +472,10 @@ function parseSettingState(state: string): boolean {
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
-async function resolveIosAppearanceTarget(device: DeviceInfo, state: string): Promise<'light' | 'dark'> {
+async function resolveIosAppearanceTarget(
+  device: DeviceInfo,
+  state: string,
+): Promise<'light' | 'dark'> {
   const action = parseAppearanceAction(state);
   if (action !== 'toggle') return action;
 
@@ -622,7 +642,10 @@ function parseSimctlPrivacyServices(helpText: string): Set<string> {
   return services;
 }
 
-function parseIosPermissionTarget(permissionTarget: string | undefined, permissionMode: string | undefined): string {
+function parseIosPermissionTarget(
+  permissionTarget: string | undefined,
+  permissionMode: string | undefined,
+): string {
   const normalized = parsePermissionTarget(permissionTarget);
   if (normalized !== 'photos' && permissionMode?.trim()) {
     throw new AppError(
@@ -654,10 +677,7 @@ function parseIosPermissionTarget(permissionTarget: string | undefined, permissi
   );
 }
 
-function parseBiometricAction(
-  state: string,
-  settingName: IosBiometricSetting,
-): IosBiometricAction {
+function parseBiometricAction(state: string, settingName: IosBiometricSetting): IosBiometricAction {
   const normalized = state.trim().toLowerCase();
   if (normalized === 'match') return 'match';
   if (normalized === 'nonmatch') return 'nonmatch';
@@ -672,7 +692,11 @@ function parseBiometricAction(
 async function runIosBiometricSimctlCommand(
   device: DeviceInfo,
   action: IosBiometricAction,
-  options: { settingName: IosBiometricSetting; label: 'Face ID' | 'Touch ID'; modalityAliases: string[] },
+  options: {
+    settingName: IosBiometricSetting;
+    label: 'Face ID' | 'Touch ID';
+    modalityAliases: string[];
+  },
 ): Promise<void> {
   const attempts = biometricCommandAttempts(device.id, action, options.modalityAliases);
   const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
@@ -694,9 +718,9 @@ async function runIosBiometricSimctlCommand(
     exitCode: failure.exitCode,
     stderr: failure.stderr.slice(0, 400),
   }));
-  const capabilityMissing = failures.length > 0 && failures.every((failure) =>
-    isIosBiometricCapabilityMissing(failure.stdout, failure.stderr)
-  );
+  const capabilityMissing =
+    failures.length > 0 &&
+    failures.every((failure) => isIosBiometricCapabilityMissing(failure.stdout, failure.stderr));
   if (capabilityMissing) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
@@ -831,7 +855,10 @@ async function launchIosDeviceProcess(
   await runIosDevicectl(args, { action: 'launch iOS app', deviceId: device.id });
 }
 
-function filterIosAppsByBundlePrefix(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
+function filterIosAppsByBundlePrefix(
+  apps: IosAppInfo[],
+  filter: 'user-installed' | 'all',
+): IosAppInfo[] {
   if (filter === 'user-installed') {
     return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
   }

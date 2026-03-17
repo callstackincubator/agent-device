@@ -103,7 +103,10 @@ test('replay --update heals selector and rewrites replay file', async () => {
   const invokeCalls: string[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'click') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+      };
     }
     const selector = request.positionals?.[0] ?? '';
     invokeCalls.push(selector);
@@ -198,13 +201,19 @@ test('replay tolerates legacy snapshot --backend and strips it on rewrite', asyn
     if (request.command === 'click') {
       const selector = request.positionals?.[0] ?? '';
       if (selector.includes('old_continue')) {
-        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector no longer exists' } };
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'selector no longer exists' },
+        };
       }
       if (selector.includes('auth_continue')) {
         return { ok: true, data: { clicked: true } };
       }
     }
-    return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+    return {
+      ok: false,
+      error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+    };
   };
 
   const dispatch = async (): Promise<Record<string, unknown> | void> => {
@@ -319,7 +328,9 @@ test('replay without --update does not heal or rewrite', async () => {
 });
 
 test('replay --update skips malformed selector candidates and preserves replay error context', async () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-malformed-candidate-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-replay-malformed-candidate-'),
+  );
   const sessionsDir = path.join(tempRoot, 'sessions');
   const replayPath = path.join(tempRoot, 'replay.ad');
   const sessionStore = new SessionStore(sessionsDir);
@@ -363,7 +374,10 @@ test('replay --update skips malformed selector candidates and preserves replay e
     sessionName,
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
-    invoke: async () => ({ ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } }),
+    invoke: async () => ({
+      ok: false,
+      error: { code: 'COMMAND_FAILED', message: 'selector stale' },
+    }),
     dispatch,
   });
 
@@ -395,7 +409,10 @@ test('replay --update heals selector in is command', async () => {
 
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'is') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+      };
     }
     const selector = request.positionals?.[1] ?? '';
     if (selector.includes('old_continue')) {
@@ -468,7 +485,10 @@ test('replay --update heals numeric get text drift when numeric candidate value 
   const invokeCalls: string[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'get') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+      };
     }
     const selector = request.positionals?.[1] ?? '';
     invokeCalls.push(selector);
@@ -545,7 +565,10 @@ test('replay --update heals selector in press command and preserves press series
   const invokeCalls: DaemonRequest[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'press') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` } };
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+      };
     }
     invokeCalls.push(request);
     const selector = request.positionals?.[0] ?? '';

@@ -35,9 +35,11 @@ function parsePidFile(raw: string): StoredAppLogProcessMeta | null {
 
 function isManagedAppLogCommand(command: string): boolean {
   const normalized = command.toLowerCase().replaceAll('\\', '/');
-  return normalized.includes('log stream')
-    || normalized.includes('logcat')
-    || normalized.includes('devicectl device log stream');
+  return (
+    normalized.includes('log stream') ||
+    normalized.includes('logcat') ||
+    normalized.includes('devicectl device log stream')
+  );
 }
 
 function shouldTerminateStoredProcess(meta: StoredAppLogProcessMeta): boolean {

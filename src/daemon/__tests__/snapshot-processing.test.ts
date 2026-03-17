@@ -31,7 +31,12 @@ test('resolveRefLabel falls back to nearest meaningful neighbor', () => {
 
 test('findNearestHittableAncestor walks parents until hittable node', () => {
   const nodes = attachRefs([
-    { index: 0, parentIndex: undefined, hittable: true, rect: { x: 0, y: 0, width: 100, height: 40 } },
+    {
+      index: 0,
+      parentIndex: undefined,
+      hittable: true,
+      rect: { x: 0, y: 0, width: 100, height: 40 },
+    },
     { index: 1, parentIndex: 0, hittable: false, rect: { x: 0, y: 0, width: 50, height: 20 } },
     { index: 2, parentIndex: 1, hittable: false, rect: { x: 0, y: 0, width: 20, height: 20 } },
   ]);

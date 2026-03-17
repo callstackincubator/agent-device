@@ -36,7 +36,10 @@ export function resolveViewportRect(nodes: RawSnapshotNode[], targetRect: Rect):
   return null;
 }
 
-export function buildScrollIntoViewPlan(targetRect: Rect, viewportRect: Rect): ScrollIntoViewPlan | null {
+export function buildScrollIntoViewPlan(
+  targetRect: Rect,
+  viewportRect: Rect,
+): ScrollIntoViewPlan | null {
   const viewportHeight = Math.max(1, viewportRect.height);
   const viewportWidth = Math.max(1, viewportRect.width);
   const viewportTop = viewportRect.y;
@@ -53,7 +56,9 @@ export function buildScrollIntoViewPlan(targetRect: Rect, viewportRect: Rect): S
     return null;
   }
 
-  const x = Math.round(clamp(targetCenterX, viewportLeft + lanePaddingPx, viewportRight - lanePaddingPx));
+  const x = Math.round(
+    clamp(targetCenterX, viewportLeft + lanePaddingPx, viewportRight - lanePaddingPx),
+  );
   const dragUpStartY = Math.round(viewportTop + viewportHeight * 0.86);
   const dragUpEndY = Math.round(viewportTop + viewportHeight * 0.14);
   const dragDownStartY = dragUpEndY;
@@ -93,7 +98,12 @@ export function isRectWithinSafeViewportBand(targetRect: Rect, viewportRect: Rec
 
 function hasValidRect(rect: Rect | undefined): rect is Rect {
   if (!rect) return false;
-  return Number.isFinite(rect.x) && Number.isFinite(rect.y) && Number.isFinite(rect.width) && Number.isFinite(rect.height);
+  return (
+    Number.isFinite(rect.x) &&
+    Number.isFinite(rect.y) &&
+    Number.isFinite(rect.width) &&
+    Number.isFinite(rect.height)
+  );
 }
 
 function containsPoint(rect: Rect, x: number, y: number): boolean {

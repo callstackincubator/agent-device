@@ -23,7 +23,10 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 }
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
-  return { ok: false, error: { code: 'INVALID_ARGS', message: 'invoke should not be called in app deploy tests' } };
+  return {
+    ok: false,
+    error: { code: 'INVALID_ARGS', message: 'invoke should not be called in app deploy tests' },
+  };
 };
 
 test('reinstall requires active session or explicit device selector', async () => {
@@ -197,7 +200,9 @@ test('reinstall succeeds on active Android session with normalized appId', async
       booted: true,
     }),
   );
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-reinstall-success-android-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-reinstall-success-android-'),
+  );
   const appPath = path.join(tempRoot, 'Sample.apk');
   fs.writeFileSync(appPath, 'placeholder');
 

@@ -16,7 +16,10 @@ async function resolveIosBundleIdForOpen(
   return await tryResolveIosAppBundleId(device, openTarget);
 }
 
-async function tryResolveIosAppBundleId(device: DeviceInfo, openTarget: string): Promise<string | undefined> {
+async function tryResolveIosAppBundleId(
+  device: DeviceInfo,
+  openTarget: string,
+): Promise<string | undefined> {
   try {
     const { resolveIosApp } = await import('../../platforms/ios/index.ts');
     return await resolveIosApp(device, openTarget);
@@ -29,7 +32,8 @@ export async function resolveAndroidPackageForOpen(
   device: DeviceInfo,
   openTarget: string | undefined,
 ): Promise<string | undefined> {
-  if (device.platform !== 'android' || !openTarget || isDeepLinkTarget(openTarget)) return undefined;
+  if (device.platform !== 'android' || !openTarget || isDeepLinkTarget(openTarget))
+    return undefined;
   try {
     const { resolveAndroidApp } = await import('../../platforms/android/index.ts');
     const resolved = await resolveAndroidApp(device, openTarget);
@@ -56,8 +60,8 @@ export async function resolveSessionAppBundleIdForTarget(
   ) => Promise<string | undefined>,
 ): Promise<string | undefined> {
   return (
-    (await resolveIosBundleIdForOpen(device, openTarget, currentAppBundleId))
-    ?? (await resolveAndroidPackageForOpenFn(device, openTarget))
-    ?? (shouldPreserveAndroidPackageContext(device, openTarget) ? currentAppBundleId : undefined)
+    (await resolveIosBundleIdForOpen(device, openTarget, currentAppBundleId)) ??
+    (await resolveAndroidPackageForOpenFn(device, openTarget)) ??
+    (shouldPreserveAndroidPackageContext(device, openTarget) ? currentAppBundleId : undefined)
   );
 }

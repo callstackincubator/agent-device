@@ -7,11 +7,20 @@ export type BindingSettings = {
   lockPolicy?: DaemonLockPolicy;
 };
 
-type BindingPolicyOverrides = Pick<Partial<CliFlags>, 'sessionLock' | 'sessionLocked' | 'sessionLockConflicts'>;
+type BindingPolicyOverrides = Pick<
+  Partial<CliFlags>,
+  'sessionLock' | 'sessionLocked' | 'sessionLockConflicts'
+>;
 
 type LockableFlags = Pick<
   Partial<CliFlags>,
-  'platform' | 'target' | 'device' | 'udid' | 'serial' | 'iosSimulatorDeviceSet' | 'androidDeviceAllowlist'
+  | 'platform'
+  | 'target'
+  | 'device'
+  | 'udid'
+  | 'serial'
+  | 'iosSimulatorDeviceSet'
+  | 'androidDeviceAllowlist'
 >;
 
 type BindingOptions = {
@@ -39,10 +48,12 @@ export function applyDefaultPlatformBinding<T extends LockableFlags>(
 export function resolveBindingSettings(options: BindingOptions): BindingSettings {
   const env = options.env ?? process.env;
   const defaultPlatform =
-    options.inheritedPlatform
-    ?? options.configuredPlatform
-    ?? readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
-  const defaultSessionConfigured = hasConfiguredSession(options.configuredSession ?? env.AGENT_DEVICE_SESSION);
+    options.inheritedPlatform ??
+    options.configuredPlatform ??
+    readConfiguredPlatform(env.AGENT_DEVICE_PLATFORM);
+  const defaultSessionConfigured = hasConfiguredSession(
+    options.configuredSession ?? env.AGENT_DEVICE_SESSION,
+  );
   const lockMode = resolveLockMode(options.policyOverrides, env, defaultSessionConfigured);
   return {
     defaultPlatform,
@@ -56,14 +67,18 @@ function resolveLockMode(
   defaultSessionConfigured: boolean,
 ): DaemonLockPolicy | undefined {
   const explicitPolicy =
-    overrides?.sessionLock
-    ?? overrides?.sessionLockConflicts
-    ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK)
-    ?? readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+    overrides?.sessionLock ??
+    overrides?.sessionLockConflicts ??
+    readConflictMode(env.AGENT_DEVICE_SESSION_LOCK) ??
+    readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
   if (explicitPolicy) {
     return explicitPolicy;
   }
-  if (overrides?.sessionLocked === true || isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED) || defaultSessionConfigured) {
+  if (
+    overrides?.sessionLocked === true ||
+    isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED) ||
+    defaultSessionConfigured
+  ) {
     return 'reject';
   }
   return undefined;
@@ -89,10 +104,7 @@ function readConflictMode(raw: string | undefined): DaemonLockPolicy | undefined
   if (value === 'reject' || value === 'strip') {
     return value;
   }
-  throw new AppError(
-    'INVALID_ARGS',
-    `Invalid session lock mode: ${raw}. Use reject or strip.`,
-  );
+  throw new AppError('INVALID_ARGS', `Invalid session lock mode: ${raw}. Use reject or strip.`);
 }
 
 function isEnvTruthy(raw: string | undefined): boolean {

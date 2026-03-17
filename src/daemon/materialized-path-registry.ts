@@ -89,7 +89,9 @@ export async function cleanupRetainedMaterializedPaths(
   await fs.rm(entry.rootPath, { recursive: true, force: true });
 }
 
-export async function cleanupRetainedMaterializedPathsForSession(sessionName: string): Promise<void> {
+export async function cleanupRetainedMaterializedPathsForSession(
+  sessionName: string,
+): Promise<void> {
   const matchingIds = Array.from(retainedPaths.entries())
     .filter(([, entry]) => entry.sessionName === sessionName)
     .map(([materializationId]) => materializationId);

@@ -188,7 +188,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'enum',
     enumValues: ['reject', 'strip'],
     usageLabel: '--session-lock reject|strip',
-    usageDescription: 'Lock bound-session device routing for this CLI invocation and nested batch steps',
+    usageDescription:
+      'Lock bound-session device routing for this CLI invocation and nested batch steps',
   },
   {
     key: 'sessionLocked',
@@ -254,7 +255,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--runtime'],
     type: 'string',
     usageLabel: '--runtime <id>',
-    usageDescription: 'ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)',
+    usageDescription:
+      'ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)',
   },
   {
     key: 'metroHost',
@@ -712,7 +714,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/click by coordinates, snapshot ref, or selector',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: [
+      'count',
+      'intervalMs',
+      'holdMs',
+      'jitterPx',
+      'doubleTap',
+      ...SELECTOR_SNAPSHOT_FLAGS,
+    ],
   },
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
@@ -738,7 +747,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Tap/press by coordinates, snapshot ref, or selector (supports repeated series)',
     positionalArgs: ['targetOrX', 'y?'],
     allowsExtraPositionals: true,
-    allowedFlags: ['count', 'intervalMs', 'holdMs', 'jitterPx', 'doubleTap', ...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: [
+      'count',
+      'intervalMs',
+      'holdMs',
+      'jitterPx',
+      'doubleTap',
+      ...SELECTOR_SNAPSHOT_FLAGS,
+    ],
   },
   longpress: {
     description: 'Long press by coordinates (iOS and Android)',
@@ -810,14 +826,16 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     skipCapabilityCheck: true,
   },
   logs: {
-    usageOverride: 'logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]',
+    usageOverride:
+      'logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]',
     description: 'Session app log info, start/stop streaming, diagnostics, and markers',
     positionalArgs: ['path|start|stop|clear|doctor|mark', 'message?'],
     allowsExtraPositionals: true,
     allowedFlags: ['restart'],
   },
   network: {
-    usageOverride: 'network dump [limit] [summary|headers|body|all] | network log [limit] [summary|headers|body|all]',
+    usageOverride:
+      'network dump [limit] [summary|headers|body|all] | network log [limit] [summary|headers|body|all]',
     description: 'Dump recent HTTP(s) traffic parsed from the session app log',
     positionalArgs: ['dump|log', 'limit?', 'include?'],
     allowedFlags: [],
@@ -837,7 +855,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   settings: {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
-    description: 'Toggle OS settings, appearance, and app permissions (session app scope for permission actions)',
+    description:
+      'Toggle OS settings, appearance, and app permissions (session app scope for permission actions)',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],
   },
@@ -901,7 +920,9 @@ function buildCommandUsage(commandName: string, schema: CommandSchema): string {
   if (schema.usageOverride) return schema.usageOverride;
   const positionals = schema.positionalArgs.map(formatPositionalArg);
   const flagLabels = schema.allowedFlags.flatMap((key) =>
-    (flagDefinitionsByKey.get(key) ?? []).map((definition) => definition.usageLabel ?? definition.names[0]),
+    (flagDefinitionsByKey.get(key) ?? []).map(
+      (definition) => definition.usageLabel ?? definition.names[0],
+    ),
   );
   const optionalFlags = flagLabels.map((label) => `[${label}]`);
   return [commandName, ...positionals, ...optionalFlags].join(' ');
@@ -924,8 +945,9 @@ CLI to control iOS and Android devices for AI agents.
     commandLines.push(`  ${command.usage.padEnd(maxUsage)}${command.schema.description}`);
   }
 
-  const helpFlags = FLAG_DEFINITIONS
-    .filter((definition) => definition.usageLabel && definition.usageDescription);
+  const helpFlags = FLAG_DEFINITIONS.filter(
+    (definition) => definition.usageLabel && definition.usageDescription,
+  );
   const flagsSection = renderFlagSection('Flags:', helpFlags);
 
   return `${header}

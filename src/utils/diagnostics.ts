@@ -33,8 +33,10 @@ type DiagnosticsScope = DiagnosticsScopeOptions & {
 
 const diagnosticsStorage = new AsyncLocalStorage<DiagnosticsScope>();
 
-const SENSITIVE_KEY_RE = /(token|secret|password|authorization|cookie|api[_-]?key|access[_-]?key|private[_-]?key)/i;
-const SENSITIVE_VALUE_RE = /(bearer\s+[a-z0-9._-]+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+)/i;
+const SENSITIVE_KEY_RE =
+  /(token|secret|password|authorization|cookie|api[_-]?key|access[_-]?key|private[_-]?key)/i;
+const SENSITIVE_VALUE_RE =
+  /(bearer\s+[a-z0-9._-]+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+)/i;
 
 export function createRequestId(): string {
   return crypto.randomBytes(8).toString('hex');

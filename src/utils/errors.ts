@@ -32,12 +32,7 @@ export class AppError extends Error {
   details?: AppErrorDetails;
   cause?: unknown;
 
-  constructor(
-    code: ErrorCode,
-    message: string,
-    details?: AppErrorDetails,
-    cause?: unknown,
-  ) {
+  constructor(code: ErrorCode, message: string, details?: AppErrorDetails, cause?: unknown) {
     super(message);
     this.code = code;
     this.details = details;
@@ -61,11 +56,11 @@ export function normalizeError(
   const details = appErr.details ? redactDiagnosticData(appErr.details) : undefined;
   const detailHint = details && typeof details.hint === 'string' ? details.hint : undefined;
   const diagnosticId =
-    (details && typeof details.diagnosticId === 'string' ? details.diagnosticId : undefined)
-    ?? context.diagnosticId;
+    (details && typeof details.diagnosticId === 'string' ? details.diagnosticId : undefined) ??
+    context.diagnosticId;
   const logPath =
-    (details && typeof details.logPath === 'string' ? details.logPath : undefined)
-    ?? context.logPath;
+    (details && typeof details.logPath === 'string' ? details.logPath : undefined) ??
+    context.logPath;
   const hint = detailHint ?? defaultHintForCode(appErr.code);
   const cleanDetails = stripDiagnosticMeta(details);
   const message = maybeEnrichCommandFailedMessage(appErr.code, appErr.message, details);
@@ -109,7 +104,9 @@ function firstStderrLine(stderr: string): string | null {
   return null;
 }
 
-function stripDiagnosticMeta(details: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+function stripDiagnosticMeta(
+  details: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
   if (!details) return undefined;
   const output = { ...details };
   delete output.hint;

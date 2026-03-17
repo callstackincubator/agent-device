@@ -2,12 +2,14 @@ import type { SessionAction } from './types.ts';
 
 const NUMERIC_ARG_RE = /^-?\d+(\.\d+)?$/;
 
-const CLICK_LIKE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'intervalMs' | 'holdMs' | 'jitterPx'>([
-  ['--count', 'count'],
-  ['--interval-ms', 'intervalMs'],
-  ['--hold-ms', 'holdMs'],
-  ['--jitter-px', 'jitterPx'],
-]);
+const CLICK_LIKE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'intervalMs' | 'holdMs' | 'jitterPx'>(
+  [
+    ['--count', 'count'],
+    ['--interval-ms', 'intervalMs'],
+    ['--hold-ms', 'holdMs'],
+    ['--jitter-px', 'jitterPx'],
+  ],
+);
 
 const SWIPE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'pauseMs'>([
   ['--count', 'count'],
@@ -36,7 +38,10 @@ export function formatScriptActionSummary(action: SessionAction): string {
   return [action.command, ...values].join(' ');
 }
 
-export function appendScriptSeriesFlags(parts: string[], action: Pick<SessionAction, 'command' | 'flags'>): void {
+export function appendScriptSeriesFlags(
+  parts: string[],
+  action: Pick<SessionAction, 'command' | 'flags'>,
+): void {
   const flags = action.flags ?? {};
   if (isClickLikeCommand(action.command)) {
     if (typeof flags.count === 'number') parts.push('--count', String(flags.count));
@@ -77,7 +82,10 @@ export function appendRuntimeHintFlags(
   }
 }
 
-export function parseReplaySeriesFlags(command: string, args: string[]): { positionals: string[]; flags: SessionAction['flags'] } {
+export function parseReplaySeriesFlags(
+  command: string,
+  args: string[],
+): { positionals: string[]; flags: SessionAction['flags'] } {
   const positionals: string[] = [];
   const flags: SessionAction['flags'] = {};
 
@@ -120,7 +128,10 @@ export function parseReplaySeriesFlags(command: string, args: string[]): { posit
   return { positionals, flags };
 }
 
-export function parseReplayRuntimeFlags(args: string[]): { positionals: string[]; flags: SessionAction['flags'] } {
+export function parseReplayRuntimeFlags(args: string[]): {
+  positionals: string[];
+  flags: SessionAction['flags'];
+} {
   const positionals: string[] = [];
   const flags: SessionAction['flags'] = {};
 

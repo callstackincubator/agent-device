@@ -106,19 +106,29 @@ async function ensureIosDeviceReady(deviceId: string): Promise<void> {
       const stderr = String(details.stderr ?? '');
       const timeoutMs = Number(details.timeoutMs ?? IOS_DEVICE_READY_TIMEOUT_MS);
       const timeoutHint = `CoreDevice did not respond within ${timeoutMs}ms. Keep the device unlocked and trusted, then retry; if it persists restart Xcode and the iOS device.`;
-      throw new AppError('COMMAND_FAILED', 'iOS device readiness probe failed', {
-        deviceId,
-        cause: error.message,
-        timeoutMs,
-        stdout,
-        stderr,
-        hint: stdout || stderr ? resolveIosReadyHint(stdout, stderr) : timeoutHint,
-      }, error);
+      throw new AppError(
+        'COMMAND_FAILED',
+        'iOS device readiness probe failed',
+        {
+          deviceId,
+          cause: error.message,
+          timeoutMs,
+          stdout,
+          stderr,
+          hint: stdout || stderr ? resolveIosReadyHint(stdout, stderr) : timeoutHint,
+        },
+        error,
+      );
     }
-    throw new AppError('COMMAND_FAILED', 'iOS device readiness probe failed', {
-      deviceId,
-      hint: 'Reconnect the device, keep it unlocked, and retry.',
-    }, error instanceof Error ? error : undefined);
+    throw new AppError(
+      'COMMAND_FAILED',
+      'iOS device readiness probe failed',
+      {
+        deviceId,
+        hint: 'Reconnect the device, keep it unlocked, and retry.',
+      },
+      error instanceof Error ? error : undefined,
+    );
   } finally {
     await fs.rm(jsonPath, { force: true }).catch(() => {});
   }
@@ -127,13 +137,18 @@ async function ensureIosDeviceReady(deviceId: string): Promise<void> {
 export function parseIosReadyPayload(payload: unknown): { tunnelState?: string } {
   const result = (payload as { result?: unknown } | null | undefined)?.result;
   if (!result || typeof result !== 'object') return {};
-  const direct = (result as { connectionProperties?: { tunnelState?: unknown } }).connectionProperties?.tunnelState;
-  const nested = (result as { device?: { connectionProperties?: { tunnelState?: unknown } } }).device?.connectionProperties?.tunnelState;
-  const tunnelState = typeof direct === 'string' ? direct : typeof nested === 'string' ? nested : undefined;
+  const direct = (result as { connectionProperties?: { tunnelState?: unknown } })
+    .connectionProperties?.tunnelState;
+  const nested = (result as { device?: { connectionProperties?: { tunnelState?: unknown } } })
+    .device?.connectionProperties?.tunnelState;
+  const tunnelState =
+    typeof direct === 'string' ? direct : typeof nested === 'string' ? nested : undefined;
   return tunnelState ? { tunnelState } : {};
 }
 
-async function readIosReadyPayload(jsonPath: string): Promise<{ parsed: boolean; tunnelState?: string }> {
+async function readIosReadyPayload(
+  jsonPath: string,
+): Promise<{ parsed: boolean; tunnelState?: string }> {
   try {
     const payloadText = await fs.readFile(jsonPath, 'utf8');
     const payload = JSON.parse(payloadText) as unknown;

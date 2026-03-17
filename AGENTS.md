@@ -90,6 +90,7 @@ Minimal operating guide for AI coding agents in this repo.
 - Daemon handler/shared module change: `pnpm test:unit` and `pnpm test:smoke`.
 - iOS runner/Swift change: `pnpm build:xcuitest`.
 - Cross-platform behavior change: run `pnpm test:integration`.
+- Any change in: `src/`, `test/`, `skills/`: `pnpm format`.
 
 ## Token Guardrails
 - Do not read unrelated files once owning module is identified.

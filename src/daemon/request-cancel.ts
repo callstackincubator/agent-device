@@ -5,12 +5,22 @@ const requestAbortControllers = new Map<string, AbortController>();
 const REQUEST_CANCELED_REASON = 'request_canceled';
 const REQUEST_CANCELED_MESSAGE = 'request canceled';
 
-export function resolveRequestTrackingId(requestId: string | undefined, fallbackSeed?: unknown): string {
+export function resolveRequestTrackingId(
+  requestId: string | undefined,
+  fallbackSeed?: unknown,
+): string {
   if (typeof requestId === 'string' && requestId.length > 0) return requestId;
-  const rawSeed = typeof fallbackSeed === 'string'
-    ? fallbackSeed
-    : (typeof fallbackSeed === 'number' && Number.isFinite(fallbackSeed) ? String(fallbackSeed) : 'generated');
-  const normalizedSeed = rawSeed.trim().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 32) || 'generated';
+  const rawSeed =
+    typeof fallbackSeed === 'string'
+      ? fallbackSeed
+      : typeof fallbackSeed === 'number' && Number.isFinite(fallbackSeed)
+        ? String(fallbackSeed)
+        : 'generated';
+  const normalizedSeed =
+    rawSeed
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 32) || 'generated';
   const nonce = Math.random().toString(36).slice(2, 10);
   return `req:${normalizedSeed}:${process.pid}:${Date.now()}:${nonce}`;
 }

@@ -1,21 +1,21 @@
 # Dogfood Report: {APP_NAME}
 
-| Field | Value |
-|-------|-------|
-| **Date** | {DATE} |
-| **Platform** | {PLATFORM} |
-| **Target App** | {TARGET_APP} |
-| **Session** | {SESSION_NAME} |
-| **Scope** | {SCOPE} |
+| Field          | Value          |
+| -------------- | -------------- |
+| **Date**       | {DATE}         |
+| **Platform**   | {PLATFORM}     |
+| **Target App** | {TARGET_APP}   |
+| **Session**    | {SESSION_NAME} |
+| **Scope**      | {SCOPE}        |
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| Critical | 0 |
-| High | 0 |
-| Medium | 0 |
-| Low | 0 |
+| Severity  | Count |
+| --------- | ----- |
+| Critical  | 0     |
+| High      | 0     |
+| Medium    | 0     |
+| Low       | 0     |
 | **Total** | **0** |
 
 ## Issues
@@ -24,12 +24,12 @@
 
 ### ISSUE-001: {Short title}
 
-| Field | Value |
-|-------|-------|
-| **Severity** | critical / high / medium / low |
-| **Category** | visual / functional / ux / content / performance / diagnostics / permissions / accessibility |
-| **Screen / Route** | {screen where issue was found} |
-| **Repro Video** | {path to video, or N/A for static issues} |
+| Field              | Value                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| **Severity**       | critical / high / medium / low                                                               |
+| **Category**       | visual / functional / ux / content / performance / diagnostics / permissions / accessibility |
+| **Screen / Route** | {screen where issue was found}                                                               |
+| **Repro Video**    | {path to video, or N/A for static issues}                                                    |
 
 **Description**
 

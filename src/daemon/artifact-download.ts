@@ -35,7 +35,10 @@ export function validateArtifactContentLength(rawLength: string | number | undef
   const parsed = Number(rawLength);
   // Ignore malformed content-length values; the streaming byte cap still enforces the hard limit.
   if (Number.isFinite(parsed) && parsed > MAX_ARTIFACT_BYTES) {
-    throw new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`);
+    throw new AppError(
+      'INVALID_ARGS',
+      `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`,
+    );
   }
 }
 
@@ -69,9 +72,13 @@ export function streamReadableToFile(
     const armTimeout = () => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
       timeoutHandle = setTimeout(() => {
-        const error = new AppError('COMMAND_FAILED', 'Artifact transfer timed out due to inactivity', {
-          timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
-        });
+        const error = new AppError(
+          'COMMAND_FAILED',
+          'Artifact transfer timed out due to inactivity',
+          {
+            timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
+          },
+        );
         destroySource(error);
         output.destroy(error);
         settle(error);
@@ -83,7 +90,10 @@ export function streamReadableToFile(
       const size = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
       bytesWritten += size;
       if (bytesWritten > MAX_ARTIFACT_BYTES) {
-        const error = new AppError('INVALID_ARGS', `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`);
+        const error = new AppError(
+          'INVALID_ARGS',
+          `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`,
+        );
         destroySource(error);
         output.destroy(error);
         settle(error);
@@ -161,10 +171,12 @@ async function requestArtifact(
         return;
       }
       if (!response || !finalUrl) {
-        reject(new AppError('COMMAND_FAILED', 'Artifact download failed without a response', {
-          requestId,
-          url: url.toString(),
-        }));
+        reject(
+          new AppError('COMMAND_FAILED', 'Artifact download failed without a response', {
+            requestId,
+            url: url.toString(),
+          }),
+        );
         return;
       }
       resolve({ response, url: finalUrl });
@@ -186,7 +198,12 @@ async function requestArtifact(
           response.resume();
           try {
             const redirectedUrl = new URL(location, url);
-            const redirectedHeaders = resolveRedirectHeaders(url, redirectedUrl, headers, requestId);
+            const redirectedHeaders = resolveRedirectHeaders(
+              url,
+              redirectedUrl,
+              headers,
+              requestId,
+            );
             const redirected = await requestArtifact(
               redirectedUrl,
               redirectedHeaders,
@@ -226,11 +243,13 @@ async function requestArtifact(
     );
 
     timeoutHandle = setTimeout(() => {
-      request.destroy(new AppError('COMMAND_FAILED', 'Artifact request timed out waiting for response', {
-        requestId,
-        url: url.toString(),
-        timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
-      }));
+      request.destroy(
+        new AppError('COMMAND_FAILED', 'Artifact request timed out waiting for response', {
+          requestId,
+          url: url.toString(),
+          timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
+        }),
+      );
     }, REQUEST_IDLE_TIMEOUT_MS);
 
     request.on('error', (error) => {
@@ -239,11 +258,16 @@ async function requestArtifact(
         return;
       }
       settle(
-        new AppError('COMMAND_FAILED', 'Failed to download artifact', {
-          requestId,
-          url: url.toString(),
-          timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
-        }, error instanceof Error ? error : undefined),
+        new AppError(
+          'COMMAND_FAILED',
+          'Failed to download artifact',
+          {
+            requestId,
+            url: url.toString(),
+            timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
+          },
+          error instanceof Error ? error : undefined,
+        ),
       );
     });
     request.end();
@@ -294,7 +318,10 @@ function parseContentDispositionFilename(header: string | undefined): string | u
 
   const encodedMatch = header.match(/filename\*\s*=\s*([^;]+)/i);
   if (encodedMatch) {
-    const rawValue = encodedMatch[1]?.trim().replace(/^UTF-8''/i, '').replace(/^"(.*)"$/, '$1');
+    const rawValue = encodedMatch[1]
+      ?.trim()
+      .replace(/^UTF-8''/i, '')
+      .replace(/^"(.*)"$/, '$1');
     const decoded = decodeURIComponentSafe(rawValue ?? '');
     if (decoded) return decoded;
   }

@@ -63,7 +63,9 @@ export async function listAndroidApps(
 
 async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<string>> {
   const packages = new Set<string>();
-  for (const category of resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true })) {
+  for (const category of resolveAndroidLaunchCategories(device, {
+    includeFallbackWhenUnknown: true,
+  })) {
     const result = await runCmd(
       'adb',
       adbArgs(device, [
@@ -211,25 +213,34 @@ export async function openAndroidApp(
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
     if (activity) {
-      throw new AppError('INVALID_ARGS', 'Activity override is not supported when opening a deep link URL');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Activity override is not supported when opening a deep link URL',
+      );
     }
-    await runCmd('adb', adbArgs(device, [
-      'shell',
-      'am',
-      'start',
-      '-W',
-      '-a',
-      'android.intent.action.VIEW',
-      '-d',
-      deepLinkTarget,
-    ]));
+    await runCmd(
+      'adb',
+      adbArgs(device, [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        deepLinkTarget,
+      ]),
+    );
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
   const launchCategory = resolveAndroidLauncherCategory(device);
   if (resolved.type === 'intent') {
     if (activity) {
-      throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
+      throw new AppError(
+        'INVALID_ARGS',
+        'Activity override requires a package name, not an intent',
+      );
     }
     await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]));
     return;
@@ -308,9 +319,9 @@ async function resolveAndroidLaunchComponent(
   device: DeviceInfo,
   packageName: string,
 ): Promise<string | null> {
-  const categories = Array.from(new Set(
-    resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true }),
-  ));
+  const categories = Array.from(
+    new Set(resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true })),
+  );
   for (const category of categories) {
     const result = await runCmd(
       'adb',
@@ -374,15 +385,14 @@ export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<
   await runCmd('adb', adbArgs(device, ['shell', 'am', 'force-stop', resolved.value]));
 }
 
-async function uninstallAndroidApp(
-  device: DeviceInfo,
-  app: string,
-): Promise<{ package: string }> {
+async function uninstallAndroidApp(device: DeviceInfo, app: string): Promise<{ package: string }> {
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {
     throw new AppError('INVALID_ARGS', 'App uninstall requires a package name, not an intent');
   }
-  const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), { allowFailure: true });
+  const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), {
+    allowFailure: true,
+  });
   if (result.exitCode !== 0) {
     const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
     if (!output.includes('unknown package') && !output.includes('not installed')) {
@@ -400,9 +410,7 @@ type BundletoolInvocation =
   | { cmd: 'bundletool'; prefixArgs: readonly string[] }
   | { cmd: 'java'; prefixArgs: readonly string[] };
 
-let cachedBundletoolInvocation:
-  | { key: string; invocation: BundletoolInvocation }
-  | null = null;
+let cachedBundletoolInvocation: { key: string; invocation: BundletoolInvocation } | null = null;
 
 function bundletoolInvocationCacheKey(): string {
   return `${process.env.PATH ?? ''}::${process.env.AGENT_DEVICE_BUNDLETOOL_JAR ?? ''}`;
@@ -459,22 +467,8 @@ async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Pro
   const apksPath = path.join(tempDir, 'bundle.apks');
   const mode = resolveBundletoolBuildMode();
   try {
-    await runBundletool([
-      'build-apks',
-      '--bundle',
-      appPath,
-      '--output',
-      apksPath,
-      '--mode',
-      mode,
-    ]);
-    await runBundletool([
-      'install-apks',
-      '--apks',
-      apksPath,
-      '--device-id',
-      device.id,
-    ]);
+    await runBundletool(['build-apks', '--bundle', appPath, '--output', apksPath, '--mode', mode]);
+    await runBundletool(['install-apks', '--apks', apksPath, '--device-id', device.id]);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
@@ -508,7 +502,10 @@ async function resolveInstalledAndroidPackageName(
   return undefined;
 }
 
-export async function installAndroidInstallablePath(device: DeviceInfo, installablePath: string): Promise<void> {
+export async function installAndroidInstallablePath(
+  device: DeviceInfo,
+  installablePath: string,
+): Promise<void> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }
@@ -520,18 +517,24 @@ export async function installAndroidInstallablePathAndResolvePackageName(
   installablePath: string,
   packageNameHint?: string,
 ): Promise<string | undefined> {
-  const beforePackages = packageNameHint
-    ? undefined
-    : await listInstalledAndroidPackages(device);
+  const beforePackages = packageNameHint ? undefined : await listInstalledAndroidPackages(device);
   await installAndroidInstallablePath(device, installablePath);
-  return packageNameHint
-    ?? (beforePackages ? await resolveInstalledAndroidPackageName(device, beforePackages) : undefined);
+  return (
+    packageNameHint ??
+    (beforePackages ? await resolveInstalledAndroidPackageName(device, beforePackages) : undefined)
+  );
 }
 
 export async function installAndroidApp(
   device: DeviceInfo,
   appPath: string,
-): Promise<{ archivePath?: string; installablePath: string; packageName?: string; appName?: string; launchTarget?: string }> {
+): Promise<{
+  archivePath?: string;
+  installablePath: string;
+  packageName?: string;
+  appName?: string;
+  launchTarget?: string;
+}> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }

@@ -18,7 +18,4 @@ export {
 
 export { ensureBootedSimulator } from './simulator.ts';
 
-export {
-  parseIosDeviceAppsPayload,
-  type IosAppInfo,
-} from './devicectl.ts';
+export { parseIosDeviceAppsPayload, type IosAppInfo } from './devicectl.ts';
