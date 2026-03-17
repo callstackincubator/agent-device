@@ -14,7 +14,7 @@ import {
   serializeSessionListEntry,
   serializeSnapshotResult,
 } from './client-shared.ts';
-import { compareScreenshots } from './utils/screenshot-diff.ts';
+import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
 import type {
   AgentDeviceClient,
   AgentDeviceDevice,
@@ -190,7 +190,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     const screenshotResult = await client.capture.screenshot({ path: tmpScreenshotPath });
     const currentPath = screenshotResult.path;
 
-    let result;
+    let result: ScreenshotDiffResult;
     try {
       result = await compareScreenshots(baselinePath, currentPath, {
         threshold: thresholdNum,
@@ -206,9 +206,9 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     }
 
     if (flags.json) {
-      printJson({ success: true, data: result as unknown as Record<string, unknown> });
+      printJson({ success: true, data: result });
     } else {
-      process.stdout.write(formatScreenshotDiffText(result as unknown as Record<string, unknown>));
+      process.stdout.write(formatScreenshotDiffText(result));
     }
     return true;
   },

@@ -85,7 +85,7 @@ test('completely different images produce match: false with 100% mismatch', asyn
   assert.ok(fs.existsSync(diffOut), 'diff image should be written');
 });
 
-test('generated diff path defaults under os.tmpdir when outputPath is omitted', async () => {
+test('no diff path is persisted when outputPath is omitted', async () => {
   const dir = tmpDir();
   const baseline = path.join(dir, 'baseline.png');
   const current = path.join(dir, 'current.png');
@@ -96,9 +96,7 @@ test('generated diff path defaults under os.tmpdir when outputPath is omitted', 
   const result = await compareScreenshots(baseline, current, { threshold: 0 });
 
   assert.equal(result.match, false);
-  assert.equal(typeof result.diffPath, 'string');
-  assert.equal(result.diffPath!.startsWith(path.join(os.tmpdir(), 'agent-device', 'tmp', 'diffs')), true);
-  assert.equal(fs.existsSync(result.diffPath!), true);
+  assert.equal(result.diffPath, undefined);
 });
 
 test('diff image marks different pixels as red and unchanged as dimmed gray', async () => {
@@ -110,20 +108,28 @@ test('diff image marks different pixels as red and unchanged as dimmed gray', as
   // 2x1 image: first pixel identical, second pixel different
   const baselinePng = new PNG({ width: 2, height: 1 });
   // pixel 0: white
-  baselinePng.data[0] = 255; baselinePng.data[1] = 255;
-  baselinePng.data[2] = 255; baselinePng.data[3] = 255;
+  baselinePng.data[0] = 255;
+  baselinePng.data[1] = 255;
+  baselinePng.data[2] = 255;
+  baselinePng.data[3] = 255;
   // pixel 1: black
-  baselinePng.data[4] = 0; baselinePng.data[5] = 0;
-  baselinePng.data[6] = 0; baselinePng.data[7] = 255;
+  baselinePng.data[4] = 0;
+  baselinePng.data[5] = 0;
+  baselinePng.data[6] = 0;
+  baselinePng.data[7] = 255;
   fs.writeFileSync(baseline, PNG.sync.write(baselinePng));
 
   const currentPng = new PNG({ width: 2, height: 1 });
   // pixel 0: white (same)
-  currentPng.data[0] = 255; currentPng.data[1] = 255;
-  currentPng.data[2] = 255; currentPng.data[3] = 255;
+  currentPng.data[0] = 255;
+  currentPng.data[1] = 255;
+  currentPng.data[2] = 255;
+  currentPng.data[3] = 255;
   // pixel 1: white (different from black)
-  currentPng.data[4] = 255; currentPng.data[5] = 255;
-  currentPng.data[6] = 255; currentPng.data[7] = 255;
+  currentPng.data[4] = 255;
+  currentPng.data[5] = 255;
+  currentPng.data[6] = 255;
+  currentPng.data[7] = 255;
   fs.writeFileSync(current, PNG.sync.write(currentPng));
 
   const result = await compareScreenshots(baseline, current, {
@@ -145,8 +151,8 @@ test('diff image marks different pixels as red and unchanged as dimmed gray', as
 
   // Pixel 1 (different): should be red
   assert.equal(diffPng.data[4], 255); // R
-  assert.equal(diffPng.data[5], 0);   // G
-  assert.equal(diffPng.data[6], 0);   // B
+  assert.equal(diffPng.data[5], 0); // G
+  assert.equal(diffPng.data[6], 0); // B
 });
 
 test('dimension mismatch returns expected vs actual sizes', async () => {
@@ -249,10 +255,14 @@ test('mismatchPercentage is rounded to 2 decimal places', async () => {
   const baselinePng = new PNG({ width: 3, height: 1 });
   const currentPng = new PNG({ width: 3, height: 1 });
   for (let i = 0; i < 12; i += 4) {
-    baselinePng.data[i] = 0; baselinePng.data[i + 1] = 0;
-    baselinePng.data[i + 2] = 0; baselinePng.data[i + 3] = 255;
-    currentPng.data[i] = 0; currentPng.data[i + 1] = 0;
-    currentPng.data[i + 2] = 0; currentPng.data[i + 3] = 255;
+    baselinePng.data[i] = 0;
+    baselinePng.data[i + 1] = 0;
+    baselinePng.data[i + 2] = 0;
+    baselinePng.data[i + 3] = 255;
+    currentPng.data[i] = 0;
+    currentPng.data[i + 1] = 0;
+    currentPng.data[i + 2] = 0;
+    currentPng.data[i + 3] = 255;
   }
   // Make the last pixel different
   currentPng.data[8] = 255;

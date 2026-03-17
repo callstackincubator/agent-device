@@ -1,6 +1,5 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { PNG } from 'pngjs';
 import { AppError } from '../utils/errors.ts';
 
@@ -38,7 +37,7 @@ export async function compareScreenshots(
   await validateFileExists(baselinePath, 'Baseline image not found');
   await validateFileExists(currentPath, 'Current screenshot not found');
 
-  const diffOutputPath = options.outputPath ?? generateTempDiffPath();
+  const diffOutputPath = options.outputPath;
 
   const [baselineBuffer, currentBuffer] = await Promise.all([
     fs.readFile(baselinePath),
@@ -103,7 +102,7 @@ export async function compareScreenshots(
     diff.data[index + 3] = 255;
   }
 
-  if (differentPixels > 0) {
+  if (differentPixels > 0 && diffOutputPath) {
     await fs.mkdir(path.dirname(diffOutputPath), { recursive: true });
     await fs.writeFile(diffOutputPath, PNG.sync.write(diff));
   } else {
@@ -116,8 +115,7 @@ export async function compareScreenshots(
     totalPixels > 0 ? Math.round((differentPixels / totalPixels) * 100 * 100) / 100 : 0;
 
   return {
-    // Only include diffPath when a diff image was actually written to disk
-    ...(differentPixels > 0 ? { diffPath: diffOutputPath } : {}),
+    ...(differentPixels > 0 && diffOutputPath ? { diffPath: diffOutputPath } : {}),
     totalPixels,
     differentPixels,
     mismatchPercentage,
@@ -142,11 +140,6 @@ function decodePng(buffer: Buffer, label: 'baseline' | 'current'): PNG {
       reason: error instanceof Error ? error.message : String(error),
     });
   }
-}
-
-function generateTempDiffPath(): string {
-  const tmpDir = path.join(os.tmpdir(), 'agent-device', 'tmp', 'diffs');
-  return path.join(tmpDir, `diff-${Date.now()}.png`);
 }
 
 async function removeStaleDiffOutput(outputPath: string | undefined): Promise<void> {

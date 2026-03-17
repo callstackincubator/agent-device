@@ -43,7 +43,10 @@ function solidPngBuffer(
   return PNG.sync.write(png);
 }
 
-async function runCliCapture(argv: string[], options: RunCliCaptureOptions = {}): Promise<RunResult> {
+async function runCliCapture(
+  argv: string[],
+  options: RunCliCaptureOptions = {},
+): Promise<RunResult> {
   let stdout = '';
   let stderr = '';
   let code: number | null = null;
@@ -69,12 +72,12 @@ async function runCliCapture(argv: string[], options: RunCliCaptureOptions = {})
   }) as typeof process.exit;
   (process.stdout as any).write = ((chunk: unknown, ...args: unknown[]) => {
     // Pass through the test runner's binary protocol messages (raw Buffers)
-    if (Buffer.isBuffer(chunk)) return originalStdoutWrite(chunk, ...args as [any]);
+    if (Buffer.isBuffer(chunk)) return originalStdoutWrite(chunk, ...(args as [any]));
     stdout += String(chunk);
     return true;
   }) as typeof process.stdout.write;
   (process.stderr as any).write = ((chunk: unknown, ...args: unknown[]) => {
-    if (Buffer.isBuffer(chunk)) return originalStderrWrite(chunk, ...args as [any]);
+    if (Buffer.isBuffer(chunk)) return originalStderrWrite(chunk, ...(args as [any]));
     stderr += String(chunk);
     return true;
   }) as typeof process.stderr.write;
@@ -160,13 +163,21 @@ describe('cli diff commands', { concurrency: false }, () => {
     fs.writeFileSync(baseline, solidPngBuffer(10, 10, { r: 0, g: 0, b: 0 }));
 
     try {
-      const result = await runCliCapture(['diff', 'screenshot', '--baseline', baseline, '--threshold', '0']);
+      const result = await runCliCapture([
+        'diff',
+        'screenshot',
+        '--baseline',
+        baseline,
+        '--threshold',
+        '0',
+      ]);
       assert.equal(result.code, null);
       // Client-backed command sends a screenshot request to daemon
       assert.equal(result.calls.length, 1);
       assert.equal(result.calls[0]!.command, 'screenshot');
       assert.match(result.stdout, /100% pixels differ/);
       assert.match(result.stdout, /100 different \/ 100 total pixels/);
+      assert.equal(result.stdout.includes('Diff image:'), false);
       assert.equal(result.stderr, '');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -200,7 +211,14 @@ describe('cli diff commands', { concurrency: false }, () => {
     fs.writeFileSync(baseline, solidPngBuffer(10, 10, { r: 255, g: 255, b: 255 }));
 
     try {
-      const result = await runCliCapture(['diff', 'screenshot', '--baseline', baseline, '--threshold', '0.2']);
+      const result = await runCliCapture([
+        'diff',
+        'screenshot',
+        '--baseline',
+        baseline,
+        '--threshold',
+        '0.2',
+      ]);
       assert.equal(result.code, null);
       // The client-backed command captures a screenshot via the daemon client
       assert.equal(result.calls.length, 1);
@@ -245,15 +263,18 @@ describe('cli diff commands', { concurrency: false }, () => {
     process.env.HOME = fakeHome;
 
     try {
-      const result = await runCliCapture([
-        'diff',
-        'screenshot',
-        '--baseline',
-        `~/${baselineRelative}`,
-        '--out',
-        `~/${diffRelative}`,
-        '--json',
-      ], { preserveHome: true });
+      const result = await runCliCapture(
+        [
+          'diff',
+          'screenshot',
+          '--baseline',
+          `~/${baselineRelative}`,
+          '--out',
+          `~/${diffRelative}`,
+          '--json',
+        ],
+        { preserveHome: true },
+      );
 
       assert.equal(result.code, null);
       assert.equal(result.calls.length, 1);

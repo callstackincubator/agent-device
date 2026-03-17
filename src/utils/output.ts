@@ -2,10 +2,11 @@ import path from 'node:path';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode } from './snapshot.ts';
+import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
 
 type JsonResult =
-  | { success: true; data?: Record<string, unknown> }
+  | { success: true; data?: unknown }
   | {
       success: false;
       error: {
@@ -112,16 +113,14 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   return `${body}${summary}\n`;
 }
 
-export function formatScreenshotDiffText(data: Record<string, unknown>): string {
+export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
   const useColor = supportsColor();
   const match = data.match === true;
   const differentPixels = toNumber(data.differentPixels);
   const totalPixels = toNumber(data.totalPixels);
   const mismatchPercentage = toNumber(data.mismatchPercentage);
-  const diffPath = typeof data.diffPath === 'string' ? data.diffPath : undefined;
-  const dimensionMismatch = data.dimensionMismatch as
-    | { expected?: { width?: number; height?: number }; actual?: { width?: number; height?: number } }
-    | undefined;
+  const diffPath = data.diffPath;
+  const dimensionMismatch = data.dimensionMismatch;
 
   const lines: string[] = [];
 
@@ -139,17 +138,16 @@ export function formatScreenshotDiffText(data: Record<string, unknown>): string 
     );
   } else {
     const indicator = useColor ? colorize('✗', 'red') : '✗';
-    const pctLabel = mismatchPercentage === 0 && differentPixels > 0
-      ? '<0.01'
-      : String(mismatchPercentage);
+    const pctLabel =
+      mismatchPercentage === 0 && differentPixels > 0 ? '<0.01' : String(mismatchPercentage);
     lines.push(`${indicator} ${pctLabel}% pixels differ`);
   }
 
   if (diffPath && !match) {
     const relativePath = toRelativePath(diffPath);
     const label = useColor ? colorize('Diff image:', 'dim') : 'Diff image:';
-    const path = useColor ? colorize(relativePath, 'green') : relativePath;
-    lines.push(`  ${label} ${path}`);
+    const displayPath = useColor ? colorize(relativePath, 'green') : relativePath;
+    lines.push(`  ${label} ${displayPath}`);
   }
 
   if (!match && !dimensionMismatch) {
@@ -163,10 +161,7 @@ export function formatScreenshotDiffText(data: Record<string, unknown>): string 
 function toRelativePath(filePath: string): string {
   const cwd = process.cwd();
   const relativePath = path.relative(cwd, filePath);
-  if (
-    relativePath === ''
-    || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
-  ) {
+  if (relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))) {
     return relativePath === '' ? '.' : `.${path.sep}${relativePath}`;
   }
   return filePath;
