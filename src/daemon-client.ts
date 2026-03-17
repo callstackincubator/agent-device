@@ -12,10 +12,7 @@ import type {
 import { runCmdDetached, runCmdSync } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { createRequestId, emitDiagnostic, withDiagnosticTimer } from './utils/diagnostics.ts';
-import {
-  isAgentDeviceDaemonProcess,
-  stopProcessForTakeover,
-} from './utils/process-identity.ts';
+import { isAgentDeviceDaemonProcess, stopProcessForTakeover } from './utils/process-identity.ts';
 import {
   resolveDaemonPaths,
   resolveDaemonServerMode,
@@ -79,6 +76,8 @@ type DaemonClientSettings = {
   remoteAuthToken?: string;
 };
 
+type ResolvedDaemonTransport = 'socket' | 'http';
+
 const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
 const DAEMON_STARTUP_TIMEOUT_MS = resolveDaemonStartupTimeoutMs();
 const DAEMON_STARTUP_ATTEMPTS = resolveDaemonStartupAttempts();
@@ -116,12 +115,18 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
       tenantId: req.meta?.tenantId ?? req.flags?.tenant,
       runId: req.meta?.runId ?? req.flags?.runId,
       leaseId: req.meta?.leaseId ?? req.flags?.leaseId,
-    sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+      sessionIsolation: req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
       lockPolicy: req.meta?.lockPolicy,
       lockPlatform: req.meta?.lockPlatform,
-      ...(preparedRemoteRequest.uploadedArtifactId ? { uploadedArtifactId: preparedRemoteRequest.uploadedArtifactId } : {}),
-      ...(preparedRemoteRequest.clientArtifactPaths ? { clientArtifactPaths: preparedRemoteRequest.clientArtifactPaths } : {}),
-      ...(preparedRemoteRequest.installSource ? { installSource: preparedRemoteRequest.installSource } : {}),
+      ...(preparedRemoteRequest.uploadedArtifactId
+        ? { uploadedArtifactId: preparedRemoteRequest.uploadedArtifactId }
+        : {}),
+      ...(preparedRemoteRequest.clientArtifactPaths
+        ? { clientArtifactPaths: preparedRemoteRequest.clientArtifactPaths }
+        : {}),
+      ...(preparedRemoteRequest.installSource
+        ? { installSource: preparedRemoteRequest.installSource }
+        : {}),
     },
   };
   emitDiagnostic({
@@ -160,9 +165,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     meta,
   } = options;
 
-  const positionals = app
-    ? (url ? [app, url] : [app])
-    : (url ? [url] : []);
+  const positionals = app ? (url ? [app, url] : [app]) : url ? [url] : [];
 
   return await sendToDaemon({
     session,
@@ -225,9 +228,9 @@ async function prepareRemoteRequest(
   }
 
   if (
-    !isRemoteDaemon(info)
-    || (req.command !== 'install' && req.command !== 'reinstall')
-    || positionals.length < 2
+    !isRemoteDaemon(info) ||
+    (req.command !== 'install' && req.command !== 'reinstall') ||
+    positionals.length < 2
   ) {
     return {
       positionals,
@@ -372,14 +375,15 @@ function resolveClientArtifactOutputPath(
   const requested = req.positionals?.[positionalIndex] ?? req.flags?.out;
   const fallbackName = `${field === 'path' ? 'screenshot' : 'recording'}-${Date.now()}${fallbackExtension}`;
   const rawPath = requested && requested.trim().length > 0 ? requested : fallbackName;
-  return path.isAbsolute(rawPath)
-    ? rawPath
-    : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
+  return path.isAbsolute(rawPath) ? rawPath : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
 }
 
 function buildRemoteTempArtifactPath(prefix: string, extension: string): string {
   const safeExtension = extension.startsWith('.') ? extension : `.${extension}`;
-  return path.posix.join('/tmp', `agent-device-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeExtension}`);
+  return path.posix.join(
+    '/tmp',
+    `agent-device-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeExtension}`,
+  );
 }
 
 function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {
@@ -398,9 +402,9 @@ function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientS
     );
   }
   const rawServerMode =
-    req.flags?.daemonServerMode
-    ?? process.env.AGENT_DEVICE_DAEMON_SERVER_MODE
-    ?? (rawTransport === 'dual' ? 'dual' : undefined);
+    req.flags?.daemonServerMode ??
+    process.env.AGENT_DEVICE_DAEMON_SERVER_MODE ??
+    (rawTransport === 'dual' ? 'dual' : undefined);
   const serverMode = resolveDaemonServerMode(rawServerMode);
   return {
     paths: resolveDaemonPaths(stateDir),
@@ -430,22 +434,22 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
   const existing = readDaemonInfo(settings.paths.infoPath);
   const localVersion = readVersion();
   const localCodeSignature = resolveLocalDaemonCodeSignature();
-  const existingReachable = existing ? await canConnect(existing, settings.transportPreference) : false;
+  const existingReachable = existing
+    ? await canConnect(existing, settings.transportPreference)
+    : false;
   if (
-    existing
-    && existing.version === localVersion
-    && existing.codeSignature === localCodeSignature
-    && existingReachable
+    existing &&
+    existing.version === localVersion &&
+    existing.codeSignature === localCodeSignature &&
+    existingReachable
   ) {
     return existing;
   }
   if (
-    existing
-    && (
-      existing.version !== localVersion
-      || existing.codeSignature !== localCodeSignature
-      || !existingReachable
-    )
+    existing &&
+    (existing.version !== localVersion ||
+      existing.codeSignature !== localCodeSignature ||
+      !existingReachable)
   ) {
     await stopDaemonProcessForTakeover(existing);
     removeDaemonInfo(settings.paths.infoPath);
@@ -488,7 +492,10 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
   });
 }
 
-async function waitForDaemonInfo(timeoutMs: number, settings: DaemonClientSettings): Promise<DaemonInfo | null> {
+async function waitForDaemonInfo(
+  timeoutMs: number,
+  settings: DaemonClientSettings,
+): Promise<DaemonInfo | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const info = readDaemonInfo(settings.paths.infoPath);
@@ -532,25 +539,47 @@ async function stopDaemonProcessForTakeover(info: DaemonInfo): Promise<void> {
 }
 
 function readDaemonInfo(infoPath: string): DaemonInfo | null {
-  const data = readJsonFile(infoPath) as DaemonInfo | null;
-  if (!data || typeof data.token !== 'string' || data.token.length === 0) return null;
-  const hasSocket = Number.isInteger(data.port) && Number(data.port) > 0;
-  const hasHttp = Number.isInteger(data.httpPort) && Number(data.httpPort) > 0;
-  if (!hasSocket && !hasHttp) return null;
-  return {
-    ...data,
-    port: hasSocket ? Number(data.port) : undefined,
-    httpPort: hasHttp ? Number(data.httpPort) : undefined,
-    pid: Number.isInteger(data.pid) && data.pid > 0 ? data.pid : 0,
-  };
+  return readDaemonMetadata(infoPath, (data) => {
+    if (!data || typeof data !== 'object') return null;
+    const parsed = data as Partial<DaemonInfo>;
+    const token = typeof parsed.token === 'string' && parsed.token.length > 0 ? parsed.token : null;
+    if (!token) return null;
+    const hasSocket = Number.isInteger(parsed.port) && Number(parsed.port) > 0;
+    const hasHttp = Number.isInteger(parsed.httpPort) && Number(parsed.httpPort) > 0;
+    if (!hasSocket && !hasHttp) return null;
+    const hasPid = Number.isInteger(parsed.pid) && Number(parsed.pid) > 0;
+    const pid = hasPid ? Number(parsed.pid) : 0;
+    return {
+      ...parsed,
+      token,
+      port: hasSocket ? Number(parsed.port) : undefined,
+      httpPort: hasHttp ? Number(parsed.httpPort) : undefined,
+      pid,
+    };
+  });
 }
 
 function readDaemonLockInfo(lockPath: string): DaemonLockInfo | null {
-  const data = readJsonFile(lockPath) as DaemonLockInfo | null;
-  if (!data || !Number.isInteger(data.pid) || data.pid <= 0) {
-    return null;
-  }
-  return data;
+  return readDaemonMetadata(lockPath, (data) => {
+    if (!data || typeof data !== 'object') return null;
+    const parsed = data as Partial<DaemonLockInfo>;
+    const hasPid = Number.isInteger(parsed.pid) && Number(parsed.pid) > 0;
+    const pid = hasPid ? Number(parsed.pid) : null;
+    if (pid === null) {
+      return null;
+    }
+    return {
+      pid,
+      processStartTime: parsed.processStartTime,
+      startedAt: parsed.startedAt,
+    };
+  });
+}
+
+function readDaemonMetadata<T>(filePath: string, parse: (data: unknown) => T | null): T | null {
+  const data = readJsonFile(filePath);
+  if (data === null) return null;
+  return parse(data);
 }
 
 function removeDaemonInfo(infoPath: string): void {
@@ -599,7 +628,10 @@ function removeFileIfExists(filePath: string): void {
   }
 }
 
-async function canConnect(info: DaemonInfo, preference: DaemonTransportPreference): Promise<boolean> {
+async function canConnect(
+  info: DaemonInfo,
+  preference: DaemonTransportPreference,
+): Promise<boolean> {
   const transport = chooseTransport(info, preference);
   if (transport === 'http') {
     return await canConnectHttp(info);
@@ -629,7 +661,9 @@ function canConnectHttp(info: DaemonInfo): Promise<boolean> {
   if (!endpoint) return Promise.resolve(false);
   const url = new URL(endpoint);
   const transport = url.protocol === 'https:' ? https : http;
-  const timeoutMs = info.baseUrl ? REMOTE_DAEMON_HEALTHCHECK_TIMEOUT_MS : LOCAL_DAEMON_HEALTHCHECK_TIMEOUT_MS;
+  const timeoutMs = info.baseUrl
+    ? REMOTE_DAEMON_HEALTHCHECK_TIMEOUT_MS
+    : LOCAL_DAEMON_HEALTHCHECK_TIMEOUT_MS;
   return new Promise((resolve) => {
     const req = transport.request(
       {
@@ -698,7 +732,10 @@ function resolveLocalDaemonCodeSignature(): string {
   return computeDaemonCodeSignature(entryPath, launchSpec.root);
 }
 
-export function computeDaemonCodeSignature(entryPath: string, root: string = findProjectRoot()): string {
+export function computeDaemonCodeSignature(
+  entryPath: string,
+  root: string = findProjectRoot(),
+): string {
   try {
     const stat = fs.statSync(entryPath);
     const relativePath = path.relative(root, entryPath) || entryPath;
@@ -720,7 +757,10 @@ async function sendRequest(
   return await sendSocketRequest(info, req);
 }
 
-function chooseTransport(info: DaemonInfo, preference: DaemonTransportPreference): 'socket' | 'http' {
+function chooseTransport(
+  info: DaemonInfo,
+  preference: DaemonTransportPreference,
+): ResolvedDaemonTransport {
   if (info.baseUrl) {
     // Defensive guard: resolveClientSettings rejects this earlier for normal CLI flow.
     if (preference === 'socket') {
@@ -730,20 +770,33 @@ function chooseTransport(info: DaemonInfo, preference: DaemonTransportPreference
     }
     return 'http';
   }
-  if (preference === 'http') {
-    if (!info.httpPort) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
-    return 'http';
+  if (preference === 'http' || preference === 'socket') {
+    return requireDaemonTransport(info, preference);
   }
-  if (preference === 'socket') {
-    if (!info.port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
-    return 'socket';
-  }
-  const transport = info.transport;
-  if (transport === 'http' && info.httpPort) return 'http';
-  if ((transport === 'socket' || transport === 'dual') && info.port) return 'socket';
-  if (info.httpPort) return 'http';
-  if (info.port) return 'socket';
+  const autoOrder: ResolvedDaemonTransport[] =
+    info.transport === 'socket' || info.transport === 'dual'
+      ? ['socket', 'http']
+      : ['http', 'socket'];
+  const available = autoOrder.find((transport) => hasDaemonTransport(info, transport));
+  if (available) return available;
   throw new AppError('COMMAND_FAILED', 'Daemon metadata has no reachable transport');
+}
+
+function hasDaemonTransport(info: DaemonInfo, transport: ResolvedDaemonTransport): boolean {
+  return transport === 'http' ? Boolean(info.baseUrl || info.httpPort) : Boolean(info.port);
+}
+
+function requireDaemonTransport(
+  info: DaemonInfo,
+  transport: ResolvedDaemonTransport,
+): ResolvedDaemonTransport {
+  if (hasDaemonTransport(info, transport)) return transport;
+  throw new AppError(
+    'COMMAND_FAILED',
+    transport === 'http'
+      ? 'Daemon HTTP endpoint is unavailable'
+      : 'Daemon socket endpoint is unavailable',
+  );
 }
 
 async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
@@ -756,7 +809,10 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
     const timeout = setTimeout(() => {
       socket.destroy();
       const cleanup = cleanupTimedOutIosRunnerBuilds();
-      const daemonReset = resetDaemonAfterTimeout(info, resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR));
+      const daemonReset = resetDaemonAfterTimeout(
+        info,
+        resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR),
+      );
       emitDiagnostic({
         level: 'error',
         phase: 'daemon_request_timeout',
@@ -794,10 +850,17 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
         resolve(response);
       } catch (err) {
         clearTimeout(timeout);
-        reject(new AppError('COMMAND_FAILED', 'Invalid daemon response', {
-          requestId: req.meta?.requestId,
-          line,
-        }, err instanceof Error ? err : undefined));
+        reject(
+          new AppError(
+            'COMMAND_FAILED',
+            'Invalid daemon response',
+            {
+              requestId: req.meta?.requestId,
+              line,
+            },
+            err instanceof Error ? err : undefined,
+          ),
+        );
       }
     });
 
@@ -849,7 +912,9 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
   }
 
   return await new Promise((resolve, reject) => {
-    const statePaths = resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR);
+    const statePaths = resolveDaemonPaths(
+      req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
+    );
     const transport = rpcUrl.protocol === 'https:' ? https : http;
     const request = transport.request(
       {
@@ -885,7 +950,8 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
                   {
                     ...(typeof data.details === 'object' && data.details ? data.details : {}),
                     hint: typeof data.hint === 'string' ? data.hint : undefined,
-                    diagnosticId: typeof data.diagnosticId === 'string' ? data.diagnosticId : undefined,
+                    diagnosticId:
+                      typeof data.diagnosticId === 'string' ? data.diagnosticId : undefined,
                     logPath: typeof data.logPath === 'string' ? data.logPath : undefined,
                     requestId: req.meta?.requestId,
                   },
@@ -902,19 +968,22 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
               return;
             }
             if (info.baseUrl && parsed.result.ok) {
-              void materializeRemoteArtifacts(info, req, parsed.result)
-                .then(resolve)
-                .catch(reject);
+              void materializeRemoteArtifacts(info, req, parsed.result).then(resolve).catch(reject);
               return;
             }
             resolve(parsed.result);
           } catch (err) {
             clearTimeout(timeout);
             reject(
-              new AppError('COMMAND_FAILED', 'Invalid daemon response', {
-                requestId: req.meta?.requestId,
-                line: body,
-              }, err instanceof Error ? err : undefined),
+              new AppError(
+                'COMMAND_FAILED',
+                'Invalid daemon response',
+                {
+                  requestId: req.meta?.requestId,
+                  line: body,
+                },
+                err instanceof Error ? err : undefined,
+              ),
             );
           }
         });
@@ -1028,9 +1097,14 @@ function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined
   try {
     parsed = new URL(raw);
   } catch (error) {
-    throw new AppError('INVALID_ARGS', 'Invalid daemon base URL', {
-      daemonBaseUrl: raw,
-    }, error instanceof Error ? error : undefined);
+    throw new AppError(
+      'INVALID_ARGS',
+      'Invalid daemon base URL',
+      {
+        daemonBaseUrl: raw,
+      },
+      error instanceof Error ? error : undefined,
+    );
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new AppError('INVALID_ARGS', 'Daemon base URL must use http or https', {
@@ -1083,10 +1157,7 @@ async function materializeRemoteArtifacts(
   return { ok: true, data: nextData };
 }
 
-function resolveMaterializedArtifactPath(
-  artifact: DaemonArtifact,
-  req: DaemonRequest,
-): string {
+function resolveMaterializedArtifactPath(artifact: DaemonArtifact, req: DaemonRequest): string {
   if (artifact.localPath && artifact.localPath.trim().length > 0) {
     return artifact.localPath;
   }
@@ -1127,9 +1198,9 @@ export async function downloadRemoteArtifact(params: {
         path: artifactUrl.pathname + artifactUrl.search,
         headers: params.token
           ? {
-            authorization: `Bearer ${params.token}`,
-            'x-agent-device-token': params.token,
-          }
+              authorization: `Bearer ${params.token}`,
+              'x-agent-device-token': params.token,
+            }
           : undefined,
       },
       (res) => {
@@ -1173,11 +1244,13 @@ export async function downloadRemoteArtifact(params: {
       },
     );
     const timeoutHandle = setTimeout(() => {
-      request.destroy(new AppError('COMMAND_FAILED', 'Remote artifact download timed out', {
-        artifactId: params.artifactId,
-        requestId: params.requestId,
-        timeoutMs,
-      }));
+      request.destroy(
+        new AppError('COMMAND_FAILED', 'Remote artifact download timed out', {
+          artifactId: params.artifactId,
+          requestId: params.requestId,
+          timeoutMs,
+        }),
+      );
     }, timeoutMs);
     request.on('error', (error) => {
       if (error instanceof AppError) {
@@ -1185,18 +1258,25 @@ export async function downloadRemoteArtifact(params: {
         return;
       }
       settle(
-        new AppError('COMMAND_FAILED', 'Failed to download remote artifact', {
-          artifactId: params.artifactId,
-          requestId: params.requestId,
-          timeoutMs,
-        }, error instanceof Error ? error : undefined),
+        new AppError(
+          'COMMAND_FAILED',
+          'Failed to download remote artifact',
+          {
+            artifactId: params.artifactId,
+            requestId: params.requestId,
+            timeoutMs,
+          },
+          error instanceof Error ? error : undefined,
+        ),
       );
     });
     request.end();
   });
 }
 
-export function resolveDaemonRequestTimeoutMs(raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS): number {
+export function resolveDaemonRequestTimeoutMs(
+  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS,
+): number {
   if (!raw) return 90000;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 90000;
@@ -1223,7 +1303,9 @@ export function resolveDaemonStartupAttempts(
 
 export function resolveDaemonStartupHint(
   state: { hasInfo: boolean; hasLock: boolean },
-  paths: Pick<DaemonPaths, 'infoPath' | 'lockPath'> = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR),
+  paths: Pick<DaemonPaths, 'infoPath' | 'lockPath'> = resolveDaemonPaths(
+    process.env.AGENT_DEVICE_STATE_DIR,
+  ),
 ): string {
   if (state.hasLock && !state.hasInfo) {
     return `Detected ${paths.lockPath} without ${paths.infoPath}. If no agent-device daemon process is running, delete ${paths.lockPath} and retry.`;
