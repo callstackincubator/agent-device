@@ -42,4 +42,5 @@ export { setAndroidSetting } from './settings.ts';
 
 export { pushAndroidNotification } from './notifications.ts';
 
-export { snapshotAndroid, screenshotAndroid } from './snapshot.ts';
+export { snapshotAndroid } from './snapshot.ts';
+export { screenshotAndroid } from './screenshot.ts';

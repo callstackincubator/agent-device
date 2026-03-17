@@ -1,9 +1,9 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
+import { resolveUserPath } from '../utils/path-resolution.ts';
 import {
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
@@ -125,13 +125,7 @@ export class SessionStore {
   }
 
   static expandHome(filePath: string, cwd?: string): string {
-    if (filePath.startsWith('~/')) {
-      return path.join(os.homedir(), filePath.slice(2));
-    }
-    if (cwd && !path.isAbsolute(filePath)) {
-      return path.resolve(cwd, filePath);
-    }
-    return path.resolve(filePath);
+    return resolveUserPath(filePath, { cwd });
   }
 
   private resolveScriptPath(session: SessionState): string {

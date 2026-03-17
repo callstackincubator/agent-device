@@ -22,6 +22,7 @@ import {
 } from '../apps.ts';
 import {
   captureSimulatorScreenshotWithFallback,
+  prepareSimulatorStatusBarForScreenshot,
   resolveSimulatorRunnerScreenshotCandidatePaths,
 } from '../screenshot.ts';
 import { focusIosSimulatorWindow } from '../simulator.ts';
@@ -176,6 +177,7 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after retry ex
       ensureBooted: async () => {
         ensureBootedCalls += 1;
       },
+      prepareStatusBarForScreenshot: async () => async () => {},
       captureWithRetry: async () => {
         retryCalls += 1;
         throw new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
@@ -202,6 +204,7 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after simctl s
     'com.example.app',
     {
       ensureBooted: async () => {},
+      prepareStatusBarForScreenshot: async () => async () => {},
       captureWithRetry: async () => {
         throw new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
           args: ['simctl', 'io', 'sim-1', 'screenshot', '/tmp/out.png'],
@@ -215,6 +218,52 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after simctl s
     },
   );
   assert.equal(runnerCalls, 1);
+});
+
+test('captureSimulatorScreenshotWithFallback continues when status bar preparation fails', async () => {
+  let retryCalls = 0;
+  await captureSimulatorScreenshotWithFallback(
+    IOS_TEST_SIMULATOR,
+    '/tmp/out.png',
+    'com.example.app',
+    {
+      ensureBooted: async () => {},
+      prepareStatusBarForScreenshot: async () => {
+        throw new AppError('COMMAND_FAILED', 'status_bar override failed');
+      },
+      captureWithRetry: async () => {
+        retryCalls += 1;
+      },
+      captureWithRunner: async () => {
+        throw new Error('runner should not be used when capture succeeds');
+      },
+      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
+    },
+  );
+  assert.equal(retryCalls, 1);
+});
+
+test('captureSimulatorScreenshotWithFallback ignores status bar restore failures', async () => {
+  let retryCalls = 0;
+  await captureSimulatorScreenshotWithFallback(
+    IOS_TEST_SIMULATOR,
+    '/tmp/out.png',
+    'com.example.app',
+    {
+      ensureBooted: async () => {},
+      prepareStatusBarForScreenshot: async () => async () => {
+        throw new AppError('COMMAND_FAILED', 'status_bar clear failed');
+      },
+      captureWithRetry: async () => {
+        retryCalls += 1;
+      },
+      captureWithRunner: async () => {
+        throw new Error('runner should not be used when capture succeeds');
+      },
+      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
+    },
+  );
+  assert.equal(retryCalls, 1);
 });
 
 test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before using runner', async () => {
@@ -236,6 +285,7 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
           'com.example.app',
           {
             ensureBooted: async () => {},
+            prepareStatusBarForScreenshot: async () => async () => {},
             captureWithRetry: async () => {
               throw new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
                 args: ['simctl', 'io', 'sim-1', 'screenshot', '/tmp/out.png'],
@@ -284,6 +334,82 @@ test('focusIosSimulatorWindow times out instead of hanging indefinitely', async 
     process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('prepareSimulatorStatusBarForScreenshot restores prior visible overrides', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-status-bar-restore-test-',
+    `#!/bin/sh
+echo "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "list" ]; then
+  cat <<'OUT'
+Current Status Bar Overrides:
+=============================
+Time: 6:07
+DataNetworkType: 0
+WiFi Mode: 2, WiFi Bars: 0
+Cell Mode: 2, Cell Bars: 0
+Operator Name: No Service
+Battery State: 1, Battery Level: 42, Not Charging: 0
+OUT
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "clear" ]; then
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "override" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $*" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const restore = await prepareSimulatorStatusBarForScreenshot(IOS_TEST_SIMULATOR);
+      await restore();
+
+      const logLines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      assert.deepEqual(logLines, [
+        'simctl status_bar sim-1 list',
+        'simctl status_bar sim-1 clear',
+        'simctl status_bar sim-1 override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100',
+        'simctl status_bar sim-1 clear',
+        'simctl status_bar sim-1 override --dataNetwork hide --wifiMode failed --wifiBars 0 --cellularMode failed --cellularBars 0 --operatorName No Service',
+      ]);
+    },
+  );
+});
+
+test('prepareSimulatorStatusBarForScreenshot still normalizes when snapshotting current overrides fails', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-status-bar-snapshot-failure-test-',
+    `#!/bin/sh
+echo "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "list" ]; then
+  echo "list failed" >&2
+  exit 1
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "clear" ]; then
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "status_bar" ] && [ "$4" = "override" ]; then
+  exit 0
+fi
+echo "unexpected xcrun args: $*" >&2
+exit 1
+`,
+    async ({ argsLogPath }) => {
+      const restore = await prepareSimulatorStatusBarForScreenshot(IOS_TEST_SIMULATOR);
+      await restore();
+
+      const logLines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      assert.deepEqual(logLines, [
+        'simctl status_bar sim-1 list',
+        'simctl status_bar sim-1 clear',
+        'simctl status_bar sim-1 override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100',
+        'simctl status_bar sim-1 clear',
+      ]);
+    },
+  );
 });
 
 async function waitForFileText(filePath: string, attempts = 20): Promise<string> {

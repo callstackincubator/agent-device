@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
+import { expandUserHomePath } from '../utils/path-resolution.ts';
 import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
 export type MaterializeInstallSource =
@@ -83,10 +84,7 @@ export async function materializeInstallablePath(
 }
 
 export function expandSourcePath(inputPath: string): string {
-  if (!inputPath.startsWith('~')) return inputPath;
-  if (inputPath === '~') return os.homedir();
-  if (inputPath.startsWith('~/')) return path.join(os.homedir(), inputPath.slice(2));
-  return inputPath;
+  return expandUserHomePath(inputPath);
 }
 
 async function materializeLocalSource(

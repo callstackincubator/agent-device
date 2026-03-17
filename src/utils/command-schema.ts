@@ -37,6 +37,8 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  baseline?: string;
+  threshold?: string;
   appsFilter?: 'user-installed' | 'all';
   count?: number;
   fps?: number;
@@ -559,6 +561,20 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageLabel: '--out <path>',
     usageDescription: 'Output path',
   },
+  {
+    key: 'baseline',
+    names: ['--baseline', '-b'],
+    type: 'string',
+    usageLabel: '--baseline, -b <path>',
+    usageDescription: 'Diff screenshot: path to baseline image file',
+  },
+  {
+    key: 'threshold',
+    names: ['--threshold'],
+    type: 'string',
+    usageLabel: '--threshold <0-1>',
+    usageDescription: 'Diff screenshot: color distance threshold (default 0.1)',
+  },
 ];
 
 export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
@@ -627,10 +643,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...SNAPSHOT_FLAGS],
   },
   diff: {
-    usageOverride: 'diff snapshot',
-    description: 'Diff current accessibility snapshot against previous baseline',
+    usageOverride:
+      'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]',
+    description: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
     positionalArgs: ['kind'],
-    allowedFlags: [...SNAPSHOT_FLAGS],
+    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out'],
   },
   'ensure-simulator': {
     description: 'Ensure an iOS simulator exists in a device set (create if missing)',

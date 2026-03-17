@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { screenshotAndroid } from '../index.ts';
+import { screenshotAndroid } from '../screenshot.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -46,6 +46,34 @@ async function withMockedAdb(
 }
 
 const catPayload = '#!/bin/bash\ncat "$(dirname "$0")/payload.bin"\n';
+
+test('screenshotAndroid waits for transient UI to settle before capture', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const events: string[] = [];
+
+  await screenshotAndroid(device, '/tmp/out.png', {
+    enableDemoMode: async () => {
+      events.push('enable');
+    },
+    settle: async (ms) => {
+      events.push(`settle:${ms}`);
+    },
+    capture: async () => {
+      events.push('capture');
+    },
+    disableDemoMode: async () => {
+      events.push('disable');
+    },
+  });
+
+  assert.deepEqual(events, ['enable', 'settle:1000', 'capture', 'disable']);
+});
 
 test('screenshotAndroid writes a valid PNG when output is clean', async () => {
   await withMockedAdb(

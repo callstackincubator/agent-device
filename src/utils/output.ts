@@ -1,10 +1,12 @@
+import path from 'node:path';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode } from './snapshot.ts';
+import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
 
 type JsonResult =
-  | { success: true; data?: Record<string, unknown> }
+  | { success: true; data?: unknown }
   | {
       success: false;
       error: {
@@ -109,6 +111,60 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
     `${colorize(String(unchanged), 'dim')} unchanged`,
   ].join(', ');
   return `${body}${summary}\n`;
+}
+
+export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
+  const useColor = supportsColor();
+  const match = data.match === true;
+  const differentPixels = toNumber(data.differentPixels);
+  const totalPixels = toNumber(data.totalPixels);
+  const mismatchPercentage = toNumber(data.mismatchPercentage);
+  const diffPath = data.diffPath;
+  const dimensionMismatch = data.dimensionMismatch;
+
+  const lines: string[] = [];
+
+  if (match) {
+    const indicator = useColor ? colorize('✓', 'green') : '✓';
+    lines.push(`${indicator} Screenshots match.`);
+  } else if (dimensionMismatch) {
+    const indicator = useColor ? colorize('✗', 'red') : '✗';
+    const expected = dimensionMismatch.expected;
+    const actual = dimensionMismatch.actual;
+    lines.push(
+      `${indicator} Screenshots have different dimensions: ` +
+        `expected ${expected?.width}x${expected?.height}, ` +
+        `got ${actual?.width}x${actual?.height}`,
+    );
+  } else {
+    const indicator = useColor ? colorize('✗', 'red') : '✗';
+    const pctLabel =
+      mismatchPercentage === 0 && differentPixels > 0 ? '<0.01' : String(mismatchPercentage);
+    lines.push(`${indicator} ${pctLabel}% pixels differ`);
+  }
+
+  if (diffPath && !match) {
+    const relativePath = toRelativePath(diffPath);
+    const label = useColor ? colorize('Diff image:', 'dim') : 'Diff image:';
+    const displayPath = useColor ? colorize(relativePath, 'green') : relativePath;
+    lines.push(`  ${label} ${displayPath}`);
+  }
+
+  if (!match && !dimensionMismatch) {
+    const diffCount = useColor ? colorize(String(differentPixels), 'red') : String(differentPixels);
+    lines.push(`  ${diffCount} different / ${totalPixels} total pixels`);
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+function toRelativePath(filePath: string): string {
+  const cwd = process.cwd();
+  const relativePath = path.relative(cwd, filePath);
+  if (relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))) {
+    return relativePath === '' ? '.' : `.${path.sep}${relativePath}`;
+  }
+  return filePath;
 }
 
 function toNumber(value: unknown): number {

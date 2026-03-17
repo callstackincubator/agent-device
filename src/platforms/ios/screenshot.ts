@@ -15,6 +15,7 @@ import {
 } from './config.ts';
 import { runIosDevicectl } from './devicectl.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-client.ts';
+import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
 import { ensureBootedSimulator, focusIosSimulatorWindow } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 
@@ -28,6 +29,7 @@ function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<type
 
 type SimulatorScreenshotFlowDeps = {
   ensureBooted: (device: DeviceInfo) => Promise<void>;
+  prepareStatusBarForScreenshot: (device: DeviceInfo) => Promise<() => Promise<void>>;
   captureWithRetry: (device: DeviceInfo, outPath: string) => Promise<void>;
   captureWithRunner: (device: DeviceInfo, outPath: string, appBundleId?: string) => Promise<void>;
   shouldFallbackToRunner: (error: unknown) => boolean;
@@ -35,6 +37,7 @@ type SimulatorScreenshotFlowDeps = {
 
 const defaultSimulatorScreenshotFlowDeps: SimulatorScreenshotFlowDeps = {
   ensureBooted: ensureBootedSimulator,
+  prepareStatusBarForScreenshot: prepareSimulatorStatusBarForScreenshot,
   captureWithRetry: captureSimulatorScreenshotWithRetry,
   captureWithRunner: captureScreenshotViaRunner,
   shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
@@ -80,16 +83,28 @@ export async function captureSimulatorScreenshotWithFallback(
   }
 
   await deps.ensureBooted(device);
+  let restoreStatusBar = async () => {};
   try {
-    await deps.captureWithRetry(device, outPath);
-    return;
+    restoreStatusBar = await deps.prepareStatusBarForScreenshot(device);
   } catch (error) {
-    if (!deps.shouldFallbackToRunner(error)) {
-      throw error;
-    }
-    emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
+    emitStatusBarDiagnostic(device, 'prepare_failed', error);
   }
-  await deps.captureWithRunner(device, outPath, appBundleId);
+  try {
+    try {
+      await deps.captureWithRetry(device, outPath);
+      return;
+    } catch (error) {
+      if (!deps.shouldFallbackToRunner(error)) {
+        throw error;
+      }
+      emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
+    }
+    await deps.captureWithRunner(device, outPath, appBundleId);
+  } finally {
+    await restoreStatusBar().catch((error) =>
+      emitStatusBarDiagnostic(device, 'restore_failed', error),
+    );
+  }
 }
 
 async function captureSimulatorScreenshotWithRetry(
@@ -267,6 +282,23 @@ function emitScreenshotFallbackDiagnostic(
   });
 }
 
+function emitStatusBarDiagnostic(
+  device: DeviceInfo,
+  phase: 'prepare_failed' | 'restore_failed',
+  error: unknown,
+): void {
+  emitDiagnostic({
+    level: 'warn',
+    phase: `ios_screenshot_status_bar_${phase}`,
+    data: {
+      platform: device.platform,
+      deviceKind: device.kind,
+      deviceId: device.id,
+      ...extractScreenshotFallbackErrorMeta(error),
+    },
+  });
+}
+
 function extractScreenshotFallbackErrorMeta(error: unknown): Record<string, unknown> {
   if (!(error instanceof AppError)) {
     return { reason: error instanceof Error ? error.message : String(error) };
@@ -372,3 +404,5 @@ export function shouldRetryIosSimulatorScreenshot(error: unknown): boolean {
     (combined.includes('timed out') && combined.includes('screenshot'))
   );
 }
+
+export { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
