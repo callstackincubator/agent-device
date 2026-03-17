@@ -20,7 +20,6 @@
     "agent-device": "bin/agent-device.mjs"
   },
   "scripts": {
-    "lint": "node --eval \"console.log('no lint')\"",
     "build": "rslib build",
     "clean:daemon": "rm -f ~/.agent-device/daemon.json && rm -f ~/.agent-device/daemon.lock",
     "build:node": "pnpm build && pnpm clean:daemon",

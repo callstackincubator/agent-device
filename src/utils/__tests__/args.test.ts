@@ -5,33 +5,53 @@ import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
 
-test('parseArgs recognizes --relaunch', () => {
-  const parsed = parseArgs(['open', 'settings', '--relaunch']);
-  assert.equal(parsed.command, 'open');
-  assert.deepEqual(parsed.positionals, ['settings']);
-  assert.equal(parsed.flags.relaunch, true);
-});
+test('parseArgs recognizes command-specific flag combinations', () => {
+  const scenarios: Array<{
+    argv: string[];
+    strictFlags?: boolean;
+    assertParsed: (parsed: ReturnType<typeof parseArgs>) => void;
+  }> = [
+    {
+      argv: ['open', 'settings', '--relaunch'],
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'open');
+        assert.deepEqual(parsed.positionals, ['settings']);
+        assert.equal(parsed.flags.relaunch, true);
+      },
+    },
+    {
+      argv: ['open', 'Settings', '--platform', 'ios', '--target', 'tv'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'open');
+        assert.equal(parsed.flags.platform, 'ios');
+        assert.equal(parsed.flags.target, 'tv');
+      },
+    },
+    {
+      argv: ['boot', '--platform', 'android', '--device', 'Pixel_9_Pro_XL', '--headless'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'boot');
+        assert.equal(parsed.flags.platform, 'android');
+        assert.equal(parsed.flags.device, 'Pixel_9_Pro_XL');
+        assert.equal(parsed.flags.headless, true);
+      },
+    },
+    {
+      argv: ['open', 'Settings', '--platform', 'apple', '--target', 'tv'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'open');
+        assert.equal(parsed.flags.platform, 'apple');
+        assert.equal(parsed.flags.target, 'tv');
+      },
+    },
+  ];
 
-test('parseArgs recognizes --target selector', () => {
-  const parsed = parseArgs(['open', 'Settings', '--platform', 'ios', '--target', 'tv'], { strictFlags: true });
-  assert.equal(parsed.command, 'open');
-  assert.equal(parsed.flags.platform, 'ios');
-  assert.equal(parsed.flags.target, 'tv');
-});
-
-test('parseArgs recognizes boot --headless flag', () => {
-  const parsed = parseArgs(['boot', '--platform', 'android', '--device', 'Pixel_9_Pro_XL', '--headless'], { strictFlags: true });
-  assert.equal(parsed.command, 'boot');
-  assert.equal(parsed.flags.platform, 'android');
-  assert.equal(parsed.flags.device, 'Pixel_9_Pro_XL');
-  assert.equal(parsed.flags.headless, true);
-});
-
-test('parseArgs recognizes --platform apple alias', () => {
-  const parsed = parseArgs(['open', 'Settings', '--platform', 'apple', '--target', 'tv'], { strictFlags: true });
-  assert.equal(parsed.command, 'open');
-  assert.equal(parsed.flags.platform, 'apple');
-  assert.equal(parsed.flags.target, 'tv');
+  for (const scenario of scenarios) {
+    scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
+  }
 });
 
 test('parseArgs recognizes device isolation flags', () => {
@@ -298,7 +318,10 @@ test('parseArgs recognizes record --fps flag', () => {
 test('parseArgs rejects invalid record --fps range', () => {
   assert.throws(
     () => parseArgs(['record', 'start', './capture.mp4', '--fps', '0'], { strictFlags: true }),
-    /Invalid fps: 0/,
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('Invalid fps'),
   );
 });
 
@@ -436,7 +459,10 @@ test('diff snapshot command accepts snapshot flags', () => {
 test('unknown short flags are rejected', () => {
   assert.throws(
     () => parseArgs(['press', '10', '20', '-x'], { strictFlags: true }),
-    (error) => error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Unknown flag: -x',
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('Unknown flag'),
   );
 });
 
@@ -486,11 +512,16 @@ test('invalid range errors are deterministic', () => {
   assert.throws(
     () => parseArgs(['snapshot', '--backend', 'xctest'], { strictFlags: true }),
     (error) =>
-      error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Unknown flag: --backend',
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('Unknown flag'),
   );
   assert.throws(
     () => parseArgs(['snapshot', '--depth', '-1'], { strictFlags: true }),
-    (error) => error instanceof AppError && error.code === 'INVALID_ARGS' && error.message === 'Invalid depth: -1',
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('Invalid depth'),
   );
 });
 

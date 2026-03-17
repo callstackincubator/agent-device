@@ -43,35 +43,46 @@ async function supportsLoopbackBind(): Promise<boolean> {
   return await loopbackBindSupportPromise;
 }
 
-test('resolveDaemonRequestTimeoutMs defaults to 90000', () => {
-  assert.equal(resolveDaemonRequestTimeoutMs(undefined), 90000);
-});
+test('daemon timeout and retry helpers normalize configured values', () => {
+  const scenarios: Array<{
+    resolve: (value: string | undefined) => number;
+    cases: Array<{ value: string | undefined; expected: number }>;
+  }> = [
+    {
+      resolve: resolveDaemonRequestTimeoutMs,
+      cases: [
+        { value: undefined, expected: 90000 },
+        { value: '100', expected: 1000 },
+        { value: '2500', expected: 2500 },
+        { value: 'invalid', expected: 90000 },
+      ],
+    },
+    {
+      resolve: resolveDaemonStartupTimeoutMs,
+      cases: [
+        { value: undefined, expected: 15000 },
+        { value: '100', expected: 1000 },
+        { value: '20000', expected: 20000 },
+        { value: 'invalid', expected: 15000 },
+      ],
+    },
+    {
+      resolve: resolveDaemonStartupAttempts,
+      cases: [
+        { value: undefined, expected: 2 },
+        { value: '0', expected: 1 },
+        { value: '3', expected: 3 },
+        { value: '999', expected: 5 },
+        { value: 'invalid', expected: 2 },
+      ],
+    },
+  ];
 
-test('resolveDaemonRequestTimeoutMs enforces minimum timeout', () => {
-  assert.equal(resolveDaemonRequestTimeoutMs('100'), 1000);
-  assert.equal(resolveDaemonRequestTimeoutMs('2500'), 2500);
-  assert.equal(resolveDaemonRequestTimeoutMs('invalid'), 90000);
-});
-
-test('resolveDaemonStartupTimeoutMs defaults to 15000', () => {
-  assert.equal(resolveDaemonStartupTimeoutMs(undefined), 15000);
-});
-
-test('resolveDaemonStartupTimeoutMs enforces minimum timeout', () => {
-  assert.equal(resolveDaemonStartupTimeoutMs('100'), 1000);
-  assert.equal(resolveDaemonStartupTimeoutMs('20000'), 20000);
-  assert.equal(resolveDaemonStartupTimeoutMs('invalid'), 15000);
-});
-
-test('resolveDaemonStartupAttempts defaults to 2', () => {
-  assert.equal(resolveDaemonStartupAttempts(undefined), 2);
-});
-
-test('resolveDaemonStartupAttempts clamps values to [1,5]', () => {
-  assert.equal(resolveDaemonStartupAttempts('0'), 1);
-  assert.equal(resolveDaemonStartupAttempts('3'), 3);
-  assert.equal(resolveDaemonStartupAttempts('999'), 5);
-  assert.equal(resolveDaemonStartupAttempts('invalid'), 2);
+  for (const scenario of scenarios) {
+    for (const testCase of scenario.cases) {
+      assert.equal(scenario.resolve(testCase.value), testCase.expected);
+    }
+  }
 });
 
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {

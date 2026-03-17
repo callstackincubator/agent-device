@@ -37,6 +37,44 @@ const INCREMENT_NODE = {
   depth: 0,
 };
 
+async function runFindClickScenario(options: {
+  positionals: string[];
+  nodes: Array<Record<string, unknown>>;
+  invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
+}): Promise<{ response: NonNullable<Awaited<ReturnType<typeof handleFindCommands>>>; invokeCalls: DaemonRequest[] }> {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  const invokeCalls: DaemonRequest[] = [];
+  const response = await handleFindCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'find',
+      positionals: options.positionals,
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/test.log',
+    sessionStore,
+    invoke: async (req) => {
+      invokeCalls.push(req);
+      const data = options.invoke ? await options.invoke(req) : {};
+      return { ok: true, data };
+    },
+    dispatch: async (_device, command) => {
+      if (command === 'snapshot') {
+        return { nodes: options.nodes };
+      }
+      return {};
+    },
+  });
+
+  assert.ok(response, 'expected a response');
+  return { response, invokeCalls };
+}
+
 test('parseFindArgs defaults to click with any locator', () => {
   const parsed = parseFindArgs(['Login']);
   assert.equal(parsed.locator, 'any');
@@ -132,63 +170,7 @@ test('parseFindArgs with bare locator yields empty query', () => {
   assert.equal(parsed.action, 'click');
 });
 
-test('handleFindCommands click returns deterministic matched-target metadata', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  const invokeCalls: DaemonRequest[] = [];
-  const response = await handleFindCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'find',
-      positionals: ['Increment', 'click'],
-      flags: {},
-    },
-    sessionName,
-    logPath: '/tmp/test.log',
-    sessionStore,
-    invoke: async (req) => {
-      invokeCalls.push(req);
-      // Simulate runner returning non-deterministic platform data that should not bleed through
-      return { ok: true, data: { platformSpecificRef: 'XCUIElementTypeApplication', x: 0, y: 0 } };
-    },
-    dispatch: async (_device, command) => {
-      if (command === 'snapshot') {
-        return { nodes: [INCREMENT_NODE] };
-      }
-      return {};
-    },
-  });
-
-  assert.ok(response, 'expected a response');
-  assert.ok(response.ok, 'expected success');
-  const data = response.data as Record<string, unknown>;
-
-  // Deterministic matched-target metadata
-  assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
-  assert.equal(data.locator, 'any', 'locator must reflect the find strategy');
-  assert.equal(data.query, 'Increment', 'query must reflect the search term');
-  assert.equal(data.x, 100, 'x must be derived from the matched node rect center');
-  assert.equal(data.y, 50, 'y must be derived from the matched node rect center');
-
-  // Strict key set — no platform-specific fields may leak through
-  assert.deepEqual(Object.keys(data).sort(), ['locator', 'query', 'ref', 'x', 'y']);
-
-  // invoke was called with the resolved ref
-  assert.equal(invokeCalls.length, 1);
-  assert.equal(invokeCalls[0].positionals?.[0], '@e1');
-});
-
-test('handleFindCommands click response contains exactly the deterministic key set (fallback: no rect on resolved node)', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  // Parent is hittable but has no rect — resolving through it loses coordinates.
-  // Child has a rect (satisfies requireRect) but is not hittable, so findNearestHittableAncestor
-  // walks up to the parent, which has no rect → fallback path: x/y are absent from response.
+test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
   const hittableParentNoRect = { index: 0, type: 'View', hittable: true, depth: 0 };
   const nonHittableChildWithRect = {
     index: 1,
@@ -200,55 +182,61 @@ test('handleFindCommands click response contains exactly the deterministic key s
     parentIndex: 0,
   };
 
-  const response = await handleFindCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'find',
+  const scenarios: Array<{
+    positionals: string[];
+    nodes: Array<Record<string, unknown>>;
+    invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
+    expectedKeys: string[];
+    expectedLocator: string;
+    expectedQuery: string;
+    expectedCoordinates?: { x: number; y: number };
+  }> = [
+    {
       positionals: ['Increment', 'click'],
-      flags: {},
+      nodes: [INCREMENT_NODE],
+      invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeApplication', x: 0, y: 0 }),
+      expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
+      expectedLocator: 'any',
+      expectedQuery: 'Increment',
+      expectedCoordinates: { x: 100, y: 50 },
     },
-    sessionName,
-    logPath: '/tmp/test.log',
-    sessionStore,
-    invoke: async () => ({ ok: true, data: { platformSpecificRef: 'XCUIElementTypeView' } }),
-    dispatch: async (_device, command) => {
-      if (command === 'snapshot') return { nodes: [hittableParentNoRect, nonHittableChildWithRect] };
-      return {};
+    {
+      positionals: ['Increment', 'click'],
+      nodes: [hittableParentNoRect, nonHittableChildWithRect],
+      invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeView' }),
+      expectedKeys: ['locator', 'query', 'ref'],
+      expectedLocator: 'any',
+      expectedQuery: 'Increment',
     },
-  });
-
-  assert.ok(response?.ok);
-  const data = response!.data as Record<string, unknown>;
-  assert.deepEqual(Object.keys(data).sort(), ['locator', 'query', 'ref']);
-});
-
-test('handleFindCommands click with explicit label locator returns locator in metadata', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  const response = await handleFindCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'find',
+    {
       positionals: ['label', 'Increment', 'click'],
-      flags: {},
+      nodes: [INCREMENT_NODE],
+      expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
+      expectedLocator: 'label',
+      expectedQuery: 'Increment',
+      expectedCoordinates: { x: 100, y: 50 },
     },
-    sessionName,
-    logPath: '/tmp/test.log',
-    sessionStore,
-    invoke: async () => ({ ok: true, data: {} }),
-    dispatch: async (_device, command) => {
-      if (command === 'snapshot') return { nodes: [INCREMENT_NODE] };
-      return {};
-    },
-  });
+  ];
 
-  assert.ok(response?.ok);
-  const data = response!.data as Record<string, unknown>;
-  assert.deepEqual(Object.keys(data).sort(), ['locator', 'query', 'ref', 'x', 'y']);
-  assert.equal(data.locator, 'label');
-  assert.equal(data.query, 'Increment');
+  for (const scenario of scenarios) {
+    const { response, invokeCalls } = await runFindClickScenario(scenario);
+    assert.ok(response.ok, 'expected success');
+
+    const data = response.data as Record<string, unknown>;
+    assert.deepEqual(Object.keys(data).sort(), scenario.expectedKeys);
+    assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
+    assert.equal(data.locator, scenario.expectedLocator);
+    assert.equal(data.query, scenario.expectedQuery);
+
+    if (scenario.expectedCoordinates) {
+      assert.equal(data.x, scenario.expectedCoordinates.x);
+      assert.equal(data.y, scenario.expectedCoordinates.y);
+    } else {
+      assert.equal(Object.hasOwn(data, 'x'), false);
+      assert.equal(Object.hasOwn(data, 'y'), false);
+    }
+
+    assert.equal(invokeCalls.length, 1);
+    assert.equal(invokeCalls[0].positionals?.[0], '@e1');
+  }
 });

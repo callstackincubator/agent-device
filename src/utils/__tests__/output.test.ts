@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { stripVTControlCharacters } from 'node:util';
 import { formatSnapshotDiffText } from '../output.ts';
 
 const DIFF_DATA = {
@@ -40,10 +41,12 @@ test('formatSnapshotDiffText renders ANSI colors when forced', () => {
   delete process.env.NO_COLOR;
   try {
     const text = formatSnapshotDiffText({ ...DIFF_DATA });
-    assert.equal(text.includes('\x1b[31m'), true);
-    assert.equal(text.includes('\x1b[32m'), true);
-    assert.equal(text.includes('\x1b[2m'), true);
-    assert.match(text, /\x1b\[[0-9;]+m/);
+    const plainText = stripVTControlCharacters(text);
+    assert.notEqual(text, plainText);
+    assert.match(plainText, /^@e2 \[window\]/m);
+    assert.match(plainText, /^-  @e3 \[text\] "67"$/m);
+    assert.match(plainText, /^\+  @e3 \[text\] "134"$/m);
+    assert.match(plainText, /1 additions, 1 removals, 1 unchanged/);
   } finally {
     if (typeof originalForceColor === 'string') process.env.FORCE_COLOR = originalForceColor;
     else delete process.env.FORCE_COLOR;

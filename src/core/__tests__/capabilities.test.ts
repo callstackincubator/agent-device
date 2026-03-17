@@ -40,48 +40,67 @@ const tvOsSimulator: DeviceInfo = {
   target: 'tv',
 };
 
-test('iOS simulator-only commands reject iOS devices and Android', () => {
-  for (const cmd of ['alert', 'pinch']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
-    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
-    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), false, `${cmd} on Android`);
+type SupportCheck = {
+  device: DeviceInfo;
+  expected: boolean;
+  label: string;
+};
+
+function assertCommandSupport(commands: string[], checks: SupportCheck[]): void {
+  for (const command of commands) {
+    for (const check of checks) {
+      assert.equal(
+        isCommandSupportedOnDevice(command, check.device),
+        check.expected,
+        `${command} ${check.label}`,
+      );
+    }
   }
-});
+}
 
-test('simulator-only iOS commands with Android support reject iOS devices', () => {
-  for (const cmd of ['settings', 'push', 'clipboard']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
-    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), false, `${cmd} on iOS device`);
-    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
+test('device capability matrix stays consistent across shared command groups', () => {
+  const scenarios: Array<{ commands: string[]; checks: SupportCheck[] }> = [
+    {
+      commands: ['alert', 'pinch'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: false, label: 'on Android' },
+      ],
+    },
+    {
+      commands: ['settings', 'push', 'clipboard'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+      ],
+    },
+    {
+      commands: ['keyboard'],
+      checks: [
+        { device: iosSimulator, expected: false, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+      ],
+    },
+    {
+      commands: ['swipe', 'reinstall', 'install'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: true, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+      ],
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    assertCommandSupport(scenario.commands, scenario.checks);
   }
-});
-
-test('keyboard command is Android-only', () => {
-  assert.equal(isCommandSupportedOnDevice('keyboard', iosSimulator), false, 'keyboard on iOS sim');
-  assert.equal(isCommandSupportedOnDevice('keyboard', iosDevice), false, 'keyboard on iOS device');
-  assert.equal(isCommandSupportedOnDevice('keyboard', androidDevice), true, 'keyboard on Android');
-});
-
-test('swipe supports iOS simulator, iOS device, and Android', () => {
-  assert.equal(isCommandSupportedOnDevice('swipe', iosSimulator), true, 'swipe on iOS sim');
-  assert.equal(isCommandSupportedOnDevice('swipe', iosDevice), true, 'swipe on iOS device');
-  assert.equal(isCommandSupportedOnDevice('swipe', androidDevice), true, 'swipe on Android');
-});
-
-test('reinstall supports iOS simulator, iOS device, and Android', () => {
-  assert.equal(isCommandSupportedOnDevice('reinstall', iosSimulator), true, 'reinstall on iOS sim');
-  assert.equal(isCommandSupportedOnDevice('reinstall', iosDevice), true, 'reinstall on iOS device');
-  assert.equal(isCommandSupportedOnDevice('reinstall', androidDevice), true, 'reinstall on Android');
-});
-
-test('install supports iOS simulator, iOS device, and Android', () => {
-  assert.equal(isCommandSupportedOnDevice('install', iosSimulator), true, 'install on iOS sim');
-  assert.equal(isCommandSupportedOnDevice('install', iosDevice), true, 'install on iOS device');
-  assert.equal(isCommandSupportedOnDevice('install', androidDevice), true, 'install on Android');
 });
 
 test('core commands support iOS simulator, iOS device, and Android', () => {
-  for (const cmd of [
+  assertCommandSupport([
     'app-switcher',
     'apps',
     'back',
@@ -108,21 +127,22 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
     'trigger-app-event',
     'type',
     'wait',
-  ]) {
-    assert.equal(isCommandSupportedOnDevice(cmd, iosSimulator), true, `${cmd} on iOS sim`);
-    assert.equal(isCommandSupportedOnDevice(cmd, iosDevice), true, `${cmd} on iOS device`);
-    assert.equal(isCommandSupportedOnDevice(cmd, androidDevice), true, `${cmd} on Android`);
-  }
+  ], [
+    { device: iosSimulator, expected: true, label: 'on iOS sim' },
+    { device: iosDevice, expected: true, label: 'on iOS device' },
+    { device: androidDevice, expected: true, label: 'on Android' },
+  ]);
 });
 
 test('Android TV uses Android capabilities for core commands', () => {
-  for (const cmd of ['open', 'apps', 'snapshot', 'press', 'swipe', 'back', 'home', 'scroll']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, androidTvDevice), true, `${cmd} on Android TV`);
-  }
+  assertCommandSupport(
+    ['open', 'apps', 'snapshot', 'press', 'swipe', 'back', 'home', 'scroll'],
+    [{ device: androidTvDevice, expected: true, label: 'on Android TV' }],
+  );
 });
 
 test('tvOS follows iOS capability matrix by device kind', () => {
-  for (const cmd of [
+  assertCommandSupport([
     'open',
     'close',
     'apps',
@@ -131,15 +151,15 @@ test('tvOS follows iOS capability matrix by device kind', () => {
     'logs',
     'reinstall',
     'boot',
-  ]) {
-    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
-  }
-  for (const cmd of ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS`);
-  }
-  for (const cmd of ['pinch', 'push', 'settings', 'alert']) {
-    assert.equal(isCommandSupportedOnDevice(cmd, tvOsSimulator), true, `${cmd} on tvOS simulator`);
-  }
+  ], [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }]);
+  assertCommandSupport(
+    ['snapshot', 'wait', 'press', 'get', 'fill', 'scroll', 'back', 'home', 'app-switcher', 'record'],
+    [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }],
+  );
+  assertCommandSupport(
+    ['pinch', 'push', 'settings', 'alert'],
+    [{ device: tvOsSimulator, expected: true, label: 'on tvOS simulator' }],
+  );
   assert.equal(isCommandSupportedOnDevice('keyboard', tvOsSimulator), false, 'keyboard on tvOS simulator');
 });
 
