@@ -1,17 +1,21 @@
 import type { CliFlags } from './utils/command-schema.ts';
 import { formatSnapshotText, printJson } from './utils/output.ts';
 import { AppError } from './utils/errors.ts';
+import {
+  serializeCloseResult,
+  serializeDeployResult,
+  serializeDevice,
+  serializeEnsureSimulatorResult,
+  serializeOpenResult,
+  serializeRuntimeResult,
+  serializeSessionListEntry,
+  serializeSnapshotResult,
+} from './client-shared.ts';
 import type {
   AgentDeviceClient,
   AgentDeviceDevice,
-  AgentDeviceSession,
-  AppCloseResult,
   AppDeployResult,
-  AppOpenResult,
-  CaptureSnapshotResult,
-  EnsureSimulatorResult,
   RuntimeResult,
-  SessionCloseResult,
 } from './client.ts';
 
 export async function tryRunClientBackedCommand(params: {
@@ -209,111 +213,9 @@ function buildSelectionOptions(flags: CliFlags): {
   };
 }
 
-function serializeSessionListEntry(session: AgentDeviceSession): Record<string, unknown> {
-  return {
-    name: session.name,
-    platform: session.device.platform,
-    target: session.device.target,
-    device: session.device.name,
-    id: session.device.id,
-    createdAt: session.createdAt,
-    ...(session.device.platform === 'ios' && {
-      device_udid: session.device.ios?.udid ?? session.device.id,
-      ios_simulator_device_set: session.device.ios?.simulatorSetPath ?? null,
-    }),
-  };
-}
-
-function serializeDevice(device: AgentDeviceDevice): Record<string, unknown> {
-  return {
-    platform: device.platform,
-    id: device.id,
-    name: device.name,
-    kind: device.kind,
-    target: device.target,
-    ...(typeof device.booted === 'boolean' ? { booted: device.booted } : {}),
-  };
-}
-
 function formatDeviceLine(device: AgentDeviceDevice): string {
   const kind = device.kind ? ` ${device.kind}` : '';
   const target = device.target ? ` target=${device.target}` : '';
   const booted = typeof device.booted === 'boolean' ? ` booted=${device.booted}` : '';
   return `${device.name} (${device.platform}${kind}${target})${booted}`;
-}
-
-function serializeEnsureSimulatorResult(result: EnsureSimulatorResult): Record<string, unknown> {
-  return {
-    udid: result.udid,
-    device: result.device,
-    runtime: result.runtime,
-    ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
-    created: result.created,
-    booted: result.booted,
-  };
-}
-
-function serializeRuntimeResult(result: RuntimeResult): Record<string, unknown> {
-  return {
-    session: result.session,
-    configured: result.configured,
-    ...(result.cleared ? { cleared: true } : {}),
-    ...(result.runtime ? { runtime: result.runtime } : {}),
-  };
-}
-
-function serializeDeployResult(result: AppDeployResult): Record<string, unknown> {
-  return {
-    app: result.app,
-    appPath: result.appPath,
-    platform: result.platform,
-    ...(result.appId ? { appId: result.appId } : {}),
-    ...(result.bundleId ? { bundleId: result.bundleId } : {}),
-    ...(result.package ? { package: result.package } : {}),
-  };
-}
-
-function serializeOpenResult(result: AppOpenResult): Record<string, unknown> {
-  return {
-    session: result.session,
-    ...(result.appName ? { appName: result.appName } : {}),
-    ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
-    ...(result.startup ? { startup: result.startup } : {}),
-    ...(result.runtime ? { runtime: result.runtime } : {}),
-    ...(result.device
-      ? {
-        platform: result.device.platform,
-        target: result.device.target,
-        device: result.device.name,
-        id: result.device.id,
-      }
-      : {}),
-    ...(result.device?.platform === 'ios'
-      ? {
-        device_udid: result.device.ios?.udid ?? result.device.id,
-        ios_simulator_device_set: result.device.ios?.simulatorSetPath ?? null,
-      }
-      : {}),
-    ...(result.device?.platform === 'android'
-      ? {
-        serial: result.device.android?.serial ?? result.device.id,
-      }
-      : {}),
-  };
-}
-
-function serializeCloseResult(result: SessionCloseResult | AppCloseResult): Record<string, unknown> {
-  return {
-    session: result.session,
-    ...(result.shutdown ? { shutdown: result.shutdown } : {}),
-  };
-}
-
-function serializeSnapshotResult(result: CaptureSnapshotResult): Record<string, unknown> {
-  return {
-    nodes: result.nodes,
-    truncated: result.truncated,
-    ...(result.appName ? { appName: result.appName } : {}),
-    ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
-  };
 }

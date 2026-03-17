@@ -3,6 +3,7 @@ import type { DaemonRequest, SessionRuntimeHints } from './daemon/types.ts';
 import { AppError } from './utils/errors.ts';
 import type { DeviceKind, DeviceTarget, Platform } from './utils/device.ts';
 import type { SnapshotNode } from './utils/snapshot.ts';
+import { buildAppIdentifiers, buildDeviceIdentifiers } from './client-shared.ts';
 import type {
   AgentDeviceDevice,
   AgentDeviceSession,
@@ -23,20 +24,14 @@ export function normalizeDeployResult(
 ): AppDeployResult {
   const bundleId = readOptionalString(data, 'bundleId');
   const pkg = readOptionalString(data, 'package');
-  const appId = bundleId ?? pkg;
   return {
     app: readRequiredString(data, 'app'),
     appPath: readRequiredString(data, 'appPath'),
     platform: readRequiredPlatform(data, 'platform'),
-    appId,
+    appId: bundleId ?? pkg,
     bundleId,
     package: pkg,
-    identifiers: {
-      session,
-      appId,
-      appBundleId: bundleId,
-      package: pkg,
-    },
+    identifiers: buildAppIdentifiers({ session, bundleId, packageName: pkg }),
   };
 }
 
@@ -74,12 +69,7 @@ export function normalizeInstallFromSourceResult(
     archivePath: readOptionalString(data, 'archivePath'),
     materializationId: readOptionalString(data, 'materializationId'),
     materializationExpiresAt: readOptionalString(data, 'materializationExpiresAt'),
-    identifiers: {
-      session,
-      appId,
-      appBundleId: bundleId,
-      package: packageName,
-    },
+    identifiers: buildAppIdentifiers({ session, bundleId, packageName, appId }),
   };
 }
 
@@ -97,19 +87,16 @@ export function normalizeDevice(value: unknown): AgentDeviceDevice {
   const record = asRecord(value);
   const platform = readRequiredPlatform(record, 'platform');
   const id = readRequiredString(record, 'id');
+  const name = readRequiredString(record, 'name');
   const target = readDeviceTarget(record, 'target');
   return {
     platform,
     target,
     kind: readRequiredDeviceKind(record, 'kind'),
     id,
-    name: readRequiredString(record, 'name'),
+    name,
     booted: typeof record.booted === 'boolean' ? record.booted : undefined,
-    identifiers: {
-      deviceId: id,
-      deviceName: readRequiredString(record, 'name'),
-      ...(platform === 'ios' ? { udid: id } : { serial: id }),
-    },
+    identifiers: buildDeviceIdentifiers(platform, id, name),
     ios: platform === 'ios' ? { udid: id } : undefined,
     android: platform === 'android' ? { serial: id } : undefined,
   };
@@ -124,9 +111,7 @@ export function normalizeSession(value: unknown): AgentDeviceSession {
   const deviceName = readRequiredString(record, 'device');
   const identifiers = {
     session: name,
-    deviceId: id,
-    deviceName,
-    ...(platform === 'ios' ? { udid: id } : { serial: id }),
+    ...buildDeviceIdentifiers(platform, id, deviceName),
   };
   return {
     name,
@@ -173,11 +158,7 @@ export function normalizeOpenDevice(value: Record<string, unknown>): AgentDevice
     return undefined;
   }
   const target = readDeviceTarget(value, 'target');
-  const identifiers = {
-    deviceId: id,
-    deviceName: name,
-    ...(platform === 'ios' ? { udid: id } : { serial: id }),
-  };
+  const identifiers = buildDeviceIdentifiers(platform, id, name);
   return {
     platform,
     target,
@@ -300,44 +281,79 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function readRequiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new AppError('COMMAND_FAILED', `Daemon response is missing "${key}".`, { response: record });
-  }
-  return value;
+  return readRequired(record, key, parseNonEmptyString, `Daemon response is missing "${key}".`);
 }
 
 export function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return readOptional(record, key, parseNonEmptyString);
 }
 
 export function readNullableString(record: Record<string, unknown>, key: string): string | null | undefined {
-  const value = record[key];
-  if (value === null) return null;
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return readNullable(record, key, parseNonEmptyString);
 }
 
 function readRequiredNumber(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new AppError('COMMAND_FAILED', `Daemon response is missing numeric "${key}".`, { response: record });
+  return readRequired(record, key, parseFiniteNumber, `Daemon response is missing numeric "${key}".`);
+}
+
+function readRequiredPlatform(record: Record<string, unknown>, key: string): Platform {
+  return readRequired(record, key, parsePlatform, `Daemon response has invalid "${key}".`);
+}
+
+function readRequiredDeviceKind(record: Record<string, unknown>, key: string): DeviceKind {
+  return readRequired(record, key, parseDeviceKind, `Daemon response has invalid "${key}".`);
+}
+
+function readDeviceTarget(record: Record<string, unknown>, key: string): DeviceTarget {
+  return readOptional(record, key, parseDeviceTarget) ?? 'mobile';
+}
+
+function readRequired<T>(
+  record: Record<string, unknown>,
+  key: string,
+  parse: (value: unknown) => T | undefined,
+  message: string,
+): T {
+  const value = parse(record[key]);
+  if (value === undefined) {
+    throw new AppError('COMMAND_FAILED', message, { response: record });
   }
   return value;
 }
 
-function readRequiredPlatform(record: Record<string, unknown>, key: string): Platform {
-  const value = record[key];
-  if (value === 'ios' || value === 'android') return value;
-  throw new AppError('COMMAND_FAILED', `Daemon response has invalid "${key}".`, { response: record });
+function readOptional<T>(
+  record: Record<string, unknown>,
+  key: string,
+  parse: (value: unknown) => T | undefined,
+): T | undefined {
+  return parse(record[key]);
 }
 
-function readRequiredDeviceKind(record: Record<string, unknown>, key: string): DeviceKind {
+function readNullable<T>(
+  record: Record<string, unknown>,
+  key: string,
+  parse: (value: unknown) => T | undefined,
+): T | null | undefined {
   const value = record[key];
-  if (value === 'simulator' || value === 'emulator' || value === 'device') return value;
-  throw new AppError('COMMAND_FAILED', `Daemon response has invalid "${key}".`, { response: record });
+  return value === null ? null : parse(value);
 }
 
-function readDeviceTarget(record: Record<string, unknown>, key: string): DeviceTarget {
-  return record[key] === 'tv' ? 'tv' : 'mobile';
+function parseNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function parseFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parsePlatform(value: unknown): Platform | undefined {
+  return value === 'ios' || value === 'android' ? value : undefined;
+}
+
+function parseDeviceKind(value: unknown): DeviceKind | undefined {
+  return value === 'simulator' || value === 'emulator' || value === 'device' ? value : undefined;
+}
+
+function parseDeviceTarget(value: unknown): DeviceTarget | undefined {
+  return value === 'tv' ? 'tv' : value === 'mobile' ? 'mobile' : undefined;
 }
