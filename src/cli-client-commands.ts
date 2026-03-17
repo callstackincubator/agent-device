@@ -15,6 +15,7 @@ import {
   serializeSnapshotResult,
 } from './client-shared.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
+import { resolveUserPath } from './utils/path-resolution.ts';
 import type {
   AgentDeviceClient,
   AgentDeviceDevice,
@@ -174,8 +175,8 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       throw new AppError('INVALID_ARGS', 'diff screenshot requires --baseline <path>');
     }
 
-    const baselinePath = resolveCliPath(baselineRaw);
-    const outputPath = typeof flags.out === 'string' ? resolveCliPath(flags.out) : undefined;
+    const baselinePath = resolveUserPath(baselineRaw);
+    const outputPath = typeof flags.out === 'string' ? resolveUserPath(flags.out) : undefined;
 
     let thresholdNum = 0.1;
     if (flags.threshold != null && flags.threshold !== '') {
@@ -267,14 +268,6 @@ function buildSelectionOptions(flags: CliFlags): {
     iosSimulatorDeviceSet: flags.iosSimulatorDeviceSet,
     androidDeviceAllowlist: flags.androidDeviceAllowlist,
   };
-}
-
-function resolveCliPath(filePath: string): string {
-  if (filePath === '~') return os.homedir();
-  if (filePath.startsWith('~/')) {
-    return path.join(os.homedir(), filePath.slice(2));
-  }
-  return path.resolve(filePath);
 }
 
 function formatDeviceLine(device: AgentDeviceDevice): string {

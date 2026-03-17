@@ -1,8 +1,8 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './errors.ts';
 import { type CliFlags, type FlagKey } from './command-schema.ts';
+import { expandUserHomePath, resolveUserPath } from './path-resolution.ts';
 import {
   getConfigurableOptionSpecs,
   getOptionSpec,
@@ -41,16 +41,11 @@ function resolveConfigPaths(
 }
 
 function resolveUserConfigPath(env: EnvMap): string {
-  const home = env.HOME?.trim() || os.homedir();
-  return path.join(home, '.agent-device', 'config.json');
+  return path.join(expandUserHomePath('~', { env }), '.agent-device', 'config.json');
 }
 
 function resolveInputPath(inputPath: string, cwd: string, env: EnvMap): string {
-  if (path.isAbsolute(inputPath)) return inputPath;
-  if (inputPath.startsWith('~')) {
-    return path.join(env.HOME?.trim() || os.homedir(), inputPath.slice(1));
-  }
-  return path.resolve(cwd, inputPath);
+  return resolveUserPath(inputPath, { cwd, env });
 }
 
 function loadConfigFileDefaults(

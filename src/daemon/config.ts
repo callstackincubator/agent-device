@@ -1,5 +1,5 @@
-import os from 'node:os';
 import path from 'node:path';
+import { expandUserHomePath, resolveUserPath } from '../utils/path-resolution.ts';
 
 export type DaemonServerMode = 'socket' | 'http' | 'dual';
 export type DaemonTransportPreference = 'auto' | 'socket' | 'http';
@@ -27,13 +27,9 @@ export function resolveDaemonPaths(stateDir: string | undefined): DaemonPaths {
 export function resolveStateDir(raw: string | undefined): string {
   const value = (raw ?? '').trim();
   if (!value) {
-    return path.join(os.homedir(), '.agent-device');
+    return path.join(expandUserHomePath('~'), '.agent-device');
   }
-  if (value === '~') return os.homedir();
-  if (value.startsWith('~/')) {
-    return path.join(os.homedir(), value.slice(2));
-  }
-  return path.resolve(value);
+  return resolveUserPath(value);
 }
 
 export function resolveDaemonServerMode(raw: string | undefined): DaemonServerMode {
