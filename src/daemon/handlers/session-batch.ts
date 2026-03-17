@@ -135,16 +135,18 @@ function buildBatchStepFlags(
   parentFlags: CommandFlags | undefined,
   stepFlags: BatchStep['flags'] | undefined,
 ): CommandFlags {
-  const merged: CommandFlags = { ...(stepFlags ?? {}) };
-  const mergedRecord = merged as Record<string, unknown>;
-  delete mergedRecord.batchSteps;
-  delete mergedRecord.batchOnError;
-  delete mergedRecord.batchMaxSteps;
+  const {
+    batchSteps: _batchSteps,
+    batchOnError: _batchOnError,
+    batchMaxSteps: _batchMaxSteps,
+    ...merged
+  } = stepFlags ?? {};
   const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
+  const mergedRecord = merged as Record<string, unknown>;
   for (const key of BATCH_PARENT_FLAG_KEYS) {
     if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
       mergedRecord[key] = parentRecord[key];
     }
   }
-  return merged;
+  return merged as CommandFlags;
 }

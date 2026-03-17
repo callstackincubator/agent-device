@@ -1,5 +1,4 @@
 import { normalizeError } from '../../utils/errors.ts';
-import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { contextFromFlags } from '../context.ts';
@@ -12,15 +11,14 @@ import {
   hasRuntimeTransportHints,
 } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
-import { isAndroidEmulator, isIosSimulator, settleIosSimulator } from './session-device-utils.ts';
+import {
+  IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
+  isAndroidEmulator,
+  isIosSimulator,
+  settleIosSimulator,
+} from './session-device-utils.ts';
 
 type AppLogStream = NonNullable<SessionState['appLog']>;
-
-const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
-  300,
-  0,
-);
 
 async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   success: boolean;
@@ -117,6 +115,8 @@ export async function handleCloseCommand(params: {
     await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
   }
   if (session.device.platform === 'ios') {
+    // The targeted close path stops before dispatch to avoid runner/app races.
+    // Stop again here so both plain and targeted closes end with the runner down.
     await stopIosRunner(session.device.id);
   }
   const runtime = sessionStore.getRuntimeHints(sessionName);

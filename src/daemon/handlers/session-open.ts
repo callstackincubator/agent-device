@@ -7,7 +7,6 @@ import {
   applyRuntimeHintsToApp,
   clearRuntimeHintsFromApp,
 } from '../runtime-hints.ts';
-import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type {
   DaemonRequest,
@@ -21,13 +20,17 @@ import {
   formatAndroidInstalledPackageRequiredMessage,
 } from '../../platforms/android/open-target.ts';
 import {
+  IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
+  IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  settleIosSimulator,
+} from './session-device-utils.ts';
+import {
   countConfiguredRuntimeHints,
   maybeClearRemovedRuntimeTransportHints,
   recordOpenRuntimeAction,
   setSessionRuntimeHintsForOpen,
   tryResolveOpenRuntimeHints,
 } from './session-runtime.ts';
-import { settleIosSimulator } from './session-device-utils.ts';
 import {
   resolveAndroidPackageForOpen,
   resolveSessionAppBundleIdForTarget,
@@ -36,17 +39,6 @@ import {
   STARTUP_SAMPLE_METHOD,
   type StartupPerfSample,
 } from './session-startup-metrics.ts';
-
-const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
-  300,
-  0,
-);
-const IOS_SIMULATOR_POST_OPEN_SETTLE_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
-  300,
-  0,
-);
 
 function buildOpenResult(params: {
   sessionName: string;

@@ -1,7 +1,20 @@
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
+import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { resolveTargetDevice } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+
+export const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
+  300,
+  0,
+);
+
+export const IOS_SIMULATOR_POST_OPEN_SETTLE_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  300,
+  0,
+);
 
 export function requireSessionOrExplicitSelector(
   command: string,
