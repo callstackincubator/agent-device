@@ -66,9 +66,6 @@
     "trailingComma": "all",
     "printWidth": 100
   },
-  "dependencies": {
-    "@clack/prompts": "^1.0.0"
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@rslib/core": "0.19.4",

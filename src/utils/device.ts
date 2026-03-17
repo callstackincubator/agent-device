@@ -1,6 +1,4 @@
 import { AppError } from './errors.ts';
-import { isInteractive } from './interactive.ts';
-import { isCancel, select } from '@clack/prompts';
 
 export type Platform = 'ios' | 'android';
 export type PlatformSelector = Platform | 'apple';
@@ -40,7 +38,7 @@ export function resolveApplePlatformName(target: DeviceTarget | undefined): 'iOS
   return target === 'tv' ? 'tvOS' : 'iOS';
 }
 
-export async function selectDevice(
+export async function resolveDevice(
   devices: DeviceInfo[],
   selector: DeviceSelector,
   context: DeviceSelectionContext = {},
@@ -102,22 +100,7 @@ export async function selectDevice(
   const booted = candidates.filter((d) => d.booted);
   if (booted.length === 1) return booted[0];
 
-  if (isInteractive()) {
-    const choice = await select({
-      message: 'Multiple devices available. Choose a device to continue:',
-      options: (booted.length > 0 ? booted : candidates).map((device) => ({
-        label: `${device.name} (${device.platform}${device.kind ? `, ${device.kind}` : ''}${device.booted ? ', booted' : ''})`,
-        value: device.id,
-      })),
-    });
-    if (isCancel(choice)) {
-      throw new AppError('INVALID_ARGS', 'Device selection cancelled');
-    }
-    if (choice) {
-      const match = candidates.find((d) => d.id === choice);
-      if (match) return match;
-    }
-  }
-
+  // When multiple candidates remain equally valid, preserve discovery order from
+  // the underlying platform tools rather than introducing another tie-breaker here.
   return booted[0] ?? candidates[0];
 }

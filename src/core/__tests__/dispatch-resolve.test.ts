@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveIosDevice } from '../dispatch-resolve.ts';
-import { selectDevice, type DeviceInfo } from '../../utils/device.ts';
+import { resolveDevice, type DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 
 const physical: DeviceInfo = {
@@ -36,7 +36,7 @@ function makeDeps(fallbackSimulator: DeviceInfo | null = null) {
   let findBootableCalled = false;
   return {
     deps: {
-      selectDevice,
+      resolveDevice,
       findBootableSimulator: async () => {
         findBootableCalled = true;
         return fallbackSimulator;
@@ -104,7 +104,7 @@ test('resolveIosDevice throws DEVICE_NOT_FOUND when empty list and no fallback s
   assert.equal(err.code, 'DEVICE_NOT_FOUND');
 });
 
-test('resolveIosDevice rethrows DEVICE_NOT_FOUND from selectDevice when explicit selector used', async () => {
+test('resolveIosDevice rethrows DEVICE_NOT_FOUND from resolveDevice when explicit selector used', async () => {
   const { deps } = makeDeps(simulator);
   const err = await resolveIosDevice(
     [],

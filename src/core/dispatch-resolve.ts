@@ -1,5 +1,5 @@
 import { AppError } from '../utils/errors.ts';
-import { normalizePlatformSelector, selectDevice, type DeviceInfo } from '../utils/device.ts';
+import { normalizePlatformSelector, resolveDevice, type DeviceInfo } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
 import { ensureAdb } from '../platforms/android/index.ts';
 import { findBootableIosSimulator, listIosDevices } from '../platforms/ios/devices.ts';
@@ -22,7 +22,7 @@ type IosDeviceSelector = {
 };
 
 type ResolveIosDeviceDeps = {
-  selectDevice: typeof selectDevice;
+  resolveDevice: typeof resolveDevice;
   findBootableSimulator: typeof findBootableIosSimulator;
 };
 
@@ -43,9 +43,9 @@ export async function resolveIosDevice(
 
   let selected: DeviceInfo | undefined;
   try {
-    selected = await deps.selectDevice(devices, selector, context);
+    selected = await deps.resolveDevice(devices, selector, context);
   } catch (err) {
-    // When selectDevice throws DEVICE_NOT_FOUND and no explicit device
+    // When resolveDevice throws DEVICE_NOT_FOUND and no explicit device
     // selector was used, attempt the simulator fallback before giving up.
     if (hasExplicitSelector || !(err instanceof AppError) || err.code !== 'DEVICE_NOT_FOUND') {
       throw err;
@@ -92,7 +92,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       if (selector.platform === 'android') {
         await ensureAdb();
         const devices = await listAndroidDevices({ serialAllowlist: androidSerialAllowlist });
-        return await selectDevice(devices, selector);
+        return await resolveDevice(devices, selector);
       }
 
       if (selector.platform === 'ios') {
@@ -101,7 +101,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
           devices,
           selector as IosDeviceSelector,
           { simulatorSetPath: iosSimulatorSetPath },
-          { selectDevice, findBootableSimulator: findBootableIosSimulator },
+          { resolveDevice, findBootableSimulator: findBootableIosSimulator },
         );
       }
 
@@ -116,7 +116,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       } catch {
         // ignore
       }
-      return await selectDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath });
+      return await resolveDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath });
     },
     {
       platform: normalizedPlatform,
