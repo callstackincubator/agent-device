@@ -4,7 +4,7 @@ import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 
-import { IOS_BOOT_TIMEOUT_MS, IOS_SIMCTL_LIST_TIMEOUT_MS } from './config.ts';
+import { IOS_BOOT_TIMEOUT_MS, IOS_SIMCTL_LIST_TIMEOUT_MS, IOS_SIMULATOR_FOCUS_TIMEOUT_MS } from './config.ts';
 import { buildSimctlArgs, buildSimctlArgsForDevice } from './simctl.ts';
 
 export function ensureSimulator(device: DeviceInfo, command: string): void {
@@ -14,7 +14,10 @@ export function ensureSimulator(device: DeviceInfo, command: string): void {
 }
 
 export async function focusIosSimulatorWindow(): Promise<void> {
-  await runCmd('open', ['-a', 'Simulator'], { allowFailure: true });
+  await runCmd('open', ['-a', 'Simulator'], {
+    allowFailure: true,
+    timeoutMs: IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
+  });
 }
 
 export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {

@@ -24,6 +24,7 @@ import {
   captureSimulatorScreenshotWithFallback,
   resolveSimulatorRunnerScreenshotCandidatePaths,
 } from '../screenshot.ts';
+import { focusIosSimulatorWindow } from '../simulator.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -256,6 +257,31 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
     assert.match(log, /"to":"runner"/);
     assert.match(log, /"commandArgs":"simctl io sim-1 screenshot \/tmp\/out\.png"/);
   } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('focusIosSimulatorWindow times out instead of hanging indefinitely', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-focus-timeout-test-'));
+  const openPath = path.join(tmpDir, 'open');
+  await fs.writeFile(openPath, '#!/bin/sh\nsleep 10\n', 'utf8');
+  await fs.chmod(openPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  try {
+    await assert.rejects(
+      () => focusIosSimulatorWindow(),
+      (error: unknown) => {
+        assert.equal(error instanceof AppError, true);
+        assert.equal((error as AppError).code, 'COMMAND_FAILED');
+        assert.match((error as AppError).message, /open timed out after 5000ms/);
+        return true;
+      },
+    );
+  } finally {
+    process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });

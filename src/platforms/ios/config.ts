@@ -25,6 +25,12 @@ export const IOS_DEVICECTL_TIMEOUT_MS = resolveTimeoutMs(
   1_000,
 );
 
+export const IOS_SIMULATOR_FOCUS_TIMEOUT_MS = resolveTimeoutMs(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
+  5_000,
+  1_000,
+);
+
 export const IOS_SIMULATOR_SCREENSHOT_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_TIMEOUT_MS,
   20_000,
