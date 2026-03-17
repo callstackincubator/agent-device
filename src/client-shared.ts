@@ -40,6 +40,7 @@ export function serializeSessionDevice(
   device: AgentDeviceSessionDevice,
   options: { includeAndroidSerial?: boolean } = {},
 ): Record<string, unknown> {
+  const includeAndroidSerial = options.includeAndroidSerial ?? true;
   return {
     platform: device.platform,
     target: device.target,
@@ -51,7 +52,7 @@ export function serializeSessionDevice(
         ios_simulator_device_set: device.ios?.simulatorSetPath ?? null,
       }
       : {}),
-    ...(device.platform === 'android' && options.includeAndroidSerial !== false
+    ...(device.platform === 'android' && includeAndroidSerial
       ? {
         serial: device.android?.serial ?? device.id,
       }
