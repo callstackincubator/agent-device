@@ -643,7 +643,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...SNAPSHOT_FLAGS],
   },
   diff: {
-    usageOverride: 'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]',
+    usageOverride:
+      'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]',
     description: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
     positionalArgs: ['kind'],
     allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out'],
