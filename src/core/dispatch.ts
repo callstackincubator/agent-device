@@ -3,25 +3,14 @@ import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import {
-  appSwitcherAndroid,
-  backAndroid,
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
-  homeAndroid,
   pushAndroidNotification,
-  readAndroidClipboardText,
-  setAndroidSetting,
   snapshotAndroid,
-  writeAndroidClipboardText,
 } from '../platforms/android/index.ts';
 import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import {
-  pushIosNotification,
-  readIosClipboardText,
-  setIosSetting,
-  writeIosClipboardText,
-} from '../platforms/ios/index.ts';
+import { pushIosNotification } from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
@@ -98,424 +87,81 @@ export async function dispatchCommand(
     'platform_command',
     async () => {
       switch (command) {
-    case 'open': {
-      const app = positionals[0];
-      const url = positionals[1];
-      if (positionals.length > 2) {
-        throw new AppError('INVALID_ARGS', 'open accepts at most two arguments: <app|url> [url]');
-      }
-      if (!app) {
-        await interactor.openDevice();
-        return { app: null };
-      }
-      if (url !== undefined) {
-        if (device.platform !== 'ios') {
-          throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on iOS');
-        }
-        if (isDeepLinkTarget(app)) {
-          throw new AppError('INVALID_ARGS', 'open <app> <url> requires an app target as the first argument');
-        }
-        if (!isDeepLinkTarget(url)) {
-          throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
-        }
-        await interactor.open(app, {
-          activity: context?.activity,
-          appBundleId: context?.appBundleId,
-          url,
-        });
-        return { app, url };
-      }
-      await interactor.open(app, { activity: context?.activity, appBundleId: context?.appBundleId });
-      return { app };
-    }
-    case 'close': {
-      const app = positionals[0];
-      if (!app) {
-        return { closed: 'session' };
-      }
-      await interactor.close(app);
-      return { app };
-    }
-    case 'press': {
-      const [x, y] = positionals.map(Number);
-      if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'press requires x y');
-      const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
-      const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
-      const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
-      const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
-      const doubleTap = context?.doubleTap === true;
-
-      if (doubleTap && holdMs > 0) {
-        throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with hold-ms');
-      }
-      if (doubleTap && jitterPx > 0) {
-        throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with jitter-px');
-      }
-
-      if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
-        await runIosRunnerCommand(
-          device,
-          {
-            command: 'tapSeries',
-            x,
-            y,
-            count,
-            intervalMs,
-            doubleTap,
-            appBundleId: context?.appBundleId,
-          },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        );
-        return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, timingMode: 'runner-series' };
-      }
-
-      await runRepeatedSeries(count, intervalMs, async (index) => {
-        const [dx, dy] = computeDeterministicJitter(index, jitterPx);
-        const targetX = x + dx;
-        const targetY = y + dy;
-        if (doubleTap) {
-          await interactor.doubleTap(targetX, targetY);
-          return;
-        }
-        if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
-        else await interactor.tap(targetX, targetY);
-      });
-
-      return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap };
-    }
-    case 'swipe': {
-      const x1 = Number(positionals[0]);
-      const y1 = Number(positionals[1]);
-      const x2 = Number(positionals[2]);
-      const y2 = Number(positionals[3]);
-      if ([x1, y1, x2, y2].some(Number.isNaN)) {
-        throw new AppError('INVALID_ARGS', 'swipe requires x1 y1 x2 y2 [durationMs]');
-      }
-
-      const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
-      const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
-      const effectiveDurationMs = device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
-      const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
-      const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
-      const pattern = context?.pattern ?? 'one-way';
-      if (pattern !== 'one-way' && pattern !== 'ping-pong') {
-        throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
-      }
-
-      if (shouldUseIosDragSeries(device, count)) {
-        await runIosRunnerCommand(
-          device,
-          {
-            command: 'dragSeries',
-            x: x1,
-            y: y1,
-            x2,
-            y2,
-            durationMs: effectiveDurationMs,
-            count,
-            pauseMs,
-            pattern,
-            appBundleId: context?.appBundleId,
-          },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        );
-        return {
-          x1,
-          y1,
-          x2,
-          y2,
-          durationMs,
-          effectiveDurationMs,
-          timingMode: 'runner-series',
-          count,
-          pauseMs,
-          pattern,
-        };
-      }
-
-      await runRepeatedSeries(count, pauseMs, async (index) => {
-        const reverse = pattern === 'ping-pong' && index % 2 === 1;
-        if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
-        else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
-      });
-
-      return {
-        x1,
-        y1,
-        x2,
-        y2,
-        durationMs,
-        effectiveDurationMs,
-        timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
-        count,
-        pauseMs,
-        pattern,
-      };
-    }
-    case 'longpress': {
-      const x = Number(positionals[0]);
-      const y = Number(positionals[1]);
-      const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
-      if (Number.isNaN(x) || Number.isNaN(y)) {
-        throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
-      }
-      await interactor.longPress(x, y, durationMs);
-      return { x, y, durationMs };
-    }
-    case 'focus': {
-      const [x, y] = positionals.map(Number);
-      if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'focus requires x y');
-      await interactor.focus(x, y);
-      return { x, y };
-    }
-    case 'type': {
-      const text = positionals.join(' ');
-      if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
-      await interactor.type(text);
-      return { text };
-    }
-    case 'fill': {
-      const x = Number(positionals[0]);
-      const y = Number(positionals[1]);
-      const text = positionals.slice(2).join(' ');
-      if (Number.isNaN(x) || Number.isNaN(y) || !text) {
-        throw new AppError('INVALID_ARGS', 'fill requires x y text');
-      }
-      await interactor.fill(x, y, text);
-      return { x, y, text };
-    }
-    case 'scroll': {
-      const direction = positionals[0];
-      const amount = positionals[1] ? Number(positionals[1]) : undefined;
-      if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-      await interactor.scroll(direction, amount);
-      return { direction, amount };
-    }
-    case 'scrollintoview': {
-      const text = positionals.join(' ').trim();
-      if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
-      const result = await interactor.scrollIntoView(text);
-      if (result?.attempts) return { text, attempts: result.attempts };
-      return { text };
-    }
-    case 'pinch': {
-      if (device.platform === 'android') {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
-        );
-      }
-      const scale = Number(positionals[0]);
-      const x = positionals[1] ? Number(positionals[1]) : undefined;
-      const y = positionals[2] ? Number(positionals[2]) : undefined;
-      if (Number.isNaN(scale) || scale <= 0) {
-        throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
-      }
-      await runIosRunnerCommand(
-        device,
-        { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
-        {
-          verbose: context?.verbose,
-          logPath: context?.logPath,
-          traceLogPath: context?.traceLogPath,
-          requestId: context?.requestId,
-        },
-      );
-      return { scale, x, y };
-    }
-    case 'trigger-app-event': {
-      const { eventName, payload } = parseTriggerAppEventArgs(positionals);
-      const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);
-      await interactor.open(eventUrl, { appBundleId: context?.appBundleId });
-      return { event: eventName, eventUrl, transport: 'deep-link' };
-    }
-    case 'screenshot': {
-      const positionalPath = positionals[0];
-      const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
-      await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
-      await interactor.screenshot(screenshotPath, context?.appBundleId);
-      return { path: screenshotPath };
-    }
-    case 'back': {
-      if (device.platform === 'ios') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'back', appBundleId: context?.appBundleId },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        );
-        return { action: 'back' };
-      }
-      await backAndroid(device);
-      return { action: 'back' };
-    }
-    case 'home': {
-      if (device.platform === 'ios') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'home', appBundleId: context?.appBundleId },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        );
-        return { action: 'home' };
-      }
-      await homeAndroid(device);
-      return { action: 'home' };
-    }
-    case 'app-switcher': {
-      if (device.platform === 'ios') {
-        await runIosRunnerCommand(
-          device,
-          { command: 'appSwitcher', appBundleId: context?.appBundleId },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        );
-        return { action: 'app-switcher' };
-      }
-      await appSwitcherAndroid(device);
-      return { action: 'app-switcher' };
-    }
-    case 'clipboard': {
-      const action = (positionals[0] ?? '').toLowerCase();
-      if (action !== 'read' && action !== 'write') {
-        throw new AppError('INVALID_ARGS', 'clipboard requires a subcommand: read or write');
-      }
-      if (action === 'read') {
-        if (positionals.length !== 1) {
-          throw new AppError('INVALID_ARGS', 'clipboard read does not accept additional arguments');
-        }
-        const text = device.platform === 'ios'
-          ? await readIosClipboardText(device)
-          : await readAndroidClipboardText(device);
-        return { action, text };
-      }
-      if (positionals.length < 2) {
-        throw new AppError('INVALID_ARGS', 'clipboard write requires text (use "" to clear clipboard)');
-      }
-      const text = positionals.slice(1).join(' ');
-      if (device.platform === 'ios') await writeIosClipboardText(device, text);
-      else await writeAndroidClipboardText(device, text);
-      return { action, textLength: Array.from(text).length };
-    }
-    case 'keyboard': {
-      if (device.platform !== 'android') {
-        throw new AppError('UNSUPPORTED_OPERATION', 'keyboard is currently supported only on Android');
-      }
-      const action = (positionals[0] ?? 'status').toLowerCase();
-      if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
-        throw new AppError('INVALID_ARGS', 'keyboard requires a subcommand: status, get, or dismiss');
-      }
-      if (positionals.length > 1) {
-        throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
-      }
-      if (action === 'dismiss') {
-        const result = await dismissAndroidKeyboard(device);
-        return {
-          platform: 'android',
-          action: 'dismiss',
-          attempts: result.attempts,
-          wasVisible: result.wasVisible,
-          dismissed: result.dismissed,
-          visible: result.visible,
-          inputType: result.inputType,
-          type: result.type,
-        };
-      }
-      const state = await getAndroidKeyboardState(device);
-      return {
-        platform: 'android',
-        action: 'status',
-        visible: state.visible,
-        inputType: state.inputType,
-        type: state.type,
-      };
-    }
-    case 'settings': {
-      const [setting, state, target, mode, appBundleId] = positionals;
-      const permissionOptions =
-        setting === 'permission'
-          ? {
-              permissionTarget: target,
-              permissionMode: mode,
+        case 'open': {
+          const app = positionals[0];
+          const url = positionals[1];
+          if (positionals.length > 2) {
+            throw new AppError(
+              'INVALID_ARGS',
+              'open accepts at most two arguments: <app|url> [url]',
+            );
+          }
+          if (!app) {
+            await interactor.openDevice();
+            return { app: null };
+          }
+          if (url !== undefined) {
+            if (device.platform !== 'ios') {
+              throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on iOS');
             }
-          : undefined;
-      emitDiagnostic({
-        level: 'debug',
-        phase: 'settings_apply',
-        data: {
-          setting,
-          state,
-          target,
-          mode,
-          platform: device.platform,
-        },
-      });
-      if (device.platform === 'ios') {
-        await setIosSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
-        return { setting, state };
-      }
-      await setAndroidSetting(device, setting, state, appBundleId ?? context?.appBundleId, permissionOptions);
-      return { setting, state };
-    }
-    case 'push': {
-      const target = positionals[0]?.trim();
-      const payloadArg = positionals[1]?.trim();
-      if (!target || !payloadArg) {
-        throw new AppError(
-          'INVALID_ARGS',
-          'push requires <bundle|package> <payload.json|inline-json>',
-        );
-      }
-      const payload = await readNotificationPayload(payloadArg);
-      if (device.platform === 'ios') {
-        await pushIosNotification(device, target, payload);
-        return { platform: 'ios', bundleId: target };
-      }
-      const androidResult = await pushAndroidNotification(device, target, payload);
-      return {
-        platform: 'android',
-        package: target,
-        action: androidResult.action,
-        extrasCount: androidResult.extrasCount,
-      };
-    }
-    case 'snapshot': {
-      if (device.platform === 'ios') {
-        const result = (await withDiagnosticTimer(
-          'snapshot_capture',
-          async () =>
+            if (isDeepLinkTarget(app)) {
+              throw new AppError(
+                'INVALID_ARGS',
+                'open <app> <url> requires an app target as the first argument',
+              );
+            }
+            if (!isDeepLinkTarget(url)) {
+              throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
+            }
+            await interactor.open(app, {
+              activity: context?.activity,
+              appBundleId: context?.appBundleId,
+              url,
+            });
+            return { app, url };
+          }
+          await interactor.open(app, {
+            activity: context?.activity,
+            appBundleId: context?.appBundleId,
+          });
+          return { app };
+        }
+        case 'close': {
+          const app = positionals[0];
+          if (!app) {
+            return { closed: 'session' };
+          }
+          await interactor.close(app);
+          return { app };
+        }
+        case 'press': {
+          const [x, y] = positionals.map(Number);
+          if (Number.isNaN(x) || Number.isNaN(y))
+            throw new AppError('INVALID_ARGS', 'press requires x y');
+          const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
+          const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
+          const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
+          const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
+          const doubleTap = context?.doubleTap === true;
+
+          if (doubleTap && holdMs > 0) {
+            throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with hold-ms');
+          }
+          if (doubleTap && jitterPx > 0) {
+            throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with jitter-px');
+          }
+
+          if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
             await runIosRunnerCommand(
               device,
               {
-                command: 'snapshot',
+                command: 'tapSeries',
+                x,
+                y,
+                count,
+                intervalMs,
+                doubleTap,
                 appBundleId: context?.appBundleId,
-                interactiveOnly: context?.snapshotInteractiveOnly,
-                compact: context?.snapshotCompact,
-                depth: context?.snapshotDepth,
-                scope: context?.snapshotScope,
-                raw: context?.snapshotRaw,
               },
               {
                 verbose: context?.verbose,
@@ -523,38 +169,377 @@ export async function dispatchCommand(
                 traceLogPath: context?.traceLogPath,
                 requestId: context?.requestId,
               },
-            ),
-          {
-            backend: 'xctest',
-          },
-        )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
-        const nodes = result.nodes ?? [];
-        if (nodes.length === 0 && device.kind === 'simulator') {
-          throw new AppError(
-            'COMMAND_FAILED',
-            'XCTest snapshot returned 0 nodes on iOS simulator.',
-          );
+            );
+            return {
+              x,
+              y,
+              count,
+              intervalMs,
+              holdMs,
+              jitterPx,
+              doubleTap,
+              timingMode: 'runner-series',
+            };
+          }
+
+          await runRepeatedSeries(count, intervalMs, async (index) => {
+            const [dx, dy] = computeDeterministicJitter(index, jitterPx);
+            const targetX = x + dx;
+            const targetY = y + dy;
+            if (doubleTap) {
+              await interactor.doubleTap(targetX, targetY);
+              return;
+            }
+            if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
+            else await interactor.tap(targetX, targetY);
+          });
+
+          return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap };
         }
-        return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
-      }
-      const androidResult = await withDiagnosticTimer(
-        'snapshot_capture',
-        async () =>
-          await snapshotAndroid(device, {
-            interactiveOnly: context?.snapshotInteractiveOnly,
-            compact: context?.snapshotCompact,
-            depth: context?.snapshotDepth,
-            scope: context?.snapshotScope,
-            raw: context?.snapshotRaw,
-          }),
-        {
-          backend: 'android',
-        },
-      );
-      return { nodes: androidResult.nodes ?? [], truncated: androidResult.truncated ?? false, backend: 'android' };
-    }
-    default:
-      throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
+        case 'swipe': {
+          const x1 = Number(positionals[0]);
+          const y1 = Number(positionals[1]);
+          const x2 = Number(positionals[2]);
+          const y2 = Number(positionals[3]);
+          if ([x1, y1, x2, y2].some(Number.isNaN)) {
+            throw new AppError('INVALID_ARGS', 'swipe requires x1 y1 x2 y2 [durationMs]');
+          }
+
+          const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
+          const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
+          const effectiveDurationMs =
+            device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
+          const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
+          const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
+          const pattern = context?.pattern ?? 'one-way';
+          if (pattern !== 'one-way' && pattern !== 'ping-pong') {
+            throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
+          }
+
+          if (shouldUseIosDragSeries(device, count)) {
+            await runIosRunnerCommand(
+              device,
+              {
+                command: 'dragSeries',
+                x: x1,
+                y: y1,
+                x2,
+                y2,
+                durationMs: effectiveDurationMs,
+                count,
+                pauseMs,
+                pattern,
+                appBundleId: context?.appBundleId,
+              },
+              {
+                verbose: context?.verbose,
+                logPath: context?.logPath,
+                traceLogPath: context?.traceLogPath,
+                requestId: context?.requestId,
+              },
+            );
+            return {
+              x1,
+              y1,
+              x2,
+              y2,
+              durationMs,
+              effectiveDurationMs,
+              timingMode: 'runner-series',
+              count,
+              pauseMs,
+              pattern,
+            };
+          }
+
+          await runRepeatedSeries(count, pauseMs, async (index) => {
+            const reverse = pattern === 'ping-pong' && index % 2 === 1;
+            if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
+            else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
+          });
+
+          return {
+            x1,
+            y1,
+            x2,
+            y2,
+            durationMs,
+            effectiveDurationMs,
+            timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
+            count,
+            pauseMs,
+            pattern,
+          };
+        }
+        case 'longpress': {
+          const x = Number(positionals[0]);
+          const y = Number(positionals[1]);
+          const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
+          if (Number.isNaN(x) || Number.isNaN(y)) {
+            throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
+          }
+          await interactor.longPress(x, y, durationMs);
+          return { x, y, durationMs };
+        }
+        case 'focus': {
+          const [x, y] = positionals.map(Number);
+          if (Number.isNaN(x) || Number.isNaN(y))
+            throw new AppError('INVALID_ARGS', 'focus requires x y');
+          await interactor.focus(x, y);
+          return { x, y };
+        }
+        case 'type': {
+          const text = positionals.join(' ');
+          if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
+          await interactor.type(text);
+          return { text };
+        }
+        case 'fill': {
+          const x = Number(positionals[0]);
+          const y = Number(positionals[1]);
+          const text = positionals.slice(2).join(' ');
+          if (Number.isNaN(x) || Number.isNaN(y) || !text) {
+            throw new AppError('INVALID_ARGS', 'fill requires x y text');
+          }
+          await interactor.fill(x, y, text);
+          return { x, y, text };
+        }
+        case 'scroll': {
+          const direction = positionals[0];
+          const amount = positionals[1] ? Number(positionals[1]) : undefined;
+          if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
+          await interactor.scroll(direction, amount);
+          return { direction, amount };
+        }
+        case 'scrollintoview': {
+          const text = positionals.join(' ').trim();
+          if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
+          const result = await interactor.scrollIntoView(text);
+          if (result?.attempts) return { text, attempts: result.attempts };
+          return { text };
+        }
+        case 'pinch': {
+          if (device.platform === 'android') {
+            throw new AppError(
+              'UNSUPPORTED_OPERATION',
+              'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
+            );
+          }
+          const scale = Number(positionals[0]);
+          const x = positionals[1] ? Number(positionals[1]) : undefined;
+          const y = positionals[2] ? Number(positionals[2]) : undefined;
+          if (Number.isNaN(scale) || scale <= 0) {
+            throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
+          }
+          await runIosRunnerCommand(
+            device,
+            { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
+            {
+              verbose: context?.verbose,
+              logPath: context?.logPath,
+              traceLogPath: context?.traceLogPath,
+              requestId: context?.requestId,
+            },
+          );
+          return { scale, x, y };
+        }
+        case 'trigger-app-event': {
+          const { eventName, payload } = parseTriggerAppEventArgs(positionals);
+          const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);
+          await interactor.open(eventUrl, { appBundleId: context?.appBundleId });
+          return { event: eventName, eventUrl, transport: 'deep-link' };
+        }
+        case 'screenshot': {
+          const positionalPath = positionals[0];
+          const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
+          await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
+          await interactor.screenshot(screenshotPath, context?.appBundleId);
+          return { path: screenshotPath };
+        }
+        case 'back': {
+          await interactor.back();
+          return { action: 'back' };
+        }
+        case 'home': {
+          await interactor.home();
+          return { action: 'home' };
+        }
+        case 'app-switcher': {
+          await interactor.appSwitcher();
+          return { action: 'app-switcher' };
+        }
+        case 'clipboard': {
+          const action = (positionals[0] ?? '').toLowerCase();
+          if (action !== 'read' && action !== 'write') {
+            throw new AppError('INVALID_ARGS', 'clipboard requires a subcommand: read or write');
+          }
+          if (action === 'read') {
+            if (positionals.length !== 1) {
+              throw new AppError(
+                'INVALID_ARGS',
+                'clipboard read does not accept additional arguments',
+              );
+            }
+            const text = await interactor.readClipboard();
+            return { action, text };
+          }
+          if (positionals.length < 2) {
+            throw new AppError(
+              'INVALID_ARGS',
+              'clipboard write requires text (use "" to clear clipboard)',
+            );
+          }
+          const text = positionals.slice(1).join(' ');
+          await interactor.writeClipboard(text);
+          return { action, textLength: Array.from(text).length };
+        }
+        case 'keyboard': {
+          if (device.platform !== 'android') {
+            throw new AppError(
+              'UNSUPPORTED_OPERATION',
+              'keyboard is currently supported only on Android',
+            );
+          }
+          const action = (positionals[0] ?? 'status').toLowerCase();
+          if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
+            throw new AppError(
+              'INVALID_ARGS',
+              'keyboard requires a subcommand: status, get, or dismiss',
+            );
+          }
+          if (positionals.length > 1) {
+            throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
+          }
+          if (action === 'dismiss') {
+            const result = await dismissAndroidKeyboard(device);
+            return {
+              platform: 'android',
+              action: 'dismiss',
+              attempts: result.attempts,
+              wasVisible: result.wasVisible,
+              dismissed: result.dismissed,
+              visible: result.visible,
+              inputType: result.inputType,
+              type: result.type,
+            };
+          }
+          const state = await getAndroidKeyboardState(device);
+          return {
+            platform: 'android',
+            action: 'status',
+            visible: state.visible,
+            inputType: state.inputType,
+            type: state.type,
+          };
+        }
+        case 'settings': {
+          const [setting, state, target, mode, appBundleId] = positionals;
+          const permissionOptions =
+            setting === 'permission'
+              ? {
+                  permissionTarget: target,
+                  permissionMode: mode,
+                }
+              : undefined;
+          emitDiagnostic({
+            level: 'debug',
+            phase: 'settings_apply',
+            data: {
+              setting,
+              state,
+              target,
+              mode,
+              platform: device.platform,
+            },
+          });
+          await interactor.setSetting(
+            setting,
+            state,
+            appBundleId ?? context?.appBundleId,
+            permissionOptions,
+          );
+          return { setting, state };
+        }
+        case 'push': {
+          const target = positionals[0]?.trim();
+          const payloadArg = positionals[1]?.trim();
+          if (!target || !payloadArg) {
+            throw new AppError(
+              'INVALID_ARGS',
+              'push requires <bundle|package> <payload.json|inline-json>',
+            );
+          }
+          const payload = await readNotificationPayload(payloadArg);
+          if (device.platform === 'ios') {
+            await pushIosNotification(device, target, payload);
+            return { platform: 'ios', bundleId: target };
+          }
+          const androidResult = await pushAndroidNotification(device, target, payload);
+          return {
+            platform: 'android',
+            package: target,
+            action: androidResult.action,
+            extrasCount: androidResult.extrasCount,
+          };
+        }
+        case 'snapshot': {
+          if (device.platform === 'ios') {
+            const result = (await withDiagnosticTimer(
+              'snapshot_capture',
+              async () =>
+                await runIosRunnerCommand(
+                  device,
+                  {
+                    command: 'snapshot',
+                    appBundleId: context?.appBundleId,
+                    interactiveOnly: context?.snapshotInteractiveOnly,
+                    compact: context?.snapshotCompact,
+                    depth: context?.snapshotDepth,
+                    scope: context?.snapshotScope,
+                    raw: context?.snapshotRaw,
+                  },
+                  {
+                    verbose: context?.verbose,
+                    logPath: context?.logPath,
+                    traceLogPath: context?.traceLogPath,
+                    requestId: context?.requestId,
+                  },
+                ),
+              {
+                backend: 'xctest',
+              },
+            )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
+            const nodes = result.nodes ?? [];
+            if (nodes.length === 0 && device.kind === 'simulator') {
+              throw new AppError(
+                'COMMAND_FAILED',
+                'XCTest snapshot returned 0 nodes on iOS simulator.',
+              );
+            }
+            return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
+          }
+          const androidResult = await withDiagnosticTimer(
+            'snapshot_capture',
+            async () =>
+              await snapshotAndroid(device, {
+                interactiveOnly: context?.snapshotInteractiveOnly,
+                compact: context?.snapshotCompact,
+                depth: context?.snapshotDepth,
+                scope: context?.snapshotScope,
+                raw: context?.snapshotRaw,
+              }),
+            {
+              backend: 'android',
+            },
+          );
+          return {
+            nodes: androidResult.nodes ?? [],
+            truncated: androidResult.truncated ?? false,
+            backend: 'android',
+          };
+        }
+        default:
+          throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
       }
     },
     {
