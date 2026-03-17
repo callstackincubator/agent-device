@@ -22,6 +22,15 @@ export async function snapshotAndroid(
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export async function screenshotAndroid(device: DeviceInfo, outPath: string): Promise<void> {
+  await enableAndroidDemoMode(device);
+  try {
+    await captureAndroidScreenshot(device, outPath);
+  } finally {
+    await disableAndroidDemoMode(device).catch(() => {});
+  }
+}
+
+async function captureAndroidScreenshot(device: DeviceInfo, outPath: string): Promise<void> {
   const result = await runCmd('adb', adbArgs(device, ['exec-out', 'screencap', '-p']), {
     binaryStdout: true,
   });
@@ -40,6 +49,36 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
     throw new AppError('COMMAND_FAILED', 'Screenshot data does not contain a complete PNG payload');
   }
   await fs.writeFile(outPath, result.stdoutBuffer.subarray(pngOffset, pngEndOffset));
+}
+
+/**
+ * Enable Android demo mode and set deterministic time in status bar
+ * for consistent screenshots.
+ */
+export async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
+  const shell = (cmd: string) =>
+    runCmd('adb', adbArgs(device, ['shell', cmd]), { allowFailure: true });
+
+  // Enable demo mode
+  await shell('settings put global sysui_demo_allowed 1');
+
+  // Set deterministic status bar values via broadcasts
+  const broadcast = (extra: string) =>
+    shell(`am broadcast -a com.android.systemui.demo -e command ${extra}`);
+
+  await broadcast('clock -e hhmm 0941');
+  await broadcast('notifications -e visible false');
+}
+
+/** Disable demo mode and restore the live status bar. */
+export async function disableAndroidDemoMode(device: DeviceInfo): Promise<void> {
+  await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'am broadcast -a com.android.systemui.demo -e command exit']),
+    {
+      allowFailure: true,
+    },
+  );
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {

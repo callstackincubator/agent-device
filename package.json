@@ -65,9 +65,14 @@
     "trailingComma": "all",
     "printWidth": 100
   },
+  "dependencies": {
+    "@clack/prompts": "^1.0.0",
+    "pngjs": "^7.0.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@rslib/core": "0.19.4",
+    "@types/pngjs": "^6.0.5",
     "prettier": "^3.3.3",
     "typescript": "^5.9.3"
   }

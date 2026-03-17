@@ -1,5 +1,8 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { CliFlags } from './utils/command-schema.ts';
-import { formatSnapshotText, printJson } from './utils/output.ts';
+import { formatScreenshotDiffText, formatSnapshotText, printJson } from './utils/output.ts';
 import { AppError } from './utils/errors.ts';
 import {
   serializeCloseResult,
@@ -11,6 +14,7 @@ import {
   serializeSessionListEntry,
   serializeSnapshotResult,
 } from './client-shared.ts';
+import { compareScreenshots } from './utils/screenshot-diff.ts';
 import type {
   AgentDeviceClient,
   AgentDeviceDevice,
@@ -162,6 +166,52 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     else process.stdout.write(`${result.path}\n`);
     return true;
   },
+  diff: async ({ positionals, flags, client }) => {
+    if (positionals[0] !== 'screenshot') return false;
+
+    const baselineRaw = flags.baseline;
+    if (!baselineRaw || typeof baselineRaw !== 'string') {
+      throw new AppError('INVALID_ARGS', 'diff screenshot requires --baseline <path>');
+    }
+
+    const baselinePath = resolveCliPath(baselineRaw);
+    const outputPath = typeof flags.out === 'string' ? resolveCliPath(flags.out) : undefined;
+
+    let thresholdNum = 0.1;
+    if (flags.threshold != null && flags.threshold !== '') {
+      thresholdNum = Number(flags.threshold);
+      if (Number.isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 1) {
+        throw new AppError('INVALID_ARGS', '--threshold must be a number between 0 and 1');
+      }
+    }
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-diff-current-'));
+    const tmpScreenshotPath = path.join(tmpDir, `current-${Date.now()}.png`);
+    const screenshotResult = await client.capture.screenshot({ path: tmpScreenshotPath });
+    const currentPath = screenshotResult.path;
+
+    let result;
+    try {
+      result = await compareScreenshots(baselinePath, currentPath, {
+        threshold: thresholdNum,
+        outputPath,
+      });
+    } finally {
+      try {
+        fs.unlinkSync(currentPath);
+      } catch {}
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {}
+    }
+
+    if (flags.json) {
+      printJson({ success: true, data: result as unknown as Record<string, unknown> });
+    } else {
+      process.stdout.write(formatScreenshotDiffText(result as unknown as Record<string, unknown>));
+    }
+    return true;
+  },
 };
 
 async function runDeployCommand(
@@ -217,6 +267,14 @@ function buildSelectionOptions(flags: CliFlags): {
     iosSimulatorDeviceSet: flags.iosSimulatorDeviceSet,
     androidDeviceAllowlist: flags.androidDeviceAllowlist,
   };
+}
+
+function resolveCliPath(filePath: string): string {
+  if (filePath === '~') return os.homedir();
+  if (filePath.startsWith('~/')) {
+    return path.join(os.homedir(), filePath.slice(2));
+  }
+  return path.resolve(filePath);
 }
 
 function formatDeviceLine(device: AgentDeviceDevice): string {

@@ -125,7 +125,7 @@ test('diff rejects unsupported kind', async () => {
       token: 't',
       session: 'default',
       command: 'diff',
-      positionals: ['screenshot'],
+      positionals: ['unknown'],
       flags: {},
     },
     sessionName: 'default',
@@ -137,7 +137,32 @@ test('diff rejects unsupported kind', async () => {
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /diff snapshot/i);
+    assert.match(response.error.message, /diff.*supports.*snapshot/i);
+  }
+});
+
+test('diff screenshot is not handled daemon-side (client-backed command)', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'diff',
+      positionals: ['screenshot'],
+      flags: {},
+    },
+    sessionName: 'default',
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  // diff screenshot is a client-backed command, so the daemon rejects it
+  // as an unknown diff subcommand
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /diff.*supports.*snapshot/i);
   }
 });
 
