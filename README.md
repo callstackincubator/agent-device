@@ -349,7 +349,7 @@ Navigation helpers:
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
 - `install-from-source` supports `--retain-paths` and `--retention-ms <ms>` when callers need retained materialized artifact paths after the install.
 - When `AGENT_DEVICE_DAEMON_BASE_URL` targets a remote daemon, local `.apk`/`.aab`/`.ipa` files and `.app` bundles are uploaded automatically before `install`/`reinstall`.
-- `metro prepare --public-base-url <url>` starts or reuses a local Metro server for sandbox/client flows and prints JSON runtime hints to stdout. Pass `--proxy-base-url <url> --bearer-token <token>` when the runtime must be bridged through `agent-device-proxy`, and `--runtime-file <path>` only when a persisted artifact is needed.
+- `metro prepare --public-base-url <url>` starts or reuses a local Metro server for sandbox/client flows and prints runtime JSON to stdout. `--json` wraps the same payload in the standard `{ success, data }` envelope. Pass `--proxy-base-url <url>` plus `AGENT_DEVICE_PROXY_TOKEN` (preferred) or `--bearer-token <token>` when the runtime must be bridged through `agent-device-proxy`, and `--runtime-file <path>` only when a persisted artifact is needed.
 - Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`; Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. Example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
 - Remote daemon screenshots and recordings are materialized back to the caller path instead of returning host-local daemon paths.
 - To force a daemon-side path instead of uploading a local file, prefix it with `remote:`, for example `remote:/srv/builds/MyApp.app`.
@@ -568,6 +568,7 @@ Environment selectors:
 - `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]` connect directly to a remote HTTP daemon and skip local daemon metadata/startup.
 - Remote daemon installs upload local artifacts through `POST /upload`; use a `remote:` path prefix when you need the daemon to read an existing server-side artifact path as-is.
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>` auth token for remote HTTP daemon mode; sent in both the JSON-RPC request token and HTTP auth headers (`Authorization: Bearer` and `x-agent-device-token`).
+- `AGENT_DEVICE_PROXY_TOKEN=<token>` preferred bearer token for `metro prepare --proxy-base-url <url>` so the proxy secret does not need to be passed on the command line. `AGENT_DEVICE_METRO_BEARER_TOKEN` is also supported.
 - `AGENT_DEVICE_DAEMON_SERVER_MODE=socket|http|dual` daemon server mode. `http` and `dual` expose JSON-RPC 2.0 at `POST /rpc` (`GET /health` available for liveness).
 - `AGENT_DEVICE_DAEMON_TRANSPORT=auto|socket|http` client preference when connecting to daemon metadata.
 - `AGENT_DEVICE_HTTP_AUTH_HOOK=<module-path>` optional HTTP auth hook module path for JSON-RPC server mode.

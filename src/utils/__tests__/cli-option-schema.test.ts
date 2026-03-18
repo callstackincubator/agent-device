@@ -33,6 +33,13 @@ test('option schema exposes legacy env aliases and command scoping', () => {
   assert.ok(snapshotDepth);
   assert.equal(snapshotDepth.supportsCommand('snapshot'), true);
   assert.equal(snapshotDepth.supportsCommand('open'), false);
+
+  const metroBearerToken = getOptionSpec('metroBearerToken');
+  assert.ok(metroBearerToken);
+  assert.deepEqual(metroBearerToken.env.names, [
+    'AGENT_DEVICE_METRO_BEARER_TOKEN',
+    'AGENT_DEVICE_PROXY_TOKEN',
+  ]);
 });
 
 test('configurable option specs are filtered by command support', () => {

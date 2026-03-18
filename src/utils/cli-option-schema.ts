@@ -27,6 +27,7 @@ const CONFIG_EXCLUDED_FLAG_KEYS = new Set<FlagKey>(['config', 'help', 'version',
 const LEGACY_ENV_VAR_NAMES: Partial<Record<FlagKey, string[]>> = {
   iosSimulatorDeviceSet: ['IOS_SIMULATOR_DEVICE_SET'],
   androidDeviceAllowlist: ['ANDROID_DEVICE_ALLOWLIST'],
+  metroBearerToken: ['AGENT_DEVICE_PROXY_TOKEN'],
 };
 
 const BOOLEAN_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);

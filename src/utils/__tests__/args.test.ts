@@ -147,7 +147,7 @@ test('parseArgs accepts metro prepare arguments', () => {
       '--kind',
       'expo',
       '--runtime-file',
-      './.forfiter/metro-runtime.json',
+      './.agent-device/metro-runtime.json',
       '--no-reuse-existing',
       '--no-install-deps',
     ],
@@ -162,7 +162,7 @@ test('parseArgs accepts metro prepare arguments', () => {
   assert.equal(parsed.flags.metroBearerToken, 'secret');
   assert.equal(parsed.flags.metroPreparePort, 9090);
   assert.equal(parsed.flags.metroKind, 'expo');
-  assert.equal(parsed.flags.metroRuntimeFile, './.forfiter/metro-runtime.json');
+  assert.equal(parsed.flags.metroRuntimeFile, './.agent-device/metro-runtime.json');
   assert.equal(parsed.flags.metroNoReuseExisting, true);
   assert.equal(parsed.flags.metroNoInstallDeps, true);
 });

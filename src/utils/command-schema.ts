@@ -327,7 +327,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--bearer-token'],
     type: 'string',
     usageLabel: '--bearer-token <token>',
-    usageDescription: 'metro prepare: bearer token used with --proxy-base-url',
+    usageDescription:
+      'metro prepare: proxy bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
   },
   {
     key: 'metroPreparePort',

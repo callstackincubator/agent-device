@@ -442,13 +442,13 @@ function resolveProxySettings(
   if (proxyBaseUrl && !proxyBearerToken) {
     throw new AppError(
       'INVALID_ARGS',
-      'metro prepare requires --bearer-token when --proxy-base-url is provided.',
+      'metro prepare requires proxy auth when --proxy-base-url is provided. Pass --bearer-token or set AGENT_DEVICE_PROXY_TOKEN.',
     );
   }
   if (!proxyBaseUrl && proxyBearerToken) {
     throw new AppError(
       'INVALID_ARGS',
-      'metro prepare requires --proxy-base-url when --bearer-token is provided.',
+      'metro prepare requires --proxy-base-url when proxy auth is provided.',
     );
   }
   return {
@@ -456,6 +456,26 @@ function resolveProxySettings(
     proxyBaseUrl,
     proxyBearerToken,
   };
+}
+
+async function waitForMetroReady(
+  statusUrl: string,
+  startupTimeoutMs: number,
+  probeTimeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + startupTimeoutMs;
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    const requestTimeoutMs = Math.min(probeTimeoutMs, Math.max(remainingMs, 1));
+    if (await isMetroReady(statusUrl, requestTimeoutMs)) {
+      return true;
+    }
+    const sleepMs = Math.min(500, Math.max(deadline - Date.now(), 0));
+    if (sleepMs > 0) {
+      await wait(sleepMs);
+    }
+  }
+  return false;
 }
 
 export async function prepareMetroRuntime(
@@ -513,15 +533,7 @@ export async function prepareMetroRuntime(
     started = true;
     pid = startedProcess.pid;
 
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < startupTimeoutMs) {
-      if (await isMetroReady(statusUrl, probeTimeoutMs)) {
-        break;
-      }
-      await wait(500);
-    }
-
-    if (!(await isMetroReady(statusUrl, probeTimeoutMs))) {
+    if (!(await waitForMetroReady(statusUrl, startupTimeoutMs, probeTimeoutMs))) {
       throw new Error(
         `Metro did not become ready at ${statusUrl} within ${startupTimeoutMs}ms. Check ${logPath}.`,
       );

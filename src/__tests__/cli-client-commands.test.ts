@@ -109,27 +109,30 @@ test('metro prepare forwards normalized options to client.metro.prepare', async 
     },
   });
 
-  const handled = await tryRunClientBackedCommand({
-    command: 'metro',
-    positionals: ['prepare'],
-    flags: {
-      json: false,
-      help: false,
-      version: false,
-      metroProjectRoot: './apps/demo',
-      metroPublicBaseUrl: 'https://sandbox.example.test',
-      metroProxyBaseUrl: 'https://proxy.example.test',
-      metroBearerToken: 'secret',
-      metroPreparePort: 9090,
-      metroKind: 'expo',
-      metroRuntimeFile: './.forfiter/metro-runtime.json',
-      metroNoReuseExisting: true,
-      metroNoInstallDeps: true,
-    },
-    client,
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'metro',
+      positionals: ['prepare'],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+        metroProjectRoot: './apps/demo',
+        metroPublicBaseUrl: 'https://sandbox.example.test',
+        metroProxyBaseUrl: 'https://proxy.example.test',
+        metroBearerToken: 'secret',
+        metroPreparePort: 9090,
+        metroKind: 'expo',
+        metroRuntimeFile: './.agent-device/metro-runtime.json',
+        metroNoReuseExisting: true,
+        metroNoInstallDeps: true,
+      },
+      client,
+    });
+    assert.equal(handled, true);
   });
+  const payload = JSON.parse(stdout);
 
-  assert.equal(handled, true);
   assert.deepEqual(observed, {
     projectRoot: './apps/demo',
     publicBaseUrl: 'https://sandbox.example.test',
@@ -137,7 +140,7 @@ test('metro prepare forwards normalized options to client.metro.prepare', async 
     bearerToken: 'secret',
     port: 9090,
     kind: 'expo',
-    runtimeFilePath: './.forfiter/metro-runtime.json',
+    runtimeFilePath: './.agent-device/metro-runtime.json',
     reuseExisting: false,
     installDependenciesIfNeeded: false,
     listenHost: undefined,
@@ -145,7 +148,54 @@ test('metro prepare forwards normalized options to client.metro.prepare', async 
     startupTimeoutMs: undefined,
     probeTimeoutMs: undefined,
   });
+  assert.equal(payload.kind, 'react-native');
+  assert.equal(payload.runtimeFilePath, null);
 });
+
+test('metro prepare wraps output in the standard success envelope for --json', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'metro',
+      positionals: ['prepare'],
+      flags: {
+        json: true,
+        help: false,
+        version: false,
+        metroPublicBaseUrl: 'https://sandbox.example.test',
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  const payload = JSON.parse(stdout);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.kind, 'react-native');
+  assert.equal(payload.data.iosRuntime.platform, 'ios');
+});
+
+async function captureStdout(run: () => Promise<void>): Promise<string> {
+  let stdout = '';
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  (process.stdout as any).write = ((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+
+  try {
+    await run();
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+
+  return stdout;
+}
 
 function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];

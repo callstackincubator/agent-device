@@ -129,7 +129,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       runtimeFilePath: flags.metroRuntimeFile,
     });
 
-    process.stdout.write(`${JSON.stringify(result, null, flags.json ? 0 : 2)}\n`);
+    writeMetroPrepareResult(result, flags);
     return true;
   },
   install: async ({ positionals, flags, client }) => {
@@ -334,6 +334,14 @@ function writeRuntimeResult(result: RuntimeResult, flags: CliFlags): void {
     process.stdout.write('No runtime hints configured\n');
   } else {
     process.stdout.write(`${JSON.stringify(result.runtime ?? {}, null, 2)}\n`);
+  }
+}
+
+function writeMetroPrepareResult(result: unknown, flags: CliFlags): void {
+  if (flags.json) {
+    printJson({ success: true, data: result });
+  } else {
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   }
 }
 
