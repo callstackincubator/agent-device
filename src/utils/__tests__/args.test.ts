@@ -129,6 +129,44 @@ test('parseArgs accepts install-from-source url and repeated headers', () => {
   assert.equal(parsed.flags.retentionMs, 60000);
 });
 
+test('parseArgs accepts metro prepare arguments', () => {
+  const parsed = parseArgs(
+    [
+      'metro',
+      'prepare',
+      '--project-root',
+      './apps/demo',
+      '--public-base-url',
+      'https://sandbox.example.test',
+      '--proxy-base-url',
+      'https://proxy.example.test',
+      '--bearer-token',
+      'secret',
+      '--port',
+      '9090',
+      '--kind',
+      'expo',
+      '--runtime-file',
+      './.forfiter/metro-runtime.json',
+      '--no-reuse-existing',
+      '--no-install-deps',
+    ],
+    { strictFlags: true },
+  );
+
+  assert.equal(parsed.command, 'metro');
+  assert.deepEqual(parsed.positionals, ['prepare']);
+  assert.equal(parsed.flags.metroProjectRoot, './apps/demo');
+  assert.equal(parsed.flags.metroPublicBaseUrl, 'https://sandbox.example.test');
+  assert.equal(parsed.flags.metroProxyBaseUrl, 'https://proxy.example.test');
+  assert.equal(parsed.flags.metroBearerToken, 'secret');
+  assert.equal(parsed.flags.metroPreparePort, 9090);
+  assert.equal(parsed.flags.metroKind, 'expo');
+  assert.equal(parsed.flags.metroRuntimeFile, './.forfiter/metro-runtime.json');
+  assert.equal(parsed.flags.metroNoReuseExisting, true);
+  assert.equal(parsed.flags.metroNoInstallDeps, true);
+});
+
 test('parseArgs accepts clipboard subcommands', () => {
   const read = parseArgs(['clipboard', 'read'], { strictFlags: true });
   assert.equal(read.command, 'clipboard');
@@ -421,7 +459,9 @@ test('parseArgs rejects invalid swipe pattern', () => {
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
   assert.match(usage(), /install-from-source <url>/);
+  assert.match(usage(), /metro prepare/);
   assert.match(usage(), /--header <name:value>/);
+  assert.match(usage(), /--public-base-url <url>/);
   assert.match(usage(), /--restart/);
   assert.match(usage(), /--target mobile\|tv/);
   assert.match(usage(), /--ios-simulator-device-set <path>/);

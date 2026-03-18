@@ -7,6 +7,7 @@ import type {
 } from './daemon/types.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { SnapshotNode } from './utils/snapshot.ts';
+import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
@@ -237,6 +238,25 @@ export type RuntimeResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
+export type MetroPrepareOptions = {
+  projectRoot?: string;
+  kind?: MetroPrepareKind;
+  publicBaseUrl: string;
+  proxyBaseUrl?: string;
+  bearerToken?: string;
+  port?: number;
+  listenHost?: string;
+  statusHost?: string;
+  startupTimeoutMs?: number;
+  probeTimeoutMs?: number;
+  reuseExisting?: boolean;
+  installDependenciesIfNeeded?: boolean;
+  runtimeFilePath?: string;
+  logPath?: string;
+};
+
+export type MetroPrepareResult = PrepareMetroRuntimeResult;
+
 export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     interactiveOnly?: boolean;
@@ -319,6 +339,9 @@ export type AgentDeviceClient = {
   runtime: {
     set: (options: RuntimeSetOptions) => Promise<RuntimeResult>;
     show: (options?: RuntimeShowOptions) => Promise<RuntimeResult>;
+  };
+  metro: {
+    prepare: (options: MetroPrepareOptions) => Promise<MetroPrepareResult>;
   };
   capture: {
     snapshot: (options?: CaptureSnapshotOptions) => Promise<CaptureSnapshotResult>;

@@ -1,4 +1,5 @@
 import { sendToDaemon } from './daemon-client.ts';
+import { prepareMetroRuntime } from './client-metro.ts';
 import { AppError } from './utils/errors.ts';
 import {
   buildFlags,
@@ -31,6 +32,7 @@ import type {
   EnsureSimulatorOptions,
   InternalRequestOptions,
   MaterializationReleaseOptions,
+  MetroPrepareOptions,
   RuntimeSetOptions,
   RuntimeShowOptions,
 } from './client-types.ts';
@@ -203,6 +205,25 @@ export function createAgentDeviceClient(
           resolveSessionName(config.session, options.session),
         ),
     },
+    metro: {
+      prepare: async (options: MetroPrepareOptions) =>
+        await prepareMetroRuntime({
+          projectRoot: options.projectRoot ?? config.cwd,
+          kind: options.kind,
+          publicBaseUrl: options.publicBaseUrl,
+          proxyBaseUrl: options.proxyBaseUrl,
+          proxyBearerToken: options.bearerToken,
+          metroPort: options.port,
+          listenHost: options.listenHost,
+          statusHost: options.statusHost,
+          startupTimeoutMs: options.startupTimeoutMs,
+          probeTimeoutMs: options.probeTimeoutMs,
+          reuseExisting: options.reuseExisting,
+          installDependenciesIfNeeded: options.installDependenciesIfNeeded,
+          runtimeFilePath: options.runtimeFilePath,
+          logPath: options.logPath,
+        }),
+    },
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
         const session = resolveSessionName(config.session, options.session);
@@ -258,6 +279,8 @@ export type {
   EnsureSimulatorResult,
   MaterializationReleaseOptions,
   MaterializationReleaseResult,
+  MetroPrepareOptions,
+  MetroPrepareResult,
   RuntimeResult,
   RuntimeSetOptions,
   RuntimeShowOptions,

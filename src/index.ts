@@ -23,6 +23,8 @@ export {
   type EnsureSimulatorResult,
   type MaterializationReleaseOptions,
   type MaterializationReleaseResult,
+  type MetroPrepareOptions,
+  type MetroPrepareResult,
   type RuntimeResult,
   type RuntimeSetOptions,
   type RuntimeShowOptions,
@@ -30,5 +32,6 @@ export {
   type StartupPerfSample,
 } from './client.ts';
 export { AppError, type NormalizedError } from './utils/errors.ts';
+export type { MetroPrepareKind, MetroRuntimeHints } from './client-metro.ts';
 export type { SessionRuntimeHints } from './daemon/types.ts';
 export type { SnapshotNode } from './utils/snapshot.ts';

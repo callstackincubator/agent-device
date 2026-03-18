@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tryRunClientBackedCommand } from '../cli-client-commands.ts';
-import type { AgentDeviceClient, AppInstallFromSourceOptions } from '../client.ts';
+import type {
+  AgentDeviceClient,
+  AppInstallFromSourceOptions,
+  MetroPrepareOptions,
+} from '../client.ts';
 import { AppError } from '../utils/errors.ts';
 
 test('install-from-source forwards URL and repeated headers to client.apps.installFromSource', async () => {
@@ -73,8 +77,79 @@ test('install-from-source rejects malformed header syntax', async () => {
   );
 });
 
+test('metro prepare forwards normalized options to client.metro.prepare', async () => {
+  let observed: MetroPrepareOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    prepareMetro: async (options) => {
+      observed = options;
+      return {
+        projectRoot: '/tmp/project',
+        kind: 'react-native',
+        dependenciesInstalled: false,
+        packageManager: null,
+        started: false,
+        reused: true,
+        pid: 0,
+        logPath: '/tmp/project/.agent-device/metro.log',
+        statusUrl: 'http://127.0.0.1:8081/status',
+        runtimeFilePath: null,
+        iosRuntime: {
+          platform: 'ios',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=ios',
+        },
+        androidRuntime: {
+          platform: 'android',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+        },
+        bridge: null,
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'metro',
+    positionals: ['prepare'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+      metroProjectRoot: './apps/demo',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+      metroBearerToken: 'secret',
+      metroPreparePort: 9090,
+      metroKind: 'expo',
+      metroRuntimeFile: './.forfiter/metro-runtime.json',
+      metroNoReuseExisting: true,
+      metroNoInstallDeps: true,
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.deepEqual(observed, {
+    projectRoot: './apps/demo',
+    publicBaseUrl: 'https://sandbox.example.test',
+    proxyBaseUrl: 'https://proxy.example.test',
+    bearerToken: 'secret',
+    port: 9090,
+    kind: 'expo',
+    runtimeFilePath: './.forfiter/metro-runtime.json',
+    reuseExisting: false,
+    installDependenciesIfNeeded: false,
+    listenHost: undefined,
+    statusHost: undefined,
+    startupTimeoutMs: undefined,
+    probeTimeoutMs: undefined,
+  });
+});
+
 function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];
+  prepareMetro?: AgentDeviceClient['metro']['prepare'];
 }): AgentDeviceClient {
   return {
     devices: {
@@ -139,6 +214,31 @@ function createStubClient(params: {
         configured: false,
         identifiers: { session: 'default' },
       }),
+    },
+    metro: {
+      prepare:
+        params.prepareMetro ??
+        (async () => ({
+          projectRoot: '/tmp/project',
+          kind: 'react-native',
+          dependenciesInstalled: false,
+          packageManager: null,
+          started: false,
+          reused: true,
+          pid: 0,
+          logPath: '/tmp/project/.agent-device/metro.log',
+          statusUrl: 'http://127.0.0.1:8081/status',
+          runtimeFilePath: null,
+          iosRuntime: {
+            platform: 'ios',
+            bundleUrl: 'https://sandbox.example.test/index.bundle?platform=ios',
+          },
+          androidRuntime: {
+            platform: 'android',
+            bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+          },
+          bridge: null,
+        })),
     },
     capture: {
       snapshot: async () => ({

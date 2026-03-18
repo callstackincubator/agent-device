@@ -27,6 +27,19 @@ export type CliFlags = {
   runtime?: string;
   metroHost?: string;
   metroPort?: number;
+  metroProjectRoot?: string;
+  metroKind?: 'auto' | 'react-native' | 'expo';
+  metroPublicBaseUrl?: string;
+  metroProxyBaseUrl?: string;
+  metroBearerToken?: string;
+  metroPreparePort?: number;
+  metroListenHost?: string;
+  metroStatusHost?: string;
+  metroStartupTimeoutMs?: number;
+  metroProbeTimeoutMs?: number;
+  metroRuntimeFile?: string;
+  metroNoReuseExisting?: boolean;
+  metroNoInstallDeps?: boolean;
   bundleUrl?: string;
   launchUrl?: string;
   boot?: boolean;
@@ -279,6 +292,102 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 65535,
     usageLabel: '--metro-port <port>',
     usageDescription: 'runtime set: session-scoped Metro/debug port hint',
+  },
+  {
+    key: 'metroProjectRoot',
+    names: ['--project-root'],
+    type: 'string',
+    usageLabel: '--project-root <path>',
+    usageDescription: 'metro prepare: React Native project root (default: cwd)',
+  },
+  {
+    key: 'metroKind',
+    names: ['--kind'],
+    type: 'enum',
+    enumValues: ['auto', 'react-native', 'expo'],
+    usageLabel: '--kind auto|react-native|expo',
+    usageDescription: 'metro prepare: detect or force the Metro launcher kind',
+  },
+  {
+    key: 'metroPublicBaseUrl',
+    names: ['--public-base-url'],
+    type: 'string',
+    usageLabel: '--public-base-url <url>',
+    usageDescription: 'metro prepare: public base URL used to build bundle hints',
+  },
+  {
+    key: 'metroProxyBaseUrl',
+    names: ['--proxy-base-url'],
+    type: 'string',
+    usageLabel: '--proxy-base-url <url>',
+    usageDescription: 'metro prepare: optional agent-device-proxy base URL for Metro bridging',
+  },
+  {
+    key: 'metroBearerToken',
+    names: ['--bearer-token'],
+    type: 'string',
+    usageLabel: '--bearer-token <token>',
+    usageDescription: 'metro prepare: bearer token used with --proxy-base-url',
+  },
+  {
+    key: 'metroPreparePort',
+    names: ['--port'],
+    type: 'int',
+    min: 1,
+    max: 65535,
+    usageLabel: '--port <port>',
+    usageDescription: 'metro prepare: local Metro port (default: 8081)',
+  },
+  {
+    key: 'metroListenHost',
+    names: ['--listen-host'],
+    type: 'string',
+    usageLabel: '--listen-host <host>',
+    usageDescription: 'metro prepare: host Metro listens on (default: 0.0.0.0)',
+  },
+  {
+    key: 'metroStatusHost',
+    names: ['--status-host'],
+    type: 'string',
+    usageLabel: '--status-host <host>',
+    usageDescription: 'metro prepare: host used for local /status polling (default: 127.0.0.1)',
+  },
+  {
+    key: 'metroStartupTimeoutMs',
+    names: ['--startup-timeout-ms'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--startup-timeout-ms <ms>',
+    usageDescription: 'metro prepare: timeout while waiting for Metro to become ready',
+  },
+  {
+    key: 'metroProbeTimeoutMs',
+    names: ['--probe-timeout-ms'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--probe-timeout-ms <ms>',
+    usageDescription: 'metro prepare: timeout for /status and proxy bridge calls',
+  },
+  {
+    key: 'metroRuntimeFile',
+    names: ['--runtime-file'],
+    type: 'string',
+    usageLabel: '--runtime-file <path>',
+    usageDescription: 'metro prepare: optional file path to persist the JSON result',
+  },
+  {
+    key: 'metroNoReuseExisting',
+    names: ['--no-reuse-existing'],
+    type: 'boolean',
+    usageLabel: '--no-reuse-existing',
+    usageDescription: 'metro prepare: always start a fresh Metro process',
+  },
+  {
+    key: 'metroNoInstallDeps',
+    names: ['--no-install-deps'],
+    type: 'boolean',
+    usageLabel: '--no-install-deps',
+    usageDescription: 'metro prepare: skip package-manager install when node_modules is missing',
   },
   {
     key: 'bundleUrl',
@@ -710,6 +819,29 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Manage session-scoped runtime hints',
     positionalArgs: ['set|show|clear'],
     allowedFlags: ['metroHost', 'metroPort', 'bundleUrl', 'launchUrl'],
+    skipCapabilityCheck: true,
+  },
+  metro: {
+    usageOverride:
+      'metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
+    description:
+      'Prepare a local Metro runtime and optionally bridge it through agent-device-proxy',
+    positionalArgs: ['prepare'],
+    allowedFlags: [
+      'metroProjectRoot',
+      'metroKind',
+      'metroPublicBaseUrl',
+      'metroProxyBaseUrl',
+      'metroBearerToken',
+      'metroPreparePort',
+      'metroListenHost',
+      'metroStatusHost',
+      'metroStartupTimeoutMs',
+      'metroProbeTimeoutMs',
+      'metroRuntimeFile',
+      'metroNoReuseExisting',
+      'metroNoInstallDeps',
+    ],
     skipCapabilityCheck: true,
   },
   clipboard: {
