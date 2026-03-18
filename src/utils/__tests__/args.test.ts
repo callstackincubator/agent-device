@@ -107,6 +107,28 @@ test('parseArgs accepts install command args', () => {
   assert.deepEqual(parsed.positionals, ['com.example.app', './build/app.apk']);
 });
 
+test('parseArgs accepts install-from-source url and repeated headers', () => {
+  const parsed = parseArgs(
+    [
+      'install-from-source',
+      'https://example.com/builds/app.apk',
+      '--header',
+      'authorization: Bearer token',
+      '--header',
+      'x-build-id: 42',
+      '--retain-paths',
+      '--retention-ms',
+      '60000',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'install-from-source');
+  assert.deepEqual(parsed.positionals, ['https://example.com/builds/app.apk']);
+  assert.deepEqual(parsed.flags.header, ['authorization: Bearer token', 'x-build-id: 42']);
+  assert.equal(parsed.flags.retainPaths, true);
+  assert.equal(parsed.flags.retentionMs, 60000);
+});
+
 test('parseArgs accepts clipboard subcommands', () => {
   const read = parseArgs(['clipboard', 'read'], { strictFlags: true });
   assert.equal(read.command, 'clipboard');
@@ -398,6 +420,8 @@ test('parseArgs rejects invalid swipe pattern', () => {
 
 test('usage includes --relaunch flag', () => {
   assert.match(usage(), /--relaunch/);
+  assert.match(usage(), /install-from-source <url>/);
+  assert.match(usage(), /--header <name:value>/);
   assert.match(usage(), /--restart/);
   assert.match(usage(), /--target mobile\|tv/);
   assert.match(usage(), /--ios-simulator-device-set <path>/);

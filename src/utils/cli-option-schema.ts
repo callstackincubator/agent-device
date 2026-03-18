@@ -64,6 +64,24 @@ export function parseOptionValueFromSource(
   rawKey: string,
 ): unknown {
   const definition = resolveSourceValueDefinition(spec);
+  if (definition.multiple) {
+    const rawValues = Array.isArray(value) ? value : [value];
+    return rawValues.map((entry) =>
+      parseOptionValueFromSource(
+        {
+          ...spec,
+          flagDefinitions: spec.flagDefinitions.map((flagDefinition) => ({
+            ...flagDefinition,
+            multiple: false,
+          })),
+        },
+        entry,
+        sourceLabel,
+        rawKey,
+      ),
+    );
+  }
+
   if (definition.type === 'boolean') {
     return parseBooleanValue(value, sourceLabel, rawKey);
   }

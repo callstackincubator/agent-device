@@ -79,7 +79,17 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
 
     const parsed = parseFlagValue(definition, token, inlineValue, argv[i + 1]);
     if (parsed.consumeNext) i += 1;
-    (flags as Record<string, unknown>)[definition.key] = parsed.value;
+    const existingValue = (flags as Record<string, unknown>)[definition.key];
+    if (definition.multiple) {
+      const values = Array.isArray(existingValue)
+        ? [...existingValue, parsed.value]
+        : existingValue === undefined
+          ? [parsed.value]
+          : [existingValue, parsed.value];
+      (flags as Record<string, unknown>)[definition.key] = values;
+    } else {
+      (flags as Record<string, unknown>)[definition.key] = parsed.value;
+    }
     providedFlags.push({ key: definition.key, token });
   }
 

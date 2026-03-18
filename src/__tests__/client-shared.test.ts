@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { serializeOpenResult, serializeSessionListEntry } from '../client-shared.ts';
+import {
+  serializeInstallFromSourceResult,
+  serializeOpenResult,
+  serializeSessionListEntry,
+} from '../client-shared.ts';
 
 test('serializeSessionListEntry preserves legacy android session payload shape', () => {
   const data = serializeSessionListEntry({
@@ -72,5 +76,25 @@ test('serializeOpenResult includes android serial for open payloads', () => {
     device: 'Pixel 9',
     id: 'emulator-5554',
     serial: 'emulator-5554',
+  });
+});
+
+test('serializeInstallFromSourceResult uses install-family package naming', () => {
+  const data = serializeInstallFromSourceResult({
+    launchTarget: 'com.example.demo',
+    appName: 'Demo',
+    appId: 'com.example.demo',
+    packageName: 'com.example.demo',
+    identifiers: {
+      appId: 'com.example.demo',
+      package: 'com.example.demo',
+    },
+  });
+
+  assert.deepEqual(data, {
+    launchTarget: 'com.example.demo',
+    appName: 'Demo',
+    appId: 'com.example.demo',
+    package: 'com.example.demo',
   });
 });
