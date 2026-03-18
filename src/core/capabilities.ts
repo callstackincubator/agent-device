@@ -94,6 +94,10 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     ios: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
+  'install-from-source': {
+    ios: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+  },
   reinstall: {
     ios: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },

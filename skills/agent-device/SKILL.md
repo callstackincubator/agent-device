@@ -174,6 +174,7 @@ agent-device open [app|url] [url]
 agent-device open [app] --relaunch
 agent-device close [app]
 agent-device install <app> <path-to-binary>
+agent-device install-from-source <url> [--header "name:value"]
 agent-device reinstall <app> <path-to-binary>
 agent-device session list
 ```

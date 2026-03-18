@@ -265,6 +265,19 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
 - `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
+## App install from source URL
+
+```bash
+agent-device install-from-source https://example.com/builds/app.apk --platform android
+agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios --header "authorization: Bearer TOKEN"
+```
+
+- `install-from-source <url>` installs from a URL source through the normal daemon artifact flow.
+- Repeat `--header <name:value>` for authenticated or signed artifact requests.
+- Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
+- `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
+- URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
+
 ## Push notification simulation
 
 ```bash

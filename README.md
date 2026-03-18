@@ -14,7 +14,7 @@ The project is in early development and considered experimental. Pull requests a
 
 ## Features
 - Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
-- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `install`, `reinstall`, `push`, `trigger-app-event`.
+- Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `install`, `install-from-source`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
 - Clipboard commands: `clipboard read`, `clipboard write <text>`.
 - Keyboard commands: `keyboard status|get|dismiss` (Android).
@@ -344,8 +344,10 @@ Navigation helpers:
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `install <app> <path>` installs app binary without uninstalling first (Android + iOS simulator/device).
+- `install-from-source <url>` installs from a URL source through the normal daemon artifact flow; repeat `--header name:value` for authenticated downloads.
 - `reinstall <app> <path>` uninstalls and installs the app binary in one command (Android + iOS simulator/device).
 - `install`/`reinstall` accept package/bundle id style app names and support `~` in paths.
+- `install-from-source` supports `--retain-paths` and `--retention-ms <ms>` when callers need retained materialized artifact paths after the install.
 - When `AGENT_DEVICE_DAEMON_BASE_URL` targets a remote daemon, local `.apk`/`.aab`/`.ipa` files and `.app` bundles are uploaded automatically before `install`/`reinstall`.
 - Remote daemon clients can persist session-scoped runtime hints with `runtime set` before `open`; Android launches write React Native dev prefs, and iOS simulator launches write React Native bundle defaults before app start. Example: `agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"`.
 - Remote daemon screenshots and recordings are materialized back to the caller path instead of returning host-local daemon paths.

@@ -9,6 +9,7 @@ import {
   serializeDeployResult,
   serializeDevice,
   serializeEnsureSimulatorResult,
+  serializeInstallFromSourceResult,
   serializeOpenResult,
   serializeRuntimeResult,
   serializeSessionListEntry,
@@ -111,6 +112,11 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
   reinstall: async ({ positionals, flags, client }) => {
     const result = await runDeployCommand('reinstall', positionals, flags, client);
     if (flags.json) printJson({ success: true, data: serializeDeployResult(result) });
+    return true;
+  },
+  'install-from-source': async ({ positionals, flags, client }) => {
+    const result = await runInstallFromSourceCommand(positionals, flags, client);
+    if (flags.json) printJson({ success: true, data: serializeInstallFromSourceResult(result) });
     return true;
   },
   open: async ({ positionals, flags, client }) => {
@@ -237,6 +243,59 @@ async function runDeployCommand(
   return command === 'install'
     ? await client.apps.install(options)
     : await client.apps.reinstall(options);
+}
+
+async function runInstallFromSourceCommand(
+  positionals: string[],
+  flags: CliFlags,
+  client: AgentDeviceClient,
+) {
+  const url = positionals[0]?.trim();
+  if (!url) {
+    throw new AppError('INVALID_ARGS', 'install-from-source requires: install-from-source <url>');
+  }
+  if (positionals.length > 1) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'install-from-source accepts exactly one positional argument: <url>',
+    );
+  }
+  return await client.apps.installFromSource({
+    ...buildSelectionOptions(flags),
+    retainPaths: flags.retainPaths,
+    retentionMs: flags.retentionMs,
+    source: {
+      kind: 'url',
+      url,
+      headers: parseInstallSourceHeaders(flags.header),
+    },
+  });
+}
+
+function parseInstallSourceHeaders(
+  headerFlags: CliFlags['header'],
+): Record<string, string> | undefined {
+  if (!headerFlags || headerFlags.length === 0) return undefined;
+  const headers: Record<string, string> = {};
+  for (const rawHeader of headerFlags) {
+    const separator = rawHeader.indexOf(':');
+    if (separator <= 0) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid --header value "${rawHeader}". Expected "name:value".`,
+      );
+    }
+    const name = rawHeader.slice(0, separator).trim();
+    const value = rawHeader.slice(separator + 1).trim();
+    if (!name) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Invalid --header value "${rawHeader}". Header name cannot be empty.`,
+      );
+    }
+    headers[name] = value;
+  }
+  return headers;
 }
 
 function writeRuntimeResult(result: RuntimeResult, flags: CliFlags): void {

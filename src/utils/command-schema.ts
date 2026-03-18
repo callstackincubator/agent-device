@@ -49,12 +49,15 @@ export type CliFlags = {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
+  header?: string[];
   saveScript?: boolean | string;
   shutdown?: boolean;
   relaunch?: boolean;
   headless?: boolean;
   restart?: boolean;
   noRecord?: boolean;
+  retainPaths?: boolean;
+  retentionMs?: number;
   replayUpdate?: boolean;
   steps?: string;
   stepsFile?: string;
@@ -76,6 +79,7 @@ export type FlagDefinition = {
   key: FlagKey;
   names: readonly string[];
   type: FlagType;
+  multiple?: boolean;
   enumValues?: readonly string[];
   min?: number;
   max?: number;
@@ -326,6 +330,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Android app launch activity (package/Activity); not for URL opens',
   },
   {
+    key: 'header',
+    names: ['--header'],
+    type: 'string',
+    multiple: true,
+    usageLabel: '--header <name:value>',
+    usageDescription: 'install-from-source: repeatable HTTP header for URL downloads',
+  },
+  {
     key: 'session',
     names: ['--session'],
     type: 'string',
@@ -456,6 +468,21 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--restart',
     usageDescription: 'logs clear: stop active stream, clear logs, then start streaming again',
+  },
+  {
+    key: 'retainPaths',
+    names: ['--retain-paths'],
+    type: 'boolean',
+    usageLabel: '--retain-paths',
+    usageDescription: 'install-from-source: keep materialized artifact paths after install',
+  },
+  {
+    key: 'retentionMs',
+    names: ['--retention-ms'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--retention-ms <ms>',
+    usageDescription: 'install-from-source: retention TTL for materialized artifact paths',
   },
   {
     key: 'noRecord',
@@ -631,6 +658,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     description: 'Install app from binary path without uninstalling first',
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
+  },
+  'install-from-source': {
+    description: 'Install app from a URL source through the normal daemon artifact flow',
+    positionalArgs: ['url'],
+    allowedFlags: ['header', 'retainPaths', 'retentionMs'],
   },
   push: {
     description: 'Simulate push notification payload delivery',

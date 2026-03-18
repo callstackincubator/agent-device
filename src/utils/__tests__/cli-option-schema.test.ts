@@ -40,6 +40,11 @@ test('configurable option specs are filtered by command support', () => {
   assert.equal(openSpecs.has('platform'), true);
   assert.equal(openSpecs.has('activity'), true);
   assert.equal(openSpecs.has('snapshotDepth'), false);
+
+  const installFromSourceSpecs = new Set(
+    getConfigurableOptionSpecs('install-from-source').map((spec) => spec.key),
+  );
+  assert.equal(installFromSourceSpecs.has('header'), true);
 });
 
 test('option schema resolves tokens back to canonical option specs', () => {
@@ -88,5 +93,28 @@ test('option schema rejects invalid source values with INVALID_ARGS', () => {
   assert.throws(
     () => parseOptionValueFromSource(spec, 'windows', 'config file /tmp/test.json', 'platform'),
     (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
+  );
+});
+
+test('option schema parses repeatable string options from config arrays and env strings', () => {
+  const spec = getOptionSpec('header');
+  assert.ok(spec);
+  assert.deepEqual(
+    parseOptionValueFromSource(
+      spec,
+      ['authorization: Bearer token', 'x-build-id: 42'],
+      'config file /tmp/test.json',
+      'header',
+    ),
+    ['authorization: Bearer token', 'x-build-id: 42'],
+  );
+  assert.deepEqual(
+    parseOptionValueFromSource(
+      spec,
+      'authorization: Bearer token',
+      'environment variable AGENT_DEVICE_HEADER',
+      'AGENT_DEVICE_HEADER',
+    ),
+    ['authorization: Bearer token'],
   );
 });

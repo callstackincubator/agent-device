@@ -5,6 +5,7 @@ import type {
   AgentDeviceSessionDevice,
   AppCloseResult,
   AppDeployResult,
+  AppInstallFromSourceResult,
   AppOpenResult,
   CaptureSnapshotResult,
   EnsureSimulatorResult,
@@ -113,6 +114,24 @@ export function serializeDeployResult(result: AppDeployResult): Record<string, u
     ...(result.appId ? { appId: result.appId } : {}),
     ...(result.bundleId ? { bundleId: result.bundleId } : {}),
     ...(result.package ? { package: result.package } : {}),
+  };
+}
+
+export function serializeInstallFromSourceResult(
+  result: AppInstallFromSourceResult,
+): Record<string, unknown> {
+  return {
+    launchTarget: result.launchTarget,
+    ...(result.appName ? { appName: result.appName } : {}),
+    ...(result.appId ? { appId: result.appId } : {}),
+    ...(result.bundleId ? { bundleId: result.bundleId } : {}),
+    ...(result.packageName ? { package: result.packageName } : {}),
+    ...(result.installablePath ? { installablePath: result.installablePath } : {}),
+    ...(result.archivePath ? { archivePath: result.archivePath } : {}),
+    ...(result.materializationId ? { materializationId: result.materializationId } : {}),
+    ...(result.materializationExpiresAt
+      ? { materializationExpiresAt: result.materializationExpiresAt }
+      : {}),
   };
 }
 
