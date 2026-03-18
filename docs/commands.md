@@ -38,6 +38,7 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
+- `metro prepare` starts or reuses a local Metro instance for sandbox/client flows and prints runtime JSON to stdout. `--json` wraps the same payload in the standard `{ success, data }` envelope. Pass `--proxy-base-url <url>` plus `AGENT_DEVICE_PROXY_TOKEN` (preferred) or `--bearer-token <token>` when the runtime must be bridged through `agent-device-proxy`; add `--runtime-file <path>` only when a persisted artifact is required.
 - `runtime set|show|clear` manages session-scoped runtime hints for remote/native daemon flows. Supported hints include `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`. Typed daemon clients can also pass `runtime: { ... }` on `open` to replace the stored session runtime atomically for that launch. Android applies Metro hints through React Native dev prefs before `open`, and iOS simulators apply them through app defaults before launch.
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
@@ -488,11 +489,14 @@ agent-device trace stop session.trace
 
 ```bash
 agent-device runtime show
+agent-device metro prepare --public-base-url "https://sandbox.example.test" --proxy-base-url "https://proxy.example.test" --bearer-token "$TOKEN"
 agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081
 agent-device runtime set --session my-session --platform ios --bundle-url "http://10.0.0.10:8081/index.bundle?platform=ios"
 agent-device runtime clear
 ```
 
+- `metro prepare` emits JSON runtime hints to stdout and does not mutate session runtime state by itself.
+- Add `--runtime-file <path>` when callers need the same JSON payload written to disk for later steps.
 - `runtime show` prints the current session-scoped runtime hints.
 - `runtime set` updates supported hints: `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`.
 - `runtime clear` removes previously configured hints for the active session.
