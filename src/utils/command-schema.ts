@@ -1,5 +1,4 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
-import type { CommandName } from '../core/command-names.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -744,7 +743,7 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'noRecord',
 ]);
 
-const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
+const commandSchemaEntries = {
   boot: {
     description: 'Ensure target device/simulator is booted and ready',
     positionalArgs: [],
@@ -1050,7 +1049,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
-} satisfies Partial<Record<CommandName, CommandSchema>>;
+} satisfies Record<string, CommandSchema>;
+
+export type CliCommandName = keyof typeof commandSchemaEntries;
+
+const COMMAND_SCHEMAS: Record<string, CommandSchema> = commandSchemaEntries;
 
 const flagDefinitionByName = new Map<string, FlagDefinition>();
 const flagDefinitionsByKey = new Map<FlagKey, FlagDefinition[]>();
