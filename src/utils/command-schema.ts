@@ -103,12 +103,14 @@ export type FlagDefinition = {
 
 type CommandSchema = {
   description: string;
+  listDescription?: string;
   positionalArgs: readonly string[];
   allowsExtraPositionals?: boolean;
   allowedFlags: readonly FlagKey[];
   defaults?: Partial<CliFlags>;
   skipCapabilityCheck?: boolean;
   usageOverride?: string;
+  listUsageOverride?: string;
 };
 
 const SNAPSHOT_FLAGS = [
@@ -746,36 +748,43 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
 const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   boot: {
     description: 'Ensure target device/simulator is booted and ready',
+    listDescription: 'Boot target device/simulator',
     positionalArgs: [],
     allowedFlags: ['headless'],
   },
   open: {
     description: 'Boot device/simulator; optionally launch app or deep link URL',
+    listDescription: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch'],
   },
   close: {
     description: 'Close app or just end session',
+    listDescription: 'Close app or end session',
     positionalArgs: ['app?'],
     allowedFlags: ['saveScript', 'shutdown'],
   },
   reinstall: {
     description: 'Uninstall + install app from binary path',
+    listDescription: 'Reinstall app from binary path',
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
   },
   install: {
     description: 'Install app from binary path without uninstalling first',
+    listDescription: 'Install app from binary path',
     positionalArgs: ['app', 'path'],
     allowedFlags: [],
   },
   'install-from-source': {
     description: 'Install app from a URL source through the normal daemon artifact flow',
+    listDescription: 'Install app from a URL source',
     positionalArgs: ['url'],
     allowedFlags: ['header', 'retainPaths', 'retentionMs'],
   },
   push: {
     description: 'Simulate push notification payload delivery',
+    listDescription: 'Deliver push payload',
     positionalArgs: ['bundleOrPackage', 'payloadOrJson'],
     allowedFlags: [],
   },
@@ -788,11 +797,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride:
       'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]',
     description: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
+    listDescription: 'Diff snapshot or screenshot',
     positionalArgs: ['kind'],
     allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out'],
   },
   'ensure-simulator': {
     description: 'Ensure an iOS simulator exists in a device set (create if missing)',
+    listDescription: 'Ensure iOS simulator exists',
     positionalArgs: [],
     allowedFlags: ['runtime', 'boot', 'reuseExisting'],
     skipCapabilityCheck: true,
@@ -805,6 +816,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   apps: {
     description: 'List installed apps (includes default/system apps by default)',
+    listDescription: 'List installed apps',
     positionalArgs: [],
     allowedFlags: ['appsFilter'],
     defaults: { appsFilter: 'all' },
@@ -818,6 +830,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   runtime: {
     usageOverride: 'runtime set|show|clear',
     description: 'Manage session-scoped runtime hints',
+    listDescription: 'Manage runtime hints',
     positionalArgs: ['set|show|clear'],
     allowedFlags: ['metroHost', 'metroPort', 'bundleUrl', 'launchUrl'],
     skipCapabilityCheck: true,
@@ -827,6 +840,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
     description:
       'Prepare a local Metro runtime and optionally bridge it through agent-device-proxy',
+    listDescription: 'Prepare local Metro runtime',
     positionalArgs: ['prepare'],
     allowedFlags: [
       'metroProjectRoot',
@@ -855,32 +869,38 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   keyboard: {
     usageOverride: 'keyboard [status|get|dismiss]',
     description: 'Inspect Android keyboard visibility/type or dismiss it',
+    listDescription: 'Inspect or dismiss Android keyboard',
     positionalArgs: ['action?'],
     allowedFlags: [],
   },
   perf: {
     description: 'Show session performance metrics (startup timing)',
+    listDescription: 'Show startup metrics',
     positionalArgs: [],
     allowedFlags: [],
   },
   back: {
     description: 'Navigate back (where supported)',
+    listDescription: 'Go back',
     positionalArgs: [],
     allowedFlags: [],
   },
   home: {
     description: 'Go to home screen (where supported)',
+    listDescription: 'Go home',
     positionalArgs: [],
     allowedFlags: [],
   },
   'app-switcher': {
     description: 'Open app switcher (where supported)',
+    listDescription: 'Open app switcher',
     positionalArgs: [],
     allowedFlags: [],
   },
   wait: {
     usageOverride: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
     description: 'Wait for duration, text, ref, or selector to appear',
+    listDescription: 'Wait for time, text, ref, or selector',
     positionalArgs: ['durationOrSelector', 'timeoutMs?'],
     allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
@@ -888,12 +908,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
     description: 'Inspect or handle alert (iOS simulator)',
+    listDescription: 'Inspect or handle iOS alert',
     positionalArgs: ['action?', 'timeout?'],
     allowedFlags: [],
   },
   click: {
     usageOverride: 'click <x y|@ref|selector>',
     description: 'Tap/click by coordinates, snapshot ref, or selector',
+    listDescription: 'Tap by coordinates, ref, or selector',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
     allowedFlags: [
@@ -908,6 +930,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
     description: 'Return element text/attributes by ref or selector',
+    listDescription: 'Get text or attrs by ref or selector',
     positionalArgs: ['subcommand', 'target'],
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
@@ -920,6 +943,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   batch: {
     usageOverride: 'batch [--steps <json> | --steps-file <path>]',
     description: 'Execute multiple commands in one daemon request',
+    listDescription: 'Run multiple commands',
     positionalArgs: [],
     allowedFlags: ['steps', 'stepsFile', 'batchOnError', 'batchMaxSteps', 'out'],
     skipCapabilityCheck: true,
@@ -927,6 +951,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   press: {
     usageOverride: 'press <x y|@ref|selector>',
     description: 'Tap/press by coordinates, snapshot ref, or selector (supports repeated series)',
+    listDescription: 'Press by coordinates, ref, or selector',
     positionalArgs: ['targetOrX', 'y?'],
     allowsExtraPositionals: true,
     allowedFlags: [
@@ -940,11 +965,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   longpress: {
     description: 'Long press by coordinates (iOS and Android)',
+    listDescription: 'Long press by coordinates',
     positionalArgs: ['x', 'y', 'durationMs?'],
     allowedFlags: [],
   },
   swipe: {
     description: 'Swipe coordinates with optional repeat pattern',
+    listDescription: 'Swipe coordinates',
     positionalArgs: ['x1', 'y1', 'x2', 'y2', 'durationMs?'],
     allowedFlags: ['count', 'pauseMs', 'pattern'],
   },
@@ -968,12 +995,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   scroll: {
     description: 'Scroll in direction (0-1 amount)',
+    listDescription: 'Scroll in a direction',
     positionalArgs: ['direction', 'amount?'],
     allowedFlags: [],
   },
   scrollintoview: {
     usageOverride: 'scrollintoview <text|@ref>',
     description: 'Scroll until text appears or a snapshot ref is brought into view',
+    listDescription: 'Scroll until text or ref is visible',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
     allowedFlags: [],
@@ -991,18 +1020,21 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',
     description: 'Trigger app-defined event hook via deep link template',
+    listDescription: 'Trigger app event hook',
     positionalArgs: ['event', 'payloadJson?'],
     allowedFlags: [],
   },
   record: {
     usageOverride: 'record start [path] [--fps <n>] | record stop',
     description: 'Start/stop screen recording',
+    listDescription: 'Start or stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: ['fps'],
   },
   trace: {
     usageOverride: 'trace start [path] | trace stop [path]',
     description: 'Start/stop trace log capture',
+    listDescription: 'Start or stop trace capture',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: [],
     skipCapabilityCheck: true,
@@ -1011,6 +1043,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride:
       'logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]',
     description: 'Session app log info, start/stop streaming, diagnostics, and markers',
+    listDescription: 'Manage session app logs',
     positionalArgs: ['path|start|stop|clear|doctor|mark', 'message?'],
     allowsExtraPositionals: true,
     allowedFlags: ['restart'],
@@ -1019,26 +1052,31 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride:
       'network dump [limit] [summary|headers|body|all] | network log [limit] [summary|headers|body|all]',
     description: 'Dump recent HTTP(s) traffic parsed from the session app log',
+    listDescription: 'Show recent HTTP traffic',
     positionalArgs: ['dump|log', 'limit?', 'include?'],
     allowedFlags: [],
   },
   find: {
     usageOverride: 'find <locator|text> <action> [value]',
     description: 'Find by text/label/value/role/id and run action',
+    listDescription: 'Find an element and act',
     positionalArgs: ['query', 'action', 'value?'],
     allowsExtraPositionals: true,
     allowedFlags: [...FIND_SNAPSHOT_FLAGS],
   },
   is: {
     description: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
+    listDescription: 'Assert UI state',
     positionalArgs: ['predicate', 'selector', 'value?'],
     allowsExtraPositionals: true,
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   settings: {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
+    listUsageOverride: 'settings [area] [options]',
     description:
       'Toggle OS settings, appearance, and app permissions (session app scope for permission actions)',
+    listDescription: 'Change OS settings and app permissions',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],
   },
@@ -1098,6 +1136,22 @@ function formatPositionalArg(arg: string): string {
   return optional ? `[${name}]` : `<${name}>`;
 }
 
+function formatCommandListArg(commandName: string, schema: CommandSchema, arg: string): string {
+  const optional = arg.endsWith('?');
+  const name = optional ? arg.slice(0, -1) : arg;
+  const isChoiceLiteral = /^[a-z-]+(?:\|[a-z-]+)+$/i.test(name);
+  const isLiteralToken =
+    isChoiceLiteral ||
+    (schema.usageOverride !== undefined &&
+      schema.usageOverride.startsWith(`${commandName} ${name}`));
+  if (optional) {
+    if (isChoiceLiteral) return `[${name}]`;
+    if (isLiteralToken) return name;
+    return `[${name}]`;
+  }
+  return isLiteralToken ? name : `<${name}>`;
+}
+
 function buildCommandUsage(commandName: string, schema: CommandSchema): string {
   if (schema.usageOverride) return schema.usageOverride;
   const positionals = schema.positionalArgs.map(formatPositionalArg);
@@ -1110,6 +1164,14 @@ function buildCommandUsage(commandName: string, schema: CommandSchema): string {
   return [commandName, ...positionals, ...optionalFlags].join(' ');
 }
 
+function buildCommandListUsage(commandName: string, schema: CommandSchema): string {
+  if (schema.listUsageOverride) return schema.listUsageOverride;
+  const positionals = schema.positionalArgs.map((arg) =>
+    formatCommandListArg(commandName, schema, arg),
+  );
+  return [commandName, ...positionals].join(' ');
+}
+
 function renderUsageText(): string {
   const header = `agent-device <command> [args] [--json]
 
@@ -1119,23 +1181,43 @@ CLI to control iOS and Android devices for AI agents.
   const commands = getCliCommandNames().map((name) => {
     const schema = COMMAND_SCHEMAS[name];
     if (!schema) throw new Error(`Missing command schema for ${name}`);
-    return { name, schema, usage: buildCommandUsage(name, schema) };
+    return { name, schema, usage: buildCommandListUsage(name, schema) };
   });
-  const maxUsage = Math.max(...commands.map((command) => command.usage.length)) + 2;
-  const commandLines: string[] = ['Commands:'];
-  for (const command of commands) {
-    commandLines.push(`  ${command.usage.padEnd(maxUsage)}${command.schema.description}`);
-  }
+  const commandLines = renderCommandSection(commands);
 
-  const helpFlags = FLAG_DEFINITIONS.filter(
-    (definition) => definition.usageLabel && definition.usageDescription,
-  );
+  const helpFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
   const flagsSection = renderFlagSection('Flags:', helpFlags);
+  const skillsSection = `Agent Skills:
+  agent-device  Canonical mobile automation flows
+  dogfood       Exploratory QA and bug hunts
+
+See \`skills/<name>/SKILL.md\` in the installed package.`;
+  const configSection = `Configuration:
+  Default config files: ~/.agent-device/config.json, ./agent-device.json
+  Use --config <path> or AGENT_DEVICE_CONFIG to load one explicit config file.`;
+  const environmentSection = `Environment:
+  AGENT_DEVICE_SESSION          Default session name
+  AGENT_DEVICE_PLATFORM         Default platform binding
+  AGENT_DEVICE_SESSION_LOCK     Bound-session conflict mode
+  AGENT_DEVICE_DAEMON_BASE_URL  Connect to remote daemon`;
+  const examplesSection = `Examples:
+  agent-device open Settings --platform ios
+  agent-device snapshot -i
+  agent-device fill @e3 "test@example.com"
+  agent-device replay ./session.ad`;
 
   return `${header}
-${commandLines.join('\n')}
+${commandLines}
 
 ${flagsSection}
+
+${skillsSection}
+
+${configSection}
+
+${environmentSection}
+
+${examplesSection}
 `;
 }
 
@@ -1162,6 +1244,18 @@ function renderFlagSection(title: string, definitions: FlagDefinition[]): string
   const lines = [title];
   for (const flag of definitions) {
     lines.push(`  ${(flag.usageLabel ?? '').padEnd(maxFlagLabel)}${flag.usageDescription ?? ''}`);
+  }
+  return lines.join('\n');
+}
+
+function renderCommandSection(
+  commands: Array<{ name: string; schema: CommandSchema; usage: string }>,
+): string {
+  const maxCommandLabel = Math.max(...commands.map((command) => command.usage.length)) + 2;
+  const lines = ['Commands:'];
+  for (const command of commands) {
+    const summary = command.schema.listDescription ?? command.schema.description;
+    lines.push(`  ${command.usage.padEnd(maxCommandLabel)}${summary}`);
   }
   return lines.join('\n');
 }
