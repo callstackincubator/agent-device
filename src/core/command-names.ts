@@ -25,7 +25,7 @@ type DaemonInternalCommandName = (typeof DAEMON_INTERNAL_COMMANDS)[number];
 export type CommandName = CliCommandName | DaemonInternalCommandName;
 
 /** CLI aliases that are normalized before reaching command dispatch. */
-export const COMMAND_ALIASES: Record<string, CommandName> = {
+export const COMMAND_ALIASES: Partial<Record<string, CommandName>> = {
   'long-press': 'longpress',
   metrics: 'perf',
 };
