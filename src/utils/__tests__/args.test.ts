@@ -456,53 +456,62 @@ test('parseArgs rejects invalid swipe pattern', () => {
   );
 });
 
-test('usage includes concise commands and global flags', () => {
-  assert.match(usage(), /install-from-source <url>/);
-  assert.match(usage(), /metro prepare/);
-  assert.match(usage(), /--target mobile\|tv/);
-  assert.match(usage(), /--ios-simulator-device-set <path>/);
-  assert.match(usage(), /--android-device-allowlist <serials>/);
-  assert.match(usage(), /network dump/);
-  assert.match(usage(), /clipboard read\|write \[text\]/);
-  assert.match(usage(), /keyboard \[action\]/);
-  assert.match(usage(), /trigger-app-event <event> \[payloadJson\]/);
-  assert.match(usage(), /pinch <scale> \[x\] \[y\]/);
-  assert.match(usage(), /--state-dir <path>/);
-  assert.match(usage(), /--daemon-transport auto\|socket\|http/);
-  assert.match(usage(), /--daemon-server-mode socket\|http\|dual/);
-  assert.match(usage(), /--tenant <id>/);
-  assert.match(usage(), /--session-isolation none\|tenant/);
-  assert.match(usage(), /--run-id <id>/);
-  assert.match(usage(), /--lease-id <id>/);
-  assert.match(usage(), /Agent Skills:/);
-  assert.match(usage(), /agent-device\s+Canonical mobile automation flows/);
-  assert.match(usage(), /dogfood\s+Exploratory QA and bug hunts/);
-  assert.match(usage(), /See `skills\/<name>\/SKILL\.md` in the installed package\./);
-  assert.match(usage(), /Configuration:/);
+test('usage includes concise top-level commands', () => {
+  const usageText = usage();
+  assert.match(usageText, /install-from-source <url>/);
+  assert.match(usageText, /metro prepare/);
+  assert.match(usageText, /network dump/);
+  assert.match(usageText, /clipboard read\|write \[text\]/);
+  assert.match(usageText, /keyboard \[action\]/);
+  assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
+  assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
+});
+
+test('usage includes only global flags in the top-level flags section', () => {
+  const usageText = usage();
+  assert.match(usageText, /--target mobile\|tv/);
+  assert.match(usageText, /--ios-simulator-device-set <path>/);
+  assert.match(usageText, /--android-device-allowlist <serials>/);
+  assert.match(usageText, /--state-dir <path>/);
+  assert.match(usageText, /--daemon-transport auto\|socket\|http/);
+  assert.match(usageText, /--daemon-server-mode socket\|http\|dual/);
+  assert.match(usageText, /--tenant <id>/);
+  assert.match(usageText, /--session-isolation none\|tenant/);
+  assert.match(usageText, /--run-id <id>/);
+  assert.match(usageText, /--lease-id <id>/);
+  assert.doesNotMatch(usageText, /--relaunch/);
+  assert.doesNotMatch(usageText, /--header <name:value>/);
+  assert.doesNotMatch(usageText, /--restart/);
+  assert.doesNotMatch(usageText, /--fps <n>/);
+  assert.doesNotMatch(usageText, /--save-script \[path\]/);
+  assert.doesNotMatch(usageText, /--metadata/);
+});
+
+test('usage includes skills, config, environment, and examples footers', () => {
+  const usageText = usage();
+  assert.match(usageText, /Agent Skills:/);
+  assert.match(usageText, /agent-device\s+Canonical mobile automation flows/);
+  assert.match(usageText, /dogfood\s+Exploratory QA and bug hunts/);
+  assert.match(usageText, /See `skills\/<name>\/SKILL\.md` in the installed package\./);
+  assert.match(usageText, /Configuration:/);
   assert.match(
-    usage(),
+    usageText,
     /Default config files: ~\/\.agent-device\/config\.json, \.\/agent-device\.json/,
   );
   assert.match(
-    usage(),
+    usageText,
     /Use --config <path> or AGENT_DEVICE_CONFIG to load one explicit config file\./,
   );
-  assert.match(usage(), /Environment:/);
-  assert.match(usage(), /AGENT_DEVICE_SESSION\s+Default session name/);
-  assert.match(usage(), /AGENT_DEVICE_PLATFORM\s+Default platform binding/);
-  assert.match(usage(), /AGENT_DEVICE_SESSION_LOCK\s+Bound-session conflict mode/);
-  assert.match(usage(), /AGENT_DEVICE_DAEMON_BASE_URL\s+Connect to remote daemon/);
-  assert.match(usage(), /Examples:/);
-  assert.match(usage(), /agent-device open Settings --platform ios/);
-  assert.match(usage(), /agent-device snapshot -i/);
-  assert.match(usage(), /agent-device fill @e3 "test@example\.com"/);
-  assert.match(usage(), /agent-device replay \.\/session\.ad/);
-  assert.doesNotMatch(usage(), /--relaunch/);
-  assert.doesNotMatch(usage(), /--header <name:value>/);
-  assert.doesNotMatch(usage(), /--restart/);
-  assert.doesNotMatch(usage(), /--fps <n>/);
-  assert.doesNotMatch(usage(), /--save-script \[path\]/);
-  assert.doesNotMatch(usage(), /--metadata/);
+  assert.match(usageText, /Environment:/);
+  assert.match(usageText, /AGENT_DEVICE_SESSION\s+Default session name/);
+  assert.match(usageText, /AGENT_DEVICE_PLATFORM\s+Default platform binding/);
+  assert.match(usageText, /AGENT_DEVICE_SESSION_LOCK\s+Bound-session conflict mode/);
+  assert.match(usageText, /AGENT_DEVICE_DAEMON_BASE_URL\s+Connect to remote daemon/);
+  assert.match(usageText, /Examples:/);
+  assert.match(usageText, /agent-device open Settings --platform ios/);
+  assert.match(usageText, /agent-device snapshot -i/);
+  assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
+  assert.match(usageText, /agent-device replay \.\/session\.ad/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {
