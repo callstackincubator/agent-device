@@ -459,12 +459,14 @@ test('parseArgs rejects invalid swipe pattern', () => {
 test('usage includes concise top-level commands', () => {
   const usageText = usage();
   assert.match(usageText, /install-from-source <url>/);
-  assert.match(usageText, /metro prepare/);
+  assert.match(usageText, /metro prepare --public-base-url <url>/);
   assert.match(usageText, /network dump/);
-  assert.match(usageText, /clipboard read\|write \[text\]/);
+  assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
   assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
+  assert.match(usageText, /record start \[path\] \| record stop/);
+  assert.match(usageText, /trace start \[path\] \| trace stop/);
 });
 
 test('usage includes only global flags in the top-level flags section', () => {
@@ -658,7 +660,7 @@ test('usage includes swipe and press series options', () => {
 test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
-  assert.match(help, /  metro prepare\s{2,}Prepare local Metro runtime/);
+  assert.match(help, /  metro prepare --public-base-url <url>\s{2,}Prepare local Metro runtime/);
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
   assert.doesNotMatch(

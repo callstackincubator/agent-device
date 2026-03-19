@@ -853,6 +853,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   runtime: {
     usageOverride: 'runtime set|show|clear',
+    listUsageOverride: 'runtime [set|show|clear]',
     helpDescription: 'Manage session-scoped runtime hints',
     summary: 'Manage runtime hints',
     positionalArgs: ['set|show|clear'],
@@ -862,6 +863,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   metro: {
     usageOverride:
       'metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
+    listUsageOverride: 'metro prepare --public-base-url <url>',
     helpDescription:
       'Prepare a local Metro runtime and optionally bridge it through agent-device-proxy',
     summary: 'Prepare local Metro runtime',
@@ -885,6 +887,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   clipboard: {
     usageOverride: 'clipboard read | clipboard write <text>',
+    listUsageOverride: 'clipboard read | clipboard write <text>',
     helpDescription: 'Read or write device clipboard text',
     positionalArgs: ['read|write', 'text?'],
     allowsExtraPositionals: true,
@@ -1051,6 +1054,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   record: {
     usageOverride: 'record start [path] [--fps <n>] | record stop',
+    listUsageOverride: 'record start [path] | record stop',
     helpDescription: 'Start/stop screen recording',
     summary: 'Start or stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
@@ -1058,6 +1062,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   trace: {
     usageOverride: 'trace start [path] | trace stop [path]',
+    listUsageOverride: 'trace start [path] | trace stop',
     helpDescription: 'Start/stop trace log capture',
     summary: 'Start or stop trace capture',
     positionalArgs: ['start|stop', 'path?'],
