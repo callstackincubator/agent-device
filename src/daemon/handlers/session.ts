@@ -5,6 +5,7 @@ import {
   type BatchStep,
   type CommandFlags,
 } from '../../core/dispatch.ts';
+import type { CommandName } from '../../core/command-names.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
@@ -117,7 +118,7 @@ async function runSessionOrSelectorDispatch(params: {
   ensureReady: typeof ensureDeviceReady;
   resolveDevice: typeof resolveTargetDevice;
   dispatch: typeof dispatchCommand;
-  command: string;
+  command: CommandName;
   positionals: string[];
   recordPositionals?: string[];
   deriveNextSession?: (

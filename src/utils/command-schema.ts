@@ -1,4 +1,5 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
+import type { CommandName } from '../core/command-names.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -1049,7 +1050,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
-};
+} satisfies Partial<Record<CommandName, CommandSchema>>;
 
 const flagDefinitionByName = new Map<string, FlagDefinition>();
 const flagDefinitionsByKey = new Map<FlagKey, FlagDefinition[]>();

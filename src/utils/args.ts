@@ -10,6 +10,7 @@ import {
   type FlagKey,
 } from './command-schema.ts';
 import { isFlagSupportedForCommand } from './cli-option-schema.ts';
+import { COMMAND_ALIASES } from '../core/command-names.ts';
 
 type ParsedArgs = {
   command: string | null;
@@ -304,9 +305,7 @@ export function usageForCommand(command: string): string | null {
 }
 
 function normalizeCommandAlias(command: string): string {
-  if (command === 'long-press') return 'longpress';
-  if (command === 'metrics') return 'perf';
-  return command;
+  return COMMAND_ALIASES[command] ?? command;
 }
 
 function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {

@@ -1,6 +1,7 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime } from './client-metro.ts';
 import { AppError } from './utils/errors.ts';
+import type { CommandName } from './core/command-names.ts';
 import {
   buildFlags,
   buildMeta,
@@ -44,7 +45,7 @@ export function createAgentDeviceClient(
   const transport = deps.transport ?? sendToDaemon;
 
   const execute = async (
-    command: string,
+    command: CommandName,
     positionals: string[] = [],
     options: InternalRequestOptions = {},
   ): Promise<Record<string, unknown>> => {

@@ -1,11 +1,12 @@
 import { AppError } from '../utils/errors.ts';
 import type { BatchStep, CommandFlags } from './dispatch.ts';
+import type { CommandName } from './command-names.ts';
 
 export const DEFAULT_BATCH_MAX_STEPS = 100;
 const BATCH_BLOCKED_COMMANDS = new Set(['batch', 'replay']);
 
 export type NormalizedBatchStep = {
-  command: string;
+  command: CommandName;
   positionals: string[];
   flags: Partial<CommandFlags>;
   runtime?: unknown;
@@ -13,7 +14,7 @@ export type NormalizedBatchStep = {
 
 export type BatchStepResult = {
   step: number;
-  command: string;
+  command: CommandName;
   ok: true;
   data: Record<string, unknown>;
   durationMs: number;
@@ -82,7 +83,7 @@ export function validateAndNormalizeBatchSteps(
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} runtime must be an object.`);
     }
     normalized.push({
-      command,
+      command: command as CommandName,
       positionals: positionals as string[],
       flags: (step.flags ?? {}) as Partial<CommandFlags>,
       runtime: step.runtime,

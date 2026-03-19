@@ -2,6 +2,7 @@ import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
+import type { CommandName } from '../core/command-names.ts';
 import { normalizeTenantId } from './config.ts';
 import {
   clearRequestCanceled,
@@ -78,7 +79,7 @@ const LEASE_RPC_METHOD_TO_COMMAND: Record<
   'agent-device.lease.heartbeat': 'lease_heartbeat',
   'agent_device.lease.release': 'lease_release',
   'agent-device.lease.release': 'lease_release',
-};
+} satisfies Record<string, CommandName>;
 const SUPPORTED_RPC_METHODS = new Set([
   ...COMMAND_RPC_METHODS,
   ...INSTALL_FROM_SOURCE_RPC_METHODS,

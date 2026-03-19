@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { CliFlags } from './utils/command-schema.ts';
+import type { CommandName } from './core/command-names.ts';
 import { formatScreenshotDiffText, formatSnapshotText, printJson } from './utils/output.ts';
 import { AppError } from './utils/errors.ts';
 import {
@@ -247,7 +248,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     }
     return true;
   },
-};
+} satisfies Partial<Record<CommandName, ClientCommandHandler>>;
 
 async function runDeployCommand(
   command: 'install' | 'reinstall',

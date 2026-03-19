@@ -1,4 +1,5 @@
 import type { DeviceInfo } from '../utils/device.ts';
+import type { CommandName } from './command-names.ts';
 
 type KindMatrix = {
   simulator?: boolean;
@@ -144,7 +145,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     ios: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
-};
+} satisfies Partial<Record<CommandName, CommandCapability>>;
 
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {
   const capability = COMMAND_CAPABILITY_MATRIX[command];

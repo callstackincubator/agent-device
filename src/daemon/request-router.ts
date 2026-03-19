@@ -27,14 +27,15 @@ import {
 } from '../utils/diagnostics.ts';
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
+import type { CommandName } from '../core/command-names.ts';
 
-const selectorValidationExemptCommands = new Set([
+const selectorValidationExemptCommands = new Set<string>([
   'session_list',
   'devices',
   'ensure-simulator',
   'release_materialized_paths',
-]);
-const leaseAdmissionExemptCommands = new Set([
+] as const satisfies readonly CommandName[]);
+const leaseAdmissionExemptCommands = new Set<string>([
   'session_list',
   'devices',
   'ensure-simulator',
@@ -42,7 +43,7 @@ const leaseAdmissionExemptCommands = new Set([
   'lease_allocate',
   'lease_heartbeat',
   'lease_release',
-]);
+] as const satisfies readonly CommandName[]);
 
 function contextFromFlags(
   logPath: string,
@@ -344,7 +345,7 @@ export function createRequestHandler(
             command === 'screenshot' && resolvedOut
               ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
               : (lockedReq.flags ?? {});
-          const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
+          const data = await dispatch(session.device, command as CommandName, resolvedPositionals, resolvedOut, {
             ...contextFromFlags(
               logPath,
               lockedReq.flags,

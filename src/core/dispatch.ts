@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
+import type { CommandName } from './command-names.ts';
 import {
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
@@ -30,7 +31,7 @@ export { resolveTargetDevice } from './dispatch-resolve.ts';
 export { shouldUseIosTapSeries, shouldUseIosDragSeries };
 
 export type BatchStep = {
-  command: string;
+  command: CommandName;
   positionals?: string[];
   flags?: Partial<CommandFlags>;
   runtime?: unknown;
@@ -42,7 +43,7 @@ export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSt
 
 export async function dispatchCommand(
   device: DeviceInfo,
-  command: string,
+  command: CommandName,
   positionals: string[],
   outPath?: string,
   context?: {

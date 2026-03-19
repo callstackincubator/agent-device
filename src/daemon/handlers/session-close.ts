@@ -1,6 +1,7 @@
 import { normalizeError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { CommandName } from '../../core/command-names.ts';
 import { contextFromFlags } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -77,7 +78,7 @@ export async function handleCloseCommand(params: {
   sessionStore: SessionStore;
   dispatch: (
     device: DeviceInfo,
-    command: string,
+    command: CommandName,
     positionals: string[],
     out?: string,
     context?: Record<string, unknown>,
