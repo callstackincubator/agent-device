@@ -460,6 +460,7 @@ test('usage includes concise top-level commands', () => {
   const usageText = usage();
   assert.match(usageText, /install-from-source <url>/);
   assert.match(usageText, /metro prepare --public-base-url <url>/);
+  assert.match(usageText, /batch --steps <json> \| --steps-file <path>/);
   assert.match(usageText, /network dump/);
   assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
@@ -661,8 +662,10 @@ test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
   assert.match(help, /  metro prepare --public-base-url <url>\s{2,}Prepare local Metro runtime/);
+  assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
+  assert.doesNotMatch(help, /\n  batch\s{2,}Run multiple commands/);
   assert.doesNotMatch(
     help,
     /Prepare a local Metro runtime and optionally bridge it through agent-device-proxy/,

@@ -969,6 +969,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   batch: {
     usageOverride: 'batch [--steps <json> | --steps-file <path>]',
+    listUsageOverride: 'batch --steps <json> | --steps-file <path>',
     helpDescription: 'Execute multiple commands in one daemon request',
     summary: 'Run multiple commands',
     positionalArgs: [],
