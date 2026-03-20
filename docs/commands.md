@@ -38,15 +38,15 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
-- `metro prepare` starts or reuses a local Metro instance for sandbox/client flows and prints runtime JSON to stdout. `--json` wraps the same payload in the standard `{ success, data }` envelope. Pass `--proxy-base-url <url>` plus `AGENT_DEVICE_PROXY_TOKEN` (preferred) or `--bearer-token <token>` when the runtime must be bridged through `agent-device-proxy`; add `--runtime-file <path>` only when a persisted artifact is required.
-- `runtime set|show|clear` manages session-scoped runtime hints for remote/native daemon flows. Supported hints include `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`. Typed daemon clients can also pass `runtime: { ... }` on `open` to replace the stored session runtime atomically for that launch. Android applies Metro hints through React Native dev prefs before `open`, and iOS simulators apply them through app defaults before launch.
+- `open <app> --remote-config <path> --relaunch` is the canonical remote Metro-backed launch flow for sandbox agents. The remote profile supplies the remote host + Metro settings, `open` prepares Metro locally when needed, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
+- `metro prepare --remote-config <path>` remains available for inspection and debugging. It prints JSON runtime hints to stdout, `--json` wraps them in the standard `{ success, data }` envelope, and `--runtime-file <path>` persists the same payload when callers need an artifact.
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
 
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
-agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
 agent-device open com.example.myapp --platform android --serial emulator-5554 --session my-session --relaunch
 ```
@@ -485,22 +485,18 @@ agent-device trace stop session.trace
 - `trace stop [path]` stops capture and optionally writes or finalizes the trace artifact at the provided path.
 - `trace` is intended for lower-level session diagnostics than `record` or `logs`.
 
-## Runtime hints
+## Remote Metro workflow
 
 ```bash
-agent-device runtime show
-agent-device metro prepare --public-base-url "https://sandbox.example.test" --proxy-base-url "https://proxy.example.test" --bearer-token "$TOKEN"
-agent-device runtime set --session my-session --platform android --metro-host 10.0.0.10 --metro-port 8081
-agent-device runtime set --session my-session --platform ios --bundle-url "http://10.0.0.10:8081/index.bundle?platform=ios"
-agent-device runtime clear
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+agent-device snapshot -i --remote-config ./agent-device.remote.json
+agent-device metro prepare --remote-config ./agent-device.remote.json --json
 ```
 
-- `metro prepare` emits JSON runtime hints to stdout and does not mutate session runtime state by itself.
-- Add `--runtime-file <path>` when callers need the same JSON payload written to disk for later steps.
-- `runtime show` prints the current session-scoped runtime hints.
-- `runtime set` updates supported hints: `--metro-host`, `--metro-port`, `--bundle-url`, and `--launch-url`.
-- `runtime clear` removes previously configured hints for the active session.
-- These hints are mainly for React Native and remote/native daemon launch flows.
+- `--remote-config <path>` points to a remote workflow profile that captures stable host + Metro settings.
+- `open --remote-config ... --relaunch` is the main agent flow. It prepares Metro locally, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
+- `snapshot`, `press`, `fill`, `screenshot`, and other normal commands can reuse the same `--remote-config` profile so agents do not need to repeat remote host/session selectors inline.
+- `metro prepare --remote-config ...` remains the inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 
 ## Session inspection
 
