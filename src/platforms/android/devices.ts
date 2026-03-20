@@ -5,6 +5,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
 import { resolveAndroidSerialAllowlist } from '../../utils/device-isolation.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
+import { ensureAndroidSdkPathConfigured } from './sdk.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
@@ -152,6 +153,7 @@ async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
 export async function listAndroidDevices(
   options: AndroidDeviceDiscoveryOptions = {},
 ): Promise<DeviceInfo[]> {
+  await ensureAndroidSdkPathConfigured();
   const adbAvailable = await whichCmd('adb');
   if (!adbAvailable) {
     throw new AppError('TOOL_MISSING', 'adb not found in PATH');
@@ -324,6 +326,7 @@ export async function ensureAndroidEmulatorBooted(params: {
   timeoutMs?: number;
   headless?: boolean;
 }): Promise<DeviceInfo> {
+  await ensureAndroidSdkPathConfigured();
   const requestedAvdName = params.avdName.trim();
   if (!requestedAvdName) {
     throw new AppError('INVALID_ARGS', 'Android emulator boot requires a non-empty AVD name.');

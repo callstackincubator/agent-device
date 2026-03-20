@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { runCmd } from '../../utils/exec.ts';
+import { resolveAndroidSdkRoots } from './sdk.ts';
 
 const RES_XML_TYPE = 0x0003;
 const RES_STRING_POOL_TYPE = 0x0001;
@@ -186,26 +187,26 @@ async function resolveAaptPath(): Promise<string | undefined> {
     return aaptPathCache ?? undefined;
   }
 
-  const androidHome = process.env.ANDROID_HOME?.trim();
-  if (!androidHome) {
-    aaptPathCache = null;
-    return undefined;
-  }
-
   try {
-    const buildToolsDir = path.join(androidHome, 'build-tools');
-    const versions = await fs.readdir(buildToolsDir);
-    const sortedVersions = versions.sort((a, b) =>
-      b.localeCompare(a, undefined, { numeric: true }),
-    );
-    for (const version of sortedVersions) {
-      const candidate = path.join(buildToolsDir, version, 'aapt');
+    for (const sdkRoot of resolveAndroidSdkRoots()) {
+      const buildToolsDir = path.join(sdkRoot, 'build-tools');
       try {
-        await fs.access(candidate);
-        aaptPathCache = candidate;
-        return candidate;
+        const versions = await fs.readdir(buildToolsDir);
+        const sortedVersions = versions.sort((a, b) =>
+          b.localeCompare(a, undefined, { numeric: true }),
+        );
+        for (const version of sortedVersions) {
+          const candidate = path.join(buildToolsDir, version, 'aapt');
+          try {
+            await fs.access(candidate);
+            aaptPathCache = candidate;
+            return candidate;
+          } catch {
+            // Continue searching other build-tools versions.
+          }
+        }
       } catch {
-        // Continue searching other build-tools versions.
+        // Ignore missing build-tools for this SDK root and keep searching.
       }
     }
   } catch {
