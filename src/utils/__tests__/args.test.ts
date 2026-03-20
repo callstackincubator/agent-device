@@ -167,6 +167,18 @@ test('parseArgs accepts metro prepare arguments', () => {
   assert.equal(parsed.flags.metroNoInstallDeps, true);
 });
 
+test('parseArgs accepts remote workflow profile flag', () => {
+  const parsed = parseArgs(
+    ['open', 'com.example.app', '--remote-config', './agent-device.remote.json'],
+    {
+      strictFlags: true,
+    },
+  );
+  assert.equal(parsed.command, 'open');
+  assert.deepEqual(parsed.positionals, ['com.example.app']);
+  assert.equal(parsed.flags.remoteConfig, './agent-device.remote.json');
+});
+
 test('parseArgs accepts clipboard subcommands', () => {
   const read = parseArgs(['clipboard', 'read'], { strictFlags: true });
   assert.equal(read.command, 'clipboard');
@@ -666,10 +678,7 @@ test('usage renders concise commands inline with descriptions', () => {
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
   assert.doesNotMatch(help, /\n  batch\s{2,}Run multiple commands/);
-  assert.doesNotMatch(
-    help,
-    /Prepare a local Metro runtime and optionally bridge it through agent-device-proxy/,
-  );
+  assert.doesNotMatch(help, /agent-device-proxy/);
 });
 
 test('command usage shows command and global flags separately', () => {
@@ -687,7 +696,7 @@ test('command usage keeps detailed descriptions', () => {
   if (help === null) throw new Error('Expected command help text');
   assert.match(
     help,
-    /Prepare a local Metro runtime and optionally bridge it through agent-device-proxy/,
+    /Prepare a local Metro runtime and optionally bridge it through a remote host/,
   );
 });
 

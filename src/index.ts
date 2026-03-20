@@ -25,9 +25,6 @@ export {
   type MaterializationReleaseResult,
   type MetroPrepareOptions,
   type MetroPrepareResult,
-  type RuntimeResult,
-  type RuntimeSetOptions,
-  type RuntimeShowOptions,
   type SessionCloseResult,
   type StartupPerfSample,
 } from './client.ts';

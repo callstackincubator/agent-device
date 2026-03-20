@@ -4,6 +4,7 @@ import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { inferFillText } from './action-utils.ts';
 import { resolveUserPath } from '../utils/path-resolution.ts';
+import { appendOpenActionScriptArgs } from './session-open-script.ts';
 import {
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
@@ -65,6 +66,7 @@ export class SessionStore {
       command: string;
       positionals: string[];
       flags: CommandFlags;
+      runtime?: SessionRuntimeHints;
       result?: Record<string, unknown>;
     },
   ): void {
@@ -79,6 +81,7 @@ export class SessionStore {
       ts: Date.now(),
       command: entry.command,
       positionals: entry.positionals,
+      runtime: entry.runtime,
       flags: sanitizeFlags(entry.flags),
       result: entry.result,
     });
@@ -348,12 +351,7 @@ function formatActionLine(action: SessionAction): string {
     return parts.join(' ');
   }
   if (action.command === 'open') {
-    for (const positional of action.positionals ?? []) {
-      parts.push(formatScriptArg(positional));
-    }
-    if (action.flags?.relaunch) {
-      parts.push('--relaunch');
-    }
+    appendOpenActionScriptArgs(parts, action);
     return parts.join(' ');
   }
   if (action.command === 'runtime') {

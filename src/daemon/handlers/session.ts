@@ -868,6 +868,7 @@ export async function handleSessionCommands(params: {
           command: action.command,
           positionals: action.positionals ?? [],
           flags: buildReplayActionFlags(req.flags, action.flags),
+          runtime: action.runtime,
           meta: req.meta,
         });
         if (response.ok) continue;
@@ -891,6 +892,7 @@ export async function handleSessionCommands(params: {
           command: nextAction.command,
           positionals: nextAction.positionals ?? [],
           flags: buildReplayActionFlags(req.flags, nextAction.flags),
+          runtime: nextAction.runtime,
           meta: req.meta,
         });
         if (!response.ok) {

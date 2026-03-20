@@ -1,12 +1,17 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tryRunClientBackedCommand } from '../cli-client-commands.ts';
 import type {
   AgentDeviceClient,
   AppInstallFromSourceOptions,
+  AppOpenOptions,
   MetroPrepareOptions,
 } from '../client.ts';
 import { AppError } from '../utils/errors.ts';
+import { resolveCliOptions } from '../utils/cli-options.ts';
 
 test('install-from-source forwards URL and repeated headers to client.apps.installFromSource', async () => {
   let observed: AppInstallFromSourceOptions | undefined;
@@ -180,6 +185,223 @@ test('metro prepare wraps output in the standard success envelope for --json', a
   assert.equal(payload.data.iosRuntime.platform, 'ios');
 });
 
+test('metro prepare with --remote-config loads profile defaults', async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-metro-'));
+  const configDir = path.join(tmpRoot, 'config');
+  fs.mkdirSync(configDir, { recursive: true });
+  const remoteConfigPath = path.join(configDir, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      metroProjectRoot: './apps/demo',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+      metroPreparePort: 9090,
+    }),
+  );
+  const parsed = resolveCliOptions(['metro', 'prepare', '--remote-config', remoteConfigPath], {
+    cwd: tmpRoot,
+    env: process.env,
+  });
+
+  let observedPrepare: MetroPrepareOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    prepareMetro: async (options) => {
+      observedPrepare = options;
+      return {
+        projectRoot: '/tmp/project',
+        kind: 'react-native',
+        dependenciesInstalled: false,
+        packageManager: null,
+        started: false,
+        reused: true,
+        pid: 0,
+        logPath: '/tmp/project/.agent-device/metro.log',
+        statusUrl: 'http://127.0.0.1:8081/status',
+        runtimeFilePath: null,
+        iosRuntime: {
+          platform: 'ios',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=ios',
+        },
+        androidRuntime: {
+          platform: 'android',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+        },
+        bridge: null,
+      };
+    },
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'metro',
+      positionals: ['prepare'],
+      flags: parsed.flags,
+      client,
+    });
+    assert.equal(handled, true);
+  });
+  const payload = JSON.parse(stdout);
+  assert.deepEqual(observedPrepare, {
+    projectRoot: path.join(configDir, 'apps/demo'),
+    kind: undefined,
+    publicBaseUrl: 'https://sandbox.example.test',
+    proxyBaseUrl: 'https://proxy.example.test',
+    bearerToken: undefined,
+    port: 9090,
+    listenHost: undefined,
+    statusHost: undefined,
+    startupTimeoutMs: undefined,
+    probeTimeoutMs: undefined,
+    reuseExisting: undefined,
+    installDependenciesIfNeeded: undefined,
+    runtimeFilePath: undefined,
+  });
+  assert.equal(payload.kind, 'react-native');
+});
+
+test('open with --remote-config prepares Metro and forwards inline runtime hints', async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-open-'));
+  const configDir = path.join(tmpRoot, 'config');
+  fs.mkdirSync(configDir, { recursive: true });
+  const remoteConfigPath = path.join(configDir, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      platform: 'android',
+      metroProjectRoot: './apps/demo',
+      metroRuntimeFile: './.agent-device-cloud/metro-runtime.json',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+      metroPreparePort: 9090,
+    }),
+  );
+  const parsed = resolveCliOptions(
+    ['open', 'com.example.app', '--remote-config', remoteConfigPath],
+    {
+      cwd: tmpRoot,
+      env: process.env,
+    },
+  );
+
+  let observedPrepare: MetroPrepareOptions | undefined;
+  let observedOpen: AppOpenOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    prepareMetro: async (options) => {
+      observedPrepare = options;
+      return {
+        projectRoot: '/tmp/project',
+        kind: 'react-native',
+        dependenciesInstalled: false,
+        packageManager: null,
+        started: false,
+        reused: true,
+        pid: 0,
+        logPath: '/tmp/project/.agent-device/metro.log',
+        statusUrl: 'http://127.0.0.1:8081/status',
+        runtimeFilePath: null,
+        iosRuntime: {
+          platform: 'ios',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=ios',
+        },
+        androidRuntime: {
+          platform: 'android',
+          metroHost: '10.0.2.2',
+          metroPort: 9090,
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+          launchUrl: 'myapp://dev',
+        },
+        bridge: null,
+      };
+    },
+    open: async (options) => {
+      observedOpen = options;
+      return {
+        session: options.session ?? 'default',
+        runtime: options.runtime,
+        identifiers: { session: options.session ?? 'default' },
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'open',
+    positionals: ['com.example.app'],
+    flags: { ...parsed.flags, relaunch: true },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.deepEqual(observedPrepare, {
+    projectRoot: path.join(configDir, 'apps/demo'),
+    kind: undefined,
+    publicBaseUrl: 'https://sandbox.example.test',
+    proxyBaseUrl: 'https://proxy.example.test',
+    bearerToken: undefined,
+    port: 9090,
+    listenHost: undefined,
+    statusHost: undefined,
+    startupTimeoutMs: undefined,
+    probeTimeoutMs: undefined,
+    reuseExisting: undefined,
+    installDependenciesIfNeeded: undefined,
+    runtimeFilePath: path.join(configDir, '.agent-device-cloud/metro-runtime.json'),
+  });
+  assert.deepEqual(observedOpen?.runtime, {
+    platform: 'android',
+    metroHost: '10.0.2.2',
+    metroPort: 9090,
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+    launchUrl: 'myapp://dev',
+  });
+});
+
+test('open with --remote-config preserves CLI overrides over profile defaults', () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-open-override-'));
+  const configDir = path.join(tmpRoot, 'config');
+  fs.mkdirSync(configDir, { recursive: true });
+  const remoteConfigPath = path.join(configDir, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      session: 'remote-session',
+      platform: 'android',
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+    }),
+  );
+
+  const parsed = resolveCliOptions(
+    [
+      'open',
+      'com.example.app',
+      '--remote-config',
+      remoteConfigPath,
+      '--session',
+      'cli-session',
+      '--platform',
+      'ios',
+      '--daemon-base-url',
+      'http://cli-mac.example.test:9124/agent-device',
+    ],
+    {
+      cwd: tmpRoot,
+      env: process.env,
+    },
+  );
+
+  assert.equal(parsed.flags.session, 'cli-session');
+  assert.equal(parsed.flags.platform, 'ios');
+  assert.equal(parsed.flags.daemonBaseUrl, 'http://cli-mac.example.test:9124/agent-device');
+  assert.equal(parsed.flags.metroPublicBaseUrl, 'https://sandbox.example.test');
+});
+
 async function captureStdout(run: () => Promise<void>): Promise<string> {
   let stdout = '';
   const originalWrite = process.stdout.write.bind(process.stdout);
@@ -200,6 +422,7 @@ async function captureStdout(run: () => Promise<void>): Promise<string> {
 function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];
   prepareMetro?: AgentDeviceClient['metro']['prepare'];
+  open?: AgentDeviceClient['apps']['open'];
 }): AgentDeviceClient {
   return {
     devices: {
@@ -237,10 +460,12 @@ function createStubClient(params: {
         identifiers: { appId: 'com.example.demo' },
       }),
       installFromSource: params.installFromSource,
-      open: async () => ({
-        session: 'default',
-        identifiers: { session: 'default' },
-      }),
+      open:
+        params.open ??
+        (async () => ({
+          session: 'default',
+          identifiers: { session: 'default' },
+        })),
       close: async () => ({
         session: 'default',
         identifiers: { session: 'default' },
@@ -251,18 +476,6 @@ function createStubClient(params: {
         released: true,
         materializationId: options.materializationId,
         identifiers: { session: options.session ?? 'default' },
-      }),
-    },
-    runtime: {
-      set: async () => ({
-        session: 'default',
-        configured: true,
-        identifiers: { session: 'default' },
-      }),
-      show: async () => ({
-        session: 'default',
-        configured: false,
-        identifiers: { session: 'default' },
       }),
     },
     metro: {

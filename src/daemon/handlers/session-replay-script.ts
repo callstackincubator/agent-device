@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
+import { appendOpenActionScriptArgs, parseReplayOpenFlags } from '../session-open-script.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
   appendRuntimeHintFlags,
@@ -7,8 +8,8 @@ import {
   formatScriptArgQuoteIfNeeded,
   formatScriptArg,
   isClickLikeCommand,
-  parseReplayRuntimeFlags,
   parseReplaySeriesFlags,
+  parseReplayRuntimeFlags,
 } from '../script-utils.ts';
 
 export function parseReplayScript(script: string): SessionAction[] {
@@ -77,15 +78,10 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   }
 
   if (command === 'open') {
-    action.positionals = [];
-    for (let index = 0; index < args.length; index += 1) {
-      const token = args[index];
-      if (token === '--relaunch') {
-        action.flags.relaunch = true;
-        continue;
-      }
-      action.positionals.push(token);
-    }
+    const parsed = parseReplayOpenFlags(args);
+    action.positionals = parsed.positionals;
+    Object.assign(action.flags, parsed.flags);
+    action.runtime = parsed.runtime;
     return action;
   }
 
@@ -247,12 +243,7 @@ function formatReplayActionLine(action: SessionAction): string {
     return parts.join(' ');
   }
   if (action.command === 'open') {
-    for (const positional of action.positionals ?? []) {
-      parts.push(formatScriptArg(positional));
-    }
-    if (action.flags?.relaunch) {
-      parts.push('--relaunch');
-    }
+    appendOpenActionScriptArgs(parts, action);
     return parts.join(' ');
   }
   if (action.command === 'runtime') {

@@ -12,7 +12,6 @@ import type {
   AppInstallFromSourceResult,
   InternalRequestOptions,
   MaterializationReleaseResult,
-  RuntimeResult,
   StartupPerfSample,
 } from './client-types.ts';
 
@@ -32,19 +31,6 @@ export function normalizeDeployResult(
     bundleId,
     package: pkg,
     identifiers: buildAppIdentifiers({ session, bundleId, packageName: pkg }),
-  };
-}
-
-export function normalizeRuntimeResult(
-  data: Record<string, unknown>,
-  session: string,
-): RuntimeResult {
-  return {
-    session,
-    configured: data.configured === true,
-    cleared: data.cleared === true ? true : undefined,
-    runtime: normalizeRuntimeHints(data.runtime),
-    identifiers: { session },
   };
 }
 

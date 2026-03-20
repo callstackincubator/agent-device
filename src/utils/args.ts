@@ -281,10 +281,11 @@ function formatUnsupportedFlagMessage(command: string | null, unsupported: strin
 
 export function toDaemonFlags(
   flags: CliFlags,
-): Omit<CliFlags, 'json' | 'config' | 'help' | 'version'> {
+): Omit<CliFlags, 'json' | 'config' | 'remoteConfig' | 'help' | 'version'> {
   const {
     json: _json,
     config: _config,
+    remoteConfig: _remoteConfig,
     help: _help,
     version: _version,
     sessionLock: _sessionLock,

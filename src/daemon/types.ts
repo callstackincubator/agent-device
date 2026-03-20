@@ -114,6 +114,7 @@ export type SessionAction = {
   ts: number;
   command: string;
   positionals: string[];
+  runtime?: SessionRuntimeHints;
   flags: Partial<CommandFlags> & {
     snapshotInteractiveOnly?: boolean;
     snapshotCompact?: boolean;

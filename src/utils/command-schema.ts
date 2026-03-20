@@ -3,6 +3,7 @@ import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 export type CliFlags = {
   json: boolean;
   config?: string;
+  remoteConfig?: string;
   stateDir?: string;
   daemonBaseUrl?: string;
   daemonAuthToken?: string;
@@ -162,6 +163,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Load CLI defaults from a specific config file',
   },
   {
+    key: 'remoteConfig',
+    names: ['--remote-config'],
+    type: 'string',
+    usageLabel: '--remote-config <path>',
+    usageDescription: 'Load remote host + Metro workflow settings from a specific profile file',
+  },
+  {
     key: 'stateDir',
     names: ['--state-dir'],
     type: 'string',
@@ -308,7 +316,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--metro-host'],
     type: 'string',
     usageLabel: '--metro-host <host>',
-    usageDescription: 'runtime set: session-scoped Metro/debug host hint',
+    usageDescription: 'Session-scoped Metro/debug host hint',
   },
   {
     key: 'metroPort',
@@ -317,7 +325,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     min: 1,
     max: 65535,
     usageLabel: '--metro-port <port>',
-    usageDescription: 'runtime set: session-scoped Metro/debug port hint',
+    usageDescription: 'Session-scoped Metro/debug port hint',
   },
   {
     key: 'metroProjectRoot',
@@ -346,7 +354,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--proxy-base-url'],
     type: 'string',
     usageLabel: '--proxy-base-url <url>',
-    usageDescription: 'metro prepare: optional agent-device-proxy base URL for Metro bridging',
+    usageDescription: 'metro prepare: optional remote host bridge base URL for Metro access',
   },
   {
     key: 'metroBearerToken',
@@ -354,7 +362,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--bearer-token <token>',
     usageDescription:
-      'metro prepare: proxy bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
+      'metro prepare: host bridge bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
   },
   {
     key: 'metroPreparePort',
@@ -421,14 +429,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--bundle-url'],
     type: 'string',
     usageLabel: '--bundle-url <url>',
-    usageDescription: 'runtime set: session-scoped bundle URL hint',
+    usageDescription: 'Session-scoped bundle URL hint',
   },
   {
     key: 'launchUrl',
     names: ['--launch-url'],
     type: 'string',
     usageLabel: '--launch-url <url>',
-    usageDescription: 'runtime set: session-scoped deep link / launch URL hint',
+    usageDescription: 'Session-scoped deep link / launch URL hint',
   },
   {
     key: 'boot',
@@ -743,6 +751,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
 export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'json',
   'config',
+  'remoteConfig',
   'stateDir',
   'daemonBaseUrl',
   'daemonAuthToken',
@@ -851,21 +860,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
-  runtime: {
-    usageOverride: 'runtime set|show|clear',
-    listUsageOverride: 'runtime [set|show|clear]',
-    helpDescription: 'Manage session-scoped runtime hints',
-    summary: 'Manage runtime hints',
-    positionalArgs: ['set|show|clear'],
-    allowedFlags: ['metroHost', 'metroPort', 'bundleUrl', 'launchUrl'],
-    skipCapabilityCheck: true,
-  },
   metro: {
     usageOverride:
       'metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
     listUsageOverride: 'metro prepare --public-base-url <url>',
-    helpDescription:
-      'Prepare a local Metro runtime and optionally bridge it through agent-device-proxy',
+    helpDescription: 'Prepare a local Metro runtime and optionally bridge it through a remote host',
     summary: 'Prepare local Metro runtime',
     positionalArgs: ['prepare'],
     allowedFlags: [

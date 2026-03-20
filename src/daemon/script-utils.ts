@@ -62,7 +62,16 @@ export function appendScriptSeriesFlags(
 
 export function appendRuntimeHintFlags(
   parts: string[],
-  flags: Pick<SessionAction, 'flags'>['flags'],
+  flags:
+    | Pick<SessionAction, 'flags'>['flags']
+    | {
+        platform?: 'ios' | 'android';
+        metroHost?: string;
+        metroPort?: number;
+        bundleUrl?: string;
+        launchUrl?: string;
+      }
+    | undefined,
 ): void {
   if (!flags) return;
   if (flags.platform === 'ios' || flags.platform === 'android') {
@@ -130,10 +139,22 @@ export function parseReplaySeriesFlags(
 
 export function parseReplayRuntimeFlags(args: string[]): {
   positionals: string[];
-  flags: SessionAction['flags'];
+  flags: {
+    platform?: 'ios' | 'android';
+    metroHost?: string;
+    metroPort?: number;
+    bundleUrl?: string;
+    launchUrl?: string;
+  };
 } {
   const positionals: string[] = [];
-  const flags: SessionAction['flags'] = {};
+  const flags: {
+    platform?: 'ios' | 'android';
+    metroHost?: string;
+    metroPort?: number;
+    bundleUrl?: string;
+    launchUrl?: string;
+  } = {};
 
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];

@@ -154,6 +154,39 @@ test('writeSessionLog persists open --relaunch in script output', () => {
   assert.match(script, /open "Settings" --relaunch/);
 });
 
+test('writeSessionLog persists inline open runtime hints in script output', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-open-runtime-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true, relaunch: true },
+    runtime: {
+      platform: 'ios',
+      metroHost: '127.0.0.1',
+      metroPort: 8081,
+      launchUrl: 'myapp://dev',
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'close',
+    positionals: [],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(
+    script,
+    /open "Settings" --relaunch --platform ios --metro-host 127\.0\.0\.1 --metro-port 8081 --launch-url myapp:\/\/dev/,
+  );
+});
+
 test('writeSessionLog persists runtime set hints in script output', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-runtime-'));
   const store = new SessionStore(root);
