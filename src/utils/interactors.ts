@@ -14,12 +14,7 @@ import {
   screenshotAndroid,
   typeAndroid,
 } from '../platforms/android/index.ts';
-import {
-  closeIosApp,
-  openIosApp,
-  openIosDevice,
-  screenshotIos,
-} from '../platforms/ios/index.ts';
+import { closeIosApp, openIosApp, openIosDevice, screenshotIos } from '../platforms/ios/index.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../daemon/request-cancel.ts';
 import type { InteractionTimingResult } from './interaction-timing.ts';
@@ -33,12 +28,21 @@ export type RunnerContext = {
 };
 
 type Interactor = {
-  open(app: string, options?: { activity?: string; appBundleId?: string; url?: string }): Promise<void>;
+  open(
+    app: string,
+    options?: { activity?: string; appBundleId?: string; url?: string },
+  ): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
   tap(x: number, y: number): Promise<InteractionTimingResult | void>;
   doubleTap(x: number, y: number): Promise<InteractionTimingResult | void>;
-  swipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<InteractionTimingResult | void>;
+  swipe(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    durationMs?: number,
+  ): Promise<InteractionTimingResult | void>;
   longPress(x: number, y: number, durationMs?: number): Promise<InteractionTimingResult | void>;
   focus(x: number, y: number): Promise<InteractionTimingResult | void>;
   type(text: string): Promise<void>;
@@ -71,7 +75,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
       };
     case 'ios':
       return {
-        open: (app, options) => openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
+        open: (app, options) =>
+          openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
         screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
@@ -84,7 +89,15 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
 
 type IoRunnerOverrides = Pick<
   Interactor,
-  'tap' | 'doubleTap' | 'swipe' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll' | 'scrollIntoView'
+  | 'tap'
+  | 'doubleTap'
+  | 'swipe'
+  | 'longPress'
+  | 'focus'
+  | 'type'
+  | 'fill'
+  | 'scroll'
+  | 'scrollIntoView'
 >;
 
 function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOverrides {
@@ -110,7 +123,15 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
     doubleTap: async (x, y) => {
       return await runIosRunnerCommand(
         device,
-        { command: 'tapSeries', x, y, count: 1, intervalMs: 0, doubleTap: true, appBundleId: ctx.appBundleId },
+        {
+          command: 'tapSeries',
+          x,
+          y,
+          count: 1,
+          intervalMs: 0,
+          doubleTap: true,
+          appBundleId: ctx.appBundleId,
+        },
         runnerOpts,
       );
     },
@@ -201,7 +222,9 @@ function iosRunnerOverrides(device: DeviceInfo, ctx: RunnerContext): IoRunnerOve
   };
 }
 
-function invertScrollDirection(direction: 'up' | 'down' | 'left' | 'right'): 'up' | 'down' | 'left' | 'right' {
+function invertScrollDirection(
+  direction: 'up' | 'down' | 'left' | 'right',
+): 'up' | 'down' | 'left' | 'right' {
   switch (direction) {
     case 'up':
       return 'down';

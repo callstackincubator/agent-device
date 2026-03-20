@@ -4,38 +4,43 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
+import { waitForPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import type { RecordingGestureEvent } from '../../daemon/types.ts';
 
-function resolveOverlayScriptPath(): string {
-  const bundledNeighborPath = fileURLToPath(new URL('./recording-overlay.swift', import.meta.url));
+function resolveScriptPath(scriptName: string): string {
+  const bundledNeighborPath = fileURLToPath(new URL(`./${scriptName}`, import.meta.url));
   if (fs.existsSync(bundledNeighborPath)) {
     return bundledNeighborPath;
   }
-  return path.resolve(path.dirname(bundledNeighborPath), '../../src/platforms/ios/recording-overlay.swift');
+  return path.resolve(path.dirname(bundledNeighborPath), `../../src/platforms/ios/${scriptName}`);
 }
 
-const overlayScriptPath = resolveOverlayScriptPath();
+const overlayScriptPath = resolveScriptPath('recording-overlay.swift');
+const trimScriptPath = resolveScriptPath('recording-trim.swift');
 
-export async function overlayRecordingTouches(params: {
+async function exportProcessedVideo(params: {
   videoPath: string;
-  events: RecordingGestureEvent[];
+  scriptPath: string;
+  scriptArgs: string[];
+  commandDescription: string;
 }): Promise<void> {
-  const { videoPath, events } = params;
-  if (events.length === 0) return;
+  const { videoPath, scriptPath, scriptArgs, commandDescription } = params;
+  await waitForStableFile(videoPath);
+  await waitForPlayableVideo(videoPath);
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-overlay-'));
-  const eventsPath = path.join(tempDir, 'events.json');
+  const inputPath = path.join(tempDir, `input${path.extname(videoPath) || '.mp4'}`);
   const outputPath = path.join(tempDir, path.basename(videoPath));
   const homePath = path.join(tempDir, 'home');
   const moduleCachePath = path.join(tempDir, 'module-cache');
 
-  fs.writeFileSync(eventsPath, JSON.stringify({ events }));
+  fs.copyFileSync(videoPath, inputPath);
   fs.mkdirSync(homePath, { recursive: true });
   fs.mkdirSync(moduleCachePath, { recursive: true });
   try {
     await runCmd(
       'xcrun',
-      ['swift', overlayScriptPath, '--input', videoPath, '--output', outputPath, '--events', eventsPath],
+      ['swift', scriptPath, '--input', inputPath, '--output', outputPath, ...scriptArgs],
       {
         timeoutMs: 120_000,
         env: {
@@ -45,18 +50,24 @@ export async function overlayRecordingTouches(params: {
         },
       },
     );
+    await waitForPlayableVideo(outputPath);
     fs.copyFileSync(outputPath, videoPath);
   } catch (error) {
     const cause =
       error instanceof AppError
         ? error
-        : new AppError('COMMAND_FAILED', String(error), undefined, error instanceof Error ? error : undefined);
+        : new AppError(
+            'COMMAND_FAILED',
+            String(error),
+            undefined,
+            error instanceof Error ? error : undefined,
+          );
     throw new AppError(
       'COMMAND_FAILED',
-      'Failed to add touch overlays to the iOS recording',
+      commandDescription,
       {
         videoPath,
-        script: overlayScriptPath,
+        script: scriptPath,
         stderr: cause.details?.stderr,
         stdout: cause.details?.stdout,
         exitCode: cause.details?.exitCode,
@@ -64,6 +75,44 @@ export async function overlayRecordingTouches(params: {
       },
       cause,
     );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+export async function trimRecordingStart(params: {
+  videoPath: string;
+  trimStartMs: number;
+}): Promise<void> {
+  const { videoPath, trimStartMs } = params;
+  if (!(trimStartMs > 0)) return;
+
+  await exportProcessedVideo({
+    videoPath,
+    scriptPath: trimScriptPath,
+    scriptArgs: ['--trim-start-ms', String(trimStartMs)],
+    commandDescription: 'Failed to trim the start of the iOS recording',
+  });
+}
+
+export async function overlayRecordingTouches(params: {
+  videoPath: string;
+  events: RecordingGestureEvent[];
+  targetLabel?: string;
+}): Promise<void> {
+  const { videoPath, events, targetLabel = 'recording' } = params;
+  if (events.length === 0) return;
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-events-'));
+  const eventsPath = path.join(tempDir, 'events.json');
+  fs.writeFileSync(eventsPath, JSON.stringify({ events }));
+  try {
+    await exportProcessedVideo({
+      videoPath,
+      scriptPath: overlayScriptPath,
+      scriptArgs: ['--events', eventsPath],
+      commandDescription: `Failed to add touch overlays to the ${targetLabel}`,
+    });
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

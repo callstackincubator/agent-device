@@ -74,6 +74,7 @@ struct DataPayload: Codable {
   let nodes: [SnapshotNode]?
   let truncated: Bool?
   let recorderStartUptimeMs: Double?
+  let targetAppReadyUptimeMs: Double?
   let gestureStartUptimeMs: Double?
   let gestureEndUptimeMs: Double?
 
@@ -84,6 +85,7 @@ struct DataPayload: Codable {
     nodes: [SnapshotNode]? = nil,
     truncated: Bool? = nil,
     recorderStartUptimeMs: Double? = nil,
+    targetAppReadyUptimeMs: Double? = nil,
     gestureStartUptimeMs: Double? = nil,
     gestureEndUptimeMs: Double? = nil
   ) {
@@ -93,6 +95,7 @@ struct DataPayload: Codable {
     self.nodes = nodes
     self.truncated = truncated
     self.recorderStartUptimeMs = recorderStartUptimeMs
+    self.targetAppReadyUptimeMs = targetAppReadyUptimeMs
     self.gestureStartUptimeMs = gestureStartUptimeMs
     self.gestureEndUptimeMs = gestureEndUptimeMs
   }

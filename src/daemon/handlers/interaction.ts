@@ -13,7 +13,13 @@ import type { DaemonCommandContext } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../is-predicates.ts';
-import { extractNodeText, findNodeByLabel, isFillableType, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import {
+  extractNodeText,
+  findNodeByLabel,
+  isFillableType,
+  pruneGroupNodes,
+  resolveRefLabel,
+} from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
   findSelectorChainMatch,
@@ -92,7 +98,8 @@ export async function handleInteractionCommands(params: {
     if (refInput.startsWith('@')) {
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('press', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-      const fallbackLabel = req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
+      const fallbackLabel =
+        req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
       const resolvedRefTarget = resolveRefTarget({
         session,
         refInput,
@@ -116,10 +123,15 @@ export async function handleInteractionCommands(params: {
           dispatch,
         );
         const refNode = findNodeByRef(refreshed.nodes, ref);
-        const fallbackNode = fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
+        const fallbackNode =
+          fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
         const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
         const refNodePoint = resolveRectCenter(refNode?.rect);
-        const refreshedNode = refNodePoint ? refNode : fallbackNodePoint ? fallbackNode : refNode ?? fallbackNode;
+        const refreshedNode = refNodePoint
+          ? refNode
+          : fallbackNodePoint
+            ? fallbackNode
+            : (refNode ?? fallbackNode);
         const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
         if (refreshedNode && refreshedPoint) {
           node = refreshedNode;
@@ -130,11 +142,16 @@ export async function handleInteractionCommands(params: {
       if (!pressPoint) {
         return {
           ok: false,
-          error: { code: 'COMMAND_FAILED', message: `Ref ${refInput} not found or has invalid bounds` },
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `Ref ${refInput} not found or has invalid bounds`,
+          },
         };
       }
       const refLabel = resolveRefLabel(node, snapshotNodes);
-      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: selectorAction });
+      const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+        action: selectorAction,
+      });
       const { x, y } = pressPoint;
       const actionStartedAt = Date.now();
       const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
@@ -161,7 +178,10 @@ export async function handleInteractionCommands(params: {
     if (!selectorExpression) {
       return {
         ok: false,
-        error: { code: 'INVALID_ARGS', message: `${command} requires @ref, selector expression, or x y coordinates` },
+        error: {
+          code: 'INVALID_ARGS',
+          message: `${command} requires @ref, selector expression, or x y coordinates`,
+        },
       };
     }
     const chain = parseSelectorChain(selectorExpression);
@@ -208,7 +228,9 @@ export async function handleInteractionCommands(params: {
     const data = await dispatch(session.device, 'press', [String(x), String(y)], req.flags?.out, {
       ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     });
-    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, { action: selectorAction });
+    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
+      action: selectorAction,
+    });
     const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
     sessionStore.recordAction(session, {
       command,
@@ -222,14 +244,21 @@ export async function handleInteractionCommands(params: {
         refLabel,
       },
     });
-    recordTouchVisualizationEvent(session, command, req.positionals ?? [], {
-      ...(data ?? {}),
-      x,
-      y,
-      selector: resolved.selector.raw,
-      selectorChain,
-      refLabel,
-    }, (req.flags ?? {}) as Record<string, unknown>, actionStartedAt);
+    recordTouchVisualizationEvent(
+      session,
+      command,
+      req.positionals ?? [],
+      {
+        ...(data ?? {}),
+        x,
+        y,
+        selector: resolved.selector.raw,
+        selectorChain,
+        refLabel,
+      },
+      (req.flags ?? {}) as Record<string, unknown>,
+      actionStartedAt,
+    );
     return { ok: true, data: { ...(data ?? {}), selector: resolved.selector.raw, x, y } };
   }
 
@@ -251,9 +280,15 @@ export async function handleInteractionCommands(params: {
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       const labelCandidate = req.positionals.length >= 3 ? req.positionals[1] : '';
-      const text = req.positionals.length >= 3 ? req.positionals.slice(2).join(' ') : req.positionals.slice(1).join(' ');
+      const text =
+        req.positionals.length >= 3
+          ? req.positionals.slice(2).join(' ')
+          : req.positionals.slice(1).join(' ');
       if (!text) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' },
+        };
       }
       const resolvedRefTarget = resolveRefTarget({
         session,
@@ -266,7 +301,13 @@ export async function handleInteractionCommands(params: {
       if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
       const { ref, node, snapshotNodes } = resolvedRefTarget.target;
       if (!node.rect) {
-        return { ok: false, error: { code: 'COMMAND_FAILED', message: `Ref ${req.positionals[0]} not found or has no bounds` } };
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `Ref ${req.positionals[0]} not found or has no bounds`,
+          },
+        };
       }
       const nodeType = node.type ?? '';
       const fillWarning =
@@ -274,7 +315,9 @@ export async function handleInteractionCommands(params: {
           ? `fill target ${req.positionals[0]} resolved to "${nodeType}", attempting fill anyway.`
           : undefined;
       const refLabel = resolveRefLabel(node, snapshotNodes);
-      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
+      const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+        action: 'fill',
+      });
       const { x, y } = centerOfRect(node.rect);
       const actionStartedAt = Date.now();
       const data = await dispatch(
@@ -298,11 +341,18 @@ export async function handleInteractionCommands(params: {
         flags: req.flags ?? {},
         result: { ...resultPayload, refLabel, selectorChain },
       });
-      recordTouchVisualizationEvent(session, command, req.positionals ?? [], {
-        ...resultPayload,
-        refLabel,
-        selectorChain,
-      }, (req.flags ?? {}) as Record<string, unknown>, actionStartedAt);
+      recordTouchVisualizationEvent(
+        session,
+        command,
+        req.positionals ?? [],
+        {
+          ...resultPayload,
+          refLabel,
+          selectorChain,
+        },
+        (req.flags ?? {}) as Record<string, unknown>,
+        actionStartedAt,
+      );
       return { ok: true, data: resultPayload };
     }
     if (!session) {
@@ -311,14 +361,22 @@ export async function handleInteractionCommands(params: {
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
       };
     }
-    const selectorArgs = splitSelectorFromArgs(req.positionals ?? [], { preferTrailingValue: true });
+    const selectorArgs = splitSelectorFromArgs(req.positionals ?? [], {
+      preferTrailingValue: true,
+    });
     if (selectorArgs) {
       if (selectorArgs.rest.length === 0) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' },
+        };
       }
       const text = selectorArgs.rest.join(' ').trim();
       if (!text) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' } };
+        return {
+          ok: false,
+          error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' },
+        };
       }
       const chain = parseSelectorChain(selectorArgs.selectorExpression);
       const snapshot = await captureSnapshotForSession(
@@ -357,10 +415,18 @@ export async function handleInteractionCommands(params: {
           : undefined;
       const { x, y } = centerOfRect(resolved.node.rect);
       const actionStartedAt = Date.now();
-      const data = await dispatch(session.device, 'fill', [String(x), String(y), text], req.flags?.out, {
-        ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+      const data = await dispatch(
+        session.device,
+        'fill',
+        [String(x), String(y), text],
+        req.flags?.out,
+        {
+          ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        },
+      );
+      const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+        action: 'fill',
       });
-      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'fill' });
       const resultPayload: Record<string, unknown> = {
         ...(data ?? { x, y, text }),
         selector: resolved.selector.raw,
@@ -388,14 +454,20 @@ export async function handleInteractionCommands(params: {
     }
     return {
       ok: false,
-      error: { code: 'INVALID_ARGS', message: 'fill requires x y text, @ref text, or selector text' },
+      error: {
+        code: 'INVALID_ARGS',
+        message: 'fill requires x y text, @ref text, or selector text',
+      },
     };
   }
 
   if (command === 'get') {
     const sub = req.positionals?.[0];
     if (sub !== 'text' && sub !== 'attrs') {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'get only supports text or attrs' } };
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: 'get only supports text or attrs' },
+      };
     }
     const session = sessionStore.get(sessionName);
     if (!session) {
@@ -414,7 +486,8 @@ export async function handleInteractionCommands(params: {
     if (refInput.startsWith('@')) {
       const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('get', req.flags);
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-      const labelCandidate = req.positionals.length > 2 ? req.positionals.slice(2).join(' ').trim() : '';
+      const labelCandidate =
+        req.positionals.length > 2 ? req.positionals.slice(2).join(' ').trim() : '';
       const resolvedRefTarget = resolveRefTarget({
         session,
         refInput,
@@ -425,7 +498,9 @@ export async function handleInteractionCommands(params: {
       });
       if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
       const { ref, node } = resolvedRefTarget.target;
-      const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
+      const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+        action: 'get',
+      });
       if (sub === 'attrs') {
         sessionStore.recordAction(session, {
           command,
@@ -482,7 +557,9 @@ export async function handleInteractionCommands(params: {
       };
     }
     const node = resolved.node;
-    const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
+    const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+      action: 'get',
+    });
     if (sub === 'attrs') {
       sessionStore.recordAction(session, {
         command,
@@ -594,7 +671,10 @@ export async function handleInteractionCommands(params: {
           matches: matched.matches,
         },
       });
-      return { ok: true, data: { predicate, pass: true, selector: matched.selector.raw, matches: matched.matches } };
+      return {
+        ok: true,
+        data: { predicate, pass: true, selector: matched.selector.raw, matches: matched.matches },
+      };
     }
 
     const resolved = await withDiagnosticTimer(
@@ -656,7 +736,10 @@ export async function handleInteractionCommands(params: {
     if (!isCommandSupportedOnDevice('scrollintoview', session.device)) {
       return {
         ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: 'scrollintoview is not supported on this device' },
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'scrollintoview is not supported on this device',
+        },
       };
     }
     const targetInput = req.positionals?.[0] ?? '';
@@ -665,7 +748,10 @@ export async function handleInteractionCommands(params: {
     }
     const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('scrollintoview', req.flags);
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
-    const fallbackLabel = req.positionals && req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
+    const fallbackLabel =
+      req.positionals && req.positionals.length > 1
+        ? req.positionals.slice(1).join(' ').trim()
+        : '';
     const resolvedRefTarget = resolveRefTarget({
       session,
       refInput: targetInput,
@@ -694,7 +780,9 @@ export async function handleInteractionCommands(params: {
     }
     const plan = buildScrollIntoViewPlan(node.rect, viewportRect);
     const refLabel = resolveRefLabel(node, snapshotNodes);
-    const selectorChain = buildSelectorChainForNode(node, session.device.platform, { action: 'get' });
+    const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+      action: 'get',
+    });
     if (!plan) {
       sessionStore.recordAction(session, {
         command,
@@ -823,12 +911,18 @@ function resolveRefTarget(params: {
   requireRect: boolean;
   invalidRefMessage: string;
   notFoundMessage: string;
-}): { ok: true; target: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] } } | { ok: false; response: DaemonResponse } {
-  const { session, refInput, fallbackLabel, requireRect, invalidRefMessage, notFoundMessage } = params;
+}):
+  | { ok: true; target: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] } }
+  | { ok: false; response: DaemonResponse } {
+  const { session, refInput, fallbackLabel, requireRect, invalidRefMessage, notFoundMessage } =
+    params;
   if (!session.snapshot) {
     return {
       ok: false,
-      response: { ok: false, error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' } },
+      response: {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' },
+      },
     };
   }
   const ref = normalizeRef(refInput);
@@ -865,7 +959,12 @@ function normalizeRect(rect: Rect | undefined): Rect | null {
   const y = Number(rect.y);
   const width = Number(rect.width);
   const height = Number(rect.height);
-  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
     return null;
   }
   if (width < 0 || height < 0) return null;

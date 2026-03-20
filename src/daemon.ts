@@ -7,16 +7,30 @@ import { dispatchCommand, type CommandFlags } from './core/dispatch.ts';
 import { isCommandSupportedOnDevice } from './core/capabilities.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
-import { abortAllIosRunnerSessions, stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
-import type { DaemonArtifact, DaemonRequest, DaemonResponse, DaemonResponseData } from './daemon/types.ts';
+import {
+  abortAllIosRunnerSessions,
+  stopAllIosRunnerSessions,
+} from './platforms/ios/runner-client.ts';
+import type {
+  DaemonArtifact,
+  DaemonRequest,
+  DaemonResponse,
+  DaemonResponseData,
+} from './daemon/types.ts';
 import { SessionStore } from './daemon/session-store.ts';
-import { contextFromFlags as contextFromFlagsWithLog, type DaemonCommandContext } from './daemon/context.ts';
+import {
+  contextFromFlags as contextFromFlagsWithLog,
+  type DaemonCommandContext,
+} from './daemon/context.ts';
 import { handleSessionCommands } from './daemon/handlers/session.ts';
 import { handleSnapshotCommands } from './daemon/handlers/snapshot.ts';
 import { handleFindCommands } from './daemon/handlers/find.ts';
 import { handleRecordTraceCommands } from './daemon/handlers/record-trace.ts';
 import { handleInteractionCommands } from './daemon/handlers/interaction.ts';
-import { augmentTouchVisualizationResult, recordTouchVisualizationEvent } from './daemon/recording-gestures.ts';
+import {
+  augmentTouchVisualizationResult,
+  recordTouchVisualizationEvent,
+} from './daemon/recording-gestures.ts';
 import { handleLeaseCommands } from './daemon/handlers/lease.ts';
 import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
 import { assertSessionSelectorMatches } from './daemon/session-selector.ts';
@@ -29,11 +43,13 @@ import {
   registerRequestAbort,
   resolveRequestTrackingId,
 } from './daemon/request-cancel.ts';
+import { isAgentDeviceDaemonProcess, readProcessStartTime } from './utils/process-identity.ts';
 import {
-  isAgentDeviceDaemonProcess,
-  readProcessStartTime,
-} from './utils/process-identity.ts';
-import { emitDiagnostic, flushDiagnosticsToSessionFile, getDiagnosticsMeta, withDiagnosticsScope } from './utils/diagnostics.ts';
+  emitDiagnostic,
+  flushDiagnosticsToSessionFile,
+  getDiagnosticsMeta,
+  withDiagnosticsScope,
+} from './utils/diagnostics.ts';
 import {
   normalizeTenantId,
   resolveDaemonPaths,
@@ -93,18 +109,26 @@ function contextFromFlags(
 }
 
 function scopeRequestSession(req: DaemonRequest): DaemonRequest {
-  const isolation = resolveSessionIsolationMode(req.meta?.sessionIsolation ?? req.flags?.sessionIsolation);
+  const isolation = resolveSessionIsolationMode(
+    req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+  );
   const rawTenant = req.meta?.tenantId ?? req.flags?.tenant;
   const tenant = normalizeTenantId(rawTenant);
 
   if (rawTenant && !tenant) {
-    throw new AppError('INVALID_ARGS', 'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.');
+    throw new AppError(
+      'INVALID_ARGS',
+      'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+    );
   }
   if (isolation !== 'tenant') {
     return req;
   }
   if (!tenant) {
-    throw new AppError('INVALID_ARGS', 'session isolation mode tenant requires --tenant (or meta.tenantId).');
+    throw new AppError(
+      'INVALID_ARGS',
+      'session isolation mode tenant requires --tenant (or meta.tenantId).',
+    );
   }
   return {
     ...req,
@@ -148,9 +172,13 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         });
 
         const command = scopedReq.command;
-        const finalize = (response: DaemonResponse): DaemonResponse => finalizeDaemonResponse(scopedReq, response);
+        const finalize = (response: DaemonResponse): DaemonResponse =>
+          finalizeDaemonResponse(scopedReq, response);
         const leaseScope = resolveLeaseScope(scopedReq);
-        if (!leaseAdmissionExemptCommands.has(command) && scopedReq.meta?.sessionIsolation === 'tenant') {
+        if (
+          !leaseAdmissionExemptCommands.has(command) &&
+          scopedReq.meta?.sessionIsolation === 'tenant'
+        ) {
           leaseRegistry.assertLeaseAdmission({
             tenantId: leaseScope.tenantId,
             runId: leaseScope.runId,
@@ -223,14 +251,23 @@ async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
         if (!isCommandSupportedOnDevice(command, session.device)) {
           return finalize({
             ok: false,
-            error: { code: 'UNSUPPORTED_OPERATION', message: `${command} is not supported on this device` },
+            error: {
+              code: 'UNSUPPORTED_OPERATION',
+              message: `${command} is not supported on this device`,
+            },
           });
         }
 
         const actionStartedAt = Date.now();
-        const data = await dispatchCommand(session.device, command, scopedReq.positionals ?? [], scopedReq.flags?.out, {
-          ...contextFromFlags(scopedReq.flags, session.appBundleId, session.trace?.outPath),
-        });
+        const data = await dispatchCommand(
+          session.device,
+          command,
+          scopedReq.positionals ?? [],
+          scopedReq.flags?.out,
+          {
+            ...contextFromFlags(scopedReq.flags, session.appBundleId, session.trace?.outPath),
+          },
+        );
         const visualizationData = augmentTouchVisualizationResult(
           session,
           command,
@@ -321,8 +358,8 @@ function registerDownloadableArtifacts(
         field: artifact.field,
         artifactId: trackDownloadableArtifact({
           artifactPath,
-        tenantId: req.meta?.tenantId,
-        fileName: artifact.fileName,
+          tenantId: req.meta?.tenantId,
+          fileName: artifact.fileName,
         }),
         fileName: artifact.fileName,
         localPath: artifact.localPath,
@@ -333,12 +370,9 @@ function registerDownloadableArtifacts(
 
 function collectPendingArtifacts(req: DaemonRequest, data: DaemonResponseData): DaemonArtifact[] {
   const artifacts = Array.isArray(data.artifacts) ? [...data.artifacts] : [];
-  const hasField = (field: string): boolean => artifacts.some((artifact) => artifact?.field === field);
-  if (
-    req.command === 'screenshot'
-    && !hasField('path')
-    && typeof data.path === 'string'
-  ) {
+  const hasField = (field: string): boolean =>
+    artifacts.some((artifact) => artifact?.field === field);
+  if (req.command === 'screenshot' && !hasField('path') && typeof data.path === 'string') {
     artifacts.push({
       field: 'path',
       path: data.path,
@@ -348,11 +382,11 @@ function collectPendingArtifacts(req: DaemonRequest, data: DaemonResponseData): 
   }
   return artifacts.filter((artifact): artifact is DaemonArtifact =>
     Boolean(
-      artifact
-      && typeof artifact.field === 'string'
-      && typeof artifact.path === 'string'
-      && typeof artifact.localPath === 'string'
-      && artifact.localPath.length > 0,
+      artifact &&
+      typeof artifact.field === 'string' &&
+      typeof artifact.path === 'string' &&
+      typeof artifact.localPath === 'string' &&
+      artifact.localPath.length > 0,
     ),
   );
 }
@@ -367,11 +401,8 @@ function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
 function writeInfo(ports: { socketPort?: number; httpPort?: number }): void {
   if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
   fs.writeFileSync(logPath, '');
-  const transport = ports.httpPort && ports.socketPort
-    ? 'dual'
-    : ports.httpPort
-      ? 'http'
-      : 'socket';
+  const transport =
+    ports.httpPort && ports.socketPort ? 'dual' : ports.httpPort ? 'http' : 'socket';
   fs.writeFileSync(
     infoPath,
     JSON.stringify(
@@ -446,9 +477,9 @@ function acquireDaemonLock(): boolean {
   if (tryWriteLock()) return true;
   const existing = readLockInfo();
   if (
-    existing?.pid
-    && existing.pid !== process.pid
-    && isAgentDeviceDaemonProcess(existing.pid, existing.processStartTime)
+    existing?.pid &&
+    existing.pid !== process.pid &&
+    isAgentDeviceDaemonProcess(existing.pid, existing.processStartTime)
   ) {
     return false;
   }

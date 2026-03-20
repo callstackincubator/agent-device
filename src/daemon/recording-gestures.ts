@@ -1,6 +1,7 @@
 import type { RecordingGestureEvent, SessionState } from './types.ts';
 import type { Rect, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { resolveGestureOffsetMs } from './recording-timing.ts';
+import { emitDiagnostic } from '../utils/diagnostics.ts';
 
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
@@ -8,6 +9,10 @@ const DEFAULT_PINCH_DURATION_MS = 280;
 const DEFAULT_SCROLL_FRACTION = 0.4;
 const MIN_SCROLL_FRACTION = 0.2;
 const MAX_SCROLL_FRACTION = 0.7;
+const DEFAULT_SCROLL_REFERENCE_FRAME: ReferenceFrame = {
+  referenceWidth: 1000,
+  referenceHeight: 1000,
+};
 
 export function recordTouchVisualizationEvent(
   session: SessionState,
@@ -22,16 +27,29 @@ export function recordTouchVisualizationEvent(
 
   const tMs = resolveGestureOffsetMs({
     recordingStartedAt: recording.startedAt,
-    runnerStartedAtUptimeMs: recording.runnerStartedAtUptimeMs,
+    runnerStartedAtUptimeMs:
+      recording.platform === 'ios-device-runner' ? recording.runnerStartedAtUptimeMs : undefined,
     gestureStartUptimeMs: readNumber(result?.gestureStartUptimeMs),
     fallbackStartedAtMs: startedAtMs,
   });
   const merged = { ...fallback, ...(result ?? {}) };
-  const referenceFrame = getReferenceFrame(session.snapshot);
+  const referenceFrame = resolveEventReferenceFrame(session.snapshot, merged);
   const normalizedCommand = command === 'scroll' && hasSwipeGeometry(merged) ? 'swipe' : command;
   const events = buildGestureEvents(normalizedCommand, positionals, merged, tMs, referenceFrame);
   if (events.length === 0) return;
   recording.gestureEvents.push(...events);
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'record_touch_visualization_event',
+    data: {
+      session: session.name,
+      command,
+      normalizedCommand,
+      count: events.length,
+      tMs,
+      kinds: events.map((event) => event.kind),
+    },
+  });
 }
 
 export function augmentTouchVisualizationResult(
@@ -43,16 +61,15 @@ export function augmentTouchVisualizationResult(
   if (command !== 'scroll') return result;
 
   const referenceFrame = getReferenceFrame(session.snapshot);
-  if (!referenceFrame) return result;
-
   const merged = { ...(result ?? {}) };
   const contentDirection = readDirection(merged.direction) ?? readDirection(positionals[0]);
   if (!contentDirection) return result;
 
   const amountValue = readNumber(merged.amount) ?? readNumber(positionals[1]);
   const travelFraction = resolveScrollTravelFraction(amountValue);
-  const start = scrollStartPoint(contentDirection, referenceFrame, travelFraction);
-  const end = scrollEndPoint(contentDirection, referenceFrame, travelFraction);
+  const fallbackReferenceFrame = referenceFrame ?? DEFAULT_SCROLL_REFERENCE_FRAME;
+  const start = scrollStartPoint(contentDirection, fallbackReferenceFrame, travelFraction);
+  const end = scrollEndPoint(contentDirection, fallbackReferenceFrame, travelFraction);
 
   return {
     ...merged,
@@ -60,6 +77,8 @@ export function augmentTouchVisualizationResult(
     y1: start.y,
     x2: end.x,
     y2: end.y,
+    referenceWidth: fallbackReferenceFrame.referenceWidth,
+    referenceHeight: fallbackReferenceFrame.referenceHeight,
     durationMs: DEFAULT_SWIPE_DURATION_MS,
   };
 }
@@ -77,6 +96,7 @@ function buildGestureEvents(
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
   switch (command) {
+    case 'click':
     case 'press':
       return buildPressEvents(positionals, result, tMs, referenceFrame);
     case 'fill':
@@ -110,7 +130,7 @@ function buildPressEvents(
   const events: RecordingGestureEvent[] = [];
 
   for (let index = 0; index < count; index += 1) {
-    const baseTime = tMs + (index * intervalMs);
+    const baseTime = tMs + index * intervalMs;
     if (holdMs !== undefined && holdMs > 0) {
       events.push(makeLongPressEvent(baseTime, x, y, holdMs, referenceFrame));
       continue;
@@ -145,9 +165,7 @@ function buildLongPressEvents(
   const y = readNumber(result.y) ?? readNumber(positionals[1]);
   if (x === undefined || y === undefined) return [];
   const durationMs =
-    clampInt(readNumber(result.durationMs), 1)
-    ?? clampInt(readNumber(positionals[2]), 1)
-    ?? 800;
+    clampInt(readNumber(result.durationMs), 1) ?? clampInt(readNumber(positionals[2]), 1) ?? 800;
   return [makeLongPressEvent(tMs, x, y, durationMs, referenceFrame)];
 }
 
@@ -164,9 +182,9 @@ function buildSwipeEvents(
   if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return [];
 
   const durationMs =
-    clampInt(readNumber(result.durationMs), 1)
-    ?? clampInt(readNumber(positionals[4]), 1)
-    ?? DEFAULT_SWIPE_DURATION_MS;
+    clampInt(readNumber(result.durationMs), 1) ??
+    clampInt(readNumber(positionals[4]), 1) ??
+    DEFAULT_SWIPE_DURATION_MS;
   const count = clampInt(readNumber(result.count), 1) ?? 1;
   const pauseMs = clampInt(readNumber(result.pauseMs), 0) ?? 0;
   const pattern = result.pattern === 'ping-pong' ? 'ping-pong' : 'one-way';
@@ -178,7 +196,7 @@ function buildSwipeEvents(
     const startY = reverse ? y2 : y1;
     const endX = reverse ? x1 : x2;
     const endY = reverse ? y1 : y2;
-    const startTime = tMs + (index * (durationMs + pauseMs));
+    const startTime = tMs + index * (durationMs + pauseMs);
     events.push({
       kind: 'swipe',
       tMs: startTime,
@@ -204,15 +222,17 @@ function buildPinchEvents(
   const y = readNumber(result.y) ?? readNumber(positionals[2]);
   const scale = readNumber(result.scale) ?? readNumber(positionals[0]);
   if (x === undefined || y === undefined || scale === undefined || scale <= 0) return [];
-  return [{
-    kind: 'pinch',
-    tMs,
-    x,
-    y,
-    ...referenceFrame,
-    scale,
-    durationMs: DEFAULT_PINCH_DURATION_MS,
-  }];
+  return [
+    {
+      kind: 'pinch',
+      tMs,
+      x,
+      y,
+      ...referenceFrame,
+      scale,
+      durationMs: DEFAULT_PINCH_DURATION_MS,
+    },
+  ];
 }
 
 function makeTapEvent(
@@ -246,10 +266,10 @@ function inferReferenceFrame(nodes: SnapshotNode[]): ReferenceFrame | undefined 
 function getReferenceFrame(snapshot: SnapshotState | undefined): ReferenceFrame | undefined {
   if (!snapshot) return undefined;
   if (
-    typeof snapshot.referenceWidth === 'number'
-    && snapshot.referenceWidth > 0
-    && typeof snapshot.referenceHeight === 'number'
-    && snapshot.referenceHeight > 0
+    typeof snapshot.referenceWidth === 'number' &&
+    snapshot.referenceWidth > 0 &&
+    typeof snapshot.referenceHeight === 'number' &&
+    snapshot.referenceHeight > 0
   ) {
     return {
       referenceWidth: snapshot.referenceWidth,
@@ -263,12 +283,33 @@ function getReferenceFrame(snapshot: SnapshotState | undefined): ReferenceFrame 
   return inferred;
 }
 
+function resolveEventReferenceFrame(
+  snapshot: SnapshotState | undefined,
+  result: Record<string, unknown>,
+): ReferenceFrame | undefined {
+  const snapshotReferenceFrame = getReferenceFrame(snapshot);
+  if (snapshotReferenceFrame) return snapshotReferenceFrame;
+
+  const referenceWidth = readNumber(result.referenceWidth);
+  const referenceHeight = readNumber(result.referenceHeight);
+  if (
+    referenceWidth !== undefined &&
+    referenceWidth > 0 &&
+    referenceHeight !== undefined &&
+    referenceHeight > 0
+  ) {
+    return { referenceWidth, referenceHeight };
+  }
+
+  return undefined;
+}
+
 function hasSwipeGeometry(result: Record<string, unknown>): boolean {
   return (
-    readNumber(result.x1) !== undefined
-    && readNumber(result.y1) !== undefined
-    && readNumber(result.x2) !== undefined
-    && readNumber(result.y2) !== undefined
+    readNumber(result.x1) !== undefined &&
+    readNumber(result.y1) !== undefined &&
+    readNumber(result.x2) !== undefined &&
+    readNumber(result.y2) !== undefined
   );
 }
 
@@ -301,8 +342,8 @@ function scrollStartPoint(
 ): { x: number; y: number } {
   const midX = Math.round(referenceFrame.referenceWidth / 2);
   const midY = Math.round(referenceFrame.referenceHeight / 2);
-  const travelX = Math.round(referenceFrame.referenceWidth * travelFraction / 2);
-  const travelY = Math.round(referenceFrame.referenceHeight * travelFraction / 2);
+  const travelX = Math.round((referenceFrame.referenceWidth * travelFraction) / 2);
+  const travelY = Math.round((referenceFrame.referenceHeight * travelFraction) / 2);
 
   switch (contentDirection) {
     case 'up':
@@ -323,8 +364,8 @@ function scrollEndPoint(
 ): { x: number; y: number } {
   const midX = Math.round(referenceFrame.referenceWidth / 2);
   const midY = Math.round(referenceFrame.referenceHeight / 2);
-  const travelX = Math.round(referenceFrame.referenceWidth * travelFraction / 2);
-  const travelY = Math.round(referenceFrame.referenceHeight * travelFraction / 2);
+  const travelX = Math.round((referenceFrame.referenceWidth * travelFraction) / 2);
+  const travelY = Math.round((referenceFrame.referenceHeight * travelFraction) / 2);
 
   switch (contentDirection) {
     case 'up':
@@ -342,7 +383,10 @@ function inferViewportRect(nodes: SnapshotNode[]): Rect | undefined {
   const candidate = nodes
     .filter((node) => isViewportNode(node.type) && isValidRect(node.rect))
     .map((node) => node.rect)
-    .sort((left, right) => ((right?.width ?? 0) * (right?.height ?? 0)) - ((left?.width ?? 0) * (left?.height ?? 0)))[0];
+    .sort(
+      (left, right) =>
+        (right?.width ?? 0) * (right?.height ?? 0) - (left?.width ?? 0) * (left?.height ?? 0),
+    )[0];
   if (candidate) return candidate;
 
   const rects = nodes.map((node) => node.rect).filter(isValidRect);

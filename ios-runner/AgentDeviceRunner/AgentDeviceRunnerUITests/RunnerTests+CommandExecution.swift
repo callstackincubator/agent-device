@@ -187,6 +187,7 @@ extension RunnerTests {
       do {
         let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
         let fpsLabel = command.fps.map(String.init) ?? "max"
+        let appBundleId = command.appBundleId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         NSLog(
           "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%@",
           requestedOutPath,
@@ -197,12 +198,20 @@ extension RunnerTests {
         let recorderStartUptimeMs = try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }
+        if activeApp.state != .runningForeground {
+          activeApp = activateTarget(bundleId: appBundleId, reason: "record_start_foreground_guard")
+        }
+        let targetAppReadyUptimeMs = captureTargetAppReadyUptimeMs(
+          target: activeApp,
+          bundleId: appBundleId
+        )
         activeRecording = recorder
         return Response(
           ok: true,
           data: DataPayload(
             message: "recording started",
-            recorderStartUptimeMs: recorderStartUptimeMs
+            recorderStartUptimeMs: recorderStartUptimeMs,
+            targetAppReadyUptimeMs: targetAppReadyUptimeMs
           )
         )
       } catch {

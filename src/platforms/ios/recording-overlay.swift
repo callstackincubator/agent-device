@@ -6,6 +6,9 @@ import QuartzCore
 let touchDotRadius: CGFloat = 30
 let touchDotColor = NSColor(calibratedRed: 0.20, green: 0.63, blue: 0.98, alpha: 0.48).cgColor
 let touchDotBorderColor = NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.68).cgColor
+let minimumTapVisibility: CFTimeInterval = 0.75
+let minimumSwipeVisibility: CFTimeInterval = 0.7
+let minimumPinchVisibility: CFTimeInterval = 0.65
 
 struct GestureEnvelope: Decodable {
   let events: [GestureEvent]
@@ -212,7 +215,7 @@ func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALay
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
   opacity.values = [0.0, 0.98, 0.98, 0.0]
-  opacity.keyTimes = [0.0, 0.12, 0.72, 1.0]
+  opacity.keyTimes = [0.0, 0.08, 0.8, 1.0]
 
   let scale = CAKeyframeAnimation(keyPath: "transform.scale")
   scale.values = [0.84, 1.0, 1.0]
@@ -220,7 +223,7 @@ func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALay
 
   let group = CAAnimationGroup()
   group.animations = [opacity, scale]
-  group.duration = 0.42
+  group.duration = minimumTapVisibility
   group.beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
   group.fillMode = .both
   group.isRemovedOnCompletion = false
@@ -228,7 +231,7 @@ func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALay
 }
 
 func addLongPressLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALayer) {
-  let duration = max(0.45, (event.durationMs ?? 800) / 1000.0)
+  let duration = max(0.75, (event.durationMs ?? 800) / 1000.0)
   let layer = makeTouchDotLayer(center: overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize))
   overlayLayer.addSublayer(layer)
 
@@ -254,6 +257,7 @@ func addSwipeLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CA
   let startPoint = overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize)
   let endPoint = overlayPoint(event: event, x: x2, y: y2, renderSize: renderSize)
   let duration = max(0.1, (event.durationMs ?? 250) / 1000.0)
+  let visibleDuration = max(minimumSwipeVisibility, duration + 0.3)
   let beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
 
   let pathLayer = CAShapeLayer()
@@ -277,11 +281,11 @@ func addSwipeLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CA
 
   let strokeOpacity = CAKeyframeAnimation(keyPath: "opacity")
   strokeOpacity.values = [0.0, 0.9, 0.5, 0.0]
-  strokeOpacity.keyTimes = [0.0, 0.1, 0.85, 1.0]
+  strokeOpacity.keyTimes = [0.0, 0.08, 0.82, 1.0]
 
   let strokeGroup = CAAnimationGroup()
   strokeGroup.animations = [stroke, strokeOpacity]
-  strokeGroup.duration = duration + 0.18
+  strokeGroup.duration = visibleDuration
   strokeGroup.beginTime = beginTime
   strokeGroup.fillMode = .both
   strokeGroup.isRemovedOnCompletion = false
@@ -297,11 +301,11 @@ func addSwipeLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CA
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
   opacity.values = [0.0, 1.0, 1.0, 0.0]
-  opacity.keyTimes = [0.0, 0.08, 0.92, 1.0]
+  opacity.keyTimes = [0.0, 0.08, 0.82, 1.0]
 
   let group = CAAnimationGroup()
   group.animations = [position, opacity]
-  group.duration = duration
+  group.duration = visibleDuration
   group.beginTime = beginTime
   group.fillMode = .both
   group.isRemovedOnCompletion = false
@@ -325,7 +329,7 @@ func addPinchDot(
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
   opacity.values = [0.0, 1.0, 1.0, 0.0]
-  opacity.keyTimes = [0.0, 0.12, 0.88, 1.0]
+  opacity.keyTimes = [0.0, 0.1, 0.82, 1.0]
 
   let group = CAAnimationGroup()
   group.animations = [position, opacity]
@@ -337,7 +341,7 @@ func addPinchDot(
 }
 
 func addPinchLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALayer) {
-  let duration = max(0.18, (event.durationMs ?? 280) / 1000.0)
+  let duration = max(minimumPinchVisibility, (event.durationMs ?? 280) / 1000.0)
   let beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
   let startOffset: CGFloat = 28
   let scale = max(0.2, min(event.scale ?? 1.0, 3.0))

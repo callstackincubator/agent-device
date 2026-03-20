@@ -62,6 +62,18 @@ extension RunnerTests {
     return target
   }
 
+  func captureTargetAppReadyUptimeMs(target: XCUIApplication, bundleId: String) -> Double? {
+    let deadline = Date().addingTimeInterval(appExistenceTimeout)
+    while Date() < deadline {
+      if target.waitForExistence(timeout: 0.2), target.state == .runningForeground {
+        return ProcessInfo.processInfo.systemUptime * 1000
+      }
+      sleepFor(0.1)
+    }
+    NSLog("AGENT_DEVICE_RUNNER_TARGET_READY_TIMEOUT bundle=%@", bundleId)
+    return nil
+  }
+
   func withTemporaryScrollIdleTimeoutIfSupported(
     _ target: XCUIApplication,
     operation: () -> Void

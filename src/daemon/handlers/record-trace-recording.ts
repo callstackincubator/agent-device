@@ -13,17 +13,17 @@ import type {
 } from '../types.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
+import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import {
   IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   runIosRunnerCommand,
 } from '../../platforms/ios/runner-client.ts';
-import { overlayRecordingTouches } from '../../platforms/ios/recording-overlay.ts';
-import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import {
-  readAndroidShowTouchesSetting,
-  restoreAndroidShowTouchesSetting,
-  setAndroidShowTouchesEnabled,
-} from '../../platforms/android/touch-visualization.ts';
+  overlayRecordingTouches,
+  trimRecordingStart,
+} from '../../platforms/ios/recording-overlay.ts';
+import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
+import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -32,9 +32,9 @@ export type RecordTraceDeps = {
   runCmd: typeof runCmd;
   runCmdBackground: typeof runCmdBackground;
   runIosRunnerCommand: typeof runIosRunnerCommand;
-  readAndroidShowTouchesSetting: typeof readAndroidShowTouchesSetting;
-  setAndroidShowTouchesEnabled: typeof setAndroidShowTouchesEnabled;
-  restoreAndroidShowTouchesSetting: typeof restoreAndroidShowTouchesSetting;
+  waitForStableFile: typeof waitForStableFile;
+  isPlayableVideo: typeof isPlayableVideo;
+  trimRecordingStart: typeof trimRecordingStart;
   overlayRecordingTouches: typeof overlayRecordingTouches;
 };
 
@@ -43,9 +43,9 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
     runCmd,
     runCmdBackground,
     runIosRunnerCommand,
-    readAndroidShowTouchesSetting,
-    setAndroidShowTouchesEnabled,
-    restoreAndroidShowTouchesSetting,
+    waitForStableFile,
+    isPlayableVideo,
+    trimRecordingStart,
     overlayRecordingTouches,
     ...overrides,
   };
@@ -53,6 +53,15 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function failedExecMessage(
+  result: { stdout: string; stderr: string; exitCode: number },
+  command: string,
+): string {
+  return (
+    result.stderr.trim() || result.stdout.trim() || `${command} exited with code ${result.exitCode}`
+  );
 }
 
 function isRunnerRecordingAlreadyInProgressError(error: unknown): boolean {
@@ -96,7 +105,6 @@ function buildRecordingBase(
   outPath: string;
   clientOutPath?: string;
   startedAt: number;
-  runnerStartedAtUptimeMs?: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
 } {
@@ -107,6 +115,18 @@ function buildRecordingBase(
     showTouches: req.flags?.hideTouches !== true,
     gestureEvents: [],
   };
+}
+
+function resolveIosRecordingTrimStartMs(
+  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios-device-runner' }>,
+): number {
+  if (
+    typeof recording.runnerStartedAtUptimeMs !== 'number' ||
+    typeof recording.targetAppReadyUptimeMs !== 'number'
+  ) {
+    return 0;
+  }
+  return Math.max(0, recording.targetAppReadyUptimeMs - recording.runnerStartedAtUptimeMs);
 }
 
 async function startIosDeviceRecording(params: {
@@ -134,6 +154,8 @@ async function startIosDeviceRecording(params: {
   const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
   const remotePath = `tmp/${recordingFileName}`;
   const runnerOptions = getRunnerOptions(req, logPath, activeSession);
+  let runnerStartedAtUptimeMs: number | undefined;
+  let targetAppReadyUptimeMs: number | undefined;
   const startRunnerRecording = async () =>
     deps.runIosRunnerCommand(
       device,
@@ -148,9 +170,13 @@ async function startIosDeviceRecording(params: {
 
   try {
     const startResult = await startRunnerRecording();
-    recordingBase.runnerStartedAtUptimeMs =
+    runnerStartedAtUptimeMs =
       typeof startResult.recorderStartUptimeMs === 'number'
         ? startResult.recorderStartUptimeMs
+        : undefined;
+    targetAppReadyUptimeMs =
+      typeof startResult.targetAppReadyUptimeMs === 'number'
+        ? startResult.targetAppReadyUptimeMs
         : undefined;
   } catch (error) {
     if (!isRunnerRecordingAlreadyInProgressError(error)) {
@@ -198,9 +224,13 @@ async function startIosDeviceRecording(params: {
 
     try {
       const startResult = await startRunnerRecording();
-      recordingBase.runnerStartedAtUptimeMs =
+      runnerStartedAtUptimeMs =
         typeof startResult.recorderStartUptimeMs === 'number'
           ? startResult.recorderStartUptimeMs
+          : undefined;
+      targetAppReadyUptimeMs =
+        typeof startResult.targetAppReadyUptimeMs === 'number'
+          ? startResult.targetAppReadyUptimeMs
           : undefined;
     } catch (retryError) {
       return {
@@ -213,52 +243,11 @@ async function startIosDeviceRecording(params: {
     }
   }
 
-  return { platform: 'ios-device-runner', remotePath, ...recordingBase };
-}
-
-async function startAndroidRecording(params: {
-  deps: RecordTraceDeps;
-  device: SessionState['device'];
-  recordingBase: ReturnType<typeof buildRecordingBase>;
-}): Promise<DaemonResponse | NonNullable<SessionState['recording']>> {
-  const { deps, device, recordingBase } = params;
-  const remotePath = `/sdcard/agent-device-recording-${Date.now()}.mp4`;
-  const { child, wait } = deps.runCmdBackground(
-    'adb',
-    ['-s', device.id, 'shell', 'screenrecord', remotePath],
-    {
-      allowFailure: true,
-    },
-  );
-
-  let androidShowTouchesSetting: string | null | undefined;
-  if (recordingBase.showTouches) {
-    try {
-      androidShowTouchesSetting = await deps.readAndroidShowTouchesSetting(device);
-      await deps.setAndroidShowTouchesEnabled(device, true);
-    } catch (error) {
-      child.kill('SIGINT');
-      try {
-        await wait;
-      } catch {
-        // ignore cleanup failure after tap-indicator setup error
-      }
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to enable Android tap indicators: ${errorMessage(error)}`,
-        },
-      };
-    }
-  }
-
   return {
-    platform: 'android',
+    platform: 'ios-device-runner',
     remotePath,
-    child,
-    wait,
-    androidShowTouchesSetting,
+    runnerStartedAtUptimeMs,
+    targetAppReadyUptimeMs,
     ...recordingBase,
   };
 }
@@ -445,10 +434,19 @@ async function stopIosDeviceRecording(params: {
     };
   }
 
+  const trimStartMs = resolveIosRecordingTrimStartMs(recording);
+  if (trimStartMs > 0) {
+    await deps.trimRecordingStart({
+      videoPath: recording.outPath,
+      trimStartMs,
+    });
+  }
+
   if (recording.showTouches) {
     await deps.overlayRecordingTouches({
       videoPath: recording.outPath,
       events: recording.gestureEvents,
+      targetLabel: 'iOS recording',
     });
   }
 
@@ -461,50 +459,28 @@ async function stopNonRunnerRecording(params: {
   recording: Exclude<NonNullable<SessionState['recording']>, { platform: 'ios-device-runner' }>;
 }): Promise<DaemonResponse | null> {
   const { deps, device, recording } = params;
-  recording.child.kill('SIGINT');
-  try {
-    await recording.wait;
-  } catch {
-    // ignore
+  if (recording.platform === 'android') {
+    return await stopAndroidRecording({ deps, device, recording });
   }
 
-  if (recording.platform === 'android' && recording.remotePath) {
-    let restoreShowTouchesError: unknown;
-    try {
-      await deps.runCmd('adb', ['-s', device.id, 'pull', recording.remotePath, recording.outPath], {
-        allowFailure: true,
-      });
-      await deps.runCmd('adb', ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath], {
-        allowFailure: true,
-      });
-    } catch {
-      // ignore
-    } finally {
-      if (recording.showTouches) {
-        try {
-          await deps.restoreAndroidShowTouchesSetting(device, recording.androidShowTouchesSetting);
-        } catch (error) {
-          restoreShowTouchesError = error;
-        }
-      }
-    }
+  recording.child.kill('SIGINT');
 
-    if (restoreShowTouchesError) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to restore Android tap indicators: ${errorMessage(restoreShowTouchesError)}`,
-        },
-      };
-    }
-    return null;
+  const stopResult = await recording.wait;
+  if (stopResult.exitCode !== 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: `failed to stop recording: ${failedExecMessage(stopResult, 'simctl recordVideo')}`,
+      },
+    };
   }
 
   if (recording.showTouches) {
     await deps.overlayRecordingTouches({
       videoPath: recording.outPath,
       events: recording.gestureEvents,
+      targetLabel: 'iOS recording',
     });
   }
 
