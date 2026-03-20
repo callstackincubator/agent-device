@@ -138,13 +138,12 @@ export function loadRemoteConfigFile(options: {
   return flags;
 }
 
-export function resolveRemoteOpenDefaults(options: {
-  command?: string;
+export function resolveRemoteConfigDefaults(options: {
   cliFlags: CliFlags;
   cwd: string;
   env: EnvMap;
 }): Partial<CliFlags> {
-  if (options.command !== 'open' || !options.cliFlags.remoteConfig) {
+  if (!options.cliFlags.remoteConfig) {
     return {};
   }
 
