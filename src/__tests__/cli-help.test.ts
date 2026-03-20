@@ -110,6 +110,13 @@ test('unknown command --help prints error plus global usage and skips daemon dis
   assert.match(result.stdout, /Commands:/);
 });
 
+test('runtime command is rejected before daemon dispatch', async () => {
+  const result = await runCliCapture(['runtime', 'show']);
+  assert.equal(result.code, 1);
+  assert.equal(result.daemonCalls, 0);
+  assert.match(result.stderr, /Error \(INVALID_ARGS\): runtime command was removed/);
+});
+
 test('help rejects multiple positional commands and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'appstate', 'extra']);
   assert.equal(result.code, 1);

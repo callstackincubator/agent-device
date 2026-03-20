@@ -519,8 +519,15 @@ test('open runtime payload replaces stored session runtime atomically', async ()
   });
   assert.deepEqual(
     sessionStore.get(sessionName)?.actions.map((action) => action.command),
-    ['runtime', 'open'],
+    ['open'],
   );
+  assert.deepEqual(sessionStore.get(sessionName)?.actions[0]?.runtime, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    bundleUrl: undefined,
+    launchUrl: undefined,
+  });
   if (response && response.ok) {
     assert.deepEqual(response.data?.runtime, {
       platform: 'android',
@@ -2680,6 +2687,46 @@ test('replay parses runtime set flags and replays runtime command', async () => 
   assert.equal(invoked[0]?.command, 'runtime');
   assert.deepEqual(invoked[0]?.positionals, ['set']);
   assert.deepEqual(invoked[0]?.flags, {
+    platform: 'android',
+    metroHost: '10.0.0.10',
+    metroPort: 8081,
+    launchUrl: 'myapp://dev',
+  });
+});
+
+test('replay parses inline open runtime flags and replays open with runtime payload', async () => {
+  const sessionStore = makeSessionStore();
+  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-open-runtime-'));
+  const replayPath = path.join(replayRoot, 'runtime-open.ad');
+  fs.writeFileSync(
+    replayPath,
+    'open "Demo" --relaunch --platform android --metro-host 10.0.0.10 --metro-port 8081 --launch-url "myapp://dev"\n',
+  );
+  const invoked: DaemonRequest[] = [];
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'replay',
+      positionals: [replayPath],
+      flags: {},
+      meta: { cwd: replayRoot },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (request) => {
+      invoked.push(request);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(invoked[0]?.command, 'open');
+  assert.deepEqual(invoked[0]?.positionals, ['Demo']);
+  assert.deepEqual(invoked[0]?.flags, { relaunch: true });
+  assert.deepEqual(invoked[0]?.runtime, {
     platform: 'android',
     metroHost: '10.0.0.10',
     metroPort: 8081,

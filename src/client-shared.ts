@@ -9,7 +9,6 @@ import type {
   AppOpenResult,
   CaptureSnapshotResult,
   EnsureSimulatorResult,
-  RuntimeResult,
   SessionCloseResult,
 } from './client-types.ts';
 import type { Platform } from './utils/device.ts';
@@ -94,15 +93,6 @@ export function serializeEnsureSimulatorResult(
     ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
     created: result.created,
     booted: result.booted,
-  };
-}
-
-export function serializeRuntimeResult(result: RuntimeResult): Record<string, unknown> {
-  return {
-    session: result.session,
-    configured: result.configured,
-    ...(result.cleared ? { cleared: true } : {}),
-    ...(result.runtime ? { runtime: result.runtime } : {}),
   };
 }
 

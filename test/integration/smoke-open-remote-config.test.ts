@@ -1,0 +1,327 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import net from 'node:net';
+import { runCli } from '../../src/cli.ts';
+
+// Smoke coverage for the repo-local remote host flow: resolve a remote profile,
+// prepare Metro through the host bridge, and forward inline runtime hints on open.
+
+class ExitSignal extends Error {
+  public readonly code: number;
+
+  constructor(code: number) {
+    super(`EXIT_${code}`);
+    this.code = code;
+  }
+}
+
+type CliJsonResult = {
+  code: number | null;
+  json?: any;
+  stdout: string;
+  stderr: string;
+};
+
+let loopbackBindSupportPromise: Promise<boolean> | null = null;
+
+async function runCliJson(args: string[], env?: NodeJS.ProcessEnv): Promise<CliJsonResult> {
+  let code: number | null = null;
+  let stdout = '';
+  let stderr = '';
+
+  const originalEnv = process.env;
+  const originalExit = process.exit;
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+  process.env = {
+    ...process.env,
+    ...env,
+  };
+  (process as any).exit = ((nextCode?: number) => {
+    throw new ExitSignal(nextCode ?? 0);
+  }) as typeof process.exit;
+  (process.stdout as any).write = ((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+  (process.stderr as any).write = ((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+
+  try {
+    await runCli(args);
+  } catch (error) {
+    if (error instanceof ExitSignal) {
+      code = error.code;
+    } else {
+      throw error;
+    }
+  } finally {
+    process.env = originalEnv;
+    process.exit = originalExit;
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+  }
+
+  let json: any;
+  try {
+    json = JSON.parse(stdout);
+  } catch {
+    json = undefined;
+  }
+  return {
+    code,
+    json,
+    stdout,
+    stderr,
+  };
+}
+
+async function supportsLoopbackBind(): Promise<boolean> {
+  if (loopbackBindSupportPromise) {
+    return await loopbackBindSupportPromise;
+  }
+  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => {
+      resolve(false);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      server.close(() => resolve(true));
+    });
+  });
+  return await loopbackBindSupportPromise;
+}
+
+async function listen(server: http.Server): Promise<number> {
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Expected TCP server address');
+  }
+  return address.port;
+}
+
+async function closeServer(server: http.Server): Promise<void> {
+  server.closeAllConnections();
+  server.closeIdleConnections();
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
+async function readJsonBody(req: http.IncomingMessage): Promise<any> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const body = Buffer.concat(chunks).toString('utf8');
+  return body ? JSON.parse(body) : {};
+}
+
+test('open --remote-config prepares Metro and sends bridged runtime to remote daemon', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-open-smoke-'));
+  const projectRoot = path.join(root, 'project');
+  const configDir = path.join(root, 'config');
+  fs.mkdirSync(projectRoot, { recursive: true });
+  fs.mkdirSync(configDir, { recursive: true });
+  fs.mkdirSync(path.join(projectRoot, 'node_modules'), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({
+      name: 'remote-open-smoke',
+      version: '1.0.0',
+      dependencies: {
+        'react-native': '0.79.0',
+      },
+    }),
+    'utf8',
+  );
+
+  const metroServer = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/status') {
+      res.writeHead(200, {
+        'content-type': 'text/plain',
+        connection: 'close',
+      });
+      res.end('packager-status:running');
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  const metroPort = await listen(metroServer);
+  t.after(async () => {
+    await closeServer(metroServer);
+  });
+
+  let capturedBridgeRequest: any;
+  let capturedRpcRequest: any;
+  const sharedToken = 'test-token';
+  let hostPort = 0;
+  const hostServer = http.createServer(async (req, res) => {
+    if (req.method === 'GET' && req.url === '/agent-device/health') {
+      res.writeHead(200, {
+        'content-type': 'application/json',
+        connection: 'close',
+      });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/metro/bridge') {
+      capturedBridgeRequest = {
+        authorization: req.headers.authorization,
+        token: req.headers['x-agent-device-token'],
+        body: await readJsonBody(req),
+      };
+      res.writeHead(200, {
+        'content-type': 'application/json',
+        connection: 'close',
+      });
+      res.end(
+        JSON.stringify({
+          data: {
+            enabled: true,
+            base_url: `http://127.0.0.1:${hostPort}`,
+            status_url: `http://127.0.0.1:${metroPort}/status`,
+            bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+            ios_runtime: {
+              metro_host: '127.0.0.1',
+              metro_port: metroPort,
+              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+              launch_url: 'myapp://ios-dev',
+            },
+            android_runtime: {
+              metro_host: '10.0.2.2',
+              metro_port: metroPort,
+              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=android',
+              launch_url: 'myapp://android-dev',
+            },
+            upstream: {
+              bundle_url:
+                'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+              host: '127.0.0.1',
+              port: metroPort,
+              status_url: `http://127.0.0.1:${metroPort}/status`,
+            },
+            probe: {
+              reachable: true,
+              status_code: 200,
+              latency_ms: 1,
+              detail: 'ok',
+            },
+          },
+        }),
+      );
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/agent-device/rpc') {
+      capturedRpcRequest = {
+        authorization: req.headers.authorization,
+        token: req.headers['x-agent-device-token'],
+        body: await readJsonBody(req),
+      };
+      const runtime = capturedRpcRequest.body?.params?.runtime;
+      res.writeHead(200, {
+        'content-type': 'application/json',
+        connection: 'close',
+      });
+      res.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: capturedRpcRequest.body?.id ?? 'remote-open-smoke',
+          result: {
+            ok: true,
+            data: {
+              session: 'qa-android',
+              appName: 'Demo',
+              appBundleId: 'com.example.demo',
+              platform: 'android',
+              target: 'mobile',
+              device: 'Pixel',
+              id: 'emulator-5554',
+              serial: 'emulator-5554',
+              runtime,
+            },
+          },
+        }),
+      );
+      return;
+    }
+
+    res.writeHead(404);
+    res.end();
+  });
+  hostPort = await listen(hostServer);
+  t.after(async () => {
+    await closeServer(hostServer);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const remoteConfigPath = path.join(configDir, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      session: 'qa-android',
+      platform: 'android',
+      daemonBaseUrl: `http://127.0.0.1:${hostPort}/agent-device`,
+      metroProjectRoot: '../project',
+      metroPublicBaseUrl: 'https://public.example.test',
+      metroProxyBaseUrl: `http://127.0.0.1:${hostPort}`,
+      metroPreparePort: metroPort,
+    }),
+    'utf8',
+  );
+
+  const result = await runCliJson(['open', 'Demo', '--remote-config', remoteConfigPath, '--json'], {
+    AGENT_DEVICE_DAEMON_AUTH_TOKEN: sharedToken,
+    AGENT_DEVICE_PROXY_TOKEN: sharedToken,
+  });
+
+  assert.equal(result.code, null, `${result.stderr}\n${result.stdout}`);
+  assert.equal(result.json?.success, true, JSON.stringify(result.json));
+
+  assert.equal(capturedBridgeRequest?.authorization, `Bearer ${sharedToken}`);
+  assert.equal(capturedRpcRequest?.authorization, `Bearer ${sharedToken}`);
+  assert.equal(capturedRpcRequest?.body?.method, 'agent_device.command');
+  assert.equal(capturedRpcRequest?.body?.params?.session, 'qa-android');
+  assert.equal(capturedRpcRequest?.body?.params?.command, 'open');
+  assert.deepEqual(capturedRpcRequest?.body?.params?.positionals, ['Demo']);
+  assert.deepEqual(capturedRpcRequest?.body?.params?.runtime, {
+    platform: 'android',
+    metroHost: '10.0.2.2',
+    metroPort: metroPort,
+    bundleUrl: 'https://bridge.example.test/index.bundle?platform=android',
+    launchUrl: 'myapp://android-dev',
+  });
+  assert.equal(
+    capturedBridgeRequest?.body?.ios_runtime?.metro_bundle_url,
+    'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+  );
+  assert.deepEqual(result.json?.data?.runtime, {
+    platform: 'android',
+    metroHost: '10.0.2.2',
+    metroPort: metroPort,
+    bundleUrl: 'https://bridge.example.test/index.bundle?platform=android',
+    launchUrl: 'myapp://android-dev',
+  });
+});

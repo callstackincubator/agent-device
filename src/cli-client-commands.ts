@@ -11,18 +11,13 @@ import {
   serializeEnsureSimulatorResult,
   serializeInstallFromSourceResult,
   serializeOpenResult,
-  serializeRuntimeResult,
   serializeSessionListEntry,
   serializeSnapshotResult,
 } from './client-shared.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
-import type {
-  AgentDeviceClient,
-  AgentDeviceDevice,
-  AppDeployResult,
-  RuntimeResult,
-} from './client.ts';
+import { resolveRemoteOpenRuntime } from './utils/remote-open.ts';
+import type { AgentDeviceClient, AgentDeviceDevice, AppDeployResult } from './client.ts';
 
 export async function tryRunClientBackedCommand(params: {
   command: string;
@@ -83,27 +78,6 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     }
     return true;
   },
-  runtime: async ({ positionals, flags, client }) => {
-    const action = (positionals[0] ?? 'show').toLowerCase();
-    if (action === 'set') {
-      writeRuntimeResult(
-        await client.runtime.set({
-          platform: flags.platform,
-          metroHost: flags.metroHost,
-          metroPort: flags.metroPort,
-          bundleUrl: flags.bundleUrl,
-          launchUrl: flags.launchUrl,
-        }),
-        flags,
-      );
-      return true;
-    }
-    if (action === 'show') {
-      writeRuntimeResult(await client.runtime.show(), flags);
-      return true;
-    }
-    return false;
-  },
   metro: async ({ positionals, flags, client }) => {
     const action = (positionals[0] ?? '').toLowerCase();
     if (action !== 'prepare') {
@@ -151,6 +125,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     if (!positionals[0]) {
       return false;
     }
+    const runtime = await resolveRemoteOpenRuntime(flags, client);
     const result = await client.apps.open({
       app: positionals[0],
       url: positionals[1],
@@ -158,6 +133,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       relaunch: flags.relaunch,
       saveScript: flags.saveScript,
       noRecord: flags.noRecord,
+      runtime,
       ...buildSelectionOptions(flags),
     });
     if (flags.json) printJson({ success: true, data: serializeOpenResult(result) });
@@ -324,17 +300,6 @@ function parseInstallSourceHeaders(
     headers[name] = value;
   }
   return headers;
-}
-
-function writeRuntimeResult(result: RuntimeResult, flags: CliFlags): void {
-  const data = serializeRuntimeResult(result);
-  if (flags.json) {
-    printJson({ success: true, data });
-  } else if (!result.configured) {
-    process.stdout.write('No runtime hints configured\n');
-  } else {
-    process.stdout.write(`${JSON.stringify(result.runtime ?? {}, null, 2)}\n`);
-  }
 }
 
 function writeMetroPrepareResult(result: unknown, flags: CliFlags): void {

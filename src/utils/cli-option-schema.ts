@@ -22,7 +22,13 @@ export type OptionSpec = {
   supportsCommand(command: string | null): boolean;
 };
 
-const CONFIG_EXCLUDED_FLAG_KEYS = new Set<FlagKey>(['config', 'help', 'version', 'batchSteps']);
+const CONFIG_EXCLUDED_FLAG_KEYS = new Set<FlagKey>([
+  'config',
+  'remoteConfig',
+  'help',
+  'version',
+  'batchSteps',
+]);
 
 const LEGACY_ENV_VAR_NAMES: Partial<Record<FlagKey, string[]>> = {
   iosSimulatorDeviceSet: ['IOS_SIMULATOR_DEVICE_SET'],

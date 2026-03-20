@@ -33,7 +33,7 @@ Use this skill as a router, not a full manual.
 - iOS local QA: use simulators unless the task explicitly requires a physical device.
 - iOS local QA in mixed simulator/device environments: run `ensure-simulator` first and pass `--device`, `--udid`, or `--ios-simulator-device-set` on later commands.
 - Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
-- Android React Native + Metro flows: set runtime hints with `runtime set` before `open <package> --relaunch`.
+- Android React Native + Metro flows: prefer `open <package> --remote-config <path> --relaunch`.
 - In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
 - For session-bound automation runs, prefer a pre-bound session/platform instead of repeating selectors on every command: set `AGENT_DEVICE_SESSION`, set `AGENT_DEVICE_PLATFORM`, and the daemon will enforce the shared lock policy across CLI, typed client, and RPC entry points.
 - Use `--session-lock reject|strip` (or `AGENT_DEVICE_SESSION_LOCK`) only when you need to override the default reject behavior. Lock mode applies to nested `batch` steps too.
@@ -67,8 +67,7 @@ Use this when a physical iPhone is also connected and you want deterministic sim
 
 ```bash
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
-agent-device runtime set --session qa-android --platform android --metro-host 10.0.2.2 --metro-port 8081
-agent-device open com.example.myapp --platform android --serial emulator-5554 --session qa-android --relaunch
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device snapshot -i
 agent-device close
 ```
@@ -186,7 +185,7 @@ That includes bound-session defaults such as `sessionLock` / `AGENT_DEVICE_SESSI
 For Android emulators by AVD name, use `boot --platform android --device <avd-name>`.
 For Android emulators without GUI, add `--headless`.
 Use `--target mobile|tv` with `--platform` (required) to pick phone/tablet vs TV targets (AndroidTV/tvOS).
-For Android React Native + Metro flows, install or reinstall the APK first, set runtime hints with `runtime set`, then use `open <package> --relaunch`; do not use `open <apk|aab> --relaunch`.
+For Android React Native + Metro flows, install or reinstall the APK first, then use `open <package> --remote-config <path> --relaunch`; do not use `open <apk|aab> --relaunch`.
 For local iOS QA in mixed simulator/device environments, use `ensure-simulator` and pass `--device` or `--udid` so automation does not attach to a physical device by accident.
 For session-bound automation, prefer `AGENT_DEVICE_SESSION` + `AGENT_DEVICE_PLATFORM`; that bound-session default now enables lock mode automatically.
 

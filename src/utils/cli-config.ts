@@ -25,6 +25,28 @@ export function resolveConfigBackedFlagDefaults(options: {
   return mergeDefinedFlags(defaults, readEnvFlagDefaults(env, options.command));
 }
 
+export function readEnvFlagDefaultsForKeys(
+  env: EnvMap,
+  keys: readonly FlagKey[],
+): Partial<CliFlags> {
+  const flags: Partial<CliFlags> = {};
+  for (const key of keys) {
+    const spec = getOptionSpec(key);
+    if (!spec) continue;
+    const envValue = spec.env.names
+      .map((name) => ({ name, value: env[name] }))
+      .find((entry) => typeof entry.value === 'string' && entry.value.trim().length > 0);
+    if (!envValue) continue;
+    (flags as Record<string, unknown>)[key] = parseOptionValueFromSource(
+      spec,
+      envValue.value as string,
+      `environment variable ${envValue.name}`,
+      envValue.name,
+    );
+  }
+  return flags;
+}
+
 function resolveConfigPaths(
   cwd: string,
   explicitCliConfigPath: string | undefined,

@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { writeReplayScript } from '../session-replay-script.ts';
+import type { SessionAction, SessionState } from '../../types.ts';
+
+function makeSession(): SessionState {
+  return {
+    name: 'default',
+    device: {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    actions: [],
+  };
+}
+
+test('writeReplayScript preserves inline open runtime hints', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-open-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'open',
+      positionals: ['Demo'],
+      runtime: {
+        platform: 'android',
+        metroHost: '10.0.0.10',
+        metroPort: 8081,
+        launchUrl: 'myapp://dev',
+      },
+      flags: { relaunch: true },
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+
+  assert.match(
+    script,
+    /open "Demo" --relaunch --platform android --metro-host 10\.0\.0\.10 --metro-port 8081 --launch-url myapp:\/\/dev/,
+  );
+});

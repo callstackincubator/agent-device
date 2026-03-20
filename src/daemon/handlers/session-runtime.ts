@@ -225,46 +225,6 @@ export function tryResolveOpenRuntimeHints(
   }
 }
 
-export function recordOpenRuntimeAction(params: {
-  req: DaemonRequest;
-  sessionStore: SessionStore;
-  session: SessionState;
-  sessionName: string;
-  runtime: SessionRuntimeHints | undefined;
-}): void {
-  const { req, sessionStore, session, sessionName, runtime } = params;
-  if (req.runtime === undefined) return;
-  if (runtime) {
-    sessionStore.recordAction(session, {
-      command: 'runtime',
-      positionals: ['set'],
-      flags: {
-        ...(req.flags ?? {}),
-        platform: session.device.platform,
-        metroHost: runtime.metroHost,
-        metroPort: runtime.metroPort,
-        bundleUrl: runtime.bundleUrl,
-        launchUrl: runtime.launchUrl,
-      },
-      result: {
-        session: sessionName,
-        configured: true,
-        runtime,
-      },
-    });
-    return;
-  }
-  sessionStore.recordAction(session, {
-    command: 'runtime',
-    positionals: ['clear'],
-    flags: req.flags ?? {},
-    result: {
-      session: sessionName,
-      cleared: true,
-    },
-  });
-}
-
 export async function maybeClearRemovedRuntimeTransportHints(params: {
   replacedStoredRuntime: boolean;
   previousRuntime: SessionRuntimeHints | undefined;

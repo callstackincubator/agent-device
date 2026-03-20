@@ -214,6 +214,13 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           return;
         }
 
+        if (command === 'runtime') {
+          throw new AppError(
+            'INVALID_ARGS',
+            'runtime command was removed. Use open --remote-config <path> --relaunch for remote Metro launches, or metro prepare --remote-config <path> for inspection.',
+          );
+        }
+
         if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
           if (logTailStopper) logTailStopper();
           return;
@@ -306,24 +313,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             const bootedSuffix = booted ? ' (booted)' : '';
             process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
             if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'runtime') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const cleared = data?.cleared === true;
-            const configured = data?.configured === true;
-            if (cleared) {
-              process.stdout.write('Runtime hints cleared\n');
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (!configured) {
-              process.stdout.write('No runtime hints configured\n');
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            process.stdout.write(`${JSON.stringify(data?.runtime ?? {}, null, 2)}\n`);
             if (logTailStopper) logTailStopper();
             return;
           }

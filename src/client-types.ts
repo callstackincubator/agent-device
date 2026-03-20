@@ -220,24 +220,6 @@ export type MaterializationReleaseResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
-export type RuntimeShowOptions = AgentDeviceRequestOverrides;
-
-export type RuntimeSetOptions = AgentDeviceRequestOverrides & {
-  platform?: PlatformSelector;
-  metroHost?: string;
-  metroPort?: number;
-  bundleUrl?: string;
-  launchUrl?: string;
-};
-
-export type RuntimeResult = {
-  session: string;
-  configured: boolean;
-  cleared?: boolean;
-  runtime?: SessionRuntimeHints;
-  identifiers: AgentDeviceIdentifiers;
-};
-
 export type MetroPrepareOptions = {
   projectRoot?: string;
   kind?: MetroPrepareKind;
@@ -335,10 +317,6 @@ export type AgentDeviceClient = {
   };
   materializations: {
     release: (options: MaterializationReleaseOptions) => Promise<MaterializationReleaseResult>;
-  };
-  runtime: {
-    set: (options: RuntimeSetOptions) => Promise<RuntimeResult>;
-    show: (options?: RuntimeShowOptions) => Promise<RuntimeResult>;
   };
   metro: {
     prepare: (options: MetroPrepareOptions) => Promise<MetroPrepareResult>;

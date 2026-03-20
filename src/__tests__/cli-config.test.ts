@@ -225,6 +225,61 @@ test('AGENT_DEVICE_CONFIG loads an explicit config path', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('remote config defaults override generic config and env for remote workflow bindings', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });
+  fs.writeFileSync(
+    path.join(project, 'agent-device.json'),
+    JSON.stringify({ session: 'project-session', platform: 'ios' }),
+    'utf8',
+  );
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      session: 'remote-session',
+      platform: 'android',
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+    }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(['snapshot', '--remote-config', remoteConfig, '--json'], {
+    cwd: project,
+    env: {
+      HOME: home,
+      AGENT_DEVICE_SESSION: 'env-session',
+      AGENT_DEVICE_PLATFORM: 'ios',
+    },
+  });
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.session, 'remote-session');
+  assert.equal(result.calls[0]?.flags?.platform, 'android');
+  assert.equal(
+    result.calls[0]?.flags?.daemonBaseUrl,
+    'http://remote-mac.example.test:9124/agent-device',
+  );
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('missing explicit remote config path returns parse error before daemon dispatch', async () => {
+  const { root, home, project } = makeTempWorkspace();
+
+  const result = await runCliCapture(['snapshot', '--remote-config', './missing.remote.json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Remote config file not found/);
+  assert.equal(result.calls.length, 0);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('config and env defaults include session lock policy flags', async () => {
   const { root, home, project } = makeTempWorkspace();
   fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });

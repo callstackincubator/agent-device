@@ -19,7 +19,6 @@ import {
 import {
   countConfiguredRuntimeHints,
   maybeClearRemovedRuntimeTransportHints,
-  recordOpenRuntimeAction,
   setSessionRuntimeHintsForOpen,
   tryResolveOpenRuntimeHints,
 } from './session-runtime.ts';
@@ -244,17 +243,11 @@ async function completeOpenCommand(params: {
     device,
     runtime,
   });
-  recordOpenRuntimeAction({
-    req,
-    sessionStore,
-    session: nextSession,
-    sessionName,
-    runtime,
-  });
   sessionStore.recordAction(nextSession, {
     command: 'open',
     positionals: openPositionals,
     flags: req.flags ?? {},
+    runtime: req.runtime !== undefined ? runtime : undefined,
     result: openResult,
   });
   sessionStore.set(sessionName, nextSession);

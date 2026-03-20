@@ -10,7 +10,6 @@ import {
   normalizeMaterializationReleaseResult,
   normalizeOpenDevice,
   normalizeRuntimeHints,
-  normalizeRuntimeResult,
   normalizeSession,
   normalizeStartupSample,
   readNullableString,
@@ -33,8 +32,6 @@ import type {
   InternalRequestOptions,
   MaterializationReleaseOptions,
   MetroPrepareOptions,
-  RuntimeSetOptions,
-  RuntimeShowOptions,
 } from './client-types.ts';
 
 export function createAgentDeviceClient(
@@ -68,7 +65,7 @@ export function createAgentDeviceClient(
     return (response.data ?? {}) as Record<string, unknown>;
   };
 
-  const listSessions = async (options: RuntimeShowOptions = {}) => {
+  const listSessions = async (options = {}) => {
     const data = await execute('session_list', [], options);
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     return sessions.map(normalizeSession);
@@ -193,18 +190,6 @@ export function createAgentDeviceClient(
           }),
         ),
     },
-    runtime: {
-      set: async (options: RuntimeSetOptions) =>
-        normalizeRuntimeResult(
-          await execute('runtime', ['set'], options),
-          resolveSessionName(config.session, options.session),
-        ),
-      show: async (options: RuntimeShowOptions = {}) =>
-        normalizeRuntimeResult(
-          await execute('runtime', ['show'], options),
-          resolveSessionName(config.session, options.session),
-        ),
-    },
     metro: {
       prepare: async (options: MetroPrepareOptions) =>
         await prepareMetroRuntime({
@@ -281,9 +266,6 @@ export type {
   MaterializationReleaseResult,
   MetroPrepareOptions,
   MetroPrepareResult,
-  RuntimeResult,
-  RuntimeSetOptions,
-  RuntimeShowOptions,
   SessionCloseResult,
   StartupPerfSample,
 } from './client-types.ts';
