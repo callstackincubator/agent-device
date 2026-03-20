@@ -53,7 +53,7 @@ async function runRecordCommand(params: {
   deps: RecordTraceDeps;
   logPath?: string;
   cwd?: string;
-  flags?: { fps?: number; showTouches?: boolean };
+  flags?: { fps?: number; hideTouches?: boolean };
 }) {
   return handleRecordTraceCommands({
     req: {
@@ -147,6 +147,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(runnerCalls[0]?.appBundleId, 'com.atebits.Tweetie2');
   assert.equal(runnerCalls[0]?.logPath, '/tmp/daemon.log');
   assert.equal(runnerCalls[0]?.traceLogPath, undefined);
+  assert.equal(responseStart?.data?.showTouches, true);
   const startedRecording = sessionStore.get(sessionName)?.recording;
   assert.equal(startedRecording?.platform, 'ios-device-runner');
   const stagedRemotePath = startedRecording && startedRecording.platform === 'ios-device-runner'
@@ -155,6 +156,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.match(stagedRemotePath ?? '', /^tmp\/agent-device-recording-\d+\.mp4$/);
   if (startedRecording?.platform === 'ios-device-runner') {
     assert.equal(startedRecording.runnerStartedAtUptimeMs, 12_345);
+    assert.equal(startedRecording.showTouches, true);
   }
 
   const responseStop = await runRecordCommand({
@@ -608,7 +610,7 @@ test('record keeps android pull + cleanup flow', async () => {
   assert.match(adbCalls[1]?.join(' '), /shell rm -f/);
 });
 
-test('record start/stop manages Android tap indicators when show-touches is enabled', async () => {
+test('record start/stop manages Android tap indicators by default', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-show-touches';
   sessionStore.set(sessionName, makeSession(sessionName, {
@@ -624,7 +626,6 @@ test('record start/stop manages Android tap indicators when show-touches is enab
     sessionStore,
     sessionName,
     positionals: ['start', './android.mp4'],
-    flags: { showTouches: true },
     deps: {
       runCmd: async (_cmd, args) => {
         adbCalls.push(args);
@@ -674,6 +675,57 @@ test('record start/stop manages Android tap indicators when show-touches is enab
 
   assert.ok(adbCalls.some((args) => args.join(' ') === 'shell settings put system show_touches 1'));
   assert.ok(adbCalls.some((args) => args.join(' ') === 'restore 0'));
+});
+
+test('record start leaves Android tap indicators disabled with --hide-touches', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-hide-touches';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'emulator',
+      booted: true,
+    }),
+  );
+
+  const adbCalls: Array<string[]> = [];
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
+    flags: { hideTouches: true },
+    deps: {
+      runCmd: async (_cmd, args) => {
+        adbCalls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      runCmdBackground: () => ({
+        child: { kill: () => {} } as any,
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      }),
+      runIosRunnerCommand: async () => {
+        throw new Error('runner should not be used for Android');
+      },
+      readAndroidShowTouchesSetting: async () => {
+        throw new Error('show touches state should not be read when hidden');
+      },
+      setAndroidShowTouchesEnabled: async () => {
+        throw new Error('Android tap indicators should remain disabled');
+      },
+      restoreAndroidShowTouchesSetting: async () => {
+        throw new Error('Android tap indicators should not need restore');
+      },
+      overlayRecordingTouches: async () => {},
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(response?.data?.showTouches, false);
+  assert.equal(sessionStore.get(sessionName)?.recording?.showTouches, false);
+  assert.equal(adbCalls.length, 0);
 });
 
 test('record stop overlays gestures onto iOS recordings when show-touches is enabled', async () => {

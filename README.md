@@ -8,11 +8,12 @@
 
 # agent-device
 
-CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel-labs/agent-browser). 
+CLI to control iOS and Android devices for AI agents influenced by Vercel’s [agent-browser](https://github.com/vercel-labs/agent-browser).
 
 The project is in early development and considered experimental. Pull requests are welcome!
 
 ## Features
+
 - Platforms: iOS/tvOS (simulator + physical device core automation) and Android/AndroidTV (emulator + device).
 - Core commands: `open`, `back`, `home`, `app-switcher`, `press`, `long-press`, `focus`, `type`, `fill`, `scroll`, `scrollintoview`, `wait`, `alert`, `screenshot`, `close`, `install`, `reinstall`, `push`, `trigger-app-event`.
 - Inspection commands: `snapshot` (accessibility tree), `diff snapshot` (structural baseline diff), `appstate`, `apps`, `devices`.
@@ -126,6 +127,7 @@ agent-device trace stop ./trace.log
 ```
 
 Coordinates:
+
 - All coordinate-based commands (`press`, `longpress`, `swipe`, `focus`, `fill`) use device coordinates with origin at top-left.
 - X increases to the right, Y increases downward.
 - `press` is the canonical tap command.
@@ -143,6 +145,7 @@ agent-device scrollintoview @e42
 ```
 
 ## Command Index
+
 - `boot`, `open`, `close`, `install`, `reinstall`, `home`, `back`, `app-switcher`
 - `push`
 - `batch`
@@ -178,6 +181,7 @@ agent-device push com.example.app '{"action":"com.example.app.PUSH","extras":{"t
 ```
 
 Payload notes:
+
 - iOS uses `xcrun simctl push <device> <bundle> <payload>` and requires APNs-style JSON object (for example `{"aps":{"alert":"..."}}`).
 - Android uses `adb shell am broadcast` with payload JSON shape:
   `{"action":"<intent-action>","receiver":"<optional component>","extras":{"key":"value","flag":true,"count":3}}`.
@@ -206,17 +210,20 @@ agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
 ## iOS Snapshots
 
 Notes:
+
 - iOS snapshots use XCTest on simulators and physical devices.
 - Scope snapshots with `-s "<label>"` or `-s @ref`.
 - If XCTest returns 0 nodes (e.g., foreground app changed), agent-device fails explicitly.
 - `diff snapshot` uses the same snapshot flags and compares the current capture with the previous session baseline, then updates baseline.
 
 Diff snapshots:
+
 - Run `diff snapshot` once to initialize baseline for the current session.
 - Run `diff snapshot` again after UI changes to get unified-style output (`-` removed, `+` added, unchanged context).
 - Use `--json` to get `{ mode, baselineInitialized, summary, lines }`.
 
 Efficient snapshot usage:
+
 - Default to `snapshot -i` for iterative agent loops.
 - Add `-s "<label>"` (or `-s @ref`) for screen-local work to reduce payload size.
 - Add `-d <depth>` when lower tree levels are not needed.
@@ -225,6 +232,7 @@ Efficient snapshot usage:
 - Reserve `--raw` for troubleshooting and parser/debug investigations.
 
 Flags:
+
 - `--version, -V` print version and exit
 - `--platform ios|android|apple` (`apple` aliases the iOS/tvOS backend)
 - `--target mobile|tv` select device class within platform (requires `--platform`; for example AndroidTV/tvOS)
@@ -259,11 +267,13 @@ Flags:
 - `--max-steps <n>` batch: max allowed steps per request
 
 Isolation precedence:
+
 - Discovery scope (`--ios-simulator-device-set`, `--android-device-allowlist`) is applied before selector matching (`--device`, `--udid`, `--serial`).
 - If a selector points outside the scoped set/allowlist, command resolution fails with `DEVICE_NOT_FOUND` (no host-global fallback).
 - When `--ios-simulator-device-set` is set (or its env equivalent), iOS discovery is simulator-set only (physical iOS devices are not enumerated).
 
 TV targets:
+
 - Use `--target tv` together with `--platform ios|android|apple`.
 - TV target selection supports both simulator/emulator and connected physical devices (AppleTV + AndroidTV).
 - AndroidTV app launch/app listing use TV launcher discovery (`LEANBACK_LAUNCHER`) and fallback component resolution when needed.
@@ -272,22 +282,26 @@ TV targets:
 - tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
 
 Examples:
+
 - `agent-device open YouTube --platform android --target tv`
 - `agent-device apps --platform android --target tv`
 - `agent-device open Settings --platform ios --target tv`
 - `agent-device screenshot ./apple-tv.png --platform ios --target tv`
 
 Pinch:
+
 - `pinch` is supported on iOS simulators (including tvOS simulator targets).
 - On Android, `pinch` currently returns `UNSUPPORTED_OPERATION` in the adb backend.
 
 Swipe timing:
+
 - `swipe` accepts optional `durationMs` (default `250`, range `16..10000`).
 - Android uses requested swipe duration directly.
 - iOS clamps swipe duration to a safe range (`16..60ms`) to avoid longpress side effects.
 - `scrollintoview` accepts either plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.
 
 ## Skills
+
 Install the automation skills listed in [SKILL.md](skills/agent-device/SKILL.md).
 
 ```bash
@@ -295,6 +309,7 @@ npx skills add https://github.com/callstackincubator/agent-device --skill agent-
 ```
 
 Sessions:
+
 - `open` starts a session. Without args boots/activates the target device/simulator without launching an app.
 - All interaction commands require an open session.
 - If a session is already open, `open <app|url>` switches the active app or opens a deep link URL.
@@ -307,6 +322,7 @@ Sessions:
 - On iOS, `appstate` is session-scoped and requires an active session on the target device.
 
 Navigation helpers:
+
 - `boot --platform ios|android|apple` ensures the target is ready without launching an app.
 - Use `boot` mainly when starting a new session and `open` fails because no booted simulator/emulator is available.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
@@ -323,6 +339,7 @@ Navigation helpers:
 - `.ipa` install extracts `Payload/*.app`; when an IPA contains multiple app bundles, `<app>` is used as a bundle id/name hint to select the target bundle.
 
 Deep links:
+
 - `open <url>` supports deep links with `scheme://...`.
 - `open <app> <url>` opens a deep link on iOS.
 - Android opens deep links via `VIEW` intent.
@@ -338,15 +355,18 @@ agent-device open MyApp "myapp://screen/to" --platform ios      # open deep link
 ```
 
 Find (semantic):
+
 - `find <text> <action> [value]` finds by any text (label/value/identifier) using a scoped snapshot.
 - `find text|label|value|role|id <value> <action> [value]` for specific locators.
 - Actions: `click` (default), `fill`, `type`, `focus`, `get text`, `get attrs`, `wait [timeout]`, `exists`.
 
 Assertions:
+
 - `is` predicates: `visible`, `hidden`, `exists`, `editable`, `selected`, `text`.
 - `is text` uses exact equality.
 
 Performance metrics:
+
 - `perf` (or `metrics`) requires an active session and returns a JSON metrics blob.
 - Current metric: `startup` sampled from the elapsed wall-clock time around each session `open` command dispatch (`open-command-roundtrip`), unit `ms`.
 - Startup samples are session-scoped and include sample history from recent `open` actions.
@@ -366,6 +386,7 @@ agent-device perf --json
 - Caveat: startup here is command-to-launch round-trip timing, not true app TTI/first-interactive telemetry.
 
 Replay update:
+
 - `replay <path>` runs deterministic replay from `.ad` scripts.
 - `replay -u <path>` attempts selector updates on failures and atomically rewrites the same file.
 - Refs are the default/core mechanism for interactive agent flows.
@@ -393,6 +414,7 @@ click "id=\"auth_continue\" || label=\"Continue\""
 ```
 
 Android fill reliability:
+
 - `fill` clears the current value, then enters text.
 - `type` enters text into the focused field without clearing.
 - `fill` now verifies the entered value on Android.
@@ -407,6 +429,7 @@ Android fill reliability:
   - `adb -s <serial> shell ime list -s` (verify current/default IME)
 
 Settings helpers:
+
 - `settings wifi on|off`
 - `settings airplane on|off`
 - `settings location on|off` (iOS uses per-app permission for the current session app)
@@ -415,23 +438,26 @@ Settings helpers:
 - `settings fingerprint match|nonmatch` (Android emulator/device where supported)
   On physical Android devices, fingerprint simulation depends on `cmd fingerprint` support.
 - `settings permission grant|deny|reset <camera|microphone|photos|contacts|notifications> [full|limited]` (session app required)
-Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
+  Note: iOS supports these only on simulators. iOS wifi/airplane toggles status bar indicators, not actual network state. Airplane off clears status bar overrides.
 - iOS permission targets map to `simctl privacy`: `camera`, `microphone`, `photos` (`full` => `photos`, `limited` => `photos-add`), `contacts`, `notifications`.
 - Android permission targets: `camera`, `microphone`, `photos`, `contacts` use `pm grant|revoke` (`reset` maps to `pm revoke`); `notifications` uses `appops set POST_NOTIFICATION allow|deny|default`.
 - `full|limited` mode is valid only for iOS `photos`; other targets reject mode.
 
 App state:
+
 - `appstate` shows the foreground app/activity (Android).
 - On iOS, `appstate` returns the currently tracked session app (`source: session`) and requires an active session on the selected device.
 - `apps` includes default/system apps by default (use `--user-installed` to filter).
 
 Clipboard:
+
 - `clipboard read` returns current clipboard text.
 - `clipboard write <text>` sets clipboard text (`clipboard write ""` clears it).
 - Supported on Android emulator/device and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
 Keyboard:
+
 - `keyboard status` (or `keyboard get`) reports Android keyboard visibility and best-effort input type classification (`text`, `number`, `email`, `phone`, `password`, `datetime`).
 - `keyboard dismiss` issues Android back keyevent only when keyboard is visible, then verifies hidden state.
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
@@ -456,6 +482,7 @@ Keyboard:
 - If startup fails with stale metadata hints, remove stale `<state-dir>/daemon.json` / `<state-dir>/daemon.lock` and retry (state dir defaults to `~/.agent-device` unless overridden).
 
 Boot diagnostics:
+
 - Boot failures include normalized reason codes in `error.details.reason` (JSON mode) and verbose logs.
 - Reason codes: `IOS_BOOT_TIMEOUT`, `IOS_RUNNER_CONNECT_TIMEOUT`, `ANDROID_BOOT_TIMEOUT`, `ADB_TRANSPORT_UNAVAILABLE`, `CI_RESOURCE_STARVATION_SUSPECTED`, `BOOT_COMMAND_FAILED`, `UNKNOWN`.
 - Android boot waits fail fast for permission/tooling issues and do not always collapse into timeout errors.
@@ -466,16 +493,19 @@ Boot diagnostics:
 - Set `AGENT_DEVICE_RETRY_LOGS=1` to also print retry telemetry directly to stderr (ad-hoc troubleshooting).
 
 Diagnostics files:
+
 - Failed commands persist diagnostics in `~/.agent-device/logs/<session>/<date>/<timestamp>-<diagnosticId>.ndjson`.
 - `--debug` persists diagnostics for successful commands too and streams live diagnostic events.
 - JSON failures include `error.hint`, `error.diagnosticId`, and `error.logPath`.
 
 ## App resolution
+
 - Bundle/package identifiers are accepted directly (e.g., `com.apple.Preferences`).
 - Human-readable names are resolved when possible (e.g., `Settings`).
 - Built-in aliases include `Settings` for both platforms.
 
 ## iOS notes
+
 - Core runner commands: `snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `longpress`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`.
 - Simulator-only commands: `alert`, `pinch`, `settings`.
 - tvOS targets are selectable (`--platform ios --target tv` or `--platform apple --target tv`) and support runner-driven interaction/snapshot commands.
@@ -486,9 +516,9 @@ Diagnostics files:
   - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
   - Physical iOS device recording defaults to uncapped (max available) FPS.
   - Use `agent-device record start [path] --fps <n>` (1-120) to set an explicit FPS cap on physical iOS devices.
-  - Use `agent-device record start [path] --show-touches` to burn agent-driven taps and gestures into the exported recording on iOS.
+  - Recording enables iOS touch overlays by default. Use `agent-device record start [path] --hide-touches` to opt out.
 - Android `record` supports emulators and physical devices via `adb shell screenrecord`.
-  - Use `agent-device record start [path] --show-touches` to temporarily enable Android's tap indicator during recording; the previous system setting is restored on `record stop`.
+  - Recording enables Android's tap indicator by default and restores the previous system setting on `record stop`. Use `agent-device record start [path] --hide-touches` to opt out.
 - iOS device runs require valid signing/provisioning (Automatic Signing recommended). Optional overrides: `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`, `AGENT_DEVICE_IOS_BUNDLE_ID`.
 - Free Apple Developer (Personal Team) accounts may need a unique runner bundle id; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a reverse-DNS identifier unique to your team (for example `com.yourname.agentdevice.runner`).
 
@@ -513,6 +543,7 @@ pnpm build
 ```
 
 Environment selectors:
+
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
 - `IOS_DEVICE="iPhone 17 Pro"` or `IOS_UDID=<udid>`
 - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET=<path>` (or `IOS_SIMULATOR_DEVICE_SET=<path>`) to scope all iOS simulator discovery/commands to one simulator set.
@@ -542,10 +573,12 @@ Environment selectors:
 - `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` rebuild iOS runner artifacts from scratch for runtime daemon-triggered builds (`pnpm ad ...`) on the selected path. `pnpm build:xcuitest` (alias of `pnpm build:xcuitest:ios`), `pnpm build:xcuitest:tvos`, and `pnpm build:all` already clear their default derived paths and do not require this variable. When `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` is set, cleanup is blocked by default; set `AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN=1` only for trusted custom paths.
 
 Test screenshots are written to:
+
 - `test/screenshots/android-settings.png`
 - `test/screenshots/ios-settings.png`
 
 ## Contributing
+
 See `CONTRIBUTING.md`.
 
 ## Made at Callstack

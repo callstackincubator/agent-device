@@ -30,9 +30,9 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to uncapped (max available) FPS and supports `--fps` caps.
-  - `--show-touches` burns agent-driven taps and gestures into iOS recordings.
+  - Recording burns agent-driven taps and gestures into iOS recordings by default; use `--hide-touches` to opt out.
 - Android supports the same core interaction set, plus `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss` via adb shell commands.
-  - Android `record start --show-touches` temporarily enables the system tap indicator during capture.
+  - Android recording temporarily enables the system tap indicator during capture by default; use `--hide-touches` to opt out.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)

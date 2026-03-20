@@ -9,7 +9,7 @@ Use `agent-device record` commands:
 ```bash
 # Start recording
 agent-device record start ./recordings/ios.mp4
-agent-device record start ./recordings/ios.mp4 --show-touches
+agent-device record start ./recordings/ios.mp4 --hide-touches
 
 # Perform actions
 agent-device open App
@@ -23,7 +23,8 @@ agent-device record stop
 
 - iOS simulators use `simctl io ... recordVideo`.
 - iOS physical devices use runner screenshot capture stitched into MP4.
-- `--show-touches` burns agent-driven taps and gestures into the exported iOS video during `record stop`.
+- Touch overlays are enabled by default for iOS recordings.
+- Use `--hide-touches` to disable overlays for a single recording.
 
 ## Android Emulator/Device
 
@@ -32,7 +33,7 @@ Use `agent-device record` commands (wrapper around adb):
 ```bash
 # Start recording
 agent-device record start ./recordings/android.mp4
-agent-device record start ./recordings/android.mp4 --show-touches
+agent-device record start ./recordings/android.mp4 --hide-touches
 
 # Perform actions
 agent-device open App
@@ -44,4 +45,5 @@ agent-device close
 agent-device record stop
 ```
 
-- `--show-touches` temporarily enables the system tap indicator while recording and restores the previous setting on `record stop`.
+- Touch indicators are enabled by default for Android recordings and restored on `record stop`.
+- Use `--hide-touches` to disable them for a single recording.

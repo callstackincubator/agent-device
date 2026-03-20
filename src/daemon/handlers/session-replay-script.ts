@@ -7,6 +7,7 @@ import {
   isClickLikeCommand,
   parseReplaySeriesFlags,
 } from '../script-utils.ts';
+import { appendRecordActionScriptParts, parseRecordScriptArgs } from '../record-script.ts';
 
 export function parseReplayScript(script: string): SessionAction[] {
   const actions: SessionAction[] = [];
@@ -83,6 +84,13 @@ function parseReplayScriptLine(line: string): SessionAction | null {
       }
       action.positionals.push(token);
     }
+    return action;
+  }
+
+  if (command === 'record') {
+    const parsed = parseRecordScriptArgs(args);
+    action.positionals = parsed.positionals;
+    action.flags = parsed.flags;
     return action;
   }
 
@@ -197,7 +205,11 @@ function tokenizeReplayLine(line: string): string[] {
   return tokens;
 }
 
-export function writeReplayScript(filePath: string, actions: SessionAction[], session?: SessionState) {
+export function writeReplayScript(
+  filePath: string,
+  actions: SessionAction[],
+  session?: SessionState,
+) {
   const lines: string[] = [];
   // Session can be missing if the replay session is closed/deleted between execution and update write.
   // In that case we still persist healed actions and omit only the context header.
@@ -205,7 +217,9 @@ export function writeReplayScript(filePath: string, actions: SessionAction[], se
     const deviceLabel = session.device.name.replace(/"/g, '\\"');
     const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
     const target = session.device.target ? ` target=${session.device.target}` : '';
-    lines.push(`context platform=${session.device.platform}${target} device="${deviceLabel}"${kind} theme=unknown`);
+    lines.push(
+      `context platform=${session.device.platform}${target} device="${deviceLabel}"${kind} theme=unknown`,
+    );
   }
   for (const action of actions) {
     lines.push(formatReplayActionLine(action));
@@ -237,6 +251,10 @@ function formatReplayActionLine(action: SessionAction): string {
     if (action.flags?.relaunch) {
       parts.push('--relaunch');
     }
+    return parts.join(' ');
+  }
+  if (action.command === 'record') {
+    appendRecordActionScriptParts(parts, action);
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {

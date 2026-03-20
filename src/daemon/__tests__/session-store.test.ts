@@ -209,7 +209,45 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
   const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
   assert.ok(scriptFile);
   const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
-  assert.match(script, /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/);
+  assert.match(
+    script,
+    /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/,
+  );
   assert.match(script, /press 201 545 --count 4 --interval-ms 8/);
   assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
+});
+
+test('writeSessionLog preserves record flags for fps and hidden touches', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-record-flags-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'record',
+    positionals: ['start', './capture.mp4'],
+    flags: {
+      platform: 'ios',
+      fps: 30,
+      hideTouches: true,
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'record',
+    positionals: ['stop'],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --hide-touches/);
+  assert.match(script, /record stop/);
 });

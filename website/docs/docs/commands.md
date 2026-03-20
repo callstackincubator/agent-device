@@ -336,7 +336,7 @@ agent-device screenshot page.png        # Explicit screenshot path
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
-agent-device record start session.mp4 --show-touches  # Visualize taps/gestures in the video
+agent-device record start session.mp4 --hide-touches  # Disable touch overlays for this recording
 agent-device record stop                # Stop active recording
 ```
 
@@ -388,9 +388,10 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
 - Physical-device capture defaults to uncapped (max available) FPS.
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
-- `--show-touches` visualizes agent-driven taps and gestures in the recording.
-  - On iOS, touches are composited into the exported MP4 during `record stop`.
-  - On Android, `record start --show-touches` temporarily enables the system tap indicator and restores the previous value on `record stop`.
+- Touch overlays are enabled by default during recording.
+  - On iOS, agent-driven taps and gestures are composited into the exported MP4 during `record stop`.
+  - On Android, `record start` temporarily enables the system tap indicator and restores the previous value on `record stop`.
+- `--hide-touches` disables touch overlays for a single recording.
 
 ## iOS device prerequisites
 
