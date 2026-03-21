@@ -835,6 +835,87 @@ test('record start/stop overlays Android gestures by default on devices', async 
   ]);
 });
 
+test('record stop force-kills Android screenrecord when SIGINT fails but process is still running', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-force-stop';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
+    deps: makeRecordDeps({
+      runCmd: async (_cmd, args) => {
+        const command = args.join(' ');
+        if (
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '4321\n', stderr: '', exitCode: 0 };
+        }
+        if (
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '1024\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    }),
+  });
+
+  const adbCalls: string[] = [];
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: makeRecordDeps({
+      runCmd: async (_cmd, args) => {
+        const command = args.join(' ');
+        adbCalls.push(command);
+        if (command === '-s emulator-5554 shell kill -2 4321') {
+          return { stdout: '', stderr: 'operation not permitted', exitCode: 1 };
+        }
+        if (command === '-s emulator-5554 shell ps -o pid= -p 4321') {
+          return {
+            stdout: adbCalls.includes('-s emulator-5554 shell kill -9 4321') ? '' : '4321\n',
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        if (
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '2048\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    }),
+  });
+
+  assert.equal(response?.ok, true);
+  assert.ok(adbCalls.includes('-s emulator-5554 shell kill -2 4321'));
+  assert.ok(adbCalls.includes('-s emulator-5554 shell kill -9 4321'));
+  assert.ok(
+    adbCalls.some((command) =>
+      /^-s emulator-5554 shell rm -f \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command),
+    ),
+  );
+});
+
 test('record start leaves overlays disabled with --hide-touches', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-hide-touches';

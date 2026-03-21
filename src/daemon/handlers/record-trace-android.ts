@@ -343,7 +343,9 @@ export async function stopAndroidRecording(params: {
   });
   if (stopResult.exitCode !== 0) {
     if (await isAndroidProcessRunning(deps, device.id, recording.remotePid)) {
-      stopError = `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'adb shell kill')}`;
+      if (!(await forceStopAndroidProcess(deps, device.id, recording.remotePid))) {
+        stopError = `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'adb shell kill')}`;
+      }
     }
   } else if (!(await waitForAndroidProcessExit(deps, device.id, recording.remotePid))) {
     if (!(await forceStopAndroidProcess(deps, device.id, recording.remotePid))) {
@@ -376,28 +378,28 @@ export async function stopAndroidRecording(params: {
         overlayError = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
       }
     }
+  }
 
-    const rmResult = await deps.runCmd(
-      'adb',
-      ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath],
-      {
-        allowFailure: true,
-      },
-    );
-    emitDiagnostic({
-      level: 'debug',
-      phase: 'record_stop_android_cleanup',
-      data: {
-        deviceId: device.id,
-        remotePath: recording.remotePath,
-        exitCode: rmResult.exitCode,
-        stdout: rmResult.stdout.trim(),
-        stderr: rmResult.stderr.trim(),
-      },
-    });
-    if (rmResult.exitCode !== 0) {
-      cleanupError = `failed to clean up remote recording: ${formatRecordTraceExecFailure(rmResult, 'adb shell rm')}`;
-    }
+  const rmResult = await deps.runCmd(
+    'adb',
+    ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath],
+    {
+      allowFailure: true,
+    },
+  );
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'record_stop_android_cleanup',
+    data: {
+      deviceId: device.id,
+      remotePath: recording.remotePath,
+      exitCode: rmResult.exitCode,
+      stdout: rmResult.stdout.trim(),
+      stderr: rmResult.stderr.trim(),
+    },
+  });
+  if (rmResult.exitCode !== 0 && !stopError) {
+    cleanupError = `failed to clean up remote recording: ${formatRecordTraceExecFailure(rmResult, 'adb shell rm')}`;
   }
 
   if (stopError) {
