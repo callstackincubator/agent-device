@@ -3,11 +3,7 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  ensureAndroidSdkPathConfigured,
-  resolveAndroidSdkRoots,
-  resolveAndroidToolPath,
-} from '../sdk.ts';
+import { ensureAndroidSdkPathConfigured, resolveAndroidSdkRoots } from '../sdk.ts';
 
 async function withTempSdkLayout(
   run: (ctx: { env: NodeJS.ProcessEnv; sdkRoot: string }) => Promise<void>,
@@ -57,68 +53,6 @@ test('resolveAndroidSdkRoots prefers configured roots before HOME default', () =
     '/tmp/android-home',
     path.join('/tmp/home', 'Android', 'Sdk'),
   ]);
-});
-
-test('resolveAndroidToolPath finds tools in standard SDK subpaths', async () => {
-  await withTempSdkLayout(async ({ env, sdkRoot }) => {
-    env.ANDROID_SDK_ROOT = sdkRoot;
-
-    assert.equal(
-      await resolveAndroidToolPath('adb', env),
-      path.join(sdkRoot, 'platform-tools', 'adb'),
-    );
-    assert.equal(
-      await resolveAndroidToolPath('emulator', env),
-      path.join(sdkRoot, 'emulator', 'emulator'),
-    );
-    assert.equal(
-      await resolveAndroidToolPath('sdkmanager', env),
-      path.join(sdkRoot, 'cmdline-tools', 'latest', 'bin', 'sdkmanager'),
-    );
-    assert.equal(
-      await resolveAndroidToolPath('avdmanager', env),
-      path.join(sdkRoot, 'cmdline-tools', 'tools', 'bin', 'avdmanager'),
-    );
-  });
-});
-
-test('resolveAndroidToolPath falls back to PATH when SDK roots do not contain the tool', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-sdk-path-'));
-  const adbDir = path.join(tmpDir, 'bin');
-  const adbPath = path.join(adbDir, 'adb');
-  await fs.mkdir(adbDir, { recursive: true });
-  await fs.writeFile(adbPath, '#!/bin/sh\nexit 0\n', 'utf8');
-  await fs.chmod(adbPath, 0o755);
-
-  try {
-    const env = {
-      HOME: tmpDir,
-      PATH: adbDir,
-    } satisfies NodeJS.ProcessEnv;
-    assert.equal(await resolveAndroidToolPath('adb', env), 'adb');
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
-});
-
-test('resolveAndroidToolPath honors PATHEXT when PATH only contains Windows tool shims', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-sdk-pathext-'));
-  const emulatorDir = path.join(tmpDir, 'bin');
-  const emulatorPath = path.join(emulatorDir, 'emulator.exe');
-  await fs.mkdir(emulatorDir, { recursive: true });
-  await fs.writeFile(emulatorPath, '#!/bin/sh\nexit 0\n', 'utf8');
-  await fs.chmod(emulatorPath, 0o755);
-
-  try {
-    const env = {
-      HOME: tmpDir,
-      PATH: emulatorDir,
-      PATHEXT: '.exe;.bat',
-    } satisfies NodeJS.ProcessEnv;
-    assert.equal(await resolveAndroidToolPath('emulator', env), 'emulator');
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });
 
 test('ensureAndroidSdkPathConfigured mirrors a single configured SDK root into PATH and ANDROID_HOME', async () => {

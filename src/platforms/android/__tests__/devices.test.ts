@@ -78,6 +78,29 @@ async function writeExecutable(filePath: string, lines: readonly string[]): Prom
   await fs.chmod(filePath, 0o755);
 }
 
+async function withEnv(
+  overrides: Record<string, string | undefined>,
+  run: () => Promise<void>,
+): Promise<void> {
+  const saved = Object.fromEntries(
+    Object.keys(overrides).map((key) => [key, process.env[key]]),
+  ) as Record<string, string | undefined>;
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+
+  try {
+    await run();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
 test('parseAndroidTargetFromCharacteristics detects tv markers', () => {
   assert.equal(parseAndroidTargetFromCharacteristics('tv,nosdcard'), 'tv');
   assert.equal(parseAndroidTargetFromCharacteristics('watch,leanback'), 'tv');
@@ -117,33 +140,19 @@ async function withMockedAndroidTools(
   await writeExecutable(adbPath, MOCK_ANDROID_ADB_SCRIPT);
   await writeExecutable(emulatorPath, MOCK_ANDROID_EMULATOR_SCRIPT);
 
-  const previousPath = process.env.PATH;
-  const previousBooted = process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE;
-  const previousLog = process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE;
-  const previousHome = process.env.HOME;
-  const previousSdkRoot = process.env.ANDROID_SDK_ROOT;
-  const previousAndroidHome = process.env.ANDROID_HOME;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-  process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE = emulatorBootedPath;
-  process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE = emulatorLogPath;
-  process.env.HOME = tmpDir;
-  delete process.env.ANDROID_SDK_ROOT;
-  delete process.env.ANDROID_HOME;
-
   try {
-    await run({ emulatorLogPath, emulatorBootedPath });
+    await withEnv(
+      {
+        PATH: `${tmpDir}${path.delimiter}${process.env.PATH ?? ''}`,
+        AGENT_DEVICE_TEST_EMU_BOOTED_FILE: emulatorBootedPath,
+        AGENT_DEVICE_TEST_EMU_LOG_FILE: emulatorLogPath,
+        HOME: tmpDir,
+        ANDROID_SDK_ROOT: undefined,
+        ANDROID_HOME: undefined,
+      },
+      async () => await run({ emulatorLogPath, emulatorBootedPath }),
+    );
   } finally {
-    process.env.PATH = previousPath;
-    if (previousBooted === undefined) delete process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE;
-    else process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE = previousBooted;
-    if (previousLog === undefined) delete process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE;
-    else process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE = previousLog;
-    if (previousHome === undefined) delete process.env.HOME;
-    else process.env.HOME = previousHome;
-    if (previousSdkRoot === undefined) delete process.env.ANDROID_SDK_ROOT;
-    else process.env.ANDROID_SDK_ROOT = previousSdkRoot;
-    if (previousAndroidHome === undefined) delete process.env.ANDROID_HOME;
-    else process.env.ANDROID_HOME = previousAndroidHome;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }
@@ -166,29 +175,18 @@ async function withMockedAndroidSdkRoot(
   await writeExecutable(adbPath, MOCK_ANDROID_ADB_SCRIPT);
   await writeExecutable(emulatorPath, MOCK_ANDROID_EMULATOR_SCRIPT);
 
-  const previousPath = process.env.PATH;
-  const previousBooted = process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE;
-  const previousLog = process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE;
-  const previousSdkRoot = process.env.ANDROID_SDK_ROOT;
-  const previousAndroidHome = process.env.ANDROID_HOME;
-  process.env.PATH = previousPath ?? '';
-  process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE = emulatorBootedPath;
-  process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE = emulatorLogPath;
-  process.env.ANDROID_SDK_ROOT = sdkRoot;
-  delete process.env.ANDROID_HOME;
-
   try {
-    await run({ emulatorLogPath, emulatorBootedPath, sdkRoot });
+    await withEnv(
+      {
+        PATH: process.env.PATH ?? '',
+        AGENT_DEVICE_TEST_EMU_BOOTED_FILE: emulatorBootedPath,
+        AGENT_DEVICE_TEST_EMU_LOG_FILE: emulatorLogPath,
+        ANDROID_SDK_ROOT: sdkRoot,
+        ANDROID_HOME: undefined,
+      },
+      async () => await run({ emulatorLogPath, emulatorBootedPath, sdkRoot }),
+    );
   } finally {
-    process.env.PATH = previousPath;
-    if (previousBooted === undefined) delete process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE;
-    else process.env.AGENT_DEVICE_TEST_EMU_BOOTED_FILE = previousBooted;
-    if (previousLog === undefined) delete process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE;
-    else process.env.AGENT_DEVICE_TEST_EMU_LOG_FILE = previousLog;
-    if (previousSdkRoot === undefined) delete process.env.ANDROID_SDK_ROOT;
-    else process.env.ANDROID_SDK_ROOT = previousSdkRoot;
-    if (previousAndroidHome === undefined) delete process.env.ANDROID_HOME;
-    else process.env.ANDROID_HOME = previousAndroidHome;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }

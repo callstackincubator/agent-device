@@ -2,27 +2,12 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export type AndroidToolName = 'adb' | 'avdmanager' | 'emulator' | 'sdkmanager';
-
 const ANDROID_SDK_BIN_DIRS = [
   'emulator',
   'platform-tools',
   path.join('cmdline-tools', 'latest', 'bin'),
   path.join('cmdline-tools', 'tools', 'bin'),
 ] as const;
-
-const ANDROID_TOOL_RELATIVE_PATHS: Record<AndroidToolName, readonly string[]> = {
-  adb: [path.join('platform-tools', 'adb')],
-  avdmanager: [
-    path.join('cmdline-tools', 'latest', 'bin', 'avdmanager'),
-    path.join('cmdline-tools', 'tools', 'bin', 'avdmanager'),
-  ],
-  emulator: [path.join('emulator', 'emulator')],
-  sdkmanager: [
-    path.join('cmdline-tools', 'latest', 'bin', 'sdkmanager'),
-    path.join('cmdline-tools', 'tools', 'bin', 'sdkmanager'),
-  ],
-};
 
 function uniqueNonEmpty(values: readonly string[]): string[] {
   const seen = new Set<string>();
@@ -51,55 +36,6 @@ async function pathExists(candidate: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function resolvePathCommandCandidates(
-  command: string,
-  env: NodeJS.ProcessEnv = process.env,
-): string[] {
-  if (path.extname(command)) {
-    return [command];
-  }
-  const pathExtEntries = (env.PATHEXT ?? '')
-    .split(';')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0)
-    .map((entry) => (entry.startsWith('.') ? entry : `.${entry}`));
-  return uniqueNonEmpty([command, ...pathExtEntries.map((entry) => `${command}${entry}`)]);
-}
-
-async function hasCommandOnPath(
-  command: string,
-  env: NodeJS.ProcessEnv = process.env,
-): Promise<boolean> {
-  const pathEntries = (env.PATH ?? '')
-    .split(path.delimiter)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-  const commandCandidates = resolvePathCommandCandidates(command, env);
-  for (const entry of pathEntries) {
-    for (const candidate of commandCandidates) {
-      if (await pathExists(path.join(entry, candidate))) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-export async function resolveAndroidToolPath(
-  tool: AndroidToolName,
-  env: NodeJS.ProcessEnv = process.env,
-): Promise<string | undefined> {
-  for (const sdkRoot of resolveAndroidSdkRoots(env)) {
-    for (const relativePath of ANDROID_TOOL_RELATIVE_PATHS[tool]) {
-      const candidate = path.join(sdkRoot, relativePath);
-      if (await pathExists(candidate)) {
-        return candidate;
-      }
-    }
-  }
-  return (await hasCommandOnPath(tool, env)) ? tool : undefined;
 }
 
 export async function ensureAndroidSdkPathConfigured(
