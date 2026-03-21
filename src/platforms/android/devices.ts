@@ -37,6 +37,18 @@ function normalizeAndroidName(value: string): string {
   return value.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+export function parseAndroidEmulatorAvdNameOutput(rawOutput: string): string | undefined {
+  const lines = rawOutput
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return undefined;
+  if (lines.at(-1) === 'OK') {
+    lines.pop();
+  }
+  return lines.join('\n').trim() || undefined;
+}
+
 async function readAndroidBootProp(
   serial: string,
   timeoutMs = TIMEOUT_PROFILES.android_boot.operationMs,
@@ -71,8 +83,8 @@ async function resolveAndroidEmulatorAvdName(serial: string): Promise<string | u
     allowFailure: true,
     timeoutMs: ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS,
   });
-  const emuValue = emuResult.stdout.trim();
-  if (emuResult.exitCode === 0 && emuValue.length > 0) {
+  const emuValue = parseAndroidEmulatorAvdNameOutput(emuResult.stdout);
+  if (emuResult.exitCode === 0 && emuValue) {
     return emuValue;
   }
   return undefined;

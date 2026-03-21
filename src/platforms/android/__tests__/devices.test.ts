@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   ensureAndroidEmulatorBooted,
   parseAndroidAvdList,
+  parseAndroidEmulatorAvdNameOutput,
   parseAndroidFeatureListForTv,
   parseAndroidTargetFromCharacteristics,
   resolveAndroidAvdName,
@@ -29,6 +30,12 @@ test('parseAndroidFeatureListForTv detects television and leanback features', ()
 test('parseAndroidAvdList drops empty lines', () => {
   const listed = parseAndroidAvdList('\nPixel_9_Pro_XL\n\nWear_OS\n');
   assert.deepEqual(listed, ['Pixel_9_Pro_XL', 'Wear_OS']);
+});
+
+test('parseAndroidEmulatorAvdNameOutput drops trailing adb protocol status', () => {
+  assert.equal(parseAndroidEmulatorAvdNameOutput('Pixel_9_Pro_XL\r\nOK\r\n'), 'Pixel_9_Pro_XL');
+  assert.equal(parseAndroidEmulatorAvdNameOutput('Pixel_9_Pro_XL\n'), 'Pixel_9_Pro_XL');
+  assert.equal(parseAndroidEmulatorAvdNameOutput('\r\nOK\r\n'), undefined);
 });
 
 test('resolveAndroidAvdName supports space vs underscore matching', () => {
