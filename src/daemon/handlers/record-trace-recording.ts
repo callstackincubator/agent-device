@@ -14,7 +14,11 @@ import type {
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
-import { trimRecordingTelemetryEvents, writeRecordingTelemetry } from '../recording-telemetry.ts';
+import {
+  deriveRecordingTelemetryPath,
+  persistRecordingTelemetry,
+  writeRecordingTelemetry,
+} from '../recording-telemetry.ts';
 import {
   IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   runIosRunnerCommand,
@@ -24,6 +28,7 @@ import {
   trimRecordingStart,
 } from '../../platforms/ios/recording-overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
+import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
@@ -54,21 +59,8 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
   };
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function failedExecMessage(
-  result: { stdout: string; stderr: string; exitCode: number },
-  command: string,
-): string {
-  return (
-    result.stderr.trim() || result.stdout.trim() || `${command} exited with code ${result.exitCode}`
-  );
-}
-
 function isRunnerRecordingAlreadyInProgressError(error: unknown): boolean {
-  return errorMessage(error).toLowerCase().includes('recording already in progress');
+  return formatRecordTraceError(error).toLowerCase().includes('recording already in progress');
 }
 
 function normalizeAppBundleId(session: SessionState): string | undefined {
@@ -107,10 +99,10 @@ async function warmIosSimulatorRunner(params: {
   device: SessionState['device'];
   logPath?: string;
   deps: RecordTraceDeps;
-}): Promise<DaemonResponse | null> {
+}): Promise<void> {
   const { req, activeSession, device, logPath, deps } = params;
   const appBundleId = normalizeAppBundleId(activeSession);
-  if (!appBundleId) return null;
+  if (!appBundleId) return;
 
   try {
     await deps.runIosRunnerCommand(
@@ -124,15 +116,17 @@ async function warmIosSimulatorRunner(params: {
       },
       getRunnerOptions(req, logPath, activeSession),
     );
-    return null;
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to prepare iOS simulator recording: ${errorMessage(error)}`,
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'record_start_simulator_runner_warm_failed',
+      data: {
+        deviceId: device.id,
+        session: activeSession.name,
+        appBundleId,
+        error: formatRecordTraceError(error),
       },
-    };
+    });
   }
 }
 
@@ -165,21 +159,6 @@ function resolveIosRecordingTrimStartMs(
     return 0;
   }
   return Math.max(0, recording.targetAppReadyUptimeMs - recording.runnerStartedAtUptimeMs);
-}
-
-function persistRecordingTelemetry(params: {
-  deps: RecordTraceDeps;
-  recording: NonNullable<SessionState['recording']>;
-  trimStartMs?: number;
-}): string {
-  const { deps, recording, trimStartMs = 0 } = params;
-  const events = trimRecordingTelemetryEvents(recording.gestureEvents, trimStartMs);
-  const telemetryPath = deps.writeRecordingTelemetry({
-    videoPath: recording.outPath,
-    events,
-  });
-  recording.telemetryPath = telemetryPath;
-  return telemetryPath;
 }
 
 async function startIosDeviceRecording(params: {
@@ -237,7 +216,7 @@ async function startIosDeviceRecording(params: {
         ok: false,
         error: {
           code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${errorMessage(error)}`,
+          message: `failed to start recording: ${formatRecordTraceError(error)}`,
         },
       };
     }
@@ -250,7 +229,7 @@ async function startIosDeviceRecording(params: {
         kind: device.kind,
         deviceId: device.id,
         session: activeSession.name,
-        error: errorMessage(error),
+        error: formatRecordTraceError(error),
       },
     });
 
@@ -290,7 +269,7 @@ async function startIosDeviceRecording(params: {
         ok: false,
         error: {
           code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${errorMessage(retryError)}`,
+          message: `failed to start recording: ${formatRecordTraceError(retryError)}`,
         },
       };
     }
@@ -380,19 +359,16 @@ async function startRecording(params: {
       appBundleId,
     });
   } else if (device.platform === 'ios') {
-    const warmRunnerError = await warmIosSimulatorRunner({
+    await warmIosSimulatorRunner({
       req,
       activeSession,
       device,
       logPath,
       deps,
     });
-    if (warmRunnerError) {
-      return warmRunnerError;
-    }
     const { child, wait } = deps.runCmdBackground(
       'xcrun',
-      buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', '-f', resolvedOut]),
+      buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]),
       {
         allowFailure: true,
       },
@@ -451,7 +427,7 @@ async function stopIosDeviceRecording(params: {
         kind: device.kind,
         deviceId: device.id,
         session: activeSession.name,
-        error: errorMessage(error),
+        error: formatRecordTraceError(error),
       },
     });
     // best effort: clear runner-backed recording state even if runner stop fails
@@ -506,7 +482,11 @@ async function stopIosDeviceRecording(params: {
     });
   }
 
-  const telemetryPath = persistRecordingTelemetry({ deps, recording, trimStartMs });
+  const telemetryPath = persistRecordingTelemetry({
+    recording,
+    trimStartMs,
+    writeTelemetry: deps.writeRecordingTelemetry,
+  });
 
   if (recording.showTouches) {
     await deps.overlayRecordingTouches({
@@ -537,12 +517,15 @@ async function stopNonRunnerRecording(params: {
       ok: false,
       error: {
         code: 'COMMAND_FAILED',
-        message: `failed to stop recording: ${failedExecMessage(stopResult, 'simctl recordVideo')}`,
+        message: `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'simctl recordVideo')}`,
       },
     };
   }
 
-  const telemetryPath = persistRecordingTelemetry({ deps, recording });
+  const telemetryPath = persistRecordingTelemetry({
+    recording,
+    writeTelemetry: deps.writeRecordingTelemetry,
+  });
 
   if (recording.showTouches) {
     await deps.overlayRecordingTouches({
@@ -620,7 +603,7 @@ function deriveClientTelemetryPath(
   if (!recording.clientOutPath) {
     return undefined;
   }
-  return `${recording.clientOutPath}.gesture-telemetry.json`;
+  return deriveRecordingTelemetryPath(recording.clientOutPath);
 }
 
 export async function handleRecordCommand(params: {

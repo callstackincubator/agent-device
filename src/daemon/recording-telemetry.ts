@@ -8,6 +8,12 @@ type RecordingTelemetryEnvelope = {
   events: RecordingGestureEvent[];
 };
 
+type RecordingTelemetryState = {
+  outPath: string;
+  gestureEvents: RecordingGestureEvent[];
+  telemetryPath?: string;
+};
+
 export function deriveRecordingTelemetryPath(videoPath: string): string {
   const parsed = path.parse(videoPath);
   return path.join(parsed.dir, `${parsed.name}.gesture-telemetry.json`);
@@ -17,40 +23,63 @@ export function trimRecordingTelemetryEvents(
   events: RecordingGestureEvent[],
   trimStartMs: number,
 ): RecordingGestureEvent[] {
-  const normalizedEvents =
-    trimStartMs > 0
-      ? events.flatMap((event) => {
-          const adjustedStartMs = event.tMs - trimStartMs;
-          const durationMs = 'durationMs' in event ? event.durationMs : undefined;
-          const adjustedEndMs =
-            typeof durationMs === 'number' ? adjustedStartMs + durationMs : adjustedStartMs;
+  if (!(trimStartMs > 0)) {
+    return normalizeRecordingTelemetryEvents(events);
+  }
 
-          if (adjustedEndMs <= 0) {
-            return [];
-          }
+  return normalizeRecordingTelemetryEvents(
+    events.flatMap((event) => {
+      const adjustedStartMs = event.tMs - trimStartMs;
+      const durationMs = 'durationMs' in event ? event.durationMs : undefined;
+      const adjustedEndMs =
+        typeof durationMs === 'number' ? adjustedStartMs + durationMs : adjustedStartMs;
 
-          return [
-            {
-              ...event,
-              tMs: Math.max(0, adjustedStartMs),
-            },
-          ];
-        })
-      : events.map((event) => ({ ...event }));
+      if (adjustedEndMs <= 0) {
+        return [];
+      }
 
-  return normalizedEvents.sort((left, right) => left.tMs - right.tMs);
+      return [
+        {
+          ...event,
+          tMs: Math.max(0, adjustedStartMs),
+        },
+      ];
+    }),
+  );
+}
+
+export function normalizeRecordingTelemetryEvents(
+  events: RecordingGestureEvent[],
+): RecordingGestureEvent[] {
+  return [...events].sort((left, right) => left.tMs - right.tMs);
 }
 
 export function writeRecordingTelemetry(params: {
   videoPath: string;
   events: RecordingGestureEvent[];
+  trimStartMs?: number;
 }): string {
   const telemetryPath = deriveRecordingTelemetryPath(params.videoPath);
   const payload: RecordingTelemetryEnvelope = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    events: trimRecordingTelemetryEvents(params.events, 0),
+    events: trimRecordingTelemetryEvents(params.events, params.trimStartMs ?? 0),
   };
   fs.writeFileSync(telemetryPath, JSON.stringify(payload, null, 2));
+  return telemetryPath;
+}
+
+export function persistRecordingTelemetry(params: {
+  recording: RecordingTelemetryState;
+  trimStartMs?: number;
+  writeTelemetry?: typeof writeRecordingTelemetry;
+}): string {
+  const { recording, trimStartMs, writeTelemetry = writeRecordingTelemetry } = params;
+  const telemetryPath = writeTelemetry({
+    videoPath: recording.outPath,
+    events: recording.gestureEvents,
+    trimStartMs,
+  });
+  recording.telemetryPath = telemetryPath;
   return telemetryPath;
 }

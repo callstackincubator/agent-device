@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleRecordTraceCommands } from '../record-trace.ts';
+import { deriveRecordingTelemetryPath } from '../../recording-telemetry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../../platforms/ios/runner-client.ts';
@@ -128,7 +129,7 @@ function makeRunnerRecordingDeps(
     runIosRunnerCommand,
     waitForStableFile: async () => {},
     isPlayableVideo: async () => true,
-    writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+    writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
     trimRecordingStart: async () => {},
     overlayRecordingTouches: async () => {},
   };
@@ -143,7 +144,7 @@ function makeRecordDeps(overrides: Partial<RecordTraceDeps> = {}): RecordTraceDe
     runIosRunnerCommand: async () => ({}),
     waitForStableFile: async () => {},
     isPlayableVideo: async () => true,
-    writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+    writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
     trimRecordingStart: async () => {},
     overlayRecordingTouches: async () => {},
     ...overrides,
@@ -222,12 +223,12 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     '--domain-identifier',
     IOS_RUNNER_CONTAINER_BUNDLE_IDS[0] ?? '',
   ]);
-  assert.equal(responseStop?.data?.telemetryPath, `${finalOut}.gesture-telemetry.json`);
+  assert.equal(responseStop?.data?.telemetryPath, deriveRecordingTelemetryPath(finalOut));
   assert.deepEqual(
     responseStop?.data?.artifacts?.map((artifact) => artifact.field),
     ['outPath', 'telemetryPath'],
   );
-  assert.equal(responseStop?.data?.artifacts?.[1]?.path, `${finalOut}.gesture-telemetry.json`);
+  assert.equal(responseStop?.data?.artifacts?.[1]?.path, deriveRecordingTelemetryPath(finalOut));
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
@@ -303,8 +304,11 @@ test('record stop derives telemetry artifact local path from client outPath', as
 
   assert.equal(responseStop?.ok, true);
   assert.equal(responseStop?.data?.artifacts?.[1]?.field, 'telemetryPath');
-  assert.equal(responseStop?.data?.artifacts?.[1]?.localPath, `${finalOut}.gesture-telemetry.json`);
-  assert.equal(responseStop?.data?.telemetryPath, `${finalOut}.gesture-telemetry.json`);
+  assert.equal(
+    responseStop?.data?.artifacts?.[1]?.localPath,
+    deriveRecordingTelemetryPath(finalOut),
+  );
+  assert.equal(responseStop?.data?.telemetryPath, deriveRecordingTelemetryPath(finalOut));
 });
 
 test('record start resolves relative output path from request cwd', async () => {
@@ -388,7 +392,7 @@ test('record start rejects invalid fps value', async () => {
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -418,7 +422,7 @@ test('record start on iOS device requires active app session context', async () 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -449,7 +453,7 @@ test('record start returns structured error when iOS runner start fails', async 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -490,7 +494,7 @@ test('record start recovers from stale iOS runner recording state', async () => 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -538,7 +542,7 @@ test('record start does not stop recording owned by another session during desyn
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -584,7 +588,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => `${videoPath}.gesture-telemetry.json`,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -624,7 +628,7 @@ test('record stop trims iOS device recordings from target app readiness before o
       },
       writeRecordingTelemetry: ({ videoPath, events }) => {
         lifecycleCalls.push(`telemetry:${videoPath}:${events.length}`);
-        return `${videoPath}.gesture-telemetry.json`;
+        return deriveRecordingTelemetryPath(videoPath);
       },
       overlayRecordingTouches: async ({ videoPath, telemetryPath }) => {
         lifecycleCalls.push(`overlay:${videoPath}:${telemetryPath}`);
@@ -636,7 +640,7 @@ test('record stop trims iOS device recordings from target app readiness before o
   assert.deepEqual(lifecycleCalls, [
     'trim:/tmp/device.mp4:3250',
     'telemetry:/tmp/device.mp4:1',
-    'overlay:/tmp/device.mp4:/tmp/device.mp4.gesture-telemetry.json',
+    `overlay:/tmp/device.mp4:${deriveRecordingTelemetryPath('/tmp/device.mp4')}`,
   ]);
 });
 
@@ -664,7 +668,8 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
       runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
       runCmdBackground: (cmd, args) => {
         assert.equal(cmd, 'xcrun');
-        assert.deepEqual(args.slice(0, 5), ['simctl', 'io', 'sim-1', 'recordVideo', '-f']);
+        assert.deepEqual(args.slice(0, 4), ['simctl', 'io', 'sim-1', 'recordVideo']);
+        assert.equal(args[4], path.resolve('./sim.mp4'));
         started = true;
         return {
           child: {
@@ -709,6 +714,48 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
   assert.equal(stopped, true);
 });
 
+test('record start does not fail when iOS simulator runner warm-up fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-warm-failure';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  sessionStore.set(sessionName, session);
+
+  let started = false;
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim.mp4'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        started = true;
+        return {
+          child: { kill: () => {} } as any,
+          wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+        };
+      },
+      runIosRunnerCommand: async () => {
+        throw new Error('runner warm-up unavailable');
+      },
+      waitForStableFile: async () => {},
+      isPlayableVideo: async () => true,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+      trimRecordingStart: async () => {},
+      overlayRecordingTouches: async () => {},
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(started, true);
+});
+
 test('record start/stop overlays Android gestures by default on devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-overlay';
@@ -732,14 +779,14 @@ test('record start/stop overlays Android gestures by default on devices', async 
       runCmd: async (_cmd, args) => {
         adbCalls.push(args);
         if (
-          /^-s emulator-5554 shell screenrecord \/data\/local\/tmp\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
             args.join(' '),
           )
         ) {
           return { stdout: '4321\n', stderr: '', exitCode: 0 };
         }
         if (
-          /^-s emulator-5554 shell stat -c %s \/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/.test(
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
             args.join(' '),
           )
         ) {
@@ -765,7 +812,7 @@ test('record start/stop overlays Android gestures by default on devices', async 
           return { stdout: '', stderr: '', exitCode: 1 };
         }
         if (
-          /^-s emulator-5554 shell stat -c %s \/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/.test(
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
             args.join(' '),
           )
         ) {
@@ -783,7 +830,7 @@ test('record start/stop overlays Android gestures by default on devices', async 
   assert.deepEqual(overlayCalls, [
     {
       videoPath: path.resolve('./android.mp4'),
-      telemetryPath: `${path.resolve('./android.mp4')}.gesture-telemetry.json`,
+      telemetryPath: deriveRecordingTelemetryPath(path.resolve('./android.mp4')),
     },
   ]);
 });
@@ -810,14 +857,14 @@ test('record start leaves overlays disabled with --hide-touches', async () => {
     deps: makeRecordDeps({
       runCmd: async (_cmd, args) => {
         if (
-          /^-s emulator-5554 shell screenrecord \/data\/local\/tmp\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
             args.join(' '),
           )
         ) {
           return { stdout: '9999\n', stderr: '', exitCode: 0 };
         }
         if (
-          /^-s emulator-5554 shell stat -c %s \/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/.test(
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
             args.join(' '),
           )
         ) {
@@ -856,14 +903,14 @@ test('record start accepts Android screenrecord before the remote file begins gr
       runCmd: async (_cmd, args) => {
         const command = args.join(' ');
         if (
-          /^-s emulator-5554 shell screenrecord \/data\/local\/tmp\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
             command,
           )
         ) {
           return { stdout: '5555\n', stderr: '', exitCode: 0 };
         }
         if (
-          /^-s emulator-5554 shell stat -c %s \/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/.test(
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
             command,
           )
         ) {
@@ -880,4 +927,60 @@ test('record start accepts Android screenrecord before the remote file begins gr
 
   assert.equal(response?.ok, true);
   assert.equal(psChecks >= 2, true);
+});
+
+test('record start falls back to /data/local/tmp when /sdcard is unavailable on Android', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-fallback-path';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
+    deps: makeRecordDeps({
+      runCmd: async (_cmd, args) => {
+        const command = args.join(' ');
+        if (
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+            command,
+          )
+        ) {
+          return { stdout: 'permission denied\n', stderr: '', exitCode: 1 };
+        }
+        if (
+          /^-s emulator-5554 shell screenrecord \/data\/local\/tmp\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '7777\n', stderr: '', exitCode: 0 };
+        }
+        if (
+          /^-s emulator-5554 shell stat -c %s \/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '1024\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    }),
+  });
+
+  assert.equal(response?.ok, true);
+  const recording = sessionStore.get(sessionName)?.recording;
+  assert.equal(recording?.platform, 'android');
+  assert.match(
+    recording?.remotePath ?? '',
+    /^\/data\/local\/tmp\/agent-device-recording-\d+\.mp4$/,
+  );
 });

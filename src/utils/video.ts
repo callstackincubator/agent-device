@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { AppError } from './errors.ts';
 import { runCmd } from './exec.ts';
 
 const VIDEO_VALIDATION_SCRIPT = `
@@ -59,21 +60,25 @@ export async function waitForStableFile(
 }
 
 export async function isPlayableVideo(filePath: string): Promise<boolean> {
-  const result = await runCmd('swift', ['-', filePath], {
-    stdin: VIDEO_VALIDATION_SCRIPT,
-    allowFailure: true,
-    timeoutMs: 10_000,
-  });
-  if (
-    result.exitCode !== 0 &&
-    typeof result.stderr === 'string' &&
-    /\b(swift: command not found|avfoundation\b|no such module|unable to find utility|xcrun: error)\b/i.test(
-      result.stderr,
-    )
-  ) {
-    return true;
+  try {
+    const result = await runCmd('swift', ['-', filePath], {
+      stdin: VIDEO_VALIDATION_SCRIPT,
+      allowFailure: true,
+      timeoutMs: 10_000,
+    });
+    if (result.exitCode === 0) {
+      return true;
+    }
+    if (isSwiftVideoValidatorUnavailable(result.stderr, result.stdout)) {
+      return hasLikelyPlayableVideoContainer(filePath);
+    }
+    return false;
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'TOOL_MISSING') {
+      return hasLikelyPlayableVideoContainer(filePath);
+    }
+    throw error;
   }
-  return result.exitCode === 0;
 }
 
 export async function waitForPlayableVideo(
@@ -88,5 +93,67 @@ export async function waitForPlayableVideo(
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+}
+
+function isSwiftVideoValidatorUnavailable(stderr: string, stdout: string): boolean {
+  const combined = `${stderr}\n${stdout}`;
+  return /\b(no such module ['"]AVFoundation['"]|unable to find utility ["']swift["']|xcrun: error: unable to find utility ["']swift["'])\b/i.test(
+    combined,
+  );
+}
+
+function hasLikelyPlayableVideoContainer(filePath: string): boolean {
+  try {
+    const stats = fs.statSync(filePath);
+    if (!stats.isFile() || stats.size <= 0) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  const atoms = inspectTopLevelAtoms(filePath);
+  return atoms.includes('ftyp') && atoms.includes('moov');
+}
+
+function inspectTopLevelAtoms(filePath: string): string[] {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      const size = fs.fstatSync(fd).size;
+      let offset = 0;
+      const atoms: string[] = [];
+      while (offset + 8 <= size && atoms.length < 16) {
+        const header = Buffer.alloc(8);
+        const bytesRead = fs.readSync(fd, header, 0, 8, offset);
+        if (bytesRead < 8) {
+          break;
+        }
+
+        let atomSize = header.readUInt32BE(0);
+        const atomType = header.toString('latin1', 4, 8);
+        atoms.push(atomType);
+
+        if (atomSize === 1) {
+          const extended = Buffer.alloc(8);
+          const extendedRead = fs.readSync(fd, extended, 0, 8, offset + 8);
+          if (extendedRead < 8) {
+            break;
+          }
+          atomSize = Number(extended.readBigUInt64BE(0));
+        }
+
+        if (!Number.isFinite(atomSize) || atomSize <= 0) {
+          break;
+        }
+        offset += atomSize;
+      }
+      return atoms;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return [];
   }
 }

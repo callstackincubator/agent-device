@@ -25,13 +25,24 @@ function resolveScriptPath(scriptName: string): string {
   }
 
   throw new AppError('COMMAND_FAILED', `Missing recording helper script: ${scriptName}`, {
+    hint: 'Ensure ios-runner/AgentDeviceRunner/RecordingScripts is present in this checkout or bundled with the package.',
     scriptName,
     searchedPaths: scriptCandidates,
   });
 }
 
-const overlayScriptPath = resolveScriptPath('recording-overlay.swift');
-const trimScriptPath = resolveScriptPath('recording-trim.swift');
+let overlayScriptPath: string | undefined;
+let trimScriptPath: string | undefined;
+
+function getOverlayScriptPath(): string {
+  overlayScriptPath ??= resolveScriptPath('recording-overlay.swift');
+  return overlayScriptPath;
+}
+
+function getTrimScriptPath(): string {
+  trimScriptPath ??= resolveScriptPath('recording-trim.swift');
+  return trimScriptPath;
+}
 
 async function exportProcessedVideo(params: {
   videoPath: string;
@@ -104,7 +115,7 @@ export async function trimRecordingStart(params: {
 
   await exportProcessedVideo({
     videoPath,
-    scriptPath: trimScriptPath,
+    scriptPath: getTrimScriptPath(),
     scriptArgs: ['--trim-start-ms', String(trimStartMs)],
     commandDescription: 'Failed to trim the start of the iOS recording',
   });
@@ -118,7 +129,7 @@ export async function overlayRecordingTouches(params: {
   const { videoPath, telemetryPath, targetLabel = 'recording' } = params;
   await exportProcessedVideo({
     videoPath,
-    scriptPath: overlayScriptPath,
+    scriptPath: getOverlayScriptPath(),
     scriptArgs: ['--events', telemetryPath],
     commandDescription: `Failed to add touch overlays to the ${targetLabel}`,
   });
