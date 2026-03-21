@@ -86,9 +86,20 @@ function scopeRequestSession(req: DaemonRequest): DaemonRequest {
       'session isolation mode tenant requires --tenant (or meta.tenantId).',
     );
   }
+  const requestedSession = req.session || 'default';
+  if (requestedSession.startsWith(`${tenant}:`)) {
+    return {
+      ...req,
+      meta: {
+        ...req.meta,
+        tenantId: tenant,
+        sessionIsolation: isolation,
+      },
+    };
+  }
   return {
     ...req,
-    session: `${tenant}:${req.session || 'default'}`,
+    session: `${tenant}:${requestedSession}`,
     meta: {
       ...req.meta,
       tenantId: tenant,

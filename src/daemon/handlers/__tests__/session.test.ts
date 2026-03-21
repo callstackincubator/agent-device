@@ -270,6 +270,41 @@ test('batch step forwards typed runtime payload', async () => {
   ]);
 });
 
+test('batch step pins nested requests to the resolved session', async () => {
+  const sessionStore = makeSessionStore();
+  const seenSessions: Array<{ session: string; flagSession: string | undefined }> = [];
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      flags: {
+        batchSteps: [{ command: 'wait', positionals: ['100'] }],
+      },
+    },
+    sessionName: 'resolved-session',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      seenSessions.push({
+        session: stepReq.session,
+        flagSession: stepReq.flags?.session,
+      });
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(seenSessions, [
+    {
+      session: 'resolved-session',
+      flagSession: 'resolved-session',
+    },
+  ]);
+});
+
 test('runtime set/show/clear manages session-scoped runtime hints before open', async () => {
   const sessionStore = makeSessionStore();
   const baseRequest = {

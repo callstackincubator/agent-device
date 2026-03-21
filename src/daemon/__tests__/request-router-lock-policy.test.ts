@@ -154,3 +154,46 @@ test('direct daemon requests apply strip lock policy for existing sessions befor
   assert.equal(action?.flags.target, undefined);
   assert.equal(action?.flags.device, 'iPhone 16');
 });
+
+test('batch preserves tenant-scoped session names across nested requests', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set('tenant-a:default', makeIosSession('tenant-a:default'));
+  const leaseRegistry = new LeaseRegistry();
+  const lease = leaseRegistry.allocateLease({
+    tenantId: 'tenant-a',
+    runId: 'run-1',
+  });
+  let dispatchCalls = 0;
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry,
+    trackDownloadableArtifact: () => 'artifact-id',
+    dispatchCommand: async () => {
+      dispatchCalls += 1;
+      return {};
+    },
+  });
+
+  const response = await handler({
+    token: 'test-token',
+    session: 'default',
+    command: 'batch',
+    positionals: [],
+    flags: {
+      batchSteps: [{ command: 'home' }],
+    },
+    meta: {
+      tenantId: 'tenant-a',
+      runId: 'run-1',
+      leaseId: lease.leaseId,
+      sessionIsolation: 'tenant',
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(dispatchCalls, 1);
+  assert.equal(sessionStore.get('tenant-a:default')?.actions.at(-1)?.command, 'home');
+});
