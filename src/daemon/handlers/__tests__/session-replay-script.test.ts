@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { writeReplayScript } from '../session-replay-script.ts';
+import { parseReplayScript, writeReplayScript } from '../session-replay-script.ts';
 import type { SessionAction, SessionState } from '../../types.ts';
 
 function makeSession(): SessionState {
@@ -46,4 +46,26 @@ test('writeReplayScript preserves inline open runtime hints', () => {
     script,
     /open "Demo" --relaunch --platform android --metro-host 10\.0\.0\.10 --metro-port 8081 --launch-url myapp:\/\/dev/,
   );
+});
+
+test('record replay script round-trips fps and hide-touches flags', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-record-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'record',
+      positionals: ['start', './capture.mp4'],
+      flags: { fps: 24, hideTouches: true },
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+  assert.match(script, /record start "\.\/capture\.mp4" --fps 24 --hide-touches/);
+
+  const parsed = parseReplayScript(script);
+  assert.deepEqual(parsed[0]?.positionals, ['start', './capture.mp4']);
+  assert.equal(parsed[0]?.flags.fps, 24);
+  assert.equal(parsed[0]?.flags.hideTouches, true);
 });

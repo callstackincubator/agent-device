@@ -415,6 +415,15 @@ test('parseArgs recognizes record --fps flag', () => {
   assert.equal(parsed.flags.fps, 30);
 });
 
+test('parseArgs recognizes record --hide-touches flag', () => {
+  const parsed = parseArgs(['record', 'start', './capture.mp4', '--hide-touches'], {
+    strictFlags: true,
+  });
+  assert.equal(parsed.command, 'record');
+  assert.deepEqual(parsed.positionals, ['start', './capture.mp4']);
+  assert.equal(parsed.flags.hideTouches, true);
+});
+
 test('parseArgs rejects invalid record --fps range', () => {
   assert.throws(
     () => parseArgs(['record', 'start', './capture.mp4', '--fps', '0'], { strictFlags: true }),
@@ -718,6 +727,13 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /Global flags:/);
   assert.match(help, /--platform ios\|macos\|android\|apple/);
+});
+
+test('command usage shows record touch-overlay opt-out flag', () => {
+  const help = usageForCommand('record');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /record start \[path\] \[--fps <n>\] \[--hide-touches\] \| record stop/);
+  assert.match(help, /--hide-touches/);
 });
 
 test('command usage keeps detailed descriptions', () => {

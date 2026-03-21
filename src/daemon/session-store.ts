@@ -235,6 +235,8 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     relaunch,
     saveScript,
     noRecord,
+    fps,
+    hideTouches,
     count,
     intervalMs,
     holdMs,
@@ -263,6 +265,8 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     relaunch,
     saveScript,
     noRecord,
+    fps,
+    hideTouches,
     count,
     intervalMs,
     holdMs,
@@ -362,6 +366,22 @@ function formatActionLine(action: SessionAction): string {
       parts.push(formatScriptArgQuoteIfNeeded(subcommand));
     }
     appendRuntimeHintFlags(parts, action.flags);
+    return parts.join(' ');
+  }
+  if (action.command === 'record') {
+    const [subcommand, ...rest] = action.positionals ?? [];
+    if (subcommand) {
+      parts.push(formatScriptArgQuoteIfNeeded(subcommand));
+    }
+    for (const positional of rest) {
+      parts.push(formatScriptArg(positional));
+    }
+    if (typeof action.flags?.fps === 'number') {
+      parts.push('--fps', String(action.flags.fps));
+    }
+    if (action.flags?.hideTouches) {
+      parts.push('--hide-touches');
+    }
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {

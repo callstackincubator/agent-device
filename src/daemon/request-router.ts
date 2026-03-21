@@ -27,6 +27,10 @@ import {
 } from '../utils/diagnostics.ts';
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
+import {
+  augmentTouchVisualizationResult,
+  recordTouchVisualizationEvent,
+} from './recording-gestures.ts';
 
 const selectorValidationExemptCommands = new Set([
   'session_list',
@@ -354,6 +358,7 @@ export function createRequestHandler(
             command === 'screenshot' && resolvedOut
               ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
               : (lockedReq.flags ?? {});
+          const actionStartedAt = Date.now();
           const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
             ...contextFromFlags(
               logPath,
@@ -362,6 +367,22 @@ export function createRequestHandler(
               session.trace?.outPath,
             ),
           });
+          const actionFinishedAt = Date.now();
+          const visualizationData = augmentTouchVisualizationResult(
+            session,
+            command,
+            resolvedPositionals,
+            data as Record<string, unknown> | void,
+          );
+          recordTouchVisualizationEvent(
+            session,
+            command,
+            resolvedPositionals,
+            visualizationData as Record<string, unknown> | void,
+            (lockedReq.flags ?? {}) as Record<string, unknown>,
+            actionStartedAt,
+            actionFinishedAt,
+          );
           sessionStore.recordAction(session, {
             command,
             positionals: recordedPositionals,

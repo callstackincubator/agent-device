@@ -2711,6 +2711,9 @@ test('close on iOS session with recording stops runner session before delete', a
       platform: 'ios-device-runner',
       outPath: '/tmp/device-recording.mp4',
       remotePath: 'tmp/device-recording.mp4',
+      startedAt: Date.now(),
+      showTouches: false,
+      gestureEvents: [],
     },
   });
 

@@ -69,6 +69,52 @@ export type DaemonResponse =
       };
     };
 
+type RecordingTelemetryBase = {
+  tMs: number;
+  x: number;
+  y: number;
+  referenceWidth?: number;
+  referenceHeight?: number;
+};
+
+type RecordingTelemetryTravel = RecordingTelemetryBase & {
+  x2: number;
+  y2: number;
+  durationMs: number;
+};
+
+export type RecordingGestureEvent =
+  | (RecordingTelemetryBase & {
+      kind: 'tap' | 'longpress';
+      durationMs?: number;
+    })
+  | (RecordingTelemetryTravel & {
+      kind: 'swipe';
+    })
+  | (RecordingTelemetryTravel & {
+      kind: 'scroll';
+      contentDirection: 'up' | 'down' | 'left' | 'right';
+      amount?: number;
+    })
+  | (RecordingTelemetryTravel & {
+      kind: 'back-swipe';
+      edge: 'left' | 'right';
+    })
+  | (RecordingTelemetryBase & {
+      kind: 'pinch';
+      scale: number;
+      durationMs: number;
+    });
+
+type SessionRecordingBase = {
+  outPath: string;
+  clientOutPath?: string;
+  telemetryPath?: string;
+  startedAt: number;
+  showTouches: boolean;
+  gestureEvents: RecordingGestureEvent[];
+};
+
 export type SessionState = {
   name: string;
   device: DeviceInfo;
@@ -84,20 +130,23 @@ export type SessionState = {
   saveScriptPath?: string;
   actions: SessionAction[];
   recording?:
-    | {
-        platform: 'ios' | 'android';
-        outPath: string;
-        clientOutPath?: string;
-        remotePath?: string;
+    | (SessionRecordingBase & {
+        platform: 'ios';
         child: ReturnType<typeof import('node:child_process').spawn>;
         wait: Promise<ExecResult>;
-      }
-    | {
-        platform: 'ios-device-runner' | 'macos-runner';
-        outPath: string;
-        clientOutPath?: string;
         remotePath?: string;
-      };
+      })
+    | (SessionRecordingBase & {
+        platform: 'android';
+        remotePath: string;
+        remotePid: string;
+      })
+    | (SessionRecordingBase & {
+        platform: 'ios-device-runner' | 'macos-runner';
+        remotePath?: string;
+        runnerStartedAtUptimeMs?: number;
+        targetAppReadyUptimeMs?: number;
+      });
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
     platform: Platform;
