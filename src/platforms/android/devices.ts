@@ -22,6 +22,8 @@ type AndroidDeviceDiscoveryOptions = {
   serialAllowlist?: ReadonlySet<string>;
 };
 
+type AndroidAdbRunner = typeof runCmd;
+
 function commandOutput(result: ExecResult): string {
   return `${result.stdout}\n${result.stderr}`;
 }
@@ -68,22 +70,53 @@ async function resolveAndroidDeviceName(serial: string, rawModel: string): Promi
   return modelName || serial;
 }
 
-async function resolveAndroidEmulatorAvdName(serial: string): Promise<string | undefined> {
-  const avdPropKeys = ['ro.boot.qemu.avd_name', 'persist.sys.avd_name'];
-  for (const prop of avdPropKeys) {
-    const result = await runCmd('adb', adbArgs(serial, ['shell', 'getprop', prop]), {
+async function runBestEffortAndroidEmulatorNameProbe(
+  serial: string,
+  args: string[],
+  runAdb: AndroidAdbRunner,
+): Promise<ExecResult | undefined> {
+  try {
+    return await runAdb('adb', adbArgs(serial, args), {
       allowFailure: true,
       timeoutMs: ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS,
     });
+  } catch (error) {
+    const appError = asAppError(error);
+    // Friendly-name lookup is optional during discovery, but only probe timeouts should fall back.
+    if (isAndroidEmulatorNameProbeTimeout(appError)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+function isAndroidEmulatorNameProbeTimeout(error: AppError): boolean {
+  return error.code === 'COMMAND_FAILED' && typeof error.details?.timeoutMs === 'number';
+}
+
+export async function resolveAndroidEmulatorAvdName(
+  serial: string,
+  runAdb: AndroidAdbRunner = runCmd,
+): Promise<string | undefined> {
+  const avdPropKeys = ['ro.boot.qemu.avd_name', 'persist.sys.avd_name'];
+  for (const prop of avdPropKeys) {
+    const result = await runBestEffortAndroidEmulatorNameProbe(
+      serial,
+      ['shell', 'getprop', prop],
+      runAdb,
+    );
+    if (!result) continue;
     const value = result.stdout.trim();
     if (result.exitCode === 0 && value.length > 0) {
       return value;
     }
   }
-  const emuResult = await runCmd('adb', adbArgs(serial, ['emu', 'avd', 'name']), {
-    allowFailure: true,
-    timeoutMs: ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS,
-  });
+  const emuResult = await runBestEffortAndroidEmulatorNameProbe(
+    serial,
+    ['emu', 'avd', 'name'],
+    runAdb,
+  );
+  if (!emuResult) return undefined;
   const emuValue = parseAndroidEmulatorAvdNameOutput(emuResult.stdout);
   if (emuResult.exitCode === 0 && emuValue) {
     return emuValue;
