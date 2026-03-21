@@ -468,7 +468,7 @@ tail -50 ~/.agent-device/sessions/default/app.log
 
 - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
 
-- Physical-device capture defaults to uncapped (max available) FPS.
+- Physical-device capture defaults to 15 FPS.
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
 
