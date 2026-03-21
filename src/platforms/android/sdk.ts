@@ -53,6 +53,21 @@ async function pathExists(candidate: string): Promise<boolean> {
   }
 }
 
+function resolvePathCommandCandidates(
+  command: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  if (path.extname(command)) {
+    return [command];
+  }
+  const pathExtEntries = (env.PATHEXT ?? '')
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => (entry.startsWith('.') ? entry : `.${entry}`));
+  return uniqueNonEmpty([command, ...pathExtEntries.map((entry) => `${command}${entry}`)]);
+}
+
 async function hasCommandOnPath(
   command: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -61,9 +76,12 @@ async function hasCommandOnPath(
     .split(path.delimiter)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
+  const commandCandidates = resolvePathCommandCandidates(command, env);
   for (const entry of pathEntries) {
-    if (await pathExists(path.join(entry, command))) {
-      return true;
+    for (const candidate of commandCandidates) {
+      if (await pathExists(path.join(entry, candidate))) {
+        return true;
+      }
     }
   }
   return false;

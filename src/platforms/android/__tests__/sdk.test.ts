@@ -101,6 +101,26 @@ test('resolveAndroidToolPath falls back to PATH when SDK roots do not contain th
   }
 });
 
+test('resolveAndroidToolPath honors PATHEXT when PATH only contains Windows tool shims', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-sdk-pathext-'));
+  const emulatorDir = path.join(tmpDir, 'bin');
+  const emulatorPath = path.join(emulatorDir, 'emulator.exe');
+  await fs.mkdir(emulatorDir, { recursive: true });
+  await fs.writeFile(emulatorPath, '#!/bin/sh\nexit 0\n', 'utf8');
+  await fs.chmod(emulatorPath, 0o755);
+
+  try {
+    const env = {
+      HOME: tmpDir,
+      PATH: emulatorDir,
+      PATHEXT: '.exe;.bat',
+    } satisfies NodeJS.ProcessEnv;
+    assert.equal(await resolveAndroidToolPath('emulator', env), 'emulator');
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('ensureAndroidSdkPathConfigured mirrors a single configured SDK root into PATH and ANDROID_HOME', async () => {
   await withTempSdkLayout(async ({ env, sdkRoot }) => {
     env.ANDROID_SDK_ROOT = sdkRoot;
