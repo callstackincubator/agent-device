@@ -113,12 +113,16 @@ async function runBatchStep(
     }
 > {
   const stepStartedAt = Date.now();
+  const stepFlags = buildBatchStepFlags(req.flags, step.flags);
+  if (stepFlags.session === undefined) {
+    stepFlags.session = sessionName;
+  }
   const response = await invoke({
     token: req.token,
     session: sessionName,
     command: step.command,
     positionals: step.positionals,
-    flags: buildBatchStepFlags(req.flags, step.flags),
+    flags: stepFlags,
     runtime: step.runtime as DaemonRequest['runtime'],
     meta: req.meta,
   });
