@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { AppError } from '../../../utils/errors.ts';
 import {
   ensureAndroidEmulatorBooted,
+  listAndroidDevices,
   parseAndroidAvdList,
   parseAndroidEmulatorAvdNameOutput,
   parseAndroidFeatureListForTv,
   parseAndroidTargetFromCharacteristics,
   resolveAndroidAvdName,
+  resolveAndroidEmulatorAvdName,
 } from '../devices.ts';
 
 const MOCK_ANDROID_ADB_SCRIPT = [
@@ -22,14 +25,23 @@ const MOCK_ANDROID_ADB_SCRIPT = [
   '  exit 0',
   'fi',
   'if [ "$1" = "-s" ] && [ "$2" = "emulator-5554" ] && [ "$3" = "emu" ] && [ "$4" = "avd" ] && [ "$5" = "name" ]; then',
+  '  if [ "$AGENT_DEVICE_TEST_AVD_NAME_MODE" = "missing" ]; then',
+  '    exit 0',
+  '  fi',
   '  echo "Pixel_9_Pro_XL"',
   '  exit 0',
   'fi',
   'if [ "$1" = "-s" ] && [ "$2" = "emulator-5554" ] && [ "$3" = "shell" ] && [ "$4" = "getprop" ] && [ "$5" = "ro.boot.qemu.avd_name" ]; then',
+  '  if [ "$AGENT_DEVICE_TEST_AVD_NAME_MODE" = "missing" ]; then',
+  '    exit 0',
+  '  fi',
   '  echo "Pixel_9_Pro_XL"',
   '  exit 0',
   'fi',
   'if [ "$1" = "-s" ] && [ "$2" = "emulator-5554" ] && [ "$3" = "shell" ] && [ "$4" = "getprop" ] && [ "$5" = "persist.sys.avd_name" ]; then',
+  '  if [ "$AGENT_DEVICE_TEST_AVD_NAME_MODE" = "missing" ]; then',
+  '    exit 0',
+  '  fi',
   '  echo "Pixel_9_Pro_XL"',
   '  exit 0',
   'fi',
@@ -137,6 +149,7 @@ test('resolveAndroidAvdName supports space vs underscore matching', () => {
 
 async function withMockedAndroidTools(
   run: (ctx: { emulatorLogPath: string; emulatorBootedPath: string }) => Promise<void>,
+  options: { avdNameMode?: 'success' | 'missing' } = {},
 ): Promise<void> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-headless-'));
   const emulatorLogPath = path.join(tmpDir, 'emulator.log');
@@ -153,6 +166,7 @@ async function withMockedAndroidTools(
         PATH: `${tmpDir}${path.delimiter}${process.env.PATH ?? ''}`,
         AGENT_DEVICE_TEST_EMU_BOOTED_FILE: emulatorBootedPath,
         AGENT_DEVICE_TEST_EMU_LOG_FILE: emulatorLogPath,
+        AGENT_DEVICE_TEST_AVD_NAME_MODE: options.avdNameMode ?? 'success',
         HOME: tmpDir,
         ANDROID_SDK_ROOT: undefined,
         ANDROID_HOME: undefined,
@@ -197,6 +211,53 @@ async function withMockedAndroidSdkRoot(
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }
+
+test('resolveAndroidEmulatorAvdName ignores probe timeouts and keeps probing', async () => {
+  const calls: string[][] = [];
+  const results = [
+    new AppError('COMMAND_FAILED', 'adb timed out after 1500ms', { timeoutMs: 1500 }),
+    { stdout: '', stderr: '', exitCode: 0 },
+    { stdout: 'Pixel_9_Pro_XL\n', stderr: '', exitCode: 0 },
+  ];
+  const runAdb = async (
+    _cmd: string,
+    args: string[],
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+    calls.push(args);
+    const next = results.shift();
+    if (next instanceof AppError) throw next;
+    assert.ok(next);
+    return next;
+  };
+
+  const avdName = await resolveAndroidEmulatorAvdName('emulator-5554', runAdb);
+
+  assert.equal(avdName, 'Pixel_9_Pro_XL');
+  assert.deepEqual(
+    calls.map((args) => args.slice(2)),
+    [
+      ['shell', 'getprop', 'ro.boot.qemu.avd_name'],
+      ['shell', 'getprop', 'persist.sys.avd_name'],
+      ['emu', 'avd', 'name'],
+    ],
+  );
+});
+
+test('listAndroidDevices falls back to model when emulator avd name is unavailable', async () => {
+  await withMockedAndroidTools(
+    async ({ emulatorBootedPath }) => {
+      await fs.writeFile(emulatorBootedPath, 'ready', 'utf8');
+
+      const devices = await listAndroidDevices();
+
+      assert.equal(devices.length, 1);
+      assert.equal(devices[0]?.id, 'emulator-5554');
+      assert.equal(devices[0]?.name, 'Pixel 9 Pro XL');
+      assert.equal(devices[0]?.kind, 'emulator');
+    },
+    { avdNameMode: 'missing' },
+  );
+});
 
 test('ensureAndroidEmulatorBooted launches emulator in headless mode when requested', async () => {
   await withMockedAndroidTools(async ({ emulatorLogPath, emulatorBootedPath }) => {
