@@ -7,13 +7,11 @@ extension RunnerTests {
   final class ScreenRecorder {
     private let outputPath: String
     private let fps: Int32?
-    private let uncappedFrameInterval: TimeInterval = 0.001
-    private var uncappedTimestampTimescale: Int32 {
-      Int32(max(1, Int((1.0 / uncappedFrameInterval).rounded())))
+    private var effectiveFps: Int32 {
+      max(1, fps ?? RunnerTests.defaultRecordingFps)
     }
     private var frameInterval: TimeInterval {
-      guard let fps else { return uncappedFrameInterval }
-      return 1.0 / Double(fps)
+      1.0 / Double(effectiveFps)
     }
     private let queue = DispatchQueue(label: "agent-device.runner.recorder")
     private let lock = NSLock()
@@ -206,7 +204,7 @@ extension RunnerTests {
         recordingStartUptime = nowUptime
       }
       let elapsed = max(0, nowUptime - (recordingStartUptime ?? nowUptime))
-      let timescale = fps ?? uncappedTimestampTimescale
+      let timescale = effectiveFps
       var timestampValue = Int64((elapsed * Double(timescale)).rounded(.down))
       if timestampValue <= lastTimestampValue {
         timestampValue = lastTimestampValue + 1

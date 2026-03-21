@@ -175,7 +175,7 @@ extension RunnerTests {
       }
       do {
         let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
-        let fpsLabel = command.fps.map(String.init) ?? "max"
+        let fpsLabel = command.fps.map(String.init) ?? String(RunnerTests.defaultRecordingFps)
         NSLog(
           "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%@",
           requestedOutPath,

@@ -595,8 +595,9 @@ function buildRecordStopResponse(
   ];
   if (recording.telemetryPath) {
     artifacts.push({
-      field: 'gestureTelemetry',
+      field: 'telemetryPath',
       path: recording.telemetryPath,
+      localPath: deriveClientTelemetryPath(recording),
       fileName: path.basename(recording.telemetryPath),
     });
   }
@@ -611,6 +612,15 @@ function buildRecordStopResponse(
       showTouches: recording.showTouches,
     },
   };
+}
+
+function deriveClientTelemetryPath(
+  recording: NonNullable<SessionState['recording']>,
+): string | undefined {
+  if (!recording.clientOutPath) {
+    return undefined;
+  }
+  return `${recording.clientOutPath}.gesture-telemetry.json`;
 }
 
 export async function handleRecordCommand(params: {

@@ -29,6 +29,7 @@ final class RunnerTests: XCTestCase {
   }
 
   static let springboardBundleId = "com.apple.springboard"
+  static let defaultRecordingFps: Int32 = 15
   var listener: NWListener?
   var doneExpectation: XCTestExpectation?
   let app = XCUIApplication()

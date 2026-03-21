@@ -69,6 +69,7 @@ async function runRecordCommand(params: {
   logPath?: string;
   cwd?: string;
   flags?: { fps?: number; hideTouches?: boolean };
+  clientArtifactPaths?: Record<string, string>;
 }) {
   return handleRecordTraceCommands({
     req: {
@@ -77,7 +78,15 @@ async function runRecordCommand(params: {
       command: 'record',
       positionals: params.positionals,
       flags: params.flags ?? {},
-      meta: params.cwd ? { cwd: params.cwd } : undefined,
+      meta:
+        params.cwd || params.clientArtifactPaths
+          ? {
+              ...(params.cwd ? { cwd: params.cwd } : {}),
+              ...(params.clientArtifactPaths
+                ? { clientArtifactPaths: params.clientArtifactPaths }
+                : {}),
+            }
+          : undefined,
     },
     sessionName: params.sessionName,
     sessionStore: params.sessionStore,
@@ -216,8 +225,9 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(responseStop?.data?.telemetryPath, `${finalOut}.gesture-telemetry.json`);
   assert.deepEqual(
     responseStop?.data?.artifacts?.map((artifact) => artifact.field),
-    ['outPath', 'gestureTelemetry'],
+    ['outPath', 'telemetryPath'],
   );
+  assert.equal(responseStop?.data?.artifacts?.[1]?.path, `${finalOut}.gesture-telemetry.json`);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
@@ -249,7 +259,6 @@ test('record start/stop uses runner on macOS desktop sessions', async () => {
     traceLogPath: undefined,
   });
   assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'macos-runner');
-
   const responseStop = await runRecordCommand({
     sessionStore,
     sessionName,
@@ -264,6 +273,38 @@ test('record start/stop uses runner on macOS desktop sessions', async () => {
   assert.equal(runnerCalls[1]?.appBundleId, 'com.apple.systempreferences');
   assert.equal(runCmdCalls.length, 0);
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
+test('record stop derives telemetry artifact local path from client outPath', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-remote-artifacts';
+  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
+  sessionStore.set(sessionName, session);
+
+  const runnerCalls: RunnerCall[] = [];
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
+  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', finalOut],
+    deps,
+    clientArtifactPaths: { outPath: finalOut },
+  });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps,
+  });
+
+  assert.equal(responseStop?.ok, true);
+  assert.equal(responseStop?.data?.artifacts?.[1]?.field, 'telemetryPath');
+  assert.equal(responseStop?.data?.artifacts?.[1]?.localPath, `${finalOut}.gesture-telemetry.json`);
+  assert.equal(responseStop?.data?.telemetryPath, `${finalOut}.gesture-telemetry.json`);
 });
 
 test('record start resolves relative output path from request cwd', async () => {

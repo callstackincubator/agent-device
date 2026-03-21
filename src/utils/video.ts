@@ -64,6 +64,15 @@ export async function isPlayableVideo(filePath: string): Promise<boolean> {
     allowFailure: true,
     timeoutMs: 10_000,
   });
+  if (
+    result.exitCode !== 0 &&
+    typeof result.stderr === 'string' &&
+    /\b(swift: command not found|avfoundation\b|no such module|unable to find utility|xcrun: error)\b/i.test(
+      result.stderr,
+    )
+  ) {
+    return true;
+  }
   return result.exitCode === 0;
 }
 
