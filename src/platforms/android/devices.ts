@@ -82,12 +82,16 @@ async function runBestEffortAndroidEmulatorNameProbe(
     });
   } catch (error) {
     const appError = asAppError(error);
-    // Friendly-name lookup is optional during discovery, so timeouts should not hide a reachable device.
-    if (appError.code === 'COMMAND_FAILED') {
+    // Friendly-name lookup is optional during discovery, but only probe timeouts should fall back.
+    if (isAndroidEmulatorNameProbeTimeout(appError)) {
       return undefined;
     }
     throw error;
   }
+}
+
+function isAndroidEmulatorNameProbeTimeout(error: AppError): boolean {
+  return error.code === 'COMMAND_FAILED' && typeof error.details?.timeoutMs === 'number';
 }
 
 export async function resolveAndroidEmulatorAvdName(

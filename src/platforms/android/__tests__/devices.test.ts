@@ -243,6 +243,25 @@ test('resolveAndroidEmulatorAvdName ignores probe timeouts and keeps probing', a
   );
 });
 
+test('resolveAndroidEmulatorAvdName rethrows non-timeout probe failures', async () => {
+  const failure = new AppError('COMMAND_FAILED', 'adb exited with code 1', {
+    stderr: 'device offline',
+    exitCode: 1,
+    processExitError: true,
+  });
+  let callCount = 0;
+  const runAdb = async (): Promise<{ stdout: string; stderr: string; exitCode: number }> => {
+    callCount += 1;
+    throw failure;
+  };
+
+  await assert.rejects(
+    async () => await resolveAndroidEmulatorAvdName('emulator-5554', runAdb),
+    (error) => error === failure,
+  );
+  assert.equal(callCount, 1);
+});
+
 test('listAndroidDevices falls back to model when emulator avd name is unavailable', async () => {
   await withMockedAndroidTools(
     async ({ emulatorBootedPath }) => {
