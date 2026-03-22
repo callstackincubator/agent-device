@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-246/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/pr-preview/pr-246/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/pr-preview/pr-246/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/pr-preview/pr-246/static/js/index.fa8023f0.js"></script>
+<script defer src="/agent-device/pr-preview/pr-246/static/js/index.9bb41206.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -125,7 +125,7 @@
 <li><code>--platform macos</code> selects the host Mac as a <code>desktop</code> target.</li>
 <li><code>--platform apple --target desktop</code> selects the same macOS backend through the Apple-family alias.</li>
 <li>macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for <code>open</code>, <code>appstate</code>, <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>scroll</code>, <code>back</code>, <code>screenshot</code>, <code>record</code>, and selector-based commands.</li>
-<li>macOS also supports <code>clipboard read|write</code>, <code>trigger-app-event</code>, and <code>settings appearance light|dark|toggle</code>.</li>
+<li>macOS also supports <code>clipboard read|write</code>, <code>trigger-app-event</code>, and only <code>settings appearance light|dark|toggle</code>.</li>
 <li>Prefer selector or <code>@ref</code>-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.</li>
 <li>Mobile-only helpers remain unsupported on macOS: <code>boot</code>, <code>home</code>, <code>app-switcher</code>, <code>install</code>, <code>reinstall</code>, <code>install-from-source</code>, <code>push</code>, <code>logs</code>, and <code>network</code>.</li>
 </ul>

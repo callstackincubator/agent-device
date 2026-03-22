@@ -123,7 +123,7 @@ agent-device snapshot -i --platform apple --target desktop
 - `--platform macos` selects the host Mac as a `desktop` target.
 - `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
 - macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
-- macOS also supports `clipboard read|write`, `trigger-app-event`, and `settings appearance light|dark|toggle`.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, and only `settings appearance light|dark|toggle`.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, `push`, `logs`, and `network`.
 
