@@ -8,7 +8,7 @@
 
 # agent-device
 
-`agent-device` is a CLI for mobile UI automation on iOS, tvOS, Android, and AndroidTV. It is designed for agent-driven workflows: inspect the UI, act on it deterministically, and keep that work session-aware and replayable.
+`agent-device` is a CLI for UI automation on iOS, tvOS, macOS, Android, and AndroidTV. It is designed for agent-driven workflows: inspect the UI, act on it deterministically, and keep that work session-aware and replayable.
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this project applies the same broad idea to mobile apps and devices.
 

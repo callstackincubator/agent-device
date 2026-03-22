@@ -23,7 +23,7 @@ Use this skill as a router, not a full manual.
 
 - No target context yet: `devices` -> pick target -> `open`.
 - Normal UI task: `open` -> `snapshot -i` -> `press/fill` -> `diff snapshot -i` -> `close`
-- Debug/crash: `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
+- Debug/crash (iOS/Android): `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
 - Remote multi-tenant run: allocate lease -> point client at remote daemon base URL -> run commands with tenant isolation flags -> heartbeat/release lease
 - Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only

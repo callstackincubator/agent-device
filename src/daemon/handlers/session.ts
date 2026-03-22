@@ -191,12 +191,9 @@ async function runSessionOrSelectorDispatch(params: {
 }
 function resolveSessionLogBackendLabel(
   session: SessionState,
-): 'ios-simulator' | 'ios-device' | 'android' | 'macos' {
+): 'ios-simulator' | 'ios-device' | 'android' {
   if (session.appLog) {
     return session.appLog.backend;
-  }
-  if (session.device.platform === 'macos') {
-    return 'macos';
   }
   if (session.device.platform === 'ios') {
     return session.device.kind === 'device' ? 'ios-device' : 'ios-simulator';
@@ -981,6 +978,15 @@ export async function handleSessionCommands(params: {
         error: { code: 'SESSION_NOT_FOUND', message: 'logs requires an active session' },
       };
     }
+    if (!isCommandSupportedOnDevice('logs', session.device)) {
+      const unsupportedError = normalizeError(
+        new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'),
+      );
+      return {
+        ok: false,
+        error: unsupportedError,
+      };
+    }
     const action = (req.positionals?.[0] ?? 'path').toLowerCase();
     const restart = Boolean(req.flags?.restart);
     if (!LOG_ACTIONS.includes(action as (typeof LOG_ACTIONS)[number])) {
@@ -1055,15 +1061,6 @@ export async function handleSessionCommands(params: {
             },
           };
         }
-        if (!isCommandSupportedOnDevice('logs', session.device)) {
-          const unsupportedError = normalizeError(
-            new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'),
-          );
-          return {
-            ok: false,
-            error: unsupportedError,
-          };
-        }
       }
       const logPath = sessionStore.resolveAppLogPath(sessionName);
       if (restart) {
@@ -1121,15 +1118,6 @@ export async function handleSessionCommands(params: {
           },
         };
       }
-      if (!isCommandSupportedOnDevice('logs', session.device)) {
-        const unsupportedError = normalizeError(
-          new AppError('UNSUPPORTED_OPERATION', 'logs is not supported on this device'),
-        );
-        return {
-          ok: false,
-          error: unsupportedError,
-        };
-      }
       const appLogPath = sessionStore.resolveAppLogPath(sessionName);
       const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
       try {
@@ -1175,6 +1163,15 @@ export async function handleSessionCommands(params: {
       return {
         ok: false,
         error: { code: 'SESSION_NOT_FOUND', message: 'network requires an active session' },
+      };
+    }
+    if (!isCommandSupportedOnDevice('network', session.device)) {
+      const unsupportedError = normalizeError(
+        new AppError('UNSUPPORTED_OPERATION', 'network is not supported on this device'),
+      );
+      return {
+        ok: false,
+        error: unsupportedError,
       };
     }
     const action = (req.positionals?.[0] ?? 'dump').toLowerCase();

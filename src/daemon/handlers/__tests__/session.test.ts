@@ -3273,7 +3273,7 @@ test('logs path returns path and active flag when session exists', async () => {
   }
 });
 
-test('logs path reports macOS backend for desktop sessions', async () => {
+test('logs rejects unsupported macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-default';
   sessionStore.set(
@@ -3300,10 +3300,10 @@ test('logs path reports macOS backend for desktop sessions', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(response?.ok, true);
-  if (response && response.ok) {
-    assert.equal(response.data?.backend, 'macos');
-    assert.equal(response.data?.active, false);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /logs is not supported/i);
   }
 });
 
@@ -3932,7 +3932,7 @@ test('network dump returns recent parsed HTTP entries', async () => {
   }
 });
 
-test('network dump reports macOS backend for desktop sessions', async () => {
+test('network dump rejects unsupported macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-network';
   sessionStore.set(sessionName, {
@@ -3946,14 +3946,6 @@ test('network dump reports macOS backend for desktop sessions', async () => {
     }),
     appBundleId: 'com.apple.systempreferences',
   });
-  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
-  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
-  fs.writeFileSync(
-    appLogPath,
-    '2026-02-24T10:00:00Z GET https://api.example.com/v1/preferences status=200\n',
-    'utf8',
-  );
-
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3968,10 +3960,10 @@ test('network dump reports macOS backend for desktop sessions', async () => {
     invoke: noopInvoke,
   });
 
-  assert.equal(response?.ok, true);
-  if (response && response.ok) {
-    assert.equal(response.data?.backend, 'macos');
-    assert.equal(response.data?.active, false);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /network is not supported/i);
   }
 });
 
