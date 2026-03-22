@@ -179,7 +179,11 @@ async function withMockedAndroidTools(
 }
 
 async function withMockedAndroidSdkRoot(
-  run: (ctx: { emulatorLogPath: string; emulatorBootedPath: string; sdkRoot: string }) => Promise<void>,
+  run: (ctx: {
+    emulatorLogPath: string;
+    emulatorBootedPath: string;
+    sdkRoot: string;
+  }) => Promise<void>,
 ): Promise<void> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-sdk-root-'));
   const sdkRoot = path.join(tmpDir, 'Android', 'Sdk');

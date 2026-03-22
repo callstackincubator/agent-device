@@ -14,7 +14,9 @@ type HandleAlertCommandParams = {
   runnerCommand?: typeof runIosRunnerCommand;
 };
 
-export async function handleAlertCommand(params: HandleAlertCommandParams): Promise<DaemonResponse> {
+export async function handleAlertCommand(
+  params: HandleAlertCommandParams,
+): Promise<DaemonResponse> {
   const { req, logPath, sessionStore, session, device } = params;
   const runnerCommand = params.runnerCommand ?? runIosRunnerCommand;
   const action = (req.positionals?.[0] ?? 'get').toLowerCase();

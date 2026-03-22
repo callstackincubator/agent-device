@@ -2,7 +2,12 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
-import { attachRefs, findNodeByRef, normalizeRef, type RawSnapshotNode } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  findNodeByRef,
+  normalizeRef,
+  type RawSnapshotNode,
+} from '../../utils/snapshot.ts';
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, resolveRefLabel } from '../snapshot-processing.ts';
 import { SessionStore } from '../session-store.ts';
@@ -130,12 +135,20 @@ async function waitForSelector(params: {
   sessionName: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
-  const { dispatchSnapshotCommand, device, logPath, parsed, req, session, sessionName, sessionStore } =
-    params;
+  const {
+    dispatchSnapshotCommand,
+    device,
+    logPath,
+    parsed,
+    req,
+    session,
+    sessionName,
+    sessionStore,
+  } = params;
   const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   while (Date.now() - start < timeout) {
-    const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
+    const data = await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
       ...contextFromFlags(
         logPath,
         {
@@ -146,7 +159,7 @@ async function waitForSelector(params: {
         session?.appBundleId,
         session?.trace?.outPath,
       ),
-    }));
+    });
     const snapshot = buildSnapshotState(
       data as {
         nodes?: RawSnapshotNode[];

@@ -47,12 +47,20 @@ export async function handleSnapshotCommands(params: {
     if (!resolvedScope.ok) return resolvedScope.response;
 
     return await sessionlessRunnerCleanup(session, device, async () => {
-      const capture = await captureSnapshot({ dispatchSnapshotCommand, device, session, req, logPath, snapshotScope: resolvedScope.scope });
+      const capture = await captureSnapshot({
+        dispatchSnapshotCommand,
+        device,
+        session,
+        req,
+        logPath,
+        snapshotScope: resolvedScope.scope,
+      });
       const nextSession = buildSnapshotSession({
         session,
         sessionName,
         device,
         snapshot: capture.snapshot,
+        appBundleId: session?.appBundleId,
       });
       recordIfSession(sessionStore, nextSession, req, {
         nodes: capture.snapshot.nodes.length,
@@ -98,7 +106,14 @@ export async function handleSnapshotCommands(params: {
     const flattenForDiff = req.flags?.snapshotInteractiveOnly === true;
 
     return await sessionlessRunnerCleanup(session, device, async () => {
-      const capture = await captureSnapshot({ dispatchSnapshotCommand, device, session, req, logPath, snapshotScope: resolvedScope.scope });
+      const capture = await captureSnapshot({
+        dispatchSnapshotCommand,
+        device,
+        session,
+        req,
+        logPath,
+        snapshotScope: resolvedScope.scope,
+      });
       const currentSnapshot = capture.snapshot;
 
       if (!session?.snapshot) {
@@ -110,6 +125,7 @@ export async function handleSnapshotCommands(params: {
           sessionName,
           device,
           snapshot: currentSnapshot,
+          appBundleId: session?.appBundleId,
         });
         recordIfSession(sessionStore, nextSession, req, {
           mode: 'snapshot',

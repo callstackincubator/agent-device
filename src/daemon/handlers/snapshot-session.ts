@@ -52,8 +52,9 @@ export function buildSnapshotSession(params: {
   sessionName: string;
   device: SessionState['device'];
   snapshot: SessionState['snapshot'];
+  appBundleId?: string;
 }): SessionState {
-  const { session, sessionName, device, snapshot } = params;
+  const { session, sessionName, device, snapshot, appBundleId } = params;
   if (session) {
     return { ...session, snapshot };
   }
@@ -61,7 +62,7 @@ export function buildSnapshotSession(params: {
     name: sessionName,
     device,
     createdAt: Date.now(),
-    appBundleId: session?.appBundleId,
+    appBundleId,
     snapshot,
     actions: [],
   };
