@@ -113,6 +113,10 @@ type SessionRecordingBase = {
   startedAt: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
+  touchReferenceFrame?: {
+    referenceWidth: number;
+    referenceHeight: number;
+  };
   runnerSessionId?: string;
   invalidatedReason?: string;
 };

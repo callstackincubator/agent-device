@@ -101,4 +101,5 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
   assert.deepEqual(dispatchCalls, [['scroll', 'down', '0.55']]);
   assert.deepEqual(execCalls, [['-s', 'emulator-5554', 'shell', 'input', 'tap', '210', '640']]);
   assert.deepEqual(reopenedApps, ['com.android.settings']);
+  assert.equal(snapshotCalls, 2);
 });

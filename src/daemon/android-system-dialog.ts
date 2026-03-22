@@ -11,13 +11,15 @@ const ANDROID_CLOSE_APP_PATTERN = /^close app$/i;
 const ANDROID_MODAL_POLL_MS = 500;
 const ANDROID_MODAL_POLL_ATTEMPTS = 12;
 
-export async function maybeRecoverAndroidBlockingSystemDialog(params: {
+export type AndroidBlockingDialogRecoveryResult = 'absent' | 'recovered' | 'failed';
+
+export async function recoverAndroidBlockingSystemDialog(params: {
   session: SessionState;
   snapshotAndroidUi?: typeof snapshotAndroid;
   reopenAndroidApp?: typeof openAndroidApp;
   readAndroidAppState?: typeof getAndroidAppState;
   execCommand?: typeof runCmd;
-}): Promise<boolean> {
+}): Promise<AndroidBlockingDialogRecoveryResult> {
   const {
     session,
     snapshotAndroidUi = snapshotAndroid,
@@ -27,14 +29,14 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
   } = params;
 
   if (session.device.platform !== 'android' || !session.recording) {
-    return false;
+    return 'absent';
   }
 
   try {
     const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
     const closeAppButton = findCloseAppButton(nodes);
     if (!closeAppButton?.rect) {
-      return false;
+      return 'absent';
     }
 
     const { x, y } = centerOfRect(closeAppButton.rect);
@@ -61,7 +63,7 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
           stderr: tapResult.stderr.trim(),
         },
       });
-      return false;
+      return 'failed';
     }
 
     const dismissed = await waitForBlockingDialogToDismiss(session, snapshotAndroidUi);
@@ -74,7 +76,7 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
           deviceId: session.device.id,
         },
       });
-      return false;
+      return 'failed';
     }
 
     if (session.appBundleId) {
@@ -94,7 +96,7 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
             appBundleId: session.appBundleId,
           },
         });
-        return false;
+        return 'failed';
       }
     }
 
@@ -109,7 +111,7 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
         y,
       },
     });
-    return true;
+    return 'recovered';
   } catch (error) {
     emitDiagnostic({
       level: 'warn',
@@ -120,23 +122,8 @@ export async function maybeRecoverAndroidBlockingSystemDialog(params: {
         error: error instanceof Error ? error.message : String(error),
       },
     });
-    return false;
+    return 'failed';
   }
-}
-
-export async function hasAndroidBlockingSystemDialog(params: {
-  session: SessionState;
-  snapshotAndroidUi?: typeof snapshotAndroid;
-}): Promise<boolean> {
-  const { session, snapshotAndroidUi = snapshotAndroid } = params;
-  if (session.device.platform !== 'android') {
-    return false;
-  }
-  const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
-  return nodes.some((node) => {
-    const text = readNodeText(node);
-    return text.length > 0 && ANDROID_BLOCKING_MODAL_PATTERN.test(text);
-  });
 }
 
 async function readAndroidSnapshotNodes(
@@ -151,11 +138,7 @@ async function readAndroidSnapshotNodes(
 }
 
 function findCloseAppButton(nodes: SnapshotNode[]): SnapshotNode | undefined {
-  const hasBlockingDialog = nodes.some((node) => {
-    const text = readNodeText(node);
-    return text.length > 0 && ANDROID_BLOCKING_MODAL_PATTERN.test(text);
-  });
-  if (!hasBlockingDialog) {
+  if (!containsBlockingDialog(nodes)) {
     return undefined;
   }
   return nodes.find((node) => {
@@ -169,12 +152,14 @@ async function waitForBlockingDialogToDismiss(
   snapshotAndroidUi: typeof snapshotAndroid,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_MODAL_POLL_ATTEMPTS; attempt += 1) {
-    if (!(await hasAndroidBlockingSystemDialog({ session, snapshotAndroidUi }))) {
+    const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
+    if (!containsBlockingDialog(nodes)) {
       return true;
     }
     await sleep(ANDROID_MODAL_POLL_MS);
   }
-  return !(await hasAndroidBlockingSystemDialog({ session, snapshotAndroidUi }));
+  const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
+  return !containsBlockingDialog(nodes);
 }
 
 async function waitForFocusedAndroidApp(
@@ -206,6 +191,13 @@ function readNodeText(node: {
     .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
     .join(' ')
     .trim();
+}
+
+function containsBlockingDialog(nodes: SnapshotNode[]): boolean {
+  return nodes.some((node) => {
+    const text = readNodeText(node);
+    return text.length > 0 && ANDROID_BLOCKING_MODAL_PATTERN.test(text);
+  });
 }
 
 function sleep(ms: number): Promise<void> {

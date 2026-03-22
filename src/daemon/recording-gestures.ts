@@ -1,7 +1,11 @@
 import type { RecordingGestureEvent, SessionState } from './types.ts';
-import type { Rect, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import type { SnapshotState } from '../utils/snapshot.ts';
 import { resolveGestureDurationMs, resolveGestureOffsetMs } from './recording-timing.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
+import {
+  getSnapshotReferenceFrame,
+  type TouchReferenceFrame as ReferenceFrame,
+} from './touch-reference-frame.ts';
 
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
@@ -100,16 +104,6 @@ export function augmentTouchVisualizationResult(
     durationMs: DEFAULT_SWIPE_DURATION_MS,
   };
 }
-
-type ReferenceFrame = {
-  referenceWidth: number;
-  referenceHeight: number;
-};
-
-type SnapshotReferenceFrameState = SnapshotState & {
-  referenceWidth?: number;
-  referenceHeight?: number;
-};
 
 function buildGestureEvents(
   command: string,
@@ -375,34 +369,8 @@ function resolveBackSwipeEdge(
   return endX >= startX ? 'left' : 'right';
 }
 
-function inferReferenceFrame(nodes: SnapshotNode[]): ReferenceFrame | undefined {
-  const viewportRect = inferViewportRect(nodes);
-  if (!viewportRect) return undefined;
-  return {
-    referenceWidth: viewportRect.width,
-    referenceHeight: viewportRect.height,
-  };
-}
-
 function getReferenceFrame(snapshot: SnapshotState | undefined): ReferenceFrame | undefined {
-  if (!snapshot) return undefined;
-  const cachedSnapshot = snapshot as SnapshotReferenceFrameState;
-  if (
-    typeof cachedSnapshot.referenceWidth === 'number' &&
-    cachedSnapshot.referenceWidth > 0 &&
-    typeof cachedSnapshot.referenceHeight === 'number' &&
-    cachedSnapshot.referenceHeight > 0
-  ) {
-    return {
-      referenceWidth: cachedSnapshot.referenceWidth,
-      referenceHeight: cachedSnapshot.referenceHeight,
-    };
-  }
-  const inferred = inferReferenceFrame(snapshot.nodes ?? []);
-  if (!inferred) return undefined;
-  cachedSnapshot.referenceWidth = inferred.referenceWidth;
-  cachedSnapshot.referenceHeight = inferred.referenceHeight;
-  return inferred;
+  return getSnapshotReferenceFrame(snapshot);
 }
 
 function resolveEventReferenceFrame(
@@ -490,35 +458,6 @@ function scrollEndPoint(
     case 'right':
       return { x: midX - travelX, y: midY };
   }
-}
-
-function inferViewportRect(nodes: SnapshotNode[]): Rect | undefined {
-  const candidate = nodes
-    .filter((node) => isViewportNode(node.type) && isValidRect(node.rect))
-    .map((node) => node.rect)
-    .sort(
-      (left, right) =>
-        (right?.width ?? 0) * (right?.height ?? 0) - (left?.width ?? 0) * (left?.height ?? 0),
-    )[0];
-  if (candidate) return candidate;
-
-  const rects = nodes.map((node) => node.rect).filter(isValidRect);
-  if (rects.length === 0) return undefined;
-
-  const width = Math.max(...rects.map((rect) => rect.x + rect.width));
-  const height = Math.max(...rects.map((rect) => rect.y + rect.height));
-  if (width <= 0 || height <= 0) return undefined;
-  return { x: 0, y: 0, width, height };
-}
-
-function isViewportNode(type: string | undefined): boolean {
-  if (!type) return false;
-  const normalized = type.toLowerCase();
-  return normalized.includes('application') || normalized.includes('window');
-}
-
-function isValidRect(rect: Rect | undefined): rect is Rect {
-  return !!rect && rect.width > 0 && rect.height > 0;
 }
 
 function readNumber(value: unknown): number | undefined {

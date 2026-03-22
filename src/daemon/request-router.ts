@@ -37,10 +37,7 @@ import {
   augmentTouchVisualizationResult,
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
-import {
-  hasAndroidBlockingSystemDialog,
-  maybeRecoverAndroidBlockingSystemDialog,
-} from './android-system-dialog.ts';
+import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
 import { snapshotAndroid, openAndroidApp, getAndroidAppState } from '../platforms/android/index.ts';
 import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
 import { runCmd } from '../utils/exec.ts';
@@ -384,10 +381,6 @@ export function createRequestHandler(
             sessionStore,
             contextFromFlags: (flags, appBundleId, traceLogPath) =>
               contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-            snapshotAndroidUi,
-            reopenAndroidApp,
-            readAndroidAppState,
-            execCommand,
           });
           if (interactionResponse) return finalize(interactionResponse);
 
@@ -410,13 +403,22 @@ export function createRequestHandler(
           }
 
           if (session.device.platform === 'android' && session.recording && command !== 'record') {
-            await maybeRecoverAndroidBlockingSystemDialog({
+            const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({
               session,
               snapshotAndroidUi,
               reopenAndroidApp,
               readAndroidAppState,
               execCommand,
             });
+            if (androidRecoveryResult === 'failed') {
+              return finalize({
+                ok: false,
+                error: {
+                  code: 'COMMAND_FAILED',
+                  message: 'Android system dialog blocked the recording session',
+                },
+              });
+            }
           }
 
           const positionals = lockedReq.positionals ?? [];
@@ -450,27 +452,6 @@ export function createRequestHandler(
             ...dispatchContext,
           });
           const actionFinishedAt = Date.now();
-          await maybeRecoverAndroidBlockingSystemDialog({
-            session,
-            snapshotAndroidUi,
-            reopenAndroidApp,
-            readAndroidAppState,
-            execCommand,
-          });
-          if (
-            command !== 'record' &&
-            session.device.platform === 'android' &&
-            session.recording &&
-            (await hasAndroidBlockingSystemDialog({ session, snapshotAndroidUi }))
-          ) {
-            return finalize({
-              ok: false,
-              error: {
-                code: 'COMMAND_FAILED',
-                message: 'Android system dialog blocked the recording session',
-              },
-            });
-          }
           const visualizationData = augmentTouchVisualizationResult(
             session,
             command,
