@@ -84,6 +84,9 @@ export async function refreshSessionDeviceIfNeeded(
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     return device;
   }
+  if (process.platform !== 'darwin') {
+    return device;
+  }
 
   const exactSelector: NonNullable<DaemonRequest['flags']> = {
     platform: 'ios',

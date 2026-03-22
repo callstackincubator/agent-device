@@ -25,7 +25,7 @@
     "build:node": "pnpm build && pnpm clean:daemon",
     "build:xcuitest": "pnpm build:xcuitest:ios && pnpm build:xcuitest:macos",
     "build:xcuitest:ios": "rm -rf ~/.agent-device/ios-runner/derived/device && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=iOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived",
-    "build:xcuitest:macos": "rm -rf ~/.agent-device/ios-runner/derived/macos && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"platform=macOS,arch=$(uname -m)\" -derivedDataPath ~/.agent-device/ios-runner/derived/macos",
+    "build:xcuitest:macos": "rm -rf ~/.agent-device/ios-runner/derived/macos && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"platform=macOS,arch=$(uname -m)\" -derivedDataPath ~/.agent-device/ios-runner/derived/macos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=\"\" DEVELOPMENT_TEAM=\"\"",
     "build:xcuitest:tvos": "rm -rf ~/.agent-device/ios-runner/derived/tvos && xcodebuild build-for-testing -project ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj -scheme AgentDeviceRunner -destination \"generic/platform=tvOS Simulator\" -derivedDataPath ~/.agent-device/ios-runner/derived/tvos",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
