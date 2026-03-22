@@ -20,6 +20,7 @@ import {
 } from './runner-transport.ts';
 import {
   ensureXctestrun,
+  IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   prepareXctestrunWithEnv,
   resolveRunnerDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
@@ -28,6 +29,7 @@ import {
 import type { RunnerCommand } from './runner-client.ts';
 
 export type RunnerSession = {
+  sessionId: string;
   device: DeviceInfo;
   deviceId: string;
   port: number;
@@ -61,6 +63,7 @@ export async function ensureRunnerSession(
     }
 
     await ensureBootedIfNeeded(device);
+    await cleanupStaleSimulatorRunnerBundles(device);
     const xctestrun = await ensureXctestrun(device, options);
     const port = await getFreePort();
     const { xctestrunPath, jsonPath } = await prepareXctestrunWithEnv(
@@ -103,6 +106,7 @@ export async function ensureRunnerSession(
     });
 
     const session: RunnerSession = {
+      sessionId: `${device.id}:${port}:${Date.now()}`,
       device,
       deviceId: device.id,
       port,
@@ -115,6 +119,46 @@ export async function ensureRunnerSession(
     runnerSessions.set(device.id, session);
     return session;
   });
+}
+
+async function cleanupStaleSimulatorRunnerBundles(device: DeviceInfo): Promise<void> {
+  if (device.kind !== 'simulator') {
+    return;
+  }
+
+  for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
+    const result = await runCmd(
+      'xcrun',
+      buildSimctlArgsForDevice(device, ['uninstall', device.id, bundleId]),
+      {
+        allowFailure: true,
+      },
+    );
+    if (result.exitCode !== 0) {
+      const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+      if (
+        !output.includes('not installed') &&
+        !output.includes('found nothing') &&
+        !output.includes('no such file') &&
+        !output.includes('invalid device') &&
+        !output.includes('could not find')
+      ) {
+        // Best-effort cleanup only; xcodebuild may still be able to install.
+        continue;
+      }
+    }
+  }
+}
+
+export function getRunnerSessionSnapshot(
+  deviceId: string,
+): { sessionId: string; alive: boolean } | null {
+  const session = runnerSessions.get(deviceId);
+  if (!session) return null;
+  return {
+    sessionId: session.sessionId,
+    alive: isRunnerProcessAlive(session.child.pid),
+  };
 }
 
 export async function stopRunnerSession(session: RunnerSession): Promise<void> {

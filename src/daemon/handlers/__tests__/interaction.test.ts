@@ -30,6 +30,23 @@ function makeSession(name: string): SessionState {
   };
 }
 
+function makeAndroidSession(name: string): SessionState {
+  return {
+    name,
+    device: {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel 9 Pro XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    appBundleId: 'com.android.settings',
+    actions: [],
+  };
+}
+
 const contextFromFlags = (flags: CommandFlags | undefined) => ({
   count: flags?.count,
   intervalMs: flags?.intervalMs,
@@ -154,6 +171,117 @@ test('press coordinates appends touch-visualization events while recording', asy
   assert.equal(recorded?.gestureEvents[0]?.y, 200);
   assert.equal(recorded?.gestureEvents[0]?.referenceWidth, 402);
   assert.equal(recorded?.gestureEvents[0]?.referenceHeight, 874);
+});
+
+test('press coordinates dismisses blocking Android dialog during recording and relaunches app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeAndroidSession(sessionName);
+  session.recording = {
+    platform: 'android',
+    outPath: '/tmp/demo.mp4',
+    remotePath: '/sdcard/demo.mp4',
+    remotePid: '1234',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+  };
+  sessionStore.set(sessionName, session);
+
+  const dispatchCalls: string[][] = [];
+  const execCalls: string[][] = [];
+  const reopenedApps: string[] = [];
+  let snapshotCalls = 0;
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['100', '200'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push([command, ...positionals]);
+      return { ok: true };
+    },
+    snapshotAndroidUi: async () => {
+      snapshotCalls += 1;
+      if (snapshotCalls === 1) {
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'android.widget.TextView',
+              label: "System UI isn't responding",
+              rect: { x: 40, y: 500, width: 500, height: 80 },
+            },
+            {
+              index: 1,
+              type: 'android.widget.Button',
+              label: 'Close app',
+              rect: { x: 60, y: 700, width: 220, height: 80 },
+            },
+          ],
+        };
+      }
+      return { nodes: [] };
+    },
+    reopenAndroidApp: async (_device, app) => {
+      reopenedApps.push(app);
+    },
+    readAndroidAppState: async () => ({ package: 'com.android.settings' }),
+    execCommand: async (_cmd, args) => {
+      execCalls.push(args);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.deepEqual(dispatchCalls, [['press', '100', '200']]);
+  assert.deepEqual(execCalls, [['-s', 'emulator-5554', 'shell', 'input', 'tap', '170', '740']]);
+  assert.deepEqual(reopenedApps, ['com.android.settings']);
+});
+
+test('press coordinates on Android recording uses physical screen size when no snapshot exists', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-direct-press-frame';
+  const session = makeAndroidSession(sessionName);
+  session.recording = {
+    platform: 'android',
+    outPath: '/tmp/demo.mp4',
+    remotePath: '/sdcard/demo.mp4',
+    remotePid: '1234',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+  };
+  session.snapshot = undefined;
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['300', '2300'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => ({ x: 300, y: 2300 }),
+    readAndroidScreenSize: async () => ({ width: 1344, height: 2992 }),
+  });
+
+  assert.equal(response?.ok, true);
+  const event = sessionStore.get(sessionName)?.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.referenceWidth, 1344);
+  assert.equal(event?.referenceHeight, 2992);
 });
 
 test('press @ref preserves native timing in recorded result and touch visualization', async () => {

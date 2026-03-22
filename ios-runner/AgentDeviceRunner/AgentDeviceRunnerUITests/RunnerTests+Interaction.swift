@@ -1,6 +1,22 @@
 import XCTest
 
 extension RunnerTests {
+  struct TouchVisualizationFrame {
+    let x: Double
+    let y: Double
+    let referenceWidth: Double
+    let referenceHeight: Double
+  }
+
+  struct DragVisualizationFrame {
+    let x: Double
+    let y: Double
+    let x2: Double
+    let y2: Double
+    let referenceWidth: Double
+    let referenceHeight: Double
+  }
+
   // MARK: - Navigation Gestures
 
   func tapNavigationBack(app: XCUIApplication) -> Bool {
@@ -207,6 +223,50 @@ extension RunnerTests {
     let start = interactionCoordinate(app: app, x: x, y: y)
     let end = interactionCoordinate(app: app, x: x2, y: y2)
     start.press(forDuration: holdDuration, thenDragTo: end)
+  }
+
+  func resolvedTouchVisualizationFrame(app: XCUIApplication, x: Double, y: Double) -> TouchVisualizationFrame {
+    let appFrame = app.frame
+    let referenceFrame = resolvedTouchReferenceFrame(app: app, appFrame: appFrame)
+    let originX = appFrame.isEmpty ? referenceFrame.minX : appFrame.minX
+    let originY = appFrame.isEmpty ? referenceFrame.minY : appFrame.minY
+    return TouchVisualizationFrame(
+      x: originX + x,
+      y: originY + y,
+      referenceWidth: referenceFrame.width,
+      referenceHeight: referenceFrame.height
+    )
+  }
+
+  func resolvedDragVisualizationFrame(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double
+  ) -> DragVisualizationFrame {
+    let start = resolvedTouchVisualizationFrame(app: app, x: x, y: y)
+    let end = resolvedTouchVisualizationFrame(app: app, x: x2, y: y2)
+    return DragVisualizationFrame(
+      x: start.x,
+      y: start.y,
+      x2: end.x,
+      y2: end.y,
+      referenceWidth: start.referenceWidth,
+      referenceHeight: start.referenceHeight
+    )
+  }
+
+  private func resolvedTouchReferenceFrame(app: XCUIApplication, appFrame: CGRect) -> CGRect {
+    let window = app.windows.firstMatch
+    let windowFrame = window.frame
+    if window.exists && !windowFrame.isEmpty {
+      return windowFrame
+    }
+    if !appFrame.isEmpty {
+      return appFrame
+    }
+    return CGRect(x: 0, y: 0, width: 0, height: 0)
   }
 
   func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {

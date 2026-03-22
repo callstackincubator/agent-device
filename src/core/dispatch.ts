@@ -190,7 +190,7 @@ export async function dispatchCommand(
           }
 
           if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
-            await runIosRunnerCommand(
+            const runnerResult = await runIosRunnerCommand(
               device,
               {
                 command: 'tapSeries',
@@ -217,22 +217,28 @@ export async function dispatchCommand(
               jitterPx,
               doubleTap,
               timingMode: 'runner-series',
+              ...runnerResult,
             };
           }
 
+          let interactionResult: Record<string, unknown> | undefined;
           await runRepeatedSeries(count, intervalMs, async (index) => {
             const [dx, dy] = computeDeterministicJitter(index, jitterPx);
             const targetX = x + dx;
             const targetY = y + dy;
             if (doubleTap) {
-              await interactor.doubleTap(targetX, targetY);
+              interactionResult ??= (await interactor.doubleTap(targetX, targetY)) ?? undefined;
               return;
             }
-            if (holdMs > 0) await interactor.longPress(targetX, targetY, holdMs);
-            else await interactor.tap(targetX, targetY);
+            if (holdMs > 0) {
+              interactionResult ??=
+                (await interactor.longPress(targetX, targetY, holdMs)) ?? undefined;
+            } else {
+              interactionResult ??= (await interactor.tap(targetX, targetY)) ?? undefined;
+            }
           });
 
-          return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap };
+          return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, ...interactionResult };
         }
         case 'swipe': {
           const x1 = Number(positionals[0]);
@@ -255,7 +261,7 @@ export async function dispatchCommand(
           }
 
           if (shouldUseIosDragSeries(device, count)) {
-            await runIosRunnerCommand(
+            const runnerResult = await runIosRunnerCommand(
               device,
               {
                 command: 'dragSeries',
@@ -287,6 +293,7 @@ export async function dispatchCommand(
               count,
               pauseMs,
               pattern,
+              ...runnerResult,
             };
           }
 

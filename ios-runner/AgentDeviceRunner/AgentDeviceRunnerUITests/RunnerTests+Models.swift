@@ -75,19 +75,37 @@ struct DataPayload: Codable {
   let items: [String]?
   let nodes: [SnapshotNode]?
   let truncated: Bool?
+  let x: Double?
+  let y: Double?
+  let x2: Double?
+  let y2: Double?
+  let referenceWidth: Double?
+  let referenceHeight: Double?
 
   init(
     message: String? = nil,
     found: Bool? = nil,
     items: [String]? = nil,
     nodes: [SnapshotNode]? = nil,
-    truncated: Bool? = nil
+    truncated: Bool? = nil,
+    x: Double? = nil,
+    y: Double? = nil,
+    x2: Double? = nil,
+    y2: Double? = nil,
+    referenceWidth: Double? = nil,
+    referenceHeight: Double? = nil
   ) {
     self.message = message
     self.found = found
     self.items = items
     self.nodes = nodes
     self.truncated = truncated
+    self.x = x
+    self.y = y
+    self.x2 = x2
+    self.y2 = y2
+    self.referenceWidth = referenceWidth
+    self.referenceHeight = referenceHeight
   }
 }
 

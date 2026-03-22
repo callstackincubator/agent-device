@@ -207,14 +207,28 @@ extension RunnerTests {
     case .tap:
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
-          element.tap()
+          withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+            element.tap()
+          }
           return Response(ok: true, data: DataPayload(message: "tapped"))
         }
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
-        tapAt(app: activeApp, x: x, y: y)
-        return Response(ok: true, data: DataPayload(message: "tapped"))
+        let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          tapAt(app: activeApp, x: x, y: y)
+        }
+        return Response(
+          ok: true,
+          data: DataPayload(
+            message: "tapped",
+            x: touchFrame.x,
+            y: touchFrame.y,
+            referenceWidth: touchFrame.referenceWidth,
+            referenceHeight: touchFrame.referenceHeight
+          )
+        )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
     case .mouseClick:
@@ -234,32 +248,79 @@ extension RunnerTests {
       let count = max(Int(command.count ?? 1), 1)
       let intervalMs = max(command.intervalMs ?? 0, 0)
       let doubleTap = command.doubleTap ?? false
+      let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
       if doubleTap {
-        runSeries(count: count, pauseMs: intervalMs) { _ in
-          doubleTapAt(app: activeApp, x: x, y: y)
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          runSeries(count: count, pauseMs: intervalMs) { _ in
+            doubleTapAt(app: activeApp, x: x, y: y)
+          }
         }
-        return Response(ok: true, data: DataPayload(message: "tap series"))
+        return Response(
+          ok: true,
+          data: DataPayload(
+            message: "tap series",
+            x: touchFrame.x,
+            y: touchFrame.y,
+            referenceWidth: touchFrame.referenceWidth,
+            referenceHeight: touchFrame.referenceHeight
+          )
+        )
       }
-      runSeries(count: count, pauseMs: intervalMs) { _ in
-        tapAt(app: activeApp, x: x, y: y)
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        runSeries(count: count, pauseMs: intervalMs) { _ in
+          tapAt(app: activeApp, x: x, y: y)
+        }
       }
-      return Response(ok: true, data: DataPayload(message: "tap series"))
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "tap series",
+          x: touchFrame.x,
+          y: touchFrame.y,
+          referenceWidth: touchFrame.referenceWidth,
+          referenceHeight: touchFrame.referenceHeight
+        )
+      )
     case .longPress:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "longPress requires x and y"))
       }
       let duration = (command.durationMs ?? 800) / 1000.0
-      longPressAt(app: activeApp, x: x, y: y, duration: duration)
-      return Response(ok: true, data: DataPayload(message: "long pressed"))
+      let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        longPressAt(app: activeApp, x: x, y: y, duration: duration)
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "long pressed",
+          x: touchFrame.x,
+          y: touchFrame.y,
+          referenceWidth: touchFrame.referenceWidth,
+          referenceHeight: touchFrame.referenceHeight
+        )
+      )
     case .drag:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      let dragFrame = resolvedDragVisualizationFrame(app: activeApp, x: x, y: y, x2: x2, y2: y2)
       withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
         dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
       }
-      return Response(ok: true, data: DataPayload(message: "dragged"))
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "dragged",
+          x: dragFrame.x,
+          y: dragFrame.y,
+          x2: dragFrame.x2,
+          y2: dragFrame.y2,
+          referenceWidth: dragFrame.referenceWidth,
+          referenceHeight: dragFrame.referenceHeight
+        )
+      )
     case .dragSeries:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))

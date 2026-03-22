@@ -217,7 +217,7 @@ export async function scrollIntoViewAndroid(device: DeviceInfo, text: string): P
   );
 }
 
-async function getAndroidScreenSize(
+export async function getAndroidScreenSize(
   device: DeviceInfo,
 ): Promise<{ width: number; height: number }> {
   const result = await runCmd('adb', adbArgs(device, ['shell', 'wm', 'size']));

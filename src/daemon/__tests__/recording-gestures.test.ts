@@ -165,6 +165,29 @@ test('telemetry is still captured when touch overlays are hidden', () => {
   assert.equal(session.recording?.gestureEvents[0]?.kind, 'tap');
 });
 
+test('explicit event reference frame overrides stale snapshot geometry', () => {
+  const session = makeSession();
+
+  recordTouchVisualizationEvent(
+    session,
+    'press',
+    ['300', '2300'],
+    {
+      x: 300,
+      y: 2300,
+      referenceWidth: 1344,
+      referenceHeight: 2992,
+    },
+    {},
+    1_500,
+  );
+
+  const event = session.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.referenceWidth, 1344);
+  assert.equal(event?.referenceHeight, 2992);
+});
+
 test('edge swipe is classified as a back-swipe telemetry event', () => {
   const session = makeSession();
 

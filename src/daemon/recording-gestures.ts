@@ -409,9 +409,6 @@ function resolveEventReferenceFrame(
   snapshot: SnapshotState | undefined,
   result: Record<string, unknown>,
 ): ReferenceFrame | undefined {
-  const snapshotReferenceFrame = getReferenceFrame(snapshot);
-  if (snapshotReferenceFrame) return snapshotReferenceFrame;
-
   const referenceWidth = readNumber(result.referenceWidth);
   const referenceHeight = readNumber(result.referenceHeight);
   if (
@@ -422,6 +419,9 @@ function resolveEventReferenceFrame(
   ) {
     return { referenceWidth, referenceHeight };
   }
+
+  const snapshotReferenceFrame = getReferenceFrame(snapshot);
+  if (snapshotReferenceFrame) return snapshotReferenceFrame;
 
   return undefined;
 }

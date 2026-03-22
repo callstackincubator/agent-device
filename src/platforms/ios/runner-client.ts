@@ -17,6 +17,7 @@ import {
 import {
   type RunnerSession,
   ensureRunnerSession,
+  getRunnerSessionSnapshot,
   stopRunnerSession,
   stopIosRunnerSession,
   validateRunnerDevice,
@@ -163,6 +164,7 @@ export {
 } from './runner-xctestrun.ts';
 
 export {
+  getRunnerSessionSnapshot,
   stopIosRunnerSession,
   abortAllIosRunnerSessions,
   stopAllIosRunnerSessions,

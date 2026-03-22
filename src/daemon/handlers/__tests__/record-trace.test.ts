@@ -916,6 +916,43 @@ test('record stop force-kills Android screenrecord when SIGINT fails but process
   );
 });
 
+test('record stop reports invalidated recording after cleanup', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-invalidated-recording';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath: path.resolve('./invalidated.mp4'),
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    invalidatedReason: 'iOS runner session exited during recording',
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: makeRecordDeps(),
+  });
+
+  assert.equal(response?.ok, false);
+  if (response?.ok === false) {
+    assert.equal(response.error.code, 'COMMAND_FAILED');
+    assert.equal(response.error.message, 'iOS runner session exited during recording');
+  }
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
 test('record start leaves overlays disabled with --hide-touches', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-hide-touches';

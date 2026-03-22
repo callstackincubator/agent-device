@@ -284,6 +284,7 @@ export async function startAndroidRecording(params: {
         remotePath,
         remotePid,
         ...recordingBase,
+        startedAt: Date.now(),
       };
     }
 

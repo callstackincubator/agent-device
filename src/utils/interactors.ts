@@ -48,13 +48,19 @@ type Interactor = {
   ): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
-  tap(x: number, y: number): Promise<void>;
-  doubleTap(x: number, y: number): Promise<void>;
-  swipe(x1: number, y1: number, x2: number, y2: number, durationMs?: number): Promise<void>;
-  longPress(x: number, y: number, durationMs?: number): Promise<void>;
-  focus(x: number, y: number): Promise<void>;
+  tap(x: number, y: number): Promise<Record<string, unknown> | void>;
+  doubleTap(x: number, y: number): Promise<Record<string, unknown> | void>;
+  swipe(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    durationMs?: number,
+  ): Promise<Record<string, unknown> | void>;
+  longPress(x: number, y: number, durationMs?: number): Promise<Record<string, unknown> | void>;
+  focus(x: number, y: number): Promise<Record<string, unknown> | void>;
   type(text: string): Promise<void>;
-  fill(x: number, y: number, text: string): Promise<void>;
+  fill(x: number, y: number, text: string): Promise<Record<string, unknown> | void>;
   scroll(direction: string, amount?: number): Promise<void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
@@ -180,14 +186,14 @@ function iosRunnerOverrides(
     runnerOpts,
     overrides: {
       tap: async (x, y) => {
-        await runIosRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       doubleTap: async (x, y) => {
-        await runIosRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           {
             command: 'tapSeries',
@@ -202,21 +208,21 @@ function iosRunnerOverrides(
         );
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
-        await runIosRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'drag', x: x1, y: y1, x2, y2, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       longPress: async (x, y, durationMs) => {
-        await runIosRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'longPress', x, y, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       focus: async (x, y) => {
-        await runIosRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
@@ -230,7 +236,7 @@ function iosRunnerOverrides(
         );
       },
       fill: async (x, y, text) => {
-        await runIosRunnerCommand(
+        const tapResult = await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
@@ -240,6 +246,7 @@ function iosRunnerOverrides(
           { command: 'type', text, clearFirst: true, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
+        return tapResult;
       },
       scroll: async (direction, _amount) => {
         if (!['up', 'down', 'left', 'right'].includes(direction)) {

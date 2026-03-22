@@ -35,6 +35,9 @@ import {
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
+const LOCAL_RECORDING_READY_POLL_MS = 250;
+const LOCAL_RECORDING_READY_ATTEMPTS = 24;
+const LOCAL_RECORDING_READY_MIN_POLLS = 2;
 
 export type RecordTraceDeps = {
   runCmd: typeof runCmd;
@@ -78,6 +81,27 @@ function buildRecordingBase(
     showTouches: req.flags?.hideTouches !== true,
     gestureEvents: [],
   };
+}
+
+async function waitForLocalRecordingReady(outPath: string): Promise<number | undefined> {
+  for (let attempt = 0; attempt < LOCAL_RECORDING_READY_ATTEMPTS; attempt += 1) {
+    try {
+      const stat = fs.statSync(outPath);
+      if (stat.size > 0) {
+        return Date.now();
+      }
+    } catch {
+      // Wait for the recorder to create the output file.
+    }
+
+    if (attempt + 1 >= LOCAL_RECORDING_READY_MIN_POLLS) {
+      return Date.now();
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, LOCAL_RECORDING_READY_POLL_MS));
+  }
+
+  return undefined;
 }
 
 async function startRecording(params: {
@@ -169,7 +193,14 @@ async function startRecording(params: {
         allowFailure: true,
       },
     );
-    recording = { platform: 'ios', child, wait, ...recordingBase };
+    const readyAt = await waitForLocalRecordingReady(resolvedOut);
+    recording = {
+      platform: 'ios',
+      child,
+      wait,
+      ...recordingBase,
+      startedAt: readyAt ?? recordingBase.startedAt,
+    };
   } else {
     recording = await startAndroidRecording({ deps, device, recordingBase });
   }
@@ -250,6 +281,7 @@ async function stopRecording(params: {
   }
 
   const recording = activeSession.recording;
+  const invalidatedReason = recording.invalidatedReason;
   activeSession.recording = undefined;
 
   const stopError =
@@ -258,6 +290,16 @@ async function stopRecording(params: {
       : await stopNonRunnerRecording({ deps, device, recording });
   if (stopError) {
     return stopError;
+  }
+
+  if (invalidatedReason) {
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: invalidatedReason,
+      },
+    };
   }
 
   return buildRecordStopResponse(recording);

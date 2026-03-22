@@ -113,6 +113,8 @@ type SessionRecordingBase = {
   startedAt: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
+  runnerSessionId?: string;
+  invalidatedReason?: string;
 };
 
 export type SessionState = {

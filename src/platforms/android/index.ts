@@ -28,6 +28,7 @@ export {
   fillAndroid,
   scrollAndroid,
   scrollIntoViewAndroid,
+  getAndroidScreenSize,
 } from './input-actions.ts';
 
 export {
