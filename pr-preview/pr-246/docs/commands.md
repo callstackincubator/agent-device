@@ -123,8 +123,9 @@ agent-device snapshot -i --platform apple --target desktop
 - `--platform macos` selects the host Mac as a `desktop` target.
 - `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
 - macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, and `settings appearance light|dark|toggle`.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
-- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `clipboard`, `install`, `reinstall`, `install-from-source`, `push`, `settings`, `logs`, `network`, and `trigger-app-event`.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, `push`, `logs`, and `network`.
 
 ## Snapshot and inspect
 
@@ -312,10 +313,12 @@ agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
 
 - `trigger-app-event <event> [payloadJson]` dispatches app-defined events via deep link.
 - `trigger-app-event` requires either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- On macOS, use `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE` to override the desktop deep-link template.
 - On iOS physical devices, custom-scheme deep links require active app context (open app first in the session).
 - Configure one of:
   - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`
+  - `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`
 - Template placeholders: `{event}`, `{payload}`, `{platform}`.
 - Example template: `myapp://agent-device/event?name={event}&payload={payload}`.
@@ -350,8 +353,8 @@ agent-device settings permission grant photos limited
 agent-device settings permission reset notifications
 ```
 
-- iOS `settings` support is simulator-only.
-- `settings appearance` maps to iOS simulator appearance and Android night mode.
+- iOS `settings` support is simulator-only except for `settings appearance` on macOS.
+- `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
   On physical Android devices, only `cmd fingerprint` is attempted.
@@ -387,7 +390,7 @@ agent-device clipboard write ""   # clear clipboard
 - `clipboard read` returns clipboard text for the selected target.
 - `clipboard write <text>` updates clipboard text on the selected target.
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
-- Supported on Android emulator/device and iOS simulator.
+- Supported on macOS, Android emulator/device, and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
 ## Keyboard (Android)
