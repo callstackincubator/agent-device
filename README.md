@@ -71,12 +71,6 @@ For agents:
 npm install -g agent-device
 ```
 
-Or run it without installing:
-
-```bash
-npx agent-device open SampleApp
-```
-
 ## Contributing
 
 See `CONTRIBUTING.md`.
