@@ -12,6 +12,7 @@ const RUNTIME_HINT_FIELD_NAMES = [
   'bundleUrl',
   'launchUrl',
 ] as const;
+type RuntimePlatform = NonNullable<SessionRuntimeHints['platform']>;
 
 export function countConfiguredRuntimeHints(runtime: SessionRuntimeHints | undefined): number {
   if (!runtime) return 0;
@@ -58,8 +59,8 @@ function normalizeRuntimePortInput(value: unknown): number | undefined {
 function normalizeRuntimePlatformInput(
   value: unknown,
   sessionName: string,
-  platform?: 'ios' | 'android',
-): 'ios' | 'android' | undefined {
+  platform?: RuntimePlatform,
+): RuntimePlatform | undefined {
   if (value === undefined) return platform;
   if (value !== 'ios' && value !== 'android') {
     throw new AppError(
@@ -76,9 +77,18 @@ function normalizeRuntimePlatformInput(
   return value;
 }
 
+export function toRuntimePlatform(
+  platform: CommandFlags['platform'] | DeviceInfo['platform'] | 'apple' | undefined,
+): RuntimePlatform | undefined {
+  if (platform === 'ios' || platform === 'android') {
+    return platform;
+  }
+  return undefined;
+}
+
 export function buildRuntimeHints(
   flags: CommandFlags | undefined,
-  platform?: 'ios' | 'android',
+  platform?: RuntimePlatform,
 ): SessionRuntimeHints {
   return {
     platform,
@@ -105,7 +115,7 @@ export function mergeRuntimeHints(
 function normalizeExplicitRuntimeHints(params: {
   runtime: unknown;
   sessionName: string;
-  platform?: 'ios' | 'android';
+  platform?: RuntimePlatform;
 }): SessionRuntimeHints | undefined {
   const { runtime, sessionName, platform } = params;
   if (runtime === undefined) return undefined;
@@ -153,14 +163,22 @@ function resolveSessionRuntimeHints(
 ): SessionRuntimeHints | undefined {
   const runtime = sessionStore.getRuntimeHints(sessionName);
   if (!runtime) return undefined;
-  if (runtime.platform && device && runtime.platform !== device.platform) {
+  const boundPlatform = device?.platform;
+  const deviceRuntimePlatform = toRuntimePlatform(boundPlatform);
+  if (runtime.platform && device && !deviceRuntimePlatform) {
     throw new AppError(
       'INVALID_ARGS',
-      `Session runtime hints target ${runtime.platform}, but session "${sessionName}" is bound to ${device.platform}. Clear the runtime hints or use a different session.`,
+      `Session runtime hints are only supported on iOS and Android sessions, but session "${sessionName}" is bound to ${boundPlatform}.`,
     );
   }
-  if (device?.platform && runtime.platform !== device.platform) {
-    return { ...runtime, platform: device.platform };
+  if (runtime.platform && deviceRuntimePlatform && runtime.platform !== deviceRuntimePlatform) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Session runtime hints target ${runtime.platform}, but session "${sessionName}" is bound to ${boundPlatform}. Clear the runtime hints or use a different session.`,
+    );
+  }
+  if (deviceRuntimePlatform && runtime.platform !== deviceRuntimePlatform) {
+    return { ...runtime, platform: deviceRuntimePlatform };
   }
   return runtime;
 }
@@ -180,7 +198,7 @@ function resolveOpenRuntimeHints(params: {
   const explicitRuntime = normalizeExplicitRuntimeHints({
     runtime: req.runtime,
     sessionName,
-    platform: device.platform,
+    platform: toRuntimePlatform(device.platform),
   });
   if (req.runtime === undefined) {
     return {

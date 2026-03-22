@@ -4,6 +4,9 @@ extension RunnerTests {
   // MARK: - Blocking System Modal Snapshot
 
   func blockingSystemAlertSnapshot() -> DataPayload? {
+    #if os(macOS)
+      return nil
+    #else
     guard let modal = firstBlockingSystemModal(in: springboard) else {
       return nil
     }
@@ -40,6 +43,7 @@ extension RunnerTests {
     }
 
     return DataPayload(nodes: nodes, truncated: false)
+    #endif
   }
 
   private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {

@@ -196,7 +196,7 @@ test('record start resolves relative output path from request cwd', async () => 
   assert.equal(startedRecording?.platform, 'ios-device-runner');
   if (startedRecording?.platform === 'ios-device-runner') {
     assert.equal(startedRecording.outPath, path.join(cwd, 'device.mp4'));
-    assert.match(startedRecording.remotePath, /^tmp\/agent-device-recording-\d+\.mp4$/);
+    assert.match(startedRecording.remotePath ?? '', /^tmp\/agent-device-recording-\d+\.mp4$/);
   }
 
   await runRecordCommand({

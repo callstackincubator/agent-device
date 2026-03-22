@@ -48,6 +48,10 @@ export async function screenshotIos(
   outPath: string,
   appBundleId?: string,
 ): Promise<void> {
+  if (device.platform === 'macos') {
+    await captureScreenshotViaRunner(device, outPath, appBundleId);
+    return;
+  }
   if (device.kind === 'simulator') {
     await captureSimulatorScreenshotWithFallback(device, outPath, appBundleId);
     return;
@@ -150,6 +154,11 @@ async function captureScreenshotViaRunner(
       'COMMAND_FAILED',
       'Failed to capture iOS screenshot: runner returned no file path',
     );
+  }
+
+  if (device.platform === 'macos') {
+    await fs.copyFile(remoteFileName, outPath);
+    return;
   }
 
   if (device.kind === 'simulator') {

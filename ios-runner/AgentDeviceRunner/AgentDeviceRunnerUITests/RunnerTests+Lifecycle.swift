@@ -1,11 +1,31 @@
 import XCTest
-import UIKit
+#if canImport(AppKit)
+import AppKit
+#endif
+
+func runnerPngData(for image: RunnerImage) -> Data? {
+#if canImport(UIKit)
+  return image.pngData()
+#elseif canImport(AppKit)
+  guard let cgImage = runnerCGImage(from: image) else { return nil }
+  let bitmap = NSBitmapImageRep(cgImage: cgImage)
+  return bitmap.representation(using: .png, properties: [:])
+#endif
+}
+
+func runnerCGImage(from image: RunnerImage) -> CGImage? {
+#if canImport(UIKit)
+  return image.cgImage
+#elseif canImport(AppKit)
+  return image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+#endif
+}
 
 extension RunnerTests {
   // MARK: - Recording
 
-  func captureRunnerFrame() -> UIImage? {
-    var image: UIImage?
+  func captureRunnerFrame() -> RunnerImage? {
+    var image: RunnerImage?
     let capture = {
       let screenshot = XCUIScreen.main.screenshot()
       image = screenshot.image
@@ -29,6 +49,11 @@ extension RunnerTests {
   }
 
   func resolveRecordingOutPath(_ requestedOutPath: String) -> String {
+#if os(macOS)
+    if requestedOutPath.hasPrefix("/") {
+      return requestedOutPath
+    }
+#endif
     let fileName = URL(fileURLWithPath: requestedOutPath).lastPathComponent
     let fallbackName = "agent-device-recording-\(Int(Date().timeIntervalSince1970 * 1000)).mp4"
     let safeFileName = fileName.isEmpty ? fallbackName : fileName
@@ -38,12 +63,19 @@ extension RunnerTests {
   // MARK: - Target Activation
 
   func targetNeedsActivation(_ target: XCUIApplication) -> Bool {
-    switch target.state {
-    case .unknown, .notRunning, .runningBackground, .runningBackgroundSuspended:
+    let state = target.state
+#if os(macOS)
+    if state == .unknown || state == .notRunning || state == .runningBackground {
       return true
-    default:
-      return false
     }
+#else
+    if state == .unknown || state == .notRunning || state == .runningBackground
+      || state == .runningBackgroundSuspended
+    {
+      return true
+    }
+#endif
+    return false
   }
 
   func activateTarget(bundleId: String, reason: String) -> XCUIApplication {

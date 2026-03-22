@@ -1,6 +1,5 @@
 import AVFoundation
 import CoreVideo
-import UIKit
 
 extension RunnerTests {
   // MARK: - Screen Recorder
@@ -33,7 +32,7 @@ extension RunnerTests {
       self.fps = fps
     }
 
-    func start(captureFrame: @escaping () -> UIImage?) throws {
+    func start(captureFrame: @escaping () -> RunnerImage?) throws {
       let url = URL(fileURLWithPath: outputPath)
       let directory = url.deletingLastPathComponent()
       try FileManager.default.createDirectory(
@@ -46,10 +45,10 @@ extension RunnerTests {
       }
 
       var dimensions: CGSize = .zero
-      var bootstrapImage: UIImage?
+      var bootstrapImage: RunnerImage?
       let bootstrapDeadline = Date().addingTimeInterval(2.0)
       while Date() < bootstrapDeadline {
-        if let image = captureFrame(), let cgImage = image.cgImage {
+        if let image = captureFrame(), let cgImage = runnerCGImage(from: image) {
           bootstrapImage = image
           dimensions = CGSize(width: cgImage.width, height: cgImage.height)
           break
@@ -183,8 +182,8 @@ extension RunnerTests {
       }
     }
 
-    private func append(image: UIImage) {
-      guard let cgImage = image.cgImage else { return }
+    private func append(image: RunnerImage) {
+      guard let cgImage = runnerCGImage(from: image) else { return }
       lock.lock()
       defer { lock.unlock() }
       if isStopping { return }

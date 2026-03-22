@@ -6,6 +6,7 @@ import {
   buildRuntimeHints,
   countConfiguredRuntimeHints,
   mergeRuntimeHints,
+  toRuntimePlatform,
 } from './session-runtime.ts';
 
 export async function handleRuntimeCommand(params: {
@@ -45,14 +46,16 @@ export async function handleRuntimeCommand(params: {
     };
   }
 
-  const platform =
-    normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform;
+  const platform = toRuntimePlatform(
+    normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform,
+  );
   if (!platform) {
     return {
       ok: false,
       error: {
         code: 'INVALID_ARGS',
-        message: 'runtime set requires --platform when the session has not been opened yet.',
+        message:
+          'runtime set only supports iOS and Android sessions. Pass --platform ios|android or open an iOS/Android session first.',
       },
     };
   }

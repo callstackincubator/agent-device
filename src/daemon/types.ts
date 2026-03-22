@@ -1,6 +1,6 @@
 import type { MaterializeInstallSource } from '../platforms/install-source.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
-import type { DeviceInfo } from '../utils/device.ts';
+import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 
@@ -31,7 +31,7 @@ export type DaemonRequest = {
     materializedPathRetentionMs?: number;
     materializationId?: string;
     lockPolicy?: DaemonLockPolicy;
-    lockPlatform?: 'ios' | 'android' | 'apple';
+    lockPlatform?: PlatformSelector;
   };
 };
 
@@ -93,14 +93,14 @@ export type SessionState = {
         wait: Promise<ExecResult>;
       }
     | {
-        platform: 'ios-device-runner';
+        platform: 'ios-device-runner' | 'macos-runner';
         outPath: string;
         clientOutPath?: string;
-        remotePath: string;
+        remotePath?: string;
       };
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
-    platform: 'ios' | 'android';
+    platform: Platform;
     backend: 'ios-simulator' | 'ios-device' | 'android';
     outPath: string;
     startedAt: number;

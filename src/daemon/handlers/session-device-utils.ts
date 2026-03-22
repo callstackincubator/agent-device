@@ -1,4 +1,9 @@
-import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
+import {
+  matchesPlatformSelector,
+  normalizePlatformSelector,
+  type DeviceInfo,
+} from '../../utils/device.ts';
+import { AppError } from '../../utils/errors.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { resolveTargetDevice } from '../../core/dispatch.ts';
@@ -65,11 +70,41 @@ export async function resolveCommandDevice(params: {
   const device =
     shouldUseExplicitSelector || !params.session
       ? await params.resolveTargetDeviceFn(params.flags ?? {})
-      : params.session.device;
+      : await refreshSessionDeviceIfNeeded(params.session.device, params.resolveTargetDeviceFn);
   if (params.ensureReady !== false) {
     await params.ensureReadyFn(device);
   }
   return device;
+}
+
+export async function refreshSessionDeviceIfNeeded(
+  device: DeviceInfo,
+  resolveTargetDeviceFn: typeof resolveTargetDevice,
+): Promise<DeviceInfo> {
+  if (device.platform !== 'ios' || device.kind !== 'simulator') {
+    return device;
+  }
+
+  const exactSelector: NonNullable<DaemonRequest['flags']> = {
+    platform: 'ios',
+    target: device.target,
+    udid: device.id,
+    ...(device.simulatorSetPath ? { iosSimulatorDeviceSet: device.simulatorSetPath } : {}),
+  };
+  try {
+    return await resolveTargetDeviceFn(exactSelector);
+  } catch (error) {
+    if (!(error instanceof AppError) || error.code !== 'DEVICE_NOT_FOUND') {
+      throw error;
+    }
+  }
+
+  return await resolveTargetDeviceFn({
+    platform: 'ios',
+    target: device.target,
+    device: device.name,
+    ...(device.simulatorSetPath ? { iosSimulatorDeviceSet: device.simulatorSetPath } : {}),
+  });
 }
 
 export function resolveAndroidEmulatorAvdName(params: {
@@ -95,7 +130,9 @@ export function selectorTargetsSessionDevice(
   if (!session) return false;
   if (!hasExplicitDeviceSelector(flags)) return true;
   const normalizedPlatform = normalizePlatformSelector(flags?.platform);
-  if (normalizedPlatform && normalizedPlatform !== session.device.platform) return false;
+  if (normalizedPlatform && !matchesPlatformSelector(session.device.platform, normalizedPlatform)) {
+    return false;
+  }
   if (flags?.target && flags.target !== (session.device.target ?? 'mobile')) return false;
   if (flags?.udid && flags.udid !== session.device.id) return false;
   if (flags?.serial && flags.serial !== session.device.id) return false;

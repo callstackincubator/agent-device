@@ -7,6 +7,13 @@
 
 import XCTest
 import Network
+#if canImport(UIKit)
+import UIKit
+typealias RunnerImage = UIImage
+#elseif canImport(AppKit)
+import AppKit
+typealias RunnerImage = NSImage
+#endif
 
 final class RunnerTests: XCTestCase {
   enum RunnerErrorDomain {
@@ -85,11 +92,7 @@ final class RunnerTests: XCTestCase {
     let queue = DispatchQueue(label: "agent-device.runner")
     let desiredPort = RunnerEnv.resolvePort()
     NSLog("AGENT_DEVICE_RUNNER_DESIRED_PORT=%d", desiredPort)
-    if desiredPort > 0, let port = NWEndpoint.Port(rawValue: desiredPort) {
-      listener = try NWListener(using: .tcp, on: port)
-    } else {
-      listener = try NWListener(using: .tcp)
-    }
+    listener = try makeRunnerListener(desiredPort: desiredPort)
     listener?.stateUpdateHandler = { [weak self] state in
       switch state {
       case .ready:
@@ -122,5 +125,19 @@ final class RunnerTests: XCTestCase {
     if result != .completed {
       XCTFail("runner wait ended with \(result)")
     }
+  }
+
+  private func makeRunnerListener(desiredPort: UInt16) throws -> NWListener {
+    if desiredPort > 0, let port = NWEndpoint.Port(rawValue: desiredPort) {
+      #if os(macOS)
+        let parameters = NWParameters.tcp
+        parameters.allowLocalEndpointReuse = true
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
+        return try NWListener(using: parameters)
+      #else
+        return try NWListener(using: .tcp, on: port)
+      #endif
+    }
+    return try NWListener(using: .tcp)
   }
 }

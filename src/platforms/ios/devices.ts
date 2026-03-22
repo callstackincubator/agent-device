@@ -46,6 +46,8 @@ type IosDeviceDiscoveryOptions = {
   simulatorSetPath?: string;
 };
 
+const HOST_MAC_DEVICE_ID = 'host-macos-local';
+
 function normalizeAppleDescriptor(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
@@ -180,11 +182,22 @@ export async function findBootableIosSimulator(
   return bestBooted ?? bestMobile ?? bestAny;
 }
 
-export async function listIosDevices(
+function buildHostMacDevice(): DeviceInfo {
+  return {
+    platform: 'macos',
+    id: HOST_MAC_DEVICE_ID,
+    name: os.hostname(),
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  };
+}
+
+export async function listAppleDevices(
   options: IosDeviceDiscoveryOptions = {},
 ): Promise<DeviceInfo[]> {
   if (process.platform !== 'darwin') {
-    throw new AppError('UNSUPPORTED_PLATFORM', 'iOS tools are only available on macOS');
+    throw new AppError('UNSUPPORTED_PLATFORM', 'Apple tools are only available on macOS');
   }
 
   const simctlAvailable = await whichCmd('xcrun');
@@ -220,8 +233,11 @@ export async function listIosDevices(
     throw new AppError('COMMAND_FAILED', 'Failed to parse simctl devices JSON', undefined, err);
   }
 
-  // When a simulator set is configured, keep discovery strictly scoped to that set.
-  // Do not enumerate host-global physical devices via devicectl.
+  devices.push(buildHostMacDevice());
+
+  // When a simulator set is configured, keep iOS discovery strictly scoped to that set.
+  // Do not enumerate host-global physical devices, but keep the local Mac available
+  // because desktop targeting is independent of simulator sets.
   if (simulatorSetPath) {
     return devices;
   }
@@ -270,3 +286,5 @@ export async function listIosDevices(
 
   return devices;
 }
+
+export const listIosDevices = listAppleDevices;

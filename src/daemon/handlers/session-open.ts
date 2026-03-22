@@ -14,6 +14,7 @@ import {
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  refreshSessionDeviceIfNeeded,
   settleIosSimulator,
 } from './session-device-utils.ts';
 import {
@@ -73,6 +74,7 @@ function buildNextOpenSession(params: {
   if (existingSession) {
     return {
       ...existingSession,
+      device,
       appBundleId,
       appName: openTarget,
       recordSession: existingSession.recordSession || saveScript,
@@ -101,7 +103,7 @@ async function relaunchCloseApp(params: {
 }): Promise<void> {
   const { device, closeTarget, stopIosRunner, dispatch, outFlag, context, settleSimulator } =
     params;
-  if (device.platform === 'ios') {
+  if (device.platform !== 'android') {
     await stopIosRunner(device.id);
   }
   await dispatch(device, 'close', [closeTarget], outFlag, context);
@@ -331,9 +333,10 @@ export async function handleOpenCommand(params: {
         },
       };
     }
-    await ensureReady(session.device);
+    const device = await refreshSessionDeviceIfNeeded(session.device, resolveDevice);
+    await ensureReady(device);
     const appBundleId = await resolveSessionAppBundleIdForTarget(
-      session.device,
+      device,
       openTarget,
       session.appBundleId,
       resolveAndroidPackageForOpenFn,
@@ -342,7 +345,7 @@ export async function handleOpenCommand(params: {
       req,
       sessionStore,
       sessionName,
-      device: session.device,
+      device,
     });
     if (!runtimeResult.ok) {
       return runtimeResult.response;
@@ -361,7 +364,7 @@ export async function handleOpenCommand(params: {
       sessionName,
       sessionStore,
       logPath,
-      device: session.device,
+      device,
       dispatch,
       applyRuntimeHints,
       stopIosRunner,

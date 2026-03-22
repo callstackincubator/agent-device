@@ -24,8 +24,8 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
-- `--platform apple` is an alias for the iOS/tvOS backend.
-- Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
+- `--platform apple` is an alias for the Apple automation backend (`ios`, `tvOS`, `macOS` selection).
+- Use `--target mobile|tv|desktop` with `--platform` (required) to select phone/tablet vs TV-class vs desktop-class targets.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - Android: `boot --platform android --device <avd-name>` launches that emulator in GUI mode when needed.
 - Android: add `--headless` to launch without opening a GUI window.
@@ -82,7 +82,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 ```
 
 - `devices` lists available targets after applying any platform selector or isolation scope flags.
-- Use `--platform` to narrow discovery to iOS/tvOS or Android targets.
+- Use `--platform` to narrow discovery to Apple-family (`ios`, `tvOS`, `macOS`) or Android targets.
 - Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
 
 ## Simulator provisioning
@@ -115,6 +115,20 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 - tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
 - tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
+
+## Desktop targets
+
+```bash
+agent-device devices --platform macos
+agent-device open TextEdit --platform macos
+agent-device snapshot -i --platform apple --target desktop
+```
+
+- `--platform macos` selects the host Mac as a `desktop` target.
+- `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
+- macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
+- Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `clipboard`, `install`, `reinstall`, `install-from-source`, `push`, `settings`, `logs`, `network`, and `trigger-app-event`.
 
 ## Snapshot and inspect
 

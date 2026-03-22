@@ -328,7 +328,7 @@ extension RunnerTests {
         Thread.sleep(forTimeInterval: 0.5)
       }
       let screenshot = XCUIScreen.main.screenshot()
-      guard let pngData = screenshot.image.pngData() else {
+      guard let pngData = runnerPngData(for: screenshot.image) else {
         return Response(ok: false, error: ErrorPayload(message: "Failed to encode screenshot as PNG"))
       }
       let fileName = "screenshot-\(Int(Date().timeIntervalSince1970 * 1000)).png"
@@ -338,21 +338,40 @@ extension RunnerTests {
       } catch {
         return Response(ok: false, error: ErrorPayload(message: "Failed to write screenshot: \(error.localizedDescription)"))
       }
+#if os(macOS)
+      return Response(ok: true, data: DataPayload(message: filePath))
+#else
       // Return path relative to app container root (tmp/ maps to NSTemporaryDirectory)
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
+#endif
     case .back:
       if tapNavigationBack(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))
       }
+#if os(macOS)
+      return Response(ok: false, error: ErrorPayload(message: "back button is not available on macOS"))
+#else
       performBackGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "back"))
+#endif
     case .home:
+#if os(macOS)
+      return Response(ok: false, error: ErrorPayload(message: "home is not supported on macOS"))
+#else
       pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))
+#endif
     case .appSwitcher:
+#if os(macOS)
+      return Response(ok: false, error: ErrorPayload(message: "appSwitcher is not supported on macOS"))
+#else
       performAppSwitcherGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "appSwitcher"))
+#endif
     case .alert:
+#if os(macOS)
+      return Response(ok: false, error: ErrorPayload(message: "alert is not supported on macOS"))
+#else
       let action = (command.action ?? "get").lowercased()
       let alert = activeApp.alerts.firstMatch
       if !alert.exists {
@@ -370,12 +389,17 @@ extension RunnerTests {
       }
       let buttonLabels = alert.buttons.allElementsBoundByIndex.map { $0.label }
       return Response(ok: true, data: DataPayload(message: alert.label, items: buttonLabels))
+#endif
     case .pinch:
+#if os(macOS)
+      return Response(ok: false, error: ErrorPayload(message: "pinch is not supported on macOS"))
+#else
       guard let scale = command.scale, scale > 0 else {
         return Response(ok: false, error: ErrorPayload(message: "pinch requires scale > 0"))
       }
       pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
       return Response(ok: true, data: DataPayload(message: "pinched"))
+#endif
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { Platform } from '../utils/device.ts';
 import type { RawSnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 
 export function findNodeByLabel(nodes: SnapshotState['nodes'], label: string) {
@@ -89,7 +90,7 @@ export function normalizeType(type: string): string {
   return value;
 }
 
-export function isFillableType(type: string, platform: 'ios' | 'android'): boolean {
+export function isFillableType(type: string, platform: Platform): boolean {
   const normalized = normalizeType(type);
   if (!normalized) return true;
   if (platform === 'android') {

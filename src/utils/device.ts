@@ -1,9 +1,10 @@
 import { AppError } from './errors.ts';
 
-export type Platform = 'ios' | 'android';
+export type ApplePlatform = 'ios' | 'macos';
+export type Platform = ApplePlatform | 'android';
 export type PlatformSelector = Platform | 'apple';
 export type DeviceKind = 'simulator' | 'emulator' | 'device';
-export type DeviceTarget = 'mobile' | 'tv';
+export type DeviceTarget = 'mobile' | 'tv' | 'desktop';
 
 export type DeviceInfo = {
   platform: Platform;
@@ -16,7 +17,7 @@ export type DeviceInfo = {
 };
 
 type DeviceSelector = {
-  platform?: Platform;
+  platform?: PlatformSelector;
   target?: DeviceTarget;
   deviceName?: string;
   udid?: string;
@@ -29,13 +30,48 @@ type DeviceSelectionContext = {
 
 export function normalizePlatformSelector(
   platform: PlatformSelector | undefined,
-): Platform | undefined {
-  if (platform === 'apple') return 'ios';
+): PlatformSelector | undefined {
   return platform;
 }
 
-export function resolveApplePlatformName(target: DeviceTarget | undefined): 'iOS' | 'tvOS' {
-  return target === 'tv' ? 'tvOS' : 'iOS';
+export function isApplePlatform(
+  platform: Platform | PlatformSelector | undefined,
+): platform is ApplePlatform | 'apple' {
+  return platform === 'apple' || platform === 'ios' || platform === 'macos';
+}
+
+export function matchesPlatformSelector(
+  platform: Platform,
+  selector: PlatformSelector | undefined,
+): boolean {
+  if (!selector) return true;
+  if (selector === 'apple') return isApplePlatform(platform);
+  return platform === selector;
+}
+
+export function resolveApplePlatformName(
+  platformOrTarget: ApplePlatform | DeviceTarget | undefined,
+): 'iOS' | 'tvOS' | 'macOS' {
+  if (platformOrTarget === 'macos' || platformOrTarget === 'desktop') return 'macOS';
+  if (platformOrTarget === 'tv') return 'tvOS';
+  return 'iOS';
+}
+
+export function resolveAppleSimulatorSetPathForSelector(params: {
+  simulatorSetPath?: string;
+  platform?: PlatformSelector;
+  target?: DeviceTarget;
+}): string | undefined {
+  const { simulatorSetPath, platform, target } = params;
+  if (!simulatorSetPath) return undefined;
+  if (platform === 'macos' || target === 'desktop') {
+    return undefined;
+  }
+  return simulatorSetPath;
+}
+
+function supportsAppleSimulatorSelection(platform: PlatformSelector | undefined): boolean {
+  return !platform || platform === 'apple' || platform === 'ios';
 }
 
 export async function resolveDevice(
@@ -48,15 +84,17 @@ export async function resolveDevice(
     value.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
 
   if (selector.platform) {
-    candidates = candidates.filter((d) => d.platform === selector.platform);
+    candidates = candidates.filter((d) => matchesPlatformSelector(d.platform, selector.platform));
   }
   if (selector.target) {
     candidates = candidates.filter((d) => (d.target ?? 'mobile') === selector.target);
   }
 
   if (selector.udid) {
-    const match = candidates.find((d) => d.id === selector.udid && d.platform === 'ios');
-    if (!match) throw new AppError('DEVICE_NOT_FOUND', `No iOS device with UDID ${selector.udid}`);
+    const match = candidates.find((d) => d.id === selector.udid && isApplePlatform(d.platform));
+    if (!match) {
+      throw new AppError('DEVICE_NOT_FOUND', `No Apple device with UDID ${selector.udid}`);
+    }
     return match;
   }
 
@@ -80,7 +118,7 @@ export async function resolveDevice(
 
   if (candidates.length === 0) {
     const simulatorSetPath = context.simulatorSetPath;
-    if (simulatorSetPath && (!selector.platform || selector.platform === 'ios')) {
+    if (simulatorSetPath && supportsAppleSimulatorSelection(selector.platform)) {
       throw new AppError('DEVICE_NOT_FOUND', 'No devices found in the scoped simulator set', {
         simulatorSetPath,
         hint: `The simulator set at "${simulatorSetPath}" appears to be empty. Create a simulator first:\n  xcrun simctl --set "${simulatorSetPath}" create "iPhone 16" com.apple.CoreSimulator.SimDeviceType.iPhone-16 com.apple.CoreSimulator.SimRuntime.iOS-18-0`,

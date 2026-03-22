@@ -34,6 +34,84 @@ function assertInvalidArgsMessage(response: DaemonResponse | null, message: stri
   }
 }
 
+test('devices filters Apple-family platform selectors', async () => {
+  const sessionStore = makeSessionStore();
+  const listAndroidDevices = async () => [
+    {
+      platform: 'android' as const,
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator' as const,
+      target: 'mobile' as const,
+      booted: true,
+    },
+  ];
+  const listAppleDevices = async () => [
+    {
+      platform: 'ios' as const,
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator' as const,
+      target: 'mobile' as const,
+      booted: true,
+    },
+    {
+      platform: 'macos' as const,
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device' as const,
+      target: 'desktop' as const,
+      booted: true,
+    },
+  ];
+  const runDevices = async (flags: DaemonRequest['flags']) =>
+    handleSessionCommands({
+      req: {
+        token: 't',
+        session: 'default',
+        command: 'devices',
+        positionals: [],
+        flags,
+      },
+      sessionName: 'default',
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+      listAndroidDevices,
+      listAppleDevices,
+    });
+
+  const macosResponse = await runDevices({ platform: 'macos' });
+  assert.ok(macosResponse?.ok);
+  if (macosResponse?.ok) {
+    const devices = macosResponse.data?.devices as Array<{ platform: string }> | undefined;
+    assert.deepEqual(
+      devices?.map((device) => device.platform),
+      ['macos'],
+    );
+  }
+
+  const iosResponse = await runDevices({ platform: 'ios' });
+  assert.ok(iosResponse?.ok);
+  if (iosResponse?.ok) {
+    const devices = iosResponse.data?.devices as Array<{ platform: string }> | undefined;
+    assert.deepEqual(
+      devices?.map((device) => device.platform),
+      ['ios'],
+    );
+  }
+
+  const appleDesktopResponse = await runDevices({ platform: 'apple', target: 'desktop' });
+  assert.ok(appleDesktopResponse?.ok);
+  if (appleDesktopResponse?.ok) {
+    const devices = appleDesktopResponse.data?.devices as Array<{ platform: string }> | undefined;
+    assert.deepEqual(
+      devices?.map((device) => device.platform),
+      ['macos'],
+    );
+  }
+});
+
 test('batch executes steps sequentially and returns structured results', async () => {
   const sessionStore = makeSessionStore();
   const seenCommands: string[] = [];
@@ -1406,6 +1484,55 @@ test('appstate returns session appName when bundle id is unavailable', async () 
   }
 });
 
+test('appstate on macOS session returns session state', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+    appName: 'System Settings',
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'appstate',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    ensureReady: async () => {},
+    dispatch: async () => {
+      throw new Error('dispatch should not run');
+    },
+    resolveTargetDevice: async () => {
+      throw new Error('resolveTargetDevice should not run');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'macos');
+    assert.equal(response.data?.appName, 'System Settings');
+    assert.equal(response.data?.appBundleId, 'com.apple.systempreferences');
+    assert.equal(response.data?.source, 'session');
+    assert.equal(response.data?.device_udid, undefined);
+    assert.equal(response.data?.ios_simulator_device_set, undefined);
+  }
+});
+
 test('appstate fails when iOS session has no tracked app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
@@ -1664,14 +1791,13 @@ test('clipboard read uses active session device', async () => {
     sessionStore,
     invoke: noopInvoke,
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
     dispatch: async (device, command, positionals) => {
       assert.equal(device.id, 'sim-1');
       assert.equal(command, 'clipboard');
       assert.deepEqual(positionals, ['read']);
       return { action: 'read', text: 'otp-123456' };
-    },
-    resolveTargetDevice: async () => {
-      throw new Error('resolveTargetDevice should not run');
     },
   });
 
@@ -1910,6 +2036,8 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
       return {};
     },
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -1953,6 +2081,8 @@ test('open URL on existing iOS device session preserves app bundle id context', 
       return {};
     },
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -1995,6 +2125,8 @@ test('open web URL on iOS device session without active app falls back to Safari
       return {};
     },
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -2084,6 +2216,8 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
       return {};
     },
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -2095,6 +2229,70 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
   if (response && response.ok) {
     assert.equal(response.data?.device_udid, 'sim-1');
     assert.equal(response.data?.ios_simulator_device_set, null);
+  }
+});
+
+test('open on existing iOS session refreshes unavailable simulator by name', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'stale-sim',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: false,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
+
+  const resolvedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'fresh-sim',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+  const selectors: Array<Record<string, unknown>> = [];
+  let dispatchedDeviceId: string | undefined;
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (device) => {
+      dispatchedDeviceId = device.id;
+      return {};
+    },
+    ensureReady: async () => {},
+    resolveTargetDevice: async (flags) => {
+      selectors.push({ ...(flags ?? {}) });
+      if (flags.udid === 'stale-sim') {
+        throw new AppError('DEVICE_NOT_FOUND', 'No Apple device with UDID stale-sim');
+      }
+      return resolvedDevice;
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(selectors.length, 2);
+  assert.deepEqual(selectors[0], { platform: 'ios', target: undefined, udid: 'stale-sim' });
+  assert.deepEqual(selectors[1], { platform: 'ios', target: undefined, device: 'iPhone 17 Pro' });
+  assert.equal(dispatchedDeviceId, 'fresh-sim');
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.device.id, 'fresh-sim');
+  if (response && response.ok) {
+    assert.equal(response.data?.device_udid, 'fresh-sim');
   }
 });
 
@@ -2337,6 +2535,8 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
     dispatch: async () => ({}),
     stopIosRunner: async () => {},
     ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
     settleSimulator: async (device, delayMs) => {
       settleCalls.push({ deviceId: device.id, delayMs });
     },

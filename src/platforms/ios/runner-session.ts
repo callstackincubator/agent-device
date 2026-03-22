@@ -263,7 +263,7 @@ async function ensureBooted(device: DeviceInfo): Promise<void> {
 }
 
 export function validateRunnerDevice(device: DeviceInfo): void {
-  if (device.platform !== 'ios') {
+  if (device.platform !== 'ios' && device.platform !== 'macos') {
     throw new AppError(
       'UNSUPPORTED_PLATFORM',
       `Unsupported platform for iOS runner: ${device.platform}`,

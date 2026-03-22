@@ -36,7 +36,7 @@ export function buildDeviceIdentifiers(
   return {
     deviceId: id,
     deviceName: name,
-    ...(platform === 'ios' ? { udid: id } : { serial: id }),
+    ...(platform === 'android' ? { serial: id } : platform === 'ios' ? { udid: id } : {}),
   };
 }
 

@@ -1,3 +1,4 @@
+import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { extractNodeText, isFillableType, normalizeType } from './snapshot-processing.ts';
 import type { Selector, SelectorTerm } from './selectors-parse.ts';
@@ -5,7 +6,7 @@ import type { Selector, SelectorTerm } from './selectors-parse.ts';
 export function matchesSelector(
   node: SnapshotNode,
   selector: Selector,
-  platform: 'ios' | 'android',
+  platform: Platform,
 ): boolean {
   return selector.terms.every((term) => matchesTerm(node, term, platform));
 }
@@ -16,12 +17,12 @@ export function isNodeVisible(node: SnapshotNode): boolean {
   return node.rect.width > 0 && node.rect.height > 0;
 }
 
-export function isNodeEditable(node: SnapshotNode, platform: 'ios' | 'android'): boolean {
+export function isNodeEditable(node: SnapshotNode, platform: Platform): boolean {
   const type = node.type ?? '';
   return isFillableType(type, platform) && node.enabled !== false;
 }
 
-function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: 'ios' | 'android'): boolean {
+function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform): boolean {
   switch (term.key) {
     case 'id':
       return textEquals(node.identifier, String(term.value));

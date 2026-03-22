@@ -7,7 +7,7 @@ import {
   type SessionSelectorConflict,
   type SessionSelectorConflictKey,
 } from './session-selector.ts';
-import { normalizePlatformSelector } from '../utils/device.ts';
+import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
 
@@ -73,7 +73,7 @@ function listFreshSessionConflicts(
   if (
     flags.platform !== undefined &&
     normalizedLockPlatform &&
-    normalizePlatformSelector(flags.platform) !== normalizedLockPlatform
+    platformSelectorsConflict(normalizePlatformSelector(flags.platform), normalizedLockPlatform)
   ) {
     conflicts.push({ key: 'platform', value: flags.platform });
   }
@@ -84,6 +84,17 @@ function listFreshSessionConflicts(
     }
   }
   return conflicts;
+}
+
+function platformSelectorsConflict(
+  requested: ReturnType<typeof normalizePlatformSelector>,
+  locked: ReturnType<typeof normalizePlatformSelector>,
+): boolean {
+  if (!requested || !locked) return false;
+  if (requested === locked) return false;
+  if (requested === 'apple') return !isApplePlatform(locked);
+  if (locked === 'apple') return !isApplePlatform(requested);
+  return true;
 }
 
 function stripFreshSessionConflicts(flags: CommandFlags, lockPlatform: LockPlatform): void {

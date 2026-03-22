@@ -1,20 +1,61 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePlatformSelector, resolveApplePlatformName, resolveDevice } from '../device.ts';
+import {
+  matchesPlatformSelector,
+  normalizePlatformSelector,
+  resolveApplePlatformName,
+  resolveAppleSimulatorSetPathForSelector,
+  resolveDevice,
+} from '../device.ts';
 import type { DeviceInfo } from '../device.ts';
 import { AppError } from '../errors.ts';
 
-test('normalizePlatformSelector resolves apple alias to ios', () => {
-  assert.equal(normalizePlatformSelector('apple'), 'ios');
+test('normalizePlatformSelector preserves explicit apple selector', () => {
+  assert.equal(normalizePlatformSelector('apple'), 'apple');
   assert.equal(normalizePlatformSelector('ios'), 'ios');
+  assert.equal(normalizePlatformSelector('macos'), 'macos');
   assert.equal(normalizePlatformSelector('android'), 'android');
   assert.equal(normalizePlatformSelector(undefined), undefined);
 });
 
-test('resolveApplePlatformName resolves tv targets to tvOS', () => {
+test('matchesPlatformSelector resolves apple selector across Apple platforms', () => {
+  assert.equal(matchesPlatformSelector('ios', 'apple'), true);
+  assert.equal(matchesPlatformSelector('macos', 'apple'), true);
+  assert.equal(matchesPlatformSelector('android', 'apple'), false);
+});
+
+test('resolveApplePlatformName resolves tv and desktop targets', () => {
   assert.equal(resolveApplePlatformName('tv'), 'tvOS');
   assert.equal(resolveApplePlatformName('mobile'), 'iOS');
+  assert.equal(resolveApplePlatformName('desktop'), 'macOS');
+  assert.equal(resolveApplePlatformName('macos'), 'macOS');
   assert.equal(resolveApplePlatformName(undefined), 'iOS');
+});
+
+test('resolveAppleSimulatorSetPathForSelector ignores simulator scoping for desktop selectors', () => {
+  assert.equal(
+    resolveAppleSimulatorSetPathForSelector({
+      simulatorSetPath: '/tmp/scoped',
+      platform: 'macos',
+    }),
+    undefined,
+  );
+  assert.equal(
+    resolveAppleSimulatorSetPathForSelector({
+      simulatorSetPath: '/tmp/scoped',
+      platform: 'apple',
+      target: 'desktop',
+    }),
+    undefined,
+  );
+  assert.equal(
+    resolveAppleSimulatorSetPathForSelector({
+      simulatorSetPath: '/tmp/scoped',
+      platform: 'ios',
+      target: 'mobile',
+    }),
+    '/tmp/scoped',
+  );
 });
 
 test('resolveDevice throws DEVICE_NOT_FOUND with scoped set guidance when simulatorSetPath is set and no devices found', async () => {

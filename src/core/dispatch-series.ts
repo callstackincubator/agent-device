@@ -31,11 +31,16 @@ export function shouldUseIosTapSeries(
   holdMs: number,
   jitterPx: number,
 ): boolean {
-  return device.platform === 'ios' && count > 1 && holdMs === 0 && jitterPx === 0;
+  return (
+    (device.platform === 'ios' || device.platform === 'macos') &&
+    count > 1 &&
+    holdMs === 0 &&
+    jitterPx === 0
+  );
 }
 
 export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {
-  return device.platform === 'ios' && count > 1;
+  return (device.platform === 'ios' || device.platform === 'macos') && count > 1;
 }
 
 export function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {

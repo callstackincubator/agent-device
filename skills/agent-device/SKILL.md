@@ -1,9 +1,9 @@
 ---
 name: agent-device
-description: Automates interactions for iOS simulators/devices and Android emulators/devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, or extracting UI info on mobile targets.
+description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) and Android devices. Use when navigating apps, taking snapshots/screenshots, tapping, typing, scrolling, or extracting UI info across mobile, TV, and desktop targets.
 ---
 
-# Mobile Automation with agent-device
+# Apple and Android Automation with agent-device
 
 For exploration, use snapshot refs. For deterministic replay, use selectors.
 For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
@@ -32,6 +32,7 @@ Use this skill as a router, not a full manual.
 
 - iOS local QA: use simulators unless the task explicitly requires a physical device.
 - iOS local QA in mixed simulator/device environments: run `ensure-simulator` first and pass `--device`, `--udid`, or `--ios-simulator-device-set` on later commands.
+- macOS desktop app automation: use `--platform macos`, or `--platform apple --target desktop` when the caller wants one Apple-family selector path.
 - Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
 - Android React Native + Metro flows: prefer `open <package> --remote-config <path> --relaunch`.
 - In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
@@ -102,6 +103,19 @@ agent-device close --shutdown
 ```
 
 Use this when an Android emulator session must stay pinned while an agent or test runner issues plain CLI commands over time.
+
+### 1e) macOS Desktop Flow
+
+```bash
+agent-device open TextEdit --platform macos
+agent-device snapshot -i
+agent-device fill @e3 "desktop smoke test"
+agent-device screenshot /tmp/macos-textedit.png
+agent-device close
+```
+
+Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). Do not rely on mobile-only helpers like `install`, `push`, `settings`, or `logs` on macOS yet.
+Prefer selectors or snapshot refs (`@e...`) over raw x/y commands on macOS because the window origin can move between runs.
 
 ### 2) Debug/Crash Flow
 

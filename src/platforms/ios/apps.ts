@@ -35,7 +35,7 @@ import {
   getSimulatorState,
 } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-import { prepareIosInstallArtifact } from './install-artifact.ts';
+import { prepareIosInstallArtifact, readIosBundleInfo } from './install-artifact.ts';
 export {
   screenshotIos,
   shouldFallbackToRunnerForIosScreenshot,
@@ -44,6 +44,9 @@ export {
 
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
+};
+const MACOS_ALIASES: Record<string, string> = {
+  settings: 'com.apple.systempreferences',
 };
 let cachedSimctlPrivacyServices: Set<string> | null = null;
 let cachedSimctlPrivacyServicesCacheKey: string | undefined;
@@ -68,7 +71,137 @@ type InstallIosAppOptions = {
   appIdentifierHint?: string;
 };
 
+function escapeAppleScriptString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function resolveMacOpenArgs(app: string, url?: string): string[] {
+  const trimmed = app.trim();
+  const openArgs = trimmed.includes('.') ? ['-b', trimmed] : ['-a', trimmed];
+  if (url) {
+    openArgs.push(url);
+  }
+  return openArgs;
+}
+
+async function resolveMacOsApp(app: string): Promise<string> {
+  const trimmed = app.trim();
+  if (trimmed.includes('.')) return trimmed;
+
+  const alias = MACOS_ALIASES[trimmed.toLowerCase()];
+  if (alias) return alias;
+
+  const script = `id of app "${escapeAppleScriptString(trimmed)}"`;
+  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  if (result.exitCode === 0) {
+    const bundleId = result.stdout.trim();
+    if (bundleId) return bundleId;
+  }
+
+  const apps = await listMacApps('all');
+  const matches = apps.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
+  if (matches.length === 1) return matches[0].bundleId;
+  if (matches.length > 1) {
+    throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
+  }
+
+  throw new AppError('APP_NOT_INSTALLED', `No app found matching "${app}"`);
+}
+
+async function openMacOsApp(
+  app: string,
+  options?: { appBundleId?: string; url?: string },
+): Promise<void> {
+  const explicitUrl = options?.url?.trim();
+  if (explicitUrl) {
+    if (!isDeepLinkTarget(explicitUrl)) {
+      throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
+    }
+    const appId = options?.appBundleId ?? (await resolveMacOsApp(app));
+    await runCmd('open', resolveMacOpenArgs(appId, explicitUrl));
+    return;
+  }
+
+  const target = app.trim();
+  if (isDeepLinkTarget(target)) {
+    await runCmd('open', [target]);
+    return;
+  }
+
+  await runCmd('open', resolveMacOpenArgs(options?.appBundleId ?? target));
+}
+
+async function closeMacOsApp(app: string): Promise<void> {
+  const trimmed = app.trim();
+  const script = trimmed.includes('.')
+    ? `tell application id "${escapeAppleScriptString(trimmed)}" to quit`
+    : `tell application "${escapeAppleScriptString(trimmed)}" to quit`;
+  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  if (result.exitCode === 0) return;
+
+  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  if (output.includes('isn’t running') || output.includes("isn't running")) {
+    return;
+  }
+
+  throw new AppError('COMMAND_FAILED', `Failed to close macOS app ${app}`, {
+    stdout: result.stdout,
+    stderr: result.stderr,
+    exitCode: result.exitCode,
+  });
+}
+
+async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Promise<IosAppInfo[]> {
+  const appRoots = [
+    '/Applications',
+    '/System/Applications',
+    path.join(os.homedir(), 'Applications'),
+  ];
+  const appPaths = new Set<string>();
+
+  for (const root of appRoots) {
+    const stat = await fs.stat(root).catch(() => null);
+    if (!stat?.isDirectory()) continue;
+    const result = await runCmd('find', [root, '-maxdepth', '4', '-type', 'd', '-name', '*.app'], {
+      allowFailure: true,
+    });
+    if (result.exitCode !== 0) continue;
+    for (const line of result.stdout.split('\n')) {
+      const candidate = line.trim();
+      if (candidate) appPaths.add(candidate);
+    }
+  }
+
+  const apps = await Promise.all(
+    Array.from(appPaths).map(async (appPath) => {
+      const bundleInfo = await readIosBundleInfo(appPath).catch(
+        () =>
+          ({}) as {
+            bundleId?: string;
+            appName?: string;
+          },
+      );
+      const bundleId = bundleInfo.bundleId;
+      if (!bundleId) return null;
+      return {
+        bundleId,
+        name: bundleInfo.appName ?? path.basename(appPath, '.app'),
+      } satisfies IosAppInfo;
+    }),
+  );
+
+  return filterIosAppsByBundlePrefix(
+    apps
+      .filter((app): app is IosAppInfo => app !== null)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    filter,
+  );
+}
+
 export async function resolveIosApp(device: DeviceInfo, app: string): Promise<string> {
+  if (device.platform === 'macos') {
+    return await resolveMacOsApp(app);
+  }
   const trimmed = app.trim();
   if (trimmed.includes('.')) return trimmed;
 
@@ -93,6 +226,10 @@ export async function openIosApp(
   app: string,
   options?: { appBundleId?: string; url?: string },
 ): Promise<void> {
+  if (device.platform === 'macos') {
+    await openMacOsApp(app, options);
+    return;
+  }
   const explicitUrl = options?.url?.trim();
   if (explicitUrl) {
     if (!isDeepLinkTarget(explicitUrl)) {
@@ -145,6 +282,9 @@ export async function openIosApp(
 }
 
 export async function openIosDevice(device: DeviceInfo): Promise<void> {
+  if (device.platform === 'macos') {
+    return;
+  }
   if (device.kind !== 'simulator') return;
   const state = await getSimulatorState(device);
   if (state === 'Booted') return;
@@ -154,6 +294,10 @@ export async function openIosDevice(device: DeviceInfo): Promise<void> {
 }
 
 export async function closeIosApp(device: DeviceInfo, app: string): Promise<void> {
+  if (device.platform === 'macos') {
+    await closeMacOsApp(app);
+    return;
+  }
   const bundleId = await resolveIosApp(device, app);
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
@@ -416,6 +560,9 @@ export async function listIosApps(
   device: DeviceInfo,
   filter: 'user-installed' | 'all' = 'all',
 ): Promise<IosAppInfo[]> {
+  if (device.platform === 'macos') {
+    return await listMacApps(filter);
+  }
   if (device.kind === 'simulator') {
     const apps = await listSimulatorApps(device);
     return filterIosAppsByBundlePrefix(apps, filter);

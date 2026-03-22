@@ -99,7 +99,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         setSetting: (setting, state, appId, options) =>
           setAndroidSetting(device, setting, state, appId, options),
       };
-    case 'ios': {
+    case 'ios':
+    case 'macos': {
       const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
       return {
         open: (app, options) =>

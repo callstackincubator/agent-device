@@ -58,20 +58,21 @@ export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
-  const derived = resolveRunnerDerivedPath(device.kind);
+  const derived = resolveRunnerDerivedPath(device);
+  const projectRoot = findProjectRoot();
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
     if (shouldCleanDerived()) {
       assertSafeDerivedCleanup(derived);
-      try {
-        fs.rmSync(derived, { recursive: true, force: true });
-      } catch {
-        // ignore
-      }
+      cleanRunnerDerivedArtifacts(derived);
     }
     const existing = findXctestrun(derived);
-    if (existing) return existing;
-
-    const projectRoot = findProjectRoot();
+    if (existing && xctestrunReferencesProjectRoot(existing, projectRoot)) {
+      return existing;
+    }
+    if (existing) {
+      assertSafeDerivedCleanup(derived);
+      cleanRunnerDerivedArtifacts(derived);
+    }
     const projectPath = path.join(
       projectRoot,
       'ios-runner',
@@ -147,6 +148,38 @@ export async function ensureXctestrun(
   });
 }
 
+function cleanRunnerDerivedArtifacts(derived: string): void {
+  try {
+    if (!fs.existsSync(derived)) return;
+    if (path.basename(derived) !== 'derived') {
+      fs.rmSync(derived, { recursive: true, force: true });
+      return;
+    }
+    for (const entry of fs.readdirSync(derived, { withFileTypes: true })) {
+      if (!shouldDeleteRunnerDerivedRootEntry(entry.name)) continue;
+      fs.rmSync(path.join(derived, entry.name), { recursive: true, force: true });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const RUNNER_ROOT_TRANSIENT_ENTRY_NAMES = new Set([
+  'Build',
+  'BuildCache.noindex',
+  'Index.noindex',
+  'Logs',
+  'ModuleCache.noindex',
+  'SDKStatCaches.noindex',
+  'SourcePackages',
+  'TextBasedInstallAPI',
+  'info.plist',
+]);
+
+export function shouldDeleteRunnerDerivedRootEntry(entryName: string): boolean {
+  return RUNNER_ROOT_TRANSIENT_ENTRY_NAMES.has(entryName);
+}
+
 function findXctestrun(root: string): string | null {
   if (!fs.existsSync(root)) return null;
   const candidates: { path: string; mtimeMs: number }[] = [];
@@ -173,6 +206,29 @@ function findXctestrun(root: string): string | null {
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
   return candidates[0]?.path ?? null;
+}
+
+export function xctestrunReferencesProjectRoot(
+  xctestrunPath: string,
+  projectRoot: string,
+): boolean {
+  try {
+    const contents = fs.readFileSync(xctestrunPath, 'utf8');
+    const candidateRoots = new Set<string>([projectRoot]);
+    try {
+      candidateRoots.add(fs.realpathSync(projectRoot));
+    } catch {
+      // ignore
+    }
+    for (const root of candidateRoots) {
+      if (contents.includes(root)) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function findProjectRoot(): string {
@@ -270,19 +326,25 @@ export async function prepareXctestrunWithEnv(
   return { xctestrunPath: tmpXctestrunPath, jsonPath: tmpJsonPath };
 }
 
-function resolveRunnerDerivedPath(kind: DeviceInfo['kind']): string {
+function resolveRunnerDerivedPath(device: DeviceInfo): string {
   const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
   if (override) {
     return path.resolve(override);
   }
-  if (kind === 'simulator') {
+  if (device.platform === 'macos') {
+    return path.join(RUNNER_DERIVED_ROOT, 'derived', 'macos');
+  }
+  if (device.kind === 'simulator') {
     return path.join(RUNNER_DERIVED_ROOT, 'derived');
   }
-  return path.join(RUNNER_DERIVED_ROOT, 'derived', kind);
+  return path.join(RUNNER_DERIVED_ROOT, 'derived', device.kind);
 }
 
 export function resolveRunnerDestination(device: DeviceInfo): string {
   const platformName = resolveRunnerPlatformName(device);
+  if (platformName === 'macOS') {
+    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
+  }
   if (device.kind === 'simulator') {
     return `platform=${platformName} Simulator,id=${device.id}`;
   }
@@ -291,20 +353,30 @@ export function resolveRunnerDestination(device: DeviceInfo): string {
 
 export function resolveRunnerBuildDestination(device: DeviceInfo): string {
   const platformName = resolveRunnerPlatformName(device);
+  if (platformName === 'macOS') {
+    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
+  }
   if (device.kind === 'simulator') {
     return `platform=${platformName} Simulator,id=${device.id}`;
   }
   return `generic/platform=${platformName}`;
 }
 
-function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' {
-  if (device.platform !== 'ios') {
+function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS' {
+  if (device.platform !== 'ios' && device.platform !== 'macos') {
     throw new AppError(
       'UNSUPPORTED_PLATFORM',
       `Unsupported platform for iOS runner: ${device.platform}`,
     );
   }
+  if (device.platform === 'macos') {
+    return 'macOS';
+  }
   return resolveApplePlatformName(device.target);
+}
+
+function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
+  return process.arch === 'arm64' ? 'arm64' : 'x86_64';
 }
 
 export function resolveRunnerMaxConcurrentDestinationsFlag(device: DeviceInfo): string {

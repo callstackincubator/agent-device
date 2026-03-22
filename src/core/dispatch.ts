@@ -101,8 +101,11 @@ export async function dispatchCommand(
             return { app: null };
           }
           if (url !== undefined) {
-            if (device.platform !== 'ios') {
-              throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on iOS');
+            if (device.platform === 'android') {
+              throw new AppError(
+                'INVALID_ARGS',
+                'open <app> <url> is supported only on Apple platforms',
+              );
             }
             if (isDeepLinkTarget(app)) {
               throw new AppError(
@@ -483,7 +486,7 @@ export async function dispatchCommand(
           };
         }
         case 'snapshot': {
-          if (device.platform === 'ios') {
+          if (device.platform !== 'android') {
             const result = (await withDiagnosticTimer(
               'snapshot_capture',
               async () =>

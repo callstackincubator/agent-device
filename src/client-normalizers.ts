@@ -145,7 +145,7 @@ export function normalizeOpenDevice(
   const platform = value.platform;
   const id = readOptionalString(value, 'id');
   const name = readOptionalString(value, 'device');
-  if ((platform !== 'ios' && platform !== 'android') || !id || !name) {
+  if ((platform !== 'ios' && platform !== 'macos' && platform !== 'android') || !id || !name) {
     return undefined;
   }
   const target = readDeviceTarget(value, 'target');
@@ -356,7 +356,7 @@ function parseFiniteNumber(value: unknown): number | undefined {
 }
 
 function parsePlatform(value: unknown): Platform | undefined {
-  return value === 'ios' || value === 'android' ? value : undefined;
+  return value === 'ios' || value === 'macos' || value === 'android' ? value : undefined;
 }
 
 function parseDeviceKind(value: unknown): DeviceKind | undefined {
@@ -364,5 +364,5 @@ function parseDeviceKind(value: unknown): DeviceKind | undefined {
 }
 
 function parseDeviceTarget(value: unknown): DeviceTarget | undefined {
-  return value === 'tv' ? 'tv' : value === 'mobile' ? 'mobile' : undefined;
+  return value === 'tv' || value === 'mobile' || value === 'desktop' ? value : undefined;
 }

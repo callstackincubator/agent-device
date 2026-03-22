@@ -123,6 +123,7 @@ test('reinstall succeeds on active iOS physical device session', async () => {
         throw new Error('unexpected android reinstall');
       },
     },
+    resolveTargetDevice: async () => sessionStore.get('default')?.device as SessionState['device'],
   });
   assert.ok(response);
   assert.equal(response.ok, true);
@@ -172,6 +173,7 @@ test('reinstall succeeds on active iOS simulator session and records action', as
         throw new Error('unexpected android reinstall');
       },
     },
+    resolveTargetDevice: async () => sessionStore.get('default')?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -301,6 +303,7 @@ test('install succeeds on active iOS simulator session and records action', asyn
         throw new Error('unexpected android install');
       },
     },
+    resolveTargetDevice: async () => sessionStore.get('default')?.device as SessionState['device'],
   });
 
   assert.ok(response);
@@ -405,6 +408,7 @@ test('reinstall resolves uploaded artifacts by id and cleans temp files after co
         throw new Error('unexpected android reinstall');
       },
     },
+    resolveTargetDevice: async () => sessionStore.get('default')?.device as SessionState['device'],
   });
 
   assert.ok(response);

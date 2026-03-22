@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '../utils/device.ts';
+import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
 
 type KindMatrix = {
   simulator?: boolean;
@@ -8,140 +8,170 @@ type KindMatrix = {
 };
 
 type CommandCapability = {
-  ios?: KindMatrix;
+  apple?: KindMatrix;
   android?: KindMatrix;
+  supports?: (device: DeviceInfo) => boolean;
 };
 
+const isNotMacOs = (device: DeviceInfo): boolean => device.platform !== 'macos';
+
 const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
-  // iOS simulator-only.
-  alert: { ios: { simulator: true }, android: {} },
-  pinch: { ios: { simulator: true }, android: {} },
+  // Apple simulator-only.
+  alert: {
+    apple: { simulator: true },
+    android: {},
+  },
+  pinch: {
+    apple: { simulator: true },
+    android: {},
+  },
   'app-switcher': {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   apps: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   back: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   boot: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   click: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
-  clipboard: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
-  keyboard: { ios: {}, android: { emulator: true, device: true, unknown: true } },
+  clipboard: {
+    apple: { simulator: true },
+    android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
+  },
+  keyboard: { apple: {}, android: { emulator: true, device: true, unknown: true } },
   close: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   fill: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   diff: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   find: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   focus: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   get: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   is: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   home: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   logs: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   network: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   longpress: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   open: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   perf: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   install: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   'install-from-source': {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   reinstall: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   press: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
-  push: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  push: {
+    apple: { simulator: true },
+    android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
+  },
   record: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   screenshot: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   scroll: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   scrollintoview: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   swipe: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
-  settings: { ios: { simulator: true }, android: { emulator: true, device: true, unknown: true } },
+  settings: {
+    apple: { simulator: true },
+    android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
+  },
   snapshot: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   'trigger-app-event': {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    supports: isNotMacOs,
   },
   type: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
   wait: {
-    ios: { simulator: true, device: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
 };
@@ -149,8 +179,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {
   const capability = COMMAND_CAPABILITY_MATRIX[command];
   if (!capability) return true;
-  const byPlatform = capability[device.platform];
+  const byPlatform = isApplePlatform(device.platform) ? capability.apple : capability.android;
   if (!byPlatform) return false;
+  if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
   return byPlatform[kind] === true;
 }

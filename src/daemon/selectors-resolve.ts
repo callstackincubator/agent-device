@@ -1,3 +1,4 @@
+import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import type { Selector, SelectorChain } from './selectors-parse.ts';
 import { matchesSelector } from './selectors-match.ts';
@@ -19,7 +20,7 @@ export function resolveSelectorChain(
   nodes: SnapshotState['nodes'],
   chain: SelectorChain,
   options: {
-    platform: 'ios' | 'android';
+    platform: Platform;
     requireRect?: boolean;
     requireUnique?: boolean;
     disambiguateAmbiguous?: boolean;
@@ -64,7 +65,7 @@ export function findSelectorChainMatch(
   nodes: SnapshotState['nodes'],
   chain: SelectorChain,
   options: {
-    platform: 'ios' | 'android';
+    platform: Platform;
     requireRect?: boolean;
   },
 ): {
@@ -108,7 +109,7 @@ export function formatSelectorFailure(
 function analyzeSelectorMatches(
   nodes: SnapshotState['nodes'],
   selector: Selector,
-  options: { platform: 'ios' | 'android'; requireRect: boolean },
+  options: { platform: Platform; requireRect: boolean },
 ): { count: number; firstNode: SnapshotNode | null; disambiguated: SnapshotNode | null } {
   let count = 0;
   let firstNode: SnapshotNode | null = null;
@@ -145,7 +146,7 @@ function analyzeSelectorMatches(
 function countSelectorMatchesOnly(
   nodes: SnapshotState['nodes'],
   selector: Selector,
-  options: { platform: 'ios' | 'android'; requireRect: boolean },
+  options: { platform: Platform; requireRect: boolean },
 ): number {
   let count = 0;
   for (const node of nodes) {

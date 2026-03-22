@@ -55,6 +55,8 @@ Minimal operating guide for AI coding agents in this repo.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
 - Do not remove shared snapshot/session model behavior without full migration.
 - Command/device support must come from `src/core/capabilities.ts`.
+- Apple-family target changes must keep `src/utils/device.ts`, `src/core/capabilities.ts`, `src/core/dispatch-resolve.ts`, `src/platforms/ios/devices.ts`, and `src/platforms/ios/runner-xctestrun.ts` in sync.
+- iOS simulator-set scoping is iOS-specific: do not let `iosSimulatorDeviceSet` hide the host macOS desktop target when `--platform macos` or `--target desktop` is requested.
 - If Swift runner code changes, run `pnpm build:xcuitest`.
 - Use `inferFillText` and `uniqueStrings` from `src/daemon/action-utils.ts`.
 - Use `evaluateIsPredicate` from `src/daemon/is-predicates.ts` for assertion logic.
@@ -82,6 +84,8 @@ Minimal operating guide for AI coding agents in this repo.
 - New element-targeting interactions must support selector + `@ref`, record `selectorChain`, and hook replay healing (`healReplayAction` in `session.ts` + selector helpers in `session-replay-heal.ts`).
 - New selector keys remain centralized in `selectors.ts`.
 - New `is` predicates belong in `evaluateIsPredicate`.
+- On macOS, snapshot rects are absolute in window space. Point-based runner interactions must translate through the interaction root frame; do not assume app-origin `(0,0)` coordinates.
+- Prefer selector or `@ref` interactions over raw x/y commands in tests and docs, especially on macOS where window position can vary across runs.
 
 ## Testing Matrix
 - Docs/skills only: no tests required.
@@ -96,6 +100,8 @@ Minimal operating guide for AI coding agents in this repo.
 - Do not read unrelated files once owning module is identified.
 - Do not run integration tests by default.
 - Do not inspect both iOS and Android codepaths unless task requires both.
+- Prefer targeted `git diff -- <paths>` over broad file reads during review.
+- Prefer `snapshot -i`, `find`, and scoped selectors over repeated full snapshot dumps when exploring Apple desktop UIs.
 - Keep PR summaries short and scoped.
 
 ## Common Mistakes
@@ -104,6 +110,7 @@ Minimal operating guide for AI coding agents in this repo.
 - Inlining `is` predicate logic in handlers.
 - Returning non-normalized user-facing errors.
 - Duplicating logs backend logic in handlers instead of `src/daemon/app-log.ts`.
+- Growing `src/daemon/handlers/session.ts` or `src/platforms/ios/apps.ts` further without extracting Apple-family/macOS-specific helpers first.
 
 ## Docs & Skills
 - For behavior/CLI surface changes, evaluate docs/skills updates.

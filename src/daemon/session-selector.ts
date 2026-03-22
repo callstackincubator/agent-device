@@ -1,7 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState } from './types.ts';
-import { normalizePlatformSelector } from '../utils/device.ts';
+import { matchesPlatformSelector, normalizePlatformSelector } from '../utils/device.ts';
 import { parseSerialAllowlist } from '../utils/device-isolation.ts';
 
 export type SessionSelectorConflictKey =
@@ -38,7 +38,7 @@ export function listSessionSelectorConflicts(
   const device = session.device;
 
   const normalizedPlatform = normalizePlatformSelector(flags.platform);
-  if (normalizedPlatform && normalizedPlatform !== device.platform) {
+  if (normalizedPlatform && !matchesPlatformSelector(device.platform, normalizedPlatform)) {
     mismatches.push({ key: 'platform', value: flags.platform! });
   }
   if (flags.target && flags.target !== (device.target ?? 'mobile')) {

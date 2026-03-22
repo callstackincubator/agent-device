@@ -4,12 +4,20 @@ extension RunnerTests {
   // MARK: - Navigation Gestures
 
   func tapNavigationBack(app: XCUIApplication) -> Bool {
+#if os(macOS)
+    if let back = macOSNavigationBackElement(app: app) {
+      tapElementCenter(app: app, element: back)
+      return true
+    }
+    return false
+#else
     let buttons = app.navigationBars.buttons.allElementsBoundByIndex
     if let back = buttons.first(where: { $0.isHittable }) {
       back.tap()
       return true
     }
     return pressTvRemoteMenuIfAvailable()
+#endif
   }
 
   func performBackGesture(app: XCUIApplication) {
@@ -33,10 +41,14 @@ extension RunnerTests {
   }
 
   func pressHomeButton() {
+#if os(macOS)
+    return
+#else
     if pressTvRemoteHomeIfAvailable() {
       return
     }
     XCUIDevice.shared.press(.home)
+#endif
   }
 
   private func pressTvRemoteMenuIfAvailable() -> Bool {
@@ -140,20 +152,17 @@ extension RunnerTests {
   }
 
   func tapAt(app: XCUIApplication, x: Double, y: Double) {
-    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-    let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
+    let coordinate = interactionCoordinate(app: app, x: x, y: y)
     coordinate.tap()
   }
 
   func doubleTapAt(app: XCUIApplication, x: Double, y: Double) {
-    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-    let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
+    let coordinate = interactionCoordinate(app: app, x: x, y: y)
     coordinate.doubleTap()
   }
 
   func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) {
-    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-    let coordinate = origin.withOffset(CGVector(dx: x, dy: y))
+    let coordinate = interactionCoordinate(app: app, x: x, y: y)
     coordinate.press(forDuration: duration)
   }
 
@@ -165,9 +174,8 @@ extension RunnerTests {
     y2: Double,
     holdDuration: TimeInterval
   ) {
-    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-    let start = origin.withOffset(CGVector(dx: x, dy: y))
-    let end = origin.withOffset(CGVector(dx: x2, dy: y2))
+    let start = interactionCoordinate(app: app, x: x, y: y)
+    let end = interactionCoordinate(app: app, x: x2, y: y2)
     start.press(forDuration: holdDuration, thenDragTo: end)
   }
 
@@ -253,6 +261,42 @@ extension RunnerTests {
 
     // Immediately press and drag (second tap + drag)
     center.press(forDuration: 0.05, thenDragTo: endPoint)
+  }
+
+  private func interactionRoot(app: XCUIApplication) -> XCUIElement {
+    let windows = app.windows.allElementsBoundByIndex
+    if let window = windows.first(where: { $0.exists && !$0.frame.isEmpty }) {
+      return window
+    }
+    return app
+  }
+
+  private func interactionCoordinate(app: XCUIApplication, x: Double, y: Double) -> XCUICoordinate {
+    let root = interactionRoot(app: app)
+    let origin = root.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    let rootFrame = root.frame
+    let offsetX = x - Double(rootFrame.origin.x)
+    let offsetY = y - Double(rootFrame.origin.y)
+    return origin.withOffset(CGVector(dx: offsetX, dy: offsetY))
+  }
+
+  private func tapElementCenter(app: XCUIApplication, element: XCUIElement) {
+    let frame = element.frame
+    if !frame.isEmpty {
+      tapAt(app: app, x: frame.midX, y: frame.midY)
+      return
+    }
+    element.tap()
+  }
+
+  private func macOSNavigationBackElement(app: XCUIApplication) -> XCUIElement? {
+    let predicate = NSPredicate(
+      format: "identifier == %@ OR label == %@",
+      "go back",
+      "Back"
+    )
+    let element = app.descendants(matching: .any).matching(predicate).firstMatch
+    return element.exists ? element : nil
   }
 
 }

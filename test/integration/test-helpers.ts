@@ -10,7 +10,7 @@ export type CliJsonResult = {
   stderr: string;
 };
 
-type IntegrationPlatform = 'ios' | 'android';
+type IntegrationPlatform = 'ios' | 'android' | 'macos';
 
 type StepRecord = {
   step: string;

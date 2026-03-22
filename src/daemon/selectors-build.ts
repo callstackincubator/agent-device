@@ -1,3 +1,4 @@
+import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { extractNodeText, normalizeType } from './snapshot-processing.ts';
 import { uniqueStrings } from './action-utils.ts';
@@ -5,7 +6,7 @@ import { isNodeVisible } from './selectors-match.ts';
 
 export function buildSelectorChainForNode(
   node: SnapshotNode,
-  _platform: 'ios' | 'android',
+  _platform: Platform,
   options: { action?: 'click' | 'fill' | 'get' } = {},
 ): string[] {
   const chain: string[] = [];

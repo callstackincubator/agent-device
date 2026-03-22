@@ -1,3 +1,4 @@
+import type { Platform } from '../utils/device.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import { extractNodeText } from './snapshot-processing.ts';
 import { isNodeEditable, isNodeVisible } from './selectors.ts';
@@ -12,7 +13,7 @@ export function evaluateIsPredicate(params: {
   predicate: Exclude<IsPredicate, 'exists'>;
   node: SnapshotState['nodes'][number];
   expectedText?: string;
-  platform: 'ios' | 'android';
+  platform: Platform;
 }): { pass: boolean; actualText: string; details: string } {
   const { predicate, node, expectedText, platform } = params;
   const actualText = extractNodeText(node);

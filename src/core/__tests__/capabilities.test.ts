@@ -32,6 +32,14 @@ const androidTvDevice: DeviceInfo = {
   target: 'tv',
 };
 
+const macOsDevice: DeviceInfo = {
+  platform: 'macos',
+  id: 'mac-1',
+  name: 'Mac',
+  kind: 'device',
+  target: 'desktop',
+};
+
 const tvOsSimulator: DeviceInfo = {
   platform: 'ios',
   id: 'tv-sim-1',
@@ -74,6 +82,7 @@ test('device capability matrix stays consistent across shared command groups', (
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
         { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: false, label: 'on macOS' },
       ],
     },
     {
@@ -85,11 +94,21 @@ test('device capability matrix stays consistent across shared command groups', (
       ],
     },
     {
-      commands: ['swipe', 'reinstall', 'install'],
+      commands: ['reinstall', 'install'],
       checks: [
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: true, label: 'on iOS device' },
         { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: false, label: 'on macOS' },
+      ],
+    },
+    {
+      commands: ['swipe'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: true, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
       ],
     },
   ];
@@ -134,6 +153,55 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
       { device: iosDevice, expected: true, label: 'on iOS device' },
       { device: androidDevice, expected: true, label: 'on Android' },
     ],
+  );
+});
+
+test('macOS supports the Apple runner interaction core but excludes mobile-only commands', () => {
+  assertCommandSupport(
+    [
+      'apps',
+      'back',
+      'click',
+      'close',
+      'diff',
+      'fill',
+      'find',
+      'focus',
+      'get',
+      'is',
+      'longpress',
+      'open',
+      'perf',
+      'press',
+      'record',
+      'screenshot',
+      'scroll',
+      'scrollintoview',
+      'snapshot',
+      'swipe',
+      'type',
+      'wait',
+    ],
+    [{ device: macOsDevice, expected: true, label: 'on macOS' }],
+  );
+  assertCommandSupport(
+    [
+      'alert',
+      'app-switcher',
+      'boot',
+      'clipboard',
+      'home',
+      'install',
+      'install-from-source',
+      'logs',
+      'network',
+      'pinch',
+      'push',
+      'reinstall',
+      'settings',
+      'trigger-app-event',
+    ],
+    [{ device: macOsDevice, expected: false, label: 'on macOS' }],
   );
 });
 

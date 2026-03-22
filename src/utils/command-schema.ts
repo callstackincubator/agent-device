@@ -16,8 +16,8 @@ export type CliFlags = {
   sessionLock?: 'reject' | 'strip';
   sessionLocked?: boolean;
   sessionLockConflicts?: 'reject' | 'strip';
-  platform?: 'ios' | 'android' | 'apple';
-  target?: 'mobile' | 'tv';
+  platform?: 'ios' | 'macos' | 'android' | 'apple';
+  target?: 'mobile' | 'tv' | 'desktop';
   device?: string;
   udid?: string;
   serial?: string;
@@ -149,6 +149,7 @@ const ENVIRONMENT_LINES = [
 
 const EXAMPLE_LINES = [
   'agent-device open Settings --platform ios',
+  'agent-device open TextEdit --platform macos',
   'agent-device snapshot -i',
   'agent-device fill @e3 "test@example.com"',
   'agent-device replay ./session.ad',
@@ -263,16 +264,16 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'platform',
     names: ['--platform'],
     type: 'enum',
-    enumValues: ['ios', 'android', 'apple'],
-    usageLabel: '--platform ios|android|apple',
-    usageDescription: 'Platform to target (`apple` aliases the iOS/tvOS backend)',
+    enumValues: ['ios', 'macos', 'android', 'apple'],
+    usageLabel: '--platform ios|macos|android|apple',
+    usageDescription: 'Platform to target (`apple` aliases the Apple automation backend)',
   },
   {
     key: 'target',
     names: ['--target'],
     type: 'enum',
-    enumValues: ['mobile', 'tv'],
-    usageLabel: '--target mobile|tv',
+    enumValues: ['mobile', 'tv', 'desktop'],
+    usageLabel: '--target mobile|tv|desktop',
     usageDescription: 'Device target class to match',
   },
   {
