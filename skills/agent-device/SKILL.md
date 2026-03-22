@@ -114,7 +114,7 @@ agent-device screenshot /tmp/macos-textedit.png
 agent-device close
 ```
 
-Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). Do not rely on mobile-only helpers like `install`, `push`, `settings`, or `logs` on macOS yet.
+Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `settings appearance light|dark|toggle`, and `trigger-app-event` when a desktop deep-link template is configured. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
 Prefer selectors or snapshot refs (`@e...`) over raw x/y commands on macOS because the window origin can move between runs.
 
 ### 2) Debug/Crash Flow
@@ -284,7 +284,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - iOS `.ipa`: extract/install from `Payload/*.app`; when multiple app bundles are present, `<app>` is used as a bundle id/name hint.
 - iOS `appstate` is session-scoped; Android `appstate` is live foreground state. iOS responses include `device_udid` and `ios_simulator_device_set` for isolation verification.
 - iOS `open` responses include `device_udid` and `ios_simulator_device_set` to confirm which simulator handled the session.
-- Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on Android and iOS simulators; iOS physical devices are not supported yet.
+- Clipboard helpers: `clipboard read` / `clipboard write <text>` are supported on macOS, Android, and iOS simulators; iOS physical devices are not supported yet.
 - Android keyboard helpers: `keyboard status|get|dismiss` report keyboard visibility/type and dismiss via keyevent when visible.
 - `network dump` is best-effort and parses HTTP(s) entries from the session app log file.
 - Biometric settings: iOS simulator supports `settings faceid|touchid <match|nonmatch|enroll|unenroll>`; Android supports `settings fingerprint <match|nonmatch>` where runtime tooling is available.
@@ -293,6 +293,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
   - iOS simulator uses APNs-style payload JSON.
   - Android uses broadcast action + typed extras (string/boolean/number).
 - `trigger-app-event` requires app-defined deep-link hooks and URL template configuration (`AGENT_DEVICE_APP_EVENT_URL_TEMPLATE` or platform-specific variants).
+- On macOS, set `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE` when the desktop app uses a different deep-link template than iOS/Android.
 - `trigger-app-event` requires an active session or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`); on iOS physical devices, custom-scheme triggers require active app context.
 - Canonical trigger behavior and caveats are documented in [`website/docs/docs/commands.md`](../../website/docs/docs/commands.md) under **App event triggers**.
 - Permission settings are app-scoped and require an active session app:

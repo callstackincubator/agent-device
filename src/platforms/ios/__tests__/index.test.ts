@@ -46,6 +46,15 @@ const IOS_TEST_SIMULATOR: DeviceInfo = {
   booted: true,
 };
 
+const MACOS_TEST_DEVICE: DeviceInfo = {
+  platform: 'macos',
+  id: 'host-macos-local',
+  name: 'Mac',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
 async function withMockedXcrun(
   tempPrefix: string,
   script: string,
@@ -729,6 +738,51 @@ test('readIosClipboardText rejects physical devices', async () => {
       return true;
     },
   );
+});
+
+test('writeIosClipboardText uses pbcopy on macOS', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-macos-clipboard-write-test-'),
+  );
+  const pbcopyPath = path.join(tmpDir, 'pbcopy');
+  const stdinLogPath = path.join(tmpDir, 'stdin.log');
+  await fs.writeFile(pbcopyPath, '#!/bin/sh\ncat > "$AGENT_DEVICE_TEST_STDIN_FILE"\n', 'utf8');
+  await fs.chmod(pbcopyPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousStdinFile = process.env.AGENT_DEVICE_TEST_STDIN_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_STDIN_FILE = stdinLogPath;
+
+  try {
+    await writeIosClipboardText(MACOS_TEST_DEVICE, 'desktop clipboard');
+    assert.equal(await fs.readFile(stdinLogPath, 'utf8'), 'desktop clipboard');
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousStdinFile === undefined) delete process.env.AGENT_DEVICE_TEST_STDIN_FILE;
+    else process.env.AGENT_DEVICE_TEST_STDIN_FILE = previousStdinFile;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('readIosClipboardText uses pbpaste on macOS', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-macos-clipboard-read-test-'),
+  );
+  const pbpastePath = path.join(tmpDir, 'pbpaste');
+  await fs.writeFile(pbpastePath, '#!/bin/sh\necho "desktop-value"\n', 'utf8');
+  await fs.chmod(pbpastePath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  try {
+    const text = await readIosClipboardText(MACOS_TEST_DEVICE);
+    assert.equal(text, 'desktop-value');
+  } finally {
+    process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('reinstallIosApp on iOS physical device uses devicectl uninstall + install', async () => {
@@ -1602,6 +1656,93 @@ exit 1
       const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
       const logged = lines.join(' ');
       assert.match(logged, /simctl ui sim-1 appearance dark/);
+    },
+  );
+});
+
+test('setIosSetting appearance dark uses osascript on macOS', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-macos-appearance-dark-test-'),
+  );
+  const osascriptPath = path.join(tmpDir, 'osascript');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    osascriptPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(osascriptPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await setIosSetting(MACOS_TEST_DEVICE, 'appearance', 'dark');
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /set dark mode to true/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setIosSetting appearance toggle queries current osascript appearance on macOS', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-macos-appearance-toggle-test-'),
+  );
+  const osascriptPath = path.join(tmpDir, 'osascript');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    osascriptPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'case "$2" in',
+      '  *"get dark mode"*)',
+      '    echo "true"',
+      '    exit 0',
+      '    ;;',
+      '  *"set dark mode to false"*)',
+      '    exit 0',
+      '    ;;',
+      'esac',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(osascriptPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await setIosSetting(MACOS_TEST_DEVICE, 'appearance', 'toggle');
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.match(logged, /get dark mode/);
+    assert.match(logged, /set dark mode to false/);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('setIosSetting rejects unsupported macOS settings', async () => {
+  await assert.rejects(
+    () => setIosSetting(MACOS_TEST_DEVICE, 'permission', 'grant'),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /Unsupported macOS setting/i);
+      return true;
     },
   );
 });

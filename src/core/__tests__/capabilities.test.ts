@@ -77,7 +77,16 @@ test('device capability matrix stays consistent across shared command groups', (
       ],
     },
     {
-      commands: ['settings', 'push', 'clipboard'],
+      commands: ['settings', 'clipboard'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
+      ],
+    },
+    {
+      commands: ['push'],
       checks: [
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
@@ -174,11 +183,13 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
       'perf',
       'press',
       'record',
+      'settings',
       'screenshot',
       'scroll',
       'scrollintoview',
       'snapshot',
       'swipe',
+      'trigger-app-event',
       'type',
       'wait',
     ],
@@ -189,7 +200,6 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
       'alert',
       'app-switcher',
       'boot',
-      'clipboard',
       'home',
       'install',
       'install-from-source',
@@ -198,8 +208,6 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
       'pinch',
       'push',
       'reinstall',
-      'settings',
-      'trigger-app-event',
     ],
     [{ device: macOsDevice, expected: false, label: 'on macOS' }],
   );

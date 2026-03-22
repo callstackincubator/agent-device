@@ -151,6 +151,65 @@ async function closeMacOsApp(app: string): Promise<void> {
   });
 }
 
+async function readMacOsClipboardText(): Promise<string> {
+  const result = await runCmd('pbpaste', [], { allowFailure: true });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to read macOS clipboard', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+  return result.stdout.replace(/\r\n/g, '\n').replace(/\n$/, '');
+}
+
+async function writeMacOsClipboardText(text: string): Promise<void> {
+  const result = await runCmd('pbcopy', [], {
+    allowFailure: true,
+    stdin: text,
+  });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to write macOS clipboard', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+}
+
+async function getMacOsDarkModeEnabled(): Promise<boolean> {
+  const script = 'tell application "System Events" to tell appearance preferences to get dark mode';
+  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to read macOS appearance', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+  const normalized = result.stdout.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  throw new AppError(
+    'COMMAND_FAILED',
+    `Unable to determine current macOS appearance from osascript output: ${result.stdout.trim()}`,
+  );
+}
+
+async function setMacOsAppearance(state: string): Promise<void> {
+  const action = parseAppearanceAction(state);
+  const darkMode = action === 'toggle' ? !(await getMacOsDarkModeEnabled()) : action === 'dark';
+  const script = `tell application "System Events" to tell appearance preferences to set dark mode to ${darkMode ? 'true' : 'false'}`;
+  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', 'Failed to set macOS appearance', {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+}
+
 async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Promise<IosAppInfo[]> {
   const appRoots = [
     '/Applications',
@@ -427,6 +486,9 @@ export async function installIosInstallablePath(
 }
 
 export async function readIosClipboardText(device: DeviceInfo): Promise<string> {
+  if (device.platform === 'macos') {
+    return await readMacOsClipboardText();
+  }
   ensureSimulator(device, 'clipboard');
   await ensureBootedSimulator(device);
   const result = await runSimctl(device, ['pbpaste', device.id], { allowFailure: true });
@@ -441,6 +503,10 @@ export async function readIosClipboardText(device: DeviceInfo): Promise<string> 
 }
 
 export async function writeIosClipboardText(device: DeviceInfo, text: string): Promise<void> {
+  if (device.platform === 'macos') {
+    await writeMacOsClipboardText(text);
+    return;
+  }
   ensureSimulator(device, 'clipboard');
   await ensureBootedSimulator(device);
   const result = await runSimctl(device, ['pbcopy', device.id], {
@@ -480,6 +546,16 @@ export async function setIosSetting(
   appBundleId?: string,
   options?: PermissionSettingOptions,
 ): Promise<void> {
+  if (device.platform === 'macos') {
+    if (setting.toLowerCase() !== 'appearance') {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Unsupported macOS setting: ${setting}. macOS currently supports only settings appearance <light|dark|toggle>.`,
+      );
+    }
+    await setMacOsAppearance(state);
+    return;
+  }
   ensureSimulator(device, 'settings');
   await ensureBootedSimulator(device);
   const normalized = setting.toLowerCase();

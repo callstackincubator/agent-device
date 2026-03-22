@@ -93,7 +93,9 @@ function readAppEventUrlTemplate(platform: DeviceInfo['platform']): string | und
   const platformSpecific =
     platform === 'ios'
       ? process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE
-      : process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+      : platform === 'macos'
+        ? process.env.AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE
+        : process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
   const candidate = platformSpecific ?? process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
   const trimmed = candidate?.trim();
   return trimmed ? trimmed : undefined;

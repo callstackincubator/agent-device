@@ -23,6 +23,15 @@ const IOS_DEVICE: DeviceInfo = {
   booted: true,
 };
 
+const MACOS_DEVICE: DeviceInfo = {
+  platform: 'macos',
+  id: 'host-macos-local',
+  name: 'Mac',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
 test('trigger-app-event reports missing URL template as UNSUPPORTED_OPERATION', async () => {
   const previousGlobalTemplate = process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
   const previousAndroidTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
@@ -207,6 +216,51 @@ test('trigger-app-event supports iOS device path and prefers iOS template', asyn
     if (previousIosTemplate === undefined)
       delete process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE;
     else process.env.AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE = previousIosTemplate;
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('trigger-app-event supports macOS and prefers macOS template', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-dispatch-trigger-macos-'));
+  const openPath = path.join(tempDir, 'open');
+  const argsLogPath = path.join(tempDir, 'args.log');
+  await fs.writeFile(
+    openPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(openPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  const previousGlobalTemplate = process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
+  const previousMacosTemplate = process.env.AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE;
+  process.env.PATH = `${tempDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+  process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = 'myapp://global?name={event}';
+  process.env.AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE =
+    'myapp://macos?name={event}&payload={payload}&platform={platform}';
+
+  try {
+    const result = await dispatchCommand(MACOS_DEVICE, 'trigger-app-event', [
+      'screenshot_taken',
+      '{"source":"desktop"}',
+    ]);
+    const expectedUrl =
+      'myapp://macos?name=screenshot_taken&payload=%7B%22source%22%3A%22desktop%22%7D&platform=macos';
+    assert.equal(result?.eventUrl, expectedUrl);
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, [expectedUrl]);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    if (previousGlobalTemplate === undefined)
+      delete process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
+    else process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE = previousGlobalTemplate;
+    if (previousMacosTemplate === undefined)
+      delete process.env.AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE;
+    else process.env.AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE = previousMacosTemplate;
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 });

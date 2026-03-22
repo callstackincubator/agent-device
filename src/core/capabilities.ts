@@ -48,9 +48,10 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
   },
   clipboard: {
-    apple: { simulator: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    supports: isNotMacOs,
+    supports: (device) =>
+      device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
   },
   keyboard: { apple: {}, android: { emulator: true, device: true, unknown: true } },
   close: {
@@ -153,9 +154,10 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
   },
   settings: {
-    apple: { simulator: true },
+    apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    supports: isNotMacOs,
+    supports: (device) =>
+      device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
   },
   snapshot: {
     apple: { simulator: true, device: true },
@@ -164,7 +166,6 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   'trigger-app-event': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    supports: isNotMacOs,
   },
   type: {
     apple: { simulator: true, device: true },

@@ -269,10 +269,12 @@ agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
 
 - `trigger-app-event` dispatches an app event via deep link and requires an app-side test/debug hook.
 - `trigger-app-event` requires either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- On macOS, use `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE` to override the desktop deep-link template.
 - On iOS physical devices, custom-scheme deep links require active app context (open the app in-session first).
 - Configure one of:
   - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`
+  - `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`
 - Template placeholders: `{event}`, `{payload}`, `{platform}`.
 - Example template: `myapp://agent-device/event?name={event}&payload={payload}`.
