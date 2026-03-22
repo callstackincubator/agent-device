@@ -8,6 +8,7 @@ import {
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { AppError, asAppError, normalizeError } from '../../utils/errors.ts';
 import {
+  isApplePlatform,
   normalizePlatformSelector,
   resolveAppleSimulatorSetPathForSelector,
   type DeviceInfo,
@@ -188,19 +189,19 @@ async function runSessionOrSelectorDispatch(params: {
   }
   return { ok: true, data: result ?? {} };
 }
-async function resolveInstalledAppIdentifier(
-  device: DeviceInfo,
-  app: string,
-): Promise<{ bundleId?: string; package?: string }> {
-  if (device.platform === 'ios') {
-    const { resolveIosApp } = await import('../../platforms/ios/index.ts');
-    try {
-      return { bundleId: await resolveIosApp(device, app) };
-    } catch {
-      return {};
-    }
+function resolveSessionLogBackendLabel(
+  session: SessionState,
+): 'ios-simulator' | 'ios-device' | 'android' | 'macos' {
+  if (session.appLog) {
+    return session.appLog.backend;
   }
-  return { package: await resolveAndroidPackageForOpen(device, app) };
+  if (session.device.platform === 'macos') {
+    return 'macos';
+  }
+  if (session.device.platform === 'ios') {
+    return session.device.kind === 'device' ? 'ios-device' : 'ios-simulator';
+  }
+  return 'android';
 }
 
 async function handleAppStateCommand(params: {
@@ -404,6 +405,10 @@ export async function handleSessionCommands(params: {
   shutdownAndroidEmulator?: ShutdownAndroidEmulatorFn;
   listAndroidDevices?: ListAndroidDevices;
   listAppleDevices?: ListAppleDevices;
+  listAppleApps?: (
+    device: DeviceInfo,
+    filter: 'user-installed' | 'all',
+  ) => Promise<Array<{ bundleId: string; name?: string }>>;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -431,6 +436,7 @@ export async function handleSessionCommands(params: {
     shutdownAndroidEmulator: shutdownAndroidEmulatorOverride,
     listAndroidDevices: listAndroidDevicesOverride,
     listAppleDevices: listAppleDevicesOverride,
+    listAppleApps: listAppleAppsOverride,
   } = params;
   const dispatch = dispatchOverride ?? dispatchCommand;
   const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
@@ -450,6 +456,7 @@ export async function handleSessionCommands(params: {
         target: s.device.target ?? 'mobile',
         device: s.device.name,
         id: s.device.id,
+        device_id: s.device.id,
         createdAt: s.createdAt,
         ...(s.device.platform === 'ios' && {
           device_udid: s.device.id,
@@ -594,9 +601,10 @@ export async function handleSessionCommands(params: {
       };
     }
     const appsFilter = req.flags?.appsFilter ?? 'all';
-    if (device.platform === 'ios') {
-      const { listIosApps } = await import('../../platforms/ios/index.ts');
-      const apps = await listIosApps(device, appsFilter);
+    if (isApplePlatform(device.platform)) {
+      const listAppleApps =
+        listAppleAppsOverride ?? (await import('../../platforms/ios/index.ts')).listIosApps;
+      const apps = await listAppleApps(device, appsFilter);
       const formatted = apps.map((app) =>
         app.name && app.name !== app.bundleId ? `${app.name} (${app.bundleId})` : app.bundleId,
       );
@@ -990,13 +998,7 @@ export async function handleSessionCommands(params: {
     if (action === 'path') {
       const logPath = sessionStore.resolveAppLogPath(sessionName);
       const metadata = getAppLogPathMetadata(logPath);
-      const backend =
-        session.appLog?.backend ??
-        (session.device.platform === 'ios'
-          ? session.device.kind === 'device'
-            ? 'ios-device'
-            : 'ios-simulator'
-          : 'android');
+      const backend = resolveSessionLogBackendLabel(session);
       return {
         ok: true,
         data: {
@@ -1207,13 +1209,7 @@ export async function handleSessionCommands(params: {
       maxPayloadChars: 2048,
       maxScanLines: 4000,
     });
-    const backend =
-      session.appLog?.backend ??
-      (session.device.platform === 'ios'
-        ? session.device.kind === 'device'
-          ? 'ios-device'
-          : 'ios-simulator'
-        : 'android');
+    const backend = resolveSessionLogBackendLabel(session);
     const notes: string[] = [];
     if (!session.appLog) {
       notes.push(

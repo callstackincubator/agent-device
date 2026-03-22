@@ -36,6 +36,7 @@ import {
 } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { prepareIosInstallArtifact, readIosBundleInfo } from './install-artifact.ts';
+import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import {
   closeMacOsApp,
   listMacApps,
@@ -461,7 +462,7 @@ export async function listIosApps(
   }
   if (device.kind === 'simulator') {
     const apps = await listSimulatorApps(device);
-    return filterIosAppsByBundlePrefix(apps, filter);
+    return filterAppleAppsByBundlePrefix(apps, filter);
   }
   return await listIosDeviceApps(device, filter);
 }
@@ -896,14 +897,4 @@ async function launchIosDeviceProcess(
     args.push('--payload-url', options.payloadUrl);
   }
   await runIosDevicectl(args, { action: 'launch iOS app', deviceId: device.id });
-}
-
-function filterIosAppsByBundlePrefix(
-  apps: IosAppInfo[],
-  filter: 'user-installed' | 'all',
-): IosAppInfo[] {
-  if (filter === 'user-installed') {
-    return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
-  }
-  return apps;
 }

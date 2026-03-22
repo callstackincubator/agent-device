@@ -54,6 +54,96 @@ function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, sessi
   };
 }
 
+async function startRunnerRecordingSession(params: {
+  deps: NonNullable<Parameters<typeof handleRecordTraceCommands>[0]['deps']>;
+  device: SessionState['device'];
+  sessionStore: SessionStore;
+  session: SessionState;
+  req: DaemonRequest;
+  logPath: string | undefined;
+  fps?: number;
+  appBundleId: string;
+  runnerOutPath: string;
+  recording: Extract<
+    NonNullable<SessionState['recording']>,
+    { platform: 'ios-device-runner' | 'macos-runner' }
+  >;
+}): Promise<DaemonResponse | { recording: NonNullable<SessionState['recording']> }> {
+  const { deps, device, sessionStore, session, req, logPath, fps, appBundleId, runnerOutPath } =
+    params;
+  const runnerOptions = getRunnerOptions(req, logPath, session);
+  const startRunnerRecording = async () => {
+    await deps.runIosRunnerCommand(
+      device,
+      {
+        command: 'recordStart',
+        outPath: runnerOutPath,
+        fps,
+        appBundleId,
+      },
+      runnerOptions,
+    );
+  };
+
+  try {
+    await startRunnerRecording();
+  } catch (error) {
+    if (isRunnerRecordingAlreadyInProgressError(error)) {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'record_start_runner_desynced',
+        data: {
+          platform: device.platform,
+          kind: device.kind,
+          deviceId: device.id,
+          session: session.name,
+          error: errorMessage(error),
+        },
+      });
+      const otherRecordingSession = findOtherRunnerRecording(sessionStore, device.id, session.name);
+      if (otherRecordingSession) {
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
+          },
+        };
+      }
+      try {
+        await deps.runIosRunnerCommand(
+          device,
+          { command: 'recordStop', appBundleId },
+          runnerOptions,
+        );
+      } catch {
+        // best effort: stop stale runner recording and retry start
+      }
+      try {
+        await startRunnerRecording();
+      } catch (retryError) {
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: `failed to start recording: ${errorMessage(retryError)}`,
+          },
+        };
+      }
+    } else {
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `failed to start recording: ${errorMessage(error)}`,
+        },
+      };
+    }
+  }
+
+  return { recording: params.recording };
+}
+
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -139,169 +229,57 @@ export async function handleRecordTraceCommands(params: {
           },
         };
       }
+      const ensuredRunnerAppBundleId = runnerAppBundleId as string;
       const resolvedOut = SessionStore.expandHome(outPath, req.meta?.cwd);
       const clientOutPath = req.meta?.clientArtifactPaths?.outPath;
       fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
-      const runnerOptions = getRunnerOptions(req, logPath, activeSession);
       if (device.platform === 'ios' && device.kind === 'device') {
-        const appBundleId = runnerAppBundleId;
+        const appBundleId = ensuredRunnerAppBundleId;
         const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
         const remotePath = `tmp/${recordingFileName}`;
-        const startRunnerRecording = async () => {
-          await deps.runIosRunnerCommand(
-            device,
-            {
-              command: 'recordStart',
-              outPath: recordingFileName,
-              fps: fpsFlag,
-              appBundleId,
-            },
-            runnerOptions,
-          );
-        };
-        try {
-          await startRunnerRecording();
-        } catch (error) {
-          if (isRunnerRecordingAlreadyInProgressError(error)) {
-            emitDiagnostic({
-              level: 'warn',
-              phase: 'record_start_runner_desynced',
-              data: {
-                platform: device.platform,
-                kind: device.kind,
-                deviceId: device.id,
-                session: activeSession.name,
-                error: errorMessage(error),
-              },
-            });
-            const otherRecordingSession = findOtherRunnerRecording(
-              sessionStore,
-              device.id,
-              activeSession.name,
-            );
-            if (otherRecordingSession) {
-              return {
-                ok: false,
-                error: {
-                  code: 'COMMAND_FAILED',
-                  message: `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
-                },
-              };
-            }
-            try {
-              await deps.runIosRunnerCommand(
-                device,
-                { command: 'recordStop', appBundleId },
-                runnerOptions,
-              );
-            } catch {
-              // best effort: stop stale runner recording and retry start
-            }
-            try {
-              await startRunnerRecording();
-            } catch (retryError) {
-              return {
-                ok: false,
-                error: {
-                  code: 'COMMAND_FAILED',
-                  message: `failed to start recording: ${errorMessage(retryError)}`,
-                },
-              };
-            }
-          } else {
-            return {
-              ok: false,
-              error: {
-                code: 'COMMAND_FAILED',
-                message: `failed to start recording: ${errorMessage(error)}`,
-              },
-            };
-          }
+        const started = await startRunnerRecordingSession({
+          deps,
+          device,
+          sessionStore,
+          session: activeSession,
+          req,
+          logPath,
+          fps: fpsFlag,
+          appBundleId,
+          runnerOutPath: recordingFileName,
+          recording: {
+            platform: 'ios-device-runner',
+            outPath: resolvedOut,
+            clientOutPath,
+            remotePath,
+          },
+        });
+        if ('ok' in started) {
+          return started;
         }
-        activeSession.recording = {
-          platform: 'ios-device-runner',
-          outPath: resolvedOut,
-          clientOutPath,
-          remotePath,
-        };
+        activeSession.recording = started.recording;
       } else if (device.platform === 'macos') {
-        const appBundleId = runnerAppBundleId;
-        const startRunnerRecording = async () => {
-          await deps.runIosRunnerCommand(
-            device,
-            {
-              command: 'recordStart',
-              outPath: resolvedOut,
-              fps: fpsFlag,
-              appBundleId,
-            },
-            runnerOptions,
-          );
-        };
-        try {
-          await startRunnerRecording();
-        } catch (error) {
-          if (isRunnerRecordingAlreadyInProgressError(error)) {
-            emitDiagnostic({
-              level: 'warn',
-              phase: 'record_start_runner_desynced',
-              data: {
-                platform: device.platform,
-                kind: device.kind,
-                deviceId: device.id,
-                session: activeSession.name,
-                error: errorMessage(error),
-              },
-            });
-            const otherRecordingSession = findOtherRunnerRecording(
-              sessionStore,
-              device.id,
-              activeSession.name,
-            );
-            if (otherRecordingSession) {
-              return {
-                ok: false,
-                error: {
-                  code: 'COMMAND_FAILED',
-                  message: `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
-                },
-              };
-            }
-            try {
-              await deps.runIosRunnerCommand(
-                device,
-                { command: 'recordStop', appBundleId },
-                runnerOptions,
-              );
-            } catch {
-              // best effort: stop stale runner recording and retry start
-            }
-            try {
-              await startRunnerRecording();
-            } catch (retryError) {
-              return {
-                ok: false,
-                error: {
-                  code: 'COMMAND_FAILED',
-                  message: `failed to start recording: ${errorMessage(retryError)}`,
-                },
-              };
-            }
-          } else {
-            return {
-              ok: false,
-              error: {
-                code: 'COMMAND_FAILED',
-                message: `failed to start recording: ${errorMessage(error)}`,
-              },
-            };
-          }
+        const appBundleId = ensuredRunnerAppBundleId;
+        const started = await startRunnerRecordingSession({
+          deps,
+          device,
+          sessionStore,
+          session: activeSession,
+          req,
+          logPath,
+          fps: fpsFlag,
+          appBundleId,
+          runnerOutPath: resolvedOut,
+          recording: {
+            platform: 'macos-runner',
+            outPath: resolvedOut,
+            clientOutPath,
+          },
+        });
+        if ('ok' in started) {
+          return started;
         }
-        activeSession.recording = {
-          platform: 'macos-runner',
-          outPath: resolvedOut,
-          clientOutPath,
-        };
+        activeSession.recording = started.recording;
       } else if (device.platform === 'ios') {
         const { child, wait } = deps.runCmdBackground(
           'xcrun',

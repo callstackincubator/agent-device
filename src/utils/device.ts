@@ -31,6 +31,8 @@ type DeviceSelectionContext = {
 export function normalizePlatformSelector(
   platform: PlatformSelector | undefined,
 ): PlatformSelector | undefined {
+  // Single normalization hook for platform selectors. Current CLI parsing already
+  // yields canonical values, but Apple-family routing still depends on one shared point.
   return platform;
 }
 

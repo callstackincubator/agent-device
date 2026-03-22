@@ -55,6 +55,15 @@ const tvOsDevice: DeviceInfo = {
   booted: true,
 };
 
+const macOsDevice: DeviceInfo = {
+  platform: 'macos',
+  id: 'host-macos-local',
+  name: 'Host Mac',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
 });
@@ -90,6 +99,13 @@ test('resolveRunnerMaxConcurrentDestinationsFlag uses simulator flag for simulat
 test('resolveRunnerMaxConcurrentDestinationsFlag uses device flag for physical devices', () => {
   assert.equal(
     resolveRunnerMaxConcurrentDestinationsFlag(iosDevice),
+    '-maximum-concurrent-test-device-destinations',
+  );
+});
+
+test('resolveRunnerMaxConcurrentDestinationsFlag uses device flag for macOS desktop', () => {
+  assert.equal(
+    resolveRunnerMaxConcurrentDestinationsFlag(macOsDevice),
     '-maximum-concurrent-test-device-destinations',
   );
 });

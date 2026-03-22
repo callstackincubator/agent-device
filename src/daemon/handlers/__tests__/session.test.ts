@@ -1533,6 +1533,49 @@ test('appstate on macOS session returns session state', async () => {
   }
 });
 
+test('apps on macOS uses Apple app listing path', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-apps';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+  );
+
+  let listAppleAppsCalls = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'apps',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    listAppleApps: async (device, filter) => {
+      listAppleAppsCalls += 1;
+      assert.equal(device.platform, 'macos');
+      assert.equal(filter, 'all');
+      return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(listAppleAppsCalls, 1);
+  if (response && response.ok) {
+    assert.deepEqual(response.data?.apps, ['System Settings (com.apple.systempreferences)']);
+  }
+});
+
 test('appstate fails when iOS session has no tracked app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
@@ -3230,6 +3273,40 @@ test('logs path returns path and active flag when session exists', async () => {
   }
 });
 
+test('logs path reports macOS backend for desktop sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-default';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'logs',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.backend, 'macos');
+    assert.equal(response.data?.active, false);
+  }
+});
+
 test('logs rejects invalid action', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.set(
@@ -3855,6 +3932,49 @@ test('network dump returns recent parsed HTTP entries', async () => {
   }
 });
 
+test('network dump reports macOS backend for desktop sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-network';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+  });
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    '2026-02-24T10:00:00Z GET https://api.example.com/v1/preferences status=200\n',
+    'utf8',
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.backend, 'macos');
+    assert.equal(response.data?.active, false);
+  }
+});
+
 test('network dump validates include mode and limit', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -3943,6 +4063,17 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
       booted: true,
     }),
   );
+  sessionStore.set(
+    'macos-1',
+    makeSession('macos-1', {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+  );
 
   const response = await handleSessionCommands({
     req: { token: 't', session: 'default', command: 'session_list', positionals: [] },
@@ -3964,8 +4095,13 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
     assert.equal(iosScoped?.device_udid, 'DEF-456');
     assert.equal(iosScoped?.ios_simulator_device_set, '/tmp/tenant-a/simulators');
     const android = sessions.find((s) => s.name === 'android-1');
+    const macos = sessions.find((s) => s.name === 'macos-1');
     assert.equal(android?.device_udid, undefined);
     assert.equal(android?.ios_simulator_device_set, undefined);
+    assert.equal(android?.device_id, 'emulator-5554');
+    assert.equal(macos?.device_id, 'host-macos-local');
+    assert.equal(macos?.device_udid, undefined);
+    assert.equal(macos?.ios_simulator_device_set, undefined);
   }
 });
 

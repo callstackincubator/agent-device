@@ -6,7 +6,8 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { parseAppearanceAction } from '../appearance.ts';
-import { readIosBundleInfo } from './install-artifact.ts';
+import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
+import { readIosBundleInfo as readBundleInfo } from './install-artifact.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
@@ -16,7 +17,12 @@ const MACOS_ALIASES: Record<string, string> = {
 const MACOS_BUNDLE_ID_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
 
 function escapeAppleScriptString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t')
+    .replace(/"/g, '\\"');
 }
 
 function isMacOsBundleId(value: string): boolean {
@@ -90,6 +96,7 @@ export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<v
   if (result.exitCode === 0) return;
 
   const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  // osascript may emit either smart quotes or straight apostrophes depending on locale/encoding.
   if (output.includes('isn’t running') || output.includes("isn't running")) {
     return;
   }
@@ -184,7 +191,7 @@ export async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Pro
 
   const apps = await Promise.all(
     Array.from(appPaths).map(async (appPath) => {
-      const bundleInfo = await readIosBundleInfo(appPath).catch(
+      const bundleInfo = await readBundleInfo(appPath).catch(
         () =>
           ({}) as {
             bundleId?: string;
@@ -200,20 +207,10 @@ export async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Pro
     }),
   );
 
-  return filterIosAppsByBundlePrefix(
+  return filterAppleAppsByBundlePrefix(
     apps
       .filter((app): app is IosAppInfo => app !== null)
       .sort((a, b) => a.name.localeCompare(b.name)),
     filter,
   );
-}
-
-function filterIosAppsByBundlePrefix(
-  apps: IosAppInfo[],
-  filter: 'user-installed' | 'all',
-): IosAppInfo[] {
-  if (filter === 'user-installed') {
-    return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
-  }
-  return apps;
 }

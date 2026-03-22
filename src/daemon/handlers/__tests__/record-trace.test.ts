@@ -46,6 +46,21 @@ function makeIosDeviceSession(name: string, appBundleId?: string): SessionState 
   return session;
 }
 
+function makeMacOsSession(name: string, appBundleId?: string): SessionState {
+  const session = makeSession(name, {
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+  if (appBundleId) {
+    session.appBundleId = appBundleId;
+  }
+  return session;
+}
+
 async function runRecordCommand(params: {
   sessionStore: SessionStore;
   sessionName: string;
@@ -71,7 +86,7 @@ async function runRecordCommand(params: {
   });
 }
 
-function makeIosDeviceRunnerDeps(
+function makeRunnerRecordingDeps(
   runnerCalls: RunnerCall[],
   runCmdCalls: Array<{ cmd: string; args: string[] }>,
 ): RecordTraceDeps {
@@ -96,7 +111,7 @@ function makeIosDeviceRunnerDeps(
       return { stdout: '', stderr: '', exitCode: 0 };
     },
     runCmdBackground: () => {
-      throw new Error('runCmdBackground should not be used for iOS devices');
+      throw new Error('runCmdBackground should not be used for runner-backed recording');
     },
     runIosRunnerCommand,
   };
@@ -110,7 +125,7 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
 
   const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const deps = makeRunnerRecordingDeps(runnerCalls, runCmdCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
   const responseStart = await runRecordCommand({
     sessionStore,
@@ -171,6 +186,51 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
   assert.equal(sessionStore.get(sessionName)?.recording, undefined);
 });
 
+test('record start/stop uses runner on macOS desktop sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-runner';
+  sessionStore.set(sessionName, makeMacOsSession(sessionName, 'com.apple.systempreferences'));
+
+  const runnerCalls: RunnerCall[] = [];
+  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
+  const deps = makeRunnerRecordingDeps(runnerCalls, runCmdCalls);
+  const finalOut = path.join(os.tmpdir(), `agent-device-test-macos-record-${Date.now()}.mp4`);
+  const responseStart = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', finalOut],
+    logPath: '/tmp/daemon.log',
+    deps,
+  });
+
+  assert.equal(responseStart?.ok, true);
+  assert.equal(runnerCalls.length, 1);
+  assert.deepEqual(runnerCalls[0], {
+    command: 'recordStart',
+    outPath: finalOut,
+    fps: undefined,
+    appBundleId: 'com.apple.systempreferences',
+    logPath: '/tmp/daemon.log',
+    traceLogPath: undefined,
+  });
+  assert.equal(sessionStore.get(sessionName)?.recording?.platform, 'macos-runner');
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    logPath: '/tmp/daemon.log',
+    deps,
+  });
+
+  assert.equal(responseStop?.ok, true);
+  assert.equal(runnerCalls.length, 2);
+  assert.equal(runnerCalls[1]?.command, 'recordStop');
+  assert.equal(runnerCalls[1]?.appBundleId, 'com.apple.systempreferences');
+  assert.equal(runCmdCalls.length, 0);
+  assert.equal(sessionStore.get(sessionName)?.recording, undefined);
+});
+
 test('record start resolves relative output path from request cwd', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-cwd';
@@ -179,7 +239,7 @@ test('record start resolves relative output path from request cwd', async () => 
 
   const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const deps = makeRunnerRecordingDeps(runnerCalls, runCmdCalls);
   const cwd = '/tmp/agent-device-cwd-test';
   const responseStart = await runRecordCommand({
     sessionStore,
@@ -217,7 +277,7 @@ test('record start forwards explicit fps to iOS runner', async () => {
 
   const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const deps = makeRunnerRecordingDeps(runnerCalls, runCmdCalls);
   const response = await runRecordCommand({
     sessionStore,
     sessionName,

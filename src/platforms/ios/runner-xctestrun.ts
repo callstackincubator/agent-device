@@ -380,6 +380,9 @@ function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
 }
 
 export function resolveRunnerMaxConcurrentDestinationsFlag(device: DeviceInfo): string {
+  if (device.platform === 'macos') {
+    return '-maximum-concurrent-test-device-destinations';
+  }
   return device.kind === 'device'
     ? '-maximum-concurrent-test-device-destinations'
     : '-maximum-concurrent-test-simulator-destinations';
