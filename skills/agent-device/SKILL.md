@@ -114,7 +114,7 @@ agent-device screenshot /tmp/macos-textedit.png
 agent-device close
 ```
 
-Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `settings appearance light|dark|toggle`, and `trigger-app-event` when a desktop deep-link template is configured. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
+Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `trigger-app-event` when a desktop deep-link template is configured, and only `settings appearance light|dark|toggle` under the `settings` command. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
 Prefer selectors or snapshot refs (`@e...`) over raw x/y commands on macOS because the window origin can move between runs.
 
 ### 2) Debug/Crash Flow

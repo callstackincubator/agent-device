@@ -2048,6 +2048,52 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
   assert.equal(dispatchedContext?.appBundleId, undefined);
 });
 
+test('open URL on existing macOS session clears stale app bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-mac',
+      name: 'Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['https://example.com/path'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, undefined);
+  assert.equal(updated?.appName, 'https://example.com/path');
+  assert.equal(dispatchedContext?.appBundleId, undefined);
+});
+
 test('open URL on existing iOS device session preserves app bundle id context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
@@ -2230,6 +2276,52 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
     assert.equal(response.data?.device_udid, 'sim-1');
     assert.equal(response.data?.ios_simulator_device_set, null);
   }
+});
+
+test('open app on existing macOS session resolves and stores bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-mac',
+      name: 'Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+  });
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async (_device, _command, _positionals, _out, context) => {
+      dispatchedContext = context as Record<string, unknown> | undefined;
+      return {};
+    },
+    ensureReady: async () => {},
+    resolveTargetDevice: async () =>
+      sessionStore.get(sessionName)?.device as SessionState['device'],
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  const updated = sessionStore.get(sessionName);
+  assert.equal(updated?.appBundleId, 'com.apple.systempreferences');
+  assert.equal(updated?.appName, 'settings');
+  assert.equal(dispatchedContext?.appBundleId, 'com.apple.systempreferences');
 });
 
 test('open on existing iOS session refreshes unavailable simulator by name', async () => {

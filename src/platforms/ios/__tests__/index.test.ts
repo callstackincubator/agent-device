@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  closeIosApp,
   installIosApp,
   listIosApps,
   openIosApp,
@@ -81,6 +82,31 @@ async function withMockedXcrun(
     } else {
       process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
     }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+async function withMockedMacTools(
+  tempPrefix: string,
+  scripts: Record<string, string>,
+  run: (ctx: { tmpDir: string; files: Record<string, string> }) => Promise<void>,
+): Promise<void> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
+  const files: Record<string, string> = {};
+  for (const [name, content] of Object.entries(scripts)) {
+    const filePath = path.join(tmpDir, name);
+    await fs.writeFile(filePath, content, 'utf8');
+    await fs.chmod(filePath, 0o755);
+    files[name] = filePath;
+  }
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  try {
+    await run({ tmpDir, files });
+  } finally {
+    process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }
@@ -783,6 +809,68 @@ test('readIosClipboardText uses pbpaste on macOS', async () => {
     process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('openIosApp on macOS resolves aliases before invoking open', async () => {
+  await withMockedMacTools(
+    'agent-device-macos-open-alias-test-',
+    {
+      open: '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\n',
+    },
+    async ({ tmpDir }) => {
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+      try {
+        await openIosApp(MACOS_TEST_DEVICE, 'settings');
+        const logged = await fs.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, '-b\ncom.apple.systempreferences\n');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+      }
+    },
+  );
+});
+
+test('closeIosApp on macOS resolves dotted app names before quitting', async () => {
+  await withMockedMacTools(
+    'agent-device-macos-close-dot-app-test-',
+    {
+      osascript: [
+        '#!/bin/sh',
+        'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+        'case "$2" in',
+        '  *"id of app \\"Foo.Bar\\""*)',
+        '    echo "com.example.foobar"',
+        '    exit 0',
+        '    ;;',
+        '  *"tell application id \\"com.example.foobar\\" to quit"*)',
+        '    exit 0',
+        '    ;;',
+        'esac',
+        'exit 1',
+        '',
+      ].join('\n'),
+    },
+    async ({ tmpDir }) => {
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+      try {
+        await closeIosApp(MACOS_TEST_DEVICE, 'Foo.Bar');
+        const logged = await fs.readFile(argsLogPath, 'utf8');
+        assert.match(logged, /id of app "Foo\.Bar"/);
+        assert.match(logged, /tell application id "com\.example\.foobar" to quit/);
+        assert.doesNotMatch(logged, /tell application "Foo\.Bar" to quit/);
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+      }
+    },
+  );
 });
 
 test('reinstallIosApp on iOS physical device uses devicectl uninstall + install', async () => {

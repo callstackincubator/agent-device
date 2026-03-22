@@ -1106,7 +1106,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
     listUsageOverride: 'settings [area] [options]',
     helpDescription:
-      'Toggle OS settings, appearance, and app permissions (session app scope for permission actions)',
+      'Toggle OS settings, appearance, and app permissions (macOS supports only settings appearance; permission actions use the active session app)',
     summary: 'Change OS settings and app permissions',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],
