@@ -66,15 +66,15 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     };
   }
   const chain = parseSelectorChain(split.selectorExpression);
-  const snapshot = await captureSnapshotForSession(
-    session,
-    req.flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly: false },
-    dispatch,
-  );
   if (predicate === 'exists') {
+    const snapshot = await captureSnapshotForSession(
+      session,
+      req.flags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: false },
+      dispatch,
+    );
     const matched = findSelectorChainMatch(snapshot.nodes, chain, {
       platform: session.device.platform,
     });

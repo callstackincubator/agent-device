@@ -3,6 +3,7 @@ import { attachRefs, type RawSnapshotNode } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
 import type { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
+import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 
 export async function captureSnapshotForSession(
@@ -12,7 +13,7 @@ export async function captureSnapshotForSession(
   contextFromFlags: ContextFromFlags,
   options: { interactiveOnly: boolean },
   dispatch: typeof dispatchCommand = dispatchCommand,
-) {
+): Promise<SnapshotState> {
   const data = (await dispatch(session.device, 'snapshot', [], flags?.out, {
     ...contextFromFlags(
       {

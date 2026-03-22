@@ -17,7 +17,7 @@ export async function resolveSelectorTarget(params: {
   requireRect: boolean;
   requireUnique: boolean;
   disambiguateAmbiguous: boolean;
-  dispatch?: typeof dispatchCommand;
+  dispatch: typeof dispatchCommand;
 }): Promise<
   | {
       ok: true;
