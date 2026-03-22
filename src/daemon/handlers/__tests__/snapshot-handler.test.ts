@@ -371,3 +371,31 @@ test('alert get does not retry on failure', async () => {
 
   assert.equal(calls, 1);
 });
+
+test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  let cleanupCalls = 0;
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['0'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    sessionlessRunnerCleanup: async (_session, _device, task) => {
+      cleanupCalls += 1;
+      return await task();
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.equal(cleanupCalls, 0);
+});
