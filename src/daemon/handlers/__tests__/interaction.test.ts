@@ -524,3 +524,53 @@ test('scrollintoview @ref does not run post-scroll verification snapshot', async
   assert.equal(response.ok, true);
   assert.equal(snapshotCallCount, 0);
 });
+
+test('is visible captures one snapshot before evaluating selector predicate', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  let snapshotCallCount = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['visible', 'id=auth_continue'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command) => {
+      if (command === 'snapshot') {
+        snapshotCallCount += 1;
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'XCUIElementTypeButton',
+              label: 'Continue',
+              identifier: 'auth_continue',
+              rect: { x: 10, y: 20, width: 100, height: 40 },
+              enabled: true,
+              hittable: true,
+              visible: true,
+            },
+          ],
+          backend: 'xctest',
+        };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(snapshotCallCount, 1);
+  if (response.ok) {
+    assert.equal(response.data?.predicate, 'visible');
+    assert.equal(response.data?.pass, true);
+    assert.equal(response.data?.selector, 'id=auth_continue');
+  }
+});
