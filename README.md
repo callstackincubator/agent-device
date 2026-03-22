@@ -12,8 +12,6 @@
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this project applies the same broad idea to mobile apps and devices.
 
-The project is experimental and still evolving.
-
 ## Project Goals
 
 - Give agents a practical way to understand mobile UI state through structured snapshots.
