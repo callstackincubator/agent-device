@@ -193,6 +193,7 @@ export async function handleSnapshotCommands(params: {
         session,
         device,
         dispatchSnapshotCommand,
+        runnerCommand,
       });
     if (!waitNeedsRunnerCleanup(parsed)) {
       return await executeWait();

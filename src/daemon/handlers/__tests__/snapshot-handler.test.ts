@@ -260,6 +260,49 @@ const iosSimulatorDevice: SessionState['device'] = {
   booted: true,
 };
 
+const macOsDevice: SessionState['device'] = {
+  platform: 'macos',
+  id: 'host-macos-local',
+  name: 'Host Mac',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
+test('wait text uses Apple runner path on macOS desktop sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-wait';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, macOsDevice),
+    appBundleId: 'com.apple.systempreferences',
+  });
+
+  let calls = 0;
+  const runnerCommand = async (_device: unknown, command: { command: string; text?: string }) => {
+    calls += 1;
+    assert.equal(command.command, 'findText');
+    assert.equal(command.text, 'Accessibility');
+    return { found: true };
+  };
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['Accessibility', '10'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    runnerCommand: runnerCommand as any,
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(calls, 1);
+});
+
 test('alert accept retries on "alert not found" and succeeds on second attempt', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';
