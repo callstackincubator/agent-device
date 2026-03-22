@@ -73,7 +73,7 @@ npm install -g agent-device
 
 ## Contributing
 
-See `CONTRIBUTING.md`.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Made at Callstack
 
