@@ -13,7 +13,7 @@ import {
 } from './snapshot-session.ts';
 import { handleWaitCommand, parseWaitArgs, waitNeedsRunnerCleanup } from './snapshot-wait.ts';
 import { handleAlertCommand } from './snapshot-alert.ts';
-import { handleSettingsCommand } from './snapshot-settings.ts';
+import { handleSettingsCommand, parseSettingsArgs } from './snapshot-settings.ts';
 
 export { parseWaitArgs };
 
@@ -215,9 +215,18 @@ export async function handleSnapshotCommands(params: {
   }
 
   if (command === 'settings') {
+    const parsedSettings = parseSettingsArgs(req);
+    if (!parsedSettings.ok) return parsedSettings.response;
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     return await sessionlessRunnerCleanup(session, device, async () => {
-      return await handleSettingsCommand({ req, logPath, sessionStore, session, device });
+      return await handleSettingsCommand({
+        req,
+        logPath,
+        sessionStore,
+        session,
+        device,
+        parsed: parsedSettings.parsed,
+      });
     });
   }
 
