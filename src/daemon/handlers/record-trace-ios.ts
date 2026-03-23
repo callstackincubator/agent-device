@@ -1,23 +1,11 @@
 import { SessionStore } from '../session-store.ts';
-import type {
-  DaemonRequest,
-  DaemonResponse,
-  RecordingGestureEvent,
-  SessionState,
-} from '../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
+import { getRecordingOverlaySupportWarning } from '../../platforms/ios/recording-overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
-import type { RecordTraceDeps } from './record-trace-recording.ts';
-
-type RecordingBase = {
-  outPath: string;
-  clientOutPath?: string;
-  startedAt: number;
-  showTouches: boolean;
-  gestureEvents: RecordingGestureEvent[];
-};
+import type { RecordTraceDeps, RecordingBase } from './record-trace-recording.ts';
 
 export function normalizeAppBundleId(session: SessionState): string | undefined {
   const trimmed = session.appBundleId?.trim();
@@ -313,11 +301,20 @@ export async function stopIosDeviceRecording(params: {
   });
 
   if (recording.showTouches) {
-    await deps.overlayRecordingTouches({
-      videoPath: recording.outPath,
-      telemetryPath,
-      targetLabel: 'iOS recording',
-    });
+    const overlaySupportWarning = getRecordingOverlaySupportWarning();
+    if (overlaySupportWarning) {
+      recording.overlayWarning = overlaySupportWarning;
+    } else {
+      try {
+        await deps.overlayRecordingTouches({
+          videoPath: recording.outPath,
+          telemetryPath,
+          targetLabel: 'iOS recording',
+        });
+      } catch (error) {
+        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
+      }
+    }
   }
 
   return null;

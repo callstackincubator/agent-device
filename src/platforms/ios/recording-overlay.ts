@@ -34,6 +34,15 @@ function resolveScriptPath(scriptName: string): string {
 let overlayScriptPath: string | undefined;
 let trimScriptPath: string | undefined;
 
+export function getRecordingOverlaySupportWarning(
+  hostPlatform: NodeJS.Platform = process.platform,
+): string | undefined {
+  if (hostPlatform === 'darwin') {
+    return undefined;
+  }
+  return 'touch overlay burn-in is only available on macOS hosts; returning raw video plus gesture telemetry';
+}
+
 function getOverlayScriptPath(): string {
   overlayScriptPath ??= resolveScriptPath('recording-overlay.swift');
   return overlayScriptPath;

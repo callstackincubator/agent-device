@@ -335,7 +335,7 @@ test('press @ref preserves native timing in recorded result and touch visualizat
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   assert.equal(result.gestureStartUptimeMs, 5_100);
   assert.equal(result.gestureEndUptimeMs, 5_180);
-  assert.equal(stored?.recording?.gestureEvents[0]?.tMs, 500);
+  assert.equal(stored?.recording?.gestureEvents[0]?.tMs, 570);
 });
 
 test('press @ref resolves snapshot node and records press action', async () => {

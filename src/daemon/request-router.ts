@@ -34,7 +34,7 @@ import {
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 import {
-  augmentTouchVisualizationResult,
+  augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
 import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
@@ -452,7 +452,7 @@ export function createRequestHandler(
             ...dispatchContext,
           });
           const actionFinishedAt = Date.now();
-          const visualizationData = augmentTouchVisualizationResult(
+          const visualizationData = augmentScrollVisualizationResult(
             session,
             command,
             resolvedPositionals,

@@ -112,7 +112,8 @@ export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): bool
     command === 'snapshot' ||
     command === 'screenshot' ||
     command === 'findText' ||
-    command === 'alert'
+    command === 'alert' ||
+    command === 'uptime'
   );
 }
 

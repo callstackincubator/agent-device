@@ -3,6 +3,16 @@ import XCTest
 extension RunnerTests {
   // MARK: - Main Thread Dispatch
 
+  private func currentUptimeMs() -> Double {
+    ProcessInfo.processInfo.systemUptime * 1000
+  }
+
+  private func measureGesture(_ action: () -> Void) -> (gestureStartUptimeMs: Double, gestureEndUptimeMs: Double) {
+    let gestureStartUptimeMs = currentUptimeMs()
+    action()
+    return (gestureStartUptimeMs, currentUptimeMs())
+  }
+
   func execute(command: Command) throws -> Response {
     if Thread.isMainThread {
       return try executeOnMainSafely(command: command)
@@ -204,25 +214,43 @@ extension RunnerTests {
         activeRecording = nil
         return Response(ok: false, error: ErrorPayload(message: "failed to stop recording: \(error.localizedDescription)"))
       }
+    case .uptime:
+      return Response(
+        ok: true,
+        data: DataPayload(currentUptimeMs: currentUptimeMs())
+      )
     case .tap:
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
-          withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-            element.tap()
+          let timing = measureGesture {
+            withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+              element.tap()
+            }
           }
-          return Response(ok: true, data: DataPayload(message: "tapped"))
+          return Response(
+            ok: true,
+            data: DataPayload(
+              message: "tapped",
+              gestureStartUptimeMs: timing.gestureStartUptimeMs,
+              gestureEndUptimeMs: timing.gestureEndUptimeMs
+            )
+          )
         }
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
         let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
-        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          tapAt(app: activeApp, x: x, y: y)
+        let timing = measureGesture {
+          withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+            tapAt(app: activeApp, x: x, y: y)
+          }
         }
         return Response(
           ok: true,
           data: DataPayload(
             message: "tapped",
+            gestureStartUptimeMs: timing.gestureStartUptimeMs,
+            gestureEndUptimeMs: timing.gestureEndUptimeMs,
             x: touchFrame.x,
             y: touchFrame.y,
             referenceWidth: touchFrame.referenceWidth,
@@ -231,16 +259,6 @@ extension RunnerTests {
         )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
-    case .mouseClick:
-      guard let x = command.x, let y = command.y else {
-        return Response(ok: false, error: ErrorPayload(message: "mouseClick requires x and y"))
-      }
-      do {
-        try mouseClickAt(app: activeApp, x: x, y: y, button: command.button ?? "primary")
-        return Response(ok: true, data: DataPayload(message: "clicked"))
-      } catch {
-        return Response(ok: false, error: ErrorPayload(message: error.localizedDescription))
-      }
     case .tapSeries:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
@@ -250,15 +268,19 @@ extension RunnerTests {
       let doubleTap = command.doubleTap ?? false
       let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
       if doubleTap {
-        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          runSeries(count: count, pauseMs: intervalMs) { _ in
-            doubleTapAt(app: activeApp, x: x, y: y)
+        let timing = measureGesture {
+          withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+            runSeries(count: count, pauseMs: intervalMs) { _ in
+              doubleTapAt(app: activeApp, x: x, y: y)
+            }
           }
         }
         return Response(
           ok: true,
           data: DataPayload(
             message: "tap series",
+            gestureStartUptimeMs: timing.gestureStartUptimeMs,
+            gestureEndUptimeMs: timing.gestureEndUptimeMs,
             x: touchFrame.x,
             y: touchFrame.y,
             referenceWidth: touchFrame.referenceWidth,
@@ -266,15 +288,19 @@ extension RunnerTests {
           )
         )
       }
-      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        runSeries(count: count, pauseMs: intervalMs) { _ in
-          tapAt(app: activeApp, x: x, y: y)
+      let timing = measureGesture {
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          runSeries(count: count, pauseMs: intervalMs) { _ in
+            tapAt(app: activeApp, x: x, y: y)
+          }
         }
       }
       return Response(
         ok: true,
         data: DataPayload(
           message: "tap series",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs,
           x: touchFrame.x,
           y: touchFrame.y,
           referenceWidth: touchFrame.referenceWidth,
@@ -287,13 +313,17 @@ extension RunnerTests {
       }
       let duration = (command.durationMs ?? 800) / 1000.0
       let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
-      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        longPressAt(app: activeApp, x: x, y: y, duration: duration)
+      let timing = measureGesture {
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          longPressAt(app: activeApp, x: x, y: y, duration: duration)
+        }
       }
       return Response(
         ok: true,
         data: DataPayload(
           message: "long pressed",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs,
           x: touchFrame.x,
           y: touchFrame.y,
           referenceWidth: touchFrame.referenceWidth,
@@ -306,13 +336,17 @@ extension RunnerTests {
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       let dragFrame = resolvedDragVisualizationFrame(app: activeApp, x: x, y: y, x2: x2, y2: y2)
-      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      let timing = measureGesture {
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+        }
       }
       return Response(
         ok: true,
         data: DataPayload(
           message: "dragged",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs,
           x: dragFrame.x,
           y: dragFrame.y,
           x2: dragFrame.x2,
@@ -332,17 +366,26 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
-      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        runSeries(count: count, pauseMs: pauseMs) { idx in
-          let reverse = pattern == "ping-pong" && (idx % 2 == 1)
-          if reverse {
-            dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
-          } else {
-            dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+      let timing = measureGesture {
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          runSeries(count: count, pauseMs: pauseMs) { idx in
+            let reverse = pattern == "ping-pong" && (idx % 2 == 1)
+            if reverse {
+              dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+            } else {
+              dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+            }
           }
         }
       }
-      return Response(ok: true, data: DataPayload(message: "drag series"))
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "drag series",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs
+        )
+      )
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -365,10 +408,22 @@ extension RunnerTests {
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
       }
-      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-        swipe(app: activeApp, direction: direction)
+      let referenceFrame = resolvedGestureReferenceFrame(app: activeApp)
+      let timing = measureGesture {
+        withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+          swipe(app: activeApp, direction: direction)
+        }
       }
-      return Response(ok: true, data: DataPayload(message: "swiped"))
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "swiped",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs,
+          referenceWidth: referenceFrame.referenceWidth,
+          referenceHeight: referenceFrame.referenceHeight
+        )
+      )
     case .findText:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "findText requires text"))
@@ -399,7 +454,7 @@ extension RunnerTests {
         Thread.sleep(forTimeInterval: 0.5)
       }
       let screenshot = XCUIScreen.main.screenshot()
-      guard let pngData = runnerPngData(for: screenshot.image) else {
+      guard let pngData = screenshot.image.pngData() else {
         return Response(ok: false, error: ErrorPayload(message: "Failed to encode screenshot as PNG"))
       }
       let fileName = "screenshot-\(Int(Date().timeIntervalSince1970 * 1000)).png"
@@ -409,40 +464,21 @@ extension RunnerTests {
       } catch {
         return Response(ok: false, error: ErrorPayload(message: "Failed to write screenshot: \(error.localizedDescription)"))
       }
-#if os(macOS)
-      return Response(ok: true, data: DataPayload(message: filePath))
-#else
       // Return path relative to app container root (tmp/ maps to NSTemporaryDirectory)
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
-#endif
     case .back:
       if tapNavigationBack(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))
       }
-#if os(macOS)
-      return Response(ok: false, error: ErrorPayload(message: "back button is not available on macOS"))
-#else
       performBackGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "back"))
-#endif
     case .home:
-#if os(macOS)
-      return Response(ok: false, error: ErrorPayload(message: "home is not supported on macOS"))
-#else
       pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))
-#endif
     case .appSwitcher:
-#if os(macOS)
-      return Response(ok: false, error: ErrorPayload(message: "appSwitcher is not supported on macOS"))
-#else
       performAppSwitcherGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "appSwitcher"))
-#endif
     case .alert:
-#if os(macOS)
-      return Response(ok: false, error: ErrorPayload(message: "alert is not supported on macOS"))
-#else
       let action = (command.action ?? "get").lowercased()
       let alert = activeApp.alerts.firstMatch
       if !alert.exists {
@@ -460,17 +496,21 @@ extension RunnerTests {
       }
       let buttonLabels = alert.buttons.allElementsBoundByIndex.map { $0.label }
       return Response(ok: true, data: DataPayload(message: alert.label, items: buttonLabels))
-#endif
     case .pinch:
-#if os(macOS)
-      return Response(ok: false, error: ErrorPayload(message: "pinch is not supported on macOS"))
-#else
       guard let scale = command.scale, scale > 0 else {
         return Response(ok: false, error: ErrorPayload(message: "pinch requires scale > 0"))
       }
-      pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
-      return Response(ok: true, data: DataPayload(message: "pinched"))
-#endif
+      let timing = measureGesture {
+        pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "pinched",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs
+        )
+      )
     }
   }
 }

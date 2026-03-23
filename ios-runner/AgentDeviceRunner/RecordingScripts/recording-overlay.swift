@@ -3,7 +3,6 @@ import AVFoundation
 import Foundation
 import QuartzCore
 
-let touchDotRadius: CGFloat = 30
 let touchDotColor = NSColor(calibratedRed: 0.20, green: 0.63, blue: 0.98, alpha: 0.48).cgColor
 let touchDotBorderColor = NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.68).cgColor
 let minimumTapVisibility: CFTimeInterval = 0.45
@@ -158,7 +157,10 @@ func run() throws {
   exporter.exportAsynchronously {
     semaphore.signal()
   }
-  _ = semaphore.wait(timeout: .now() + 120)
+  if semaphore.wait(timeout: .now() + 120) == .timedOut {
+    exporter.cancelExport()
+    throw OverlayError.exportFailed("Touch overlay export timed out.")
+  }
 
   if exporter.status != .completed {
     throw OverlayError.exportFailed(exporter.error?.localizedDescription ?? "Touch overlay export failed.")
@@ -223,7 +225,8 @@ func overlayPoint(event: GestureEvent, x: Double, y: Double, renderSize: CGSize)
   let scaleY = scaledAxis(renderSize: renderSize.height, referenceSize: event.referenceHeight)
   let scaledX = x * scaleX
   let scaledY = y * scaleY
-  return CGPoint(x: scaledX, y: renderSize.height - scaledY)
+  let flippedY = max(0, Double(renderSize.height) - scaledY)
+  return CGPoint(x: scaledX, y: flippedY)
 }
 
 func scaledAxis(renderSize: CGFloat, referenceSize: Double?) -> Double {
@@ -232,7 +235,10 @@ func scaledAxis(renderSize: CGFloat, referenceSize: Double?) -> Double {
 }
 
 func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALayer) {
-  let layer = makeTouchDotLayer(center: overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize))
+  let layer = makeTouchDotLayer(
+    center: overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize),
+    renderSize: renderSize
+  )
   overlayLayer.addSublayer(layer)
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
@@ -254,7 +260,10 @@ func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALay
 
 func addLongPressLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALayer) {
   let duration = max(0.75, (event.durationMs ?? 800) / 1000.0)
-  let layer = makeTouchDotLayer(center: overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize))
+  let layer = makeTouchDotLayer(
+    center: overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize),
+    renderSize: renderSize
+  )
   overlayLayer.addSublayer(layer)
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
@@ -338,7 +347,7 @@ func addTrailLayers(
   strokeGroup.isRemovedOnCompletion = false
   pathLayer.add(strokeGroup, forKey: "stroke")
 
-  let dotLayer = makeTouchDotLayer(center: startPoint)
+  let dotLayer = makeTouchDotLayer(center: startPoint, renderSize: renderSize)
   dotLayer.backgroundColor = trailColor(style: style)
   dotLayer.borderColor = trailBorderColor(style: style)
   dotLayer.position = endPoint
@@ -377,10 +386,11 @@ func addPinchDot(
   overlayLayer: CALayer,
   start: CGPoint,
   end: CGPoint,
+  renderSize: CGSize,
   beginTime: CFTimeInterval,
   duration: CFTimeInterval
 ) {
-  let dotLayer = makeTouchDotLayer(center: start)
+  let dotLayer = makeTouchDotLayer(center: start, renderSize: renderSize)
   overlayLayer.addSublayer(dotLayer)
 
   let position = CABasicAnimation(keyPath: "position")
@@ -416,6 +426,7 @@ func addPinchLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CA
     overlayLayer: overlayLayer,
     start: startLeft,
     end: endLeft,
+    renderSize: renderSize,
     beginTime: beginTime,
     duration: duration
   )
@@ -423,16 +434,18 @@ func addPinchLayers(event: GestureEvent, renderSize: CGSize, to overlayLayer: CA
     overlayLayer: overlayLayer,
     start: startRight,
     end: endRight,
+    renderSize: renderSize,
     beginTime: beginTime,
     duration: duration
   )
 }
 
-func makeTouchDotLayer(center: CGPoint) -> CALayer {
+func makeTouchDotLayer(center: CGPoint, renderSize: CGSize) -> CALayer {
+  let dotRadius = resolvedTouchDotRadius(renderSize: renderSize)
   let layer = CALayer()
-  layer.bounds = CGRect(x: 0, y: 0, width: touchDotRadius * 2, height: touchDotRadius * 2)
+  layer.bounds = CGRect(x: 0, y: 0, width: dotRadius * 2, height: dotRadius * 2)
   layer.position = center
-  layer.cornerRadius = touchDotRadius
+  layer.cornerRadius = dotRadius
   layer.backgroundColor = touchDotColor
   layer.borderWidth = 2
   layer.borderColor = touchDotBorderColor
@@ -441,6 +454,11 @@ func makeTouchDotLayer(center: CGPoint) -> CALayer {
   layer.shadowRadius = 4
   layer.opacity = 0
   return layer
+}
+
+func resolvedTouchDotRadius(renderSize: CGSize) -> CGFloat {
+  let minDimension = min(renderSize.width, renderSize.height)
+  return max(18, min(40, minDimension * 0.035))
 }
 
 func trailTail(style: TrailStyle) -> CFTimeInterval {

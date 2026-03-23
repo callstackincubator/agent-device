@@ -20,6 +20,7 @@ import {
 } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import {
+  getRecordingOverlaySupportWarning,
   overlayRecordingTouches,
   trimRecordingStart,
 } from '../../platforms/ios/recording-overlay.ts';
@@ -36,8 +37,7 @@ import {
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
 const LOCAL_RECORDING_READY_POLL_MS = 250;
-const LOCAL_RECORDING_READY_ATTEMPTS = 24;
-const LOCAL_RECORDING_READY_MIN_POLLS = 2;
+const LOCAL_RECORDING_READY_SETTLE_POLLS = 2;
 
 export type RecordTraceDeps = {
   runCmd: typeof runCmd;
@@ -48,6 +48,14 @@ export type RecordTraceDeps = {
   writeRecordingTelemetry: typeof writeRecordingTelemetry;
   trimRecordingStart: typeof trimRecordingStart;
   overlayRecordingTouches: typeof overlayRecordingTouches;
+};
+
+export type RecordingBase = {
+  outPath: string;
+  clientOutPath?: string;
+  startedAt: number;
+  showTouches: boolean;
+  gestureEvents: RecordingGestureEvent[];
 };
 
 export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): RecordTraceDeps {
@@ -64,16 +72,7 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
   };
 }
 
-function buildRecordingBase(
-  req: DaemonRequest,
-  outPath: string,
-): {
-  outPath: string;
-  clientOutPath?: string;
-  startedAt: number;
-  showTouches: boolean;
-  gestureEvents: RecordingGestureEvent[];
-} {
+function buildRecordingBase(req: DaemonRequest, outPath: string): RecordingBase {
   return {
     outPath,
     clientOutPath: req.meta?.clientArtifactPaths?.outPath,
@@ -83,8 +82,11 @@ function buildRecordingBase(
   };
 }
 
-async function waitForLocalRecordingReady(outPath: string): Promise<number | undefined> {
-  for (let attempt = 0; attempt < LOCAL_RECORDING_READY_ATTEMPTS; attempt += 1) {
+async function waitForLocalRecordingSettleWindow(outPath: string): Promise<number> {
+  // simctl recordVideo can take a beat to open its output even though recording has already
+  // started. This is a short settle window, not a strict readiness guarantee. We prefer a
+  // close recorder anchor over blocking start indefinitely waiting for non-zero bytes.
+  for (let attempt = 0; attempt < LOCAL_RECORDING_READY_SETTLE_POLLS; attempt += 1) {
     try {
       const stat = fs.statSync(outPath);
       if (stat.size > 0) {
@@ -94,14 +96,14 @@ async function waitForLocalRecordingReady(outPath: string): Promise<number | und
       // Wait for the recorder to create the output file.
     }
 
-    if (attempt + 1 >= LOCAL_RECORDING_READY_MIN_POLLS) {
+    if (attempt + 1 >= LOCAL_RECORDING_READY_SETTLE_POLLS) {
       return Date.now();
     }
 
     await new Promise((resolve) => setTimeout(resolve, LOCAL_RECORDING_READY_POLL_MS));
   }
 
-  return undefined;
+  return Date.now();
 }
 
 async function startRecording(params: {
@@ -193,13 +195,41 @@ async function startRecording(params: {
         allowFailure: true,
       },
     );
-    const readyAt = await waitForLocalRecordingReady(resolvedOut);
+    const readyAt = await waitForLocalRecordingSettleWindow(resolvedOut);
+    let gestureClockOriginAtMs: number | undefined;
+    let gestureClockOriginUptimeMs: number | undefined;
+    try {
+      const uptimeRequestStartedAtMs = Date.now();
+      const uptimeResult = await deps.runIosRunnerCommand(
+        device,
+        {
+          command: 'uptime',
+          appBundleId: normalizeAppBundleId(activeSession),
+        },
+        {
+          verbose: req.flags?.verbose,
+          logPath,
+          traceLogPath: activeSession.trace?.outPath,
+        },
+      );
+      const uptimeRequestFinishedAtMs = Date.now();
+      gestureClockOriginAtMs = Math.round(
+        (uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2,
+      );
+      gestureClockOriginUptimeMs =
+        typeof uptimeResult.currentUptimeMs === 'number' ? uptimeResult.currentUptimeMs : undefined;
+    } catch {
+      // Best effort only; wall-clock fallback remains available.
+    }
     recording = {
       platform: 'ios',
       child,
       wait,
       ...recordingBase,
-      startedAt: readyAt ?? recordingBase.startedAt,
+      startedAt: readyAt,
+      gestureClockOriginAtMs:
+        gestureClockOriginUptimeMs === undefined ? undefined : gestureClockOriginAtMs,
+      gestureClockOriginUptimeMs,
     };
   } else {
     recording = await startAndroidRecording({ deps, device, recordingBase });
@@ -257,11 +287,20 @@ async function stopNonRunnerRecording(params: {
   });
 
   if (recording.showTouches) {
-    await deps.overlayRecordingTouches({
-      videoPath: recording.outPath,
-      telemetryPath,
-      targetLabel: 'iOS recording',
-    });
+    const overlaySupportWarning = getRecordingOverlaySupportWarning();
+    if (overlaySupportWarning) {
+      recording.overlayWarning = overlaySupportWarning;
+    } else {
+      try {
+        await deps.overlayRecordingTouches({
+          videoPath: recording.outPath,
+          telemetryPath,
+          targetLabel: 'iOS recording',
+        });
+      } catch (error) {
+        recording.overlayWarning = `failed to overlay recording touches: ${formatOverlayError(error)}`;
+      }
+    }
   }
 
   return null;
@@ -333,6 +372,7 @@ function buildRecordStopResponse(
       telemetryPath: recording.telemetryPath,
       artifacts,
       showTouches: recording.showTouches,
+      overlayWarning: recording.overlayWarning,
     },
   };
 }
@@ -344,6 +384,13 @@ function deriveClientTelemetryPath(
     return undefined;
   }
   return deriveRecordingTelemetryPath(recording.clientOutPath);
+}
+
+function formatOverlayError(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return String(error);
 }
 
 export async function handleRecordCommand(params: {

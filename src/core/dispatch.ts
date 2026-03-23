@@ -353,8 +353,8 @@ export async function dispatchCommand(
           const direction = positionals[0];
           const amount = positionals[1] ? Number(positionals[1]) : undefined;
           if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-          await interactor.scroll(direction, amount);
-          return { direction, amount };
+          const interactionResult = await interactor.scroll(direction, amount);
+          return { direction, amount, ...interactionResult };
         }
         case 'scrollintoview': {
           const text = positionals.join(' ').trim();

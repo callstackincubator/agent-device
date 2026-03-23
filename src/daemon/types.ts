@@ -110,6 +110,7 @@ type SessionRecordingBase = {
   outPath: string;
   clientOutPath?: string;
   telemetryPath?: string;
+  overlayWarning?: string;
   startedAt: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
@@ -117,6 +118,8 @@ type SessionRecordingBase = {
     referenceWidth: number;
     referenceHeight: number;
   };
+  gestureClockOriginAtMs?: number;
+  gestureClockOriginUptimeMs?: number;
   runnerSessionId?: string;
   invalidatedReason?: string;
 };

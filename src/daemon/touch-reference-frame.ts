@@ -5,32 +5,18 @@ export type TouchReferenceFrame = {
   referenceHeight: number;
 };
 
-type SnapshotReferenceFrameState = SnapshotState & {
-  referenceWidth?: number;
-  referenceHeight?: number;
-};
+const snapshotReferenceFrameCache = new WeakMap<SnapshotState, TouchReferenceFrame>();
 
 export function getSnapshotReferenceFrame(
   snapshot: SnapshotState | undefined,
 ): TouchReferenceFrame | undefined {
   if (!snapshot) return undefined;
-  const cachedSnapshot = snapshot as SnapshotReferenceFrameState;
-  if (
-    typeof cachedSnapshot.referenceWidth === 'number' &&
-    cachedSnapshot.referenceWidth > 0 &&
-    typeof cachedSnapshot.referenceHeight === 'number' &&
-    cachedSnapshot.referenceHeight > 0
-  ) {
-    return {
-      referenceWidth: cachedSnapshot.referenceWidth,
-      referenceHeight: cachedSnapshot.referenceHeight,
-    };
-  }
+  const cached = snapshotReferenceFrameCache.get(snapshot);
+  if (cached) return cached;
 
   const inferred = inferTouchReferenceFrame(snapshot.nodes ?? []);
   if (!inferred) return undefined;
-  cachedSnapshot.referenceWidth = inferred.referenceWidth;
-  cachedSnapshot.referenceHeight = inferred.referenceHeight;
+  snapshotReferenceFrameCache.set(snapshot, inferred);
   return inferred;
 }
 

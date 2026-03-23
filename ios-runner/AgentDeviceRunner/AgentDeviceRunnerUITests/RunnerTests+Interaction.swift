@@ -17,6 +17,11 @@ extension RunnerTests {
     let referenceHeight: Double
   }
 
+  struct GestureReferenceFrame {
+    let referenceWidth: Double
+    let referenceHeight: Double
+  }
+
   // MARK: - Navigation Gestures
 
   func tapNavigationBack(app: XCUIApplication) -> Bool {
@@ -267,6 +272,14 @@ extension RunnerTests {
       return appFrame
     }
     return CGRect(x: 0, y: 0, width: 0, height: 0)
+  }
+
+  func resolvedGestureReferenceFrame(app: XCUIApplication) -> GestureReferenceFrame {
+    let frame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
+    return GestureReferenceFrame(
+      referenceWidth: frame.width,
+      referenceHeight: frame.height
+    )
   }
 
   func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {

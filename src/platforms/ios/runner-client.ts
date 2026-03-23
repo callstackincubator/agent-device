@@ -45,6 +45,7 @@ export type RunnerCommand = {
     | 'pinch'
     | 'recordStart'
     | 'recordStop'
+    | 'uptime'
     | 'shutdown';
   appBundleId?: string;
   text?: string;

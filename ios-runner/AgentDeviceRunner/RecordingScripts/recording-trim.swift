@@ -89,7 +89,10 @@ func run() throws {
   exporter.exportAsynchronously {
     semaphore.signal()
   }
-  _ = semaphore.wait(timeout: .now() + 120)
+  if semaphore.wait(timeout: .now() + 120) == .timedOut {
+    exporter.cancelExport()
+    throw TrimError.exportFailed("Trim export timed out.")
+  }
 
   if exporter.status != .completed {
     throw TrimError.exportFailed(exporter.error?.localizedDescription ?? "Trim export failed.")

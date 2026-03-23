@@ -61,7 +61,7 @@ type Interactor = {
   focus(x: number, y: number): Promise<Record<string, unknown> | void>;
   type(text: string): Promise<void>;
   fill(x: number, y: number, text: string): Promise<Record<string, unknown> | void>;
-  scroll(direction: string, amount?: number): Promise<void>;
+  scroll(direction: string, amount?: number): Promise<Record<string, unknown> | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
   back(): Promise<void>;
@@ -253,11 +253,11 @@ function iosRunnerOverrides(
           throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
         }
         const inverted = invertScrollDirection(direction as 'up' | 'down' | 'left' | 'right');
-        await runIosRunnerCommand(
+        return (await runIosRunnerCommand(
           device,
           { command: 'swipe', direction: inverted, appBundleId: ctx.appBundleId },
           runnerOpts,
-        );
+        )) as Record<string, unknown>;
       },
       scrollIntoView: async (text) => {
         // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.

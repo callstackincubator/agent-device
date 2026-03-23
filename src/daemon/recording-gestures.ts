@@ -1,6 +1,10 @@
 import type { RecordingGestureEvent, SessionState } from './types.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
-import { resolveGestureDurationMs, resolveGestureOffsetMs } from './recording-timing.ts';
+import {
+  resolveGestureDurationMs,
+  resolveGestureOffsetMs,
+  resolveTapVisualizationOffsetMs,
+} from './recording-timing.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import {
   getSnapshotReferenceFrame,
@@ -33,13 +37,17 @@ export function recordTouchVisualizationEvent(
   const merged = { ...fallback, ...(result ?? {}) };
   const reportedDurationMs =
     readNumber(merged.effectiveDurationMs) ?? readNumber(merged.durationMs);
-  const tMs = resolveGestureOffsetMs({
+  const timingSource = {
     recordingStartedAt: recording.startedAt,
+    gestureClockOriginAtMs: recording.gestureClockOriginAtMs,
+    gestureClockOriginUptimeMs: recording.gestureClockOriginUptimeMs,
     runnerStartedAtUptimeMs:
       recording.platform === 'ios-device-runner' ? recording.runnerStartedAtUptimeMs : undefined,
     gestureStartUptimeMs: readNumber(merged.gestureStartUptimeMs),
+    gestureEndUptimeMs: readNumber(merged.gestureEndUptimeMs),
     fallbackStartedAtMs: startedAtMs,
-  });
+    fallbackFinishedAtMs: finishedAtMs,
+  };
   const gestureDurationMs = resolveGestureDurationMs({
     gestureStartUptimeMs: readNumber(merged.gestureStartUptimeMs),
     gestureEndUptimeMs: readNumber(merged.gestureEndUptimeMs),
@@ -47,6 +55,12 @@ export function recordTouchVisualizationEvent(
     fallbackStartedAtMs: startedAtMs,
     fallbackFinishedAtMs: finishedAtMs,
   });
+  const tMs =
+    session.device.platform === 'ios' &&
+    readNumber(merged.gestureStartUptimeMs) === undefined &&
+    shouldAnchorTapVisualizationNearCompletion(command, merged)
+      ? resolveTapVisualizationOffsetMs({ ...timingSource, gestureDurationMs })
+      : resolveGestureOffsetMs(timingSource);
   const referenceFrame = resolveEventReferenceFrame(session.snapshot, merged);
   const events = buildGestureEvents(
     command,
@@ -72,7 +86,9 @@ export function recordTouchVisualizationEvent(
   });
 }
 
-export function augmentTouchVisualizationResult(
+// Scroll commands do not carry a concrete gesture path from the platform layer, so we
+// synthesize one here before recording telemetry.
+export function augmentScrollVisualizationResult(
   session: SessionState,
   command: string,
   positionals: string[],
@@ -80,16 +96,26 @@ export function augmentTouchVisualizationResult(
 ): Record<string, unknown> | void {
   if (command !== 'scroll') return result;
 
-  const referenceFrame = getReferenceFrame(session.snapshot);
+  const referenceFrame = getSnapshotReferenceFrame(session.snapshot);
   const merged = { ...(result ?? {}) };
   const contentDirection = readDirection(merged.direction) ?? readDirection(positionals[0]);
   if (!contentDirection) return result;
 
   const amountValue = readNumber(merged.amount) ?? readNumber(positionals[1]);
   const travelFraction = resolveScrollTravelFraction(amountValue);
-  const fallbackReferenceFrame = referenceFrame ?? DEFAULT_SCROLL_REFERENCE_FRAME;
-  const start = scrollStartPoint(contentDirection, fallbackReferenceFrame, travelFraction);
-  const end = scrollEndPoint(contentDirection, fallbackReferenceFrame, travelFraction);
+  const explicitReferenceWidth = readNumber(merged.referenceWidth);
+  const explicitReferenceHeight = readNumber(merged.referenceHeight);
+  const fallbackReferenceFrame =
+    explicitReferenceWidth !== undefined &&
+    explicitReferenceWidth > 0 &&
+    explicitReferenceHeight !== undefined &&
+    explicitReferenceHeight > 0
+      ? {
+          referenceWidth: explicitReferenceWidth,
+          referenceHeight: explicitReferenceHeight,
+        }
+      : (referenceFrame ?? DEFAULT_SCROLL_REFERENCE_FRAME);
+  const { start, end } = scrollPoints(contentDirection, fallbackReferenceFrame, travelFraction);
 
   return {
     ...merged,
@@ -133,6 +159,26 @@ function buildGestureEvents(
   }
 }
 
+function shouldAnchorTapVisualizationNearCompletion(
+  command: string,
+  result: Record<string, unknown>,
+): boolean {
+  switch (command) {
+    case 'click':
+    case 'fill':
+    case 'focus':
+      return true;
+    case 'press': {
+      const count = clampInt(readNumber(result.count), 1) ?? 1;
+      const doubleTap = result.doubleTap === true;
+      const holdMs = clampInt(readNumber(result.holdMs), 1);
+      return count === 1 && !doubleTap && holdMs === undefined;
+    }
+    default:
+      return false;
+  }
+}
+
 function buildPressEvents(
   positionals: string[],
   result: Record<string, unknown>,
@@ -169,9 +215,9 @@ function buildFocusEvents(
   tMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x = readNumber(result.x) ?? readNumber(positionals[0]);
-  const y = readNumber(result.y) ?? readNumber(positionals[1]);
-  if (x === undefined || y === undefined) return [];
+  const coordinates = readCoordinates(result, positionals);
+  if (!coordinates) return [];
+  const { x, y } = coordinates;
   return [makeTapEvent(tMs, x, y, referenceFrame)];
 }
 
@@ -182,14 +228,14 @@ function buildLongPressEvents(
   gestureDurationMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x = readNumber(result.x) ?? readNumber(positionals[0]);
-  const y = readNumber(result.y) ?? readNumber(positionals[1]);
-  if (x === undefined || y === undefined) return [];
-  const durationMs =
-    clampInt(gestureDurationMs, 1) ??
-    clampInt(readNumber(result.durationMs), 1) ??
-    clampInt(readNumber(positionals[2]), 1) ??
-    800;
+  const coordinates = readCoordinates(result, positionals);
+  if (!coordinates) return [];
+  const { x, y } = coordinates;
+  const durationMs = resolveDurationMs(
+    gestureDurationMs,
+    [readNumber(result.durationMs), readNumber(positionals[2])],
+    800,
+  );
   return [makeLongPressEvent(tMs, x, y, durationMs, referenceFrame)];
 }
 
@@ -200,18 +246,19 @@ function buildSwipeEvents(
   gestureDurationMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x1 = readNumber(result.x1) ?? readNumber(positionals[0]);
-  const y1 = readNumber(result.y1) ?? readNumber(positionals[1]);
-  const x2 = readNumber(result.x2) ?? readNumber(positionals[2]);
-  const y2 = readNumber(result.y2) ?? readNumber(positionals[3]);
-  if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return [];
+  const coordinates = readTravelCoordinates(result, positionals);
+  if (!coordinates) return [];
+  const { x1, y1, x2, y2 } = coordinates;
 
-  const durationMs =
-    clampInt(gestureDurationMs, 1) ??
-    clampInt(readNumber(result.effectiveDurationMs), 1) ??
-    clampInt(readNumber(result.durationMs), 1) ??
-    clampInt(readNumber(positionals[4]), 1) ??
-    DEFAULT_SWIPE_DURATION_MS;
+  const durationMs = resolveDurationMs(
+    gestureDurationMs,
+    [
+      readNumber(result.effectiveDurationMs),
+      readNumber(result.durationMs),
+      readNumber(positionals[4]),
+    ],
+    DEFAULT_SWIPE_DURATION_MS,
+  );
   const count = clampInt(readNumber(result.count), 1) ?? 1;
   const pauseMs = clampInt(readNumber(result.pauseMs), 0) ?? 0;
   const pattern = result.pattern === 'ping-pong' ? 'ping-pong' : 'one-way';
@@ -261,23 +308,15 @@ function buildScrollEvents(
   gestureDurationMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x1 = readNumber(result.x1) ?? readNumber(positionals[0]);
-  const y1 = readNumber(result.y1) ?? readNumber(positionals[1]);
-  const x2 = readNumber(result.x2) ?? readNumber(positionals[2]);
-  const y2 = readNumber(result.y2) ?? readNumber(positionals[3]);
+  const coordinates = readTravelCoordinates(result, positionals);
   const contentDirection =
     readDirection(result.contentDirection) ?? readDirection(result.direction);
-  if (
-    x1 === undefined ||
-    y1 === undefined ||
-    x2 === undefined ||
-    y2 === undefined ||
-    !contentDirection
-  ) {
+  if (!coordinates || !contentDirection) {
     return [];
   }
+  const { x1, y1, x2, y2 } = coordinates;
 
-  const durationMs = clampInt(gestureDurationMs, 1) ?? DEFAULT_SWIPE_DURATION_MS;
+  const durationMs = resolveDurationMs(gestureDurationMs, [], DEFAULT_SWIPE_DURATION_MS);
   const amount = readNumber(result.amount) ?? readNumber(positionals[1]);
   return [
     {
@@ -302,10 +341,10 @@ function buildPinchEvents(
   gestureDurationMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x = readNumber(result.x) ?? readNumber(positionals[1]);
-  const y = readNumber(result.y) ?? readNumber(positionals[2]);
+  const coordinates = readCoordinates(result, positionals, 1);
   const scale = readNumber(result.scale) ?? readNumber(positionals[0]);
-  if (x === undefined || y === undefined || scale === undefined || scale <= 0) return [];
+  if (!coordinates || scale === undefined || scale <= 0) return [];
+  const { x, y } = coordinates;
   return [
     {
       kind: 'pinch',
@@ -314,7 +353,7 @@ function buildPinchEvents(
       y,
       ...referenceFrame,
       scale,
-      durationMs: clampInt(gestureDurationMs, 1) ?? DEFAULT_PINCH_DURATION_MS,
+      durationMs: resolveDurationMs(gestureDurationMs, [], DEFAULT_PINCH_DURATION_MS),
     },
   ];
 }
@@ -369,10 +408,6 @@ function resolveBackSwipeEdge(
   return endX >= startX ? 'left' : 'right';
 }
 
-function getReferenceFrame(snapshot: SnapshotState | undefined): ReferenceFrame | undefined {
-  return getSnapshotReferenceFrame(snapshot);
-}
-
 function resolveEventReferenceFrame(
   snapshot: SnapshotState | undefined,
   result: Record<string, unknown>,
@@ -388,20 +423,18 @@ function resolveEventReferenceFrame(
     return { referenceWidth, referenceHeight };
   }
 
-  const snapshotReferenceFrame = getReferenceFrame(snapshot);
-  if (snapshotReferenceFrame) return snapshotReferenceFrame;
-
-  return undefined;
+  return getSnapshotReferenceFrame(snapshot);
 }
 
 function readDirection(value: unknown): 'up' | 'down' | 'left' | 'right' | undefined {
   if (typeof value !== 'string') return undefined;
-  switch (value.trim().toLowerCase()) {
+  const normalized = value.trim().toLowerCase();
+  switch (normalized) {
     case 'up':
     case 'down':
     case 'left':
     case 'right':
-      return value.trim().toLowerCase() as 'up' | 'down' | 'left' | 'right';
+      return normalized as 'up' | 'down' | 'left' | 'right';
     default:
       return undefined;
   }
@@ -416,11 +449,11 @@ function resolveScrollTravelFraction(amount: number | undefined): number {
   return clampNumber(amount / 100, MIN_SCROLL_FRACTION, MAX_SCROLL_FRACTION);
 }
 
-function scrollStartPoint(
+function scrollPoints(
   contentDirection: 'up' | 'down' | 'left' | 'right',
   referenceFrame: ReferenceFrame,
   travelFraction: number,
-): { x: number; y: number } {
+): { start: { x: number; y: number }; end: { x: number; y: number } } {
   const midX = Math.round(referenceFrame.referenceWidth / 2);
   const midY = Math.round(referenceFrame.referenceHeight / 2);
   const travelX = Math.round((referenceFrame.referenceWidth * travelFraction) / 2);
@@ -428,35 +461,25 @@ function scrollStartPoint(
 
   switch (contentDirection) {
     case 'up':
-      return { x: midX, y: midY - travelY };
+      return {
+        start: { x: midX, y: midY - travelY },
+        end: { x: midX, y: midY + travelY },
+      };
     case 'down':
-      return { x: midX, y: midY + travelY };
+      return {
+        start: { x: midX, y: midY + travelY },
+        end: { x: midX, y: midY - travelY },
+      };
     case 'left':
-      return { x: midX - travelX, y: midY };
+      return {
+        start: { x: midX - travelX, y: midY },
+        end: { x: midX + travelX, y: midY },
+      };
     case 'right':
-      return { x: midX + travelX, y: midY };
-  }
-}
-
-function scrollEndPoint(
-  contentDirection: 'up' | 'down' | 'left' | 'right',
-  referenceFrame: ReferenceFrame,
-  travelFraction: number,
-): { x: number; y: number } {
-  const midX = Math.round(referenceFrame.referenceWidth / 2);
-  const midY = Math.round(referenceFrame.referenceHeight / 2);
-  const travelX = Math.round((referenceFrame.referenceWidth * travelFraction) / 2);
-  const travelY = Math.round((referenceFrame.referenceHeight * travelFraction) / 2);
-
-  switch (contentDirection) {
-    case 'up':
-      return { x: midX, y: midY + travelY };
-    case 'down':
-      return { x: midX, y: midY - travelY };
-    case 'left':
-      return { x: midX + travelX, y: midY };
-    case 'right':
-      return { x: midX - travelX, y: midY };
+      return {
+        start: { x: midX + travelX, y: midY },
+        end: { x: midX - travelX, y: midY },
+      };
   }
 }
 
@@ -475,4 +498,45 @@ function clampInt(value: number | undefined, min: number): number | undefined {
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function readCoordinates(
+  result: Record<string, unknown>,
+  positionals: string[],
+  positionalOffset = 0,
+): { x: number; y: number } | undefined {
+  const x = readNumber(result.x) ?? readNumber(positionals[positionalOffset]);
+  const y = readNumber(result.y) ?? readNumber(positionals[positionalOffset + 1]);
+  if (x === undefined || y === undefined) {
+    return undefined;
+  }
+  return { x, y };
+}
+
+function readTravelCoordinates(
+  result: Record<string, unknown>,
+  positionals: string[],
+): { x1: number; y1: number; x2: number; y2: number } | undefined {
+  const x1 = readNumber(result.x1) ?? readNumber(positionals[0]);
+  const y1 = readNumber(result.y1) ?? readNumber(positionals[1]);
+  const x2 = readNumber(result.x2) ?? readNumber(positionals[2]);
+  const y2 = readNumber(result.y2) ?? readNumber(positionals[3]);
+  if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) {
+    return undefined;
+  }
+  return { x1, y1, x2, y2 };
+}
+
+function resolveDurationMs(
+  gestureDurationMs: number,
+  candidates: Array<number | undefined>,
+  fallbackDurationMs: number,
+): number {
+  return (
+    clampInt(gestureDurationMs, 1) ??
+    candidates
+      .map((candidate) => clampInt(candidate, 1))
+      .find((candidate) => candidate !== undefined) ??
+    fallbackDurationMs
+  );
 }

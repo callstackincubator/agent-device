@@ -714,6 +714,68 @@ test('record uses simctl recordVideo for iOS simulators', async () => {
   assert.equal(stopped, true);
 });
 
+test('record stop keeps iOS simulator video when overlay export fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-overlay-warning';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-warning.mp4'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => ({
+        child: { kill: () => {} } as any,
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      }),
+      runIosRunnerCommand: async () => ({}),
+      waitForStableFile: async () => {},
+      isPlayableVideo: async () => true,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+      trimRecordingStart: async () => {},
+      overlayRecordingTouches: async () => {
+        throw new Error('swift export failed');
+      },
+    },
+  });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: {
+      runCmd: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+      runCmdBackground: () => {
+        throw new Error('runCmdBackground should not be called on stop for simulator');
+      },
+      runIosRunnerCommand: async () => ({}),
+      waitForStableFile: async () => {},
+      isPlayableVideo: async () => true,
+      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+      trimRecordingStart: async () => {},
+      overlayRecordingTouches: async () => {
+        throw new Error('swift export failed');
+      },
+    },
+  });
+
+  assert.equal(responseStop?.ok, true);
+  assert.equal(
+    responseStop?.data?.overlayWarning,
+    'failed to overlay recording touches: swift export failed',
+  );
+});
+
 test('record start does not fail when iOS simulator runner warm-up fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-warm-failure';
@@ -833,6 +895,81 @@ test('record start/stop overlays Android gestures by default on devices', async 
       telemetryPath: deriveRecordingTelemetryPath(path.resolve('./android.mp4')),
     },
   ]);
+});
+
+test('record stop keeps Android video when overlay export fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-overlay-warning';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android-warning.mp4'],
+    deps: makeRecordDeps({
+      runCmd: async (_cmd, args) => {
+        const command = args.join(' ');
+        if (
+          /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '4321\n', stderr: '', exitCode: 0 };
+        }
+        if (
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '1024\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    }),
+  });
+
+  const startedRecording = sessionStore.get(sessionName)?.recording;
+  startedRecording?.gestureEvents.push({ kind: 'tap', tMs: 120, x: 90, y: 180 });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+    deps: makeRecordDeps({
+      runCmd: async (_cmd, args) => {
+        const command = args.join(' ');
+        if (command === '-s emulator-5554 shell ps -o pid= -p 4321') {
+          return { stdout: '', stderr: '', exitCode: 1 };
+        }
+        if (
+          /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
+            command,
+          )
+        ) {
+          return { stdout: '2048\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      overlayRecordingTouches: async () => {
+        throw new Error('android overlay export failed');
+      },
+    }),
+  });
+
+  assert.equal(responseStop?.ok, true);
+  assert.equal(
+    responseStop?.data?.overlayWarning,
+    'failed to overlay recording touches: android overlay export failed',
+  );
 });
 
 test('record stop force-kills Android screenrecord when SIGINT fails but process is still running', async () => {

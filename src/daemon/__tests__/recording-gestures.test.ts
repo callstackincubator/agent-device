@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SessionState } from '../types.ts';
 import {
-  augmentTouchVisualizationResult,
+  augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
 } from '../recording-gestures.ts';
 import { attachRefs } from '../../utils/snapshot.ts';
@@ -44,7 +44,7 @@ function makeSession(): SessionState {
 
 test('scroll records a semantic scroll gesture for visualization telemetry', () => {
   const session = makeSession();
-  const result = augmentTouchVisualizationResult(session, 'scroll', ['down'], {
+  const result = augmentScrollVisualizationResult(session, 'scroll', ['down'], {
     direction: 'down',
   });
 
@@ -68,7 +68,7 @@ test('scroll records a semantic scroll gesture for visualization telemetry', () 
 
 test('scroll amount scales swipe travel for visualization', () => {
   const session = makeSession();
-  const result = augmentTouchVisualizationResult(session, 'scroll', ['right', '0.6'], {
+  const result = augmentScrollVisualizationResult(session, 'scroll', ['right', '0.6'], {
     direction: 'right',
     amount: 0.6,
   });
@@ -90,13 +90,31 @@ test('scroll augmentation falls back to normalized geometry without a snapshot',
   const session = makeSession();
   session.snapshot = undefined;
 
-  const augmented = augmentTouchVisualizationResult(session, 'scroll', ['down'], {
+  const augmented = augmentScrollVisualizationResult(session, 'scroll', ['down'], {
     direction: 'down',
   });
 
   assert.ok(augmented);
   assert.equal((augmented as Record<string, unknown>).referenceWidth, 1000);
   assert.equal((augmented as Record<string, unknown>).referenceHeight, 1000);
+});
+
+test('scroll augmentation preserves explicit reference frame from platform result', () => {
+  const session = makeSession();
+  session.snapshot = undefined;
+
+  const augmented = augmentScrollVisualizationResult(session, 'scroll', ['down', '0.45'], {
+    direction: 'down',
+    referenceWidth: 402,
+    referenceHeight: 874,
+  }) as Record<string, unknown>;
+
+  assert.equal(augmented.referenceWidth, 402);
+  assert.equal(augmented.referenceHeight, 874);
+  assert.equal(augmented.x1, 201);
+  assert.equal(augmented.y1, 634);
+  assert.equal(augmented.x2, 201);
+  assert.equal(augmented.y2, 240);
 });
 
 test('gesture recording prefers native runner timing when available', () => {
@@ -123,6 +141,24 @@ test('gesture recording prefers native runner timing when available', () => {
   const event = session.recording?.gestureEvents[0];
   assert.equal(event?.kind, 'tap');
   assert.equal(event?.tMs, 180);
+});
+
+test('ios tap visualization anchors near completion when command execution stalls', () => {
+  const session = makeSession();
+
+  recordTouchVisualizationEvent(
+    session,
+    'click',
+    [],
+    { x: 201, y: 319 },
+    {},
+    1_500,
+    3_700,
+  );
+
+  const event = session.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.tMs, 2_440);
 });
 
 test('swipe visualization prefers native gesture duration when available', () => {

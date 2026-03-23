@@ -144,6 +144,8 @@ function inspectTopLevelAtoms(filePath: string): string[] {
           atomSize = Number(extended.readBigUInt64BE(0));
         }
 
+        // A top-level MP4 atom size of 0 extends to EOF. We stop here because there is no
+        // next sibling atom to inspect, and advancing by 0 would loop forever.
         if (!Number.isFinite(atomSize) || atomSize <= 0) {
           break;
         }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { PNG } from 'pngjs';
 import { runCmdSync } from '../../src/utils/exec.ts';
 
 export type CliJsonResult = {
@@ -31,17 +32,44 @@ type LastSnapshotState = {
 type IntegrationTestContextOptions = {
   platform: IntegrationPlatform;
   testName: string;
+  extraEnv?: NodeJS.ProcessEnv;
 };
 
 type AssertResultOptions = {
   detail?: string;
 };
 
-export function runCliJson(args: string[]): CliJsonResult {
+export type RecordingInspectionManifest = {
+  generatedAt: string;
+  inputPath: string;
+  items: Array<{
+    index: number;
+    kind: string;
+    sourceTimeMs: number;
+    sampleTimeMs: number;
+    expectedX: number;
+    expectedY: number;
+    fullFramePath: string;
+    cropPath: string;
+  }>;
+};
+
+export type OverlayCropAnalysis = {
+  matchingPixelCount: number;
+  centroidX: number;
+  centroidY: number;
+  width: number;
+  height: number;
+};
+
+export function runCliJson(args: string[], options?: { env?: NodeJS.ProcessEnv }): CliJsonResult {
   const result = runCmdSync(
     process.execPath,
     ['--experimental-strip-types', 'src/bin.ts', ...args],
-    { allowFailure: true },
+    {
+      allowFailure: true,
+      env: options?.env,
+    },
   );
   let json: any;
   try {
@@ -74,13 +102,13 @@ export function formatResultDebug(step: string, args: string[], result: CliJsonR
 }
 
 export function createIntegrationTestContext(options: IntegrationTestContextOptions) {
-  const { platform, testName } = options;
+  const { platform, testName, extraEnv } = options;
   const stepHistory: StepRecord[] = [];
   let lastSnapshot: LastSnapshotState | null = null;
   let artifactDir: string | null = null;
 
   function runStep(step: string, args: string[], expectedStatus = 0): CliJsonResult {
-    const result = runCliJson(args);
+    const result = runCliJson(args, { env: extraEnv });
     const errorCode =
       typeof result.json?.error?.code === 'string' ? (result.json.error.code as string) : undefined;
     const errorMessage =
@@ -249,7 +277,80 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
   return {
     runStep,
     assertResult,
+    artifactDir: ensureArtifactDir,
   };
+}
+
+export function runRecordingInspect(params: {
+  videoPath: string;
+  telemetryPath: string;
+  outputDir: string;
+}): RecordingInspectionManifest {
+  mkdirSync(params.outputDir, { recursive: true });
+  const scriptPath = path.resolve(
+    'ios-runner/AgentDeviceRunner/RecordingScripts/recording-inspect.swift',
+  );
+  const result = runCmdSync(
+    'xcrun',
+    [
+      'swift',
+      scriptPath,
+      '--input',
+      params.videoPath,
+      '--events',
+      params.telemetryPath,
+      '--output-dir',
+      params.outputDir,
+    ],
+    { allowFailure: true },
+  );
+  assert.equal(result.exitCode, 0, result.stderr || result.stdout || 'recording inspect failed');
+  const manifestPath = path.join(params.outputDir, 'manifest.json');
+  return JSON.parse(readFileSync(manifestPath, 'utf8')) as RecordingInspectionManifest;
+}
+
+export function analyzeOverlayCrop(cropPath: string): OverlayCropAnalysis {
+  const png = PNG.sync.read(readFileSync(cropPath));
+  let matchingPixelCount = 0;
+  let sumX = 0;
+  let sumY = 0;
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const offset = (png.width * y + x) * 4;
+      const r = png.data[offset] ?? 0;
+      const g = png.data[offset + 1] ?? 0;
+      const b = png.data[offset + 2] ?? 0;
+      const a = png.data[offset + 3] ?? 0;
+      if (!isOverlayBlue(r, g, b, a)) continue;
+      matchingPixelCount += 1;
+      sumX += x;
+      sumY += y;
+    }
+  }
+
+  return {
+    matchingPixelCount,
+    centroidX: matchingPixelCount > 0 ? sumX / matchingPixelCount : png.width / 2,
+    centroidY: matchingPixelCount > 0 ? sumY / matchingPixelCount : png.height / 2,
+    width: png.width,
+    height: png.height,
+  };
+}
+
+function isOverlayBlue(r: number, g: number, b: number, a: number): boolean {
+  if (a <= 0) {
+    return false;
+  }
+  const maxChannel = Math.max(r, g, b);
+  const minChannel = Math.min(r, g, b);
+  return (
+    b >= 180 &&
+    g >= 160 &&
+    r <= 235 &&
+    b >= g &&
+    b - r >= 25 &&
+    maxChannel - minChannel >= 12
+  );
 }
 
 function sanitizeSegment(input: string): string {

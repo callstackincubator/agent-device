@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { getRecordingOverlaySupportWarning } from '../../platforms/ios/recording-overlay.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
@@ -7,6 +8,7 @@ import type { RecordTraceDeps } from './record-trace-recording.ts';
 
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
 const ANDROID_REMOTE_FILE_ATTEMPTS = 20;
+const ANDROID_REMOTE_FILE_STABLE_POLLS = 4;
 const ANDROID_LOCAL_VIDEO_ATTEMPTS = 2;
 const ANDROID_LOCAL_VIDEO_RETRY_DELAY_MS = 750;
 const ANDROID_PROCESS_EXIT_POLL_MS = 250;
@@ -81,7 +83,7 @@ async function waitForAndroidRemoteFileStability(
     const currentSize = statResult.exitCode === 0 ? statResult.stdout.trim() : '';
     if (currentSize.length > 0 && currentSize === previousSize) {
       stableCount += 1;
-      if (stableCount >= 2) {
+      if (stableCount >= ANDROID_REMOTE_FILE_STABLE_POLLS) {
         return;
       }
     } else {
@@ -318,11 +320,6 @@ export async function stopAndroidRecording(params: {
       remotePid: recording.remotePid,
     },
   });
-  let stopError: string | undefined;
-  let copyError: string | undefined;
-  let cleanupError: string | undefined;
-  let overlayError: string | undefined;
-
   const stopResult = await deps.runCmd(
     'adb',
     ['-s', device.id, 'shell', 'kill', '-2', recording.remotePid],
@@ -342,6 +339,7 @@ export async function stopAndroidRecording(params: {
       stderr: stopResult.stderr.trim(),
     },
   });
+  let stopError: string | undefined;
   if (stopResult.exitCode !== 0) {
     if (await isAndroidProcessRunning(deps, device.id, recording.remotePid)) {
       if (!(await forceStopAndroidProcess(deps, device.id, recording.remotePid))) {
@@ -353,55 +351,50 @@ export async function stopAndroidRecording(params: {
       stopError = `failed to stop recording: Android screenrecord pid ${recording.remotePid} did not exit`;
     }
   }
+  let cleanupError: string | undefined;
 
   if (!stopError) {
     await waitForAndroidRemoteFileStability(deps, device.id, recording.remotePath);
-    copyError = await copyAndroidRecordingWithValidation({
+    const copyError = await copyAndroidRecordingWithValidation({
       deps,
       deviceId: device.id,
       remotePath: recording.remotePath,
       outPath: recording.outPath,
     });
-    if (!copyError) {
-      persistRecordingTelemetry({
-        recording,
-        writeTelemetry: deps.writeRecordingTelemetry,
-      });
+    if (copyError) {
+      await cleanupRemoteRecording();
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: copyError,
+        },
+      };
     }
-    if (!copyError && recording.showTouches && recording.telemetryPath) {
-      try {
-        await deps.overlayRecordingTouches({
-          videoPath: recording.outPath,
-          telemetryPath: recording.telemetryPath,
-          targetLabel: 'Android recording',
-        });
-      } catch (error) {
-        overlayError = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
+
+    persistRecordingTelemetry({
+      recording,
+      writeTelemetry: deps.writeRecordingTelemetry,
+    });
+    if (recording.showTouches && recording.telemetryPath) {
+      const overlaySupportWarning = getRecordingOverlaySupportWarning();
+      if (overlaySupportWarning) {
+        recording.overlayWarning = overlaySupportWarning;
+      } else {
+        try {
+          await deps.overlayRecordingTouches({
+            videoPath: recording.outPath,
+            telemetryPath: recording.telemetryPath,
+            targetLabel: 'Android recording',
+          });
+        } catch (error) {
+          recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
+        }
       }
     }
   }
 
-  const rmResult = await deps.runCmd(
-    'adb',
-    ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath],
-    {
-      allowFailure: true,
-    },
-  );
-  emitDiagnostic({
-    level: 'debug',
-    phase: 'record_stop_android_cleanup',
-    data: {
-      deviceId: device.id,
-      remotePath: recording.remotePath,
-      exitCode: rmResult.exitCode,
-      stdout: rmResult.stdout.trim(),
-      stderr: rmResult.stderr.trim(),
-    },
-  });
-  if (rmResult.exitCode !== 0 && !stopError) {
-    cleanupError = `failed to clean up remote recording: ${formatRecordTraceExecFailure(rmResult, 'adb shell rm')}`;
-  }
+  await cleanupRemoteRecording();
 
   if (stopError) {
     return {
@@ -409,26 +402,6 @@ export async function stopAndroidRecording(params: {
       error: {
         code: 'COMMAND_FAILED',
         message: stopError,
-      },
-    };
-  }
-
-  if (copyError) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: copyError,
-      },
-    };
-  }
-
-  if (overlayError) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: overlayError,
       },
     };
   }
@@ -444,4 +417,28 @@ export async function stopAndroidRecording(params: {
   }
 
   return null;
+
+  async function cleanupRemoteRecording(): Promise<void> {
+    const rmResult = await deps.runCmd(
+      'adb',
+      ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath],
+      {
+        allowFailure: true,
+      },
+    );
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'record_stop_android_cleanup',
+      data: {
+        deviceId: device.id,
+        remotePath: recording.remotePath,
+        exitCode: rmResult.exitCode,
+        stdout: rmResult.stdout.trim(),
+        stderr: rmResult.stderr.trim(),
+      },
+    });
+    if (rmResult.exitCode !== 0 && !stopError) {
+      cleanupError = `failed to clean up remote recording: ${formatRecordTraceExecFailure(rmResult, 'adb shell rm')}`;
+    }
+  }
 }
