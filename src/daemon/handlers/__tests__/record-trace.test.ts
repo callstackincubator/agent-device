@@ -284,7 +284,7 @@ test('record stop derives telemetry artifact local path from client outPath', as
 
   const runnerCalls: RunnerCall[] = [];
   const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  const deps = makeIosDeviceRunnerDeps(runnerCalls, runCmdCalls);
+  const deps = makeRunnerRecordingDeps(runnerCalls, runCmdCalls);
   const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
 
   await runRecordCommand({

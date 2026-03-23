@@ -151,10 +151,14 @@ export type SessionState = {
         remotePid: string;
       })
     | (SessionRecordingBase & {
-        platform: 'ios-device-runner' | 'macos-runner';
-        remotePath?: string;
+        platform: 'ios-device-runner';
+        remotePath: string;
         runnerStartedAtUptimeMs?: number;
         targetAppReadyUptimeMs?: number;
+      })
+    | (SessionRecordingBase & {
+        platform: 'macos-runner';
+        remotePath?: string;
       });
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {

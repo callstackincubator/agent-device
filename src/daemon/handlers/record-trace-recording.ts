@@ -30,6 +30,8 @@ import { startAndroidRecording, stopAndroidRecording } from './record-trace-andr
 import {
   normalizeAppBundleId,
   startIosDeviceRecording,
+  startMacOsRecording,
+  stopMacOsRecording,
   stopIosDeviceRecording,
   warmIosSimulatorRunner,
 } from './record-trace-ios.ts';
@@ -180,6 +182,27 @@ async function startRecording(params: {
       recordingBase,
       appBundleId,
     });
+  } else if (device.platform === 'macos') {
+    const appBundleId = normalizeAppBundleId(activeSession);
+    if (!appBundleId) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'record on macOS requires an active app session; run open <app> first',
+        },
+      };
+    }
+    recording = await startMacOsRecording({
+      req,
+      activeSession,
+      device,
+      logPath,
+      deps,
+      fpsFlag,
+      recordingBase,
+      appBundleId,
+    });
   } else if (device.platform === 'ios') {
     await warmIosSimulatorRunner({
       req,
@@ -261,7 +284,7 @@ async function startRecording(params: {
 async function stopNonRunnerRecording(params: {
   deps: RecordTraceDeps;
   device: SessionState['device'];
-  recording: Exclude<NonNullable<SessionState['recording']>, { platform: 'ios-device-runner' }>;
+  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios' | 'android' }>;
 }): Promise<DaemonResponse | null> {
   const { deps, device, recording } = params;
   if (recording.platform === 'android') {
@@ -326,6 +349,8 @@ async function stopRecording(params: {
   const stopError =
     recording.platform === 'ios-device-runner'
       ? await stopIosDeviceRecording({ req, activeSession, device, logPath, deps, recording })
+      : recording.platform === 'macos-runner'
+        ? await stopMacOsRecording({ req, activeSession, device, logPath, deps, recording })
       : await stopNonRunnerRecording({ deps, device, recording });
   if (stopError) {
     return stopError;

@@ -259,6 +259,38 @@ extension RunnerTests {
         )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
+    case .mouseClick:
+      guard let x = command.x, let y = command.y else {
+        return Response(ok: false, error: ErrorPayload(message: "mouseClick requires x and y"))
+      }
+      let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
+      do {
+        var clickError: Error?
+        let timing = measureGesture {
+          do {
+            try mouseClickAt(app: activeApp, x: x, y: y, button: command.button ?? "primary")
+          } catch {
+            clickError = error
+          }
+        }
+        if let clickError {
+          throw clickError
+        }
+        return Response(
+          ok: true,
+          data: DataPayload(
+            message: "clicked",
+            gestureStartUptimeMs: timing.gestureStartUptimeMs,
+            gestureEndUptimeMs: timing.gestureEndUptimeMs,
+            x: touchFrame.x,
+            y: touchFrame.y,
+            referenceWidth: touchFrame.referenceWidth,
+            referenceHeight: touchFrame.referenceHeight
+          )
+        )
+      } catch {
+        return Response(ok: false, error: ErrorPayload(message: error.localizedDescription))
+      }
     case .tapSeries:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
@@ -454,7 +486,7 @@ extension RunnerTests {
         Thread.sleep(forTimeInterval: 0.5)
       }
       let screenshot = XCUIScreen.main.screenshot()
-      guard let pngData = screenshot.image.pngData() else {
+      guard let pngData = runnerPngData(for: screenshot.image) else {
         return Response(ok: false, error: ErrorPayload(message: "Failed to encode screenshot as PNG"))
       }
       let fileName = "screenshot-\(Int(Date().timeIntervalSince1970 * 1000)).png"
@@ -464,8 +496,12 @@ extension RunnerTests {
       } catch {
         return Response(ok: false, error: ErrorPayload(message: "Failed to write screenshot: \(error.localizedDescription)"))
       }
+#if os(macOS)
+      return Response(ok: true, data: DataPayload(message: filePath))
+#else
       // Return path relative to app container root (tmp/ maps to NSTemporaryDirectory)
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
+#endif
     case .back:
       if tapNavigationBack(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))

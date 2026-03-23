@@ -213,6 +213,45 @@ export async function startIosDeviceRecording(params: {
   };
 }
 
+export async function startMacOsRecording(params: {
+  req: DaemonRequest;
+  activeSession: SessionState;
+  device: SessionState['device'];
+  logPath?: string;
+  deps: RecordTraceDeps;
+  fpsFlag: number | undefined;
+  recordingBase: RecordingBase;
+  appBundleId: string;
+}): Promise<DaemonResponse | NonNullable<SessionState['recording']>> {
+  const { req, activeSession, device, logPath, deps, fpsFlag, recordingBase, appBundleId } = params;
+
+  try {
+    await deps.runIosRunnerCommand(
+      device,
+      {
+        command: 'recordStart',
+        outPath: recordingBase.outPath,
+        fps: fpsFlag,
+        appBundleId,
+      },
+      getRunnerOptions(req, logPath, activeSession),
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: `failed to start recording: ${formatRecordTraceError(error)}`,
+      },
+    };
+  }
+
+  return {
+    platform: 'macos-runner',
+    ...recordingBase,
+  };
+}
+
 export async function stopIosDeviceRecording(params: {
   req: DaemonRequest;
   activeSession: SessionState;
@@ -310,6 +349,62 @@ export async function stopIosDeviceRecording(params: {
           videoPath: recording.outPath,
           telemetryPath,
           targetLabel: 'iOS recording',
+        });
+      } catch (error) {
+        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+export async function stopMacOsRecording(params: {
+  req: DaemonRequest;
+  activeSession: SessionState;
+  device: SessionState['device'];
+  logPath?: string;
+  deps: RecordTraceDeps;
+  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'macos-runner' }>;
+}): Promise<DaemonResponse | null> {
+  const { req, activeSession, device, logPath, deps, recording } = params;
+  const appBundleId = normalizeAppBundleId(activeSession);
+
+  try {
+    await deps.runIosRunnerCommand(
+      device,
+      { command: 'recordStop', appBundleId },
+      getRunnerOptions(req, logPath, activeSession),
+    );
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'record_stop_runner_failed',
+      data: {
+        platform: device.platform,
+        kind: device.kind,
+        deviceId: device.id,
+        session: activeSession.name,
+        error: formatRecordTraceError(error),
+      },
+    });
+  }
+
+  const telemetryPath = persistRecordingTelemetry({
+    recording,
+    writeTelemetry: deps.writeRecordingTelemetry,
+  });
+
+  if (recording.showTouches) {
+    const overlaySupportWarning = getRecordingOverlaySupportWarning();
+    if (overlaySupportWarning) {
+      recording.overlayWarning = overlaySupportWarning;
+    } else {
+      try {
+        await deps.overlayRecordingTouches({
+          videoPath: recording.outPath,
+          telemetryPath,
+          targetLabel: 'macOS recording',
         });
       } catch (error) {
         recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;

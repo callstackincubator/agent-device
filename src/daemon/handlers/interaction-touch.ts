@@ -1,5 +1,10 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import {
+  buttonTag,
+  getClickButtonValidationError,
+  resolveClickButton,
+} from '../../core/click-button.ts';
 import { centerOfRect, findNodeByRef, type Rect, type SnapshotNode } from '../../utils/snapshot.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -79,7 +84,8 @@ export async function handleTouchInteractionCommands(params: {
   const readAndroidScreenSize = params.readAndroidScreenSize ?? getAndroidScreenSize;
   const command = req.command;
 
-  if (command === 'press') {
+  if (command === 'press' || command === 'click') {
+    const commandLabel = command === 'click' ? 'click' : 'press';
     const session = sessionStore.get(sessionName);
     if (!session) {
       return {
@@ -92,6 +98,30 @@ export async function handleTouchInteractionCommands(params: {
         ok: false,
         error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
       };
+    }
+    const clickButton = resolveClickButton(req.flags);
+    const resultButtonTag = buttonTag(clickButton);
+    if (clickButton !== 'primary') {
+      const validationError = getClickButtonValidationError({
+        commandLabel,
+        platform: session.device.platform,
+        button: clickButton,
+        count: req.flags?.count,
+        intervalMs: req.flags?.intervalMs,
+        holdMs: req.flags?.holdMs,
+        jitterPx: req.flags?.jitterPx,
+        doubleTap: req.flags?.doubleTap,
+      });
+      if (validationError) {
+        return {
+          ok: false,
+          error: {
+            code: validationError.code,
+            message: validationError.message,
+            details: validationError.details,
+          },
+        };
+      }
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
@@ -116,6 +146,7 @@ export async function handleTouchInteractionCommands(params: {
       const visualizationResult = {
         ...(interaction.data ?? { x: directCoordinates.x, y: directCoordinates.y }),
         ...(visualizationFrame ?? {}),
+        ...resultButtonTag,
       };
       return finalizeTouchInteraction({
         session,
@@ -142,7 +173,7 @@ export async function handleTouchInteractionCommands(params: {
         refInput,
         fallbackLabel,
         requireRect: true,
-        invalidRefMessage: `${command} requires a ref like @e2`,
+        invalidRefMessage: `${commandLabel} requires a ref like @e2`,
         notFoundMessage: `Ref ${refInput} not found or has no bounds`,
       });
       if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
@@ -208,6 +239,7 @@ export async function handleTouchInteractionCommands(params: {
           ref,
           refLabel,
           selectorChain,
+          ...resultButtonTag,
         },
       });
       return finalizeTouchInteraction({
@@ -229,7 +261,7 @@ export async function handleTouchInteractionCommands(params: {
         ok: false,
         error: {
           code: 'INVALID_ARGS',
-          message: `${command} requires @ref, selector expression, or x y coordinates`,
+          message: `${commandLabel} requires @ref, selector expression, or x y coordinates`,
         },
       };
     }
@@ -295,6 +327,7 @@ export async function handleTouchInteractionCommands(params: {
         selector: resolved.selector.raw,
         selectorChain,
         refLabel,
+        ...resultButtonTag,
       },
     });
     return finalizeTouchInteraction({
