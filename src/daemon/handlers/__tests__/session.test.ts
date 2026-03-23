@@ -34,6 +34,16 @@ function assertInvalidArgsMessage(response: DaemonResponse | null, message: stri
   }
 }
 
+async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promise<T>): Promise<T> {
+  const original = process.platform;
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+  try {
+    return await fn();
+  } finally {
+    Object.defineProperty(process, 'platform', { value: original, configurable: true });
+  }
+}
+
 test('devices filters Apple-family platform selectors', async () => {
   const sessionStore = makeSessionStore();
   const listAndroidDevices = async () => [
@@ -2392,31 +2402,33 @@ test('open on existing iOS session refreshes unavailable simulator by name', asy
   const selectors: Array<Record<string, unknown>> = [];
   let dispatchedDeviceId: string | undefined;
 
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: ['settings'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    dispatch: async (device) => {
-      dispatchedDeviceId = device.id;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async (flags) => {
-      selectors.push({ ...(flags ?? {}) });
-      if (flags.udid === 'stale-sim') {
-        throw new AppError('DEVICE_NOT_FOUND', 'No Apple device with UDID stale-sim');
-      }
-      return resolvedDevice;
-    },
-  });
+  const response = await withMockedPlatform('darwin', async () =>
+    handleSessionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'open',
+        positionals: ['settings'],
+        flags: {},
+      },
+      sessionName,
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+      dispatch: async (device) => {
+        dispatchedDeviceId = device.id;
+        return {};
+      },
+      ensureReady: async () => {},
+      resolveTargetDevice: async (flags) => {
+        selectors.push({ ...(flags ?? {}) });
+        if (flags.udid === 'stale-sim') {
+          throw new AppError('DEVICE_NOT_FOUND', 'No Apple device with UDID stale-sim');
+        }
+        return resolvedDevice;
+      },
+    }),
+  );
 
   assert.ok(response);
   assert.equal(response?.ok, true);
