@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { getSecondaryClickValidationError } from '../../core/secondary-click.ts';
 import { buildSelectorChainForNode } from '../selectors.ts';
 import { findNodeByLabel, resolveRefLabel } from '../snapshot-processing.ts';
 import { findNodeByRef } from '../../utils/snapshot.ts';
@@ -33,36 +34,22 @@ export async function handlePressCommand(
   }
   const secondaryClick = req.flags?.secondaryClick === true;
   if (secondaryClick) {
-    if (commandLabel !== 'click') {
+    const validationError = getSecondaryClickValidationError({
+      commandLabel,
+      platform: session.device.platform,
+      count: req.flags?.count,
+      intervalMs: req.flags?.intervalMs,
+      holdMs: req.flags?.holdMs,
+      jitterPx: req.flags?.jitterPx,
+      doubleTap: req.flags?.doubleTap,
+    });
+    if (validationError) {
       return {
         ok: false,
         error: {
-          code: 'INVALID_ARGS',
-          message: '--secondary is supported only for click',
-        },
-      };
-    }
-    if (session.device.platform !== 'macos') {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'click --secondary is supported only on macOS',
-        },
-      };
-    }
-    if (
-      typeof req.flags?.count === 'number' ||
-      typeof req.flags?.intervalMs === 'number' ||
-      typeof req.flags?.holdMs === 'number' ||
-      typeof req.flags?.jitterPx === 'number' ||
-      req.flags?.doubleTap === true
-    ) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'click --secondary does not support repeat or gesture modifier flags',
+          code: validationError.code,
+          message: validationError.message,
+          details: validationError.details,
         },
       };
     }

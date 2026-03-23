@@ -58,6 +58,8 @@ function contextFromFlags(
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
+  // Keep this hook for future daemon-level aliases. click is intentionally preserved
+  // as-is so handlers can distinguish it from press-only behavior such as --secondary.
   return req;
 }
 

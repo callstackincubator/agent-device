@@ -332,6 +332,8 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
 });
 
 test('ensureXctestrun rebuilds after cached macOS runner repair failure', async (t) => {
+  // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
+  // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
   const projectRoot = path.join(tmpDir, 'project');
   const derivedPath = path.join(tmpDir, 'derived');
@@ -375,7 +377,9 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
       repairRunnerProductsIfNeeded: async (_device, xctestrunPath) => {
         repairedPaths.push(xctestrunPath);
         if (xctestrunPath === existingXctestrunPath) {
-          throw new AppError('COMMAND_FAILED', 'cached runner is damaged');
+          throw new AppError('COMMAND_FAILED', 'cached runner is damaged', {
+            reason: 'RUNNER_PRODUCT_REPAIR_FAILED',
+          });
         }
       },
       assertSafeDerivedCleanup: (targetPath) => {
@@ -399,6 +403,60 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   assert.equal(cleanCalls, 1);
   assert.equal(buildCalls, 1);
   assert.deepEqual(repairedPaths, [existingXctestrunPath, rebuiltXctestrunPath]);
+});
+
+test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async (t) => {
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+  const projectRoot = path.join(tmpDir, 'project');
+  const derivedPath = path.join(tmpDir, 'derived');
+  const projectPath = path.join(
+    projectRoot,
+    'ios-runner',
+    'AgentDeviceRunner',
+    'AgentDeviceRunner.xcodeproj',
+  );
+  await fs.promises.mkdir(path.dirname(projectPath), { recursive: true });
+  fs.writeFileSync(projectPath, '', 'utf8');
+
+  const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
+  await fs.promises.mkdir(derivedPath, { recursive: true });
+  fs.writeFileSync(existingXctestrunPath, 'existing', 'utf8');
+
+  const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+  process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
+  t.after(() => {
+    if (previousDerivedPath === undefined) {
+      delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+      return;
+    }
+    process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
+  });
+
+  await assert.rejects(
+    ensureXctestrun(
+      macOsDevice,
+      {},
+      {
+        findProjectRoot: () => projectRoot,
+        findXctestrun: () => existingXctestrunPath,
+        xctestrunReferencesProjectRoot: () => true,
+        xctestrunReferencesExistingProducts: () => true,
+        repairRunnerProductsIfNeeded: async () => {
+          throw new Error('permission denied');
+        },
+        assertSafeDerivedCleanup: () => {
+          throw new Error('should not clean derived data for unexpected repair errors');
+        },
+        cleanRunnerDerivedArtifacts: () => {
+          throw new Error('should not rebuild for unexpected repair errors');
+        },
+        buildRunnerXctestrun: async () => {
+          throw new Error('should not rebuild for unexpected repair errors');
+        },
+      },
+    ),
+    /permission denied/,
+  );
 });
 
 test('shouldDeleteRunnerDerivedRootEntry only removes known xcode transient entries', () => {

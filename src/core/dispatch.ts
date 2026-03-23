@@ -12,6 +12,7 @@ import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
 import { isDeepLinkTarget } from './open-target.ts';
+import { getSecondaryClickValidationError } from './secondary-click.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
@@ -143,23 +144,17 @@ export async function dispatchCommand(
           if (Number.isNaN(x) || Number.isNaN(y))
             throw new AppError('INVALID_ARGS', 'press requires x y');
           if (context?.secondaryClick === true) {
-            if (device.platform !== 'macos') {
-              throw new AppError(
-                'UNSUPPORTED_OPERATION',
-                'click --secondary is supported only on macOS',
-              );
-            }
-            if (
-              typeof context.count === 'number' ||
-              typeof context.intervalMs === 'number' ||
-              typeof context.holdMs === 'number' ||
-              typeof context.jitterPx === 'number' ||
-              context.doubleTap === true
-            ) {
-              throw new AppError(
-                'INVALID_ARGS',
-                'click --secondary does not support repeat or gesture modifier flags',
-              );
+            const validationError = getSecondaryClickValidationError({
+              commandLabel: 'click',
+              platform: device.platform,
+              count: context.count,
+              intervalMs: context.intervalMs,
+              holdMs: context.holdMs,
+              jitterPx: context.jitterPx,
+              doubleTap: context.doubleTap,
+            });
+            if (validationError) {
+              throw validationError;
             }
             await runIosRunnerCommand(
               device,

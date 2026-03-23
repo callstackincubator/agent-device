@@ -107,7 +107,10 @@ export async function ensureXctestrun(
       try {
         await deps.repairRunnerProductsIfNeeded(device, existing);
         return existing;
-      } catch {
+      } catch (error) {
+        if (!isExpectedRunnerRepairFailure(error)) {
+          throw error;
+        }
         // Fall through and rebuild from a clean derived state.
       }
     }
@@ -243,6 +246,11 @@ type XctestrunResolvedProductPaths = {
   hostProductPaths: string[];
 };
 
+const RUNNER_PRODUCT_REPAIR_FAILURE_REASONS = new Set([
+  'RUNNER_PRODUCT_MISSING',
+  'RUNNER_PRODUCT_REPAIR_FAILED',
+]);
+
 function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | null {
   try {
     const result = runCmdSync('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
@@ -373,6 +381,8 @@ function resolveXctestrunProductRefs(xctestrunPath: string): XctestrunProductRef
     return resolveXctestrunProductRefsFromJson(parsed);
   }
   try {
+    // Best-effort XML fallback for environments where plutil JSON conversion fails.
+    // Prefer the JSON path above; these regex extractors are intentionally narrow.
     return resolveXctestrunProductRefsFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
   } catch {
     return null;
@@ -404,6 +414,7 @@ function findProjectRoot(): string {
 }
 
 function extractPlistArrayStringValues(contents: string, key: string): string[] {
+  // Best-effort XML extraction only. Prefer readXctestrunJson() for structured parsing.
   const blockPattern = new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`, 'g');
   const stringPattern = /<string>([\s\S]*?)<\/string>/g;
   const values = new Set<string>();
@@ -422,11 +433,11 @@ function extractPlistArrayStringValues(contents: string, key: string): string[] 
 }
 
 function extractAppBundleRoot(relativePath: string): string | null {
-  const appIndex = relativePath.indexOf('.app');
-  if (appIndex === -1) {
+  const match = /\.app(?:\/|$)/.exec(relativePath);
+  if (!match || match.index === undefined) {
     return null;
   }
-  return relativePath.slice(0, appIndex + '.app'.length);
+  return relativePath.slice(0, match.index + '.app'.length);
 }
 
 export async function prepareXctestrunWithEnv(
@@ -636,6 +647,7 @@ async function repairMacOsRunnerProductsIfNeeded(
   const resolvedProductPaths = resolveXctestrunProductPaths(xctestrunPath);
   if (!resolvedProductPaths) {
     throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
+      reason: 'RUNNER_PRODUCT_MISSING',
       xctestrunPath,
     });
   }
@@ -645,6 +657,7 @@ async function repairMacOsRunnerProductsIfNeeded(
   for (const productPath of productPaths) {
     if (!fs.existsSync(productPath)) {
       throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
+        reason: 'RUNNER_PRODUCT_MISSING',
         productPath,
         xctestrunPath,
       });
@@ -652,9 +665,42 @@ async function repairMacOsRunnerProductsIfNeeded(
   }
 
   for (const productPath of productPaths) {
+    if (hasValidCodeSignature(productPath)) {
+      continue;
+    }
     await runCmd('codesign', ['--remove-signature', productPath], { allowFailure: true });
-    await runCmd('codesign', ['--force', '--sign', '-', productPath]);
+    try {
+      await runCmd('codesign', ['--force', '--sign', '-', productPath]);
+    } catch (error) {
+      const appError =
+        error instanceof AppError ? error : new AppError('COMMAND_FAILED', String(error));
+      throw new AppError('COMMAND_FAILED', 'Failed to repair macOS runner product signature', {
+        reason: 'RUNNER_PRODUCT_REPAIR_FAILED',
+        productPath,
+        xctestrunPath,
+        error: appError.message,
+        details: appError.details,
+      });
+    }
   }
+}
+
+function hasValidCodeSignature(productPath: string): boolean {
+  const result = runCmdSync('codesign', ['--verify', '--deep', '--strict', productPath], {
+    allowFailure: true,
+  });
+  return result.exitCode === 0;
+}
+
+function isExpectedRunnerRepairFailure(error: unknown): boolean {
+  if (!(error instanceof AppError)) {
+    return false;
+  }
+  const reason =
+    error.details && typeof error.details === 'object'
+      ? (error.details as Record<string, unknown>).reason
+      : undefined;
+  return typeof reason === 'string' && RUNNER_PRODUCT_REPAIR_FAILURE_REASONS.has(reason);
 }
 
 function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
