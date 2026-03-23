@@ -373,8 +373,8 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
       findProjectRoot: () => projectRoot,
       findXctestrun: () => currentXctestrunPath,
       xctestrunReferencesProjectRoot: () => true,
-      xctestrunReferencesExistingProducts: () => true,
-      repairRunnerProductsIfNeeded: async (_device, xctestrunPath) => {
+      resolveExistingXctestrunProductPaths: () => ['/tmp/runner.app'],
+      repairRunnerProductsIfNeeded: async (_device, _productPaths, xctestrunPath) => {
         repairedPaths.push(xctestrunPath);
         if (xctestrunPath === existingXctestrunPath) {
           throw new AppError('COMMAND_FAILED', 'cached runner is damaged', {
@@ -440,7 +440,7 @@ test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', as
         findProjectRoot: () => projectRoot,
         findXctestrun: () => existingXctestrunPath,
         xctestrunReferencesProjectRoot: () => true,
-        xctestrunReferencesExistingProducts: () => true,
+        resolveExistingXctestrunProductPaths: () => ['/tmp/runner.app'],
         repairRunnerProductsIfNeeded: async () => {
           throw new Error('permission denied');
         },

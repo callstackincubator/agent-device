@@ -33,6 +33,7 @@ export async function handlePressCommand(
     };
   }
   const secondaryClick = req.flags?.secondaryClick === true;
+  const buttonTag = secondaryClick ? ({ button: 'secondary' } as const) : {};
   if (secondaryClick) {
     const validationError = getSecondaryClickValidationError({
       commandLabel,
@@ -72,7 +73,7 @@ export async function handlePressCommand(
       result: data ?? {
         x: directCoordinates.x,
         y: directCoordinates.y,
-        ...(secondaryClick ? { button: 'secondary' } : {}),
+        ...buttonTag,
       },
     });
     return {
@@ -82,7 +83,7 @@ export async function handlePressCommand(
         ({
           x: directCoordinates.x,
           y: directCoordinates.y,
-          ...(secondaryClick ? { button: 'secondary' } : {}),
+          ...buttonTag,
         } as Record<string, unknown>),
     };
   }
@@ -159,12 +160,12 @@ export async function handlePressCommand(
         y,
         refLabel,
         selectorChain,
-        ...(secondaryClick ? { button: 'secondary' } : {}),
+        ...buttonTag,
       },
     });
     return {
       ok: true,
-      data: { ...(data ?? {}), ref, x, y, ...(secondaryClick ? { button: 'secondary' } : {}) },
+      data: { ...(data ?? {}), ref, x, y, ...buttonTag },
     };
   }
 
@@ -221,7 +222,7 @@ export async function handlePressCommand(
       selector: resolved.selector.raw,
       selectorChain,
       refLabel,
-      ...(secondaryClick ? { button: 'secondary' } : {}),
+      ...buttonTag,
     },
   });
   return {
@@ -231,7 +232,7 @@ export async function handlePressCommand(
       selector: resolved.selector.raw,
       x,
       y,
-      ...(secondaryClick ? { button: 'secondary' } : {}),
+      ...buttonTag,
     },
   };
 }

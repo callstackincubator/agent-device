@@ -63,8 +63,12 @@ type EnsureXctestrunDeps = {
   findProjectRoot: () => string;
   findXctestrun: (root: string) => string | null;
   xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
-  xctestrunReferencesExistingProducts: (xctestrunPath: string) => boolean;
-  repairRunnerProductsIfNeeded: (device: DeviceInfo, xctestrunPath: string) => Promise<void>;
+  resolveExistingXctestrunProductPaths: (xctestrunPath: string) => string[] | null;
+  repairRunnerProductsIfNeeded: (
+    device: DeviceInfo,
+    productPaths: string[],
+    xctestrunPath: string,
+  ) => Promise<void>;
   assertSafeDerivedCleanup: (derivedPath: string) => void;
   cleanRunnerDerivedArtifacts: (derivedPath: string) => void;
   buildRunnerXctestrun: (
@@ -79,7 +83,7 @@ const defaultEnsureXctestrunDeps: EnsureXctestrunDeps = {
   findProjectRoot,
   findXctestrun,
   xctestrunReferencesProjectRoot,
-  xctestrunReferencesExistingProducts,
+  resolveExistingXctestrunProductPaths,
   repairRunnerProductsIfNeeded: repairMacOsRunnerProductsIfNeeded,
   assertSafeDerivedCleanup,
   cleanRunnerDerivedArtifacts,
@@ -99,13 +103,16 @@ export async function ensureXctestrun(
       deps.cleanRunnerDerivedArtifacts(derived);
     }
     const existing = deps.findXctestrun(derived);
+    const existingProductPaths = existing
+      ? deps.resolveExistingXctestrunProductPaths(existing)
+      : null;
     const canReuseExisting =
       existing &&
       deps.xctestrunReferencesProjectRoot(existing, projectRoot) &&
-      deps.xctestrunReferencesExistingProducts(existing);
+      existingProductPaths !== null;
     if (canReuseExisting) {
       try {
-        await deps.repairRunnerProductsIfNeeded(device, existing);
+        await deps.repairRunnerProductsIfNeeded(device, existingProductPaths, existing);
         return existing;
       } catch (error) {
         if (!isExpectedRunnerRepairFailure(error)) {
@@ -135,12 +142,13 @@ export async function ensureXctestrun(
     if (!built) {
       throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
     }
-    if (!deps.xctestrunReferencesExistingProducts(built)) {
+    const builtProductPaths = deps.resolveExistingXctestrunProductPaths(built);
+    if (!builtProductPaths) {
       throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
         xctestrunPath: built,
       });
     }
-    await deps.repairRunnerProductsIfNeeded(device, built);
+    await deps.repairRunnerProductsIfNeeded(device, builtProductPaths, built);
     return built;
   });
 }
@@ -230,21 +238,11 @@ export function xctestrunReferencesProjectRoot(
 
 export function xctestrunReferencesExistingProducts(xctestrunPath: string): boolean {
   try {
-    return resolveXctestrunProductPaths(xctestrunPath) !== null;
+    return resolveExistingXctestrunProductPaths(xctestrunPath) !== null;
   } catch {
     return false;
   }
 }
-
-type XctestrunProductRefs = {
-  testRootPaths: string[];
-  testHostPaths: string[];
-};
-
-type XctestrunResolvedProductPaths = {
-  rootProductPaths: string[];
-  hostProductPaths: string[];
-};
 
 const RUNNER_PRODUCT_REPAIR_FAILURE_REASONS = new Set([
   'RUNNER_PRODUCT_MISSING',
@@ -265,11 +263,9 @@ function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | nul
   }
 }
 
-function resolveXctestrunProductRefsFromJson(
-  parsed: Record<string, unknown>,
-): XctestrunProductRefs {
-  const testRootPaths: string[] = [];
-  const testHostPaths: string[] = [];
+function collectXctestrunProductReferenceValuesFromTarget(
+  target: Record<string, unknown>,
+): string[] {
   const productPathKeys = new Set([
     'ProductPaths',
     'DependentProductPaths',
@@ -277,113 +273,132 @@ function resolveXctestrunProductRefsFromJson(
     'TestBundlePath',
     'UITargetAppPath',
   ]);
-
-  const visit = (value: unknown, key?: string) => {
+  const values = new Set<string>();
+  for (const [key, value] of Object.entries(target)) {
+    if (!productPathKeys.has(key)) {
+      continue;
+    }
     if (typeof value === 'string') {
-      if (!key || !productPathKeys.has(key)) {
-        return;
+      values.add(value);
+      continue;
+    }
+    if (!Array.isArray(value)) {
+      continue;
+    }
+    for (const item of value) {
+      if (typeof item === 'string') {
+        values.add(item);
       }
-      if (value.startsWith('__TESTROOT__/')) {
-        testRootPaths.push(value.slice('__TESTROOT__/'.length));
-      } else if (value.startsWith('__TESTHOST__/')) {
-        testHostPaths.push(value.slice('__TESTHOST__/'.length));
-      }
-      return;
     }
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        visit(item, key);
-      }
-      return;
-    }
-    if (!value || typeof value !== 'object') {
-      return;
-    }
-    for (const [childKey, childValue] of Object.entries(value)) {
-      visit(childValue, childKey);
-    }
-  };
-
-  visit(parsed);
-  return {
-    testRootPaths: Array.from(new Set(testRootPaths)),
-    testHostPaths: Array.from(new Set(testHostPaths)),
-  };
+  }
+  return Array.from(values);
 }
 
-function resolveXctestrunProductRefsFromXml(contents: string): XctestrunProductRefs {
+function resolveXctestrunProductReferencesFromJson(parsed: Record<string, unknown>): string[] {
+  const values = new Set<string>();
+  const addTargetValues = (target: unknown) => {
+    if (!target || typeof target !== 'object') {
+      return;
+    }
+    for (const value of collectXctestrunProductReferenceValuesFromTarget(
+      target as Record<string, unknown>,
+    )) {
+      values.add(value);
+    }
+  };
+
+  addTargetValues(parsed);
+
+  const testConfigurations = parsed.TestConfigurations;
+  if (Array.isArray(testConfigurations)) {
+    for (const config of testConfigurations) {
+      if (!config || typeof config !== 'object') {
+        continue;
+      }
+      const testTargets = (config as Record<string, unknown>).TestTargets;
+      if (!Array.isArray(testTargets)) {
+        continue;
+      }
+      for (const target of testTargets) {
+        addTargetValues(target);
+      }
+    }
+  }
+
+  for (const value of Object.values(parsed)) {
+    if (!value || typeof value !== 'object' || !('TestBundlePath' in value)) {
+      continue;
+    }
+    addTargetValues(value);
+  }
+
+  return Array.from(values);
+}
+
+function resolveXctestrunProductReferencesFromXml(contents: string): string[] {
   const arrayPathKeys = ['ProductPaths', 'DependentProductPaths'];
   const stringPathKeys = ['TestHostPath', 'TestBundlePath', 'UITargetAppPath'];
-  const values = [
-    ...arrayPathKeys.flatMap((key) => extractPlistArrayStringValues(contents, key)),
-    ...stringPathKeys.flatMap((key) => extractPlistStringValues(contents, key)),
-  ];
-  return {
-    testRootPaths: Array.from(
-      new Set(
-        values
-          .filter((value) => value.startsWith('__TESTROOT__/'))
-          .map((value) => value.slice('__TESTROOT__/'.length)),
-      ),
-    ),
-    testHostPaths: Array.from(
-      new Set(
-        values
-          .filter((value) => value.startsWith('__TESTHOST__/'))
-          .map((value) => value.slice('__TESTHOST__/'.length)),
-      ),
-    ),
-  };
+  return Array.from(
+    new Set([
+      ...arrayPathKeys.flatMap((key) => extractPlistArrayStringValues(contents, key)),
+      ...stringPathKeys.flatMap((key) => extractPlistStringValues(contents, key)),
+    ]),
+  );
 }
 
-function resolveXctestrunProductPaths(xctestrunPath: string): XctestrunResolvedProductPaths | null {
-  const refs = resolveXctestrunProductRefs(xctestrunPath);
-  if (!refs || (refs.testRootPaths.length === 0 && refs.testHostPaths.length === 0)) {
+function resolveExistingXctestrunProductPaths(xctestrunPath: string): string[] | null {
+  const values = resolveXctestrunProductReferences(xctestrunPath);
+  if (!values || values.length === 0) {
     return null;
   }
   const testRoot = path.dirname(xctestrunPath);
-  const rootProductPaths = refs.testRootPaths.map((relativePath) =>
-    path.join(testRoot, relativePath),
-  );
-  for (const productPath of rootProductPaths) {
-    if (!fs.existsSync(productPath)) {
-      return null;
+  const resolvedPaths = new Set<string>();
+  const hostRoots = new Set<string>();
+  const hostRelativePaths: string[] = [];
+
+  for (const value of values) {
+    if (value.startsWith('__TESTROOT__/')) {
+      const relativePath = value.slice('__TESTROOT__/'.length);
+      const resolvedPath = path.join(testRoot, relativePath);
+      if (!fs.existsSync(resolvedPath)) {
+        return null;
+      }
+      resolvedPaths.add(resolvedPath);
+      const appBundleRoot = extractAppBundleRoot(relativePath);
+      if (appBundleRoot) {
+        hostRoots.add(path.join(testRoot, appBundleRoot));
+      }
+      continue;
+    }
+    if (value.startsWith('__TESTHOST__/')) {
+      hostRelativePaths.push(value.slice('__TESTHOST__/'.length));
     }
   }
 
-  const testHostRoots = Array.from(
-    new Set(
-      refs.testRootPaths
-        .map(extractAppBundleRoot)
-        .filter((relativePath): relativePath is string => relativePath !== null),
-    ),
-  );
-  const hostProductPaths: string[] = [];
-  for (const relativePath of refs.testHostPaths) {
-    const resolvedHostPath = testHostRoots
-      .map((hostRoot) => path.join(testRoot, hostRoot, relativePath))
-      .find((candidatePath) => fs.existsSync(candidatePath));
+  for (const relativePath of hostRelativePaths) {
+    const resolvedHostPath = Array.from(hostRoots).find((hostRoot) =>
+      fs.existsSync(path.join(hostRoot, relativePath)),
+    );
     if (!resolvedHostPath) {
       return null;
     }
-    hostProductPaths.push(resolvedHostPath);
+    resolvedPaths.add(path.join(resolvedHostPath, relativePath));
   }
 
-  return {
-    rootProductPaths: Array.from(new Set(rootProductPaths)),
-    hostProductPaths: Array.from(new Set(hostProductPaths)),
-  };
+  return Array.from(resolvedPaths);
 }
 
-function resolveXctestrunProductRefs(xctestrunPath: string): XctestrunProductRefs | null {
+function resolveXctestrunProductReferences(xctestrunPath: string): string[] | null {
   const parsed = readXctestrunJson(xctestrunPath);
   if (parsed) {
-    return resolveXctestrunProductRefsFromJson(parsed);
+    return resolveXctestrunProductReferencesFromJson(parsed);
+  }
+  if (process.platform === 'darwin') {
+    return null;
   }
   try {
-    // Best-effort XML fallback for environments where plutil JSON conversion fails.
-    // Prefer the JSON path above; these regex extractors are intentionally narrow.
-    return resolveXctestrunProductRefsFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
+    // Keep a simple XML fallback only for non-macOS test environments where plutil is absent.
+    return resolveXctestrunProductReferencesFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
   } catch {
     return null;
   }
@@ -639,22 +654,22 @@ function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS'
 
 async function repairMacOsRunnerProductsIfNeeded(
   device: DeviceInfo,
+  productPaths: string[],
   xctestrunPath: string,
 ): Promise<void> {
   if (device.platform !== 'macos') {
     return;
   }
-  const resolvedProductPaths = resolveXctestrunProductPaths(xctestrunPath);
-  if (!resolvedProductPaths) {
+  if (productPaths.length === 0) {
     throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
       reason: 'RUNNER_PRODUCT_MISSING',
       xctestrunPath,
     });
   }
-  const productPaths = Array.from(
-    new Set([...resolvedProductPaths.rootProductPaths, ...resolvedProductPaths.hostProductPaths]),
-  ).sort((left, right) => right.length - left.length);
-  for (const productPath of productPaths) {
+  const sortedProductPaths = Array.from(new Set(productPaths)).sort(
+    (left, right) => right.length - left.length,
+  );
+  for (const productPath of sortedProductPaths) {
     if (!fs.existsSync(productPath)) {
       throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
         reason: 'RUNNER_PRODUCT_MISSING',
@@ -664,7 +679,7 @@ async function repairMacOsRunnerProductsIfNeeded(
     }
   }
 
-  for (const productPath of productPaths) {
+  for (const productPath of sortedProductPaths) {
     if (hasValidCodeSignature(productPath)) {
       continue;
     }
