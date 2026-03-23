@@ -305,8 +305,8 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
-- `--platform apple` is an alias for the iOS/tvOS backend.
-- Use `--target mobile|tv` with `--platform` (required) to select phone/tablet vs TV-class devices (`AndroidTV`, `tvOS`).
+- `--platform apple` is an alias for the Apple automation backend (`ios`, `tvOS`, `macOS` selection).
+- Use `--target mobile|tv|desktop` with `--platform` (required) to select phone/tablet vs TV-class vs desktop-class targets.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - Android: `boot --platform android --device <avd-name>` launches that emulator in GUI mode when needed.
 - Android: add `--headless` to launch without opening a GUI window.
@@ -363,7 +363,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 ```
 
 - `devices` lists available targets after applying any platform selector or isolation scope flags.
-- Use `--platform` to narrow discovery to iOS/tvOS or Android targets.
+- Use `--platform` to narrow discovery to Apple-family (`ios`, `tvOS`, `macOS`) or Android targets.
 - Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
 
 ## Simulator provisioning
@@ -396,6 +396,21 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 - tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
 - tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
+
+## Desktop targets
+
+```bash
+agent-device devices --platform macos
+agent-device open TextEdit --platform macos
+agent-device snapshot -i --platform apple --target desktop
+```
+
+- `--platform macos` selects the host Mac as a `desktop` target.
+- `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
+- macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, and only `settings appearance light|dark|toggle`.
+- Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, `push`, `logs`, and `network`.
 
 ## Snapshot and inspect
 
@@ -437,6 +452,7 @@ agent-device alert dismiss
 
 ```bash
 agent-device click @e1
+agent-device click @e1 --button secondary   # macOS secondary click / context menu
 agent-device focus @e2
 agent-device fill @e2 "text"          # Clear then type
 agent-device type "text"              # Type into focused field without clearing
@@ -456,6 +472,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 `fill` clears then types. `type` does not clear.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 Some Android images cannot enter non-ASCII text over shell input; in that case use a trusted ADB keyboard IME and verify APK checksum/signature before install.
+`click --button secondary` is the desktop context-menu flow on macOS.
+`click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run `snapshot` again before follow-up `@ref` commands.
@@ -583,10 +601,12 @@ agent-device trigger-app-event screenshot_taken '{"source":"qa"}'
 
 - `trigger-app-event <event> [payloadJson]` dispatches app-defined events via deep link.
 - `trigger-app-event` requires either an active session or explicit device selectors (`--platform`, `--device`, `--udid`, `--serial`).
+- On macOS, use `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE` to override the desktop deep-link template.
 - On iOS physical devices, custom-scheme deep links require active app context (open app first in the session).
 - Configure one of:
   - `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`
+  - `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE`
   - `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`
 - Template placeholders: `{event}`, `{payload}`, `{platform}`.
 - Example template: `myapp://agent-device/event?name={event}&payload={payload}`.
@@ -621,8 +641,8 @@ agent-device settings permission grant photos limited
 agent-device settings permission reset notifications
 ```
 
-- iOS `settings` support is simulator-only.
-- `settings appearance` maps to iOS simulator appearance and Android night mode.
+- iOS `settings` support is simulator-only except for `settings appearance` on macOS.
+- `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
   On physical Android devices, only `cmd fingerprint` is attempted.
@@ -658,7 +678,7 @@ agent-device clipboard write ""   # clear clipboard
 - `clipboard read` returns clipboard text for the selected target.
 - `clipboard write <text>` updates clipboard text on the selected target.
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
-- Supported on Android emulator/device and iOS simulator.
+- Supported on macOS, Android emulator/device, and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
 ## Keyboard (Android)
@@ -700,6 +720,10 @@ agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
 agent-device record stop                # Stop active recording
 ```
+
+- Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
+- Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
+- On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
 
 **Session app logs (token-efficient debugging):** Logging is off by default in normal flows. Enable it on demand for debugging. Logs are written to a file so agents can grep instead of loading full output into context.
 
