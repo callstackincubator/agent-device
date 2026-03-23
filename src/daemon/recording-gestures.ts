@@ -185,9 +185,9 @@ function buildPressEvents(
   tMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  const x = readNumber(result.x) ?? readNumber(positionals[0]);
-  const y = readNumber(result.y) ?? readNumber(positionals[1]);
-  if (x === undefined || y === undefined) return [];
+  const coordinates = readCoordinates(result, positionals);
+  if (!coordinates) return [];
+  const { x, y } = coordinates;
 
   const count = clampInt(readNumber(result.count), 1) ?? 1;
   const intervalMs = clampInt(readNumber(result.intervalMs), 0) ?? 0;

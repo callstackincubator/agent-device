@@ -23,9 +23,9 @@ import {
   getRecordingOverlaySupportWarning,
   overlayRecordingTouches,
   trimRecordingStart,
-} from '../../platforms/ios/recording-overlay.ts';
+} from '../../recording/overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
-import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 import {
   normalizeAppBundleId,
@@ -298,7 +298,7 @@ async function stopNonRunnerRecording(params: {
           targetLabel: 'iOS recording',
         });
       } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatOverlayError(error)}`;
+        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
       }
     }
   }
@@ -384,13 +384,6 @@ function deriveClientTelemetryPath(
     return undefined;
   }
   return deriveRecordingTelemetryPath(recording.clientOutPath);
-}
-
-function formatOverlayError(error: unknown): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-  return String(error);
 }
 
 export async function handleRecordCommand(params: {

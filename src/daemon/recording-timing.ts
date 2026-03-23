@@ -68,6 +68,9 @@ export function resolveTapVisualizationOffsetMs(source: TapVisualizationOffsetSo
     return resolveGestureOffsetMs(source);
   }
 
+  // Long tap-like commands can spend most of their wall-clock time in selector resolution or
+  // XCTest idle waiting. In that case, show the overlay shortly before completion instead of
+  // anchoring it to the full command runtime.
   const leadMs = Math.min(Math.max(durationMs * 0.15, 120), 260);
   return Math.max(0, source.fallbackFinishedAtMs - leadMs - source.recordingStartedAt);
 }

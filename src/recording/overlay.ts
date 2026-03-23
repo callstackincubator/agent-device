@@ -2,19 +2,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCmd } from '../../utils/exec.ts';
-import { AppError } from '../../utils/errors.ts';
-import { waitForPlayableVideo, waitForStableFile } from '../../utils/video.ts';
+import { runCmd } from '../utils/exec.ts';
+import { AppError } from '../utils/errors.ts';
+import { waitForPlayableVideo, waitForStableFile } from '../utils/video.ts';
 
 function resolveScriptPath(scriptName: string): string {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   const scriptCandidates = [
     fileURLToPath(new URL(`./${scriptName}`, import.meta.url)),
+    path.resolve(moduleDir, `../../ios-runner/AgentDeviceRunner/RecordingScripts/${scriptName}`),
     path.resolve(moduleDir, `../../../ios-runner/AgentDeviceRunner/RecordingScripts/${scriptName}`),
-    path.resolve(
-      moduleDir,
-      `../../../../ios-runner/AgentDeviceRunner/RecordingScripts/${scriptName}`,
-    ),
     path.resolve(process.cwd(), `ios-runner/AgentDeviceRunner/RecordingScripts/${scriptName}`),
   ];
 

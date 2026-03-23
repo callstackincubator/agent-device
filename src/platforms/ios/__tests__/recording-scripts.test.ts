@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCmd } from '../../../utils/exec.ts';
-import { getRecordingOverlaySupportWarning } from '../recording-overlay.ts';
+import { getRecordingOverlaySupportWarning } from '../../../recording/overlay.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const recordingScriptsDir = path.resolve(

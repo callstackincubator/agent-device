@@ -9,6 +9,7 @@ let minimumTapVisibility: CFTimeInterval = 0.45
 let minimumSwipeVisibility: CFTimeInterval = 0.5
 let minimumPinchVisibility: CFTimeInterval = 0.5
 let swipeVisibilityTail: CFTimeInterval = 0.16
+let trailOpacityKeyTimes: [NSNumber] = [0.0, 0.08, 0.62, 1.0]
 
 struct GestureEnvelope: Decodable {
   let events: [GestureEvent]
@@ -249,12 +250,11 @@ func addTapLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer: CALay
   scale.values = [0.84, 1.0, 1.0]
   scale.keyTimes = [0.0, 0.22, 1.0]
 
-  let group = CAAnimationGroup()
-  group.animations = [opacity, scale]
-  group.duration = minimumTapVisibility
-  group.beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
-  group.fillMode = .both
-  group.isRemovedOnCompletion = false
+  let group = makeAnimationGroup(
+    animations: [opacity, scale],
+    duration: minimumTapVisibility,
+    beginTime: AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
+  )
   layer.add(group, forKey: "tap")
 }
 
@@ -274,12 +274,11 @@ func addLongPressLayer(event: GestureEvent, renderSize: CGSize, to overlayLayer:
   scale.values = [0.84, 1.0, 1.0]
   scale.keyTimes = [0.0, 0.15, 1.0]
 
-  let group = CAAnimationGroup()
-  group.animations = [opacity, scale]
-  group.duration = duration
-  group.beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
-  group.fillMode = .both
-  group.isRemovedOnCompletion = false
+  let group = makeAnimationGroup(
+    animations: [opacity, scale],
+    duration: duration,
+    beginTime: AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
+  )
   layer.add(group, forKey: "longpress")
 }
 
@@ -301,6 +300,88 @@ enum TrailStyle: Equatable {
   case backSwipe
 }
 
+extension TrailStyle {
+  var tail: CFTimeInterval {
+    switch self {
+    case .swipe:
+      return swipeVisibilityTail
+    case .scroll:
+      return 0.08
+    case .backSwipe:
+      return 0.12
+    }
+  }
+
+  var lineWidth: CGFloat {
+    switch self {
+    case .swipe:
+      return 4
+    case .scroll:
+      return 5
+    case .backSwipe:
+      return 6
+    }
+  }
+
+  var color: CGColor {
+    switch self {
+    case .swipe:
+      return touchDotColor
+    case .scroll:
+      return NSColor(calibratedRed: 0.16, green: 0.74, blue: 0.88, alpha: 0.34).cgColor
+    case .backSwipe:
+      return NSColor(calibratedRed: 0.24, green: 0.69, blue: 1.0, alpha: 0.55).cgColor
+    }
+  }
+
+  var borderColor: CGColor {
+    switch self {
+    case .swipe:
+      return touchDotBorderColor
+    case .scroll:
+      return NSColor(calibratedRed: 0.92, green: 1.0, blue: 1.0, alpha: 0.48).cgColor
+    case .backSwipe:
+      return NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.8).cgColor
+    }
+  }
+
+  var trailOpacityValues: [NSNumber] {
+    switch self {
+    case .swipe:
+      return [0.0, 0.9, 0.35, 0.0]
+    case .scroll:
+      return [0.0, 0.5, 0.18, 0.0]
+    case .backSwipe:
+      return [0.0, 1.0, 0.45, 0.0]
+    }
+  }
+
+  var dotOpacityValues: [NSNumber] {
+    switch self {
+    case .swipe:
+      return [0.0, 1.0, 0.92, 0.0]
+    case .scroll:
+      return [0.0, 0.72, 0.4, 0.0]
+    case .backSwipe:
+      return [0.0, 1.0, 0.9, 0.0]
+    }
+  }
+}
+
+func makeAnimationGroup(
+  animations: [CAAnimation],
+  duration: CFTimeInterval,
+  beginTime: CFTimeInterval
+) -> CAAnimationGroup {
+  let group = CAAnimationGroup()
+  group.animations = animations
+  group.duration = duration
+  group.beginTime = beginTime
+  group.fillMode = .both
+  group.isRemovedOnCompletion = false
+  return group
+}
+
 func addTrailLayers(
   event: GestureEvent,
   renderSize: CGSize,
@@ -311,7 +392,7 @@ func addTrailLayers(
   let startPoint = overlayPoint(event: event, x: event.x, y: event.y, renderSize: renderSize)
   let endPoint = overlayPoint(event: event, x: x2, y: y2, renderSize: renderSize)
   let duration = max(0.1, (event.durationMs ?? 250) / 1000.0)
-  let visibleDuration = max(minimumSwipeVisibility, duration + trailTail(style: style))
+  let visibleDuration = max(minimumSwipeVisibility, duration + style.tail)
   let beginTime = AVCoreAnimationBeginTimeAtZero + (event.tMs / 1000.0)
 
   let pathLayer = CAShapeLayer()
@@ -323,8 +404,8 @@ func addTrailLayers(
     path.addLine(to: endPoint)
     return path
   }()
-  pathLayer.strokeColor = trailColor(style: style)
-  pathLayer.lineWidth = trailLineWidth(style: style)
+  pathLayer.strokeColor = style.color
+  pathLayer.lineWidth = style.lineWidth
   pathLayer.lineCap = .round
   pathLayer.fillColor = nil
   pathLayer.opacity = 0
@@ -335,21 +416,20 @@ func addTrailLayers(
   stroke.toValue = 1.0
 
   let strokeOpacity = CAKeyframeAnimation(keyPath: "opacity")
-  strokeOpacity.values = trailOpacityValues(style: style)
-  strokeOpacity.keyTimes = trailOpacityKeyTimes()
+  strokeOpacity.values = style.trailOpacityValues
+  strokeOpacity.keyTimes = trailOpacityKeyTimes
 
-  let strokeGroup = CAAnimationGroup()
-  strokeGroup.animations = [stroke, strokeOpacity]
-  strokeGroup.duration = visibleDuration
-  strokeGroup.beginTime = beginTime
+  let strokeGroup = makeAnimationGroup(
+    animations: [stroke, strokeOpacity],
+    duration: visibleDuration,
+    beginTime: beginTime
+  )
   strokeGroup.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-  strokeGroup.fillMode = .both
-  strokeGroup.isRemovedOnCompletion = false
   pathLayer.add(strokeGroup, forKey: "stroke")
 
   let dotLayer = makeTouchDotLayer(center: startPoint, renderSize: renderSize)
-  dotLayer.backgroundColor = trailColor(style: style)
-  dotLayer.borderColor = trailBorderColor(style: style)
+  dotLayer.backgroundColor = style.color
+  dotLayer.borderColor = style.borderColor
   dotLayer.position = endPoint
   overlayLayer.addSublayer(dotLayer)
 
@@ -359,16 +439,15 @@ func addTrailLayers(
   position.duration = duration
 
   let opacity = CAKeyframeAnimation(keyPath: "opacity")
-  opacity.values = dotOpacityValues(style: style)
-  opacity.keyTimes = trailOpacityKeyTimes()
+  opacity.values = style.dotOpacityValues
+  opacity.keyTimes = trailOpacityKeyTimes
 
-  let group = CAAnimationGroup()
-  group.animations = [position, opacity]
-  group.duration = visibleDuration
-  group.beginTime = beginTime
+  let group = makeAnimationGroup(
+    animations: [position, opacity],
+    duration: visibleDuration,
+    beginTime: beginTime
+  )
   group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-  group.fillMode = .both
-  group.isRemovedOnCompletion = false
   dotLayer.add(group, forKey: "swipe-dot")
 
   if style == .backSwipe {
@@ -402,12 +481,11 @@ func addPinchDot(
   opacity.values = [0.0, 1.0, 1.0, 0.0]
   opacity.keyTimes = [0.0, 0.1, 0.82, 1.0]
 
-  let group = CAAnimationGroup()
-  group.animations = [position, opacity]
-  group.duration = duration
-  group.beginTime = beginTime
-  group.fillMode = .both
-  group.isRemovedOnCompletion = false
+  let group = makeAnimationGroup(
+    animations: [position, opacity],
+    duration: duration,
+    beginTime: beginTime
+  )
   dotLayer.add(group, forKey: "pinch")
 }
 
@@ -461,76 +539,6 @@ func resolvedTouchDotRadius(renderSize: CGSize) -> CGFloat {
   return max(18, min(40, minDimension * 0.035))
 }
 
-func trailTail(style: TrailStyle) -> CFTimeInterval {
-  switch style {
-  case .swipe:
-    return swipeVisibilityTail
-  case .scroll:
-    return 0.08
-  case .backSwipe:
-    return 0.12
-  }
-}
-
-func trailLineWidth(style: TrailStyle) -> CGFloat {
-  switch style {
-  case .swipe:
-    return 4
-  case .scroll:
-    return 5
-  case .backSwipe:
-    return 6
-  }
-}
-
-func trailColor(style: TrailStyle) -> CGColor {
-  switch style {
-  case .swipe:
-    return touchDotColor
-  case .scroll:
-    return NSColor(calibratedRed: 0.16, green: 0.74, blue: 0.88, alpha: 0.34).cgColor
-  case .backSwipe:
-    return NSColor(calibratedRed: 0.24, green: 0.69, blue: 1.0, alpha: 0.55).cgColor
-  }
-}
-
-func trailBorderColor(style: TrailStyle) -> CGColor {
-  switch style {
-  case .swipe:
-    return touchDotBorderColor
-  case .scroll:
-    return NSColor(calibratedRed: 0.92, green: 1.0, blue: 1.0, alpha: 0.48).cgColor
-  case .backSwipe:
-    return NSColor(calibratedRed: 0.94, green: 0.98, blue: 1.0, alpha: 0.8).cgColor
-  }
-}
-
-func trailOpacityValues(style: TrailStyle) -> [NSNumber] {
-  switch style {
-  case .swipe:
-    return [0.0, 0.9, 0.35, 0.0]
-  case .scroll:
-    return [0.0, 0.5, 0.18, 0.0]
-  case .backSwipe:
-    return [0.0, 1.0, 0.45, 0.0]
-  }
-}
-
-func dotOpacityValues(style: TrailStyle) -> [NSNumber] {
-  switch style {
-  case .swipe:
-    return [0.0, 1.0, 0.92, 0.0]
-  case .scroll:
-    return [0.0, 0.72, 0.4, 0.0]
-  case .backSwipe:
-    return [0.0, 1.0, 0.9, 0.0]
-  }
-}
-
-func trailOpacityKeyTimes() -> [NSNumber] {
-  return [0.0, 0.08, 0.62, 1.0]
-}
-
 func addBackSwipeEdgeHint(
   event: GestureEvent,
   renderSize: CGSize,
@@ -554,11 +562,10 @@ func addBackSwipeEdgeHint(
   opacity.values = [0.0, 0.9, 0.0]
   opacity.keyTimes = [0.0, 0.2, 1.0]
 
-  let group = CAAnimationGroup()
-  group.animations = [opacity]
-  group.duration = visibleDuration
-  group.beginTime = beginTime
-  group.fillMode = .both
-  group.isRemovedOnCompletion = false
+  let group = makeAnimationGroup(
+    animations: [opacity],
+    duration: visibleDuration,
+    beginTime: beginTime
+  )
   hintLayer.add(group, forKey: "back-swipe-edge")
 }
