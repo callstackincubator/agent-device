@@ -4,14 +4,10 @@ export type ClickButton = 'primary' | 'secondary' | 'middle';
 
 type ClickButtonFlags = {
   clickButton?: ClickButton;
-  secondaryClick?: boolean;
 };
 
 export function resolveClickButton(flags: ClickButtonFlags | undefined): ClickButton {
-  if (flags?.clickButton) {
-    return flags.clickButton;
-  }
-  return flags?.secondaryClick === true ? 'secondary' : 'primary';
+  return flags?.clickButton ?? 'primary';
 }
 
 export function getClickButtonValidationError(options: {

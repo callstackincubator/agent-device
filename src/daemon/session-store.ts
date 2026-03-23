@@ -241,7 +241,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     jitterPx,
     doubleTap,
     clickButton,
-    secondaryClick,
     pauseMs,
     pattern,
   } = flags;
@@ -270,7 +269,6 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     jitterPx,
     doubleTap,
     clickButton,
-    secondaryClick,
     pauseMs,
     pattern,
   };

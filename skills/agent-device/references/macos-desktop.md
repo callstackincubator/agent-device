@@ -35,8 +35,6 @@ agent-device click @e66 --button secondary --platform macos
 agent-device snapshot -i
 ```
 
-`--secondary` still works as an alias. Prefer `--button secondary` in new scripts so desktop click behavior stays aligned with the shared mouse-button model.
-
 Expected pattern:
 
 1. Snapshot visible content.

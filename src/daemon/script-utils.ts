@@ -49,8 +49,7 @@ export function appendScriptSeriesFlags(
     if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
     if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
     if (flags.doubleTap === true) parts.push('--double-tap');
-    const clickButton =
-      flags.clickButton ?? (flags.secondaryClick === true ? ('secondary' as const) : undefined);
+    const clickButton = flags.clickButton;
     if (clickButton && clickButton !== 'primary') {
       parts.push('--button', clickButton);
     }
@@ -122,10 +121,6 @@ export function parseReplaySeriesFlags(
         flags.clickButton = clickButton;
       }
       index += 1;
-      continue;
-    }
-    if (isClickLikeCommand(command) && token === '--secondary') {
-      flags.secondaryClick = true;
       continue;
     }
 

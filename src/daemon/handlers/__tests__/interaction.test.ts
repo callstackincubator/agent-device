@@ -36,7 +36,7 @@ const contextFromFlags = (flags: CommandFlags | undefined) => ({
   holdMs: flags?.holdMs,
   jitterPx: flags?.jitterPx,
   doubleTap: flags?.doubleTap,
-  clickButton: flags?.clickButton ?? (flags?.secondaryClick === true ? 'secondary' : undefined),
+  clickButton: flags?.clickButton,
 });
 
 test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
@@ -163,7 +163,7 @@ test('press @ref resolves snapshot node and records press action', async () => {
   assert.ok(Array.isArray(result.selectorChain));
 });
 
-test('click --secondary on @ref dispatches a secondary press on macOS and records click', async () => {
+test('click --button secondary on @ref dispatches a secondary press on macOS and records click', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const session = makeSession(sessionName);

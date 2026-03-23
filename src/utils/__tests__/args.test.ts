@@ -365,15 +365,6 @@ test('parseArgs recognizes click series flags', () => {
   assert.equal(parsed.flags.intervalMs, 10);
 });
 
-test('parseArgs recognizes click secondary alias flag', () => {
-  const parsed = parseArgs(['click', '@e5', '--secondary'], {
-    strictFlags: true,
-  });
-  assert.equal(parsed.command, 'click');
-  assert.deepEqual(parsed.positionals, ['@e5']);
-  assert.equal(parsed.flags.secondaryClick, true);
-});
-
 test('parseArgs recognizes click button flag', () => {
   const parsed = parseArgs(['click', '@e5', '--button', 'secondary'], {
     strictFlags: true,
@@ -586,13 +577,13 @@ test('strict mode rejects unsupported pilot-command flags', () => {
   );
 });
 
-test('strict mode rejects click-only secondary flag on press', () => {
+test('strict mode rejects removed secondary alias', () => {
   assert.throws(
-    () => parseArgs(['press', '10', '20', '--secondary'], { strictFlags: true }),
+    () => parseArgs(['click', '@e5', '--secondary'], { strictFlags: true }),
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('not supported for command press'),
+      error.message === 'Unknown flag: --secondary',
   );
 });
 
