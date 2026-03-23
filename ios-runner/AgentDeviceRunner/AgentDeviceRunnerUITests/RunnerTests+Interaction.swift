@@ -178,7 +178,11 @@ extension RunnerTests {
         )
       }
     #else
-      coordinate.tap()
+      throw NSError(
+        domain: "AgentDeviceRunner",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "mouseClick is only supported on macOS"]
+      )
     #endif
   }
 

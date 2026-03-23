@@ -67,6 +67,14 @@ const macOsDevice: DeviceInfo = {
   booted: true,
 };
 
+async function makeTmpDir(t: test.TestContext): Promise<string> {
+  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+  t.after(async () => {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  });
+  return tmpDir;
+}
+
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
 });
@@ -254,8 +262,8 @@ test('isRetryableRunnerError does not retry busy-connecting errors', () => {
   assert.equal(isRetryableRunnerError(err), false);
 });
 
-test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async () => {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async (t) => {
+  const tmpDir = await makeTmpDir(t);
   const xctestrunPath = path.join(tmpDir, 'AgentDeviceRunner.xctestrun');
   fs.writeFileSync(
     xctestrunPath,
@@ -273,8 +281,8 @@ test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async ()
   );
 });
 
-test('xctestrunReferencesExistingProducts rejects missing runner host artifacts', async () => {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+test('xctestrunReferencesExistingProducts rejects missing runner host artifacts', async (t) => {
+  const tmpDir = await makeTmpDir(t);
   const productsDir = path.join(tmpDir, 'Build', 'Products');
   const debugDir = path.join(productsDir, 'Debug');
   await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
@@ -297,8 +305,8 @@ test('xctestrunReferencesExistingProducts rejects missing runner host artifacts'
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), false);
 });
 
-test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async () => {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async (t) => {
+  const tmpDir = await makeTmpDir(t);
   const productsDir = path.join(tmpDir, 'Build', 'Products');
   const debugDir = path.join(productsDir, 'Debug');
   await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
@@ -334,7 +342,7 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
 test('ensureXctestrun rebuilds after cached macOS runner repair failure', async (t) => {
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+  const tmpDir = await makeTmpDir(t);
   const projectRoot = path.join(tmpDir, 'project');
   const derivedPath = path.join(tmpDir, 'derived');
   const projectPath = path.join(
@@ -406,7 +414,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
 });
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async (t) => {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
+  const tmpDir = await makeTmpDir(t);
   const projectRoot = path.join(tmpDir, 'project');
   const derivedPath = path.join(tmpDir, 'derived');
   const projectPath = path.join(

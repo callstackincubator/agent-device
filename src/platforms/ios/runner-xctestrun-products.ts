@@ -58,6 +58,9 @@ function resolveXctestrunProductReferences(xctestrunPath: string): string[] | nu
     return resolveXctestrunProductReferencesFromJson(parsed);
   }
   if (process.platform === 'darwin') {
+    // On real macOS runner builds, plutil should always be available. If it cannot parse the
+    // file here, treat the xctestrun as unusable instead of masking a corrupt plist with a
+    // best-effort regex fallback.
     return null;
   }
   try {
