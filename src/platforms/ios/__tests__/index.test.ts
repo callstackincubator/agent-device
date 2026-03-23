@@ -1543,8 +1543,9 @@ esac
 `,
     },
     async ({ tmpDir }) => {
-      const demoAppPath = path.join(tmpDir, 'Demo.app');
-      const safariAppPath = path.join(tmpDir, 'Safari.app');
+      const applicationsPath = path.join(tmpDir, 'Applications');
+      const demoAppPath = path.join(applicationsPath, 'Demo.app');
+      const safariAppPath = path.join(applicationsPath, 'Safari.app');
       await fs.mkdir(path.join(demoAppPath, 'Contents'), { recursive: true });
       await fs.mkdir(path.join(safariAppPath, 'Contents'), { recursive: true });
       await fs.writeFile(path.join(demoAppPath, 'Contents', 'Info.plist'), '', 'utf8');
@@ -1552,8 +1553,10 @@ esac
 
       const previousAppOne = process.env.AGENT_DEVICE_TEST_MAC_APP_ONE;
       const previousAppTwo = process.env.AGENT_DEVICE_TEST_MAC_APP_TWO;
+      const previousHome = process.env.HOME;
       process.env.AGENT_DEVICE_TEST_MAC_APP_ONE = demoAppPath;
       process.env.AGENT_DEVICE_TEST_MAC_APP_TWO = safariAppPath;
+      process.env.HOME = tmpDir;
 
       try {
         const apps = await listIosApps(MACOS_TEST_DEVICE, 'all');
@@ -1566,6 +1569,8 @@ esac
         else process.env.AGENT_DEVICE_TEST_MAC_APP_ONE = previousAppOne;
         if (previousAppTwo === undefined) delete process.env.AGENT_DEVICE_TEST_MAC_APP_TWO;
         else process.env.AGENT_DEVICE_TEST_MAC_APP_TWO = previousAppTwo;
+        if (previousHome === undefined) delete process.env.HOME;
+        else process.env.HOME = previousHome;
       }
     },
   );
