@@ -217,12 +217,16 @@ extension RunnerTests {
         return Response(ok: true, data: DataPayload(message: "tapped"))
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
-    case .secondaryTap:
+    case .mouseClick:
       guard let x = command.x, let y = command.y else {
-        return Response(ok: false, error: ErrorPayload(message: "secondaryTap requires x and y"))
+        return Response(ok: false, error: ErrorPayload(message: "mouseClick requires x and y"))
       }
-      secondaryTapAt(app: activeApp, x: x, y: y)
-      return Response(ok: true, data: DataPayload(message: "secondary tapped"))
+      do {
+        try mouseClickAt(app: activeApp, x: x, y: y, button: command.button ?? "primary")
+        return Response(ok: true, data: DataPayload(message: "clicked"))
+      } catch {
+        return Response(ok: false, error: ErrorPayload(message: error.localizedDescription))
+      }
     case .tapSeries:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))

@@ -5,7 +5,7 @@ Use this reference for host Mac apps such as Finder, TextEdit, System Settings, 
 ## Mental model
 
 - `snapshot -i` should describe UI that is visible to a human in the current front window.
-- Context menus are not ambient UI. Open them explicitly with `click --secondary`, then re-snapshot.
+- Context menus are not ambient UI. Open them explicitly with `click --button secondary`, then re-snapshot.
 - Prefer refs for exploration and selectors for deterministic replay/assertions.
 - Avoid raw `x y` coordinates unless refs/selectors are impossible.
 
@@ -14,7 +14,7 @@ Use this reference for host Mac apps such as Finder, TextEdit, System Settings, 
 ```bash
 agent-device open Finder --platform macos
 agent-device snapshot -i
-agent-device click @e66 --secondary --platform macos
+agent-device click @e66 --button secondary --platform macos
 agent-device snapshot -i
 agent-device close
 ```
@@ -31,9 +31,11 @@ agent-device close
 Use secondary click when the app exposes actions only through the contextual menu.
 
 ```bash
-agent-device click @e66 --secondary --platform macos
+agent-device click @e66 --button secondary --platform macos
 agent-device snapshot -i
 ```
+
+`--secondary` still works as an alias. Prefer `--button secondary` in new scripts so desktop click behavior stays aligned with the shared mouse-button model.
 
 Expected pattern:
 

@@ -1,0 +1,62 @@
+import { AppError } from '../utils/errors.ts';
+
+export type ClickButton = 'primary' | 'secondary' | 'middle';
+
+type ClickButtonFlags = {
+  clickButton?: ClickButton;
+  secondaryClick?: boolean;
+};
+
+export function resolveClickButton(flags: ClickButtonFlags | undefined): ClickButton {
+  if (flags?.clickButton) {
+    return flags.clickButton;
+  }
+  return flags?.secondaryClick === true ? 'secondary' : 'primary';
+}
+
+export function getClickButtonValidationError(options: {
+  commandLabel: string;
+  platform: string;
+  button: ClickButton;
+  count?: number;
+  intervalMs?: number;
+  holdMs?: number;
+  jitterPx?: number;
+  doubleTap?: boolean;
+}): AppError | null {
+  if (options.button === 'primary') {
+    return null;
+  }
+  if (options.commandLabel !== 'click') {
+    return new AppError('INVALID_ARGS', '--button is supported only for click');
+  }
+  if (options.platform !== 'macos') {
+    return new AppError(
+      'UNSUPPORTED_OPERATION',
+      `click --button ${options.button} is supported only on macOS`,
+    );
+  }
+  if (options.button === 'middle') {
+    return new AppError(
+      'UNSUPPORTED_OPERATION',
+      'click --button middle is not supported by the macOS runner yet',
+    );
+  }
+  if (
+    typeof options.count === 'number' ||
+    typeof options.intervalMs === 'number' ||
+    typeof options.holdMs === 'number' ||
+    typeof options.jitterPx === 'number' ||
+    options.doubleTap === true
+  ) {
+    return new AppError(
+      'INVALID_ARGS',
+      `click --button ${options.button} does not support repeat or gesture modifier flags`,
+    );
+  }
+  return null;
+}
+
+export function buttonTag(button: ClickButton): {} | { button: ClickButton } {
+  return button === 'primary' ? {} : { button };
+}

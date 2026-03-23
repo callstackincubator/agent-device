@@ -33,7 +33,7 @@ agent-device fill @e5 "test"
 On macOS, if actions live in a context menu, use:
 
 ```bash
-agent-device click @e5 --secondary --platform macos
+agent-device click @e5 --button secondary --platform macos
 agent-device snapshot -i
 ```
 

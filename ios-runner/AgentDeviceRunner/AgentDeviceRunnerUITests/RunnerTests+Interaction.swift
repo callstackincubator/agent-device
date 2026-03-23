@@ -156,10 +156,27 @@ extension RunnerTests {
     coordinate.tap()
   }
 
-  func secondaryTapAt(app: XCUIApplication, x: Double, y: Double) {
+  func mouseClickAt(app: XCUIApplication, x: Double, y: Double, button: String) throws {
     let coordinate = interactionCoordinate(app: app, x: x, y: y)
     #if os(macOS)
-      coordinate.rightClick()
+      switch button {
+      case "primary":
+        coordinate.tap()
+      case "secondary":
+        coordinate.rightClick()
+      case "middle":
+        throw NSError(
+          domain: "AgentDeviceRunner",
+          code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "middle mouse button is not supported"]
+        )
+      default:
+        throw NSError(
+          domain: "AgentDeviceRunner",
+          code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "unsupported mouse button: \(button)"]
+        )
+      }
     #else
       coordinate.tap()
     #endif

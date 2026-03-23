@@ -49,7 +49,11 @@ export function appendScriptSeriesFlags(
     if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
     if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
     if (flags.doubleTap === true) parts.push('--double-tap');
-    if (flags.secondaryClick === true) parts.push('--secondary');
+    const clickButton =
+      flags.clickButton ?? (flags.secondaryClick === true ? ('secondary' as const) : undefined);
+    if (clickButton && clickButton !== 'primary') {
+      parts.push('--button', clickButton);
+    }
     return;
   }
   if (action.command === 'swipe') {
@@ -110,6 +114,14 @@ export function parseReplaySeriesFlags(
 
     if (isClickLikeCommand(command) && token === '--double-tap') {
       flags.doubleTap = true;
+      continue;
+    }
+    if (isClickLikeCommand(command) && token === '--button' && index + 1 < args.length) {
+      const clickButton = args[index + 1];
+      if (clickButton === 'primary' || clickButton === 'secondary' || clickButton === 'middle') {
+        flags.clickButton = clickButton;
+      }
+      index += 1;
       continue;
     }
     if (isClickLikeCommand(command) && token === '--secondary') {

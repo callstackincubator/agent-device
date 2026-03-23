@@ -1,5 +1,9 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { getSecondaryClickValidationError } from '../../core/secondary-click.ts';
+import {
+  buttonTag,
+  getClickButtonValidationError,
+  resolveClickButton,
+} from '../../core/click-button.ts';
 import { buildSelectorChainForNode } from '../selectors.ts';
 import { findNodeByLabel, resolveRefLabel } from '../snapshot-processing.ts';
 import { findNodeByRef } from '../../utils/snapshot.ts';
@@ -32,12 +36,13 @@ export async function handlePressCommand(
       error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
     };
   }
-  const secondaryClick = req.flags?.secondaryClick === true;
-  const buttonTag = secondaryClick ? ({ button: 'secondary' } as const) : {};
-  if (secondaryClick) {
-    const validationError = getSecondaryClickValidationError({
+  const clickButton = resolveClickButton(req.flags);
+  const resultButtonTag = buttonTag(clickButton);
+  if (clickButton !== 'primary') {
+    const validationError = getClickButtonValidationError({
       commandLabel,
       platform: session.device.platform,
+      button: clickButton,
       count: req.flags?.count,
       intervalMs: req.flags?.intervalMs,
       holdMs: req.flags?.holdMs,
@@ -73,7 +78,7 @@ export async function handlePressCommand(
       result: data ?? {
         x: directCoordinates.x,
         y: directCoordinates.y,
-        ...buttonTag,
+        ...resultButtonTag,
       },
     });
     return {
@@ -83,7 +88,7 @@ export async function handlePressCommand(
         ({
           x: directCoordinates.x,
           y: directCoordinates.y,
-          ...buttonTag,
+          ...resultButtonTag,
         } as Record<string, unknown>),
     };
   }
@@ -160,12 +165,12 @@ export async function handlePressCommand(
         y,
         refLabel,
         selectorChain,
-        ...buttonTag,
+        ...resultButtonTag,
       },
     });
     return {
       ok: true,
-      data: { ...(data ?? {}), ref, x, y, ...buttonTag },
+      data: { ...(data ?? {}), ref, x, y, ...resultButtonTag },
     };
   }
 
@@ -222,7 +227,7 @@ export async function handlePressCommand(
       selector: resolved.selector.raw,
       selectorChain,
       refLabel,
-      ...buttonTag,
+      ...resultButtonTag,
     },
   });
   return {
@@ -232,7 +237,7 @@ export async function handlePressCommand(
       selector: resolved.selector.raw,
       x,
       y,
-      ...buttonTag,
+      ...resultButtonTag,
     },
   };
 }

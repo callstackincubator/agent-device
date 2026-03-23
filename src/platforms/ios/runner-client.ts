@@ -1,6 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { ClickButton } from '../../core/click-button.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
 import {
   isRetryableRunnerError,
@@ -26,7 +27,7 @@ import {
 export type RunnerCommand = {
   command:
     | 'tap'
-    | 'secondaryTap'
+    | 'mouseClick'
     | 'tapSeries'
     | 'longPress'
     | 'drag'
@@ -49,6 +50,7 @@ export type RunnerCommand = {
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
+  button?: ClickButton;
   count?: number;
   intervalMs?: number;
   doubleTap?: boolean;

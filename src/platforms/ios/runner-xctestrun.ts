@@ -3,17 +3,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import {
-  runCmd,
-  runCmdSync,
-  runCmdStreaming,
-  type ExecBackgroundResult,
-} from '../../utils/exec.ts';
+import { runCmd, runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { resolveSigningFailureHint } from './runner-errors.ts';
 import { logChunk } from './runner-transport.ts';
+import {
+  repairMacOsRunnerProductsIfNeeded,
+  isExpectedRunnerRepairFailure,
+} from './runner-macos-products.ts';
+import { resolveExistingXctestrunProductPaths } from './runner-xctestrun-products.ts';
+export { xctestrunReferencesExistingProducts } from './runner-xctestrun-products.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 
@@ -99,29 +101,47 @@ export async function ensureXctestrun(
   const projectRoot = deps.findProjectRoot();
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
     if (shouldCleanDerived()) {
+      emitRunnerXctestrunDecision('clean', 'forced_clean', { derived });
       deps.assertSafeDerivedCleanup(derived);
       deps.cleanRunnerDerivedArtifacts(derived);
     }
-    const existing = deps.findXctestrun(derived);
-    const existingProductPaths = existing
-      ? deps.resolveExistingXctestrunProductPaths(existing)
-      : null;
-    const canReuseExisting =
-      existing &&
-      deps.xctestrunReferencesProjectRoot(existing, projectRoot) &&
-      existingProductPaths !== null;
-    if (canReuseExisting) {
+    const existing = evaluateExistingXctestrun({
+      derived,
+      projectRoot,
+      findXctestrun: deps.findXctestrun,
+      xctestrunReferencesProjectRoot: deps.xctestrunReferencesProjectRoot,
+      resolveExistingXctestrunProductPaths: deps.resolveExistingXctestrunProductPaths,
+    });
+    if (existing.reason !== 'reuse_ready') {
+      emitRunnerXctestrunDecision('rebuild', existing.reason, {
+        derived,
+        xctestrunPath: existing.xctestrunPath,
+      });
+    }
+    if (existing.reason === 'reuse_ready') {
       try {
-        await deps.repairRunnerProductsIfNeeded(device, existingProductPaths, existing);
-        return existing;
+        await deps.repairRunnerProductsIfNeeded(
+          device,
+          existing.productPaths,
+          existing.xctestrunPath,
+        );
+        emitRunnerXctestrunDecision('reuse', 'reuse_ready', {
+          derived,
+          xctestrunPath: existing.xctestrunPath,
+        });
+        return existing.xctestrunPath;
       } catch (error) {
         if (!isExpectedRunnerRepairFailure(error)) {
           throw error;
         }
+        emitRunnerXctestrunDecision('rebuild', 'repair_failed', {
+          derived,
+          xctestrunPath: existing.xctestrunPath,
+        });
         // Fall through and rebuild from a clean derived state.
       }
     }
-    if (existing) {
+    if (existing.xctestrunPath) {
       deps.assertSafeDerivedCleanup(derived);
       deps.cleanRunnerDerivedArtifacts(derived);
     }
@@ -149,6 +169,10 @@ export async function ensureXctestrun(
       });
     }
     await deps.repairRunnerProductsIfNeeded(device, builtProductPaths, built);
+    emitRunnerXctestrunDecision('build', 'built_new', {
+      derived,
+      xctestrunPath: built,
+    });
     return built;
   });
 }
@@ -236,187 +260,6 @@ export function xctestrunReferencesProjectRoot(
   }
 }
 
-export function xctestrunReferencesExistingProducts(xctestrunPath: string): boolean {
-  try {
-    return resolveExistingXctestrunProductPaths(xctestrunPath) !== null;
-  } catch {
-    return false;
-  }
-}
-
-const RUNNER_PRODUCT_REPAIR_FAILURE_REASONS = new Set([
-  'RUNNER_PRODUCT_MISSING',
-  'RUNNER_PRODUCT_REPAIR_FAILED',
-]);
-
-function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | null {
-  try {
-    const result = runCmdSync('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
-      allowFailure: true,
-    });
-    if (result.exitCode !== 0 || !result.stdout.trim()) {
-      return null;
-    }
-    return JSON.parse(result.stdout) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function collectXctestrunProductReferenceValuesFromTarget(
-  target: Record<string, unknown>,
-): string[] {
-  const productPathKeys = new Set([
-    'ProductPaths',
-    'DependentProductPaths',
-    'TestHostPath',
-    'TestBundlePath',
-    'UITargetAppPath',
-  ]);
-  const values = new Set<string>();
-  for (const [key, value] of Object.entries(target)) {
-    if (!productPathKeys.has(key)) {
-      continue;
-    }
-    if (typeof value === 'string') {
-      values.add(value);
-      continue;
-    }
-    if (!Array.isArray(value)) {
-      continue;
-    }
-    for (const item of value) {
-      if (typeof item === 'string') {
-        values.add(item);
-      }
-    }
-  }
-  return Array.from(values);
-}
-
-function resolveXctestrunProductReferencesFromJson(parsed: Record<string, unknown>): string[] {
-  const values = new Set<string>();
-  const addTargetValues = (target: unknown) => {
-    if (!target || typeof target !== 'object') {
-      return;
-    }
-    for (const value of collectXctestrunProductReferenceValuesFromTarget(
-      target as Record<string, unknown>,
-    )) {
-      values.add(value);
-    }
-  };
-
-  addTargetValues(parsed);
-
-  const testConfigurations = parsed.TestConfigurations;
-  if (Array.isArray(testConfigurations)) {
-    for (const config of testConfigurations) {
-      if (!config || typeof config !== 'object') {
-        continue;
-      }
-      const testTargets = (config as Record<string, unknown>).TestTargets;
-      if (!Array.isArray(testTargets)) {
-        continue;
-      }
-      for (const target of testTargets) {
-        addTargetValues(target);
-      }
-    }
-  }
-
-  for (const value of Object.values(parsed)) {
-    if (!value || typeof value !== 'object' || !('TestBundlePath' in value)) {
-      continue;
-    }
-    addTargetValues(value);
-  }
-
-  return Array.from(values);
-}
-
-function resolveXctestrunProductReferencesFromXml(contents: string): string[] {
-  const arrayPathKeys = ['ProductPaths', 'DependentProductPaths'];
-  const stringPathKeys = ['TestHostPath', 'TestBundlePath', 'UITargetAppPath'];
-  return Array.from(
-    new Set([
-      ...arrayPathKeys.flatMap((key) => extractPlistArrayStringValues(contents, key)),
-      ...stringPathKeys.flatMap((key) => extractPlistStringValues(contents, key)),
-    ]),
-  );
-}
-
-function resolveExistingXctestrunProductPaths(xctestrunPath: string): string[] | null {
-  const values = resolveXctestrunProductReferences(xctestrunPath);
-  if (!values || values.length === 0) {
-    return null;
-  }
-  const testRoot = path.dirname(xctestrunPath);
-  const resolvedPaths = new Set<string>();
-  const hostRoots = new Set<string>();
-  const hostRelativePaths: string[] = [];
-
-  for (const value of values) {
-    if (value.startsWith('__TESTROOT__/')) {
-      const relativePath = value.slice('__TESTROOT__/'.length);
-      const resolvedPath = path.join(testRoot, relativePath);
-      if (!fs.existsSync(resolvedPath)) {
-        return null;
-      }
-      resolvedPaths.add(resolvedPath);
-      const appBundleRoot = extractAppBundleRoot(relativePath);
-      if (appBundleRoot) {
-        hostRoots.add(path.join(testRoot, appBundleRoot));
-      }
-      continue;
-    }
-    if (value.startsWith('__TESTHOST__/')) {
-      hostRelativePaths.push(value.slice('__TESTHOST__/'.length));
-    }
-  }
-
-  for (const relativePath of hostRelativePaths) {
-    const resolvedHostPath = Array.from(hostRoots).find((hostRoot) =>
-      fs.existsSync(path.join(hostRoot, relativePath)),
-    );
-    if (!resolvedHostPath) {
-      return null;
-    }
-    resolvedPaths.add(path.join(resolvedHostPath, relativePath));
-  }
-
-  return Array.from(resolvedPaths);
-}
-
-function resolveXctestrunProductReferences(xctestrunPath: string): string[] | null {
-  const parsed = readXctestrunJson(xctestrunPath);
-  if (parsed) {
-    return resolveXctestrunProductReferencesFromJson(parsed);
-  }
-  if (process.platform === 'darwin') {
-    return null;
-  }
-  try {
-    // Keep a simple XML fallback only for non-macOS test environments where plutil is absent.
-    return resolveXctestrunProductReferencesFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function extractPlistStringValues(contents: string, key: string): string[] {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<string>([\\s\\S]*?)</string>`, 'g');
-  const values = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(contents)) !== null) {
-    const value = match[1]?.trim();
-    if (value) {
-      values.add(value);
-    }
-  }
-  return Array.from(values);
-}
-
 function findProjectRoot(): string {
   const start = path.dirname(fileURLToPath(import.meta.url));
   let current = start;
@@ -426,33 +269,6 @@ function findProjectRoot(): string {
     current = path.dirname(current);
   }
   return start;
-}
-
-function extractPlistArrayStringValues(contents: string, key: string): string[] {
-  // Best-effort XML extraction only. Prefer readXctestrunJson() for structured parsing.
-  const blockPattern = new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`, 'g');
-  const stringPattern = /<string>([\s\S]*?)<\/string>/g;
-  const values = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = blockPattern.exec(contents)) !== null) {
-    const block = match[1] ?? '';
-    let stringMatch: RegExpExecArray | null;
-    while ((stringMatch = stringPattern.exec(block)) !== null) {
-      const value = stringMatch[1]?.trim();
-      if (value) {
-        values.add(value);
-      }
-    }
-  }
-  return Array.from(values);
-}
-
-function extractAppBundleRoot(relativePath: string): string | null {
-  const match = /\.app(?:\/|$)/.exec(relativePath);
-  if (!match || match.index === undefined) {
-    return null;
-  }
-  return relativePath.slice(0, match.index + '.app'.length);
 }
 
 export async function prepareXctestrunWithEnv(
@@ -652,72 +468,6 @@ function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS'
   return resolveApplePlatformName(device.target);
 }
 
-async function repairMacOsRunnerProductsIfNeeded(
-  device: DeviceInfo,
-  productPaths: string[],
-  xctestrunPath: string,
-): Promise<void> {
-  if (device.platform !== 'macos') {
-    return;
-  }
-  if (productPaths.length === 0) {
-    throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
-      reason: 'RUNNER_PRODUCT_MISSING',
-      xctestrunPath,
-    });
-  }
-  const sortedProductPaths = Array.from(new Set(productPaths)).sort(
-    (left, right) => right.length - left.length,
-  );
-  for (const productPath of sortedProductPaths) {
-    if (!fs.existsSync(productPath)) {
-      throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
-        reason: 'RUNNER_PRODUCT_MISSING',
-        productPath,
-        xctestrunPath,
-      });
-    }
-  }
-
-  for (const productPath of sortedProductPaths) {
-    if (hasValidCodeSignature(productPath)) {
-      continue;
-    }
-    await runCmd('codesign', ['--remove-signature', productPath], { allowFailure: true });
-    try {
-      await runCmd('codesign', ['--force', '--sign', '-', productPath]);
-    } catch (error) {
-      const appError =
-        error instanceof AppError ? error : new AppError('COMMAND_FAILED', String(error));
-      throw new AppError('COMMAND_FAILED', 'Failed to repair macOS runner product signature', {
-        reason: 'RUNNER_PRODUCT_REPAIR_FAILED',
-        productPath,
-        xctestrunPath,
-        error: appError.message,
-        details: appError.details,
-      });
-    }
-  }
-}
-
-function hasValidCodeSignature(productPath: string): boolean {
-  const result = runCmdSync('codesign', ['--verify', '--deep', '--strict', productPath], {
-    allowFailure: true,
-  });
-  return result.exitCode === 0;
-}
-
-function isExpectedRunnerRepairFailure(error: unknown): boolean {
-  if (!(error instanceof AppError)) {
-    return false;
-  }
-  const reason =
-    error.details && typeof error.details === 'object'
-      ? (error.details as Record<string, unknown>).reason
-      : undefined;
-  return typeof reason === 'string' && RUNNER_PRODUCT_REPAIR_FAILURE_REASONS.has(reason);
-}
-
 function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
   return process.arch === 'arm64' ? 'arm64' : 'x86_64';
 }
@@ -801,4 +551,59 @@ export function assertSafeDerivedCleanup(
 
 function isCleanupOverrideAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
   return isEnvTruthy(env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN);
+}
+
+type ExistingXctestrunState =
+  | {
+      reason: 'missing_xctestrun';
+      xctestrunPath: null;
+    }
+  | {
+      reason: 'project_root_mismatch' | 'missing_products' | 'reuse_ready';
+      xctestrunPath: string;
+      productPaths: string[];
+    };
+
+function evaluateExistingXctestrun(options: {
+  derived: string;
+  projectRoot: string;
+  findXctestrun: (root: string) => string | null;
+  xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
+  resolveExistingXctestrunProductPaths: (xctestrunPath: string) => string[] | null;
+}): ExistingXctestrunState {
+  const xctestrunPath = options.findXctestrun(options.derived);
+  if (!xctestrunPath) {
+    return { reason: 'missing_xctestrun', xctestrunPath: null };
+  }
+  const productPaths = options.resolveExistingXctestrunProductPaths(xctestrunPath);
+  if (!productPaths) {
+    return { reason: 'missing_products', xctestrunPath, productPaths: [] };
+  }
+  if (!options.xctestrunReferencesProjectRoot(xctestrunPath, options.projectRoot)) {
+    return { reason: 'project_root_mismatch', xctestrunPath, productPaths };
+  }
+  return { reason: 'reuse_ready', xctestrunPath, productPaths };
+}
+
+function emitRunnerXctestrunDecision(
+  action: 'clean' | 'reuse' | 'rebuild' | 'build',
+  reason:
+    | 'forced_clean'
+    | 'missing_xctestrun'
+    | 'project_root_mismatch'
+    | 'missing_products'
+    | 'repair_failed'
+    | 'reuse_ready'
+    | 'built_new',
+  data: Record<string, unknown>,
+): void {
+  emitDiagnostic({
+    level: action === 'rebuild' ? 'warn' : 'info',
+    phase: 'runner_xctestrun_cache',
+    data: {
+      action,
+      reason,
+      ...data,
+    },
+  });
 }

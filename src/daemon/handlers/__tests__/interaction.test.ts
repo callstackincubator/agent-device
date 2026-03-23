@@ -36,7 +36,7 @@ const contextFromFlags = (flags: CommandFlags | undefined) => ({
   holdMs: flags?.holdMs,
   jitterPx: flags?.jitterPx,
   doubleTap: flags?.doubleTap,
-  secondaryClick: flags?.secondaryClick,
+  clickButton: flags?.clickButton ?? (flags?.secondaryClick === true ? 'secondary' : undefined),
 });
 
 test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
@@ -201,7 +201,7 @@ test('click --secondary on @ref dispatches a secondary press on macOS and record
       session: sessionName,
       command: 'click',
       positionals: ['@e1'],
-      flags: { secondaryClick: true },
+      flags: { clickButton: 'secondary' },
     },
     sessionName,
     sessionStore,
@@ -221,7 +221,7 @@ test('click --secondary on @ref dispatches a secondary press on macOS and record
   assert.equal(dispatchCalls.length, 1);
   assert.equal(dispatchCalls[0]?.command, 'press');
   assert.deepEqual(dispatchCalls[0]?.positionals, ['500', '510']);
-  assert.equal(dispatchCalls[0]?.context?.secondaryClick, true);
+  assert.equal(dispatchCalls[0]?.context?.clickButton, 'secondary');
   if (response.ok) {
     assert.equal(response.data?.button, 'secondary');
     assert.equal(response.data?.ref, 'e1');
@@ -230,7 +230,44 @@ test('click --secondary on @ref dispatches a secondary press on macOS and record
   const stored = sessionStore.get(sessionName);
   assert.ok(stored);
   assert.equal(stored?.actions[0]?.command, 'click');
-  assert.equal(stored?.actions[0]?.flags.secondaryClick, true);
+  assert.equal(stored?.actions[0]?.flags.clickButton, 'secondary');
+});
+
+test('click --button middle on macOS fails with an explicit unsupported-operation error', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.device = {
+    platform: 'macos',
+    id: 'macos-desktop',
+    name: 'My Mac',
+    kind: 'device',
+    booted: true,
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['100', '200'],
+      flags: { clickButton: 'middle' },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => {
+      throw new Error('dispatch should not be called for unsupported middle click');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /middle is not supported/i);
+  }
 });
 
 test('press @ref refreshes snapshot when stored ref bounds are invalid', async () => {

@@ -240,7 +240,8 @@ agent-device is visible 'id="anchor"'
 ```
 
 `press` is canonical tap command; `click` is an alias.
-On macOS, use `click --secondary <@ref|selector>` to open a context menu before the next `snapshot -i`.
+On macOS, use `click --button secondary <@ref|selector>` to open a context menu before the next `snapshot -i`.
+`--secondary` still works as an alias, but `--button secondary` is the canonical form because desktop click handling now routes through a shared mouse-button path.
 For desktop-specific heuristics and Finder guidance, see [references/macos-desktop.md](references/macos-desktop.md).
 
 ### Utilities

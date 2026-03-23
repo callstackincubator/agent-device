@@ -1,4 +1,5 @@
 import type { CommandFlags } from '../core/dispatch.ts';
+import { resolveClickButton } from '../core/click-button.ts';
 import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
 export type DaemonCommandContext = {
@@ -18,7 +19,7 @@ export type DaemonCommandContext = {
   holdMs?: number;
   jitterPx?: number;
   doubleTap?: boolean;
-  secondaryClick?: boolean;
+  clickButton?: 'primary' | 'secondary' | 'middle';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
 };
@@ -48,7 +49,7 @@ export function contextFromFlags(
     holdMs: flags?.holdMs,
     jitterPx: flags?.jitterPx,
     doubleTap: flags?.doubleTap,
-    secondaryClick: flags?.secondaryClick,
+    clickButton: resolveClickButton(flags),
     pauseMs: flags?.pauseMs,
     pattern: flags?.pattern,
   };

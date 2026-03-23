@@ -1,6 +1,22 @@
 import XCTest
 
 extension RunnerTests {
+  private struct SnapshotTraversalContext {
+    let rootSnapshot: XCUIElementSnapshot
+    let viewport: CGRect
+    let flatSnapshots: [XCUIElementSnapshot]
+    let snapshotRanges: [ObjectIdentifier: (Int, Int)]
+    let maxDepth: Int
+  }
+
+  private struct SnapshotEvaluation {
+    let label: String
+    let identifier: String
+    let valueText: String?
+    let hittable: Bool
+    let visible: Bool
+  }
+
   // MARK: - Snapshot Entry
 
   func elementTypeName(_ type: XCUIElement.ElementType) -> String {
@@ -48,50 +64,19 @@ extension RunnerTests {
       return blocking
     }
 
-    var nodes: [SnapshotNode] = []
-    var truncated = false
-    let maxDepth = options.depth ?? Int.max
-    let viewport = snapshotViewport(app: app)
-    let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
-
-    let rootSnapshot: XCUIElementSnapshot
-    do {
-      rootSnapshot = try queryRoot.snapshot()
-    } catch {
-      return DataPayload(nodes: nodes, truncated: truncated)
+    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+      return DataPayload(nodes: [], truncated: false)
     }
 
-    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
-    let rootLaterNodes = laterSnapshots(
-      for: rootSnapshot,
-      in: flatSnapshots,
-      ranges: snapshotRanges
-    )
-    let rootLabel = aggregatedLabel(for: rootSnapshot) ?? rootSnapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
-    let rootIdentifier = rootSnapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-    let rootValue = snapshotValueText(rootSnapshot)
-    let rootHittable = computedSnapshotHittable(rootSnapshot, viewport: viewport, laterNodes: rootLaterNodes)
+    var nodes: [SnapshotNode] = []
+    var truncated = false
+    let rootEvaluation = evaluateSnapshot(context.rootSnapshot, in: context)
     nodes.append(
-      SnapshotNode(
-        index: 0,
-        type: elementTypeName(rootSnapshot.elementType),
-        label: rootLabel.isEmpty ? nil : rootLabel,
-        identifier: rootIdentifier.isEmpty ? nil : rootIdentifier,
-        value: rootValue,
-        rect: SnapshotRect(
-          x: Double(rootSnapshot.frame.origin.x),
-          y: Double(rootSnapshot.frame.origin.y),
-          width: Double(rootSnapshot.frame.size.width),
-          height: Double(rootSnapshot.frame.size.height)
-        ),
-        enabled: rootSnapshot.isEnabled,
-        hittable: rootHittable,
-        depth: 0
-      )
+      makeSnapshotNode(snapshot: context.rootSnapshot, evaluation: rootEvaluation, depth: 0, index: 0)
     )
 
     var seen = Set<String>()
-    var stack: [(XCUIElementSnapshot, Int, Int)] = rootSnapshot.children.map { ($0, 1, 1) }
+    var stack: [(XCUIElementSnapshot, Int, Int)] = context.rootSnapshot.children.map { ($0, 1, 1) }
 
     while let (snapshot, depth, visibleDepth) = stack.popLast() {
       if nodes.count >= fastSnapshotLimit {
@@ -100,35 +85,24 @@ extension RunnerTests {
       }
       if let limit = options.depth, depth > limit { continue }
 
-      let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
-      let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-      let valueText = snapshotValueText(snapshot)
-      let laterNodes = laterSnapshots(
-        for: snapshot,
-        in: flatSnapshots,
-        ranges: snapshotRanges
-      )
-      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
-      let isVisible = isVisibleInViewport(snapshot.frame, viewport)
-      let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
-
+      let evaluation = evaluateSnapshot(snapshot, in: context)
       let include = shouldInclude(
         snapshot: snapshot,
-        label: label,
-        identifier: identifier,
-        valueText: valueText,
+        label: evaluation.label,
+        identifier: evaluation.identifier,
+        valueText: evaluation.valueText,
         options: options,
-        hittable: hittable,
-        visible: isVisible
+        hittable: evaluation.hittable,
+        visible: evaluation.visible
       )
 
-      let key = "\(snapshot.elementType)-\(label)-\(identifier)-\(snapshot.frame.origin.x)-\(snapshot.frame.origin.y)"
+      let key = "\(snapshot.elementType)-\(evaluation.label)-\(evaluation.identifier)-\(snapshot.frame.origin.x)-\(snapshot.frame.origin.y)"
       let isDuplicate = seen.contains(key)
       if !isDuplicate {
         seen.insert(key)
       }
 
-      if depth < maxDepth {
+      if depth < context.maxDepth {
         let nextVisibleDepth = include && !isDuplicate ? visibleDepth + 1 : visibleDepth
         for child in snapshot.children.reversed() {
           stack.append((child, depth + 1, nextVisibleDepth))
@@ -138,21 +112,11 @@ extension RunnerTests {
       if !include || isDuplicate { continue }
 
       nodes.append(
-        SnapshotNode(
-          index: nodes.count,
-          type: elementTypeName(snapshot.elementType),
-          label: label.isEmpty ? nil : label,
-          identifier: identifier.isEmpty ? nil : identifier,
-          value: valueText,
-          rect: SnapshotRect(
-            x: Double(snapshot.frame.origin.x),
-            y: Double(snapshot.frame.origin.y),
-            width: Double(snapshot.frame.size.width),
-            height: Double(snapshot.frame.size.height)
-          ),
-          enabled: snapshot.isEnabled,
-          hittable: hittable,
-          depth: min(maxDepth, visibleDepth)
+        makeSnapshotNode(
+          snapshot: snapshot,
+          evaluation: evaluation,
+          depth: min(context.maxDepth, visibleDepth),
+          index: nodes.count
         )
       )
 
@@ -166,19 +130,12 @@ extension RunnerTests {
       return blocking
     }
 
-    let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
-    var nodes: [SnapshotNode] = []
-    var truncated = false
-    let viewport = snapshotViewport(app: app)
-
-    let rootSnapshot: XCUIElementSnapshot
-    do {
-      rootSnapshot = try queryRoot.snapshot()
-    } catch {
-      return DataPayload(nodes: nodes, truncated: truncated)
+    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+      return DataPayload(nodes: [], truncated: false)
     }
 
-    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
+    var nodes: [SnapshotNode] = []
+    var truncated = false
 
     func walk(_ snapshot: XCUIElementSnapshot, depth: Int) {
       if nodes.count >= maxSnapshotElements {
@@ -187,37 +144,18 @@ extension RunnerTests {
       }
       if let limit = options.depth, depth > limit { return }
 
-      let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
-      let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
-      let valueText = snapshotValueText(snapshot)
-      let laterNodes = laterSnapshots(
-        for: snapshot,
-        in: flatSnapshots,
-        ranges: snapshotRanges
-      )
-      let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
-      let isVisible = isVisibleInViewport(snapshot.frame, viewport)
+      let evaluation = evaluateSnapshot(snapshot, in: context)
       if shouldInclude(
         snapshot: snapshot,
-        label: label,
-        identifier: identifier,
-        valueText: valueText,
+        label: evaluation.label,
+        identifier: evaluation.identifier,
+        valueText: evaluation.valueText,
         options: options,
-        hittable: hittable,
-        visible: isVisible
+        hittable: evaluation.hittable,
+        visible: evaluation.visible
       ) {
         nodes.append(
-          SnapshotNode(
-            index: nodes.count,
-            type: elementTypeName(snapshot.elementType),
-            label: label.isEmpty ? nil : label,
-            identifier: identifier.isEmpty ? nil : identifier,
-            value: valueText,
-            rect: snapshotRect(from: snapshot.frame),
-            enabled: snapshot.isEnabled,
-            hittable: hittable,
-            depth: depth
-          )
+          makeSnapshotNode(snapshot: snapshot, evaluation: evaluation, depth: depth, index: nodes.count)
         )
       }
 
@@ -228,7 +166,7 @@ extension RunnerTests {
       }
     }
 
-    walk(rootSnapshot, depth: 0)
+    walk(context.rootSnapshot, depth: 0)
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
@@ -291,6 +229,70 @@ extension RunnerTests {
       if nodeFrame.contains(center) { return false }
     }
     return true
+  }
+
+  private func makeSnapshotTraversalContext(
+    app: XCUIApplication,
+    options: SnapshotOptions
+  ) -> SnapshotTraversalContext? {
+    let viewport = snapshotViewport(app: app)
+    let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
+
+    let rootSnapshot: XCUIElementSnapshot
+    do {
+      rootSnapshot = try queryRoot.snapshot()
+    } catch {
+      return nil
+    }
+
+    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
+    return SnapshotTraversalContext(
+      rootSnapshot: rootSnapshot,
+      viewport: viewport,
+      flatSnapshots: flatSnapshots,
+      snapshotRanges: snapshotRanges,
+      maxDepth: options.depth ?? Int.max
+    )
+  }
+
+  private func evaluateSnapshot(
+    _ snapshot: XCUIElementSnapshot,
+    in context: SnapshotTraversalContext
+  ) -> SnapshotEvaluation {
+    let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+    let valueText = snapshotValueText(snapshot)
+    let laterNodes = laterSnapshots(
+      for: snapshot,
+      in: context.flatSnapshots,
+      ranges: context.snapshotRanges
+    )
+    return SnapshotEvaluation(
+      label: label,
+      identifier: identifier,
+      valueText: valueText,
+      hittable: computedSnapshotHittable(snapshot, viewport: context.viewport, laterNodes: laterNodes),
+      visible: isVisibleInViewport(snapshot.frame, context.viewport)
+    )
+  }
+
+  private func makeSnapshotNode(
+    snapshot: XCUIElementSnapshot,
+    evaluation: SnapshotEvaluation,
+    depth: Int,
+    index: Int
+  ) -> SnapshotNode {
+    return SnapshotNode(
+      index: index,
+      type: elementTypeName(snapshot.elementType),
+      label: evaluation.label.isEmpty ? nil : evaluation.label,
+      identifier: evaluation.identifier.isEmpty ? nil : evaluation.identifier,
+      value: evaluation.valueText,
+      rect: snapshotRect(from: snapshot.frame),
+      enabled: snapshot.isEnabled,
+      hittable: evaluation.hittable,
+      depth: depth
+    )
   }
 
   private func isOccludingType(_ type: XCUIElement.ElementType) -> Bool {
