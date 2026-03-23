@@ -7,7 +7,7 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { parseAppearanceAction } from '../appearance.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
-import { readIosBundleInfo as readBundleInfo } from './install-artifact.ts';
+import { readInfoPlistString } from './plist.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
@@ -35,6 +35,28 @@ function buildMacOpenArgs(bundleId: string, url?: string): string[] {
     openArgs.push(url);
   }
   return openArgs;
+}
+
+async function readMacOsBundleInfo(
+  appBundlePath: string,
+): Promise<{ bundleId?: string; appName?: string }> {
+  for (const infoPlistPath of [
+    path.join(appBundlePath, 'Contents', 'Info.plist'),
+    path.join(appBundlePath, 'Info.plist'),
+  ]) {
+    const [bundleId, displayName, bundleName] = await Promise.all([
+      readInfoPlistString(infoPlistPath, 'CFBundleIdentifier'),
+      readInfoPlistString(infoPlistPath, 'CFBundleDisplayName'),
+      readInfoPlistString(infoPlistPath, 'CFBundleName'),
+    ]);
+    if (bundleId || displayName || bundleName) {
+      return {
+        bundleId,
+        appName: displayName ?? bundleName,
+      };
+    }
+  }
+  return {};
 }
 
 export async function resolveMacOsApp(app: string): Promise<string> {
@@ -191,7 +213,7 @@ export async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Pro
 
   const apps = await Promise.all(
     Array.from(appPaths).map(async (appPath) => {
-      const bundleInfo = await readBundleInfo(appPath).catch(
+      const bundleInfo = await readMacOsBundleInfo(appPath).catch(
         () =>
           ({}) as {
             bundleId?: string;

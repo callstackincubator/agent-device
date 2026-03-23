@@ -1498,6 +1498,79 @@ test('listIosApps applies user-installed filter on simulator', async () => {
   }
 });
 
+test('listIosApps reads standard macOS app bundles from Contents/Info.plist', async () => {
+  await withMockedMacTools(
+    'agent-device-macos-app-list-test-',
+    {
+      find: `#!/bin/sh
+printf '%s\n' "$AGENT_DEVICE_TEST_MAC_APP_ONE" "$AGENT_DEVICE_TEST_MAC_APP_TWO"
+`,
+      plutil: `#!/bin/sh
+key="$2"
+last=""
+for arg in "$@"; do
+  last="$arg"
+done
+case "$key:$last" in
+  CFBundleIdentifier:*Demo.app/Contents/Info.plist)
+    echo "com.example.demo"
+    exit 0
+    ;;
+  CFBundleDisplayName:*Demo.app/Contents/Info.plist)
+    echo "Demo"
+    exit 0
+    ;;
+  CFBundleName:*Demo.app/Contents/Info.plist)
+    echo "Demo"
+    exit 0
+    ;;
+  CFBundleIdentifier:*Safari.app/Contents/Info.plist)
+    echo "com.apple.Safari"
+    exit 0
+    ;;
+  CFBundleDisplayName:*Safari.app/Contents/Info.plist)
+    echo "Safari"
+    exit 0
+    ;;
+  CFBundleName:*Safari.app/Contents/Info.plist)
+    echo "Safari"
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+`,
+    },
+    async ({ tmpDir }) => {
+      const demoAppPath = path.join(tmpDir, 'Demo.app');
+      const safariAppPath = path.join(tmpDir, 'Safari.app');
+      await fs.mkdir(path.join(demoAppPath, 'Contents'), { recursive: true });
+      await fs.mkdir(path.join(safariAppPath, 'Contents'), { recursive: true });
+      await fs.writeFile(path.join(demoAppPath, 'Contents', 'Info.plist'), '', 'utf8');
+      await fs.writeFile(path.join(safariAppPath, 'Contents', 'Info.plist'), '', 'utf8');
+
+      const previousAppOne = process.env.AGENT_DEVICE_TEST_MAC_APP_ONE;
+      const previousAppTwo = process.env.AGENT_DEVICE_TEST_MAC_APP_TWO;
+      process.env.AGENT_DEVICE_TEST_MAC_APP_ONE = demoAppPath;
+      process.env.AGENT_DEVICE_TEST_MAC_APP_TWO = safariAppPath;
+
+      try {
+        const apps = await listIosApps(MACOS_TEST_DEVICE, 'all');
+        assert.deepEqual(apps, [
+          { bundleId: 'com.example.demo', name: 'Demo' },
+          { bundleId: 'com.apple.Safari', name: 'Safari' },
+        ]);
+      } finally {
+        if (previousAppOne === undefined) delete process.env.AGENT_DEVICE_TEST_MAC_APP_ONE;
+        else process.env.AGENT_DEVICE_TEST_MAC_APP_ONE = previousAppOne;
+        if (previousAppTwo === undefined) delete process.env.AGENT_DEVICE_TEST_MAC_APP_TWO;
+        else process.env.AGENT_DEVICE_TEST_MAC_APP_TWO = previousAppTwo;
+      }
+    },
+  );
+});
+
 test('setIosSetting faceid match uses simctl biometric match', async () => {
   await withMockedXcrun(
     'agent-device-ios-faceid-match-test-',
