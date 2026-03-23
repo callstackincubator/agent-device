@@ -51,7 +51,7 @@ extension RunnerTests {
     var nodes: [SnapshotNode] = []
     var truncated = false
     let maxDepth = options.depth ?? Int.max
-    let viewport = app.frame
+    let viewport = snapshotViewport(app: app)
     let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
 
     let rootSnapshot: XCUIElementSnapshot
@@ -109,10 +109,8 @@ extension RunnerTests {
         ranges: snapshotRanges
       )
       let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
+      let isVisible = isVisibleInViewport(snapshot.frame, viewport)
       let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
-      if !isVisibleInViewport(snapshot.frame, viewport) && !hasContent {
-        continue
-      }
 
       let include = shouldInclude(
         snapshot: snapshot,
@@ -120,7 +118,8 @@ extension RunnerTests {
         identifier: identifier,
         valueText: valueText,
         options: options,
-        hittable: hittable
+        hittable: hittable,
+        visible: isVisible
       )
 
       let key = "\(snapshot.elementType)-\(label)-\(identifier)-\(snapshot.frame.origin.x)-\(snapshot.frame.origin.y)"
@@ -170,7 +169,7 @@ extension RunnerTests {
     let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
     var nodes: [SnapshotNode] = []
     var truncated = false
-    let viewport = app.frame
+    let viewport = snapshotViewport(app: app)
 
     let rootSnapshot: XCUIElementSnapshot
     do {
@@ -187,7 +186,6 @@ extension RunnerTests {
         return
       }
       if let limit = options.depth, depth > limit { return }
-      if !isVisibleInViewport(snapshot.frame, viewport) { return }
 
       let label = aggregatedLabel(for: snapshot) ?? snapshot.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = snapshot.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -198,13 +196,15 @@ extension RunnerTests {
         ranges: snapshotRanges
       )
       let hittable = computedSnapshotHittable(snapshot, viewport: viewport, laterNodes: laterNodes)
+      let isVisible = isVisibleInViewport(snapshot.frame, viewport)
       if shouldInclude(
         snapshot: snapshot,
         label: label,
         identifier: identifier,
         valueText: valueText,
         options: options,
-        hittable: hittable
+        hittable: hittable,
+        visible: isVisible
       ) {
         nodes.append(
           SnapshotNode(
@@ -249,7 +249,8 @@ extension RunnerTests {
     identifier: String,
     valueText: String?,
     options: SnapshotOptions,
-    hittable: Bool
+    hittable: Bool,
+    visible: Bool
   ) -> Bool {
     let type = snapshot.elementType
     let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
@@ -257,6 +258,11 @@ extension RunnerTests {
       if snapshot.children.count <= 1 { return false }
     }
     if options.interactiveOnly {
+      #if os(macOS)
+        if !visible && type != .application {
+          return false
+        }
+      #endif
       if interactiveTypes.contains(type) { return true }
       if hittable && type != .other { return true }
       if hasContent { return true }
@@ -337,6 +343,18 @@ extension RunnerTests {
     guard let value = snapshot.value else { return nil }
     let text = String(describing: value).trimmingCharacters(in: .whitespacesAndNewlines)
     return text.isEmpty ? nil : text
+  }
+
+  private func snapshotViewport(app: XCUIApplication) -> CGRect {
+    let windows = app.windows.allElementsBoundByIndex
+    if let window = windows.first(where: { $0.exists && !$0.frame.isNull && !$0.frame.isEmpty }) {
+      return window.frame
+    }
+    let appFrame = app.frame
+    if !appFrame.isNull && !appFrame.isEmpty {
+      return appFrame
+    }
+    return .infinite
   }
 
   private func aggregatedLabel(for snapshot: XCUIElementSnapshot, depth: Int = 0) -> String? {

@@ -58,9 +58,6 @@ function contextFromFlags(
 }
 
 function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
-  if (req.command === 'click') {
-    return { ...req, command: 'press' };
-  }
   return req;
 }
 

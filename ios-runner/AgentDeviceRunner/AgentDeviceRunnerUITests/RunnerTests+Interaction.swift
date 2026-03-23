@@ -156,6 +156,15 @@ extension RunnerTests {
     coordinate.tap()
   }
 
+  func secondaryTapAt(app: XCUIApplication, x: Double, y: Double) {
+    let coordinate = interactionCoordinate(app: app, x: x, y: y)
+    #if os(macOS)
+      coordinate.rightClick()
+    #else
+      coordinate.tap()
+    #endif
+  }
+
   func doubleTapAt(app: XCUIApplication, x: Double, y: Double) {
     let coordinate = interactionCoordinate(app: app, x: x, y: y)
     coordinate.doubleTap()

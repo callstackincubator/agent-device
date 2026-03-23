@@ -1,9 +1,10 @@
-# Snapshot Refs and Selectors (Mobile)
+# Snapshot Refs and Selectors
 
 ## Purpose
 
 Refs are useful for discovery/debugging. For deterministic scripts, use selectors.
 For tap interactions, `press` is canonical; `click` is an equivalent alias.
+For host Mac desktop apps, pair this reference with [macos-desktop.md](macos-desktop.md) because context menus and native list/table structures need desktop-specific handling.
 
 ## Snapshot
 
@@ -27,6 +28,13 @@ App: com.apple.Preferences
 ```bash
 agent-device press @e2
 agent-device fill @e5 "test"
+```
+
+On macOS, if actions live in a context menu, use:
+
+```bash
+agent-device click @e5 --secondary --platform macos
+agent-device snapshot -i
 ```
 
 ## Using selectors (deterministic)
@@ -71,7 +79,8 @@ Efficient pattern:
 ## Troubleshooting
 
 - Ref not found: re-snapshot.
-- If XCTest returns 0 nodes, foreground app state may have changed. Re-open the app or retry after state is stable.
+- If `snapshot` returns 0 nodes, foreground app state or accessibility state may have changed. Re-open the app or retry after state is stable.
+- On macOS, use `snapshot --raw --platform macos` to distinguish collector filtering from truly missing AX content.
 
 ## Stop Conditions
 

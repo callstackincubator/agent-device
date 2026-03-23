@@ -49,6 +49,7 @@ export function appendScriptSeriesFlags(
     if (typeof flags.holdMs === 'number') parts.push('--hold-ms', String(flags.holdMs));
     if (typeof flags.jitterPx === 'number') parts.push('--jitter-px', String(flags.jitterPx));
     if (flags.doubleTap === true) parts.push('--double-tap');
+    if (flags.secondaryClick === true) parts.push('--secondary');
     return;
   }
   if (action.command === 'swipe') {
@@ -109,6 +110,10 @@ export function parseReplaySeriesFlags(
 
     if (isClickLikeCommand(command) && token === '--double-tap') {
       flags.doubleTap = true;
+      continue;
+    }
+    if (isClickLikeCommand(command) && token === '--secondary') {
+      flags.secondaryClick = true;
       continue;
     }
 

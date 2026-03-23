@@ -20,6 +20,7 @@ export async function handleInteractionCommands(
   };
 
   switch (params.req.command) {
+    case 'click':
     case 'press':
       return await handlePressCommand(handlerParams);
     case 'fill':

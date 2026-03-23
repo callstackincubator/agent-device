@@ -22,11 +22,12 @@ Use this skill as a router, not a full manual.
 ## Decision Map
 
 - No target context yet: `devices` -> pick target -> `open`.
-- Normal UI task: `open` -> `snapshot -i` -> `press/fill` -> `diff snapshot -i` -> `close`
+- Normal UI task: `open` -> `snapshot -i` -> `press/click/fill` -> `diff snapshot -i` -> `close`
 - Debug/crash (iOS/Android): `open <app>` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path` -> targeted `grep`
 - Replay drift: `replay -u <path>` -> verify updated selectors
 - Remote multi-tenant run: allocate lease -> point client at remote daemon base URL -> run commands with tenant isolation flags -> heartbeat/release lease
 - Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only
+- macOS desktop task: run the macOS desktop flow, then open [references/macos-desktop.md](references/macos-desktop.md) if context menus, Finder rows, or desktop-specific snapshot behavior matters
 
 ## Target Selection Rules
 
@@ -114,8 +115,9 @@ agent-device screenshot /tmp/macos-textedit.png
 agent-device close
 ```
 
-Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `trigger-app-event` when a desktop deep-link template is configured, and only `settings appearance light|dark|toggle` under the `settings` command. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
+Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `click`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `trigger-app-event` when a desktop deep-link template is configured, and only `settings appearance light|dark|toggle` under the `settings` command. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
 Prefer selectors or snapshot refs (`@e...`) over raw x/y commands on macOS because the window origin can move between runs.
+Open [references/macos-desktop.md](references/macos-desktop.md) when you need Finder-style list traversal, context-menu flows, or macOS-specific snapshot expectations.
 
 ### 2) Debug/Crash Flow
 
@@ -238,6 +240,8 @@ agent-device is visible 'id="anchor"'
 ```
 
 `press` is canonical tap command; `click` is an alias.
+On macOS, use `click --secondary <@ref|selector>` to open a context menu before the next `snapshot -i`.
+For desktop-specific heuristics and Finder guidance, see [references/macos-desktop.md](references/macos-desktop.md).
 
 ### Utilities
 
@@ -333,6 +337,7 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 ## References
 
 - [references/snapshot-refs.md](references/snapshot-refs.md)
+- [references/macos-desktop.md](references/macos-desktop.md)
 - [references/logs-and-debug.md](references/logs-and-debug.md)
 - [references/session-management.md](references/session-management.md)
 - [references/permissions.md](references/permissions.md)

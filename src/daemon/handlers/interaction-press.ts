@@ -17,6 +17,7 @@ export async function handlePressCommand(
   params: InteractionHandlerParams,
 ): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, contextFromFlags, dispatch } = params;
+  const commandLabel = req.command === 'click' ? 'click' : 'press';
   const session = sessionStore.get(sessionName);
   if (!session) {
     return {
@@ -29,6 +30,42 @@ export async function handlePressCommand(
       ok: false,
       error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
     };
+  }
+  const secondaryClick = req.flags?.secondaryClick === true;
+  if (secondaryClick) {
+    if (commandLabel !== 'click') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: '--secondary is supported only for click',
+        },
+      };
+    }
+    if (session.device.platform !== 'macos') {
+      return {
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_OPERATION',
+          message: 'click --secondary is supported only on macOS',
+        },
+      };
+    }
+    if (
+      typeof req.flags?.count === 'number' ||
+      typeof req.flags?.intervalMs === 'number' ||
+      typeof req.flags?.holdMs === 'number' ||
+      typeof req.flags?.jitterPx === 'number' ||
+      req.flags?.doubleTap === true
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'click --secondary does not support repeat or gesture modifier flags',
+        },
+      };
+    }
   }
   const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
   if (directCoordinates) {
@@ -45,9 +82,22 @@ export async function handlePressCommand(
       command: req.command,
       positionals: req.positionals ?? [String(directCoordinates.x), String(directCoordinates.y)],
       flags: req.flags ?? {},
-      result: data ?? { x: directCoordinates.x, y: directCoordinates.y },
+      result: data ?? {
+        x: directCoordinates.x,
+        y: directCoordinates.y,
+        ...(secondaryClick ? { button: 'secondary' } : {}),
+      },
     });
-    return { ok: true, data: data ?? { x: directCoordinates.x, y: directCoordinates.y } };
+    return {
+      ok: true,
+      data:
+        data ??
+        ({
+          x: directCoordinates.x,
+          y: directCoordinates.y,
+          ...(secondaryClick ? { button: 'secondary' } : {}),
+        } as Record<string, unknown>),
+    };
   }
 
   const refInput = req.positionals?.[0] ?? '';
@@ -61,7 +111,7 @@ export async function handlePressCommand(
       refInput,
       fallbackLabel,
       requireRect: true,
-      invalidRefMessage: 'press requires a ref like @e2',
+      invalidRefMessage: `${commandLabel} requires a ref like @e2`,
       notFoundMessage: `Ref ${refInput} not found or has no bounds`,
     });
     if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
@@ -116,9 +166,19 @@ export async function handlePressCommand(
       command: req.command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
-      result: { ref, x, y, refLabel, selectorChain },
+      result: {
+        ref,
+        x,
+        y,
+        refLabel,
+        selectorChain,
+        ...(secondaryClick ? { button: 'secondary' } : {}),
+      },
     });
-    return { ok: true, data: { ...(data ?? {}), ref, x, y } };
+    return {
+      ok: true,
+      data: { ...(data ?? {}), ref, x, y, ...(secondaryClick ? { button: 'secondary' } : {}) },
+    };
   }
 
   const selectorExpression = (req.positionals ?? []).join(' ').trim();
@@ -127,7 +187,7 @@ export async function handlePressCommand(
       ok: false,
       error: {
         code: 'INVALID_ARGS',
-        message: 'press requires @ref, selector expression, or x y coordinates',
+        message: `${commandLabel} requires @ref, selector expression, or x y coordinates`,
       },
     };
   }
@@ -174,7 +234,17 @@ export async function handlePressCommand(
       selector: resolved.selector.raw,
       selectorChain,
       refLabel,
+      ...(secondaryClick ? { button: 'secondary' } : {}),
     },
   });
-  return { ok: true, data: { ...(data ?? {}), selector: resolved.selector.raw, x, y } };
+  return {
+    ok: true,
+    data: {
+      ...(data ?? {}),
+      selector: resolved.selector.raw,
+      x,
+      y,
+      ...(secondaryClick ? { button: 'secondary' } : {}),
+    },
+  };
 }

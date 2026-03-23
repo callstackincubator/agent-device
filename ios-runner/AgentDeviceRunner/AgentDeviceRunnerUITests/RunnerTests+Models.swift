@@ -2,6 +2,7 @@
 
 enum CommandType: String, Codable {
   case tap
+  case secondaryTap
   case tapSeries
   case longPress
   case drag

@@ -26,6 +26,7 @@ import {
 export type RunnerCommand = {
   command:
     | 'tap'
+    | 'secondaryTap'
     | 'tapSeries'
     | 'longPress'
     | 'drag'

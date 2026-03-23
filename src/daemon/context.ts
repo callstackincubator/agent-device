@@ -18,6 +18,7 @@ export type DaemonCommandContext = {
   holdMs?: number;
   jitterPx?: number;
   doubleTap?: boolean;
+  secondaryClick?: boolean;
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
 };
@@ -47,6 +48,7 @@ export function contextFromFlags(
     holdMs: flags?.holdMs,
     jitterPx: flags?.jitterPx,
     doubleTap: flags?.doubleTap,
+    secondaryClick: flags?.secondaryClick,
     pauseMs: flags?.pauseMs,
     pattern: flags?.pattern,
   };

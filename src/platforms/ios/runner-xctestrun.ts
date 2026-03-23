@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd, runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
+import {
+  runCmd,
+  runCmdSync,
+  runCmdStreaming,
+  type ExecBackgroundResult,
+} from '../../utils/exec.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
@@ -54,24 +59,61 @@ export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerB
   process.env,
 );
 
+type EnsureXctestrunDeps = {
+  findProjectRoot: () => string;
+  findXctestrun: (root: string) => string | null;
+  xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
+  xctestrunReferencesExistingProducts: (xctestrunPath: string) => boolean;
+  repairRunnerProductsIfNeeded: (device: DeviceInfo, xctestrunPath: string) => Promise<void>;
+  assertSafeDerivedCleanup: (derivedPath: string) => void;
+  cleanRunnerDerivedArtifacts: (derivedPath: string) => void;
+  buildRunnerXctestrun: (
+    device: DeviceInfo,
+    projectPath: string,
+    derived: string,
+    options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
+  ) => Promise<void>;
+};
+
+const defaultEnsureXctestrunDeps: EnsureXctestrunDeps = {
+  findProjectRoot,
+  findXctestrun,
+  xctestrunReferencesProjectRoot,
+  xctestrunReferencesExistingProducts,
+  repairRunnerProductsIfNeeded: repairMacOsRunnerProductsIfNeeded,
+  assertSafeDerivedCleanup,
+  cleanRunnerDerivedArtifacts,
+  buildRunnerXctestrun,
+};
+
 export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
+  deps: EnsureXctestrunDeps = defaultEnsureXctestrunDeps,
 ): Promise<string> {
   const derived = resolveRunnerDerivedPath(device);
-  const projectRoot = findProjectRoot();
+  const projectRoot = deps.findProjectRoot();
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
     if (shouldCleanDerived()) {
-      assertSafeDerivedCleanup(derived);
-      cleanRunnerDerivedArtifacts(derived);
+      deps.assertSafeDerivedCleanup(derived);
+      deps.cleanRunnerDerivedArtifacts(derived);
     }
-    const existing = findXctestrun(derived);
-    if (existing && xctestrunReferencesProjectRoot(existing, projectRoot)) {
-      return existing;
+    const existing = deps.findXctestrun(derived);
+    const canReuseExisting =
+      existing &&
+      deps.xctestrunReferencesProjectRoot(existing, projectRoot) &&
+      deps.xctestrunReferencesExistingProducts(existing);
+    if (canReuseExisting) {
+      try {
+        await deps.repairRunnerProductsIfNeeded(device, existing);
+        return existing;
+      } catch {
+        // Fall through and rebuild from a clean derived state.
+      }
     }
     if (existing) {
-      assertSafeDerivedCleanup(derived);
-      cleanRunnerDerivedArtifacts(derived);
+      deps.assertSafeDerivedCleanup(derived);
+      deps.cleanRunnerDerivedArtifacts(derived);
     }
     const projectPath = path.join(
       projectRoot,
@@ -84,66 +126,18 @@ export async function ensureXctestrun(
       throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
     }
 
-    const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
-    const signingBuildSettings = resolveRunnerSigningBuildSettings(
-      process.env,
-      device.kind === 'device',
-    );
-    const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
-    const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
-    try {
-      await runCmdStreaming(
-        'xcodebuild',
-        [
-          'build-for-testing',
-          '-project',
-          projectPath,
-          '-scheme',
-          'AgentDeviceRunner',
-          '-parallel-testing-enabled',
-          'NO',
-          resolveRunnerMaxConcurrentDestinationsFlag(device),
-          '1',
-          '-destination',
-          resolveRunnerBuildDestination(device),
-          '-derivedDataPath',
-          derived,
-          ...performanceBuildSettings,
-          ...runnerBundleBuildSettings,
-          ...provisioningArgs,
-          ...signingBuildSettings,
-        ],
-        {
-          detached: true,
-          onSpawn: (child) => {
-            runnerPrepProcesses.add(child);
-            child.on('close', () => {
-              runnerPrepProcesses.delete(child);
-            });
-          },
-          onStdoutChunk: (chunk) => {
-            logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-          },
-          onStderrChunk: (chunk) => {
-            logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-          },
-        },
-      );
-    } catch (err) {
-      const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
-      const hint = resolveSigningFailureHint(appErr);
-      throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
-        error: appErr.message,
-        details: appErr.details,
-        logPath: options.logPath,
-        hint,
-      });
-    }
+    await deps.buildRunnerXctestrun(device, projectPath, derived, options);
 
-    const built = findXctestrun(derived);
+    const built = deps.findXctestrun(derived);
     if (!built) {
       throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
     }
+    if (!deps.xctestrunReferencesExistingProducts(built)) {
+      throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
+        xctestrunPath: built,
+      });
+    }
+    await deps.repairRunnerProductsIfNeeded(device, built);
     return built;
   });
 }
@@ -231,6 +225,173 @@ export function xctestrunReferencesProjectRoot(
   }
 }
 
+export function xctestrunReferencesExistingProducts(xctestrunPath: string): boolean {
+  try {
+    return resolveXctestrunProductPaths(xctestrunPath) !== null;
+  } catch {
+    return false;
+  }
+}
+
+type XctestrunProductRefs = {
+  testRootPaths: string[];
+  testHostPaths: string[];
+};
+
+type XctestrunResolvedProductPaths = {
+  rootProductPaths: string[];
+  hostProductPaths: string[];
+};
+
+function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | null {
+  try {
+    const result = runCmdSync('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
+      allowFailure: true,
+    });
+    if (result.exitCode !== 0 || !result.stdout.trim()) {
+      return null;
+    }
+    return JSON.parse(result.stdout) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function resolveXctestrunProductRefsFromJson(
+  parsed: Record<string, unknown>,
+): XctestrunProductRefs {
+  const testRootPaths: string[] = [];
+  const testHostPaths: string[] = [];
+  const productPathKeys = new Set([
+    'ProductPaths',
+    'DependentProductPaths',
+    'TestHostPath',
+    'TestBundlePath',
+    'UITargetAppPath',
+  ]);
+
+  const visit = (value: unknown, key?: string) => {
+    if (typeof value === 'string') {
+      if (!key || !productPathKeys.has(key)) {
+        return;
+      }
+      if (value.startsWith('__TESTROOT__/')) {
+        testRootPaths.push(value.slice('__TESTROOT__/'.length));
+      } else if (value.startsWith('__TESTHOST__/')) {
+        testHostPaths.push(value.slice('__TESTHOST__/'.length));
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        visit(item, key);
+      }
+      return;
+    }
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+    for (const [childKey, childValue] of Object.entries(value)) {
+      visit(childValue, childKey);
+    }
+  };
+
+  visit(parsed);
+  return {
+    testRootPaths: Array.from(new Set(testRootPaths)),
+    testHostPaths: Array.from(new Set(testHostPaths)),
+  };
+}
+
+function resolveXctestrunProductRefsFromXml(contents: string): XctestrunProductRefs {
+  const arrayPathKeys = ['ProductPaths', 'DependentProductPaths'];
+  const stringPathKeys = ['TestHostPath', 'TestBundlePath', 'UITargetAppPath'];
+  const values = [
+    ...arrayPathKeys.flatMap((key) => extractPlistArrayStringValues(contents, key)),
+    ...stringPathKeys.flatMap((key) => extractPlistStringValues(contents, key)),
+  ];
+  return {
+    testRootPaths: Array.from(
+      new Set(
+        values
+          .filter((value) => value.startsWith('__TESTROOT__/'))
+          .map((value) => value.slice('__TESTROOT__/'.length)),
+      ),
+    ),
+    testHostPaths: Array.from(
+      new Set(
+        values
+          .filter((value) => value.startsWith('__TESTHOST__/'))
+          .map((value) => value.slice('__TESTHOST__/'.length)),
+      ),
+    ),
+  };
+}
+
+function resolveXctestrunProductPaths(xctestrunPath: string): XctestrunResolvedProductPaths | null {
+  const refs = resolveXctestrunProductRefs(xctestrunPath);
+  if (!refs || (refs.testRootPaths.length === 0 && refs.testHostPaths.length === 0)) {
+    return null;
+  }
+  const testRoot = path.dirname(xctestrunPath);
+  const rootProductPaths = refs.testRootPaths.map((relativePath) =>
+    path.join(testRoot, relativePath),
+  );
+  for (const productPath of rootProductPaths) {
+    if (!fs.existsSync(productPath)) {
+      return null;
+    }
+  }
+
+  const testHostRoots = Array.from(
+    new Set(
+      refs.testRootPaths
+        .map(extractAppBundleRoot)
+        .filter((relativePath): relativePath is string => relativePath !== null),
+    ),
+  );
+  const hostProductPaths: string[] = [];
+  for (const relativePath of refs.testHostPaths) {
+    const resolvedHostPath = testHostRoots
+      .map((hostRoot) => path.join(testRoot, hostRoot, relativePath))
+      .find((candidatePath) => fs.existsSync(candidatePath));
+    if (!resolvedHostPath) {
+      return null;
+    }
+    hostProductPaths.push(resolvedHostPath);
+  }
+
+  return {
+    rootProductPaths: Array.from(new Set(rootProductPaths)),
+    hostProductPaths: Array.from(new Set(hostProductPaths)),
+  };
+}
+
+function resolveXctestrunProductRefs(xctestrunPath: string): XctestrunProductRefs | null {
+  const parsed = readXctestrunJson(xctestrunPath);
+  if (parsed) {
+    return resolveXctestrunProductRefsFromJson(parsed);
+  }
+  try {
+    return resolveXctestrunProductRefsFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function extractPlistStringValues(contents: string, key: string): string[] {
+  const pattern = new RegExp(`<key>${key}</key>\\s*<string>([\\s\\S]*?)</string>`, 'g');
+  const values = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(contents)) !== null) {
+    const value = match[1]?.trim();
+    if (value) {
+      values.add(value);
+    }
+  }
+  return Array.from(values);
+}
+
 function findProjectRoot(): string {
   const start = path.dirname(fileURLToPath(import.meta.url));
   let current = start;
@@ -240,6 +401,32 @@ function findProjectRoot(): string {
     current = path.dirname(current);
   }
   return start;
+}
+
+function extractPlistArrayStringValues(contents: string, key: string): string[] {
+  const blockPattern = new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`, 'g');
+  const stringPattern = /<string>([\s\S]*?)<\/string>/g;
+  const values = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = blockPattern.exec(contents)) !== null) {
+    const block = match[1] ?? '';
+    let stringMatch: RegExpExecArray | null;
+    while ((stringMatch = stringPattern.exec(block)) !== null) {
+      const value = stringMatch[1]?.trim();
+      if (value) {
+        values.add(value);
+      }
+    }
+  }
+  return Array.from(values);
+}
+
+function extractAppBundleRoot(relativePath: string): string | null {
+  const appIndex = relativePath.indexOf('.app');
+  if (appIndex === -1) {
+    return null;
+  }
+  return relativePath.slice(0, appIndex + '.app'.length);
 }
 
 export async function prepareXctestrunWithEnv(
@@ -326,6 +513,70 @@ export async function prepareXctestrunWithEnv(
   return { xctestrunPath: tmpXctestrunPath, jsonPath: tmpJsonPath };
 }
 
+async function buildRunnerXctestrun(
+  device: DeviceInfo,
+  projectPath: string,
+  derived: string,
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
+): Promise<void> {
+  const runnerBundleBuildSettings = resolveRunnerBundleBuildSettings(process.env);
+  const signingBuildSettings = resolveRunnerSigningBuildSettings(
+    process.env,
+    device.kind === 'device',
+    device.platform,
+  );
+  const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
+  const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
+  try {
+    await runCmdStreaming(
+      'xcodebuild',
+      [
+        'build-for-testing',
+        '-project',
+        projectPath,
+        '-scheme',
+        'AgentDeviceRunner',
+        '-parallel-testing-enabled',
+        'NO',
+        resolveRunnerMaxConcurrentDestinationsFlag(device),
+        '1',
+        '-destination',
+        resolveRunnerBuildDestination(device),
+        '-derivedDataPath',
+        derived,
+        ...performanceBuildSettings,
+        ...runnerBundleBuildSettings,
+        ...provisioningArgs,
+        ...signingBuildSettings,
+      ],
+      {
+        detached: true,
+        onSpawn: (child) => {
+          runnerPrepProcesses.add(child);
+          child.on('close', () => {
+            runnerPrepProcesses.delete(child);
+          });
+        },
+        onStdoutChunk: (chunk) => {
+          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+        },
+        onStderrChunk: (chunk) => {
+          logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+        },
+      },
+    );
+  } catch (err) {
+    const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
+    const hint = resolveSigningFailureHint(appErr);
+    throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
+      error: appErr.message,
+      details: appErr.details,
+      logPath: options.logPath,
+      hint,
+    });
+  }
+}
+
 function resolveRunnerDerivedPath(device: DeviceInfo): string {
   const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
   if (override) {
@@ -375,6 +626,37 @@ function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS'
   return resolveApplePlatformName(device.target);
 }
 
+async function repairMacOsRunnerProductsIfNeeded(
+  device: DeviceInfo,
+  xctestrunPath: string,
+): Promise<void> {
+  if (device.platform !== 'macos') {
+    return;
+  }
+  const resolvedProductPaths = resolveXctestrunProductPaths(xctestrunPath);
+  if (!resolvedProductPaths) {
+    throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
+      xctestrunPath,
+    });
+  }
+  const productPaths = Array.from(
+    new Set([...resolvedProductPaths.rootProductPaths, ...resolvedProductPaths.hostProductPaths]),
+  ).sort((left, right) => right.length - left.length);
+  for (const productPath of productPaths) {
+    if (!fs.existsSync(productPath)) {
+      throw new AppError('COMMAND_FAILED', 'Missing macOS runner product', {
+        productPath,
+        xctestrunPath,
+      });
+    }
+  }
+
+  for (const productPath of productPaths) {
+    await runCmd('codesign', ['--remove-signature', productPath], { allowFailure: true });
+    await runCmd('codesign', ['--force', '--sign', '-', productPath]);
+  }
+}
+
 function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
   return process.arch === 'arm64' ? 'arm64' : 'x86_64';
 }
@@ -391,7 +673,16 @@ export function resolveRunnerMaxConcurrentDestinationsFlag(device: DeviceInfo): 
 export function resolveRunnerSigningBuildSettings(
   env: NodeJS.ProcessEnv = process.env,
   forDevice = false,
+  platform: DeviceInfo['platform'] = 'ios',
 ): string[] {
+  if (platform === 'macos') {
+    return [
+      'CODE_SIGNING_ALLOWED=NO',
+      'CODE_SIGNING_REQUIRED=NO',
+      'CODE_SIGN_IDENTITY=',
+      'DEVELOPMENT_TEAM=',
+    ];
+  }
   if (!forDevice) {
     return [];
   }
@@ -418,8 +709,8 @@ export function resolveRunnerBundleBuildSettings(env: NodeJS.ProcessEnv = proces
   ];
 }
 
-function resolveRunnerPerformanceBuildSettings(): string[] {
-  return ['COMPILER_INDEX_STORE_ENABLE=NO'];
+export function resolveRunnerPerformanceBuildSettings(): string[] {
+  return ['COMPILER_INDEX_STORE_ENABLE=NO', 'ENABLE_CODE_COVERAGE=NO'];
 }
 
 function shouldCleanDerived(): boolean {

@@ -62,6 +62,7 @@ export async function dispatchCommand(
     holdMs?: number;
     jitterPx?: number;
     doubleTap?: boolean;
+    secondaryClick?: boolean;
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
   },
@@ -141,6 +142,37 @@ export async function dispatchCommand(
           const [x, y] = positionals.map(Number);
           if (Number.isNaN(x) || Number.isNaN(y))
             throw new AppError('INVALID_ARGS', 'press requires x y');
+          if (context?.secondaryClick === true) {
+            if (device.platform !== 'macos') {
+              throw new AppError(
+                'UNSUPPORTED_OPERATION',
+                'click --secondary is supported only on macOS',
+              );
+            }
+            if (
+              typeof context.count === 'number' ||
+              typeof context.intervalMs === 'number' ||
+              typeof context.holdMs === 'number' ||
+              typeof context.jitterPx === 'number' ||
+              context.doubleTap === true
+            ) {
+              throw new AppError(
+                'INVALID_ARGS',
+                'click --secondary does not support repeat or gesture modifier flags',
+              );
+            }
+            await runIosRunnerCommand(
+              device,
+              { command: 'secondaryTap', x, y, appBundleId: context?.appBundleId },
+              {
+                verbose: context?.verbose,
+                logPath: context?.logPath,
+                traceLogPath: context?.traceLogPath,
+                requestId: context?.requestId,
+              },
+            );
+            return { x, y, button: 'secondary' };
+          }
           const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
           const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
           const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);

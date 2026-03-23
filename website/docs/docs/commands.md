@@ -171,6 +171,7 @@ agent-device alert dismiss
 
 ```bash
 agent-device click @e1
+agent-device click @e1 --secondary   # macOS secondary click / context menu
 agent-device focus @e2
 agent-device fill @e2 "text"          # Clear then type
 agent-device type "text"              # Type into focused field without clearing

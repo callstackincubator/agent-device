@@ -217,6 +217,12 @@ extension RunnerTests {
         return Response(ok: true, data: DataPayload(message: "tapped"))
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
+    case .secondaryTap:
+      guard let x = command.x, let y = command.y else {
+        return Response(ok: false, error: ErrorPayload(message: "secondaryTap requires x and y"))
+      }
+      secondaryTapAt(app: activeApp, x: x, y: y)
+      return Response(ok: true, data: DataPayload(message: "secondary tapped"))
     case .tapSeries:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
