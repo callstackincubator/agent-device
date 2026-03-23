@@ -33,7 +33,7 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 The canonical loop is:
 
 ```bash
-agent-device open Settings --platform ios
+agent-device open SampleApp --platform ios
 agent-device snapshot -i
 agent-device press @e3
 agent-device diff snapshot -i
@@ -51,21 +51,14 @@ In practice, most work follows the same pattern:
 
 ## Where To Go Next
 
-For people:
-
-- [Introduction](website/docs/docs/introduction.md)
-- [Quick Start](website/docs/docs/quick-start.md)
-- [Commands](website/docs/docs/commands.md)
-- [Snapshots](website/docs/docs/snapshots.md)
-- [Selectors](website/docs/docs/selectors.md)
-- [Sessions](website/docs/docs/sessions.md)
-- [Configuration](website/docs/docs/configuration.md)
-- [Client API](website/docs/docs/client-api.md)
+For people: 
+- [Website](https://agent-device.dev/)
+- [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
 
 For agents:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
-- [Dogfood exploratory QA skill](skills/dogfood/SKILL.md)
+- [dogfood skill](skills/dogfood/SKILL.md)
 
 ## Install
 
