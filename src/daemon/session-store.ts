@@ -5,8 +5,8 @@ import type { SessionAction, SessionRuntimeHints, SessionState } from './types.t
 import { inferFillText } from './action-utils.ts';
 import { resolveUserPath } from '../utils/path-resolution.ts';
 import { appendOpenActionScriptArgs } from './session-open-script.ts';
-import { appendRecordActionScriptArgs } from './session-record-script.ts';
 import {
+  appendRecordActionScriptArgs,
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
   formatScriptArgQuoteIfNeeded,

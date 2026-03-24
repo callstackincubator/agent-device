@@ -10,13 +10,13 @@ const recordingScriptsDir = path.resolve(
   __dirname,
   '../../../../ios-runner/AgentDeviceRunner/RecordingScripts',
 );
+const recordingTestSupportDir = path.resolve(__dirname, '../../../../test/integration/support');
 
-async function assertSwiftScriptTypechecks(scriptName: string): Promise<void> {
-  const scriptPath = path.join(recordingScriptsDir, scriptName);
+async function assertSwiftScriptTypechecks(scriptPath: string): Promise<void> {
   const result = await runCmd('xcrun', ['swiftc', '-typecheck', scriptPath], {
     allowFailure: true,
   });
-  assert.equal(result.exitCode, 0, `${scriptName} should typecheck`);
+  assert.equal(result.exitCode, 0, `${path.basename(scriptPath)} should typecheck`);
 }
 
 test('recording overlay Swift script typechecks', async (t) => {
@@ -24,7 +24,7 @@ test('recording overlay Swift script typechecks', async (t) => {
     t.skip('Swift recording scripts are only validated on macOS');
   }
 
-  await assertSwiftScriptTypechecks('recording-overlay.swift');
+  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-overlay.swift'));
 });
 
 test('recording trim Swift script typechecks', async (t) => {
@@ -32,7 +32,7 @@ test('recording trim Swift script typechecks', async (t) => {
     t.skip('Swift recording scripts are only validated on macOS');
   }
 
-  await assertSwiftScriptTypechecks('recording-trim.swift');
+  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-trim.swift'));
 });
 
 test('recording inspect Swift script typechecks', async (t) => {
@@ -40,7 +40,7 @@ test('recording inspect Swift script typechecks', async (t) => {
     t.skip('Swift recording scripts are only validated on macOS');
   }
 
-  await assertSwiftScriptTypechecks('recording-inspect.swift');
+  await assertSwiftScriptTypechecks(path.join(recordingTestSupportDir, 'recording-inspect.swift'));
 });
 
 test('recording overlays are explicitly unsupported on non-macOS hosts', () => {

@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
 import { appendOpenActionScriptArgs, parseReplayOpenFlags } from '../session-open-script.ts';
-import { appendRecordActionScriptArgs } from '../session-record-script.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
+  appendRecordActionScriptArgs,
   appendRuntimeHintFlags,
   appendScriptSeriesFlags,
   formatScriptArgQuoteIfNeeded,

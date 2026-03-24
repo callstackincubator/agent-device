@@ -8,6 +8,7 @@ import { deriveRecordingTelemetryPath } from '../../recording-telemetry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../../platforms/ios/runner-client.ts';
+import { getRecordingOverlaySupportWarning } from '../../../recording/overlay.ts';
 
 type RecordTraceDeps = NonNullable<Parameters<typeof handleRecordTraceCommands>[0]['deps']>;
 type RunnerCall = {
@@ -18,6 +19,8 @@ type RunnerCall = {
   logPath?: string;
   traceLogPath?: string;
 };
+
+const overlaySupportWarning = getRecordingOverlaySupportWarning();
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-trace-'));
@@ -637,11 +640,17 @@ test('record stop trims iOS device recordings from target app readiness before o
   });
 
   assert.equal(response?.ok, true);
-  assert.deepEqual(lifecycleCalls, [
+  const expectedLifecycleCalls = [
     'trim:/tmp/device.mp4:3250',
     'telemetry:/tmp/device.mp4:1',
-    `overlay:/tmp/device.mp4:${deriveRecordingTelemetryPath('/tmp/device.mp4')}`,
-  ]);
+  ];
+  if (!overlaySupportWarning) {
+    expectedLifecycleCalls.push(
+      `overlay:/tmp/device.mp4:${deriveRecordingTelemetryPath('/tmp/device.mp4')}`,
+    );
+  }
+  assert.deepEqual(lifecycleCalls, expectedLifecycleCalls);
+  assert.equal(response?.data?.overlayWarning, overlaySupportWarning);
 });
 
 test('record uses simctl recordVideo for iOS simulators', async () => {
@@ -772,7 +781,7 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
   assert.equal(responseStop?.ok, true);
   assert.equal(
     responseStop?.data?.overlayWarning,
-    'failed to overlay recording touches: swift export failed',
+    overlaySupportWarning ?? 'failed to overlay recording touches: swift export failed',
   );
 });
 
@@ -863,7 +872,7 @@ test('record start/stop overlays Android gestures by default on devices', async 
   startedRecording?.gestureEvents.push({ kind: 'tap', tMs: 120, x: 90, y: 180 });
 
   const overlayCalls: Array<{ videoPath: string; telemetryPath: string }> = [];
-  await runRecordCommand({
+  const responseStop = await runRecordCommand({
     sessionStore,
     sessionName,
     positionals: ['stop'],
@@ -889,12 +898,22 @@ test('record start/stop overlays Android gestures by default on devices', async 
   });
 
   assert.ok(adbCalls.some((args) => args.join(' ') === '-s emulator-5554 shell kill -2 4321'));
-  assert.deepEqual(overlayCalls, [
-    {
-      videoPath: path.resolve('./android.mp4'),
-      telemetryPath: deriveRecordingTelemetryPath(path.resolve('./android.mp4')),
-    },
-  ]);
+  assert.equal(responseStop?.ok, true);
+  if (!responseStop?.ok) {
+    throw new Error('expected successful Android record stop response');
+  }
+  if (overlaySupportWarning) {
+    assert.deepEqual(overlayCalls, []);
+    assert.equal(responseStop.data?.overlayWarning, overlaySupportWarning);
+  } else {
+    assert.deepEqual(overlayCalls, [
+      {
+        videoPath: path.resolve('./android.mp4'),
+        telemetryPath: deriveRecordingTelemetryPath(path.resolve('./android.mp4')),
+      },
+    ]);
+    assert.equal(responseStop.data?.overlayWarning, undefined);
+  }
 });
 
 test('record stop keeps Android video when overlay export fails', async () => {
@@ -968,7 +987,7 @@ test('record stop keeps Android video when overlay export fails', async () => {
   assert.equal(responseStop?.ok, true);
   assert.equal(
     responseStop?.data?.overlayWarning,
-    'failed to overlay recording touches: android overlay export failed',
+    overlaySupportWarning ?? 'failed to overlay recording touches: android overlay export failed',
   );
 });
 

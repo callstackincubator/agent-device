@@ -287,9 +287,7 @@ export function runRecordingInspect(params: {
   outputDir: string;
 }): RecordingInspectionManifest {
   mkdirSync(params.outputDir, { recursive: true });
-  const scriptPath = path.resolve(
-    'ios-runner/AgentDeviceRunner/RecordingScripts/recording-inspect.swift',
-  );
+  const scriptPath = path.resolve('test/integration/support/recording-inspect.swift');
   const result = runCmdSync(
     'xcrun',
     [
@@ -343,14 +341,7 @@ function isOverlayBlue(r: number, g: number, b: number, a: number): boolean {
   }
   const maxChannel = Math.max(r, g, b);
   const minChannel = Math.min(r, g, b);
-  return (
-    b >= 180 &&
-    g >= 160 &&
-    r <= 235 &&
-    b >= g &&
-    b - r >= 25 &&
-    maxChannel - minChannel >= 12
-  );
+  return b >= 180 && g >= 160 && r <= 235 && b >= g && b - r >= 25 && maxChannel - minChannel >= 12;
 }
 
 function sanitizeSegment(input: string): string {
