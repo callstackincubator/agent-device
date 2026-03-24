@@ -436,6 +436,10 @@ agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
 agent-device record stop                # Stop active recording
 ```
 
+- Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
+- Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
+- On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
+
 **Session app logs (token-efficient debugging):** Logging is off by default in normal flows. Enable it on demand for debugging. Logs are written to a file so agents can grep instead of loading full output into context.
 
 ```bash
@@ -488,7 +492,7 @@ tail -50 ~/.agent-device/sessions/default/app.log
 
 - Physical iOS device capture is best-effort: dropped frames are expected and true 60 FPS is not guaranteed even with `--fps 60`.
 
-- Physical-device capture defaults to uncapped (max available) FPS.
+- Physical-device capture defaults to 15 FPS.
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
 
