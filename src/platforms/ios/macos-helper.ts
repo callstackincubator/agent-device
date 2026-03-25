@@ -165,7 +165,8 @@ async function ensureMacOsHelperBinary(): Promise<string> {
 }
 
 async function runMacOsHelper<T extends Record<string, unknown>>(args: string[]): Promise<T> {
-  if (process.platform !== 'darwin') {
+  const configuredPath = process.env[MACOS_HELPER_ENV_PATH]?.trim();
+  if (process.platform !== 'darwin' && !configuredPath) {
     throw new AppError('UNSUPPORTED_PLATFORM', 'macOS helper is only available on macOS');
   }
   const helperPath = await ensureMacOsHelperBinary();
