@@ -62,6 +62,18 @@ agent-device record stop
 - `record` supports iOS simulators, iOS devices, and Android.
 - Recording writes a video artifact and a gesture-telemetry sidecar JSON.
 - On macOS hosts, touch overlay burn-in is available for supported recordings.
+- If the agent already knows the interaction sequence and wants a more lifelike, uninterrupted recording, drive the flow with `batch` while recording instead of replanning between each step.
+
+Example:
+
+```bash
+agent-device record start ./recordings/smoke.mov
+agent-device batch --session sim --platform ios --steps-file /tmp/smoke-steps.json --json
+agent-device record stop
+```
+
+- Use this only after exploration has stabilized the flow.
+- Keep the batch short and add `wait` or `is exists` guards after mutating steps so the recorded flow still tracks realistic UI timing.
 
 ## Replay maintenance
 
