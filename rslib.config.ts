@@ -6,7 +6,9 @@ export default defineConfig({
     {
       format: 'esm',
       syntax: 'esnext',
-      dts: true,
+      dts: {
+        bundle: true,
+      },
       shims: {
         esm: {
           __filename: true,
@@ -15,6 +17,27 @@ export default defineConfig({
       source: {
         entry: {
           index: 'src/index.ts',
+        },
+        tsconfigPath: 'tsconfig.lib.json',
+      },
+      output: {
+        distPath: {
+          root: path.join('dist', 'src'),
+        },
+        minify: true,
+      },
+    },
+    {
+      format: 'esm',
+      syntax: 'esnext',
+      dts: false,
+      shims: {
+        esm: {
+          __filename: true,
+        },
+      },
+      source: {
+        entry: {
           bin: 'src/bin.ts',
           daemon: 'src/daemon.ts',
         },
