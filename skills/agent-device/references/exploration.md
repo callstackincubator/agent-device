@@ -36,12 +36,27 @@ Open this file when the app or screen is already running and you need to discove
 
 Do not treat `@ref` values as durable after navigation or dynamic updates. Re-snapshot after the UI changes, and switch to selectors when the flow must stay stable.
 
-## Canonical loop
+## Common loops
+
+### Interactive exploration loop
+
+```bash
+agent-device open Settings --platform ios
+agent-device snapshot -i
+agent-device press @e3
+agent-device wait visible 'label="Privacy & Security"' 3000
+agent-device get text 'label="Privacy & Security"'
+agent-device close
+```
+
+### Screen verification loop
 
 ```bash
 agent-device open Settings --platform ios
 agent-device snapshot
-agent-device get text 'label="Privacy & Security"'
+agent-device press 'label="Privacy & Security"'
+agent-device diff snapshot
+agent-device snapshot
 agent-device close
 ```
 
