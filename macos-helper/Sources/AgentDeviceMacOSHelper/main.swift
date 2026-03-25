@@ -53,7 +53,6 @@ struct AlertResponse: Encodable {
   let bundleId: String?
 }
 
-@main
 struct AgentDeviceMacOSHelper {
   static func main() {
     do {
@@ -93,6 +92,8 @@ struct AgentDeviceMacOSHelper {
       return try handlePermission(arguments: Array(arguments.dropFirst()))
     case "alert":
       return try handleAlert(arguments: Array(arguments.dropFirst()))
+    case "snapshot":
+      return try handleSnapshot(arguments: Array(arguments.dropFirst()))
     default:
       throw HelperError.invalidArgs("unknown command: \(command)")
     }
@@ -256,7 +257,7 @@ struct AgentDeviceMacOSHelper {
     }
     let bundleId = optionValue(arguments: Array(arguments.dropFirst()), name: "--bundle-id")
     let surface = optionValue(arguments: Array(arguments.dropFirst()), name: "--surface")
-    let app = try resolveAlertApplication(bundleId: bundleId, surface: surface)
+    let app = try resolveTargetApplication(bundleId: bundleId, surface: surface)
     guard let alertElement = findAlertElement(appElement: AXUIElementCreateApplication(app.processIdentifier)) else {
       throw HelperError.commandFailed(
         "alert not found",
@@ -298,6 +299,25 @@ struct AgentDeviceMacOSHelper {
       )
     )
   }
+
+  static func handleSnapshot(arguments: [String]) throws -> any Encodable {
+    guard let surface = optionValue(arguments: arguments, name: "--surface")?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased(),
+      !surface.isEmpty
+    else {
+      throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
+    }
+
+    switch surface {
+    case "frontmost-app":
+      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface))
+    case "desktop", "menubar":
+      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface))
+    default:
+      throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
+    }
+  }
 }
 
 private func optionValue(arguments: [String], name: String) -> String? {
@@ -327,7 +347,7 @@ private func writeJSON<T: Encodable>(_ value: T) throws {
   FileHandle.standardOutput.write(Data([0x0A]))
 }
 
-private func resolveAlertApplication(bundleId: String?, surface: String?) throws -> NSRunningApplication {
+func resolveTargetApplication(bundleId: String?, surface: String?) throws -> NSRunningApplication {
   let normalizedSurface = surface?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
   if normalizedSurface == "desktop" || normalizedSurface == "menubar" {
     throw HelperError.commandFailed(
@@ -361,49 +381,6 @@ private func validatedBundleId(_ rawBundleId: String) throws -> String {
     throw HelperError.invalidArgs("bundle id must use reverse-DNS form like com.example.App")
   }
   return bundleId
-}
-
-private func stringAttribute(_ element: AXUIElement, attribute: String) -> String? {
-  var value: CFTypeRef?
-  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
-    return nil
-  }
-  if let text = value as? String {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? nil : trimmed
-  }
-  return nil
-}
-
-private func elementAttribute(_ element: AXUIElement, attribute: String) -> AXUIElement? {
-  var value: CFTypeRef?
-  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
-    return nil
-  }
-  guard let value else {
-    return nil
-  }
-  return unsafeBitCast(value, to: AXUIElement.self)
-}
-
-private func children(of element: AXUIElement) -> [AXUIElement] {
-  var value: CFTypeRef?
-  guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success,
-        let children = value as? [AXUIElement]
-  else {
-    return []
-  }
-  return children
-}
-
-private func windows(of appElement: AXUIElement) -> [AXUIElement] {
-  var value: CFTypeRef?
-  guard AXUIElementCopyAttributeValue(appElement, "AXWindows" as CFString, &value) == .success,
-        let windows = value as? [AXUIElement]
-  else {
-    return []
-  }
-  return windows
 }
 
 private func findAlertElement(appElement: AXUIElement) -> AXUIElement? {
@@ -489,3 +466,5 @@ private func resolveAlertActionButton(root: AXUIElement, buttons: [AXUIElement],
 
   return action == "accept" ? buttons.first : buttons.last
 }
+
+AgentDeviceMacOSHelper.main()

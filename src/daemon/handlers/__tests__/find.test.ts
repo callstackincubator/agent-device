@@ -8,6 +8,7 @@ import { AppError } from '../../../utils/errors.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { DaemonRequest } from '../../types.ts';
+import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-find-handler-'));
@@ -26,6 +27,22 @@ function makeSession(name: string): SessionState {
     },
     createdAt: Date.now(),
     actions: [],
+  };
+}
+
+function makeMacOsSession(name: string): SessionState {
+  return {
+    name,
+    device: {
+      platform: 'macos',
+      id: 'macos-host',
+      name: 'Mac',
+      kind: 'device',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    actions: [],
+    surface: 'desktop',
   };
 }
 
@@ -248,4 +265,56 @@ test('handleFindCommands click returns deterministic metadata across locator var
       assert.equal(invokeCalls[0].positionals?.[0], '@e1');
     });
   }
+});
+
+test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"Window","label":"Notes","surface":"desktop","rect":{"x":32,"y":48,"width":640,"height":480}}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async ({ tmpDir }) => {
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-desktop-find';
+      sessionStore.set(sessionName, makeMacOsSession(sessionName));
+      let snapshotDispatchCalls = 0;
+
+      try {
+        const response = await handleFindCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'find',
+            positionals: ['label', 'Notes', 'get', 'attrs'],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/test.log',
+          sessionStore,
+          invoke: async () => ({ ok: true }),
+          dispatch: async (_device, command) => {
+            if (command === 'snapshot') {
+              snapshotDispatchCalls += 1;
+            }
+            return {};
+          },
+        });
+
+        assert.equal(response?.ok, true);
+        assert.equal(snapshotDispatchCalls, 0);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, 'snapshot\n--surface\ndesktop\n');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+      }
+    },
+  );
 });

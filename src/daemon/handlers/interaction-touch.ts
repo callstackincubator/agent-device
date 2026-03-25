@@ -36,7 +36,7 @@ type CaptureSnapshotForSession = (
   nodes: SnapshotNode[];
   truncated?: boolean;
   createdAt: number;
-  backend?: 'xctest' | 'android';
+  backend?: 'xctest' | 'android' | 'macos-helper';
 }>;
 
 type ResolveRefTarget =
@@ -89,6 +89,13 @@ export async function handleTouchInteractionCommands(params: {
         ok: false,
         error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
       };
+    }
+    const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
+      session,
+      commandLabel,
+    );
+    if (unsupportedSurfaceResponse) {
+      return unsupportedSurfaceResponse;
     }
     if (!isCommandSupportedOnDevice('press', session.device)) {
       return {
@@ -300,6 +307,15 @@ export async function handleTouchInteractionCommands(params: {
 
   if (command === 'fill') {
     const session = sessionStore.get(sessionName);
+    if (session) {
+      const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
+        session,
+        command,
+      );
+      if (unsupportedSurfaceResponse) {
+        return unsupportedSurfaceResponse;
+      }
+    }
     if (session && !isCommandSupportedOnDevice('fill', session.device)) {
       return {
         ok: false,
@@ -489,6 +505,25 @@ export async function handleTouchInteractionCommands(params: {
   }
 
   return null;
+}
+
+function unsupportedMacOsDesktopSurfaceInteraction(
+  session: SessionState,
+  command: 'click' | 'press' | 'fill',
+): DaemonResponse | null {
+  if (session.device.platform !== 'macos') {
+    return null;
+  }
+  if (session.surface !== 'desktop' && session.surface !== 'menubar') {
+    return null;
+  }
+  return {
+    ok: false,
+    error: {
+      code: 'UNSUPPORTED_OPERATION',
+      message: `${command} is not supported on macOS ${session.surface} sessions yet. Open an app session to act, or use the ${session.surface} surface to inspect.`,
+    },
+  };
 }
 
 function parseCoordinateTarget(positionals: string[]): { x: number; y: number } | null {

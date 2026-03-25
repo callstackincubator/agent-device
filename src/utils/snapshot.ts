@@ -16,6 +16,8 @@ export type SnapshotOptions = {
 export type RawSnapshotNode = {
   index: number;
   type?: string;
+  role?: string;
+  subrole?: string;
   label?: string;
   value?: string;
   identifier?: string;
@@ -25,6 +27,11 @@ export type RawSnapshotNode = {
   hittable?: boolean;
   depth?: number;
   parentIndex?: number;
+  pid?: number;
+  bundleId?: string;
+  appName?: string;
+  windowTitle?: string;
+  surface?: string;
 };
 
 export type SnapshotNode = RawSnapshotNode & {
@@ -35,7 +42,7 @@ export type SnapshotState = {
   nodes: SnapshotNode[];
   createdAt: number;
   truncated?: boolean;
-  backend?: 'xctest' | 'android';
+  backend?: 'xctest' | 'android' | 'macos-helper';
 };
 
 export function attachRefs(nodes: RawSnapshotNode[]): SnapshotNode[] {

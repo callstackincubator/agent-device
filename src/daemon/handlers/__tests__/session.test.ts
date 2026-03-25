@@ -2576,7 +2576,7 @@ test('open on existing macOS frontmost-app session preserves surface without --s
   );
 });
 
-test('open on macOS rejects desktop surface until desktop-global backend lands', async () => {
+test('open on macOS stores desktop surface without app context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-surface';
   const response = await handleSessionCommands({
@@ -2606,11 +2606,53 @@ test('open on macOS rejects desktop surface until desktop-global backend lands',
     }),
   });
 
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /not supported yet/i);
-    assert.match(response.error.message, /app\|frontmost-app/i);
+  assert.equal(response?.ok, true);
+  const session = sessionStore.get(sessionName);
+  assert.equal(session?.surface, 'desktop');
+  assert.equal(session?.appBundleId, undefined);
+  assert.equal(session?.appName, undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.surface, 'desktop');
+    assert.equal(response.data?.appBundleId, undefined);
+  }
+});
+
+test('open on macOS stores menubar surface without app context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-menubar-surface';
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: [],
+      flags: {
+        platform: 'macos',
+        surface: 'menubar',
+      },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async () => ({}),
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => ({
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+  });
+
+  assert.equal(response?.ok, true);
+  const session = sessionStore.get(sessionName);
+  assert.equal(session?.surface, 'menubar');
+  assert.equal(session?.appBundleId, undefined);
+  if (response && response.ok) {
+    assert.equal(response.data?.surface, 'menubar');
   }
 });
 
