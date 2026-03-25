@@ -1,5 +1,6 @@
 import type { Platform } from '../utils/device.ts';
 import type { RawSnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import { extractReadableText } from '../utils/text-surface.ts';
 
 export function findNodeByLabel(nodes: SnapshotState['nodes'], label: string) {
   const query = label.toLowerCase();
@@ -130,4 +131,8 @@ export function extractNodeText(node: SnapshotState['nodes'][number]): string {
     .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .filter((value) => value.length > 0);
   return candidates[0] ?? '';
+}
+
+export function extractNodeReadText(node: SnapshotState['nodes'][number]): string {
+  return extractReadableText(node);
 }

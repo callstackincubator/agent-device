@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { attachRefs } from '../../utils/snapshot.ts';
 import {
+  extractNodeReadText,
   findNearestHittableAncestor,
   isFillableType,
   pruneGroupNodes,
@@ -49,4 +50,16 @@ test('isFillableType matches platform-specific editable controls', () => {
   assert.equal(isFillableType('XCUIElementTypeButton', 'ios'), false);
   assert.equal(isFillableType('android.widget.EditText', 'android'), true);
   assert.equal(isFillableType('android.widget.Button', 'android'), false);
+});
+
+test('extractNodeReadText prefers underlying value for text surfaces', () => {
+  const nodes = attachRefs([
+    {
+      index: 0,
+      type: 'AXTextView',
+      label: 'Editor for MainActivity.kt',
+      value: 'package com.example.app\nclass MainActivity {}',
+    },
+  ]);
+  assert.equal(extractNodeReadText(nodes[0]), 'package com.example.app\nclass MainActivity {}');
 });

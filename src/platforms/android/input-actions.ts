@@ -130,7 +130,7 @@ export async function fillAndroid(
     } else {
       await typeAndroidChunked(device, text, 1, 15);
     }
-    lastActual = await readInputValueAtPoint(device, x, y);
+    lastActual = await readAndroidTextAtPoint(device, x, y);
     if (lastActual === text) return;
   }
 
@@ -310,7 +310,7 @@ async function clearFocusedText(device: DeviceInfo, count: number): Promise<void
   }
 }
 
-async function readInputValueAtPoint(
+export async function readAndroidTextAtPoint(
   device: DeviceInfo,
   x: number,
   y: number,

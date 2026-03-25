@@ -26,6 +26,7 @@ export {
   typeAndroid,
   focusAndroid,
   fillAndroid,
+  readAndroidTextAtPoint,
   scrollAndroid,
   scrollIntoViewAndroid,
   getAndroidScreenSize,

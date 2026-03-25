@@ -34,6 +34,7 @@ agent-device close
 
 - Use plain `snapshot` when you only need to verify whether visible text or structure is on screen.
 - Use `snapshot -i` when you need refs such as `@e3` for interactive exploration.
+- Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview/truncation metadata, use `get text @ref` to expand the actual text after you choose the surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
 
 Example:

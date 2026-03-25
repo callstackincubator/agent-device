@@ -286,3 +286,20 @@ export async function runMacOsSnapshotAction(surface: Exclude<SessionSurface, 'a
 }> {
   return await runMacOsHelper(['snapshot', '--surface', surface]);
 }
+
+export async function runMacOsReadTextAction(
+  x: number,
+  y: number,
+  options: { bundleId?: string; surface?: SessionSurface } = {},
+): Promise<{
+  text: string;
+}> {
+  const args = ['read', '--x', String(x), '--y', String(y)];
+  if (options.bundleId) {
+    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
+  }
+  if (options.surface) {
+    args.push('--surface', options.surface);
+  }
+  return await runMacOsHelper(args);
+}

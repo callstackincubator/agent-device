@@ -6,11 +6,14 @@ import {
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
   pushAndroidNotification,
+  readAndroidTextAtPoint,
   snapshotAndroid,
 } from '../platforms/android/index.ts';
 import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
+import { runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
+import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { getClickButtonValidationError, resolveClickButton } from './click-button.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
@@ -66,6 +69,7 @@ export async function dispatchCommand(
     clickButton?: 'primary' | 'secondary' | 'middle';
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
+    surface?: SessionSurface;
   },
 ): Promise<Record<string, unknown> | void> {
   const runnerCtx: RunnerContext = {
@@ -584,6 +588,45 @@ export async function dispatchCommand(
             truncated: androidResult.truncated ?? false,
             backend: 'android',
           };
+        }
+        case 'read': {
+          const [x, y] = positionals.map(Number);
+          if (Number.isNaN(x) || Number.isNaN(y)) {
+            throw new AppError('INVALID_ARGS', 'read requires x y');
+          }
+          if (device.platform === 'android') {
+            const text = await readAndroidTextAtPoint(device, x, y);
+            return { action: 'read', text: text ?? '' };
+          }
+          if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
+            const result = await runMacOsReadTextAction(x, y, {
+              bundleId: context.appBundleId,
+              surface: context.surface,
+            });
+            return { action: 'read', text: result.text };
+          }
+          const result = await runIosRunnerCommand(
+            device,
+            {
+              command: 'readText',
+              x,
+              y,
+              appBundleId: context?.appBundleId,
+            },
+            {
+              verbose: context?.verbose,
+              logPath: context?.logPath,
+              traceLogPath: context?.traceLogPath,
+              requestId: context?.requestId,
+            },
+          );
+          const text =
+            typeof result.text === 'string'
+              ? result.text
+              : typeof result.message === 'string'
+                ? result.message
+                : '';
+          return { action: 'read', text };
         }
         default:
           throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);

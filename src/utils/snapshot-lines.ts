@@ -1,4 +1,10 @@
 import type { SnapshotNode } from './snapshot.ts';
+import {
+  buildTextPreview,
+  extractReadableText,
+  isLargeTextSurface,
+  trimText,
+} from './text-surface.ts';
 
 type SnapshotDisplayLine = {
   node: SnapshotNode;
@@ -7,7 +13,14 @@ type SnapshotDisplayLine = {
   text: string;
 };
 
-export function buildSnapshotDisplayLines(nodes: SnapshotNode[]): SnapshotDisplayLine[] {
+type SnapshotLineFormatOptions = {
+  summarizeTextSurfaces?: boolean;
+};
+
+export function buildSnapshotDisplayLines(
+  nodes: SnapshotNode[],
+  options: SnapshotLineFormatOptions = {},
+): SnapshotDisplayLine[] {
   const hiddenGroupDepths: number[] = [];
   const lines: SnapshotDisplayLine[] = [];
   for (const node of nodes) {
@@ -29,7 +42,7 @@ export function buildSnapshotDisplayLines(nodes: SnapshotNode[]): SnapshotDispla
       node,
       depth: adjustedDepth,
       type,
-      text: formatSnapshotLine(node, adjustedDepth, isHiddenGroup, type),
+      text: formatSnapshotLine(node, adjustedDepth, isHiddenGroup, type, options),
     });
   }
   return lines;
@@ -40,18 +53,19 @@ export function formatSnapshotLine(
   depth: number,
   hiddenGroup: boolean,
   normalizedType?: string,
+  options: SnapshotLineFormatOptions = {},
 ): string {
   const type = normalizedType ?? formatRole(node.type ?? 'Element');
-  const label = displayLabel(node, type);
+  const label = resolveDisplayLabel(node, type, options);
   const indent = '  '.repeat(depth);
   const ref = node.ref ? `@${node.ref}` : '';
-  const flags = [node.enabled === false ? 'disabled' : null].filter(Boolean).join(', ');
-  const flagText = flags ? ` [${flags}]` : '';
+  const metadata = buildLineMetadata(node, type, options);
+  const metadataText = metadata.map((entry) => ` [${entry}]`).join('');
   const textPart = label ? ` "${label}"` : '';
   if (hiddenGroup) {
-    return `${indent}${ref} [${type}]${flagText}`.trimEnd();
+    return `${indent}${ref} [${type}]${metadataText}`.trimEnd();
   }
-  return `${indent}${ref} [${type}]${textPart}${flagText}`.trimEnd();
+  return `${indent}${ref} [${type}]${textPart}${metadataText}`.trimEnd();
 }
 
 export function displayLabel(node: SnapshotNode, type: string): string {
@@ -168,4 +182,88 @@ function isEditableRole(type: string): boolean {
 
 function isGenericResourceId(value: string): boolean {
   return /^[\w.]+:id\/[\w.-]+$/i.test(value);
+}
+
+function resolveDisplayLabel(
+  node: SnapshotNode,
+  type: string,
+  options: SnapshotLineFormatOptions,
+): string {
+  if (!options.summarizeTextSurfaces) {
+    return displayLabel(node, type);
+  }
+  const text = extractReadableText(node);
+  if (!isLargeTextSurface(node, type) || !shouldSummarizeTextSurface(text)) {
+    return displayLabel(node, type);
+  }
+  const semanticLabel = semanticSurfaceLabel(node, type, text);
+  return semanticLabel || displayLabel(node, type);
+}
+
+function buildLineMetadata(
+  node: SnapshotNode,
+  type: string,
+  options: SnapshotLineFormatOptions,
+): string[] {
+  const metadata: string[] = [];
+  if (node.enabled === false) metadata.push('disabled');
+  if (node.selected === true) metadata.push('selected');
+  if (isEditableRole(type)) metadata.push('editable');
+  if (looksScrollable(node, type)) metadata.push('scrollable');
+  if (!options.summarizeTextSurfaces) {
+    return metadata;
+  }
+  const text = extractReadableText(node);
+  if (!isLargeTextSurface(node, type) || !shouldSummarizeTextSurface(text)) {
+    return metadata;
+  }
+  metadata.push(`preview:"${escapePreviewText(buildTextPreview(text))}"`);
+  metadata.push('truncated');
+  return uniqueMetadata(metadata);
+}
+
+function shouldSummarizeTextSurface(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+  return text.length > 80 || /[\r\n]/.test(text);
+}
+
+function semanticSurfaceLabel(node: SnapshotNode, type: string, text: string): string {
+  const label = trimText(node.label);
+  if (label && label !== text) {
+    return label;
+  }
+  const identifier = trimText(node.identifier);
+  if (identifier && !isGenericResourceId(identifier) && identifier !== text) {
+    return identifier;
+  }
+  switch (type) {
+    case 'text':
+    case 'text-view':
+      return 'Text view';
+    case 'text-field':
+      return 'Text field';
+    case 'search':
+      return 'Search field';
+    default:
+      return '';
+  }
+}
+
+function looksScrollable(node: SnapshotNode, type: string): boolean {
+  if (type === 'scroll-area') {
+    return true;
+  }
+  const rawType = (node.type ?? '').toLowerCase();
+  const rawRole = `${node.role ?? ''} ${node.subrole ?? ''}`.toLowerCase();
+  return rawType.includes('scroll') || rawRole.includes('scroll');
+}
+
+function escapePreviewText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function uniqueMetadata(values: string[]): string[] {
+  return [...new Set(values)];
 }

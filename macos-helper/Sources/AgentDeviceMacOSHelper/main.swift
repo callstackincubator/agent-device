@@ -53,6 +53,10 @@ struct AlertResponse: Encodable {
   let bundleId: String?
 }
 
+struct ReadResponse: Encodable {
+  let text: String
+}
+
 struct AgentDeviceMacOSHelper {
   static func main() {
     do {
@@ -94,6 +98,8 @@ struct AgentDeviceMacOSHelper {
       return try handleAlert(arguments: Array(arguments.dropFirst()))
     case "snapshot":
       return try handleSnapshot(arguments: Array(arguments.dropFirst()))
+    case "read":
+      return try handleRead(arguments: Array(arguments.dropFirst()))
     default:
       throw HelperError.invalidArgs("unknown command: \(command)")
     }
@@ -318,6 +324,21 @@ struct AgentDeviceMacOSHelper {
       throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
     }
   }
+
+  static func handleRead(arguments: [String]) throws -> any Encodable {
+    guard let rawX = optionValue(arguments: arguments, name: "--x"),
+          let rawY = optionValue(arguments: arguments, name: "--y"),
+          let x = Double(rawX),
+          let y = Double(rawY)
+    else {
+      throw HelperError.invalidArgs("read requires --x <number> --y <number>")
+    }
+
+    let bundleId = optionValue(arguments: arguments, name: "--bundle-id")
+    let surface = optionValue(arguments: arguments, name: "--surface")
+    let text = try readTextAtPosition(bundleId: bundleId, surface: surface, x: x, y: y)
+    return SuccessEnvelope(data: ReadResponse(text: text))
+  }
 }
 
 private func optionValue(arguments: [String], name: String) -> String? {
@@ -325,6 +346,39 @@ private func optionValue(arguments: [String], name: String) -> String? {
     return nil
   }
   return arguments[index + 1]
+}
+
+private func readTextAtPosition(bundleId: String?, surface: String?, x: Double, y: Double) throws -> String {
+  if surface == "frontmost-app" || (surface == nil && bundleId != nil) {
+    _ = try resolveTargetApplication(bundleId: bundleId, surface: surface)
+  }
+
+  let systemWide = AXUIElementCreateSystemWide()
+  var hitElement: AXUIElement?
+  guard AXUIElementCopyElementAtPosition(systemWide, Float(x), Float(y), &hitElement) == .success,
+        let hitElement
+  else {
+    throw HelperError.commandFailed("read did not resolve an accessibility element")
+  }
+
+  var current: AXUIElement? = hitElement
+  var depth = 0
+  while let element = current, depth < 8 {
+    if let text = readableText(for: element) {
+      return text
+    }
+    current = elementAttribute(element, attribute: kAXParentAttribute as String)
+    depth += 1
+  }
+
+  throw HelperError.commandFailed("read did not resolve text")
+}
+
+private func readableText(for element: AXUIElement) -> String? {
+  return
+    stringAttribute(element, attribute: kAXValueAttribute as String)
+    ?? stringAttribute(element, attribute: kAXTitleAttribute as String)
+    ?? stringAttribute(element, attribute: kAXDescriptionAttribute as String)
 }
 
 private func openPrivacyPane(anchor: String) -> Bool {
