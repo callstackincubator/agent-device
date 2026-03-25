@@ -120,6 +120,28 @@ agent-device screenshot /tmp/qa-proof.png
 agent-device close
 ```
 
+## Accessibility audit
+
+Use this pattern when you need to find UI that is visible to a user but missing from the accessibility tree.
+
+Audit loop:
+
+1. Capture a `screenshot` to see what is visually rendered.
+2. Capture a `snapshot` or `snapshot -i` to see what the accessibility tree exposes.
+3. Compare the two:
+   - visible in screenshot and present in snapshot: exposed to accessibility
+   - visible in screenshot and missing from snapshot: likely accessibility gap
+4. If you suspect the node exists in AX but is filtered from interactive output, retry with `snapshot --raw`.
+
+Example:
+
+```bash
+agent-device screenshot /tmp/accessibility-screen.png
+agent-device snapshot -i
+```
+
+Use `screenshot` as the visual source of truth and `snapshot` as the accessibility source of truth for this audit.
+
 ## Batch only when the sequence is already known
 
 Use `batch` when a short command sequence is already planned and belongs to one logical screen flow.
