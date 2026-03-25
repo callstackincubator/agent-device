@@ -67,6 +67,18 @@ curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
 - Direct JSON-RPC callers can authenticate with request params, `Authorization: Bearer <token>`, or `x-agent-device-token`.
 - Prefer an auth hook such as `AGENT_DEVICE_HTTP_AUTH_HOOK` when the host needs caller validation or tenant injection.
 
+## Remote Metro-backed launch
+
+Use this when the agent must launch a remote React Native app through a checked-in `--remote-config` profile rather than a purely local bootstrap flow.
+
+```bash
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+```
+
+- This is the main remote Metro-backed launch path for sandbox or cloud agents.
+- For Android React Native relaunch flows, install or reinstall the APK first, then relaunch by installed package name.
+- Do not use `open <apk|aab> --relaunch`; remote runtime hints are applied through the installed app sandbox.
+
 ## Lease lifecycle
 
 Use JSON-RPC methods on `POST /rpc`:

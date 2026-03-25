@@ -9,8 +9,8 @@ Open this file when you still need to choose the right target, start the right s
 - `devices`
 - `apps`
 - `ensure-simulator`
-- `open`
 - `install` or `reinstall`
+- `open`
 - `close`
 - `session list`
 
@@ -41,13 +41,34 @@ agent-device ensure-simulator --platform ios --device "iPhone 17 Pro" --boot
 agent-device open MyApp --platform ios --device "iPhone 17 Pro" --relaunch
 ```
 
+### Install an app artifact, then open it
+
+```bash
+agent-device install com.example.app ./build/app.apk --platform android --serial emulator-5554
+agent-device open com.example.app --platform android --serial emulator-5554
+```
+
+```bash
+agent-device install com.example.app ./build/MyApp.app --platform ios --device "iPhone 17 Pro"
+agent-device open MyApp --platform ios --device "iPhone 17 Pro"
+```
+
+## Install guidance
+
+- Use `install <app> <path>` when the app may already be installed and you do not need a fresh-state reset.
+- Use `reinstall <app> <path>` when you explicitly need uninstall plus install as one deterministic step.
+- Supported binary formats:
+  - Android: `.apk` and `.aab`
+  - iOS: `.app` and `.ipa`
+- For iOS `.ipa` files, `<app>` is used as the bundle id or bundle name hint when the archive contains multiple app bundles.
+- After install or reinstall, use `open <app>` with the installed app name or package/bundle identifier, not the artifact path.
+
 ## Choose the right starting point
 
 - iOS local QA: prefer simulators unless the task explicitly requires physical hardware.
 - iOS in mixed simulator and device environments: run `ensure-simulator` first, then keep using `--device` or `--udid`.
 - TV targets: use `--target tv` together with `--platform` when the task is for tvOS or Android TV rather than phone or tablet surfaces.
 - Android binary flow: use `install` or `reinstall` for `.apk` or `.aab`, then open by installed package name.
-- Android React Native plus Metro flow: `reinstall <app> <apk>` first, then `open <package> --remote-config <path> --relaunch`.
 - macOS desktop app flow: use `open <app> --platform macos`. Only load [macos-desktop.md](macos-desktop.md) if a desktop surface or macOS-specific behavior matters.
 
 TV example:
@@ -110,8 +131,6 @@ export AGENT_DEVICE_PLATFORM=ios
 export AGENT_DEVICE_SESSION_LOCK=strip
 
 agent-device open MyApp --relaunch
-agent-device snapshot -i
-agent-device close
 ```
 
 - `AGENT_DEVICE_SESSION` plus `AGENT_DEVICE_PLATFORM` provides the default binding.
@@ -126,10 +145,7 @@ Android emulator variant:
 export AGENT_DEVICE_SESSION=qa-android
 export AGENT_DEVICE_PLATFORM=android
 
-agent-device reinstall MyApp /path/to/app-debug.apk --serial emulator-5554
 agent-device --session-lock reject open com.example.myapp --relaunch
-agent-device snapshot -i
-agent-device close --shutdown
 ```
 
 ## Scoped discovery
@@ -170,7 +186,12 @@ agent-device replay -u ./session.ad --session auth
 
 ```bash
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
-agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+agent-device open com.example.myapp --platform android --serial emulator-5554
+```
+
+```bash
+agent-device install com.example.app ./build/MyApp.ipa --platform ios --device "iPhone 17 Pro"
+agent-device open MyApp --platform ios --device "iPhone 17 Pro"
 ```
 
 Do not use `open <apk|aab> --relaunch` on Android.
