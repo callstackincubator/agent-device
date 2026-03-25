@@ -17,13 +17,15 @@ Open this file when you still need to choose the right target, start the right s
 
 Do not start acting before you have pinned the correct target and opened an `app` session. In mixed-device environments, always pass `--device`, `--udid`, or `--serial`.
 
-## Canonical loop
+## Common starting points
+
+These are examples, not required exact sequences. Use the smallest setup flow that matches the task.
+
+### Boot a simulator and open an app
 
 ```bash
 agent-device ensure-simulator --platform ios --device "iPhone 17 Pro" --boot
 agent-device open MyApp --platform ios --device "iPhone 17 Pro" --relaunch
-agent-device snapshot
-agent-device close
 ```
 
 ## Choose the right starting point
