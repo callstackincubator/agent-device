@@ -1,22 +1,14 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { findBestMatchesByLocator, type FindLocator } from '../../utils/finders.ts';
-import {
-  attachRefs,
-  centerOfRect,
-  type RawSnapshotNode,
-  type SnapshotState,
-} from '../../utils/snapshot.ts';
+import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
-import {
-  extractNodeText,
-  findNearestHittableAncestor,
-  pruneGroupNodes,
-} from '../snapshot-processing.ts';
+import { extractNodeText, findNearestHittableAncestor } from '../snapshot-processing.ts';
 import { parseTimeout } from './parse-utils.ts';
+import { captureSnapshot } from './snapshot-capture.ts';
 
 export async function handleFindCommands(params: {
   req: DaemonRequest;
@@ -55,7 +47,6 @@ export async function handleFindCommands(params: {
   if (!session) {
     await ensureDeviceReady(device);
   }
-  const appBundleId = session?.appBundleId;
   const scope = shouldScopeFind(locator) ? query : undefined;
   const requiresRect =
     action === 'click' || action === 'focus' || action === 'fill' || action === 'type';
@@ -71,38 +62,29 @@ export async function handleFindCommands(params: {
     if (lastNodes && now - lastSnapshotAt < 750) {
       return { nodes: lastNodes };
     }
-    const data = (await dispatch(device, 'snapshot', [], req.flags?.out, {
-      ...contextFromFlags(
-        logPath,
-        {
+    const { snapshot } = await captureSnapshot({
+      dispatchSnapshotCommand: dispatch,
+      device,
+      session,
+      req: {
+        ...req,
+        flags: {
           ...req.flags,
-          snapshotScope: scope,
           snapshotInteractiveOnly: interactiveOnly,
           snapshotCompact: interactiveOnly,
         },
-        appBundleId,
-        session?.trace?.outPath,
-      ),
-    })) as {
-      nodes?: RawSnapshotNode[];
-      truncated?: boolean;
-      backend?: 'xctest' | 'android' | 'macos-helper';
-    };
-    const rawNodes = data?.nodes ?? [];
-    const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+      },
+      logPath,
+      snapshotScope: scope,
+    });
+    const nodes = snapshot.nodes;
     lastSnapshotAt = now;
     lastNodes = nodes;
     if (session) {
-      const snapshot: SnapshotState = {
-        nodes,
-        truncated: data?.truncated,
-        createdAt: Date.now(),
-        backend: data?.backend,
-      };
       session.snapshot = snapshot;
       sessionStore.set(sessionName, session);
     }
-    return { nodes, truncated: data?.truncated, backend: data?.backend };
+    return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };
   };
   if (action === 'wait') {
     const timeout = timeoutMs ?? 10000;

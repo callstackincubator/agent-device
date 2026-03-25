@@ -9,7 +9,7 @@ import {
 } from '../../utils/snapshot.ts';
 import type { DaemonResponse, DaemonRequest, SessionState } from '../types.ts';
 import { contextFromFlags } from '../context.ts';
-import { pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 
 type CaptureSnapshotParams = {
   dispatchSnapshotCommand: typeof dispatchCommand;
@@ -20,27 +20,38 @@ type CaptureSnapshotParams = {
   snapshotScope?: string;
 };
 
+type SnapshotData = {
+  nodes?: RawSnapshotNode[];
+  truncated?: boolean;
+  backend?: 'xctest' | 'android' | 'macos-helper';
+};
+
 export async function captureSnapshot(
   params: CaptureSnapshotParams,
 ): Promise<{ snapshot: SnapshotState }> {
+  const { req } = params;
+  const data = await captureSnapshotData(params);
+  return { snapshot: buildSnapshotState(data, req.flags?.snapshotRaw) };
+}
+
+export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
   const { dispatchSnapshotCommand, device, session, req, logPath, snapshotScope } = params;
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
     const helperSnapshot = await runMacOsSnapshotAction(session.surface);
-    return { snapshot: buildSnapshotState(helperSnapshot, req.flags?.snapshotRaw) };
+    return shapeMacOsSurfaceSnapshot(helperSnapshot, {
+      snapshotDepth: req.flags?.snapshotDepth,
+      snapshotInteractiveOnly: req.flags?.snapshotInteractiveOnly,
+      snapshotScope,
+    });
   }
-  const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
+  return (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
     ...contextFromFlags(
       logPath,
       { ...req.flags, snapshotScope },
       session?.appBundleId,
       session?.trace?.outPath,
     ),
-  })) as {
-    nodes?: RawSnapshotNode[];
-    truncated?: boolean;
-    backend?: 'xctest' | 'android' | 'macos-helper';
-  };
-  return { snapshot: buildSnapshotState(data, req.flags?.snapshotRaw) };
+  })) as SnapshotData;
 }
 
 export function buildSnapshotState(
@@ -59,6 +70,108 @@ export function buildSnapshotState(
     createdAt: Date.now(),
     backend: data?.backend,
   };
+}
+
+function shapeMacOsSurfaceSnapshot(
+  data: SnapshotData,
+  options: {
+    snapshotDepth?: number;
+    snapshotInteractiveOnly?: boolean;
+    snapshotScope?: string;
+  },
+): SnapshotData {
+  let nodes = data.nodes ?? [];
+  if (options.snapshotScope) {
+    nodes = scopeSnapshotNodes(nodes, options.snapshotScope);
+  }
+  if (options.snapshotInteractiveOnly) {
+    nodes = filterInteractiveSnapshotNodes(nodes);
+  }
+  if (typeof options.snapshotDepth === 'number') {
+    nodes = filterSnapshotNodesByDepth(nodes, options.snapshotDepth);
+  }
+  return { ...data, nodes };
+}
+
+function scopeSnapshotNodes(nodes: RawSnapshotNode[], scope: string): RawSnapshotNode[] {
+  const scopedNodes = attachRefs(nodes);
+  const match = findNodeByLabel(scopedNodes, scope);
+  if (!match) {
+    return [];
+  }
+  const startIndex = nodes.findIndex((node) => node.index === match.index);
+  if (startIndex === -1) {
+    return [];
+  }
+  const startDepth = nodes[startIndex]?.depth ?? 0;
+  const slice: RawSnapshotNode[] = [];
+  for (let index = startIndex; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (!node) continue;
+    const depth = node.depth ?? 0;
+    if (index > startIndex && depth <= startDepth) {
+      break;
+    }
+    slice.push(node);
+  }
+  return reindexSnapshotNodes(slice, startDepth);
+}
+
+function filterInteractiveSnapshotNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
+  if (nodes.length === 0) {
+    return nodes;
+  }
+  const byIndex = new Map<number, RawSnapshotNode>();
+  for (const node of nodes) {
+    byIndex.set(node.index, node);
+  }
+  const keepIndexes = new Set<number>();
+  for (const node of nodes) {
+    if (!isInteractiveSnapshotNode(node)) continue;
+    let current: RawSnapshotNode | undefined = node;
+    while (current) {
+      if (keepIndexes.has(current.index)) break;
+      keepIndexes.add(current.index);
+      current =
+        typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
+    }
+  }
+  if (keepIndexes.size === 0) {
+    return nodes;
+  }
+  return reindexSnapshotNodes(nodes.filter((node) => keepIndexes.has(node.index)));
+}
+
+function filterSnapshotNodesByDepth(nodes: RawSnapshotNode[], maxDepth: number): RawSnapshotNode[] {
+  return reindexSnapshotNodes(nodes.filter((node) => (node.depth ?? 0) <= maxDepth));
+}
+
+function reindexSnapshotNodes(nodes: RawSnapshotNode[], depthOffset = 0): RawSnapshotNode[] {
+  const indexMap = new Map<number, number>();
+  for (const [index, node] of nodes.entries()) {
+    indexMap.set(node.index, index);
+  }
+  return nodes.map((node, index) => ({
+    ...node,
+    index,
+    depth: Math.max(0, (node.depth ?? 0) - depthOffset),
+    parentIndex: typeof node.parentIndex === 'number' ? indexMap.get(node.parentIndex) : undefined,
+  }));
+}
+
+function isInteractiveSnapshotNode(node: RawSnapshotNode): boolean {
+  if (node.hittable) return true;
+  if (node.rect) return true;
+  const role = `${node.type ?? ''} ${node.role ?? ''} ${node.subrole ?? ''}`.toLowerCase();
+  return (
+    role.includes('button') ||
+    role.includes('menu') ||
+    role.includes('textfield') ||
+    role.includes('searchfield') ||
+    role.includes('checkbox') ||
+    role.includes('radio') ||
+    role.includes('switch')
+  );
 }
 
 export function resolveSnapshotScope(

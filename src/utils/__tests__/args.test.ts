@@ -739,11 +739,10 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /--platform ios\|macos\|android\|apple/);
 });
 
-test('open command usage documents macOS surface flag', () => {
+test('open command usage documents macOS desktop surface flags', () => {
   const help = usageForCommand('open');
   if (help === null) throw new Error('Expected command help text');
-  assert.match(help, /--surface app\|frontmost-app/);
-  assert.doesNotMatch(help, /desktop\|menubar/);
+  assert.match(help, /--surface app\|frontmost-app\|desktop\|menubar/);
   assert.match(help, /macOS also supports --surface/);
 });
 

@@ -211,6 +211,47 @@ test('snapshot on macOS desktop surface uses helper-backed surface snapshot', as
   );
 });
 
+test('snapshot on macOS desktop surface applies scope and depth after helper capture', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"Application","label":"Notes","surface":"desktop","bundleId":"com.apple.Notes","appName":"Notes"},{"index":2,"depth":2,"parentIndex":1,"type":"Window","label":"Notes","surface":"desktop","windowTitle":"Notes","rect":{"x":32,"y":48,"width":640,"height":480}},{"index":3,"depth":3,"parentIndex":2,"type":"StaticText","label":"Pinned","surface":"desktop","rect":{"x":40,"y":60,"width":80,"height":24}}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-desktop-scoped-snapshot';
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'desktop',
+      });
+
+      const response = await handleSnapshotCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'snapshot',
+          positionals: [],
+          flags: { snapshotScope: 'Notes', snapshotDepth: 0 },
+        },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+      });
+
+      assert.equal(response?.ok, true);
+      const updated = sessionStore.get(sessionName);
+      assert.equal(updated?.snapshot?.backend, 'macos-helper');
+      assert.equal(updated?.snapshot?.nodes.length, 1);
+      assert.equal(updated?.snapshot?.nodes[0]?.label, 'Notes');
+      assert.equal(updated?.snapshot?.nodes[0]?.depth, 0);
+      assert.equal(updated?.snapshot?.nodes[0]?.parentIndex, undefined);
+    },
+  );
+});
+
 test('wait text on macOS desktop surface polls helper-backed snapshots instead of runner text search', async () => {
   await withMockedMacOsHelper(
     [

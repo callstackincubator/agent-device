@@ -467,27 +467,23 @@ private func snapshotDesktop() -> [SnapshotNodeResponse] {
 
   for app in runningApps {
     let appElement = AXUIElementCreateApplication(app.processIdentifier)
-    let appContext = SnapshotContext(
-      surface: "desktop",
-      pid: Int32(app.processIdentifier),
-      bundleId: app.bundleIdentifier,
-      appName: app.localizedName,
-      windowTitle: nil
-    )
-    var appVisited = Set<CFHashCode>()
-    let appIndex = appendElementSnapshot(
-      appElement,
-      depth: 1,
-      parentIndex: rootIndex,
-      context: appContext,
-      nodes: &nodes,
-      visited: &appVisited
-    )
     let visibleWindows = windows(of: appElement).filter(isVisibleSnapshotWindow)
     if visibleWindows.isEmpty {
       continue
     }
-    var visited = appVisited
+    let appIndex = appendSyntheticSnapshotNode(
+      into: &nodes,
+      type: "Application",
+      label: app.localizedName ?? app.bundleIdentifier ?? "Application",
+      depth: 1,
+      parentIndex: rootIndex,
+      surface: "desktop",
+      identifier: app.bundleIdentifier,
+      pid: Int32(app.processIdentifier),
+      bundleId: app.bundleIdentifier,
+      appName: app.localizedName
+    )
+    var visited = Set<CFHashCode>()
     for window in visibleWindows {
       let windowTitle = stringAttribute(window, attribute: kAXTitleAttribute as String)
       appendElementSnapshot(
@@ -575,7 +571,12 @@ private func appendSyntheticSnapshotNode(
   label: String,
   depth: Int,
   parentIndex: Int?,
-  surface: String
+  surface: String,
+  identifier: String? = nil,
+  pid: Int32? = nil,
+  bundleId: String? = nil,
+  appName: String? = nil,
+  windowTitle: String? = nil
 ) -> Int {
   let index = nodes.count
   nodes.append(
@@ -586,17 +587,17 @@ private func appendSyntheticSnapshotNode(
       subrole: nil,
       label: label,
       value: nil,
-      identifier: "surface:\(surface):\(type.lowercased())",
+      identifier: identifier ?? "surface:\(surface):\(type.lowercased())",
       rect: nil,
       enabled: true,
       selected: nil,
       hittable: false,
       depth: depth,
       parentIndex: parentIndex,
-      pid: nil,
-      bundleId: nil,
-      appName: nil,
-      windowTitle: nil,
+      pid: pid,
+      bundleId: bundleId,
+      appName: appName,
+      windowTitle: windowTitle,
       surface: surface
     )
   )
