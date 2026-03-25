@@ -15,7 +15,7 @@ Open this file only when `--platform macos` is involved or the task needs `front
 
 ## Most common mistake to avoid
 
-Do not treat desktop surfaces like normal action surfaces. Use `app` sessions to act, and use `frontmost-app`, `desktop`, or `menubar` mainly to inspect until helper interaction parity exists.
+Do not treat every macOS surface the same. Use the normal `app` surface when you want to act inside one app. Use `frontmost-app`, `desktop`, or `menubar` mainly to inspect what is visible before switching back to `app` for most interactions.
 
 ## Canonical loop
 
