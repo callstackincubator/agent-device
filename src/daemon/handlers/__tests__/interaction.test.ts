@@ -271,6 +271,83 @@ test('press coordinates on Android recording caches physical screen size across 
   });
 });
 
+test('press coordinates without recording skips Android screen-size lookup', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-direct-press-no-recording';
+  const session = makeAndroidSession(sessionName);
+  session.snapshot = undefined;
+  sessionStore.set(sessionName, session);
+
+  let screenSizeReads = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['300', '2300'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => ({ x: 300, y: 2300 }),
+    readAndroidScreenSize: async () => {
+      screenSizeReads += 1;
+      return { width: 1344, height: 2992 };
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(screenSizeReads, 0);
+});
+
+test('press coordinates during recording still dispatches when Android screen-size lookup fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-direct-press-screen-size-failure';
+  const session = makeAndroidSession(sessionName);
+  session.recording = {
+    platform: 'android',
+    outPath: '/tmp/demo.mp4',
+    remotePath: '/sdcard/demo.mp4',
+    remotePid: '1234',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+  };
+  session.snapshot = undefined;
+  sessionStore.set(sessionName, session);
+
+  let dispatchCalls = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['300', '2300'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => {
+      dispatchCalls += 1;
+      return { x: 300, y: 2300 };
+    },
+    readAndroidScreenSize: async () => {
+      throw new Error('adb unavailable');
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(dispatchCalls, 1);
+  const event = sessionStore.get(sessionName)?.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.x, 300);
+  assert.equal(event?.y, 2300);
+  assert.equal(event?.referenceWidth, undefined);
+  assert.equal(event?.referenceHeight, undefined);
+});
+
 test('press @ref preserves native timing in recorded result and touch visualization', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -395,6 +472,71 @@ test('press @ref resolves snapshot node and records press action', async () => {
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   assert.equal(result.ref, 'e1');
   assert.ok(Array.isArray(result.selectorChain));
+});
+
+test('fill @ref preserves fallback coordinates for recording when platform result is sparse', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeTextField',
+        label: 'Email',
+        identifier: 'auth_email',
+        rect: { x: 10, y: 20, width: 100, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/demo.mp4',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e1', 'hello@example.com'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => ({ filled: true }),
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.equal(response.data?.filled, true);
+    assert.equal(response.data?.x, undefined);
+  }
+
+  const stored = sessionStore.get(sessionName);
+  assert.ok(stored);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  assert.equal(result.ref, 'e1');
+  assert.equal(result.x, 60);
+  assert.equal(result.y, 40);
+  assert.ok(Array.isArray(result.selectorChain));
+
+  const event = stored?.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.x, 60);
+  assert.equal(event?.y, 40);
 });
 
 test('click --button secondary on @ref dispatches a secondary press on macOS and records click', async () => {
@@ -657,6 +799,82 @@ test('press @ref fallback label is used after refresh when ref bounds remain inv
     assert.equal(response.data?.x, 140);
     assert.equal(response.data?.y, 220);
   }
+});
+
+test('fill @ref refreshes snapshot when stored ref bounds are invalid', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.device = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel 8 Pro',
+    kind: 'emulator',
+    booted: true,
+  };
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.EditText',
+        label: 'Email',
+        rect: { x: 20, y: 40, width: Number.NaN, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  const fillCalls: Array<{ command: string; positionals: string[] }> = [];
+  let snapshotCalls = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e1', 'hello@example.com'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      if (command === 'snapshot') {
+        snapshotCalls += 1;
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'android.widget.EditText',
+              label: 'Email',
+              rect: { x: 20, y: 40, width: 100, height: 40 },
+              enabled: true,
+              hittable: true,
+            },
+          ],
+          backend: 'android',
+        };
+      }
+      fillCalls.push({ command, positionals });
+      return { filled: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(snapshotCalls, 1);
+  assert.equal(fillCalls.length, 1);
+  assert.equal(fillCalls[0]?.command, 'fill');
+  assert.deepEqual(fillCalls[0]?.positionals, ['70', '60', 'hello@example.com']);
+
+  const stored = sessionStore.get(sessionName);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  assert.equal(result.ref, 'e1');
+  assert.equal(result.x, 70);
+  assert.equal(result.y, 60);
 });
 
 test('press coordinates does not treat extra trailing args as selector', async () => {
