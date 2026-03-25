@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
 import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
 
-export function buildIosLogPredicate(appBundleId: string): string {
+export function buildAppleLogPredicate(appBundleId: string): string {
   return [
     `subsystem == "${appBundleId}"`,
     `processImagePath ENDSWITH[c] "/${appBundleId}"`,
@@ -11,6 +11,8 @@ export function buildIosLogPredicate(appBundleId: string): string {
     `eventMessage CONTAINS[c] "${appBundleId}"`,
   ].join(' OR ');
 }
+
+export const buildIosLogPredicate = buildAppleLogPredicate;
 
 export function buildIosDeviceLogStreamArgs(deviceId: string): string[] {
   return ['devicectl', 'device', 'log', 'stream', '--device', deviceId];
@@ -25,7 +27,7 @@ export async function startIosSimulatorAppLog(
   let state: 'active' | 'failed' = 'active';
   const child = spawn(
     'log',
-    ['stream', '--style', 'compact', '--predicate', buildIosLogPredicate(appBundleId)],
+    ['stream', '--style', 'compact', '--predicate', buildAppleLogPredicate(appBundleId)],
     {
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -65,7 +67,7 @@ export async function startMacOsAppLog(
   let state: 'active' | 'failed' = 'active';
   const child = spawn(
     'log',
-    ['stream', '--style', 'compact', '--predicate', buildIosLogPredicate(appBundleId)],
+    ['stream', '--style', 'compact', '--predicate', buildAppleLogPredicate(appBundleId)],
     {
       stdio: ['ignore', 'pipe', 'pipe'],
     },

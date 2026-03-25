@@ -11,7 +11,11 @@ import { waitForChildExit } from './app-log-stream.ts';
 export type { AppLogResult } from './app-log-process.ts';
 export { APP_LOG_PID_FILENAME, cleanupStaleAppLogProcesses } from './app-log-process.ts';
 export { assertAndroidPackageArgSafe } from './app-log-android.ts';
-export { buildIosDeviceLogStreamArgs, buildIosLogPredicate } from './app-log-ios.ts';
+export {
+  buildAppleLogPredicate,
+  buildIosDeviceLogStreamArgs,
+  buildIosLogPredicate,
+} from './app-log-ios.ts';
 
 export type AppLogDoctorResult = {
   checks: Record<string, boolean>;

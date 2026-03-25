@@ -113,11 +113,12 @@ struct AgentDeviceMacOSHelper {
         )
       )
     case "quit":
-      guard let bundleId = optionValue(arguments: Array(arguments.dropFirst()), name: "--bundle-id"),
-            !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      guard let rawBundleId = optionValue(arguments: Array(arguments.dropFirst()), name: "--bundle-id"),
+            !rawBundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       else {
         throw HelperError.invalidArgs("app quit requires --bundle-id <id>")
       }
+      let bundleId = try validatedBundleId(rawBundleId)
       let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
       guard let app = apps.first else {
         return SuccessEnvelope(
@@ -270,7 +271,12 @@ struct AgentDeviceMacOSHelper {
       ?? stringAttribute(alertElement, attribute: kAXDescriptionAttribute as String)
 
     if action == "accept" || action == "dismiss" {
-      guard let button = action == "accept" ? buttons.first : buttons.last else {
+      guard let button = resolveAlertActionButton(
+        root: alertElement,
+        buttons: buttons,
+        action: action
+      )
+      else {
         throw HelperError.commandFailed("alert action failed", details: ["reason": "missing_button"])
       }
       let status = AXUIElementPerformAction(button, kAXPressAction as CFString)
@@ -336,15 +342,25 @@ private func resolveAlertApplication(bundleId: String?, surface: String?) throws
     throw HelperError.commandFailed("unable to resolve frontmost app")
   }
   if let bundleId, !bundleId.isEmpty {
-    if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+    let validatedBundleId = try validatedBundleId(bundleId)
+    if let app = NSRunningApplication.runningApplications(withBundleIdentifier: validatedBundleId).first {
       return app
     }
-    throw HelperError.commandFailed("app is not running", details: ["bundleId": bundleId])
+    throw HelperError.commandFailed("app is not running", details: ["bundleId": validatedBundleId])
   }
   if let frontmost = NSWorkspace.shared.frontmostApplication {
     return frontmost
   }
   throw HelperError.commandFailed("unable to resolve target app")
+}
+
+private func validatedBundleId(_ rawBundleId: String) throws -> String {
+  let bundleId = rawBundleId.trimmingCharacters(in: .whitespacesAndNewlines)
+  let pattern = #"^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$"#
+  guard bundleId.range(of: pattern, options: .regularExpression) != nil else {
+    throw HelperError.invalidArgs("bundle id must use reverse-DNS form like com.example.App")
+  }
+  return bundleId
 }
 
 private func stringAttribute(_ element: AXUIElement, attribute: String) -> String? {
@@ -357,6 +373,17 @@ private func stringAttribute(_ element: AXUIElement, attribute: String) -> Strin
     return trimmed.isEmpty ? nil : trimmed
   }
   return nil
+}
+
+private func elementAttribute(_ element: AXUIElement, attribute: String) -> AXUIElement? {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
+    return nil
+  }
+  guard let value else {
+    return nil
+  }
+  return unsafeBitCast(value, to: AXUIElement.self)
 }
 
 private func children(of element: AXUIElement) -> [AXUIElement] {
@@ -434,4 +461,31 @@ private func resolveElementLabel(_ element: AXUIElement) -> String {
     ?? stringAttribute(element, attribute: kAXDescriptionAttribute as String)
     ?? stringAttribute(element, attribute: kAXValueAttribute as String)
     ?? "button"
+}
+
+private func resolveAlertActionButton(root: AXUIElement, buttons: [AXUIElement], action: String) -> AXUIElement? {
+  if action == "accept",
+     let defaultButton = elementAttribute(root, attribute: kAXDefaultButtonAttribute as String)
+  {
+    return defaultButton
+  }
+  if action == "dismiss",
+     let cancelButton = elementAttribute(root, attribute: kAXCancelButtonAttribute as String)
+  {
+    return cancelButton
+  }
+
+  let buttonEntries = buttons.map { (element: $0, label: resolveElementLabel($0).lowercased()) }
+  let preferredLabels =
+    action == "accept"
+    ? ["allow", "ok", "open", "continue", "yes", "save", "install", "trust", "enable"]
+    : ["don't allow", "deny", "cancel", "not now", "no", "close", "later", "ignore"]
+
+  for preferredLabel in preferredLabels {
+    if let match = buttonEntries.first(where: { $0.label.contains(preferredLabel) }) {
+      return match.element
+    }
+  }
+
+  return action == "accept" ? buttons.first : buttons.last
 }

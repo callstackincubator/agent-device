@@ -34,6 +34,7 @@ import {
   resolveSessionAppBundleIdForTarget,
 } from './session-open-target.ts';
 import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
+import { AppError } from '../../utils/errors.ts';
 
 function buildOpenResult(params: {
   sessionName: string;
@@ -111,27 +112,47 @@ function resolveOpenSurface(
 ): SessionSurface {
   if (device.platform !== 'macos') {
     if (surfaceFlag) {
-      throw new Error('surface is only supported on macOS');
+      throw new AppError('INVALID_ARGS', 'surface is only supported on macOS');
     }
     return 'app';
   }
   const surface = surfaceFlag ? parseSessionSurface(surfaceFlag) : 'app';
   if (!isPhase1MacOsSessionSurface(surface)) {
-    throw new Error(
+    throw new AppError(
+      'INVALID_ARGS',
       `open --surface ${surface} is planned but not supported yet. Use app|frontmost-app for now.`,
     );
   }
   if (surface !== 'app' && openTarget) {
-    throw new Error(`open --surface ${surface} does not accept an app target`);
+    throw new AppError('INVALID_ARGS', `open --surface ${surface} does not accept an app target`);
   }
   return surface;
+}
+
+function resolveRequestedOpenSurface(params: {
+  device: DeviceInfo;
+  surfaceFlag: string | undefined;
+  openTarget: string | undefined;
+  existingSurface?: SessionSurface;
+}): SessionSurface {
+  const { device, surfaceFlag, openTarget, existingSurface } = params;
+  if (device.platform === 'macos') {
+    if (!surfaceFlag) {
+      return existingSurface ?? 'app';
+    }
+    return resolveOpenSurface(device, surfaceFlag, openTarget);
+  }
+  return resolveOpenSurface(device, surfaceFlag, openTarget);
 }
 
 async function resolveMacOsSurfaceAppState(
   surface: SessionSurface,
 ): Promise<{ appBundleId?: string; appName?: string }> {
-  if (surface !== 'frontmost-app') {
+  if (surface === 'app') {
     return {};
+  }
+  if (surface !== 'frontmost-app') {
+    throw new AppError('INVALID_ARGS', `open --surface ${surface} is not supported in phase 1`);
   }
   const frontmost = await resolveFrontmostMacOsApp();
   return {
@@ -345,22 +366,30 @@ export async function handleOpenCommand(params: {
 
   if (sessionStore.has(sessionName)) {
     const session = sessionStore.get(sessionName);
+    if (!session) {
+      return {
+        ok: false,
+        error: {
+          code: 'SESSION_NOT_FOUND',
+          message: `Session "${sessionName}" not found.`,
+        },
+      };
+    }
     const requestedOpenTarget = req.positionals?.[0];
-    const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session?.appName : undefined);
-    let requestedSurface: SessionSurface = session?.surface ?? 'app';
+    const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session.appName : undefined);
+    let requestedSurface: SessionSurface;
     try {
-      if (session?.device.platform === 'macos') {
-        if (req.flags?.surface) {
-          requestedSurface = resolveOpenSurface(session.device, req.flags.surface, openTarget);
-        }
-      } else if (req.flags?.surface) {
-        throw new Error('surface is only supported on macOS');
-      }
+      requestedSurface = resolveRequestedOpenSurface({
+        device: session.device,
+        surfaceFlag: req.flags?.surface,
+        openTarget,
+        existingSurface: session.surface,
+      });
     } catch (error) {
       return {
         ok: false,
         error: {
-          code: 'INVALID_ARGS',
+          code: error instanceof AppError ? error.code : 'INVALID_ARGS',
           message: String((error as Error).message),
         },
       };
@@ -490,12 +519,16 @@ export async function handleOpenCommand(params: {
   const device = await resolveDevice(req.flags ?? {});
   let surface: SessionSurface;
   try {
-    surface = resolveOpenSurface(device, req.flags?.surface, openTarget);
+    surface = resolveRequestedOpenSurface({
+      device,
+      surfaceFlag: req.flags?.surface,
+      openTarget,
+    });
   } catch (error) {
     return {
       ok: false,
       error: {
-        code: 'INVALID_ARGS',
+        code: error instanceof AppError ? error.code : 'INVALID_ARGS',
         message: String((error as Error).message),
       },
     };

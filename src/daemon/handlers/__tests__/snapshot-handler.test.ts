@@ -7,6 +7,7 @@ import { handleSnapshotCommands } from '../snapshot.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
+import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-handler-'));
@@ -20,22 +21,6 @@ function makeSession(name: string, device: SessionState['device']): SessionState
     createdAt: Date.now(),
     actions: [],
   };
-}
-
-async function withMockedMacOsHelper<T>(script: string, fn: () => Promise<T>): Promise<T> {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-macos-helper-'));
-  const helperPath = path.join(root, 'agent-device-macos-helper');
-  fs.writeFileSync(helperPath, script, 'utf8');
-  fs.chmodSync(helperPath, 0o755);
-  const previous = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = helperPath;
-  try {
-    return await fn();
-  } finally {
-    if (previous === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = previous;
-    fs.rmSync(root, { recursive: true, force: true });
-  }
 }
 
 test('snapshot rejects @ref scope without existing session snapshot', async () => {

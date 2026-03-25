@@ -8,6 +8,7 @@ import { retainMaterializedPaths } from '../../materialized-path-registry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
+import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-handler-'));
@@ -41,22 +42,6 @@ async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promis
     return await fn();
   } finally {
     Object.defineProperty(process, 'platform', { value: original, configurable: true });
-  }
-}
-
-async function withMockedMacOsHelper<T>(script: string, fn: () => Promise<T>): Promise<T> {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-macos-helper-test-'));
-  const helperPath = path.join(root, 'agent-device-macos-helper');
-  fs.writeFileSync(helperPath, script, 'utf8');
-  fs.chmodSync(helperPath, 0o755);
-  const previous = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = helperPath;
-  try {
-    return await fn();
-  } finally {
-    if (previous === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = previous;
-    fs.rmSync(root, { recursive: true, force: true });
   }
 }
 
@@ -2496,6 +2481,38 @@ test('open on macOS with --surface frontmost-app stores frontmost app state', as
       }
     },
   );
+});
+
+test('open rejects --surface on non-macOS devices', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'ios-surface',
+      command: 'open',
+      positionals: ['Notes'],
+      flags: {
+        platform: 'ios',
+        surface: 'frontmost-app',
+      },
+    },
+    sessionName: 'ios-surface',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    dispatch: async () => ({}),
+    ensureReady: async () => {},
+    resolveTargetDevice: async () => ({
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17',
+      kind: 'simulator',
+      target: 'mobile',
+      booted: true,
+    }),
+  });
+
+  assertInvalidArgsMessage(response, 'surface is only supported on macOS');
 });
 
 test('open on existing macOS frontmost-app session preserves surface without --surface flag', async () => {

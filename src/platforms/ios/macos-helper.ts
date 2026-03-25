@@ -33,6 +33,19 @@ const MACOS_HELPER_INSTALL_ROOT = path.join(
   'current',
 );
 const MACOS_HELPER_MANIFEST_PATH = path.join(MACOS_HELPER_INSTALL_ROOT, 'manifest.json');
+const MACOS_BUNDLE_ID_PATTERN = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$/;
+
+function assertMacOsBundleId(bundleId: string): string {
+  const normalized = bundleId.trim();
+  if (!MACOS_BUNDLE_ID_PATTERN.test(normalized)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'macOS bundle id must use reverse-DNS form like com.example.App',
+      { bundleId },
+    );
+  }
+  return normalized;
+}
 
 export function resolveMacOsHelperPackageRootFrom(modulePath: string): string {
   let currentDir = path.dirname(modulePath);
@@ -90,6 +103,15 @@ async function computeMacOsHelperFingerprint(packageRoot: string): Promise<strin
     hash.update(await fs.readFile(filePath));
     hash.update('\0');
   }
+  const swiftVersion = await runCmd('swift', ['--version'], {
+    allowFailure: true,
+    cwd: packageRoot,
+    timeoutMs: 10_000,
+  });
+  hash.update('swift-version');
+  hash.update('\0');
+  hash.update(swiftVersion.stdout || swiftVersion.stderr || `exit:${swiftVersion.exitCode}`);
+  hash.update('\0');
   return hash.digest('hex');
 }
 
@@ -124,6 +146,7 @@ async function ensureMacOsHelperBinary(): Promise<string> {
   }
 
   const sourceBinary = resolveMacOsHelperSourceBinaryPath();
+  process.stderr.write('agent-device: building macOS helper (first run or helper update)\n');
   await runCmd('swift', ['build', '-c', 'release', '--package-path', packageRoot], {
     cwd: packageRoot,
     timeoutMs: 120_000,
@@ -189,7 +212,7 @@ export async function quitMacOsApp(bundleId: string): Promise<{
   terminated: boolean;
   forceTerminated: boolean;
 }> {
-  return await runMacOsHelper(['app', 'quit', '--bundle-id', bundleId]);
+  return await runMacOsHelper(['app', 'quit', '--bundle-id', assertMacOsBundleId(bundleId)]);
 }
 
 export async function runMacOsPermissionAction(
@@ -218,7 +241,7 @@ export async function runMacOsAlertAction(
 }> {
   const args = ['alert', action];
   if (options.bundleId) {
-    args.push('--bundle-id', options.bundleId);
+    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
   }
   if (options.surface) {
     args.push('--surface', options.surface);

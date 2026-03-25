@@ -7,8 +7,8 @@ import {
   APP_LOG_PID_FILENAME,
   appendAppLogMarker,
   assertAndroidPackageArgSafe,
+  buildAppleLogPredicate,
   buildIosDeviceLogStreamArgs,
-  buildIosLogPredicate,
   clearAppLogFiles,
   cleanupStaleAppLogProcesses,
   getAppLogPathMetadata,
@@ -17,8 +17,8 @@ import {
   stopAppLog,
 } from '../app-log.ts';
 
-test('buildIosLogPredicate includes bundle-aware filters', () => {
-  const predicate = buildIosLogPredicate('com.example.app');
+test('buildAppleLogPredicate includes bundle-aware filters', () => {
+  const predicate = buildAppleLogPredicate('com.example.app');
   assert.match(predicate, /subsystem == "com\.example\.app"/);
   assert.match(predicate, /processImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
   assert.match(predicate, /senderImagePath ENDSWITH\[c\] "\/com\.example\.app"/);

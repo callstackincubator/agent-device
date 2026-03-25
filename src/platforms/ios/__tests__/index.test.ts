@@ -21,7 +21,8 @@ import {
   shouldFallbackToRunnerForIosScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from '../apps.ts';
-import { resolveMacOsHelperPackageRootFrom } from '../macos-helper.ts';
+import { withMockedMacOsHelper } from './macos-helper-test-utils.ts';
+import { quitMacOsApp, resolveMacOsHelperPackageRootFrom } from '../macos-helper.ts';
 import {
   captureSimulatorScreenshotWithFallback,
   prepareSimulatorStatusBarForScreenshot,
@@ -125,27 +126,6 @@ async function withMockedMacTools(
     await run({ tmpDir, files });
   } finally {
     process.env.PATH = previousPath;
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
-}
-
-async function withMockedMacOsHelper<T>(
-  tempPrefix: string,
-  script: string,
-  run: (ctx: { tmpDir: string; helperPath: string }) => Promise<T>,
-): Promise<T> {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), tempPrefix));
-  const helperPath = path.join(tmpDir, 'agent-device-macos-helper');
-  await fs.writeFile(helperPath, script, 'utf8');
-  await fs.chmod(helperPath, 0o755);
-  const previousHelperPath = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = helperPath;
-
-  try {
-    return await run({ tmpDir, helperPath });
-  } finally {
-    if (previousHelperPath === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = previousHelperPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 }
@@ -875,7 +855,6 @@ test('openIosApp on macOS resolves aliases before invoking open', async () => {
 
 test('closeIosApp on macOS uses helper quit for bundle identifiers', async () => {
   await withMockedMacOsHelper(
-    'agent-device-macos-close-helper-test-',
     [
       '#!/bin/sh',
       'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
@@ -898,7 +877,12 @@ test('closeIosApp on macOS uses helper quit for bundle identifiers', async () =>
         else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
       }
     },
+    { tempPrefix: 'agent-device-macos-close-helper-test-' },
   );
+});
+
+test('quitMacOsApp rejects invalid bundle identifiers before invoking helper', async () => {
+  await assert.rejects(() => quitMacOsApp('not a bundle id'), /reverse-DNS form/i);
 });
 
 test('reinstallIosApp on iOS physical device uses devicectl uninstall + install', async () => {
@@ -1931,7 +1915,6 @@ test('setIosSetting appearance toggle queries current osascript appearance on ma
 
 test('setIosSetting permission grant accessibility uses macOS helper', async () => {
   await withMockedMacOsHelper(
-    'agent-device-macos-permission-grant-test-',
     [
       '#!/bin/sh',
       'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
@@ -1963,6 +1946,7 @@ test('setIosSetting permission grant accessibility uses macOS helper', async () 
         else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
       }
     },
+    { tempPrefix: 'agent-device-macos-permission-grant-test-' },
   );
 });
 

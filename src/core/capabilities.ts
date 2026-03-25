@@ -20,6 +20,8 @@ const isMacOsOrAppleSimulator = (device: DeviceInfo): boolean =>
 const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   // Apple simulator-only.
   alert: {
+    // macOS desktop targets report kind=device, so this stays enabled here and the
+    // supports() guard excludes iOS physical devices.
     apple: { simulator: true, device: true },
     android: {},
     supports: isMacOsOrAppleSimulator,
