@@ -22,16 +22,20 @@ Open this file when the app or screen is already running and you need to discove
 - User asks you to tap, type, or choose an element: `snapshot -i`, then act
 - UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked
 
-## Main commands to reach for first
+## Read-only commands
 
 - `snapshot`
 - `get`
 - `is`
 - `find`
-- `wait`
+
+## Interaction commands
+
 - `snapshot -i`
 - `press`
 - `fill`
+- `type`
+- `wait`
 
 ## Most common mistake to avoid
 

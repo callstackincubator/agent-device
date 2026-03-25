@@ -9,8 +9,8 @@ Open this file when you still need to choose the right target, start the right s
 - `devices`
 - `apps`
 - `ensure-simulator`
-- `install` or `reinstall`
 - `open`
+- `install` or `reinstall`
 - `close`
 - `session list`
 
@@ -35,7 +35,7 @@ After setup is confirmed or completed, move to `exploration.md` before doing UI 
 
 - If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
 - Use `apps --platform <platform>` together with `--device`, `--udid`, or `--serial` when target selection matters.
-- Once you have the correct app name, retry `open` with that exact value.
+- Once you have the correct app name, retry `open` with that exact discovered value.
 
 ## Common starting points
 
@@ -48,27 +48,26 @@ agent-device ensure-simulator --platform ios --device "iPhone 17 Pro" --boot
 agent-device open MyApp --platform ios --device "iPhone 17 Pro" --relaunch
 ```
 
-### Install an app artifact, then open it
+### Install an app artifact
 
 ```bash
 agent-device install com.example.app ./build/app.apk --platform android --serial emulator-5554
-agent-device open com.example.app --platform android --serial emulator-5554
 ```
 
 ```bash
 agent-device install com.example.app ./build/MyApp.app --platform ios --device "iPhone 17 Pro"
-agent-device open MyApp --platform ios --device "iPhone 17 Pro"
 ```
 
 ## Install guidance
 
 - Use `install <app> <path>` when the app may already be installed and you do not need a fresh-state reset.
 - Use `reinstall <app> <path>` when you explicitly need uninstall plus install as one deterministic step.
+- Keep install and open as separate phases. Do not turn them into one default command flow.
 - Supported binary formats:
   - Android: `.apk` and `.aab`
   - iOS: `.app` and `.ipa`
 - For iOS `.ipa` files, `<app>` is used as the bundle id or bundle name hint when the archive contains multiple app bundles.
-- After install or reinstall, use `open <app>` with the installed app name or package/bundle identifier, not the artifact path.
+- After install or reinstall, later use `open <app>` with the exact discovered or known package/bundle identifier, not the artifact path.
 
 ## Choose the right starting point
 
@@ -189,16 +188,14 @@ agent-device replay -u ./session.ad --session auth
 - Once the correct target and session are pinned, move to [exploration.md](exploration.md).
 - If opening, startup, permissions, or logs become the blocker, switch to [debugging.md](debugging.md).
 
-## Install and open examples
+## Install examples
 
 ```bash
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
-agent-device open com.example.myapp --platform android --serial emulator-5554
 ```
 
 ```bash
 agent-device install com.example.app ./build/MyApp.ipa --platform ios --device "iPhone 17 Pro"
-agent-device open MyApp --platform ios --device "iPhone 17 Pro"
 ```
 
 Do not use `open <apk|aab> --relaunch` on Android.

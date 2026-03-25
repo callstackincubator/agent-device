@@ -2,7 +2,7 @@
 
 ## When to open this file
 
-Open this file only for remote daemon HTTP flows that require explicit daemon URL setup, authentication, lease allocation, or tenant-scoped command admission.
+Open this file for remote daemon HTTP flows, including `--remote-config` launches, that let an agent running in a Linux sandbox talk to another `agent-device` instance on a remote macOS host in order to control devices that are not available locally. This file covers daemon URL setup, authentication, lease allocation, and tenant-scoped command admission.
 
 ## Main commands to reach for first
 

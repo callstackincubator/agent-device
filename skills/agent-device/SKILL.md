@@ -54,11 +54,9 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - If the needed information is not exposed on screen, say that plainly instead of compensating with extra navigation, text entry, or web search.
 - Prefer `@ref` or selector targeting over raw coordinates.
 
-## Choose a reference
+## Additional references
 
-- Pick target device, install, open, or manage sessions: [references/bootstrap-install.md](references/bootstrap-install.md)
-- Need to discover UI, pick refs, wait, query, or interact: [references/exploration.md](references/exploration.md)
 - Need logs, network, alerts, permissions, or failure triage: [references/debugging.md](references/debugging.md)
 - Need screenshots, diff, recording, replay maintenance, or perf data: [references/verification.md](references/verification.md)
 - Need desktop surfaces, menu bar behavior, or macOS-specific interaction rules: [references/macos-desktop.md](references/macos-desktop.md)
-- Need to connect to a remote `agent-device` daemon over HTTP or use tenant leases: [references/remote-tenancy.md](references/remote-tenancy.md)
+- Need remote HTTP transport, `--remote-config` launches, or tenant leases on a remote macOS host: [references/remote-tenancy.md](references/remote-tenancy.md)

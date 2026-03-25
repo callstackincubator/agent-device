@@ -20,9 +20,8 @@ Do not use verification tools as the first exploration step. First get the app i
 
 ```bash
 agent-device open Settings --platform ios
+# after using exploration to reach the state you want to verify
 agent-device snapshot -i
-agent-device press @e5
-agent-device diff snapshot -i
 agent-device screenshot /tmp/settings-proof.png
 agent-device close
 ```
