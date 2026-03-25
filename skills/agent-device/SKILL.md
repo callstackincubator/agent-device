@@ -11,12 +11,12 @@ For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md]
 
 ## Default path
 
-1. Open [bootstrap-install.md](bootstrap-install.md).
-2. Then open [exploration.md](exploration.md).
-3. Open [debugging.md](debugging.md) only if the task becomes a failure, logs, network, alert, or permission problem.
-4. Open [verification.md](verification.md) only if the task needs evidence, replay maintenance, or performance checks.
-5. Open [macos-desktop.md](macos-desktop.md) only when `--platform macos` or a desktop surface is involved.
-6. Open [remote-tenancy.md](remote-tenancy.md) only for remote daemon, lease, tenant, or HTTP JSON-RPC work.
+1. Open [references/bootstrap-install.md](references/bootstrap-install.md).
+2. Then open [references/exploration.md](references/exploration.md).
+3. Open [references/debugging.md](references/debugging.md) only if the task becomes a failure, logs, network, alert, or permission problem.
+4. Open [references/verification.md](references/verification.md) only if the task needs evidence, replay maintenance, or performance checks.
+5. Open [references/macos-desktop.md](references/macos-desktop.md) only when `--platform macos` or a desktop surface is involved.
+6. Open [references/remote-tenancy.md](references/remote-tenancy.md) only for remote daemon, lease, tenant, or HTTP JSON-RPC work.
 
 ## Decision rules
 
@@ -31,9 +31,9 @@ For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md]
 
 ## File chooser
 
-- Target, install, session, or app bootstrap problem: [bootstrap-install.md](bootstrap-install.md)
-- Need to discover UI, pick refs, wait, query, or interact: [exploration.md](exploration.md)
-- Need logs, network, alerts, permissions, or failure triage: [debugging.md](debugging.md)
-- Need screenshots, diff, recording, replay maintenance, or perf data: [verification.md](verification.md)
-- Need host macOS desktop behavior or surface differences: [macos-desktop.md](macos-desktop.md)
-- Need remote daemon transport or lease admission: [remote-tenancy.md](remote-tenancy.md)
+- Target, install, session, or app bootstrap problem: [references/bootstrap-install.md](references/bootstrap-install.md)
+- Need to discover UI, pick refs, wait, query, or interact: [references/exploration.md](references/exploration.md)
+- Need logs, network, alerts, permissions, or failure triage: [references/debugging.md](references/debugging.md)
+- Need screenshots, diff, recording, replay maintenance, or perf data: [references/verification.md](references/verification.md)
+- Need host macOS desktop behavior or surface differences: [references/macos-desktop.md](references/macos-desktop.md)
+- Need remote daemon transport or lease admission: [references/remote-tenancy.md](references/remote-tenancy.md)

@@ -116,6 +116,11 @@ Minimal operating guide for AI coding agents in this repo.
 - For behavior/CLI surface changes, evaluate docs/skills updates.
 - Update `README.md` and relevant `website/docs/**` pages for command behavior/flags/aliases/workflows.
 - Update relevant `skills/**/SKILL.md` when usage examples/workflow recommendations change.
+- Keep skill docs task-first:
+  - top-level `SKILL.md` should stay a thin router, not a full manual.
+  - keep detailed workflows/troubleshooting in a `references/` folder instead of growing the router.
+  - isolate true platform/infra exceptions (for example macOS-only or remote-tenancy-only guidance) in dedicated files.
+  - do not delete high-value operational guidance during refactors; move or condense it unless the behavior is obsolete.
 - In final summaries, state whether docs/skills were updated; if not, explain why.
 
 ## When Blocked
