@@ -17,6 +17,13 @@ npx agent-device open Settings --platform ios
 - Node.js 22+
 - Xcode for iOS simulator/device automation (`simctl` + `devicectl`)
 - Android SDK / ADB for Android
+- On macOS desktop targets, Swift 5.9+ / Xcode command-line tools are used to build the local `agent-device-macos-helper` on first use from source checkouts
+
+## macOS desktop notes
+
+- The macOS desktop path now uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and related host-Mac support.
+- Source checkouts build the helper lazily on first use and cache it under `~/.agent-device/macos-helper/current/`.
+- Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.
 
 ## iOS physical device prerequisites
 
