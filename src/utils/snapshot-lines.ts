@@ -204,12 +204,12 @@ function buildLineMetadata(
 ): string[] {
   const metadata: string[] = [];
   if (node.enabled === false) metadata.push('disabled');
-  if (node.selected === true) metadata.push('selected');
-  if (isEditableRole(type)) metadata.push('editable');
-  if (looksScrollable(node, type)) metadata.push('scrollable');
   if (!options.summarizeTextSurfaces) {
     return metadata;
   }
+  if (node.selected === true) metadata.push('selected');
+  if (isEditableRole(type)) metadata.push('editable');
+  if (looksScrollable(node, type)) metadata.push('scrollable');
   if (!textSurface.shouldSummarize) {
     return metadata;
   }

@@ -1,4 +1,5 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { extractNodeReadText } from '../snapshot-processing.ts';
 import type { SessionState } from '../types.ts';
 import type { SnapshotNode } from '../../utils/snapshot.ts';
@@ -36,8 +37,32 @@ export async function readTextForNode(params: {
     );
     const data = rawData && typeof rawData === 'object' ? rawData : undefined;
     const text = typeof data?.text === 'string' ? data.text : '';
-    return text.trim() ? text : fallbackText;
-  } catch {
+    if (text.trim()) {
+      return text;
+    }
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'interaction_read_fallback',
+      data: {
+        reason: 'empty_backend_text',
+        nodeRef: node.ref,
+        surface,
+        platform: device.platform,
+      },
+    });
+    return fallbackText;
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'interaction_read_fallback',
+      data: {
+        reason: 'backend_read_failed',
+        nodeRef: node.ref,
+        surface,
+        platform: device.platform,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
     return fallbackText;
   }
 }
