@@ -2498,6 +2498,67 @@ test('open on macOS with --surface frontmost-app stores frontmost app state', as
   );
 });
 
+test('open on existing macOS frontmost-app session preserves surface without --surface flag', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-frontmost-existing';
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, {
+          platform: 'macos',
+          id: 'host-macos-local',
+          name: 'Host Mac',
+          kind: 'device',
+          target: 'desktop',
+          booted: true,
+        }),
+        surface: 'frontmost-app',
+        appBundleId: 'com.apple.TextEdit',
+        appName: 'TextEdit',
+      });
+
+      const response = await handleSessionCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'open',
+          positionals: [],
+          flags: {
+            platform: 'macos',
+          },
+        },
+        sessionName,
+        logPath: path.join(os.tmpdir(), 'daemon.log'),
+        sessionStore,
+        invoke: noopInvoke,
+        dispatch: async (_device, _command, positionals) => {
+          assert.deepEqual(positionals, []);
+          return {};
+        },
+        ensureReady: async () => {},
+        resolveTargetDevice: async () =>
+          sessionStore.get(sessionName)?.device as SessionState['device'],
+      });
+
+      assert.equal(response?.ok, true);
+      const session = sessionStore.get(sessionName);
+      assert.equal(session?.surface, 'frontmost-app');
+      assert.equal(session?.appBundleId, 'com.apple.TextEdit');
+      assert.equal(session?.appName, 'TextEdit');
+      if (response && response.ok) {
+        assert.equal(response.data?.surface, 'frontmost-app');
+      }
+    },
+  );
+});
+
 test('open on macOS rejects desktop surface until desktop-global backend lands', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-surface';

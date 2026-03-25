@@ -21,6 +21,7 @@ import {
   shouldFallbackToRunnerForIosScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from '../apps.ts';
+import { resolveMacOsHelperPackageRootFrom } from '../macos-helper.ts';
 import {
   captureSimulatorScreenshotWithFallback,
   prepareSimulatorStatusBarForScreenshot,
@@ -55,6 +56,23 @@ const MACOS_TEST_DEVICE: DeviceInfo = {
   target: 'desktop',
   booted: true,
 };
+
+test('resolveMacOsHelperPackageRootFrom finds helper package from source and dist-like paths', async () => {
+  const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-helper-root-'));
+  const helperRoot = path.join(repoRoot, 'macos-helper');
+  await fs.mkdir(helperRoot, { recursive: true });
+  await fs.writeFile(path.join(helperRoot, 'Package.swift'), '// test\n', 'utf8');
+
+  try {
+    const sourceLike = path.join(repoRoot, 'src', 'platforms', 'ios', 'macos-helper.ts');
+    const distLike = path.join(repoRoot, 'dist', 'src', 'platforms', 'ios', 'macos-helper.js');
+
+    assert.equal(resolveMacOsHelperPackageRootFrom(sourceLike), helperRoot);
+    assert.equal(resolveMacOsHelperPackageRootFrom(distLike), helperRoot);
+  } finally {
+    await fs.rm(repoRoot, { recursive: true, force: true });
+  }
+});
 
 async function withMockedXcrun(
   tempPrefix: string,

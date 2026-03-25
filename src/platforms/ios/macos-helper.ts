@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,8 +34,26 @@ const MACOS_HELPER_INSTALL_ROOT = path.join(
 );
 const MACOS_HELPER_MANIFEST_PATH = path.join(MACOS_HELPER_INSTALL_ROOT, 'manifest.json');
 
+export function resolveMacOsHelperPackageRootFrom(modulePath: string): string {
+  let currentDir = path.dirname(modulePath);
+  while (true) {
+    const candidate = path.join(currentDir, 'macos-helper');
+    if (existsSync(path.join(candidate, 'Package.swift'))) {
+      return candidate;
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+    currentDir = parentDir;
+  }
+  throw new AppError('COMMAND_FAILED', 'Unable to locate macOS helper package root', {
+    modulePath,
+  });
+}
+
 function resolveMacOsHelperPackageRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../macos-helper');
+  return resolveMacOsHelperPackageRootFrom(fileURLToPath(import.meta.url));
 }
 
 function resolveMacOsHelperSourceBinaryPath(): string {

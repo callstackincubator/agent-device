@@ -350,7 +350,9 @@ export async function handleOpenCommand(params: {
     let requestedSurface: SessionSurface = session?.surface ?? 'app';
     try {
       if (session?.device.platform === 'macos') {
-        requestedSurface = resolveOpenSurface(session.device, req.flags?.surface, openTarget);
+        if (req.flags?.surface) {
+          requestedSurface = resolveOpenSurface(session.device, req.flags.surface, openTarget);
+        }
       } else if (req.flags?.surface) {
         throw new Error('surface is only supported on macOS');
       }
