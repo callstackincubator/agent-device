@@ -9,6 +9,8 @@ import type { SessionSurface } from '../../core/session-surface.ts';
 
 export type MacOsPermissionTarget = 'accessibility' | 'screen-recording' | 'input-monitoring';
 
+// Keep this shape aligned with macOS helper SnapshotNodeResponse in
+// macos-helper/Sources/AgentDeviceMacOSHelper/SnapshotTraversal.swift.
 export type MacOsSnapshotNode = {
   index: number;
   type?: string;
@@ -279,7 +281,7 @@ export async function runMacOsAlertAction(
 export async function runMacOsSnapshotAction(surface: Exclude<SessionSurface, 'app'>): Promise<{
   surface: Exclude<SessionSurface, 'app'>;
   nodes: MacOsSnapshotNode[];
-  truncated: false;
+  truncated: boolean;
   backend: 'macos-helper';
 }> {
   return await runMacOsHelper(['snapshot', '--surface', surface]);

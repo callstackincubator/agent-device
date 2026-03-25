@@ -1,4 +1,4 @@
-import { dispatchCommand } from '../../core/dispatch.ts';
+import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
 import {
   attachRefs,
@@ -7,7 +7,7 @@ import {
   type RawSnapshotNode,
   type SnapshotState,
 } from '../../utils/snapshot.ts';
-import type { DaemonResponse, DaemonRequest, SessionState } from '../types.ts';
+import type { DaemonResponse, SessionState } from '../types.ts';
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 
@@ -15,7 +15,8 @@ type CaptureSnapshotParams = {
   dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   session: SessionState | undefined;
-  req: DaemonRequest;
+  flags: CommandFlags | undefined;
+  outPath?: string;
   logPath: string;
   snapshotScope?: string;
 };
@@ -29,25 +30,25 @@ type SnapshotData = {
 export async function captureSnapshot(
   params: CaptureSnapshotParams,
 ): Promise<{ snapshot: SnapshotState }> {
-  const { req } = params;
   const data = await captureSnapshotData(params);
-  return { snapshot: buildSnapshotState(data, req.flags?.snapshotRaw) };
+  return { snapshot: buildSnapshotState(data, params.flags?.snapshotRaw) };
 }
 
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
-  const { dispatchSnapshotCommand, device, session, req, logPath, snapshotScope } = params;
+  const { dispatchSnapshotCommand, device, session, flags, outPath, logPath, snapshotScope } =
+    params;
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
     const helperSnapshot = await runMacOsSnapshotAction(session.surface);
     return shapeMacOsSurfaceSnapshot(helperSnapshot, {
-      snapshotDepth: req.flags?.snapshotDepth,
-      snapshotInteractiveOnly: req.flags?.snapshotInteractiveOnly,
+      snapshotDepth: flags?.snapshotDepth,
+      snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,
       snapshotScope,
     });
   }
-  return (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
+  return (await dispatchSnapshotCommand(device, 'snapshot', [], outPath, {
     ...contextFromFlags(
       logPath,
-      { ...req.flags, snapshotScope },
+      { ...flags, snapshotScope },
       session?.appBundleId,
       session?.trace?.outPath,
     ),

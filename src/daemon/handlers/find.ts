@@ -66,14 +66,12 @@ export async function handleFindCommands(params: {
       dispatchSnapshotCommand: dispatch,
       device,
       session,
-      req: {
-        ...req,
-        flags: {
-          ...req.flags,
-          snapshotInteractiveOnly: interactiveOnly,
-          snapshotCompact: interactiveOnly,
-        },
+      flags: {
+        ...req.flags,
+        snapshotInteractiveOnly: interactiveOnly,
+        snapshotCompact: interactiveOnly,
       },
+      outPath: req.flags?.out,
       logPath,
       snapshotScope: scope,
     });

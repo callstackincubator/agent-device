@@ -252,6 +252,55 @@ test('snapshot on macOS desktop surface applies scope and depth after helper cap
   );
 });
 
+test('snapshot on macOS menubar surface uses helper-backed surface snapshot', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"menubar","nodes":[{"index":0,"depth":0,"type":"MenuBarSurface","label":"Menu Bar","surface":"menubar"},{"index":1,"depth":1,"parentIndex":0,"type":"MenuBarItem","label":"File","surface":"menubar"}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-menubar-snapshot';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-menubar-snapshot-'));
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'menubar',
+      });
+
+      try {
+        const response = await handleSnapshotCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'snapshot',
+            positionals: [],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/daemon.log',
+          sessionStore,
+        });
+
+        assert.equal(response?.ok, true);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, 'snapshot\n--surface\nmenubar\n');
+        assert.equal(sessionStore.get(sessionName)?.snapshot?.nodes[1]?.label, 'File');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
 test('wait text on macOS desktop surface polls helper-backed snapshots instead of runner text search', async () => {
   await withMockedMacOsHelper(
     [

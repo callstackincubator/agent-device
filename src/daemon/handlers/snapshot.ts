@@ -51,7 +51,8 @@ export async function handleSnapshotCommands(params: {
         dispatchSnapshotCommand,
         device,
         session,
-        req,
+        flags: req.flags,
+        outPath: req.flags?.out,
         logPath,
         snapshotScope: resolvedScope.scope,
       });
@@ -110,7 +111,8 @@ export async function handleSnapshotCommands(params: {
         dispatchSnapshotCommand,
         device,
         session,
-        req,
+        flags: req.flags,
+        outPath: req.flags?.out,
         logPath,
         snapshotScope: resolvedScope.scope,
       });

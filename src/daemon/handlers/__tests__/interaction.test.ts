@@ -63,6 +63,13 @@ function makeMacOsDesktopSession(name: string): SessionState {
   };
 }
 
+function makeMacOsMenubarSession(name: string): SessionState {
+  return {
+    ...makeMacOsDesktopSession(name),
+    surface: 'menubar',
+  };
+}
+
 const contextFromFlags = (flags: CommandFlags | undefined) => ({
   count: flags?.count,
   intervalMs: flags?.intervalMs,
@@ -163,6 +170,34 @@ test('click rejects macOS desktop surface interactions until helper routing exis
   if (response && !response.ok) {
     assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
     assert.match(response.error.message, /macOS desktop sessions/);
+  }
+});
+
+test('fill rejects macOS menubar surface interactions until helper routing exists', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-menubar-fill';
+  sessionStore.set(sessionName, makeMacOsMenubarSession(sessionName));
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e2', 'hello'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => {
+      throw new Error('dispatch should not be called');
+    },
+  });
+
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /macOS menubar sessions/);
   }
 });
 

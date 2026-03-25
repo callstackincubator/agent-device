@@ -27,13 +27,8 @@ export async function captureSnapshotForSession(
     dispatchSnapshotCommand: dispatch,
     device: session.device,
     session,
-    req: {
-      token: '',
-      session: session.name,
-      command: 'snapshot',
-      positionals: [],
-      flags: effectiveFlags,
-    },
+    flags: effectiveFlags,
+    outPath: effectiveFlags.out,
     logPath: dispatchContext.logPath ?? '',
   });
   session.snapshot = snapshot;
