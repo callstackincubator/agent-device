@@ -6,7 +6,6 @@ import {
   resolveClickButton,
 } from '../../core/click-button.ts';
 import { centerOfRect, findNodeByRef, type Rect, type SnapshotNode } from '../../utils/snapshot.ts';
-import type { DaemonCommandContext } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { findNodeByLabel, isFillableType, resolveRefLabel } from '../snapshot-processing.ts';
@@ -18,15 +17,13 @@ import {
   splitSelectorFromArgs,
 } from '../selectors.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
-import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import { getAndroidScreenSize } from '../../platforms/android/index.ts';
 import { getSnapshotReferenceFrame } from '../touch-reference-frame.ts';
-
-type ContextFromFlags = (
-  flags: CommandFlags | undefined,
-  appBundleId?: string,
-  traceLogPath?: string,
-) => DaemonCommandContext;
+import {
+  buildTouchVisualizationResult,
+  dispatchRecordedTouchInteraction,
+  type ContextFromFlags,
+} from './interaction-common.ts';
 
 type CaptureSnapshotForSession = (
   session: SessionState,
@@ -125,15 +122,6 @@ export async function handleTouchInteractionCommands(params: {
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
-      const interaction = await dispatchInteractionCommand({
-        session,
-        flags: req.flags,
-        contextFromFlags,
-        dispatch,
-        command: 'press',
-        positionals: [String(directCoordinates.x), String(directCoordinates.y)],
-        outPath: req.flags?.out,
-      });
       const visualizationFrame = await resolveDirectTouchReferenceFrame({
         session,
         flags: req.flags,
@@ -143,21 +131,30 @@ export async function handleTouchInteractionCommands(params: {
         dispatch,
         readAndroidScreenSize,
       });
-      const visualizationResult = {
-        ...(interaction.data ?? { x: directCoordinates.x, y: directCoordinates.y }),
-        ...(visualizationFrame ?? {}),
-        ...resultButtonTag,
-      };
-      return finalizeTouchInteraction({
+      return dispatchRecordedTouchInteraction({
         session,
         sessionStore,
-        command,
-        positionals: req.positionals ?? [String(directCoordinates.x), String(directCoordinates.y)],
+        requestCommand: command,
+        requestPositionals: req.positionals ?? [
+          String(directCoordinates.x),
+          String(directCoordinates.y),
+        ],
         flags: req.flags,
-        result: visualizationResult,
-        responseData: visualizationResult,
-        actionStartedAt: interaction.actionStartedAt,
-        actionFinishedAt: interaction.actionFinishedAt,
+        contextFromFlags,
+        dispatch,
+        interactionCommand: 'press',
+        interactionPositionals: [String(directCoordinates.x), String(directCoordinates.y)],
+        outPath: req.flags?.out,
+        buildPayloads: (data) => {
+          const result = buildTouchVisualizationResult({
+            data,
+            fallbackX: directCoordinates.x,
+            fallbackY: directCoordinates.y,
+            referenceFrame: visualizationFrame,
+            extra: resultButtonTag,
+          });
+          return { result, responseData: result };
+        },
       });
     }
 
@@ -168,90 +165,53 @@ export async function handleTouchInteractionCommands(params: {
       if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
       const fallbackLabel =
         req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
-      const resolvedRefTarget = resolveRefTarget({
+      const resolvedRefPressTarget = await resolveRefTargetWithRectRefresh({
         session,
         refInput,
         fallbackLabel,
-        requireRect: true,
         invalidRefMessage: `${commandLabel} requires a ref like @e2`,
-        notFoundMessage: `Ref ${refInput} not found or has no bounds`,
+        missingBoundsMessage: `Ref ${refInput} not found or has no bounds`,
+        invalidBoundsMessage: `Ref ${refInput} not found or has invalid bounds`,
+        reqFlags: req.flags,
+        sessionStore,
+        contextFromFlags,
+        captureSnapshotForSession,
+        dispatch,
+        resolveRefTarget,
       });
-      if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
-      const { ref } = resolvedRefTarget.target;
-      let node = resolvedRefTarget.target.node;
-      let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
-      let pressPoint = resolveRectCenter(node.rect);
-      if (!pressPoint) {
-        const refreshed = await captureSnapshotForSession(
-          session,
-          req.flags,
-          sessionStore,
-          contextFromFlags,
-          { interactiveOnly: true },
-          dispatch,
-        );
-        const refNode = findNodeByRef(refreshed.nodes, ref);
-        const fallbackNode =
-          fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
-        const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
-        const refNodePoint = resolveRectCenter(refNode?.rect);
-        const refreshedNode = refNodePoint
-          ? refNode
-          : fallbackNodePoint
-            ? fallbackNode
-            : (refNode ?? fallbackNode);
-        const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
-        if (refreshedNode && refreshedPoint) {
-          node = refreshedNode;
-          snapshotNodes = refreshed.nodes;
-          pressPoint = refreshedPoint;
-        }
-      }
-      if (!pressPoint) {
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${refInput} not found or has invalid bounds`,
-          },
-        };
-      }
+      if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget.response;
+      const { ref, node, snapshotNodes, point: pressPoint } = resolvedRefPressTarget.target;
       const refLabel = resolveRefLabel(node, snapshotNodes);
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
         action: selectorAction,
       });
       const { x, y } = pressPoint;
-      const interaction = await dispatchInteractionCommand({
+      return dispatchRecordedTouchInteraction({
         session,
+        sessionStore,
+        requestCommand: command,
+        requestPositionals: req.positionals ?? [],
         flags: req.flags,
         contextFromFlags,
         dispatch,
-        command: 'press',
-        positionals: [String(x), String(y)],
+        interactionCommand: 'press',
+        interactionPositionals: [String(x), String(y)],
         outPath: req.flags?.out,
-      });
-      const resultPayload = buildTouchVisualizationResult({
-        data: interaction.data,
-        fallbackX: x,
-        fallbackY: y,
-        referenceFrame: readSnapshotNodesReferenceFrame(snapshotNodes),
-        extra: {
-          ref,
-          refLabel,
-          selectorChain,
-          ...resultButtonTag,
+        buildPayloads: (data) => {
+          const result = buildTouchVisualizationResult({
+            data,
+            fallbackX: x,
+            fallbackY: y,
+            referenceFrame: readSnapshotNodesReferenceFrame(snapshotNodes),
+            extra: {
+              ref,
+              refLabel,
+              selectorChain,
+              ...resultButtonTag,
+            },
+          });
+          return { result, responseData: result };
         },
-      });
-      return finalizeTouchInteraction({
-        session,
-        sessionStore,
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags,
-        result: resultPayload,
-        responseData: resultPayload,
-        actionStartedAt: interaction.actionStartedAt,
-        actionFinishedAt: interaction.actionFinishedAt,
       });
     }
 
@@ -305,41 +265,36 @@ export async function handleTouchInteractionCommands(params: {
       };
     }
     const { x, y } = pressPoint;
-    const interaction = await dispatchInteractionCommand({
-      session,
-      flags: req.flags,
-      contextFromFlags,
-      dispatch,
-      command: 'press',
-      positionals: [String(x), String(y)],
-      outPath: req.flags?.out,
-    });
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
       action: selectorAction,
     });
     const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
-    const resultPayload = buildTouchVisualizationResult({
-      data: interaction.data,
-      fallbackX: x,
-      fallbackY: y,
-      referenceFrame: readSnapshotNodesReferenceFrame(snapshot.nodes),
-      extra: {
-        selector: resolved.selector.raw,
-        selectorChain,
-        refLabel,
-        ...resultButtonTag,
-      },
-    });
-    return finalizeTouchInteraction({
+    return dispatchRecordedTouchInteraction({
       session,
       sessionStore,
-      command,
-      positionals: req.positionals ?? [],
+      requestCommand: command,
+      requestPositionals: req.positionals ?? [],
       flags: req.flags,
-      result: resultPayload,
-      responseData: resultPayload,
-      actionStartedAt: interaction.actionStartedAt,
-      actionFinishedAt: interaction.actionFinishedAt,
+      contextFromFlags,
+      dispatch,
+      interactionCommand: 'press',
+      interactionPositionals: [String(x), String(y)],
+      outPath: req.flags?.out,
+      buildPayloads: (data) => {
+        const result = buildTouchVisualizationResult({
+          data,
+          fallbackX: x,
+          fallbackY: y,
+          referenceFrame: readSnapshotNodesReferenceFrame(snapshot.nodes),
+          extra: {
+            selector: resolved.selector.raw,
+            selectorChain,
+            refLabel,
+            ...resultButtonTag,
+          },
+        });
+        return { result, responseData: result };
+      },
     });
   }
 
@@ -371,26 +326,22 @@ export async function handleTouchInteractionCommands(params: {
           error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' },
         };
       }
-
-      const resolvedRefTarget = resolveRefTarget({
+      const resolvedRefFillTarget = await resolveRefTargetWithRectRefresh({
         session,
         refInput: req.positionals[0],
         fallbackLabel: labelCandidate,
-        requireRect: true,
         invalidRefMessage: 'fill requires a ref like @e2',
-        notFoundMessage: `Ref ${req.positionals[0]} not found or has no bounds`,
+        missingBoundsMessage: `Ref ${req.positionals[0]} not found or has no bounds`,
+        invalidBoundsMessage: `Ref ${req.positionals[0]} not found or has invalid bounds`,
+        reqFlags: req.flags,
+        sessionStore,
+        contextFromFlags,
+        captureSnapshotForSession,
+        dispatch,
+        resolveRefTarget,
       });
-      if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
-      const { ref, node, snapshotNodes } = resolvedRefTarget.target;
-      if (!node.rect) {
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${req.positionals[0]} not found or has no bounds`,
-          },
-        };
-      }
+      if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget.response;
+      const { ref, node, snapshotNodes, point } = resolvedRefFillTarget.target;
       const nodeType = node.type ?? '';
       const fillWarning =
         nodeType && !isFillableType(nodeType, session.device.platform)
@@ -400,36 +351,39 @@ export async function handleTouchInteractionCommands(params: {
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
         action: 'fill',
       });
-      const { x, y } = centerOfRect(node.rect);
-      const interaction = await dispatchInteractionCommand({
+      const { x, y } = point;
+      return dispatchRecordedTouchInteraction({
         session,
+        sessionStore,
+        requestCommand: command,
+        requestPositionals: req.positionals ?? [],
         flags: req.flags,
         contextFromFlags,
         dispatch,
-        command: 'fill',
-        positionals: [String(x), String(y), text],
+        interactionCommand: 'fill',
+        interactionPositionals: [String(x), String(y), text],
         outPath: req.flags?.out,
-      });
-      const resultPayload: Record<string, unknown> = {
-        ...(interaction.data ?? { ref, x, y }),
-      };
-      if (fillWarning) {
-        resultPayload.warning = fillWarning;
-      }
-      return finalizeTouchInteraction({
-        session,
-        sessionStore,
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags,
-        result: {
-          ...resultPayload,
-          refLabel,
-          selectorChain,
+        buildPayloads: (data) => {
+          const result = buildTouchVisualizationResult({
+            data,
+            fallbackX: x,
+            fallbackY: y,
+            referenceFrame: readSnapshotNodesReferenceFrame(snapshotNodes),
+            extra: {
+              ref,
+              refLabel,
+              selectorChain,
+            },
+          });
+          const responseData: Record<string, unknown> = {
+            ...(data ?? { ref, x, y }),
+          };
+          if (fillWarning) {
+            result.warning = fillWarning;
+            responseData.warning = fillWarning;
+          }
+          return { result, responseData };
         },
-        responseData: resultPayload,
-        actionStartedAt: interaction.actionStartedAt,
-        actionFinishedAt: interaction.actionFinishedAt,
       });
     }
     if (!session) {
@@ -491,43 +445,38 @@ export async function handleTouchInteractionCommands(params: {
           ? `fill target ${resolved.selector.raw} resolved to "${nodeType}", attempting fill anyway.`
           : undefined;
       const { x, y } = centerOfRect(resolved.node.rect);
-      const interaction = await dispatchInteractionCommand({
-        session,
-        flags: req.flags,
-        contextFromFlags,
-        dispatch,
-        command: 'fill',
-        positionals: [String(x), String(y), text],
-        outPath: req.flags?.out,
-      });
       const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
         action: 'fill',
       });
-      const resultPayload = buildTouchVisualizationResult({
-        data: interaction.data,
-        fallbackX: x,
-        fallbackY: y,
-        referenceFrame: readSnapshotNodesReferenceFrame(snapshot.nodes),
-        extra: {
-          text,
-          selector: resolved.selector.raw,
-          selectorChain,
-          refLabel: resolveRefLabel(node, snapshot.nodes),
-        },
-      });
-      if (fillWarning) {
-        resultPayload.warning = fillWarning;
-      }
-      return finalizeTouchInteraction({
+      return dispatchRecordedTouchInteraction({
         session,
         sessionStore,
-        command,
-        positionals: req.positionals ?? [],
+        requestCommand: command,
+        requestPositionals: req.positionals ?? [],
         flags: req.flags,
-        result: resultPayload,
-        responseData: resultPayload,
-        actionStartedAt: interaction.actionStartedAt,
-        actionFinishedAt: interaction.actionFinishedAt,
+        contextFromFlags,
+        dispatch,
+        interactionCommand: 'fill',
+        interactionPositionals: [String(x), String(y), text],
+        outPath: req.flags?.out,
+        buildPayloads: (data) => {
+          const result = buildTouchVisualizationResult({
+            data,
+            fallbackX: x,
+            fallbackY: y,
+            referenceFrame: readSnapshotNodesReferenceFrame(snapshot.nodes),
+            extra: {
+              text,
+              selector: resolved.selector.raw,
+              selectorChain,
+              refLabel: resolveRefLabel(node, snapshot.nodes),
+            },
+          });
+          if (fillWarning) {
+            result.warning = fillWarning;
+          }
+          return { result, responseData: result };
+        },
       });
     }
     return {
@@ -568,6 +517,9 @@ async function resolveDirectTouchReferenceFrame(params: {
     dispatch,
     readAndroidScreenSize,
   } = params;
+  if (!session.recording) {
+    return undefined;
+  }
   if (session.recording?.touchReferenceFrame) {
     return session.recording.touchReferenceFrame;
   }
@@ -611,6 +563,103 @@ async function resolveDirectTouchReferenceFrame(params: {
   return referenceFrame;
 }
 
+async function resolveRefTargetWithRectRefresh(params: {
+  session: SessionState;
+  refInput: string;
+  fallbackLabel: string;
+  invalidRefMessage: string;
+  missingBoundsMessage: string;
+  invalidBoundsMessage: string;
+  reqFlags: CommandFlags | undefined;
+  sessionStore: SessionStore;
+  contextFromFlags: ContextFromFlags;
+  captureSnapshotForSession: CaptureSnapshotForSession;
+  dispatch: typeof dispatchCommand;
+  resolveRefTarget: NonNullable<ResolveRefTarget>;
+}): Promise<
+  | {
+      ok: true;
+      target: {
+        ref: string;
+        node: SnapshotNode;
+        snapshotNodes: SnapshotNode[];
+        point: { x: number; y: number };
+      };
+    }
+  | { ok: false; response: DaemonResponse }
+> {
+  const {
+    session,
+    refInput,
+    fallbackLabel,
+    invalidRefMessage,
+    missingBoundsMessage,
+    invalidBoundsMessage,
+    reqFlags,
+    sessionStore,
+    contextFromFlags,
+    captureSnapshotForSession,
+    dispatch,
+    resolveRefTarget,
+  } = params;
+  const resolvedRefTarget = resolveRefTarget({
+    session,
+    refInput,
+    fallbackLabel,
+    requireRect: true,
+    invalidRefMessage,
+    notFoundMessage: missingBoundsMessage,
+  });
+  if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
+
+  const { ref } = resolvedRefTarget.target;
+  let node = resolvedRefTarget.target.node;
+  let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
+  let point = resolveRectCenter(node.rect);
+
+  if (!point) {
+    const refreshed = await captureSnapshotForSession(
+      session,
+      reqFlags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: true },
+      dispatch,
+    );
+    const refNode = findNodeByRef(refreshed.nodes, ref);
+    const fallbackNode =
+      fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
+    const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
+    const refNodePoint = resolveRectCenter(refNode?.rect);
+    const refreshedNode = refNodePoint
+      ? refNode
+      : fallbackNodePoint
+        ? fallbackNode
+        : (refNode ?? fallbackNode);
+    const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
+    if (refreshedNode && refreshedPoint) {
+      node = refreshedNode;
+      snapshotNodes = refreshed.nodes;
+      point = refreshedPoint;
+    }
+  }
+
+  if (!point) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: invalidBoundsMessage,
+        },
+      },
+    };
+  }
+
+  return { ok: true, target: { ref, node, snapshotNodes, point } };
+}
+
 function readSnapshotNodesReferenceFrame(
   nodes: SnapshotNode[],
 ): { referenceWidth: number; referenceHeight: number } | undefined {
@@ -618,87 +667,6 @@ function readSnapshotNodesReferenceFrame(
     nodes,
     createdAt: 0,
   });
-}
-
-function buildTouchVisualizationResult(params: {
-  data: Record<string, unknown> | undefined;
-  fallbackX: number;
-  fallbackY: number;
-  referenceFrame?: { referenceWidth: number; referenceHeight: number };
-  extra?: Record<string, unknown>;
-}): Record<string, unknown> {
-  const { data, fallbackX, fallbackY, referenceFrame, extra } = params;
-  return {
-    x: fallbackX,
-    y: fallbackY,
-    ...(referenceFrame ?? {}),
-    ...(extra ?? {}),
-    ...(data ?? {}),
-  };
-}
-
-async function dispatchInteractionCommand(params: {
-  session: SessionState;
-  flags: CommandFlags | undefined;
-  contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
-  command: string;
-  positionals: string[];
-  outPath: string | undefined;
-}): Promise<{
-  data: Record<string, unknown> | undefined;
-  actionStartedAt: number;
-  actionFinishedAt: number;
-}> {
-  const { session, flags, contextFromFlags, dispatch, command, positionals, outPath } = params;
-  const actionStartedAt = Date.now();
-  const dispatchContext = {
-    ...contextFromFlags(flags, session.appBundleId, session.trace?.outPath),
-  };
-  const rawData = await dispatch(session.device, command, positionals, outPath, dispatchContext);
-  const actionFinishedAt = Date.now();
-  const data = rawData && typeof rawData === 'object' ? rawData : undefined;
-  return { data, actionStartedAt, actionFinishedAt };
-}
-
-function finalizeTouchInteraction(params: {
-  session: SessionState;
-  sessionStore: SessionStore;
-  command: string;
-  positionals: string[];
-  flags: CommandFlags | undefined;
-  result: Record<string, unknown>;
-  responseData: Record<string, unknown>;
-  actionStartedAt: number;
-  actionFinishedAt: number;
-}): DaemonResponse {
-  const {
-    session,
-    sessionStore,
-    command,
-    positionals,
-    flags,
-    result,
-    responseData,
-    actionStartedAt,
-    actionFinishedAt,
-  } = params;
-  sessionStore.recordAction(session, {
-    command,
-    positionals,
-    flags: flags ?? {},
-    result,
-  });
-  recordTouchVisualizationEvent(
-    session,
-    command,
-    positionals,
-    result,
-    (flags ?? {}) as Record<string, unknown>,
-    actionStartedAt,
-    actionFinishedAt,
-  );
-  return { ok: true, data: responseData };
 }
 
 function resolveRectCenter(rect: Rect | undefined): { x: number; y: number } | null {

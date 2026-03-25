@@ -1,6 +1,7 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonCommandContext } from '../context.ts';
-import type { DaemonRequest } from '../types.ts';
+import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 
 export type ContextFromFlags = (
@@ -16,3 +17,136 @@ export type InteractionHandlerParams = {
   contextFromFlags: ContextFromFlags;
   dispatch: typeof dispatchCommand;
 };
+
+export function buildTouchVisualizationResult(params: {
+  data: Record<string, unknown> | undefined;
+  fallbackX: number;
+  fallbackY: number;
+  referenceFrame?: { referenceWidth: number; referenceHeight: number };
+  extra?: Record<string, unknown>;
+}): Record<string, unknown> {
+  const { data, fallbackX, fallbackY, referenceFrame, extra } = params;
+  return {
+    x: fallbackX,
+    y: fallbackY,
+    ...(referenceFrame ?? {}),
+    ...(extra ?? {}),
+    ...(data ?? {}),
+  };
+}
+
+export async function dispatchRecordedTouchInteraction(params: {
+  session: SessionState;
+  sessionStore: SessionStore;
+  requestCommand: string;
+  requestPositionals: string[];
+  flags: CommandFlags | undefined;
+  contextFromFlags: ContextFromFlags;
+  dispatch: typeof dispatchCommand;
+  interactionCommand: string;
+  interactionPositionals: string[];
+  outPath: string | undefined;
+  buildPayloads: (data: Record<string, unknown> | undefined) => {
+    result: Record<string, unknown>;
+    responseData?: Record<string, unknown>;
+  };
+}): Promise<DaemonResponse> {
+  const {
+    session,
+    sessionStore,
+    requestCommand,
+    requestPositionals,
+    flags,
+    contextFromFlags,
+    dispatch,
+    interactionCommand,
+    interactionPositionals,
+    outPath,
+    buildPayloads,
+  } = params;
+  const interaction = await dispatchInteractionCommand({
+    session,
+    flags,
+    contextFromFlags,
+    dispatch,
+    command: interactionCommand,
+    positionals: interactionPositionals,
+    outPath,
+  });
+  const { result, responseData = result } = buildPayloads(interaction.data);
+  return finalizeTouchInteraction({
+    session,
+    sessionStore,
+    command: requestCommand,
+    positionals: requestPositionals,
+    flags,
+    result,
+    responseData,
+    actionStartedAt: interaction.actionStartedAt,
+    actionFinishedAt: interaction.actionFinishedAt,
+  });
+}
+
+async function dispatchInteractionCommand(params: {
+  session: SessionState;
+  flags: CommandFlags | undefined;
+  contextFromFlags: ContextFromFlags;
+  dispatch: typeof dispatchCommand;
+  command: string;
+  positionals: string[];
+  outPath: string | undefined;
+}): Promise<{
+  data: Record<string, unknown> | undefined;
+  actionStartedAt: number;
+  actionFinishedAt: number;
+}> {
+  const { session, flags, contextFromFlags, dispatch, command, positionals, outPath } = params;
+  const actionStartedAt = Date.now();
+  const dispatchContext = {
+    ...contextFromFlags(flags, session.appBundleId, session.trace?.outPath),
+  };
+  const rawData = await dispatch(session.device, command, positionals, outPath, dispatchContext);
+  const actionFinishedAt = Date.now();
+  const data = rawData && typeof rawData === 'object' ? rawData : undefined;
+  return { data, actionStartedAt, actionFinishedAt };
+}
+
+function finalizeTouchInteraction(params: {
+  session: SessionState;
+  sessionStore: SessionStore;
+  command: string;
+  positionals: string[];
+  flags: CommandFlags | undefined;
+  result: Record<string, unknown>;
+  responseData: Record<string, unknown>;
+  actionStartedAt: number;
+  actionFinishedAt: number;
+}): DaemonResponse {
+  const {
+    session,
+    sessionStore,
+    command,
+    positionals,
+    flags,
+    result,
+    responseData,
+    actionStartedAt,
+    actionFinishedAt,
+  } = params;
+  sessionStore.recordAction(session, {
+    command,
+    positionals,
+    flags: flags ?? {},
+    result,
+  });
+  recordTouchVisualizationEvent(
+    session,
+    command,
+    positionals,
+    result,
+    (flags ?? {}) as Record<string, unknown>,
+    actionStartedAt,
+    actionFinishedAt,
+  );
+  return { ok: true, data: responseData };
+}
