@@ -152,7 +152,7 @@ extension RunnerTests {
 
   func isReadOnlyCommand(_ command: Command) -> Bool {
     switch command.command {
-    case .findText, .snapshot, .screenshot:
+    case .findText, .readText, .snapshot, .screenshot:
       return true
     case .alert:
       let action = (command.action ?? "get").lowercased()

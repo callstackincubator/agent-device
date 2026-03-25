@@ -462,6 +462,14 @@ extension RunnerTests {
       }
       let found = findElement(app: activeApp, text: text) != nil
       return Response(ok: true, data: DataPayload(found: found))
+    case .readText:
+      guard let x = command.x, let y = command.y else {
+        return Response(ok: false, error: ErrorPayload(message: "readText requires x and y"))
+      }
+      guard let text = readTextAt(app: activeApp, x: x, y: y) else {
+        return Response(ok: false, error: ErrorPayload(message: "readText did not resolve text"))
+      }
+      return Response(ok: true, data: DataPayload(text: text))
     case .snapshot:
       let options = SnapshotOptions(
         interactiveOnly: command.interactiveOnly ?? false,

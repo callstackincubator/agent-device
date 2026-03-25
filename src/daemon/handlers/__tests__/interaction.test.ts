@@ -97,6 +97,100 @@ test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags ar
   assert.deepEqual(unsupported, []);
 });
 
+test('get text prefers underlying value for text surfaces and avoids recording giant ref labels', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-editor';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'TextView',
+        label: 'Editor for MainActivity.kt',
+        value: 'package com.example.app\nclass MainActivity {}',
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', '@e1'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => {
+      throw new Error('dispatch should not be called for snapshot-derived get text');
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  if (response?.ok) {
+    assert.equal(response.data?.ref, 'e1');
+    assert.equal(response.data?.text, 'package com.example.app\nclass MainActivity {}');
+  }
+
+  const recorded = sessionStore.get(sessionName)?.actions.at(-1);
+  assert.equal(recorded?.result?.text, 'package com.example.app\nclass MainActivity {}');
+  assert.equal(recorded?.result?.refLabel, undefined);
+});
+
+test('get text uses backend read expansion when the resolved node has a rect', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-backend-read';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'TextView',
+        label: 'Editor for MainActivity.kt',
+        value: 'preview only',
+        rect: { x: 20, y: 40, width: 120, height: 80 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', '@e1'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return { action: 'read', text: 'package com.example.app\nclass MainActivity {}' };
+    },
+  });
+
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'read');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['80', '80']);
+  assert.equal(response?.ok, true);
+  if (response?.ok) {
+    assert.equal(response.data?.text, 'package com.example.app\nclass MainActivity {}');
+  }
+});
+
 test('press coordinates dispatches press and records as press', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';

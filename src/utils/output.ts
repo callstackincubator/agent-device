@@ -70,10 +70,14 @@ export function formatSnapshotText(
     return `${prefix}${header}\n${rawLines.join('\n')}\n`;
   }
   if (options.flatten) {
-    const flatLines = nodes.map((node) => formatSnapshotLine(node, 0, false));
+    const flatLines = nodes.map((node) =>
+      formatSnapshotLine(node, 0, false, undefined, { summarizeTextSurfaces: true }),
+    );
     return `${prefix}${header}\n${flatLines.join('\n')}\n`;
   }
-  const lines = buildSnapshotDisplayLines(nodes).map((line) => line.text);
+  const lines = buildSnapshotDisplayLines(nodes, { summarizeTextSurfaces: true }).map(
+    (line) => line.text,
+  );
   return `${prefix}${header}\n${lines.join('\n')}\n`;
 }
 

@@ -1,9 +1,9 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { buildSelectorChainForNode } from '../selectors.ts';
-import { extractNodeText } from '../snapshot-processing.ts';
 import type { DaemonResponse } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
+import { readTextForNode } from './interaction-read.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
 
@@ -57,12 +57,21 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
       });
       return { ok: true, data: { ref, node } };
     }
-    const text = extractNodeText(node);
+    const text = await readTextForNode({
+      device: session.device,
+      node,
+      flags: req.flags,
+      appBundleId: session.appBundleId,
+      traceOutPath: session.trace?.outPath,
+      surface: session.surface,
+      contextFromFlags,
+      dispatch,
+    });
     sessionStore.recordAction(session, {
       command: req.command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
-      result: { ref, text, refLabel: text || undefined, selectorChain },
+      result: { ref, text, refLabel: compactRecordedGetRefLabel(text), selectorChain },
     });
     return { ok: true, data: { ref, text, node } };
   }
@@ -102,17 +111,34 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
     });
     return { ok: true, data: { selector: resolved.selector.raw, node } };
   }
-  const text = extractNodeText(node);
+  const text = await readTextForNode({
+    device: session.device,
+    node,
+    flags: req.flags,
+    appBundleId: session.appBundleId,
+    traceOutPath: session.trace?.outPath,
+    surface: session.surface,
+    contextFromFlags,
+    dispatch,
+  });
   sessionStore.recordAction(session, {
     command: req.command,
     positionals: req.positionals ?? [],
     flags: req.flags ?? {},
     result: {
       text,
-      refLabel: text || undefined,
+      refLabel: compactRecordedGetRefLabel(text),
       selector: resolved.selector.raw,
       selectorChain,
     },
   });
   return { ok: true, data: { selector: resolved.selector.raw, text, node } };
+}
+
+function compactRecordedGetRefLabel(text: string): string | undefined {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 80 || /[\r\n]/.test(trimmed)) {
+    return undefined;
+  }
+  return trimmed;
 }

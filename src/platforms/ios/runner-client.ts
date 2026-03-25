@@ -36,6 +36,7 @@ export type RunnerCommand = {
     | 'type'
     | 'swipe'
     | 'findText'
+    | 'readText'
     | 'snapshot'
     | 'screenshot'
     | 'back'

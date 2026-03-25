@@ -120,6 +120,40 @@ extension RunnerTests {
     return element.exists ? element : nil
   }
 
+  func readTextAt(app: XCUIApplication, x: Double, y: Double) -> String? {
+    let point = CGPoint(x: x, y: y)
+    let candidates = app.descendants(matching: .any).allElementsBoundByIndex
+      .filter { element in
+        element.exists && !element.frame.isEmpty && element.frame.contains(point)
+      }
+      .sorted { left, right in
+        let leftArea = max(1, left.frame.width * left.frame.height)
+        let rightArea = max(1, right.frame.width * right.frame.height)
+        if leftArea != rightArea {
+          return leftArea < rightArea
+        }
+        if left.frame.minY != right.frame.minY {
+          return left.frame.minY < right.frame.minY
+        }
+        if left.frame.minX != right.frame.minX {
+          return left.frame.minX < right.frame.minX
+        }
+        return left.elementType.rawValue < right.elementType.rawValue
+      }
+
+    for element in candidates where prefersExpandedTextRead(element) {
+      if let text = readableText(for: element) {
+        return text
+      }
+    }
+    for element in candidates {
+      if let text = readableText(for: element) {
+        return text
+      }
+    }
+    return nil
+  }
+
   func clearTextInput(_ element: XCUIElement) {
     moveCaretToEnd(element: element)
     let count = estimatedDeleteCount(for: element)
@@ -160,6 +194,32 @@ extension RunnerTests {
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let base = valueText.isEmpty ? 24 : (valueText.count + 8)
     return max(24, min(120, base))
+  }
+
+  private func readableText(for element: XCUIElement) -> String? {
+    let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+    let valueText = String(describing: element.value ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    switch element.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      if !valueText.isEmpty { return valueText }
+      if !label.isEmpty { return label }
+      return identifier.isEmpty ? nil : identifier
+    default:
+      if !label.isEmpty { return label }
+      if !valueText.isEmpty { return valueText }
+      return identifier.isEmpty ? nil : identifier
+    }
+  }
+
+  private func prefersExpandedTextRead(_ element: XCUIElement) -> Bool {
+    switch element.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      return true
+    default:
+      return false
+    }
   }
 
   func findScopeElement(app: XCUIApplication, scope: String) -> XCUIElement? {

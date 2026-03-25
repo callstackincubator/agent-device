@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
-import { formatScreenshotDiffText, formatSnapshotDiffText } from '../output.ts';
+import { formatScreenshotDiffText, formatSnapshotDiffText, formatSnapshotText } from '../output.ts';
+import { formatSnapshotLine } from '../snapshot-lines.ts';
 
 const DIFF_DATA = {
   mode: 'snapshot',
@@ -54,6 +55,71 @@ test('formatSnapshotDiffText renders ANSI colors when forced', () => {
     if (typeof originalNoColor === 'string') process.env.NO_COLOR = originalNoColor;
     else delete process.env.NO_COLOR;
   }
+});
+
+test('formatSnapshotText summarizes large text surfaces with preview metadata', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'TextView',
+          label: 'Editor for MainActivity.kt',
+          value: 'package com.example.app\nclass MainActivity {}',
+          enabled: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+  assert.match(text, /@e1 \[text-view\] "Editor for MainActivity\.kt"/);
+  assert.match(text, /\[editable\]/);
+  assert.match(text, /\[preview:"package com\.example\.app class MainActivity \{\}"\]/);
+  assert.match(text, /\[truncated\]/);
+});
+
+test('formatSnapshotText summarizes large Android TextView surfaces with preview metadata', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'android.widget.TextView',
+          label: 'line one\nline two\nline three',
+          value: 'line one\nline two\nline three',
+          enabled: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+  assert.match(text, /@e1 \[text\] "Text view"/);
+  assert.match(text, /\[preview:"line one line two line three"\]/);
+  assert.match(text, /\[truncated\]/);
+});
+
+test('formatSnapshotLine keeps snapshot-only metadata off the default formatter path', () => {
+  const line = formatSnapshotLine(
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'TextView',
+      label: 'Editor for MainActivity.kt',
+      value: 'package com.example.app\nclass MainActivity {}',
+      enabled: true,
+      selected: true,
+    },
+    0,
+    false,
+  );
+  assert.doesNotMatch(line, /\[selected\]/);
+  assert.doesNotMatch(line, /\[editable\]/);
+  assert.doesNotMatch(line, /\[scrollable\]/);
 });
 
 function withNoColor<T>(fn: () => T): T {

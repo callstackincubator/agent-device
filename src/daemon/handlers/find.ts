@@ -8,6 +8,7 @@ import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { extractNodeText, findNearestHittableAncestor } from '../snapshot-processing.ts';
 import { parseTimeout } from './parse-utils.ts';
+import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 
 export async function handleFindCommands(params: {
@@ -159,7 +160,17 @@ export async function handleFindCommands(params: {
     return { ok: true, data: { found: true } };
   }
   if (action === 'get_text') {
-    const text = extractNodeText(node);
+    const text = await readTextForNode({
+      device,
+      node,
+      flags: req.flags,
+      appBundleId: session?.appBundleId,
+      traceOutPath: session?.trace?.outPath,
+      surface: session?.surface,
+      contextFromFlags: (flags, appBundleId, traceLogPath) =>
+        contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+      dispatch,
+    });
     if (session) {
       sessionStore.recordAction(session, {
         command,

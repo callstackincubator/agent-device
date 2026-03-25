@@ -10,6 +10,7 @@ enum CommandType: String, Codable {
   case type
   case swipe
   case findText
+  case readText
   case snapshot
   case screenshot
   case back
@@ -72,6 +73,7 @@ struct Response: Codable {
 
 struct DataPayload: Codable {
   let message: String?
+  let text: String?
   let found: Bool?
   let items: [String]?
   let nodes: [SnapshotNode]?
@@ -88,6 +90,7 @@ struct DataPayload: Codable {
 
   init(
     message: String? = nil,
+    text: String? = nil,
     found: Bool? = nil,
     items: [String]? = nil,
     nodes: [SnapshotNode]? = nil,
@@ -103,6 +106,7 @@ struct DataPayload: Codable {
     currentUptimeMs: Double? = nil
   ) {
     self.message = message
+    self.text = text
     self.found = found
     self.items = items
     self.nodes = nodes
