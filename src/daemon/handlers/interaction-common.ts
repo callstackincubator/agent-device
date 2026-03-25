@@ -46,10 +46,15 @@ export async function dispatchRecordedTouchInteraction(params: {
   interactionCommand: string;
   interactionPositionals: string[];
   outPath: string | undefined;
-  buildPayloads: (data: Record<string, unknown> | undefined) => {
-    result: Record<string, unknown>;
-    responseData?: Record<string, unknown>;
-  };
+  buildPayloads: (data: Record<string, unknown> | undefined) =>
+    | {
+        result: Record<string, unknown>;
+        responseData?: Record<string, unknown>;
+      }
+    | Promise<{
+        result: Record<string, unknown>;
+        responseData?: Record<string, unknown>;
+      }>;
 }): Promise<DaemonResponse> {
   const {
     session,
@@ -73,7 +78,7 @@ export async function dispatchRecordedTouchInteraction(params: {
     positionals: interactionPositionals,
     outPath,
   });
-  const { result, responseData = result } = buildPayloads(interaction.data);
+  const { result, responseData = result } = await buildPayloads(interaction.data);
   return finalizeTouchInteraction({
     session,
     sessionStore,

@@ -301,6 +301,53 @@ test('press coordinates without recording skips Android screen-size lookup', asy
   assert.equal(screenSizeReads, 0);
 });
 
+test('press coordinates during recording still dispatches when Android screen-size lookup fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-direct-press-screen-size-failure';
+  const session = makeAndroidSession(sessionName);
+  session.recording = {
+    platform: 'android',
+    outPath: '/tmp/demo.mp4',
+    remotePath: '/sdcard/demo.mp4',
+    remotePid: '1234',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+  };
+  session.snapshot = undefined;
+  sessionStore.set(sessionName, session);
+
+  let dispatchCalls = 0;
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['300', '2300'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async () => {
+      dispatchCalls += 1;
+      return { x: 300, y: 2300 };
+    },
+    readAndroidScreenSize: async () => {
+      throw new Error('adb unavailable');
+    },
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(dispatchCalls, 1);
+  const event = sessionStore.get(sessionName)?.recording?.gestureEvents[0];
+  assert.equal(event?.kind, 'tap');
+  assert.equal(event?.x, 300);
+  assert.equal(event?.y, 2300);
+  assert.equal(event?.referenceWidth, undefined);
+  assert.equal(event?.referenceHeight, undefined);
+});
+
 test('press @ref preserves native timing in recorded result and touch visualization', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';

@@ -16,7 +16,7 @@ import {
   resolveSelectorChain,
   splitSelectorFromArgs,
 } from '../selectors.ts';
-import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
+import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { getAndroidScreenSize } from '../../platforms/android/index.ts';
 import { getSnapshotReferenceFrame } from '../touch-reference-frame.ts';
 import {
@@ -122,15 +122,6 @@ export async function handleTouchInteractionCommands(params: {
     }
     const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
     if (directCoordinates) {
-      const visualizationFrame = await resolveDirectTouchReferenceFrame({
-        session,
-        flags: req.flags,
-        sessionStore,
-        contextFromFlags,
-        captureSnapshotForSession,
-        dispatch,
-        readAndroidScreenSize,
-      });
       return dispatchRecordedTouchInteraction({
         session,
         sessionStore,
@@ -145,7 +136,16 @@ export async function handleTouchInteractionCommands(params: {
         interactionCommand: 'press',
         interactionPositionals: [String(directCoordinates.x), String(directCoordinates.y)],
         outPath: req.flags?.out,
-        buildPayloads: (data) => {
+        buildPayloads: async (data) => {
+          const visualizationFrame = await resolveDirectTouchReferenceFrameSafely({
+            session,
+            flags: req.flags,
+            sessionStore,
+            contextFromFlags,
+            captureSnapshotForSession,
+            dispatch,
+            readAndroidScreenSize,
+          });
           const result = buildTouchVisualizationResult({
             data,
             fallbackX: directCoordinates.x,
@@ -520,7 +520,7 @@ async function resolveDirectTouchReferenceFrame(params: {
   if (!session.recording) {
     return undefined;
   }
-  if (session.recording?.touchReferenceFrame) {
+  if (session.recording.touchReferenceFrame) {
     return session.recording.touchReferenceFrame;
   }
 
@@ -561,6 +561,30 @@ async function resolveDirectTouchReferenceFrame(params: {
     session.recording.touchReferenceFrame = referenceFrame;
   }
   return referenceFrame;
+}
+
+async function resolveDirectTouchReferenceFrameSafely(params: {
+  session: SessionState;
+  flags: CommandFlags | undefined;
+  sessionStore: SessionStore;
+  contextFromFlags: ContextFromFlags;
+  captureSnapshotForSession: CaptureSnapshotForSession;
+  dispatch: typeof dispatchCommand;
+  readAndroidScreenSize: typeof getAndroidScreenSize;
+}): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
+  try {
+    return await resolveDirectTouchReferenceFrame(params);
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'touch_reference_frame_resolve_failed',
+      data: {
+        platform: params.session.device.platform,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return undefined;
+  }
 }
 
 async function resolveRefTargetWithRectRefresh(params: {
