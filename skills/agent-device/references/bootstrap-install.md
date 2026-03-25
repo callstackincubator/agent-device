@@ -59,6 +59,36 @@ agent-device --session auth snapshot -i
 - In iOS sessions, use `open <app>` for the app itself. Use `open <url>` for deep links, and `open <app> <url>` when you need to launch the app and deep link in one step.
 - On iOS, `appstate` is session-scoped and requires the matching active session on the target device.
 
+## After a session is established
+
+Once you have opened the correct session on the correct target, stop repeating device-routing flags on follow-up commands unless you are intentionally retargeting.
+
+Two common cases:
+
+- Single-agent or isolated environment:
+  - If this agent is the only session on the device or the environment is already isolated, follow-up commands can usually omit routing flags after the initial `open`.
+- Shared host or multiple agents:
+  - If several agents may use the same machine, always keep the session binding on follow-up commands with `--session <name>` or a sandboxed `AGENT_DEVICE_SESSION`.
+  - Do not keep repeating `--platform`, `--target`, `--device`, `--udid`, `--serial`, or similar target-selection flags on normal follow-up commands.
+
+Good shared-host pattern:
+
+```bash
+agent-device --session auth open Settings --platform ios --device "iPhone 17 Pro"
+agent-device --session auth snapshot -i
+agent-device --session auth press @e3
+agent-device --session auth close
+```
+
+Bad shared-host pattern:
+
+```bash
+agent-device --session auth open Settings --platform ios --device "iPhone 17 Pro"
+agent-device --session auth snapshot -i --platform ios --device "iPhone 17 Pro"
+```
+
+Use target-selection flags again only when you are choosing the target before opening a session, or when you explicitly mean to retarget.
+
 ## Session-bound automation
 
 Use this when an orchestrator must keep plain CLI calls on one session and device.
