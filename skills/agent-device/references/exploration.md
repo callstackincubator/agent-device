@@ -37,7 +37,9 @@ Open this file when the app or screen is already running and you need to discove
 
 Do not treat `@ref` values as durable after navigation or dynamic updates. Re-snapshot after the UI changes, and switch to selectors when the flow must stay stable.
 
-## Common loops
+## Common example loops
+
+These are examples, not required exact sequences. Adapt them to the app, state, and task at hand.
 
 ### Interactive exploration loop
 
@@ -53,11 +55,10 @@ agent-device close
 ### Screen verification loop
 
 ```bash
-agent-device open Settings --platform ios
-agent-device snapshot -i
-agent-device press @e3
-agent-device diff snapshot
+agent-device open MyApp --platform ios
+# perform the necessary actions to reach the state you need to verify
 agent-device snapshot
+# verify whether the expected element or text is present
 agent-device close
 ```
 
