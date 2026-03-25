@@ -90,6 +90,36 @@ agent-device find "Increment" click --json
 
 Returned metadata comes from the matched snapshot node and can be used for observability or replay maintenance.
 
+## QA from acceptance criteria
+
+Use this loop when the task starts from acceptance criteria and you need to turn them into concrete checks.
+
+Preferred mapping:
+
+- visibility or presence claim: `is visible` or plain `snapshot`
+- exact text, label, or value claim: `get text`
+- post-action state change: act, then `wait`, then `is` or `get`
+- nearby structural UI change: `diff snapshot`
+- proof artifact for the final result: `screenshot` or `record`
+
+Anti-hallucination rules:
+
+- Do not invent app names, device ids, session names, refs, selectors, or package names.
+- Discover them first with `devices`, `open`, `snapshot -i`, `find`, or `session list`.
+- If refs drift after navigation, re-snapshot or switch to selectors instead of guessing.
+
+Canonical QA loop:
+
+```bash
+agent-device open MyApp --platform ios
+agent-device snapshot -i
+agent-device press @e3
+agent-device wait visible 'label="Success"' 3000
+agent-device is visible 'label="Success"'
+agent-device screenshot /tmp/qa-proof.png
+agent-device close
+```
+
 ## Batch only when the sequence is already known
 
 Use `batch` when a short command sequence is already planned and belongs to one logical screen flow.

@@ -10,6 +10,7 @@ Use this skill as a router.
 For exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 
 Default route: start with [references/bootstrap-install.md](references/bootstrap-install.md), then [references/exploration.md](references/exploration.md), then load debugging or verification only if the task needs them. Open the macOS and remote-tenancy references only for those exceptions.
+For QA from acceptance criteria, use the QA loop in [references/exploration.md](references/exploration.md) after bootstrap.
 
 ## Decision rules
 
