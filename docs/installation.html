@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f802aa84.js"></script>
 <script defer src="/agent-device/static/js/lib-router.e8e6cd06.js"></script>
 <script defer src="/agent-device/static/js/18.23abd8aa.js"></script>
-<script defer src="/agent-device/static/js/index.0b79d453.js"></script>
+<script defer src="/agent-device/static/js/index.d4fd0cd9.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.2">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -35,7 +35,7 @@
 </ul>
 <h2 class="rp-toc-include" id="macos-desktop-notes"><a href="#macos-desktop-notes" class="rp-header-anchor rp-link" aria-hidden="true">#</a>macOS desktop notes</h2>
 <ul>
-<li>The macOS desktop path now uses a local <code>agent-device-macos-helper</code> for permission checks (<code>settings permission ...</code>), alert handling, and related host-Mac support.</li>
+<li>The macOS desktop path uses a local <code>agent-device-macos-helper</code> for permission checks (<code>settings permission ...</code>), alert handling, and helper-backed desktop snapshot surfaces (<code>frontmost-app</code>, <code>desktop</code>, <code>menubar</code>).</li>
 <li>Source checkouts build the helper lazily on first use and cache it under <code>~/.agent-device/macos-helper/current/</code>.</li>
 <li>Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.</li>
 </ul>

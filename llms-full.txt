@@ -298,6 +298,7 @@ agent-device boot --platform android
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 agent-device open [app|url] [url]
 agent-device open --platform macos --surface frontmost-app
+agent-device open --platform macos --surface desktop
 agent-device close [app]
 agent-device back
 agent-device home
@@ -314,10 +315,10 @@ agent-device app-switcher
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
-- `open --platform macos --surface app|frontmost-app` selects the macOS phase-1 session surface explicitly. `app` is the default when an app argument is provided.
+- `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
-- A configured `AGENT_DEVICE_SESSION` now implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
+- A configured `AGENT_DEVICE_SESSION` implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
 - `--session-lock reject|strip` sets the lock policy for a single CLI invocation, including nested batch steps.
 - `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. The older `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` forms remain supported as compatibility aliases.
 - Direct RPC callers can pass `meta.lockPolicy` and optional `meta.lockPlatform` on `agent_device.command` requests for the same daemon-enforced behavior.
@@ -404,17 +405,39 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 ```bash
 agent-device devices --platform macos
 agent-device open TextEdit --platform macos
+agent-device open --platform macos --surface desktop
 agent-device snapshot -i --platform apple --target desktop
 ```
 
 - `--platform macos` selects the host Mac as a `desktop` target.
 - `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
-- macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for app-scoped `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
-- `open --platform macos --surface frontmost-app` stores the currently focused app as the session surface.
-- `desktop` and `menubar` remain the planned phase-2 path for broader computer-use support; they are not exposed yet in the phase-1 CLI surface.
+- Use `app` sessions for normal app control: `open`, `snapshot`, `click`, `fill`, `press`, `scroll`, `back`, `screenshot`, `record`.
+- Use `frontmost-app`, `desktop`, and `menubar` when you need to inspect desktop-global UI before choosing one app.
+- `open --platform macos --surface frontmost-app` inspects the currently focused app without naming it first.
+- `open --platform macos --surface desktop` inspects visible windows across the desktop.
+- `open --platform macos --surface menubar` inspects the active app menu bar and system menu extras.
+- Use `frontmost-app`, `desktop`, and `menubar` mainly for `snapshot`, `get`, `is`, and `wait`.
+- If you inspect with `desktop` or `menubar` and then need to click or fill inside one app, open that app in a normal `app` session.
 - macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
+- Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
 - Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
+
+Recommended loops:
+
+```bash
+# One app, full interaction
+agent-device open TextEdit --platform macos
+agent-device snapshot -i
+agent-device fill @e3 "hello"
+agent-device close
+
+# Desktop-global inspection first
+agent-device open --platform macos --surface desktop
+agent-device snapshot -i
+agent-device is visible 'role="window" label="Notes"'
+agent-device close
+```
 
 ## Snapshot and inspect
 
@@ -979,7 +1002,7 @@ npx agent-device open Settings --platform ios
 
 ## macOS desktop notes
 
-- The macOS desktop path now uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and related host-Mac support.
+- The macOS desktop path uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and helper-backed desktop snapshot surfaces (`frontmost-app`, `desktop`, `menubar`).
 - Source checkouts build the helper lazily on first use and cache it under `~/.agent-device/macos-helper/current/`.
 - Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.
 

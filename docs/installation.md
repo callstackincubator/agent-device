@@ -21,7 +21,7 @@ npx agent-device open Settings --platform ios
 
 ## macOS desktop notes
 
-- The macOS desktop path now uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and related host-Mac support.
+- The macOS desktop path uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and helper-backed desktop snapshot surfaces (`frontmost-app`, `desktop`, `menubar`).
 - Source checkouts build the helper lazily on first use and cache it under `~/.agent-device/macos-helper/current/`.
 - Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.
 
