@@ -5,7 +5,7 @@ description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) a
 
 # agent-device
 
-Use this skill as a router with mandatory defaults. Read this file first. If target, app, or session readiness is uncertain, load `references/bootstrap-install.md` first. Once the app session is open and stable, use `references/exploration.md` for inspection and interaction.
+Use this skill as a router with mandatory defaults. Read this file first. For normal device tasks, always load `references/bootstrap-install.md` and `references/exploration.md` before acting. Use bootstrap to confirm or establish deterministic setup. Use exploration for UI inspection, interaction, and verification once the app session is open.
 
 ## Default operating rules
 
@@ -21,9 +21,9 @@ Use this skill as a router with mandatory defaults. Read this file first. If tar
 
 ## Default flow
 
-1. Decide whether the correct target, app install, and app session are already ready.
-2. If readiness is uncertain, or there is no simulator, device, app install, or open app session yet, load [references/bootstrap-install.md](references/bootstrap-install.md) and establish that deterministically.
-3. Once the app session is open and stable, load [references/exploration.md](references/exploration.md).
+1. Load [references/bootstrap-install.md](references/bootstrap-install.md) and [references/exploration.md](references/exploration.md) before acting on a normal device task.
+2. Use bootstrap first to confirm or establish the correct target, app install, and open app session.
+3. Once the app session is open and stable, use exploration for inspection, interaction, and verification.
 4. Start with plain `snapshot` if the goal is to read or verify what is visible.
 5. Escalate to `snapshot -i` only if you need refs for interactive exploration or a requested action.
 6. Use `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
@@ -34,10 +34,11 @@ Use this skill as a router with mandatory defaults. Read this file first. If tar
 - Open-ended bug hunt with reporting: use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 - Pass/fail QA from acceptance criteria: stay in this skill, start with [references/bootstrap-install.md](references/bootstrap-install.md), then use the QA loop in [references/exploration.md](references/exploration.md).
 
-## Deterministic routing
+## Required references
 
-- Load [references/bootstrap-install.md](references/bootstrap-install.md) when target, install, open, or session readiness is uncertain, especially in sandbox or cloud environments.
-- Load [references/exploration.md](references/exploration.md) once the app session is open and stable.
+- For every normal device task, after reading this file, load [references/bootstrap-install.md](references/bootstrap-install.md) first, then [references/exploration.md](references/exploration.md), before acting.
+- Use bootstrap to confirm or establish deterministic setup, especially in sandbox or cloud environments.
+- Use exploration once the app session is open and stable.
 - Load additional references only when their scope is needed.
 
 ## Decision rules

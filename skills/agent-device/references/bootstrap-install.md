@@ -22,6 +22,8 @@ Do not start acting before you have pinned the correct target and opened an `app
 
 If there is no simulator, no app install, no open app session, or any uncertainty about where the app should come from, stay in this file and use deterministic setup commands or bootstrap scripts first. Do not improvise install paths or app-launch flows while exploring.
 
+After setup is confirmed or completed, move to `exploration.md` before doing UI inspection or interaction.
+
 ## If `open` fails
 
 - If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
