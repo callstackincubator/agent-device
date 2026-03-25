@@ -349,8 +349,11 @@ private func optionValue(arguments: [String], name: String) -> String? {
 }
 
 private func readTextAtPosition(bundleId: String?, surface: String?, x: Double, y: Double) throws -> String {
+  let targetApp: NSRunningApplication?
   if surface == "frontmost-app" || (surface == nil && bundleId != nil) {
-    _ = try resolveTargetApplication(bundleId: bundleId, surface: surface)
+    targetApp = try resolveTargetApplication(bundleId: bundleId, surface: surface)
+  } else {
+    targetApp = nil
   }
 
   let systemWide = AXUIElementCreateSystemWide()
@@ -361,14 +364,32 @@ private func readTextAtPosition(bundleId: String?, surface: String?, x: Double, 
     throw HelperError.commandFailed("read did not resolve an accessibility element")
   }
 
+  if let targetApp {
+    var pid: pid_t = 0
+    guard AXUIElementGetPid(hitElement, &pid) == .success else {
+      throw HelperError.commandFailed("read could not resolve element owner")
+    }
+    guard pid == targetApp.processIdentifier else {
+      throw HelperError.commandFailed(
+        "read resolved text from a different app",
+        details: [
+          "expectedPid": String(targetApp.processIdentifier),
+          "actualPid": String(pid)
+        ]
+      )
+    }
+  }
+
   var current: AXUIElement? = hitElement
-  var depth = 0
-  while let element = current, depth < 8 {
+  while let element = current {
     if let text = readableText(for: element) {
       return text
     }
-    current = elementAttribute(element, attribute: kAXParentAttribute as String)
-    depth += 1
+    let parent = elementAttribute(element, attribute: kAXParentAttribute as String)
+    if let parent, CFEqual(parent, element) {
+      break
+    }
+    current = parent
   }
 
   throw HelperError.commandFailed("read did not resolve text")

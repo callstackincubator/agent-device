@@ -11,10 +11,11 @@ export function extractReadableText(node: TextSurfaceNode): string {
   const label = trimText(node.label);
   const value = trimText(node.value);
   const identifier = trimText(node.identifier);
+  const fallbackIdentifier = isMeaningfulReadableIdentifier(identifier) ? identifier : '';
   if (prefersValueForReadableText(node.type ?? '')) {
-    return value || label || identifier;
+    return value || label || fallbackIdentifier;
   }
-  return label || value || identifier;
+  return label || value || fallbackIdentifier;
 }
 
 export function isLargeTextSurface(node: TextSurfaceNode, displayType?: string): boolean {
@@ -41,6 +42,30 @@ export function buildTextPreview(text: string): string {
     return normalized;
   }
   return `${normalized.slice(0, 45)}...`;
+}
+
+export function describeTextSurface(
+  node: TextSurfaceNode,
+  displayType?: string,
+): {
+  text: string;
+  isLargeSurface: boolean;
+  shouldSummarize: boolean;
+} {
+  const text = extractReadableText(node);
+  const isLargeSurface = isLargeTextSurface(node, displayType);
+  return {
+    text,
+    isLargeSurface,
+    shouldSummarize: isLargeSurface && shouldSummarizeTextSurface(text),
+  };
+}
+
+export function shouldSummarizeTextSurface(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+  return text.length > 80 || /[\r\n]/.test(text);
 }
 
 export function trimText(value: unknown): string {
@@ -70,4 +95,11 @@ function normalizeTextSurfaceType(type: string): string {
     normalized = normalized.slice(lastSeparator + 1);
   }
   return normalized;
+}
+
+function isMeaningfulReadableIdentifier(value: string): boolean {
+  if (!value) {
+    return false;
+  }
+  return !/^[\w.]+:id\/[\w.-]+$/i.test(value) && !/^_?NS:\d+$/i.test(value);
 }

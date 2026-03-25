@@ -63,3 +63,20 @@ test('extractNodeReadText prefers underlying value for text surfaces', () => {
   ]);
   assert.equal(extractNodeReadText(nodes[0]), 'package com.example.app\nclass MainActivity {}');
 });
+
+test('extractNodeReadText ignores generic implementation identifiers as fallback text', () => {
+  const nodes = attachRefs([
+    {
+      index: 0,
+      type: 'android.widget.TextView',
+      identifier: 'com.example:id/content_frame',
+    },
+    {
+      index: 1,
+      type: 'AXStaticText',
+      identifier: '_NS:248',
+    },
+  ]);
+  assert.equal(extractNodeReadText(nodes[0]), '');
+  assert.equal(extractNodeReadText(nodes[1]), '');
+});

@@ -132,7 +132,13 @@ extension RunnerTests {
         if leftArea != rightArea {
           return leftArea < rightArea
         }
-        return left.debugDescription.count < right.debugDescription.count
+        if left.frame.minY != right.frame.minY {
+          return left.frame.minY < right.frame.minY
+        }
+        if left.frame.minX != right.frame.minX {
+          return left.frame.minX < right.frame.minX
+        }
+        return left.elementType.rawValue < right.elementType.rawValue
       }
 
     for element in candidates where prefersExpandedTextRead(element) {

@@ -1,10 +1,5 @@
 import type { SnapshotNode } from './snapshot.ts';
-import {
-  buildTextPreview,
-  extractReadableText,
-  isLargeTextSurface,
-  trimText,
-} from './text-surface.ts';
+import { buildTextPreview, describeTextSurface, trimText } from './text-surface.ts';
 
 type SnapshotDisplayLine = {
   node: SnapshotNode;
@@ -56,10 +51,11 @@ export function formatSnapshotLine(
   options: SnapshotLineFormatOptions = {},
 ): string {
   const type = normalizedType ?? formatRole(node.type ?? 'Element');
-  const label = resolveDisplayLabel(node, type, options);
+  const textSurface = describeTextSurface(node, type);
+  const label = resolveDisplayLabel(node, type, options, textSurface);
   const indent = '  '.repeat(depth);
   const ref = node.ref ? `@${node.ref}` : '';
-  const metadata = buildLineMetadata(node, type, options);
+  const metadata = buildLineMetadata(node, type, options, textSurface);
   const metadataText = metadata.map((entry) => ` [${entry}]`).join('');
   const textPart = label ? ` "${label}"` : '';
   if (hiddenGroup) {
@@ -188,15 +184,15 @@ function resolveDisplayLabel(
   node: SnapshotNode,
   type: string,
   options: SnapshotLineFormatOptions,
+  textSurface: { text: string; isLargeSurface: boolean; shouldSummarize: boolean },
 ): string {
   if (!options.summarizeTextSurfaces) {
     return displayLabel(node, type);
   }
-  const text = extractReadableText(node);
-  if (!isLargeTextSurface(node, type) || !shouldSummarizeTextSurface(text)) {
+  if (!textSurface.shouldSummarize) {
     return displayLabel(node, type);
   }
-  const semanticLabel = semanticSurfaceLabel(node, type, text);
+  const semanticLabel = semanticSurfaceLabel(node, type, textSurface.text);
   return semanticLabel || displayLabel(node, type);
 }
 
@@ -204,6 +200,7 @@ function buildLineMetadata(
   node: SnapshotNode,
   type: string,
   options: SnapshotLineFormatOptions,
+  textSurface: { text: string; isLargeSurface: boolean; shouldSummarize: boolean },
 ): string[] {
   const metadata: string[] = [];
   if (node.enabled === false) metadata.push('disabled');
@@ -213,20 +210,12 @@ function buildLineMetadata(
   if (!options.summarizeTextSurfaces) {
     return metadata;
   }
-  const text = extractReadableText(node);
-  if (!isLargeTextSurface(node, type) || !shouldSummarizeTextSurface(text)) {
+  if (!textSurface.shouldSummarize) {
     return metadata;
   }
-  metadata.push(`preview:"${escapePreviewText(buildTextPreview(text))}"`);
+  metadata.push(`preview:"${escapePreviewText(buildTextPreview(textSurface.text))}"`);
   metadata.push('truncated');
   return uniqueMetadata(metadata);
-}
-
-function shouldSummarizeTextSurface(text: string): boolean {
-  if (!text) {
-    return false;
-  }
-  return text.length > 80 || /[\r\n]/.test(text);
 }
 
 function semanticSurfaceLabel(node: SnapshotNode, type: string, text: string): string {

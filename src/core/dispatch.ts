@@ -605,6 +605,7 @@ export async function dispatchCommand(
             });
             return { action: 'read', text: result.text };
           }
+          // macOS app sessions run through the XCUITest runner; only desktop/menubar surfaces use the helper.
           const result = await runIosRunnerCommand(
             device,
             {
