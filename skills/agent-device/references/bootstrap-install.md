@@ -4,15 +4,17 @@
 
 Open this file when you still need to choose the right target, start the right session, install or relaunch the app, or pin automation to one device before interacting. This is the deterministic setup layer for sandbox, cloud, or other environments where install paths, device state, or app readiness may be uncertain.
 
-## Main commands to reach for first
+## Open-first path
 
 - `devices`
 - `apps`
 - `ensure-simulator`
 - `open`
-- `install` or `reinstall`
-- `close`
 - `session list`
+
+## Install path
+
+- `install` or `reinstall`
 
 ## Most common mistake to avoid
 
@@ -24,14 +26,12 @@ If there is no simulator, no app install, no open app session, or any uncertaint
 
 After setup is confirmed or completed, move to `exploration.md` before doing UI inspection or interaction.
 
-## First attempt rule
+## Open-first rule
 
 - If the user asks to test an app and does not provide an install artifact or explicit install instruction, try `open <app>` first.
 - If `open <app>` fails, run `agent-device apps` and retry with a discovered app name before considering install steps.
 - Do not install or reinstall on the first attempt unless the user explicitly asks for installation or provides a concrete artifact path or URL.
 - When installation is required from a known location, prefer a checked-in shell script or other deterministic bootstrap command over ad hoc path guessing.
-
-## If `open` fails
 
 - If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
 - Use `apps --platform <platform>` together with `--device`, `--udid`, or `--serial` when target selection matters.

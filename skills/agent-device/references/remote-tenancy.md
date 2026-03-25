@@ -6,6 +6,7 @@ Open this file for remote daemon HTTP flows, including `--remote-config` launche
 
 ## Main commands to reach for first
 
+- `agent-device open <app> --remote-config <path> --relaunch`
 - `AGENT_DEVICE_DAEMON_BASE_URL=...`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
 - `curl ... agent_device.lease.allocate`
@@ -17,7 +18,19 @@ Open this file for remote daemon HTTP flows, including `--remote-config` launche
 
 Do not run a tenant-isolated command without matching `tenant`, `run`, and `lease` scope. Admission checks require all three to line up.
 
-## Canonical loop
+## Preferred remote launch path
+
+Use this when the agent needs the simplest remote control flow: a Linux sandbox agent talks over HTTP to `agent-device` on a remote macOS host and launches the target app through a checked-in `--remote-config` profile.
+
+```bash
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+```
+
+- This is the preferred remote launch path for sandbox or cloud agents.
+- For Android React Native relaunch flows, install or reinstall the APK first, then relaunch by installed package name.
+- Do not use `open <apk|aab> --relaunch`; remote runtime hints are applied through the installed app sandbox.
+
+## Lease flow example
 
 ```bash
 export AGENT_DEVICE_DAEMON_BASE_URL=http://mac-host.example:4310
@@ -66,18 +79,6 @@ curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
 - Use `AGENT_DEVICE_DAEMON_AUTH_TOKEN` or `--daemon-auth-token` when the client should send the shared daemon token automatically.
 - Direct JSON-RPC callers can authenticate with request params, `Authorization: Bearer <token>`, or `x-agent-device-token`.
 - Prefer an auth hook such as `AGENT_DEVICE_HTTP_AUTH_HOOK` when the host needs caller validation or tenant injection.
-
-## Remote Metro-backed launch
-
-Use this when the agent must launch a remote React Native app through a checked-in `--remote-config` profile rather than a purely local bootstrap flow.
-
-```bash
-agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
-```
-
-- This is the main remote Metro-backed launch path for sandbox or cloud agents.
-- For Android React Native relaunch flows, install or reinstall the APK first, then relaunch by installed package name.
-- Do not use `open <apk|aab> --relaunch`; remote runtime hints are applied through the installed app sandbox.
 
 ## Lease lifecycle
 

@@ -21,8 +21,7 @@ Do not treat every macOS surface the same. Use the normal `app` surface when you
 
 ```bash
 agent-device open TextEdit --platform macos
-agent-device snapshot -i
-agent-device fill @e3 "desktop smoke test"
+agent-device snapshot
 agent-device close
 ```
 
