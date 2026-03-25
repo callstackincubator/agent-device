@@ -12,6 +12,9 @@ For host Mac desktop apps, pair this reference with [macos-desktop.md](macos-des
 agent-device snapshot -i
 ```
 
+Use plain `snapshot` when you need to verify whether text is visible on screen.
+Use `snapshot -i` mainly for interactive exploration and choosing refs.
+
 Output:
 
 ```

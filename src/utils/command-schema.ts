@@ -1,5 +1,5 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
-import { PHASE1_MACOS_SESSION_SURFACES } from '../core/session-surface.ts';
+import { SESSION_SURFACES } from '../core/session-surface.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -70,7 +70,7 @@ export type CliFlags = {
   saveScript?: boolean | string;
   shutdown?: boolean;
   relaunch?: boolean;
-  surface?: 'app' | 'frontmost-app';
+  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
   headless?: boolean;
   restart?: boolean;
   noRecord?: boolean;
@@ -305,9 +305,9 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'surface',
     names: ['--surface'],
     type: 'enum',
-    enumValues: PHASE1_MACOS_SESSION_SURFACES,
-    usageLabel: '--surface app|frontmost-app',
-    usageDescription: 'macOS phase-1 session surface for open (defaults to app)',
+    enumValues: SESSION_SURFACES,
+    usageLabel: '--surface app|frontmost-app|desktop|menubar',
+    usageDescription: 'macOS session surface for open (defaults to app)',
   },
   {
     key: 'headless',
@@ -815,7 +815,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   open: {
     helpDescription:
-      'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app)',
+      'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch', 'surface'],

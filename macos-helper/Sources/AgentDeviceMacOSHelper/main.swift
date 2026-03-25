@@ -53,6 +53,41 @@ struct AlertResponse: Encodable {
   let bundleId: String?
 }
 
+struct RectResponse: Encodable {
+  let x: Double
+  let y: Double
+  let width: Double
+  let height: Double
+}
+
+struct SnapshotNodeResponse: Encodable {
+  let index: Int
+  let type: String?
+  let role: String?
+  let subrole: String?
+  let label: String?
+  let value: String?
+  let identifier: String?
+  let rect: RectResponse?
+  let enabled: Bool?
+  let selected: Bool?
+  let hittable: Bool?
+  let depth: Int
+  let parentIndex: Int?
+  let pid: Int32?
+  let bundleId: String?
+  let appName: String?
+  let windowTitle: String?
+  let surface: String?
+}
+
+struct SnapshotResponse: Encodable {
+  let surface: String
+  let nodes: [SnapshotNodeResponse]
+  let truncated = false
+  let backend = "macos-helper"
+}
+
 @main
 struct AgentDeviceMacOSHelper {
   static func main() {
@@ -93,6 +128,8 @@ struct AgentDeviceMacOSHelper {
       return try handlePermission(arguments: Array(arguments.dropFirst()))
     case "alert":
       return try handleAlert(arguments: Array(arguments.dropFirst()))
+    case "snapshot":
+      return try handleSnapshot(arguments: Array(arguments.dropFirst()))
     default:
       throw HelperError.invalidArgs("unknown command: \(command)")
     }
@@ -298,6 +335,28 @@ struct AgentDeviceMacOSHelper {
       )
     )
   }
+
+  static func handleSnapshot(arguments: [String]) throws -> any Encodable {
+    guard let surface = optionValue(arguments: arguments, name: "--surface")?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased(),
+      !surface.isEmpty
+    else {
+      throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
+    }
+
+    switch surface {
+    case "frontmost-app":
+      let app = try resolveAlertApplication(bundleId: nil, surface: surface)
+      return SuccessEnvelope(data: SnapshotResponse(surface: surface, nodes: snapshotFrontmostApp(app)))
+    case "desktop":
+      return SuccessEnvelope(data: SnapshotResponse(surface: surface, nodes: snapshotDesktop()))
+    case "menubar":
+      return SuccessEnvelope(data: SnapshotResponse(surface: surface, nodes: snapshotMenuBar()))
+    default:
+      throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
+    }
+  }
 }
 
 private func optionValue(arguments: [String], name: String) -> String? {
@@ -354,6 +413,334 @@ private func resolveAlertApplication(bundleId: String?, surface: String?) throws
   throw HelperError.commandFailed("unable to resolve target app")
 }
 
+private struct SnapshotContext {
+  let surface: String
+  let pid: Int32?
+  let bundleId: String?
+  let appName: String?
+  let windowTitle: String?
+}
+
+private func snapshotFrontmostApp(_ app: NSRunningApplication) -> [SnapshotNodeResponse] {
+  let appElement = AXUIElementCreateApplication(app.processIdentifier)
+  var nodes: [SnapshotNodeResponse] = []
+  var visited = Set<CFHashCode>()
+  appendElementSnapshot(
+    appElement,
+    depth: 0,
+    parentIndex: nil,
+    context: SnapshotContext(
+      surface: "frontmost-app",
+      pid: Int32(app.processIdentifier),
+      bundleId: app.bundleIdentifier,
+      appName: app.localizedName,
+      windowTitle: nil
+    ),
+    nodes: &nodes,
+    visited: &visited
+  )
+  return nodes
+}
+
+private func snapshotDesktop() -> [SnapshotNodeResponse] {
+  var nodes: [SnapshotNodeResponse] = []
+  let rootIndex = appendSyntheticSnapshotNode(
+    into: &nodes,
+    type: "DesktopSurface",
+    label: "Desktop",
+    depth: 0,
+    parentIndex: nil,
+    surface: "desktop"
+  )
+
+  var runningApps = NSWorkspace.shared.runningApplications.filter { app in
+    app.activationPolicy != .prohibited
+      && !app.isTerminated
+      && (app.bundleIdentifier?.isEmpty == false || app.localizedName?.isEmpty == false)
+  }
+  runningApps.sort { left, right in
+    if left.isActive != right.isActive {
+      return left.isActive && !right.isActive
+    }
+    return (left.localizedName ?? "") < (right.localizedName ?? "")
+  }
+
+  for app in runningApps {
+    let appElement = AXUIElementCreateApplication(app.processIdentifier)
+    let appContext = SnapshotContext(
+      surface: "desktop",
+      pid: Int32(app.processIdentifier),
+      bundleId: app.bundleIdentifier,
+      appName: app.localizedName,
+      windowTitle: nil
+    )
+    var appVisited = Set<CFHashCode>()
+    let appIndex = appendElementSnapshot(
+      appElement,
+      depth: 1,
+      parentIndex: rootIndex,
+      context: appContext,
+      nodes: &nodes,
+      visited: &appVisited
+    )
+    let visibleWindows = windows(of: appElement).filter(isVisibleSnapshotWindow)
+    if visibleWindows.isEmpty {
+      continue
+    }
+    var visited = appVisited
+    for window in visibleWindows {
+      let windowTitle = stringAttribute(window, attribute: kAXTitleAttribute as String)
+      appendElementSnapshot(
+        window,
+        depth: 2,
+        parentIndex: appIndex,
+        context: SnapshotContext(
+          surface: "desktop",
+          pid: Int32(app.processIdentifier),
+          bundleId: app.bundleIdentifier,
+          appName: app.localizedName,
+          windowTitle: windowTitle
+        ),
+        nodes: &nodes,
+        visited: &visited
+      )
+    }
+  }
+
+  return nodes
+}
+
+private func snapshotMenuBar() -> [SnapshotNodeResponse] {
+  var nodes: [SnapshotNodeResponse] = []
+  let rootIndex = appendSyntheticSnapshotNode(
+    into: &nodes,
+    type: "MenuBarSurface",
+    label: "Menu Bar",
+    depth: 0,
+    parentIndex: nil,
+    surface: "menubar"
+  )
+
+  if let frontmost = NSWorkspace.shared.frontmostApplication {
+    let frontmostElement = AXUIElementCreateApplication(frontmost.processIdentifier)
+    if let menuBar = elementAttribute(frontmostElement, attribute: kAXMenuBarAttribute as String) {
+      var frontmostVisited = Set<CFHashCode>()
+      appendElementSnapshot(
+        menuBar,
+        depth: 1,
+        parentIndex: rootIndex,
+        context: SnapshotContext(
+          surface: "menubar",
+          pid: Int32(frontmost.processIdentifier),
+          bundleId: frontmost.bundleIdentifier,
+          appName: frontmost.localizedName,
+          windowTitle: frontmost.localizedName
+        ),
+        nodes: &nodes,
+        visited: &frontmostVisited
+      )
+    }
+  }
+
+  if let systemUiServer = NSRunningApplication.runningApplications(
+    withBundleIdentifier: "com.apple.systemuiserver"
+  ).first {
+    let systemUiElement = AXUIElementCreateApplication(systemUiServer.processIdentifier)
+    if let menuExtras = elementAttribute(systemUiElement, attribute: kAXMenuBarAttribute as String) {
+      var systemUiVisited = Set<CFHashCode>()
+      appendElementSnapshot(
+        menuExtras,
+        depth: 1,
+        parentIndex: rootIndex,
+        context: SnapshotContext(
+          surface: "menubar",
+          pid: Int32(systemUiServer.processIdentifier),
+          bundleId: systemUiServer.bundleIdentifier,
+          appName: systemUiServer.localizedName,
+          windowTitle: "System Menu Extras"
+        ),
+        nodes: &nodes,
+        visited: &systemUiVisited
+      )
+    }
+  }
+
+  return nodes
+}
+
+@discardableResult
+private func appendSyntheticSnapshotNode(
+  into nodes: inout [SnapshotNodeResponse],
+  type: String,
+  label: String,
+  depth: Int,
+  parentIndex: Int?,
+  surface: String
+) -> Int {
+  let index = nodes.count
+  nodes.append(
+    SnapshotNodeResponse(
+      index: index,
+      type: type,
+      role: type,
+      subrole: nil,
+      label: label,
+      value: nil,
+      identifier: "surface:\(surface):\(type.lowercased())",
+      rect: nil,
+      enabled: true,
+      selected: nil,
+      hittable: false,
+      depth: depth,
+      parentIndex: parentIndex,
+      pid: nil,
+      bundleId: nil,
+      appName: nil,
+      windowTitle: nil,
+      surface: surface
+    )
+  )
+  return index
+}
+
+@discardableResult
+private func appendElementSnapshot(
+  _ element: AXUIElement,
+  depth: Int,
+  parentIndex: Int?,
+  context: SnapshotContext,
+  nodes: inout [SnapshotNodeResponse],
+  visited: inout Set<CFHashCode>,
+  maxDepth: Int = 12
+) -> Int {
+  let elementHash = CFHash(element)
+  if visited.contains(elementHash) {
+    return parentIndex ?? 0
+  }
+  visited.insert(elementHash)
+
+  let role = stringAttribute(element, attribute: kAXRoleAttribute as String)
+  let subrole = stringAttribute(element, attribute: kAXSubroleAttribute as String)
+  let title = stringAttribute(element, attribute: kAXTitleAttribute as String)
+  let description = stringAttribute(element, attribute: kAXDescriptionAttribute as String)
+  let value = stringAttribute(element, attribute: kAXValueAttribute as String)
+  let identifier = stringAttribute(element, attribute: "AXIdentifier")
+  let rect = rectAttribute(element)
+  let enabled = boolAttribute(element, attribute: kAXEnabledAttribute as String)
+  let selected = boolAttribute(element, attribute: kAXSelectedAttribute as String)
+  let type = normalizedSnapshotType(role: role, subrole: subrole)
+  let windowTitle = context.windowTitle ?? inferWindowTitle(for: element)
+
+  let index = nodes.count
+  nodes.append(
+    SnapshotNodeResponse(
+      index: index,
+      type: type,
+      role: role,
+      subrole: subrole,
+      label: title ?? description ?? value,
+      value: value,
+      identifier: identifier,
+      rect: rect,
+      enabled: enabled,
+      selected: selected,
+      hittable: (enabled ?? true) && rect != nil,
+      depth: depth,
+      parentIndex: parentIndex,
+      pid: context.pid,
+      bundleId: context.bundleId,
+      appName: context.appName,
+      windowTitle: windowTitle,
+      surface: context.surface
+    )
+  )
+
+  guard depth < maxDepth else {
+    return index
+  }
+
+  for child in children(of: element) {
+    appendElementSnapshot(
+      child,
+      depth: depth + 1,
+      parentIndex: index,
+      context: SnapshotContext(
+        surface: context.surface,
+        pid: context.pid,
+        bundleId: context.bundleId,
+        appName: context.appName,
+        windowTitle: windowTitle
+      ),
+      nodes: &nodes,
+      visited: &visited,
+      maxDepth: maxDepth
+    )
+  }
+
+  return index
+}
+
+private func normalizedSnapshotType(role: String?, subrole: String?) -> String? {
+  switch role {
+  case "AXApplication":
+    return "Application"
+  case "AXWindow":
+    return subrole == "AXStandardWindow" ? "Window" : (subrole ?? "Window")
+  case "AXSheet":
+    return "Sheet"
+  case "AXDialog":
+    return "Dialog"
+  case "AXButton":
+    return "Button"
+  case "AXStaticText":
+    return "StaticText"
+  case "AXTextField":
+    return "TextField"
+  case "AXTextArea":
+    return "TextArea"
+  case "AXScrollArea":
+    return "ScrollArea"
+  case "AXGroup":
+    return "Group"
+  case "AXMenuBar":
+    return "MenuBar"
+  case "AXMenuBarItem":
+    return "MenuBarItem"
+  case "AXMenu":
+    return "Menu"
+  case "AXMenuItem":
+    return "MenuItem"
+  default:
+    if let subrole, !subrole.isEmpty {
+      return subrole
+    }
+    return role
+  }
+}
+
+private func isVisibleSnapshotWindow(_ window: AXUIElement) -> Bool {
+  guard let rect = rectAttribute(window) else {
+    return false
+  }
+  if rect.width <= 0 || rect.height <= 0 {
+    return false
+  }
+  if boolAttribute(window, attribute: kAXMinimizedAttribute as String) == true {
+    return false
+  }
+  return true
+}
+
+private func inferWindowTitle(for element: AXUIElement) -> String? {
+  if let title = stringAttribute(element, attribute: kAXTitleAttribute as String) {
+    return title
+  }
+  if let window = elementAttribute(element, attribute: kAXWindowAttribute as String) {
+    return stringAttribute(window, attribute: kAXTitleAttribute as String)
+  }
+  return nil
+}
+
 private func validatedBundleId(_ rawBundleId: String) throws -> String {
   let bundleId = rawBundleId.trimmingCharacters(in: .whitespacesAndNewlines)
   let pattern = #"^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+$"#
@@ -375,6 +762,16 @@ private func stringAttribute(_ element: AXUIElement, attribute: String) -> Strin
   return nil
 }
 
+private func boolAttribute(_ element: AXUIElement, attribute: String) -> Bool? {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+        let number = value as? NSNumber
+  else {
+    return nil
+  }
+  return number.boolValue
+}
+
 private func elementAttribute(_ element: AXUIElement, attribute: String) -> AXUIElement? {
   var value: CFTypeRef?
   guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
@@ -384,6 +781,35 @@ private func elementAttribute(_ element: AXUIElement, attribute: String) -> AXUI
     return nil
   }
   return unsafeBitCast(value, to: AXUIElement.self)
+}
+
+private func rectAttribute(_ element: AXUIElement) -> RectResponse? {
+  var positionValue: CFTypeRef?
+  var sizeValue: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
+        AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+        let axPosition = positionValue,
+        let axSize = sizeValue
+  else {
+    return nil
+  }
+
+  var position = CGPoint.zero
+  var size = CGSize.zero
+  guard AXValueGetType(axPosition as! AXValue) == .cgPoint,
+        AXValueGetValue(axPosition as! AXValue, .cgPoint, &position),
+        AXValueGetType(axSize as! AXValue) == .cgSize,
+        AXValueGetValue(axSize as! AXValue, .cgSize, &size)
+  else {
+    return nil
+  }
+
+  return RectResponse(
+    x: Double(position.x),
+    y: Double(position.y),
+    width: Double(size.width),
+    height: Double(size.height)
+  )
 }
 
 private func children(of element: AXUIElement) -> [AXUIElement] {

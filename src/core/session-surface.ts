@@ -9,12 +9,6 @@ export const SESSION_SURFACES: readonly SessionSurface[] = [
   'menubar',
 ];
 
-export const PHASE1_MACOS_SESSION_SURFACES: readonly SessionSurface[] = ['app', 'frontmost-app'];
-
-export function isPhase1MacOsSessionSurface(surface: SessionSurface): boolean {
-  return PHASE1_MACOS_SESSION_SURFACES.includes(surface);
-}
-
 export function parseSessionSurface(value: string | undefined): SessionSurface {
   const normalized = value?.trim().toLowerCase();
   if (

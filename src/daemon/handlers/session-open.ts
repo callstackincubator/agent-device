@@ -1,10 +1,6 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
-import {
-  isPhase1MacOsSessionSurface,
-  parseSessionSurface,
-  type SessionSurface,
-} from '../../core/session-surface.ts';
+import { parseSessionSurface, type SessionSurface } from '../../core/session-surface.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { contextFromFlags } from '../context.ts';
 import { resolveFrontmostMacOsApp } from '../../platforms/ios/macos-helper.ts';
@@ -117,12 +113,6 @@ function resolveOpenSurface(
     return 'app';
   }
   const surface = surfaceFlag ? parseSessionSurface(surfaceFlag) : 'app';
-  if (!isPhase1MacOsSessionSurface(surface)) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `open --surface ${surface} is planned but not supported yet. Use app|frontmost-app for now.`,
-    );
-  }
   if (surface !== 'app' && openTarget) {
     throw new AppError('INVALID_ARGS', `open --surface ${surface} does not accept an app target`);
   }
@@ -148,11 +138,8 @@ function resolveRequestedOpenSurface(params: {
 async function resolveMacOsSurfaceAppState(
   surface: SessionSurface,
 ): Promise<{ appBundleId?: string; appName?: string }> {
-  if (surface === 'app') {
+  if (surface === 'app' || surface === 'desktop' || surface === 'menubar') {
     return {};
-  }
-  if (surface !== 'frontmost-app') {
-    throw new AppError('INVALID_ARGS', `open --surface ${surface} is not supported in phase 1`);
   }
   const frontmost = await resolveFrontmostMacOsApp();
   return {

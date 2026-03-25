@@ -3,13 +3,7 @@ import { dispatchCommand } from '../../core/dispatch.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
 import { isApplePlatform } from '../../utils/device.ts';
-import {
-  attachRefs,
-  findNodeByRef,
-  normalizeRef,
-  type RawSnapshotNode,
-} from '../../utils/snapshot.ts';
-import { contextFromFlags } from '../context.ts';
+import { attachRefs, findNodeByRef, normalizeRef } from '../../utils/snapshot.ts';
 import { findNodeByLabel, resolveRefLabel } from '../snapshot-processing.ts';
 import { SessionStore } from '../session-store.ts';
 import {
@@ -19,7 +13,7 @@ import {
   type SelectorChain,
 } from '../selectors.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
-import { buildSnapshotState } from './snapshot-capture.ts';
+import { captureSnapshot } from './snapshot-capture.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
 
@@ -118,6 +112,7 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
   const textResult = resolveWaitText(parsed, session);
   if (!textResult.ok) return textResult.response;
   return await waitForText({
+    dispatchSnapshotCommand,
     device,
     logPath,
     req,
@@ -152,26 +147,20 @@ async function waitForSelector(params: {
   const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   while (Date.now() - start < timeout) {
-    const data = await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
-      ...contextFromFlags(
-        logPath,
-        {
+    const { snapshot } = await captureSnapshot({
+      dispatchSnapshotCommand,
+      device,
+      session,
+      req: {
+        ...req,
+        flags: {
           ...req.flags,
           snapshotInteractiveOnly: false,
           snapshotCompact: false,
         },
-        session?.appBundleId,
-        session?.trace?.outPath,
-      ),
-    });
-    const snapshot = buildSnapshotState(
-      data as {
-        nodes?: RawSnapshotNode[];
-        truncated?: boolean;
-        backend?: 'xctest' | 'android';
       },
-      req.flags?.snapshotRaw,
-    );
+      logPath,
+    });
     const nodes = snapshot.nodes;
     if (session) {
       session.snapshot = snapshot;
@@ -258,6 +247,7 @@ function resolveWaitText(
 }
 
 async function waitForText(params: {
+  dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   logPath: string;
   req: DaemonRequest;
@@ -271,7 +261,30 @@ async function waitForText(params: {
   const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   while (Date.now() - start < timeout) {
-    if (isApplePlatform(device.platform)) {
+    if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
+      const { snapshot } = await captureSnapshot({
+        dispatchSnapshotCommand: params.dispatchSnapshotCommand,
+        device,
+        session,
+        req: {
+          ...req,
+          flags: {
+            ...req.flags,
+            snapshotInteractiveOnly: false,
+            snapshotCompact: false,
+          },
+        },
+        logPath,
+      });
+      if (session) {
+        session.snapshot = snapshot;
+        sessionStore.set(session.name, session);
+      }
+      if (findNodeByLabel(snapshot.nodes, text)) {
+        recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
+        return { ok: true, data: { text, waitedMs: Date.now() - start } };
+      }
+    } else if (isApplePlatform(device.platform)) {
       const result = (await runnerCommand(
         device,
         { command: 'findText', text, appBundleId: session?.appBundleId },

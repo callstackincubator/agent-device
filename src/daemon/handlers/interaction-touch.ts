@@ -36,7 +36,7 @@ type CaptureSnapshotForSession = (
   nodes: SnapshotNode[];
   truncated?: boolean;
   createdAt: number;
-  backend?: 'xctest' | 'android';
+  backend?: 'xctest' | 'android' | 'macos-helper';
 }>;
 
 type ResolveRefTarget =

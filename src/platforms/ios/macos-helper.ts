@@ -9,6 +9,32 @@ import type { SessionSurface } from '../../core/session-surface.ts';
 
 export type MacOsPermissionTarget = 'accessibility' | 'screen-recording' | 'input-monitoring';
 
+export type MacOsSnapshotNode = {
+  index: number;
+  type?: string;
+  role?: string;
+  subrole?: string;
+  label?: string;
+  value?: string;
+  identifier?: string;
+  rect?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  enabled?: boolean;
+  selected?: boolean;
+  hittable?: boolean;
+  depth?: number;
+  parentIndex?: number;
+  pid?: number;
+  bundleId?: string;
+  appName?: string;
+  windowTitle?: string;
+  surface?: string;
+};
+
 type HelperSuccess<T extends Record<string, unknown>> = {
   ok: true;
   data: T;
@@ -248,4 +274,13 @@ export async function runMacOsAlertAction(
     args.push('--surface', options.surface);
   }
   return await runMacOsHelper(args);
+}
+
+export async function runMacOsSnapshotAction(surface: Exclude<SessionSurface, 'app'>): Promise<{
+  surface: Exclude<SessionSurface, 'app'>;
+  nodes: MacOsSnapshotNode[];
+  truncated: false;
+  backend: 'macos-helper';
+}> {
+  return await runMacOsHelper(['snapshot', '--surface', surface]);
 }

@@ -68,7 +68,7 @@ For agents:
 npm install -g agent-device
 ```
 
-On macOS, `agent-device` now includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and other host-Mac support paths. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build.
+On macOS, `agent-device` includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and helper-backed desktop snapshot surfaces. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build.
 
 ## Contributing
 

@@ -82,6 +82,7 @@ export function normalizeType(type: string): string {
   let value = type
     .trim()
     .replace(/XCUIElementType/gi, '')
+    .replace(/^AX/gi, '')
     .toLowerCase();
   const lastSeparator = Math.max(value.lastIndexOf('.'), value.lastIndexOf('/'));
   if (lastSeparator !== -1) {

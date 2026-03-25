@@ -86,7 +86,7 @@ export async function handleFindCommands(params: {
     })) as {
       nodes?: RawSnapshotNode[];
       truncated?: boolean;
-      backend?: 'xctest' | 'android';
+      backend?: 'xctest' | 'android' | 'macos-helper';
     };
     const rawNodes = data?.nodes ?? [];
     const nodes = attachRefs(req.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));

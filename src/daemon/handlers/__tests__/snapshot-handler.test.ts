@@ -159,6 +159,101 @@ test('settings on macOS returns helper-backed permission status', async () => {
   );
 });
 
+test('snapshot on macOS desktop surface uses helper-backed surface snapshot', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"Window","label":"Notes","surface":"desktop","bundleId":"com.apple.Notes","appName":"Notes","windowTitle":"Notes","rect":{"x":32,"y":48,"width":640,"height":480}}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-desktop-snapshot';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-desktop-snapshot-'));
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'desktop',
+      });
+
+      try {
+        const response = await handleSnapshotCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'snapshot',
+            positionals: [],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/daemon.log',
+          sessionStore,
+        });
+
+        assert.equal(response?.ok, true);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, 'snapshot\n--surface\ndesktop\n');
+        const updated = sessionStore.get(sessionName);
+        assert.equal(updated?.snapshot?.backend, 'macos-helper');
+        assert.equal(updated?.snapshot?.nodes[0]?.label, 'Desktop');
+        assert.equal(updated?.snapshot?.nodes[1]?.windowTitle, 'Notes');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
+test('wait text on macOS desktop surface polls helper-backed snapshots instead of runner text search', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"StaticText","label":"Accessibility","surface":"desktop"}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-desktop-wait';
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'desktop',
+      });
+
+      let runnerCalls = 0;
+      const response = await handleSnapshotCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'wait',
+          positionals: ['Accessibility', '10'],
+          flags: {},
+        },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+        runnerCommand: async () => {
+          runnerCalls += 1;
+          return { found: false };
+        },
+      });
+
+      assert.equal(response?.ok, true);
+      assert.equal(runnerCalls, 0);
+      const updated = sessionStore.get(sessionName);
+      assert.equal(updated?.snapshot?.backend, 'macos-helper');
+    },
+  );
+});
+
 test('diff rejects unsupported kind', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSnapshotCommands({

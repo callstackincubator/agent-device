@@ -1,4 +1,5 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
+import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
 import {
   attachRefs,
   findNodeByRef,
@@ -23,6 +24,10 @@ export async function captureSnapshot(
   params: CaptureSnapshotParams,
 ): Promise<{ snapshot: SnapshotState }> {
   const { dispatchSnapshotCommand, device, session, req, logPath, snapshotScope } = params;
+  if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
+    const helperSnapshot = await runMacOsSnapshotAction(session.surface);
+    return { snapshot: buildSnapshotState(helperSnapshot, req.flags?.snapshotRaw) };
+  }
   const data = (await dispatchSnapshotCommand(device, 'snapshot', [], req.flags?.out, {
     ...contextFromFlags(
       logPath,
@@ -33,7 +38,7 @@ export async function captureSnapshot(
   })) as {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'xctest' | 'android';
+    backend?: 'xctest' | 'android' | 'macos-helper';
   };
   return { snapshot: buildSnapshotState(data, req.flags?.snapshotRaw) };
 }
@@ -42,7 +47,7 @@ export function buildSnapshotState(
   data: {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'xctest' | 'android';
+    backend?: 'xctest' | 'android' | 'macos-helper';
   },
   snapshotRaw: boolean | undefined,
 ): SnapshotState {
