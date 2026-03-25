@@ -301,6 +301,61 @@ test('snapshot on macOS menubar surface uses helper-backed surface snapshot', as
   );
 });
 
+test('snapshot on macOS frontmost-app surface uses helper-backed surface snapshot', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"frontmost-app","nodes":[{"index":0,"depth":0,"type":"Application","label":"TextEdit","surface":"frontmost-app","bundleId":"com.apple.TextEdit","appName":"TextEdit"},{"index":1,"depth":1,"parentIndex":0,"type":"Window","label":"Untitled","surface":"frontmost-app","windowTitle":"Untitled","rect":{"x":32,"y":48,"width":640,"height":480}}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-frontmost-app-snapshot';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-frontmost-snapshot-'));
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'frontmost-app',
+        appBundleId: 'com.apple.systempreferences',
+        appName: 'System Settings',
+      });
+
+      try {
+        const response = await handleSnapshotCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'snapshot',
+            positionals: [],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/daemon.log',
+          sessionStore,
+        });
+
+        assert.equal(response?.ok, true);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, 'snapshot\n--surface\nfrontmost-app\n');
+        const updated = sessionStore.get(sessionName);
+        assert.equal(updated?.snapshot?.backend, 'macos-helper');
+        assert.equal(updated?.snapshot?.nodes[0]?.label, 'TextEdit');
+        assert.equal(updated?.snapshot?.nodes[1]?.parentIndex, 0);
+        assert.equal(updated?.snapshot?.nodes[1]?.windowTitle, 'Untitled');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
 test('wait text on macOS desktop surface polls helper-backed snapshots instead of runner text search', async () => {
   await withMockedMacOsHelper(
     [

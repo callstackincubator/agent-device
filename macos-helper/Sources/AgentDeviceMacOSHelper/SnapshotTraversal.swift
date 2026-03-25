@@ -80,19 +80,12 @@ func captureSnapshotResponse(surface: String) throws -> SnapshotResponse {
 
 private func snapshotFrontmostApp() throws -> SnapshotBuildResult {
   let app = try resolveTargetApplication(bundleId: nil, surface: "frontmost-app")
-  let appElement = AXUIElementCreateApplication(app.processIdentifier)
   var state = SnapshotTraversalState()
-  _ = appendElementSnapshot(
-    appElement,
+  _ = appendApplicationSnapshot(
+    app,
     depth: 0,
     parentIndex: nil,
-    context: SnapshotContext(
-      surface: "frontmost-app",
-      pid: Int32(app.processIdentifier),
-      bundleId: app.bundleIdentifier,
-      appName: app.localizedName,
-      windowTitle: nil
-    ),
+    surface: "frontmost-app",
     state: &state
   )
   return SnapshotBuildResult(nodes: state.nodes, truncated: state.truncated)
@@ -135,52 +128,76 @@ private func snapshotDesktop() -> SnapshotBuildResult {
       break
     }
 
-    let appElement = AXUIElementCreateApplication(app.processIdentifier)
-    let visibleWindows = windows(of: appElement).filter(isVisibleSnapshotWindow)
-    if visibleWindows.isEmpty {
-      continue
-    }
-
-    guard
-      let appIndex = appendSyntheticSnapshotNode(
-        into: &state,
-        type: "Application",
-        label: app.localizedName ?? app.bundleIdentifier ?? "Application",
-        depth: 1,
-        parentIndex: rootIndex,
-        surface: "desktop",
-        identifier: app.bundleIdentifier,
-        pid: Int32(app.processIdentifier),
-        bundleId: app.bundleIdentifier,
-        appName: app.localizedName
-      )
-    else {
+    let included = appendApplicationSnapshot(
+      app,
+      depth: 1,
+      parentIndex: rootIndex,
+      surface: "desktop",
+      state: &state
+    )
+    if state.truncated {
       break
     }
-
-    includedApps += 1
-    for window in visibleWindows {
-      if state.truncated {
-        break
-      }
-      let windowTitle = stringAttribute(window, attribute: kAXTitleAttribute as String)
-      _ = appendElementSnapshot(
-        window,
-        depth: 2,
-        parentIndex: appIndex,
-        context: SnapshotContext(
-          surface: "desktop",
-          pid: Int32(app.processIdentifier),
-          bundleId: app.bundleIdentifier,
-          appName: app.localizedName,
-          windowTitle: windowTitle
-        ),
-        state: &state
-      )
+    if included {
+      includedApps += 1
     }
   }
 
   return SnapshotBuildResult(nodes: state.nodes, truncated: state.truncated)
+}
+
+@discardableResult
+private func appendApplicationSnapshot(
+  _ app: NSRunningApplication,
+  depth: Int,
+  parentIndex: Int?,
+  surface: String,
+  state: inout SnapshotTraversalState
+) -> Bool {
+  let appElement = AXUIElementCreateApplication(app.processIdentifier)
+  let visibleWindows = windows(of: appElement).filter(isVisibleSnapshotWindow)
+  if visibleWindows.isEmpty {
+    return false
+  }
+
+  guard
+    let appIndex = appendSyntheticSnapshotNode(
+      into: &state,
+      type: "Application",
+      label: app.localizedName ?? app.bundleIdentifier ?? "Application",
+      depth: depth,
+      parentIndex: parentIndex,
+      surface: surface,
+      identifier: app.bundleIdentifier,
+      pid: Int32(app.processIdentifier),
+      bundleId: app.bundleIdentifier,
+      appName: app.localizedName
+    )
+  else {
+    return false
+  }
+
+  for window in visibleWindows {
+    if state.truncated {
+      break
+    }
+    let windowTitle = stringAttribute(window, attribute: kAXTitleAttribute as String)
+    _ = appendElementSnapshot(
+      window,
+      depth: depth + 1,
+      parentIndex: appIndex,
+      context: SnapshotContext(
+        surface: surface,
+        pid: Int32(app.processIdentifier),
+        bundleId: app.bundleIdentifier,
+        appName: app.localizedName,
+        windowTitle: windowTitle
+      ),
+      state: &state
+    )
+  }
+
+  return true
 }
 
 private func snapshotMenuBar() -> SnapshotBuildResult {
