@@ -7,6 +7,7 @@ Open this file when you still need to choose the right target, start the right s
 ## Main commands to reach for first
 
 - `devices`
+- `apps`
 - `ensure-simulator`
 - `open`
 - `install` or `reinstall`
@@ -20,6 +21,12 @@ Do not start acting before you have pinned the correct target and opened an `app
 ## Deterministic setup rule
 
 If there is no simulator, no app install, no open app session, or any uncertainty about where the app should come from, stay in this file and use deterministic setup commands or bootstrap scripts first. Do not improvise install paths or app-launch flows while exploring.
+
+## If `open` fails
+
+- If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
+- Use `apps --platform <platform>` together with `--device`, `--udid`, or `--serial` when target selection matters.
+- Once you have the correct app name, retry `open` with that exact value.
 
 ## Common starting points
 
