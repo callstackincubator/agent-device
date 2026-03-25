@@ -142,10 +142,10 @@ Anti-hallucination rules:
 - Discover them first with `devices`, `open`, `snapshot -i`, `find`, or `session list`.
 - If refs drift after navigation, re-snapshot or switch to selectors instead of guessing.
 
-Common failure pattern to avoid:
+Avoid this escalation path for visible-text questions:
 
-- Wrong for a visible-text question: `snapshot -i` -> `get text @ref` -> web search -> type into a search box
-- Right: `snapshot` first; if the text is not visible or exposed, report that directly
+- Do not jump from `snapshot -i` to `get text @ref`, then to web search, then to typing into a search box just to force the app to reveal the answer.
+- Start with `snapshot`. If the text is not visible or exposed, report that directly.
 
 Canonical QA loop:
 
