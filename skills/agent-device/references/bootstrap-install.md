@@ -2,7 +2,7 @@
 
 ## When to open this file
 
-Open this file when you still need to choose the right target, start the right session, install or relaunch the app, or pin automation to one device before interacting.
+Open this file when you still need to choose the right target, start the right session, install or relaunch the app, or pin automation to one device before interacting. This is the deterministic setup layer for sandbox, cloud, or other environments where install paths, device state, or app readiness may be uncertain.
 
 ## Main commands to reach for first
 
@@ -16,6 +16,10 @@ Open this file when you still need to choose the right target, start the right s
 ## Most common mistake to avoid
 
 Do not start acting before you have pinned the correct target and opened an `app` session. In mixed-device environments, always pass `--device`, `--udid`, or `--serial`.
+
+## Deterministic setup rule
+
+If there is no simulator, no app install, no open app session, or any uncertainty about where the app should come from, stay in this file and use deterministic setup commands or bootstrap scripts first. Do not improvise install paths or app-launch flows while exploring.
 
 ## Common starting points
 

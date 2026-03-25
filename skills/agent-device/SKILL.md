@@ -5,7 +5,7 @@ description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) a
 
 # agent-device
 
-Use this skill as a router with mandatory defaults. Read this file first. For normal device tasks, then load `references/bootstrap-install.md` and `references/exploration.md` before acting.
+Use this skill as a router with mandatory defaults. Read this file first. If target, app, or session readiness is uncertain, load `references/bootstrap-install.md` first. Once the app session is open and stable, use `references/exploration.md` for inspection and interaction.
 
 ## Default operating rules
 
@@ -16,24 +16,28 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Do not browse the web or use external sources unless the user explicitly asks.
 - Re-snapshot after meaningful UI changes instead of reusing stale refs.
 - Prefer `@ref` or selector targeting over raw coordinates.
+- Ensure the correct target is pinned and an app session is open before interacting.
 - Keep the loop short: `open` -> inspect/act -> verify if needed -> `close`.
 
 ## Default flow
 
-1. Choose the correct target and open the app or session you want to work on.
-2. Start with plain `snapshot` if the goal is to read or verify what is visible.
-3. Escalate to `snapshot -i` only if you need refs for interactive exploration or a requested action.
-4. Use `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
-5. End by capturing proof if needed, then `close`.
+1. Decide whether the correct target, app install, and app session are already ready.
+2. If readiness is uncertain, or there is no simulator, device, app install, or open app session yet, load [references/bootstrap-install.md](references/bootstrap-install.md) and establish that deterministically.
+3. Once the app session is open and stable, load [references/exploration.md](references/exploration.md).
+4. Start with plain `snapshot` if the goal is to read or verify what is visible.
+5. Escalate to `snapshot -i` only if you need refs for interactive exploration or a requested action.
+6. Use `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
+7. End by capturing proof if needed, then `close`.
 
 ## QA modes
 
 - Open-ended bug hunt with reporting: use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 - Pass/fail QA from acceptance criteria: stay in this skill, start with [references/bootstrap-install.md](references/bootstrap-install.md), then use the QA loop in [references/exploration.md](references/exploration.md).
 
-## Required references
+## Deterministic routing
 
-- For every normal device task, after reading this file, load [references/bootstrap-install.md](references/bootstrap-install.md) first, then [references/exploration.md](references/exploration.md), before acting.
+- Load [references/bootstrap-install.md](references/bootstrap-install.md) when target, install, open, or session readiness is uncertain, especially in sandbox or cloud environments.
+- Load [references/exploration.md](references/exploration.md) once the app session is open and stable.
 - Load additional references only when their scope is needed.
 
 ## Decision rules
@@ -43,6 +47,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Use `get`, `is`, or `find` when they can answer the question without changing UI state.
 - Use `fill` to replace text.
 - Use `type` to append text.
+- If there is no simulator, no app install, or no open app session yet, switch to `bootstrap-install.md` instead of improvising setup steps.
 - Use the smallest unblock action first when transient UI blocks inspection, but do not navigate, search, or enter new text just to make the UI reveal data unless the user asked for that interaction.
 - Do not use external lookups to compensate for missing on-screen data unless the user asked for them.
 - If the needed information is not exposed on screen, say that plainly instead of compensating with extra navigation, text entry, or web search.
