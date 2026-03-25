@@ -5,7 +5,7 @@ import { readProcessCommand, readProcessStartTime } from '../utils/process-ident
 export const APP_LOG_PID_FILENAME = 'app-log.pid';
 
 export type AppLogResult = {
-  backend: 'ios-simulator' | 'ios-device' | 'android';
+  backend: 'ios-simulator' | 'ios-device' | 'android' | 'macos';
   getState: () => 'active' | 'failed';
   startedAt: number;
   stop: () => Promise<void>;

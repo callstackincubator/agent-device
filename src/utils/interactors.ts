@@ -74,7 +74,7 @@ type Interactor = {
     state: string,
     appId?: string,
     options?: PermissionSettingOptions,
-  ): Promise<void>;
+  ): Promise<Record<string, unknown> | void>;
 };
 
 export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {

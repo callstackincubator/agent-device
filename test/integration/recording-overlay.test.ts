@@ -27,13 +27,7 @@ test('recording tap overlay on iOS simulator', { skip: shouldSkipIosRecordingE2E
     ...session,
   ]);
   integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('tap general', [
-    'click',
-    'role=cell',
-    'label=General',
-    '--json',
-    ...session,
-  ]);
+  integration.runStep('tap general', ['click', 'role=cell', 'label=General', '--json', ...session]);
   const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
 
   assertRecordingArtifacts(stop, outPath);
@@ -89,13 +83,7 @@ test('recording back-swipe overlay on iOS simulator', { skip: shouldSkipIosRecor
     ...session,
   ]);
   integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('open general', [
-    'press',
-    '201',
-    '319',
-    '--json',
-    ...session,
-  ]);
+  integration.runStep('open general', ['press', '201', '319', '--json', ...session]);
   integration.runStep('edge swipe', [
     'swipe',
     '10',

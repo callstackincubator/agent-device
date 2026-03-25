@@ -191,9 +191,12 @@ async function runSessionOrSelectorDispatch(params: {
 }
 function resolveSessionLogBackendLabel(
   session: SessionState,
-): 'ios-simulator' | 'ios-device' | 'android' {
+): 'ios-simulator' | 'ios-device' | 'android' | 'macos' {
   if (session.appLog) {
     return session.appLog.backend;
+  }
+  if (session.device.platform === 'macos') {
+    return 'macos';
   }
   if (session.device.platform === 'ios') {
     return session.device.kind === 'device' ? 'ios-device' : 'ios-simulator';
@@ -254,6 +257,23 @@ async function handleAppStateCommand(params: {
   if (shouldUseSessionStateForApple && session) {
     const appName = session.appName ?? session.appBundleId;
     if (!session.appName && !session.appBundleId) {
+      if (
+        session.device.platform === 'macos' &&
+        session.surface &&
+        session.surface !== 'app' &&
+        session.surface !== 'frontmost-app'
+      ) {
+        return {
+          ok: true,
+          data: {
+            platform: session.device.platform,
+            appName: session.surface,
+            appBundleId: session.appBundleId,
+            source: 'session',
+            surface: session.surface,
+          },
+        };
+      }
       const sessionPlatform = session.device.platform === 'macos' ? 'macOS' : 'iOS';
       return {
         ok: false,
@@ -270,6 +290,7 @@ async function handleAppStateCommand(params: {
         appName: appName ?? 'unknown',
         appBundleId: session.appBundleId,
         source: 'session',
+        surface: session.surface ?? 'app',
         ...(session.device.platform === 'ios'
           ? {
               device_udid: session.device.id,
@@ -451,6 +472,7 @@ export async function handleSessionCommands(params: {
         name: s.name,
         platform: s.device.platform,
         target: s.device.target ?? 'mobile',
+        surface: s.surface ?? 'app',
         device: s.device.name,
         id: s.device.id,
         device_id: s.device.id,

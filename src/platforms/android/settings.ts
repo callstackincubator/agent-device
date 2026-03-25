@@ -15,7 +15,7 @@ export async function setAndroidSetting(
   state: string,
   appPackage?: string,
   options?: PermissionSettingOptions,
-): Promise<void> {
+): Promise<Record<string, unknown> | void> {
   const normalized = setting.toLowerCase();
   switch (normalized) {
     case 'wifi': {

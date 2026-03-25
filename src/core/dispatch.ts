@@ -497,13 +497,15 @@ export async function dispatchCommand(
               platform: device.platform,
             },
           });
-          await interactor.setSetting(
+          const result = await interactor.setSetting(
             setting,
             state,
             appBundleId ?? context?.appBundleId,
             permissionOptions,
           );
-          return { setting, state };
+          return result && typeof result === 'object'
+            ? { setting, state, ...result }
+            : { setting, state };
         }
         case 'push': {
           const target = positionals[0]?.trim();

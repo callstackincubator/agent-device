@@ -168,6 +168,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
 test('macOS supports the Apple runner interaction core but excludes mobile-only commands', () => {
   assertCommandSupport(
     [
+      'alert',
       'apps',
       'back',
       'click',
@@ -179,6 +180,8 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
       'get',
       'is',
       'longpress',
+      'logs',
+      'network',
       'open',
       'perf',
       'press',
@@ -197,14 +200,11 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
   );
   assertCommandSupport(
     [
-      'alert',
       'app-switcher',
       'boot',
       'home',
       'install',
       'install-from-source',
-      'logs',
-      'network',
       'pinch',
       'push',
       'reinstall',

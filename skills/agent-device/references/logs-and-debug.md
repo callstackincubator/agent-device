@@ -37,7 +37,7 @@ Precondition: `logs clear --restart` requires an active app session (`open <app>
 ## Command Notes
 
 - `logs path`: returns log file path and metadata (`active`, `state`, `backend`, size, timestamps).
-- `logs start`: starts streaming; requires an active app session (`open` first). Supported on iOS simulator, iOS device, and Android.
+- `logs start`: starts streaming; requires an active app session (`open` first). Supported on iOS simulator, iOS device, Android, and macOS app sessions.
 - `logs stop`: stops streaming. Session `close` also stops logging.
 - `logs clear`: truncates `app.log` and removes rotated `app.log.N` files. Requires logging to be stopped first.
 - `logs clear --restart`: convenience reset for repro loops (stop stream, clear files, restart stream).
@@ -45,6 +45,7 @@ Precondition: `logs clear --restart` requires an active app session (`open <app>
 - `logs mark`: writes a timestamped marker line to the session log.
 - `network dump [limit] [summary|headers|body|all]`: parses recent HTTP(s) lines from the session app log and returns request summaries.
 - `network log ...`: alias for `network dump`.
+- On macOS, logs/network are still app-scoped. They rely on Unified Logging output associated with the active session app rather than packet capture.
 
 ## Behavior and Limits
 

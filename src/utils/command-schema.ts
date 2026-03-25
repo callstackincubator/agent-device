@@ -1,4 +1,5 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
+import { PHASE1_MACOS_SESSION_SURFACES } from '../core/session-surface.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -69,6 +70,7 @@ export type CliFlags = {
   saveScript?: boolean | string;
   shutdown?: boolean;
   relaunch?: boolean;
+  surface?: 'app' | 'frontmost-app';
   headless?: boolean;
   restart?: boolean;
   noRecord?: boolean;
@@ -298,6 +300,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--serial <serial>',
     usageDescription: 'Android device serial',
+  },
+  {
+    key: 'surface',
+    names: ['--surface'],
+    type: 'enum',
+    enumValues: PHASE1_MACOS_SESSION_SURFACES,
+    usageLabel: '--surface app|frontmost-app',
+    usageDescription: 'macOS phase-1 session surface for open (defaults to app)',
   },
   {
     key: 'headless',
@@ -804,10 +814,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['headless'],
   },
   open: {
-    helpDescription: 'Boot device/simulator; optionally launch app or deep link URL',
+    helpDescription:
+      'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app)',
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
-    allowedFlags: ['activity', 'saveScript', 'relaunch'],
+    allowedFlags: ['activity', 'saveScript', 'relaunch', 'surface'],
   },
   close: {
     helpDescription: 'Close app or just end session',
@@ -951,8 +962,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
-    helpDescription: 'Inspect or handle alert (iOS simulator)',
-    summary: 'Inspect or handle iOS alert',
+    helpDescription: 'Inspect or handle alert (iOS simulator and macOS desktop)',
+    summary: 'Inspect or handle iOS/macOS alerts',
     positionalArgs: ['action?', 'timeout?'],
     allowedFlags: [],
   },
@@ -1124,7 +1135,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
     listUsageOverride: 'settings [area] [options]',
     helpDescription:
-      'Toggle OS settings, appearance, and app permissions (macOS supports only settings appearance; permission actions use the active session app)',
+      'Toggle OS settings, appearance, and app permissions (macOS supports appearance plus permission <grant|reset> for accessibility|screen-recording|input-monitoring; mobile permission actions use the active session app)',
     summary: 'Change OS settings and app permissions',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],

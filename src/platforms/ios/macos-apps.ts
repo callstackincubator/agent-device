@@ -7,6 +7,7 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { parseAppearanceAction } from '../appearance.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
+import { quitMacOsApp } from './macos-helper.ts';
 import { readInfoPlistString } from './plist.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
@@ -65,13 +66,6 @@ export async function resolveMacOsApp(app: string): Promise<string> {
   const alias = MACOS_ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
 
-  const script = `id of app "${escapeAppleScriptString(trimmed)}"`;
-  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
-  if (result.exitCode === 0) {
-    const bundleId = result.stdout.trim();
-    if (bundleId) return bundleId;
-  }
-
   const apps = await listMacApps('all');
   const matches = apps.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
   if (matches.length === 1) return matches[0].bundleId;
@@ -113,20 +107,13 @@ export async function openMacOsApp(
 
 export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<void> {
   const bundleId = await resolveMacOsApp(app);
-  const script = `tell application id "${escapeAppleScriptString(bundleId)}" to quit`;
-  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
-  if (result.exitCode === 0) return;
-
-  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  // osascript may emit either smart quotes or straight apostrophes depending on locale/encoding.
-  if (output.includes('isn’t running') || output.includes("isn't running")) {
-    return;
-  }
-
+  const result = await quitMacOsApp(bundleId);
+  if (!result.running || result.terminated || result.forceTerminated) return;
   throw new AppError('COMMAND_FAILED', `Failed to close macOS app ${app}`, {
-    stdout: result.stdout,
-    stderr: result.stderr,
-    exitCode: result.exitCode,
+    bundleId,
+    running: result.running,
+    terminated: result.terminated,
+    forceTerminated: result.forceTerminated,
   });
 }
 

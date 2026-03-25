@@ -46,6 +46,7 @@ import {
   setMacOsAppearance,
   writeMacOsClipboardText,
 } from './macos-apps.ts';
+import { runMacOsPermissionAction, type MacOsPermissionTarget } from './macos-helper.ts';
 export {
   screenshotIos,
   shouldFallbackToRunnerForIosScreenshot,
@@ -366,16 +367,28 @@ export async function setIosSetting(
   state: string,
   appBundleId?: string,
   options?: PermissionSettingOptions,
-): Promise<void> {
+): Promise<Record<string, unknown> | void> {
   if (device.platform === 'macos') {
-    if (setting.toLowerCase() !== 'appearance') {
-      throw new AppError(
-        'INVALID_ARGS',
-        `Unsupported macOS setting: ${setting}. macOS currently supports only settings appearance <light|dark|toggle>.`,
-      );
+    const normalizedSetting = setting.toLowerCase();
+    if (normalizedSetting === 'appearance') {
+      await setMacOsAppearance(state);
+      return;
     }
-    await setMacOsAppearance(state);
-    return;
+    if (normalizedSetting === 'permission') {
+      const action = parsePermissionAction(state);
+      if (action === 'deny') {
+        throw new AppError(
+          'INVALID_ARGS',
+          'Unsupported macOS permission action: deny. macOS supports only settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>.',
+        );
+      }
+      const permissionTarget = parseMacOsPermissionTarget(options?.permissionTarget);
+      return await runMacOsPermissionAction(action, permissionTarget);
+    }
+    throw new AppError(
+      'INVALID_ARGS',
+      `Unsupported macOS setting: ${setting}. macOS supports settings appearance <light|dark|toggle> and settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>.`,
+    );
   }
   ensureSimulator(device, 'settings');
   await ensureBootedSimulator(device);
@@ -514,6 +527,21 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function parseMacOsPermissionTarget(value: string | undefined): MacOsPermissionTarget {
+  const normalized = value?.trim().toLowerCase();
+  if (
+    normalized === 'accessibility' ||
+    normalized === 'screen-recording' ||
+    normalized === 'input-monitoring'
+  ) {
+    return normalized;
+  }
+  throw new AppError(
+    'INVALID_ARGS',
+    'Unsupported macOS permission target. Use accessibility|screen-recording|input-monitoring.',
+  );
 }
 
 async function resolveIosAppearanceTarget(

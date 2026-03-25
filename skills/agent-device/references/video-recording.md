@@ -23,10 +23,12 @@ agent-device record stop
 `record` supports iOS simulators, physical iOS devices, and Android.
 
 Recording outputs:
+
 - a video artifact
 - a gesture-telemetry sidecar JSON next to the video
 
 Touch overlay support:
+
 - macOS host: telemetry can be burned into the video as visible touch overlays
 - non-macOS host: recording still succeeds, but the video stays raw and `record stop` returns an `overlayWarning`
 

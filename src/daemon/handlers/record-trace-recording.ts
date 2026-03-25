@@ -351,7 +351,7 @@ async function stopRecording(params: {
       ? await stopIosDeviceRecording({ req, activeSession, device, logPath, deps, recording })
       : recording.platform === 'macos-runner'
         ? await stopMacOsRecording({ req, activeSession, device, logPath, deps, recording })
-      : await stopNonRunnerRecording({ deps, device, recording });
+        : await stopNonRunnerRecording({ deps, device, recording });
   if (stopError) {
     return stopError;
   }

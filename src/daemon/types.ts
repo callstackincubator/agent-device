@@ -1,5 +1,6 @@
 import type { MaterializeInstallSource } from '../platforms/install-source.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
+import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
@@ -128,6 +129,7 @@ export type SessionState = {
   name: string;
   device: DeviceInfo;
   createdAt: number;
+  surface?: SessionSurface;
   appBundleId?: string;
   appName?: string;
   snapshot?: SnapshotState;
@@ -163,7 +165,7 @@ export type SessionState = {
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
     platform: Platform;
-    backend: 'ios-simulator' | 'ios-device' | 'android';
+    backend: 'ios-simulator' | 'ios-device' | 'android' | 'macos';
     outPath: string;
     startedAt: number;
     getState: () => 'active' | 'failed';

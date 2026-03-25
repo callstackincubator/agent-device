@@ -1,0 +1,437 @@
+import AppKit
+import ApplicationServices
+import CoreGraphics
+import Foundation
+
+enum HelperError: Error {
+  case invalidArgs(String)
+  case commandFailed(String, details: [String: String] = [:])
+}
+
+struct ErrorPayload: Encodable {
+  let message: String
+  let details: [String: String]?
+}
+
+struct SuccessEnvelope<T: Encodable>: Encodable {
+  let ok = true
+  let data: T
+}
+
+struct FailureEnvelope: Encodable {
+  let ok = false
+  let error: ErrorPayload
+}
+
+struct FrontmostAppResponse: Encodable {
+  let bundleId: String?
+  let appName: String?
+  let pid: Int32?
+}
+
+struct QuitAppResponse: Encodable {
+  let bundleId: String
+  let running: Bool
+  let terminated: Bool
+  let forceTerminated: Bool
+}
+
+struct PermissionResponse: Encodable {
+  let target: String
+  let action: String
+  let granted: Bool
+  let requested: Bool
+  let openedSettings: Bool
+  let message: String?
+}
+
+struct AlertResponse: Encodable {
+  let title: String?
+  let role: String?
+  let buttons: [String]
+  let action: String?
+  let bundleId: String?
+}
+
+@main
+struct AgentDeviceMacOSHelper {
+  static func main() {
+    do {
+      let output = try run(arguments: Array(CommandLine.arguments.dropFirst()))
+      try writeJSON(output)
+      Foundation.exit(0)
+    } catch let error as HelperError {
+      let payload: FailureEnvelope
+      switch error {
+      case .invalidArgs(let message):
+        payload = FailureEnvelope(error: ErrorPayload(message: message, details: nil))
+      case .commandFailed(let message, let details):
+        payload = FailureEnvelope(
+          error: ErrorPayload(message: message, details: details.isEmpty ? nil : details)
+        )
+      }
+      try? writeJSON(payload)
+      Foundation.exit(1)
+    } catch {
+      let payload = FailureEnvelope(
+        error: ErrorPayload(message: String(describing: error), details: nil)
+      )
+      try? writeJSON(payload)
+      Foundation.exit(1)
+    }
+  }
+
+  static func run(arguments: [String]) throws -> any Encodable {
+    guard let command = arguments.first else {
+      throw HelperError.invalidArgs("missing command")
+    }
+
+    switch command {
+    case "app":
+      return try handleApp(arguments: Array(arguments.dropFirst()))
+    case "permission":
+      return try handlePermission(arguments: Array(arguments.dropFirst()))
+    case "alert":
+      return try handleAlert(arguments: Array(arguments.dropFirst()))
+    default:
+      throw HelperError.invalidArgs("unknown command: \(command)")
+    }
+  }
+
+  static func handleApp(arguments: [String]) throws -> any Encodable {
+    guard let action = arguments.first else {
+      throw HelperError.invalidArgs("app requires frontmost|quit")
+    }
+    switch action {
+    case "frontmost":
+      let app = NSWorkspace.shared.frontmostApplication
+      return SuccessEnvelope(
+        data: FrontmostAppResponse(
+          bundleId: app?.bundleIdentifier,
+          appName: app?.localizedName,
+          pid: app.map { Int32($0.processIdentifier) }
+        )
+      )
+    case "quit":
+      guard let bundleId = optionValue(arguments: Array(arguments.dropFirst()), name: "--bundle-id"),
+            !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      else {
+        throw HelperError.invalidArgs("app quit requires --bundle-id <id>")
+      }
+      let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
+      guard let app = apps.first else {
+        return SuccessEnvelope(
+          data: QuitAppResponse(
+            bundleId: bundleId,
+            running: false,
+            terminated: false,
+            forceTerminated: false
+          )
+        )
+      }
+      let terminated = app.terminate()
+      if terminated {
+        return SuccessEnvelope(
+          data: QuitAppResponse(
+            bundleId: bundleId,
+            running: true,
+            terminated: true,
+            forceTerminated: false
+          )
+        )
+      }
+      let forceTerminated = app.forceTerminate()
+      return SuccessEnvelope(
+        data: QuitAppResponse(
+          bundleId: bundleId,
+          running: true,
+          terminated: false,
+          forceTerminated: forceTerminated
+        )
+      )
+    default:
+      throw HelperError.invalidArgs("app requires frontmost|quit")
+    }
+  }
+
+  static func handlePermission(arguments: [String]) throws -> any Encodable {
+    guard arguments.count >= 2 else {
+      throw HelperError.invalidArgs(
+        "permission requires <grant|reset> <accessibility|screen-recording|input-monitoring>"
+      )
+    }
+    let action = arguments[0]
+    let target = arguments[1]
+    switch (action, target) {
+    case ("grant", "accessibility"):
+      let before = AXIsProcessTrusted()
+      let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+      let after = AXIsProcessTrustedWithOptions(options as CFDictionary)
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: before || after,
+          requested: !before,
+          openedSettings: false,
+          message: before ? "Accessibility access already granted." : "Requested Accessibility access."
+        )
+      )
+    case ("reset", "accessibility"):
+      let opened = openPrivacyPane(anchor: "Privacy_Accessibility")
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: AXIsProcessTrusted(),
+          requested: false,
+          openedSettings: opened,
+          message: "macOS requires Accessibility access to be changed manually in System Settings."
+        )
+      )
+    case ("grant", "screen-recording"):
+      let before = CGPreflightScreenCaptureAccess()
+      let requested = !before
+      let after = before || CGRequestScreenCaptureAccess()
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: after,
+          requested: requested,
+          openedSettings: requested && !after ? openPrivacyPane(anchor: "Privacy_ScreenCapture") : false,
+          message: after ? "Screen Recording access is available." : "Grant Screen Recording access in System Settings."
+        )
+      )
+    case ("reset", "screen-recording"):
+      let opened = openPrivacyPane(anchor: "Privacy_ScreenCapture")
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: CGPreflightScreenCaptureAccess(),
+          requested: false,
+          openedSettings: opened,
+          message: "macOS requires Screen Recording access to be changed manually in System Settings."
+        )
+      )
+    case ("grant", "input-monitoring"):
+      let before = CGPreflightPostEventAccess()
+      let requested = !before
+      let after = before || CGRequestPostEventAccess()
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: after,
+          requested: requested,
+          openedSettings: requested && !after ? openPrivacyPane(anchor: "Privacy_ListenEvent") : false,
+          message: after ? "Input Monitoring access is available." : "Grant Input Monitoring access in System Settings."
+        )
+      )
+    case ("reset", "input-monitoring"):
+      let opened = openPrivacyPane(anchor: "Privacy_ListenEvent")
+      return SuccessEnvelope(
+        data: PermissionResponse(
+          target: target,
+          action: action,
+          granted: CGPreflightPostEventAccess(),
+          requested: false,
+          openedSettings: opened,
+          message: "macOS requires Input Monitoring access to be changed manually in System Settings."
+        )
+      )
+    default:
+      throw HelperError.invalidArgs(
+        "permission requires <grant|reset> <accessibility|screen-recording|input-monitoring>"
+      )
+    }
+  }
+
+  static func handleAlert(arguments: [String]) throws -> any Encodable {
+    let action = arguments.first ?? "get"
+    guard action == "get" || action == "accept" || action == "dismiss" else {
+      throw HelperError.invalidArgs("alert requires get|accept|dismiss")
+    }
+    let bundleId = optionValue(arguments: Array(arguments.dropFirst()), name: "--bundle-id")
+    let surface = optionValue(arguments: Array(arguments.dropFirst()), name: "--surface")
+    let app = try resolveAlertApplication(bundleId: bundleId, surface: surface)
+    guard let alertElement = findAlertElement(appElement: AXUIElementCreateApplication(app.processIdentifier)) else {
+      throw HelperError.commandFailed(
+        "alert not found",
+        details: ["bundleId": app.bundleIdentifier ?? "", "appName": app.localizedName ?? ""]
+      )
+    }
+    let buttons = collectButtons(root: alertElement)
+    let labels = buttons.map(resolveElementLabel)
+    let role = stringAttribute(alertElement, attribute: kAXRoleAttribute as String)
+    let title =
+      stringAttribute(alertElement, attribute: kAXTitleAttribute as String)
+      ?? stringAttribute(alertElement, attribute: kAXDescriptionAttribute as String)
+
+    if action == "accept" || action == "dismiss" {
+      guard let button = action == "accept" ? buttons.first : buttons.last else {
+        throw HelperError.commandFailed("alert action failed", details: ["reason": "missing_button"])
+      }
+      let status = AXUIElementPerformAction(button, kAXPressAction as CFString)
+      guard status == .success else {
+        throw HelperError.commandFailed(
+          "alert action failed",
+          details: ["status": "\(status.rawValue)"]
+        )
+      }
+    }
+
+    return SuccessEnvelope(
+      data: AlertResponse(
+        title: title,
+        role: role,
+        buttons: labels,
+        action: action == "get" ? nil : action,
+        bundleId: app.bundleIdentifier
+      )
+    )
+  }
+}
+
+private func optionValue(arguments: [String], name: String) -> String? {
+  guard let index = arguments.firstIndex(of: name), arguments.indices.contains(index + 1) else {
+    return nil
+  }
+  return arguments[index + 1]
+}
+
+private func openPrivacyPane(anchor: String) -> Bool {
+  if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") {
+    if NSWorkspace.shared.open(url) {
+      return true
+    }
+  }
+  if let appUrl = URL(string: "file:///System/Applications/System%20Settings.app") {
+    return NSWorkspace.shared.open(appUrl)
+  }
+  return false
+}
+
+private func writeJSON<T: Encodable>(_ value: T) throws {
+  let encoder = JSONEncoder()
+  encoder.outputFormatting = [.sortedKeys]
+  let data = try encoder.encode(value)
+  FileHandle.standardOutput.write(data)
+  FileHandle.standardOutput.write(Data([0x0A]))
+}
+
+private func resolveAlertApplication(bundleId: String?, surface: String?) throws -> NSRunningApplication {
+  let normalizedSurface = surface?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  if normalizedSurface == "desktop" || normalizedSurface == "menubar" {
+    throw HelperError.commandFailed(
+      "alert surface is not supported yet",
+      details: ["surface": normalizedSurface ?? ""]
+    )
+  }
+  if normalizedSurface == "frontmost-app" {
+    if let frontmost = NSWorkspace.shared.frontmostApplication {
+      return frontmost
+    }
+    throw HelperError.commandFailed("unable to resolve frontmost app")
+  }
+  if let bundleId, !bundleId.isEmpty {
+    if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+      return app
+    }
+    throw HelperError.commandFailed("app is not running", details: ["bundleId": bundleId])
+  }
+  if let frontmost = NSWorkspace.shared.frontmostApplication {
+    return frontmost
+  }
+  throw HelperError.commandFailed("unable to resolve target app")
+}
+
+private func stringAttribute(_ element: AXUIElement, attribute: String) -> String? {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
+    return nil
+  }
+  if let text = value as? String {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+  }
+  return nil
+}
+
+private func children(of element: AXUIElement) -> [AXUIElement] {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success,
+        let children = value as? [AXUIElement]
+  else {
+    return []
+  }
+  return children
+}
+
+private func windows(of appElement: AXUIElement) -> [AXUIElement] {
+  var value: CFTypeRef?
+  guard AXUIElementCopyAttributeValue(appElement, "AXWindows" as CFString, &value) == .success,
+        let windows = value as? [AXUIElement]
+  else {
+    return []
+  }
+  return windows
+}
+
+private func findAlertElement(appElement: AXUIElement) -> AXUIElement? {
+  for window in windows(of: appElement) {
+    if let role = stringAttribute(window, attribute: kAXRoleAttribute as String),
+       role == "AXSheet" || role == "AXDialog"
+    {
+      return window
+    }
+    if let nested = findAlertElementRecursively(root: window, depth: 0) {
+      return nested
+    }
+  }
+  return nil
+}
+
+private func findAlertElementRecursively(root: AXUIElement, depth: Int) -> AXUIElement? {
+  if depth > 4 {
+    return nil
+  }
+  for child in children(of: root) {
+    if let role = stringAttribute(child, attribute: kAXRoleAttribute as String),
+       role == "AXSheet" || role == "AXDialog"
+    {
+      return child
+    }
+    if let nested = findAlertElementRecursively(root: child, depth: depth + 1) {
+      return nested
+    }
+  }
+  return nil
+}
+
+private func collectButtons(root: AXUIElement) -> [AXUIElement] {
+  var buttons: [AXUIElement] = []
+  collectButtons(root: root, depth: 0, results: &buttons)
+  return buttons
+}
+
+private func collectButtons(root: AXUIElement, depth: Int, results: inout [AXUIElement]) {
+  if depth > 5 {
+    return
+  }
+  if stringAttribute(root, attribute: kAXRoleAttribute as String) == "AXButton" {
+    results.append(root)
+  }
+  for child in children(of: root) {
+    collectButtons(root: child, depth: depth + 1, results: &results)
+  }
+}
+
+private func resolveElementLabel(_ element: AXUIElement) -> String {
+  return
+    stringAttribute(element, attribute: kAXTitleAttribute as String)
+    ?? stringAttribute(element, attribute: kAXDescriptionAttribute as String)
+    ?? stringAttribute(element, attribute: kAXValueAttribute as String)
+    ?? "button"
+}

@@ -16,6 +16,7 @@ agent-device boot --platform ios
 agent-device boot --platform android
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 agent-device open [app|url] [url]
+agent-device open --platform macos --surface frontmost-app
 agent-device close [app]
 agent-device back
 agent-device home
@@ -32,6 +33,7 @@ agent-device app-switcher
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
+- `open --platform macos --surface app|frontmost-app` selects the macOS phase-1 session surface explicitly. `app` is the default when an app argument is provided.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
 - A configured `AGENT_DEVICE_SESSION` now implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
@@ -126,10 +128,12 @@ agent-device snapshot -i --platform apple --target desktop
 
 - `--platform macos` selects the host Mac as a `desktop` target.
 - `--platform apple --target desktop` selects the same macOS backend through the Apple-family alias.
-- macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
-- macOS also supports `clipboard read|write`, `trigger-app-event`, and only `settings appearance light|dark|toggle`.
+- macOS uses the same runner-driven interaction/snapshot flow as iOS/tvOS for app-scoped `open`, `appstate`, `snapshot`, `press`, `fill`, `scroll`, `back`, `screenshot`, `record`, and selector-based commands.
+- `open --platform macos --surface frontmost-app` stores the currently focused app as the session surface.
+- `desktop` and `menubar` remain the planned phase-2 path for broader computer-use support; they are not exposed yet in the phase-1 CLI surface.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
-- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, `push`, `logs`, and `network`.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
 
 ## Snapshot and inspect
 
@@ -163,7 +167,7 @@ agent-device alert dismiss
 - `wait @ref` resolves the ref to its label/text from that stored snapshot, then polls for that text; it does not track the original node identity.
 - Because `wait @ref` is text-based after resolution, duplicate labels can match a different element than the original ref target.
 - `wait` shares the selector/snapshot resolution flow used by `click`, `fill`, `get`, and `is`.
-- `alert` inspects or handles system alerts on iOS simulator targets.
+- `alert` inspects or handles system alerts on iOS simulator and macOS desktop targets.
 - `alert` without an action is equivalent to `alert get`.
 - `alert wait [timeout]` waits for an alert to appear before returning it.
 
@@ -358,9 +362,11 @@ agent-device settings permission grant camera
 agent-device settings permission deny microphone
 agent-device settings permission grant photos limited
 agent-device settings permission reset notifications
+agent-device settings permission grant accessibility --platform macos
+agent-device settings permission reset screen-recording --platform macos
 ```
 
-- iOS `settings` support is simulator-only except for `settings appearance` on macOS.
+- iOS `settings` support is simulator-only except for `settings appearance` and the macOS permission subset on macOS.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
@@ -368,6 +374,9 @@ agent-device settings permission reset notifications
 - Permission actions are scoped to the active session app.
 - iOS permission targets: `camera`, `microphone`, `photos` (`full` or `limited`), `contacts`, `notifications`.
 - Android permission targets: `camera`, `microphone`, `photos`, `contacts`, `notifications`.
+- macOS permission targets: `accessibility`, `screen-recording`, `input-monitoring`.
+- On macOS, `settings permission grant ...` checks/request access and opens System Settings guidance when needed; it does not silently grant TCC permissions.
+- On macOS, `settings permission deny ...` is intentionally unsupported.
 - Android uses `pm grant|revoke` for runtime permissions (`reset` maps to revoke) and `appops` for notifications.
 - `full|limited` mode is supported only for iOS `photos`; other targets reject mode.
 - Use `match`/`nonmatch` to simulate valid/invalid Face ID, Touch ID, and Android fingerprint outcomes.
@@ -462,6 +471,7 @@ agent-device network dump 25 all        # Include parsed headers/body when avail
 - Preferred debug entrypoint: `logs clear --restart` for clean-window repro loops.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from `app.log`; `network log ...` is an alias.
+- On macOS, `logs` and `network dump` are app-scoped and parse Unified Logging output associated with the active session app.
 - Network dump limits: scans up to 4000 recent log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
 - Android log streaming automatically rebinds to the app PID after process restarts.
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.

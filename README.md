@@ -51,7 +51,8 @@ In practice, most work follows the same pattern:
 
 ## Where To Go Next
 
-For people: 
+For people:
+
 - [Website](https://agent-device.dev/)
 - [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
 
@@ -66,6 +67,8 @@ For agents:
 ```bash
 npm install -g agent-device
 ```
+
+On macOS, `agent-device` now includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and other host-Mac support paths. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build.
 
 ## Contributing
 

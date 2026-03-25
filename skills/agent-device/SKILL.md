@@ -28,12 +28,14 @@ Use this skill as a router, not a full manual.
 - Remote multi-tenant run: allocate lease -> point client at remote daemon base URL -> run commands with tenant isolation flags -> heartbeat/release lease
 - Device-scope isolation run: set iOS simulator set / Android allowlist -> run selectors within scope only
 - macOS desktop task: run the macOS desktop flow, then open [references/macos-desktop.md](references/macos-desktop.md) if context menus, Finder rows, or desktop-specific snapshot behavior matters
+- macOS desktop debugging: `open <app> --platform macos` -> `logs clear --restart` -> reproduce -> `network dump` -> `logs path`
 
 ## Target Selection Rules
 
 - iOS local QA: use simulators unless the task explicitly requires a physical device.
 - iOS local QA in mixed simulator/device environments: run `ensure-simulator` first and pass `--device`, `--udid`, or `--ios-simulator-device-set` on later commands.
 - macOS desktop app automation: use `--platform macos`, or `--platform apple --target desktop` when the caller wants one Apple-family selector path.
+- For macOS phase-1 non-default session targeting, use `open --platform macos --surface frontmost-app`.
 - Android local QA: use `install` or `reinstall` for `.apk`/`.aab` files, then relaunch by installed package name.
 - Android React Native + Metro flows: prefer `open <package> --remote-config <path> --relaunch`.
 - In mixed-device environments, always pin the exact target with `--serial`, `--device`, `--udid`, or an isolation scope.
@@ -115,7 +117,9 @@ agent-device screenshot /tmp/macos-textedit.png
 agent-device close
 ```
 
-Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `click`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `trigger-app-event` when a desktop deep-link template is configured, and only `settings appearance light|dark|toggle` under the `settings` command. Do not rely on mobile-only helpers like `install`, `push`, `logs`, or `network` on macOS.
+Use this for host Mac desktop apps. Prefer the Apple runner interaction flow (`open`, `snapshot`, `press`, `click`, `fill`, `scroll`, `back`, `record`, `screenshot`). macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+Source checkouts build `agent-device-macos-helper` on first use for macOS permission/alert support; release builds should ship a signed helper.
+Phase 1 exposes `app` and `frontmost-app` session surfaces. Broader `desktop` and `menubar` surfaces remain future work until the desktop-global backend lands.
 Prefer selectors or snapshot refs (`@e...`) over raw x/y commands on macOS because the window origin can move between runs.
 Open [references/macos-desktop.md](references/macos-desktop.md) when you need Finder-style list traversal, context-menu flows, or macOS-specific snapshot expectations.
 
@@ -259,6 +263,8 @@ agent-device get text @e1
 agent-device screenshot out.png
 agent-device settings permission grant notifications
 agent-device settings permission reset camera
+agent-device settings permission grant accessibility --platform macos
+agent-device settings permission reset screen-recording --platform macos
 agent-device trace start
 agent-device trace stop ./trace.log
 ```
@@ -300,8 +306,11 @@ agent-device batch --steps-file /tmp/batch-steps.json --json
 - On macOS, set `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE` when the desktop app uses a different deep-link template than iOS/Android.
 - `trigger-app-event` requires an active session or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`); on iOS physical devices, custom-scheme triggers require active app context.
 - Canonical trigger behavior and caveats are documented in [`website/docs/docs/commands.md`](../../website/docs/docs/commands.md) under **App event triggers**.
-- Permission settings are app-scoped and require an active session app:
+- Permission settings are app-scoped on iOS/Android and require an active session app:
   `settings permission <grant|deny|reset> <camera|microphone|photos|contacts|notifications> [full|limited]`
+- On macOS, use:
+  `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`
+- macOS permission helpers check/request access and guide the user to System Settings when manual approval is required.
 - iOS simulator permission alerts: use `alert wait` then `alert accept/dismiss` — `accept`/`dismiss` retry internally for up to 2 s so you do not need manual sleeps. See [references/permissions.md](references/permissions.md).
 - `full|limited` mode applies only to iOS `photos`; other targets reject mode.
 - On Android, non-ASCII `fill/type` may require an ADB keyboard IME on some system images; only install IME APKs from trusted sources and verify checksum/signature.

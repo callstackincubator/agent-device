@@ -146,15 +146,7 @@ test('gesture recording prefers native runner timing when available', () => {
 test('ios tap visualization anchors near completion when command execution stalls', () => {
   const session = makeSession();
 
-  recordTouchVisualizationEvent(
-    session,
-    'click',
-    [],
-    { x: 201, y: 319 },
-    {},
-    1_500,
-    3_700,
-  );
+  recordTouchVisualizationEvent(session, 'click', [], { x: 201, y: 319 }, {}, 1_500, 3_700);
 
   const event = session.recording?.gestureEvents[0];
   assert.equal(event?.kind, 'tap');

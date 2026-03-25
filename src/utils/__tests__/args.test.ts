@@ -52,6 +52,16 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
         assert.equal(parsed.flags.target, 'tv');
       },
     },
+    {
+      label: 'open --surface frontmost-app',
+      argv: ['open', '--platform', 'macos', '--surface', 'frontmost-app'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'open');
+        assert.equal(parsed.flags.platform, 'macos');
+        assert.equal(parsed.flags.surface, 'frontmost-app');
+      },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -727,6 +737,14 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /Global flags:/);
   assert.match(help, /--platform ios\|macos\|android\|apple/);
+});
+
+test('open command usage documents macOS surface flag', () => {
+  const help = usageForCommand('open');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /--surface app\|frontmost-app/);
+  assert.doesNotMatch(help, /desktop\|menubar/);
+  assert.match(help, /macOS also supports --surface/);
 });
 
 test('command usage shows record touch-overlay opt-out flag', () => {

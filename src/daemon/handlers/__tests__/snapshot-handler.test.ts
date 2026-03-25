@@ -22,6 +22,22 @@ function makeSession(name: string, device: SessionState['device']): SessionState
   };
 }
 
+async function withMockedMacOsHelper<T>(script: string, fn: () => Promise<T>): Promise<T> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-macos-helper-'));
+  const helperPath = path.join(root, 'agent-device-macos-helper');
+  fs.writeFileSync(helperPath, script, 'utf8');
+  fs.chmodSync(helperPath, 0o755);
+  const previous = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = helperPath;
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = previous;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('snapshot rejects @ref scope without existing session snapshot', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';
@@ -116,6 +132,46 @@ test('settings usage hint documents canonical faceid states', async () => {
     assert.match(response.error.message, /grant\|deny\|reset/);
     assert.doesNotMatch(response.error.message, /validate\|unvalidate/);
   }
+});
+
+test('settings on macOS returns helper-backed permission status', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"target":"accessibility","action":"grant","granted":true,"requested":false,"openedSettings":false,"message":"Accessibility access already granted."}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-settings';
+      sessionStore.set(sessionName, makeSession(sessionName, macOsDevice));
+
+      const response = await handleSnapshotCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'settings',
+          positionals: ['permission', 'grant', 'accessibility'],
+          flags: {},
+        },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+      });
+
+      assert.equal(response?.ok, true);
+      if (response && response.ok) {
+        assert.equal(response.data?.setting, 'permission');
+        assert.equal(response.data?.state, 'grant');
+        assert.equal(response.data?.target, 'accessibility');
+        assert.equal(response.data?.granted, true);
+        assert.equal(response.data?.requested, false);
+        assert.equal(response.data?.openedSettings, false);
+      }
+    },
+  );
 });
 
 test('diff rejects unsupported kind', async () => {
@@ -413,6 +469,103 @@ test('alert get does not retry on failure', async () => {
   );
 
   assert.equal(calls, 1);
+});
+
+test('alert get on macOS uses helper-backed alert path', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"title":"Allow Access","role":"AXSheet","buttons":["Allow","Don\\u2019t Allow"],"bundleId":"com.apple.systempreferences"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-alert';
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, {
+          platform: 'macos',
+          id: 'host-macos-local',
+          name: 'Host Mac',
+          kind: 'device',
+          target: 'desktop',
+          booted: true,
+        }),
+        appBundleId: 'com.apple.systempreferences',
+        appName: 'System Settings',
+      });
+
+      const response = await handleSnapshotCommands({
+        req: {
+          token: 't',
+          session: sessionName,
+          command: 'alert',
+          positionals: ['get'],
+          flags: {},
+        },
+        sessionName,
+        logPath: '/tmp/daemon.log',
+        sessionStore,
+      });
+
+      assert.equal(response?.ok, true);
+      if (response && response.ok) {
+        assert.equal(response.data?.title, 'Allow Access');
+        assert.deepEqual(response.data?.buttons, ['Allow', 'Don’t Allow']);
+      }
+    },
+  );
+});
+
+test('alert get on macOS frontmost-app surface targets the helper surface, not the stored bundle id', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"title":"Allow Access","role":"AXSheet","buttons":["Allow"],"bundleId":"com.apple.TextEdit"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-alert-frontmost';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-alert-frontmost-'));
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'frontmost-app',
+        appBundleId: 'com.apple.systempreferences',
+        appName: 'System Settings',
+      });
+
+      try {
+        const response = await handleSnapshotCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'alert',
+            positionals: ['get'],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/daemon.log',
+          sessionStore,
+        });
+
+        assert.equal(response?.ok, true);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        assert.equal(logged, 'alert\nget\n--surface\nfrontmost-app\n');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {

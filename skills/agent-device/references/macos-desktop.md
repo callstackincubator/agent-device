@@ -19,6 +19,15 @@ agent-device snapshot -i
 agent-device close
 ```
 
+Surface variants:
+
+```bash
+agent-device open --platform macos --surface frontmost-app
+```
+
+- `frontmost-app` tracks the currently focused app explicitly in the session.
+- `desktop` and `menubar` remain planned phase-2 surfaces for broader desktop-global automation work.
+
 ## What to expect from snapshots
 
 - `snapshot -i` prioritizes visible window content over dormant menu infrastructure.
@@ -77,7 +86,7 @@ Prefer exact labels when the desktop UI is stable. Use `id=...` when the AX iden
 
 ## Things not to rely on
 
-- Mobile-only helpers like `install`, `reinstall`, `push`, `logs`, `network`, or generic `alert`
+- Mobile-only helpers like `install`, `reinstall`, and `push`
 - Long-press as a substitute for right-click
 - Raw coordinate assumptions across runs; macOS windows can move
 - Framework-generated `_NS:*` identifiers as stable selectors

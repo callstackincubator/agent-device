@@ -640,10 +640,7 @@ test('record stop trims iOS device recordings from target app readiness before o
   });
 
   assert.equal(response?.ok, true);
-  const expectedLifecycleCalls = [
-    'trim:/tmp/device.mp4:3250',
-    'telemetry:/tmp/device.mp4:1',
-  ];
+  const expectedLifecycleCalls = ['trim:/tmp/device.mp4:3250', 'telemetry:/tmp/device.mp4:1'];
   if (!overlaySupportWarning) {
     expectedLifecycleCalls.push(
       `overlay:/tmp/device.mp4:${deriveRecordingTelemetryPath('/tmp/device.mp4')}`,

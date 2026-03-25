@@ -1,7 +1,13 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
+import {
+  isPhase1MacOsSessionSurface,
+  parseSessionSurface,
+  type SessionSurface,
+} from '../../core/session-surface.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { contextFromFlags } from '../context.ts';
+import { resolveFrontmostMacOsApp } from '../../platforms/ios/macos-helper.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -33,12 +39,14 @@ function buildOpenResult(params: {
   sessionName: string;
   appName?: string;
   appBundleId?: string;
+  surface: SessionSurface;
   startup?: StartupPerfSample;
   device?: DeviceInfo;
   runtime?: SessionRuntimeHints;
 }): Record<string, unknown> {
-  const { sessionName, appName, appBundleId, startup, device, runtime } = params;
+  const { sessionName, appName, appBundleId, surface, startup, device, runtime } = params;
   const result: Record<string, unknown> = { session: sessionName };
+  result.surface = surface;
   if (appName) result.appName = appName;
   if (appBundleId) result.appBundleId = appBundleId;
   if (startup) result.startup = startup;
@@ -66,17 +74,20 @@ function buildNextOpenSession(params: {
   existingSession?: SessionState;
   sessionName: string;
   device: DeviceInfo;
+  surface: SessionSurface;
   appBundleId?: string;
-  openTarget?: string;
+  appName?: string;
   saveScript: boolean;
 }): SessionState {
-  const { existingSession, sessionName, device, appBundleId, openTarget, saveScript } = params;
+  const { existingSession, sessionName, device, surface, appBundleId, appName, saveScript } =
+    params;
   if (existingSession) {
     return {
       ...existingSession,
       device,
+      surface,
       appBundleId,
-      appName: openTarget,
+      appName,
       recordSession: existingSession.recordSession || saveScript,
       snapshot: undefined,
     };
@@ -85,10 +96,47 @@ function buildNextOpenSession(params: {
     name: sessionName,
     device,
     createdAt: Date.now(),
+    surface,
     appBundleId,
-    appName: openTarget,
+    appName,
     recordSession: saveScript,
     actions: [],
+  };
+}
+
+function resolveOpenSurface(
+  device: DeviceInfo,
+  surfaceFlag: string | undefined,
+  openTarget: string | undefined,
+): SessionSurface {
+  if (device.platform !== 'macos') {
+    if (surfaceFlag) {
+      throw new Error('surface is only supported on macOS');
+    }
+    return 'app';
+  }
+  const surface = surfaceFlag ? parseSessionSurface(surfaceFlag) : 'app';
+  if (!isPhase1MacOsSessionSurface(surface)) {
+    throw new Error(
+      `open --surface ${surface} is planned but not supported yet. Use app|frontmost-app for now.`,
+    );
+  }
+  if (surface !== 'app' && openTarget) {
+    throw new Error(`open --surface ${surface} does not accept an app target`);
+  }
+  return surface;
+}
+
+async function resolveMacOsSurfaceAppState(
+  surface: SessionSurface,
+): Promise<{ appBundleId?: string; appName?: string }> {
+  if (surface !== 'frontmost-app') {
+    return {};
+  }
+  const frontmost = await resolveFrontmostMacOsApp();
+  return {
+    appBundleId: frontmost.bundleId,
+    appName: frontmost.appName,
   };
 }
 
@@ -159,6 +207,8 @@ async function completeOpenCommand(params: {
   settleSimulator: typeof settleIosSimulator;
   openTarget?: string;
   openPositionals: string[];
+  appName?: string;
+  surface: SessionSurface;
   appBundleId?: string;
   runtime: SessionRuntimeHints | undefined;
   existingSession?: SessionState;
@@ -175,6 +225,8 @@ async function completeOpenCommand(params: {
     settleSimulator,
     openTarget,
     openPositionals,
+    appName,
+    surface,
     appBundleId,
     runtime,
     existingSession,
@@ -230,8 +282,9 @@ async function completeOpenCommand(params: {
     existingSession,
     sessionName,
     device,
+    surface,
     appBundleId,
-    openTarget,
+    appName,
     saveScript: Boolean(req.flags?.saveScript),
   });
   if (req.runtime !== undefined) {
@@ -239,8 +292,9 @@ async function completeOpenCommand(params: {
   }
   const openResult = buildOpenResult({
     sessionName,
-    appName: openTarget,
+    appName,
     appBundleId,
+    surface,
     startup: startupSample,
     device,
     runtime,
@@ -293,7 +347,23 @@ export async function handleOpenCommand(params: {
     const session = sessionStore.get(sessionName);
     const requestedOpenTarget = req.positionals?.[0];
     const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session?.appName : undefined);
-    if (!session || !openTarget) {
+    let requestedSurface: SessionSurface = session?.surface ?? 'app';
+    try {
+      if (session?.device.platform === 'macos') {
+        requestedSurface = resolveOpenSurface(session.device, req.flags?.surface, openTarget);
+      } else if (req.flags?.surface) {
+        throw new Error('surface is only supported on macOS');
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: String((error as Error).message),
+        },
+      };
+    }
+    if (!session || (!openTarget && requestedSurface === 'app')) {
       if (shouldRelaunch) {
         return {
           ok: false,
@@ -320,6 +390,15 @@ export async function handleOpenCommand(params: {
         },
       };
     }
+    if (shouldRelaunch && requestedSurface !== 'app') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'open --relaunch is supported only for app surfaces.',
+        },
+      };
+    }
     if (
       shouldRelaunch &&
       session.device.platform === 'android' &&
@@ -335,12 +414,16 @@ export async function handleOpenCommand(params: {
     }
     const device = await refreshSessionDeviceIfNeeded(session.device, resolveDevice);
     await ensureReady(device);
-    const appBundleId = await resolveSessionAppBundleIdForTarget(
-      device,
-      openTarget,
-      session.appBundleId,
-      resolveAndroidPackageForOpenFn,
-    );
+    const macOsSurfaceState = await resolveMacOsSurfaceAppState(requestedSurface);
+    const appBundleId =
+      macOsSurfaceState.appBundleId ??
+      (await resolveSessionAppBundleIdForTarget(
+        device,
+        openTarget,
+        session.appBundleId,
+        resolveAndroidPackageForOpenFn,
+      ));
+    const appName = macOsSurfaceState.appName ?? openTarget;
     const runtimeResult = tryResolveOpenRuntimeHints({
       req,
       sessionStore,
@@ -358,7 +441,11 @@ export async function handleOpenCommand(params: {
       session,
       clearRuntimeHints,
     });
-    const openPositionals = requestedOpenTarget ? (req.positionals ?? []) : [openTarget];
+    const openPositionals = requestedOpenTarget
+      ? (req.positionals ?? [])
+      : openTarget
+        ? [openTarget]
+        : [];
     return await completeOpenCommand({
       req,
       sessionName,
@@ -371,6 +458,8 @@ export async function handleOpenCommand(params: {
       settleSimulator,
       openTarget,
       openPositionals,
+      appName,
+      surface: requestedSurface,
       appBundleId,
       runtime,
       existingSession: session,
@@ -397,6 +486,27 @@ export async function handleOpenCommand(params: {
     };
   }
   const device = await resolveDevice(req.flags ?? {});
+  let surface: SessionSurface;
+  try {
+    surface = resolveOpenSurface(device, req.flags?.surface, openTarget);
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: String((error as Error).message),
+      },
+    };
+  }
+  if (shouldRelaunch && surface !== 'app') {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: 'open --relaunch is supported only for app surfaces.',
+      },
+    };
+  }
   if (
     shouldRelaunch &&
     device.platform === 'android' &&
@@ -423,12 +533,16 @@ export async function handleOpenCommand(params: {
     };
   }
   await ensureReady(device);
-  const appBundleId = await resolveSessionAppBundleIdForTarget(
-    device,
-    openTarget,
-    undefined,
-    resolveAndroidPackageForOpenFn,
-  );
+  const macOsSurfaceState = await resolveMacOsSurfaceAppState(surface);
+  const appBundleId =
+    macOsSurfaceState.appBundleId ??
+    (await resolveSessionAppBundleIdForTarget(
+      device,
+      openTarget,
+      undefined,
+      resolveAndroidPackageForOpenFn,
+    ));
+  const appName = macOsSurfaceState.appName ?? openTarget;
   const runtimeResult = tryResolveOpenRuntimeHints({
     req,
     sessionStore,
@@ -451,6 +565,8 @@ export async function handleOpenCommand(params: {
     settleSimulator,
     openTarget,
     openPositionals: req.positionals ?? [],
+    appName,
+    surface,
     appBundleId,
     runtime,
   });
