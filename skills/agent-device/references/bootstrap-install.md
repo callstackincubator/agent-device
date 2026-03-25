@@ -24,6 +24,13 @@ If there is no simulator, no app install, no open app session, or any uncertaint
 
 After setup is confirmed or completed, move to `exploration.md` before doing UI inspection or interaction.
 
+## First attempt rule
+
+- If the user asks to test an app and does not provide an install artifact or explicit install instruction, try `open <app>` first.
+- If `open <app>` fails, run `agent-device apps` and retry with a discovered app name before considering install steps.
+- Do not install or reinstall on the first attempt unless the user explicitly asks for installation or provides a concrete artifact path or URL.
+- When installation is required from a known location, prefer a checked-in shell script or other deterministic bootstrap command over ad hoc path guessing.
+
 ## If `open` fails
 
 - If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
