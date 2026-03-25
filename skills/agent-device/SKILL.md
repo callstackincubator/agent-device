@@ -7,10 +7,12 @@ description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) a
 
 Use this skill as a router.
 
-For exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
+## QA modes
 
-Default route: start with [references/bootstrap-install.md](references/bootstrap-install.md), then [references/exploration.md](references/exploration.md), then load debugging or verification only if the task needs them. Open the macOS and remote-tenancy references only for those exceptions.
-For QA from acceptance criteria, use the QA loop in [references/exploration.md](references/exploration.md) after bootstrap.
+- Open-ended bug hunt with reporting: use [../dogfood/SKILL.md](../dogfood/SKILL.md).
+- Pass/fail QA from acceptance criteria: stay in this skill, start with [references/bootstrap-install.md](references/bootstrap-install.md), then use the QA loop in [references/exploration.md](references/exploration.md).
+
+Default route inside this skill: bootstrap -> exploration -> optional debugging or verification. Open the macOS and remote-tenancy references only for those exceptions.
 
 ## Decision rules
 
