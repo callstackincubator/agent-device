@@ -8,6 +8,7 @@ Open this file when the app or screen is already running and you need to discove
 
 - If the question is what text, labels, or structure is visible on screen, start with plain `snapshot`.
 - Escalate to `snapshot -i` only when you need refs such as `@e3` for interactive exploration or a requested action.
+- If you intend to `press`, `fill`, or otherwise interact, start with `snapshot -i` and fall back to plain `snapshot` only if interactive refs are unavailable.
 - Prefer `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
 - You may take the smallest reversible UI action needed to unblock inspection, such as dismissing a popup, closing an alert, or backing out of an unintended surface.
 - Do not type or fill text just to make hidden information easier to access unless the user asked for that interaction.
@@ -53,8 +54,8 @@ agent-device close
 
 ```bash
 agent-device open Settings --platform ios
-agent-device snapshot
-agent-device press 'label="Privacy & Security"'
+agent-device snapshot -i
+agent-device press @e3
 agent-device diff snapshot
 agent-device snapshot
 agent-device close
@@ -63,7 +64,7 @@ agent-device close
 ## Snapshot choices
 
 - Use plain `snapshot` when you only need to verify whether visible text or structure is on screen.
-- Use `snapshot -i` when you need refs such as `@e3` for interactive exploration.
+- Use `snapshot -i` when you need refs such as `@e3` for interactive exploration or for an intended interaction.
 - Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
 
