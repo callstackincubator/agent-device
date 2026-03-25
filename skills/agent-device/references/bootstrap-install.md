@@ -61,15 +61,11 @@ agent-device --session auth snapshot -i
 
 ## After a session is established
 
-Once you have opened the correct session on the correct target, stop repeating device-routing flags on follow-up commands unless you are intentionally retargeting.
+Once you have opened the correct session on the correct target, default to the conservative rule: keep the session binding on follow-up commands, and stop repeating device-routing flags unless you are intentionally retargeting.
 
-Two common cases:
-
-- Single-agent or isolated environment:
-  - If this agent is the only session on the device or the environment is already isolated, follow-up commands can usually omit routing flags after the initial `open`.
-- Shared host or multiple agents:
-  - If several agents may use the same machine, always keep the session binding on follow-up commands with `--session <name>` or a sandboxed `AGENT_DEVICE_SESSION`.
-  - Do not keep repeating `--platform`, `--target`, `--device`, `--udid`, `--serial`, or similar target-selection flags on normal follow-up commands.
+- Prefer `--session <name>` on follow-up commands, or use sandboxed `AGENT_DEVICE_SESSION`.
+- Do not keep repeating `--platform`, `--target`, `--device`, `--udid`, `--serial`, or similar target-selection flags on normal follow-up commands.
+- Only omit follow-up session flags when the environment explicitly guarantees isolation.
 
 Good shared-host pattern:
 
