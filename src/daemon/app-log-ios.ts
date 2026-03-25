@@ -12,8 +12,6 @@ export function buildAppleLogPredicate(appBundleId: string): string {
   ].join(' OR ');
 }
 
-export const buildIosLogPredicate = buildAppleLogPredicate;
-
 export function buildIosDeviceLogStreamArgs(deviceId: string): string[] {
   return ['devicectl', 'device', 'log', 'stream', '--device', deviceId];
 }
