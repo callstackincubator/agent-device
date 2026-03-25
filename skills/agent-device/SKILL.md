@@ -24,7 +24,6 @@ Use this skill as a router.
 
 - Use plain `snapshot` when you need to verify whether text is visible.
 - Use `snapshot -i` mainly for interactive exploration and choosing refs.
-- When `snapshot -i` shows a large text surface with preview/truncation metadata, treat that line as discovery only and follow with `get text @ref` to expand the surface.
 - Use `fill` to replace text.
 - Use `type` to append text.
 - Prefer `@ref` or selector targeting over raw coordinates.
