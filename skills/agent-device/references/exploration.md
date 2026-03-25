@@ -4,16 +4,33 @@
 
 Open this file when the app or screen is already running and you need to discover the UI, choose targets, read state, wait for conditions, or perform normal interactions.
 
+## Read-only first
+
+- If the question is what text, labels, or structure is visible on screen, start with plain `snapshot`.
+- Escalate to `snapshot -i` only when you need refs such as `@e3` for interactive exploration or a requested action.
+- Prefer `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
+- You may take the smallest reversible UI action needed to unblock inspection, such as dismissing a popup, closing an alert, or backing out of an unintended surface.
+- Do not type or fill text just to make hidden information easier to access unless the user asked for that interaction.
+- Do not use external sources to infer missing UI state unless the user explicitly asked.
+- If the answer is not visible or exposed in the UI, report that gap instead of compensating with search, navigation, or text entry.
+
+## Decision shortcut
+
+- User asks what is visible on screen: `snapshot`
+- User asks for exact text from a known target: `get text`
+- User asks you to tap, type, or choose an element: `snapshot -i`, then act
+- UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked
+
 ## Main commands to reach for first
 
 - `snapshot`
+- `get`
+- `is`
+- `find`
+- `wait`
 - `snapshot -i`
 - `press`
 - `fill`
-- `get`
-- `is`
-- `wait`
-- `find`
 
 ## Most common mistake to avoid
 
@@ -23,9 +40,7 @@ Do not treat `@ref` values as durable after navigation or dynamic updates. Re-sn
 
 ```bash
 agent-device open Settings --platform ios
-agent-device snapshot -i
-agent-device press @e3
-agent-device wait visible 'label="Privacy & Security"' 3000
+agent-device snapshot
 agent-device get text 'label="Privacy & Security"'
 agent-device close
 ```
@@ -34,7 +49,7 @@ agent-device close
 
 - Use plain `snapshot` when you only need to verify whether visible text or structure is on screen.
 - Use `snapshot -i` when you need refs such as `@e3` for interactive exploration.
-- Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview/truncation metadata, use `get text @ref` to expand the actual text after you choose the surface.
+- Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
 
 Example:
@@ -74,6 +89,7 @@ agent-device is visible 'id="camera_settings_anchor"'
 
 - Use `fill` to replace text in an editable field.
 - Use `type` to append text to the current insertion point.
+- Do not use `fill` or `type` just to make the app reveal information that is not currently visible unless the user asked for that interaction.
 
 ## Query and sync rules
 
@@ -108,6 +124,11 @@ Anti-hallucination rules:
 - Do not invent app names, device ids, session names, refs, selectors, or package names.
 - Discover them first with `devices`, `open`, `snapshot -i`, `find`, or `session list`.
 - If refs drift after navigation, re-snapshot or switch to selectors instead of guessing.
+
+Common failure pattern to avoid:
+
+- Wrong for a visible-text question: `snapshot -i` -> `get text @ref` -> web search -> type into a search box
+- Right: `snapshot` first; if the text is not visible or exposed, report that directly
 
 Canonical QA loop:
 

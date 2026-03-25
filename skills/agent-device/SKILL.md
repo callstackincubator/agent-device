@@ -5,29 +5,48 @@ description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) a
 
 # agent-device
 
-Use this skill as a router.
+Use this skill as a router with mandatory defaults. Read this file first. For normal device tasks, then load `references/bootstrap-install.md` and `references/exploration.md` before acting.
+
+## Default operating rules
+
+- Start conservative. Prefer read-only inspection before mutating the UI.
+- Use plain `snapshot` when the task is to verify what text or structure is currently visible on screen.
+- Use `snapshot -i` only when you need interactive refs such as `@e3` for a requested action or targeted query.
+- Avoid speculative mutations. You may take the smallest reversible UI action needed to unblock inspection or complete the requested task, such as dismissing a popup, closing an alert, or clearing an unintended surface.
+- Do not browse the web or use external sources unless the user explicitly asks.
+- Re-snapshot after meaningful UI changes instead of reusing stale refs.
+- Prefer `@ref` or selector targeting over raw coordinates.
+- Keep the loop short: `open` -> inspect/act -> verify if needed -> `close`.
+
+## Default flow
+
+1. Choose the correct target and open the app or session you want to work on.
+2. Start with plain `snapshot` if the goal is to read or verify what is visible.
+3. Escalate to `snapshot -i` only if you need refs for interactive exploration or a requested action.
+4. Use `get`, `is`, or `find` before mutating the UI when a read-only command can answer the question.
+5. End by capturing proof if needed, then `close`.
 
 ## QA modes
 
 - Open-ended bug hunt with reporting: use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 - Pass/fail QA from acceptance criteria: stay in this skill, start with [references/bootstrap-install.md](references/bootstrap-install.md), then use the QA loop in [references/exploration.md](references/exploration.md).
 
-## Mental model
+## Required references
 
-- First choose the correct target and open the app or session you want to work on.
-- Then inspect the current UI with `snapshot -i` and pick targets from the actual UI state.
-- Act with `press`, `fill`, `get`, `is`, `wait`, or `find`.
-- Re-snapshot after meaningful UI changes instead of reusing stale refs.
-- End by capturing proof if needed, then `close`.
+- For every normal device task, after reading this file, load [references/bootstrap-install.md](references/bootstrap-install.md) first, then [references/exploration.md](references/exploration.md), before acting.
+- Load additional references only when their scope is needed.
 
 ## Decision rules
 
 - Use plain `snapshot` when you need to verify whether text is visible.
 - Use `snapshot -i` mainly for interactive exploration and choosing refs.
+- Use `get`, `is`, or `find` when they can answer the question without changing UI state.
 - Use `fill` to replace text.
 - Use `type` to append text.
+- Use the smallest unblock action first when transient UI blocks inspection, but do not navigate, search, or enter new text just to make the UI reveal data unless the user asked for that interaction.
+- Do not use external lookups to compensate for missing on-screen data unless the user asked for them.
+- If the needed information is not exposed on screen, say that plainly instead of compensating with extra navigation, text entry, or web search.
 - Prefer `@ref` or selector targeting over raw coordinates.
-- Keep the default loop short: `open` -> explore/act -> optional debug or verify -> `close`.
 
 ## Choose a reference
 
