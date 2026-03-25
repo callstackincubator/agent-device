@@ -20,8 +20,8 @@ Do not start acting before you have pinned the correct target and opened an `app
 ## Canonical loop
 
 ```bash
-agent-device ensure-simulator --platform ios --device "iPhone 16" --boot
-agent-device open MyApp --platform ios --device "iPhone 16" --relaunch
+agent-device ensure-simulator --platform ios --device "iPhone 17 Pro" --boot
+agent-device open MyApp --platform ios --device "iPhone 17 Pro" --relaunch
 agent-device snapshot -i
 agent-device close
 ```
