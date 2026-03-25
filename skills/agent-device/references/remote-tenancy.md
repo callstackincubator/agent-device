@@ -50,6 +50,15 @@ curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
   -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
 ```
 
+Session-locked RPC command example:
+
+```bash
+curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
+  -H "content-type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":"cmd-1","method":"agent_device.command","params":{"session":"qa-ios","command":"snapshot","positionals":[],"meta":{"lockPolicy":"reject","lockPlatform":"ios","tenantId":"acme","runId":"run-123","leaseId":"<lease-id>"}}}'
+```
+
 ## Transport prerequisites
 
 - Start the daemon in HTTP mode with `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual`.
@@ -67,6 +76,13 @@ Use JSON-RPC methods on `POST /rpc`:
 - `agent_device.lease.release`
 
 Keep the lease alive for the duration of the run and release it when the tenant-scoped work is complete.
+
+Host-level lease knobs:
+
+- `AGENT_DEVICE_MAX_SIMULATOR_LEASES`
+- `AGENT_DEVICE_LEASE_TTL_MS`
+- `AGENT_DEVICE_LEASE_MIN_TTL_MS`
+- `AGENT_DEVICE_LEASE_MAX_TTL_MS`
 
 ## Command admission contract
 

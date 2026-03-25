@@ -44,12 +44,20 @@ agent-device open com.example.androidtv --platform android --target tv
 
 ## Session rules
 
+- Use `--session <name>` when you need a named session:
+
+```bash
+agent-device --session auth open Settings --platform ios
+agent-device --session auth snapshot -i
+```
+
 - Use `open <app>` before interactions.
 - Use `close` when done. Add `--shutdown` when you want simulators or emulators torn down with the session.
 - Use semantic session names when you need multiple concurrent runs.
 - Use `--save-script=<path>` on `close` when you want to keep a replay script.
 - For dev loops where state can linger, prefer `open <app> --relaunch`.
 - In iOS sessions, use `open <app>` for the app itself. Use `open <url>` for deep links, and `open <app> <url>` when you need to launch the app and deep link in one step.
+- On iOS, `appstate` is session-scoped and requires the matching active session on the target device.
 
 ## Session-bound automation
 
@@ -99,6 +107,23 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - Environment equivalents:
   - `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET`
   - `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`
+
+## Session inspection and replay
+
+```bash
+agent-device session list
+agent-device replay ./session.ad --session auth
+agent-device replay -u ./session.ad --session auth
+```
+
+- iOS session entries include `device_udid` and `ios_simulator_device_set`. Use them to confirm routing in concurrent runs.
+- Prefer selector-based actions and assertions in saved replay scripts.
+- Tenant isolation namespaces sessions as `<tenant>:<session>` during tenant-scoped runs.
+
+## When to leave this file
+
+- Once the correct target and session are pinned, move to [exploration.md](exploration.md).
+- If opening, startup, permissions, or logs become the blocker, switch to [debugging.md](debugging.md).
 
 ## Install and open examples
 

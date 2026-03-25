@@ -41,6 +41,7 @@ Use inspect-first surfaces to understand desktop-global UI, then switch back to 
 - `desktop` snapshots can include multiple windows from multiple apps.
 - `menubar` snapshots can include both app-menu items and system menu extras.
 - Finder-style rows, sidebar items, toolbar controls, search fields, and opened context menus should appear when visible.
+- Finder and other native apps may expose duplicate-looking row, cell, and child text nodes. Treat them as distinct AX nodes unless you have a stronger selector anchor.
 
 ## Context menus
 
@@ -63,3 +64,24 @@ Expected loop:
 - Prefer selectors or `@ref` values over raw coordinates.
 - On macOS, window position can vary across runs, so coordinate-only flows are fragile.
 - If the task only needs shared exploration rules, return to [exploration.md](exploration.md).
+
+Selector guidance:
+
+- Good selectors usually anchor on stable labels or app-owned identifiers such as `label="Downloads"` or `role=menu-item label="Rename"`.
+- Avoid relying on framework-generated `_NS:*` identifiers as stable selectors.
+
+Use `snapshot --raw --platform macos` only when debugging AX structure or collector filtering. Do not make raw snapshots the default agent loop.
+
+Things not to rely on:
+
+- Mobile-only helpers such as `install`, `reinstall`, or `push`.
+- Desktop-global click or fill parity from `desktop` or `menubar` sessions.
+- Raw coordinate assumptions across runs.
+
+Troubleshooting:
+
+- If visible content is missing from `snapshot -i`, re-snapshot after the UI settles.
+- If `desktop` is too broad, retry with `frontmost-app`.
+- If `menubar` is missing the expected menu, make the app frontmost first and retry.
+- If the wrong menu opened, retry secondary-clicking the row or cell wrapper rather than the nested text node.
+- If the app has multiple windows, make the correct window frontmost before relying on refs.

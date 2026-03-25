@@ -7,16 +7,9 @@ description: Automates interactions for Apple-platform apps (iOS, tvOS, macOS) a
 
 Use this skill as a router.
 
-For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
+For exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md](../dogfood/SKILL.md).
 
-## Default path
-
-1. Open [references/bootstrap-install.md](references/bootstrap-install.md).
-2. Then open [references/exploration.md](references/exploration.md).
-3. Open [references/debugging.md](references/debugging.md) only if the task becomes a failure, logs, network, alert, or permission problem.
-4. Open [references/verification.md](references/verification.md) only if the task needs evidence, replay maintenance, or performance checks.
-5. Open [references/macos-desktop.md](references/macos-desktop.md) only when `--platform macos` or a desktop surface is involved.
-6. Open [references/remote-tenancy.md](references/remote-tenancy.md) only for remote daemon, lease, tenant, or HTTP JSON-RPC work.
+Default route: start with [references/bootstrap-install.md](references/bootstrap-install.md), then [references/exploration.md](references/exploration.md), then load debugging or verification only if the task needs them. Open the macOS and remote-tenancy references only for those exceptions.
 
 ## Decision rules
 
@@ -29,7 +22,7 @@ For structured exploratory QA bug hunts and reporting, use [../dogfood/SKILL.md]
 - Prefer selector or `@ref` targeting over raw coordinates.
 - Keep the default loop short: `open` -> explore/act -> optional debug or verify -> `close`.
 
-## File chooser
+## Choose a reference
 
 - Target, install, session, or app bootstrap problem: [references/bootstrap-install.md](references/bootstrap-install.md)
 - Need to discover UI, pick refs, wait, query, or interact: [references/exploration.md](references/exploration.md)

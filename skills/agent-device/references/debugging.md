@@ -31,11 +31,27 @@ agent-device close
 
 Logging is off by default. Enable it only when you need a debugging window.
 
+- Default app logs live under `~/.agent-device/sessions/<session>/app.log`.
 - `logs clear --restart` is the fastest clean repro loop.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from the same session app log.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
 - `logs mark "before tap"` inserts a timestamped marker into the app log.
 - Session app logs can contain runtime data, headers, or payload fragments. Review them before sharing.
+- `logs start` requires an active app session and appends to `app.log`.
+- `logs stop` stops streaming. `close` also stops logging.
+- `logs clear` truncates `app.log` and removes rotated `app.log.N` files, and requires logging to be stopped first.
+- `logs path` returns the log path plus metadata about the active backend and file state.
+- `network log` is an alias for `network dump`.
+
+Operational limits:
+
+- `app.log` rotates to `app.log.1` after 5 MB by default.
+- `network dump` scans the last 4000 app-log lines, returns up to 200 entries, and truncates header or payload fields at 2048 characters.
+- Retention knobs:
+  - `AGENT_DEVICE_APP_LOG_MAX_BYTES`
+  - `AGENT_DEVICE_APP_LOG_MAX_FILES`
+- Redaction hook:
+  - `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS`
 
 Useful shell follow-up after `logs path`:
 
@@ -55,6 +71,7 @@ agent-device alert accept
 
 - `alert` is only supported on iOS simulators.
 - `alert accept` and `alert dismiss` retry internally for a short window, so you usually do not need manual sleeps.
+- iOS 16+ "Allow Paste" prompts are suppressed under XCUITest. Use `xcrun simctl pbcopy booted` when you need to seed simulator clipboard content directly.
 
 ## Setup problems worth recognizing early
 

@@ -80,6 +80,7 @@ agent-device is visible 'id="camera_settings_anchor"'
 - Use `is` for assertions.
 - Use `wait` when the UI needs time to settle after a mutation.
 - Use `find "<query>" click --json` when you need search-driven targeting plus matched-target metadata.
+- If you are forced onto raw coordinates, open [coordinate-system.md](coordinate-system.md) first.
 
 Example:
 
@@ -101,7 +102,39 @@ agent-device batch --session sim --platform ios --steps-file /tmp/batch-steps.js
 - Add `wait` or `is exists` guards after mutating steps.
 - Do not use `batch` for highly dynamic flows that need replanning after each step.
 
+Step payload contract:
+
+```json
+[
+  { "command": "open", "positionals": ["Settings"], "flags": { "platform": "ios" } },
+  { "command": "wait", "positionals": ["label=\"Privacy & Security\"", "3000"], "flags": {} },
+  { "command": "click", "positionals": ["label=\"Privacy & Security\""], "flags": {} },
+  { "command": "get", "positionals": ["text", "label=\"Tracking\""], "flags": {} }
+]
+```
+
+- `positionals` is optional and defaults to `[]`.
+- `flags` is optional and defaults to `{}`.
+- Nested `batch` and `replay` are rejected.
+- Supported error mode is stop-on-first-error.
+
+Response handling:
+
+- Success returns fields such as `total`, `executed`, `totalDurationMs`, and `results[]`.
+- Failed runs include `details.step`, `details.command`, `details.executed`, and `details.partialResults`.
+- Replan from the first failing step instead of rerunning the whole flow blindly.
+
+Common batch error categories:
+
+- `INVALID_ARGS`: fix the payload shape and retry.
+- `SESSION_NOT_FOUND`: open or select the correct session, then retry.
+- `UNSUPPORTED_OPERATION`: switch to a supported command or surface.
+- `AMBIGUOUS_MATCH`: refine the selector or locator, then retry the failed step.
+- `COMMAND_FAILED`: add sync guards and retry from the failing step.
+
 ## Stop conditions
 
 - If refs drift after transitions, switch to selectors.
 - If a desktop surface or context menu is involved on macOS, load [macos-desktop.md](macos-desktop.md).
+- If logs, network, alerts, or setup failures become the blocker, switch to [debugging.md](debugging.md).
+- If the flow is stable and you need proof or replay maintenance, switch to [verification.md](verification.md).
