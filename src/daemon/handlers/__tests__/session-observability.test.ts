@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
 import { handleSessionObservabilityCommands } from '../session-observability.ts';
-import { SessionStore } from '../../session-store.ts';
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-observability-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
+import { makeSessionStore } from './session-test-store.ts';
 
 test('logs path reports backend for macOS desktop sessions directly', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
   sessionStore.set('desktop', {
     name: 'desktop',
     createdAt: Date.now(),
@@ -48,7 +40,7 @@ test('logs path reports backend for macOS desktop sessions directly', async () =
 });
 
 test('network dump validates include mode directly', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
   sessionStore.set('android', {
     name: 'android',
     createdAt: Date.now(),

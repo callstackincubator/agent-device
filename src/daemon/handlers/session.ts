@@ -43,6 +43,11 @@ import { handleSessionReplayCommands } from './session-replay.ts';
 type ListAndroidDevices = typeof import('../../platforms/android/devices.ts').listAndroidDevices;
 type ListAppleDevices = typeof import('../../platforms/ios/devices.ts').listAppleDevices;
 
+const INVENTORY_COMMANDS = new Set(['session_list', 'ensure-simulator', 'devices', 'apps']);
+const STATE_COMMANDS = new Set(['boot', 'appstate']);
+const OBSERVABILITY_COMMANDS = new Set(['perf', 'logs', 'network']);
+const REPLAY_COMMANDS = new Set(['replay', 'test']);
+
 const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({
   avdName,
   serial,
@@ -254,17 +259,18 @@ export async function handleSessionCommands(params: {
   const clearRuntimeHints = clearRuntimeHintsOverride;
   const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
 
-  const inventoryResponse = await handleSessionInventoryCommands({
-    req,
-    sessionName,
-    sessionStore,
-    ensureReady,
-    resolveDevice,
-    listAndroidDevices,
-    listAppleDevices,
-    listAppleApps,
-  });
-  if (inventoryResponse) return inventoryResponse;
+  if (INVENTORY_COMMANDS.has(req.command)) {
+    return await handleSessionInventoryCommands({
+      req,
+      sessionName,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      listAndroidDevices,
+      listAppleDevices,
+      listAppleApps,
+    });
+  }
 
   if (req.command === 'runtime') {
     return await handleRuntimeCommand({
@@ -275,15 +281,16 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  const stateResponse = await handleSessionStateCommands({
-    req,
-    sessionName,
-    sessionStore,
-    ensureReady,
-    resolveDevice,
-    ensureAndroidEmulatorBoot,
-  });
-  if (stateResponse) return stateResponse;
+  if (STATE_COMMANDS.has(req.command)) {
+    return await handleSessionStateCommands({
+      req,
+      sessionName,
+      sessionStore,
+      ensureReady,
+      resolveDevice,
+      ensureAndroidEmulatorBoot,
+    });
+  }
 
   if (req.command === 'clipboard') {
     return await handleClipboardCommand({
@@ -311,13 +318,14 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  const observabilityResponse = await handleSessionObservabilityCommands({
-    req,
-    sessionName,
-    sessionStore,
-    appLogOps,
-  });
-  if (observabilityResponse) return observabilityResponse;
+  if (OBSERVABILITY_COMMANDS.has(req.command)) {
+    return await handleSessionObservabilityCommands({
+      req,
+      sessionName,
+      sessionStore,
+      appLogOps,
+    });
+  }
 
   if (req.command === 'install' || req.command === 'reinstall') {
     return await handleAppDeployCommand({
@@ -416,20 +424,21 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  const replayResponse = await handleSessionReplayCommands({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke,
-    dispatch,
-    stopIosRunner,
-    dismissMacOsAlert,
-    clearRuntimeHints,
-    settleSimulator,
-    appLogOps: { stop: appLogOps.stop },
-  });
-  if (replayResponse) return replayResponse;
+  if (REPLAY_COMMANDS.has(req.command)) {
+    return await handleSessionReplayCommands({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      invoke,
+      dispatch,
+      stopIosRunner,
+      dismissMacOsAlert,
+      clearRuntimeHints,
+      settleSimulator,
+      appLogOps: { stop: appLogOps.stop },
+    });
+  }
 
   if (req.command === 'batch') {
     return await runBatchCommands(req, sessionName, invoke);

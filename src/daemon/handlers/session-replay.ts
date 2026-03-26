@@ -86,8 +86,16 @@ export async function handleSessionReplayCommands(params: {
         });
       },
       cleanupSession: async (testSessionName) => {
-        await cleanupReplayTestSession({
-          req,
+        if (!sessionStore.get(testSessionName)) return;
+        await handleCloseCommand({
+          req: {
+            token: req.token,
+            session: testSessionName,
+            command: 'close',
+            positionals: [],
+            flags: {},
+            meta: req.meta,
+          },
           sessionName: testSessionName,
           logPath,
           sessionStore,
@@ -103,52 +111,4 @@ export async function handleSessionReplayCommands(params: {
   }
 
   return null;
-}
-async function cleanupReplayTestSession(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-  dispatch: typeof dispatchCommand;
-  stopIosRunner: typeof stopIosRunnerSession;
-  dismissMacOsAlert: typeof runMacOsAlertAction;
-  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
-  settleSimulator: typeof settleIosSimulator;
-  appLogOps: {
-    stop: typeof stopAppLog;
-  };
-}): Promise<void> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    dispatch,
-    stopIosRunner,
-    dismissMacOsAlert,
-    clearRuntimeHints,
-    settleSimulator,
-    appLogOps,
-  } = params;
-  if (!sessionStore.get(sessionName)) return;
-
-  await handleCloseCommand({
-    req: {
-      token: req.token,
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: {},
-      meta: req.meta,
-    },
-    sessionName,
-    logPath,
-    sessionStore,
-    dispatch,
-    stopIosRunner,
-    dismissMacOsAlert,
-    clearRuntimeHints,
-    settleSimulator,
-    appLogOps,
-  });
 }

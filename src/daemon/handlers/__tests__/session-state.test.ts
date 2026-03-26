@@ -1,15 +1,7 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
 import { handleSessionStateCommands } from '../session-state.ts';
-import { SessionStore } from '../../session-store.ts';
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-state-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
+import { makeSessionStore } from './session-test-store.ts';
 
 test('boot rejects --headless outside Android directly', async () => {
   const response = await handleSessionStateCommands({
@@ -21,7 +13,7 @@ test('boot rejects --headless outside Android directly', async () => {
       flags: { platform: 'ios', headless: true },
     },
     sessionName: 'default',
-    sessionStore: makeStore(),
+    sessionStore: makeSessionStore('agent-device-session-state-'),
     ensureReady: async () => {},
     resolveDevice: async () => {
       throw new Error('resolveDevice should not run for invalid headless iOS boot');
@@ -49,7 +41,7 @@ test('appstate returns missing-session error for explicit session flag', async (
       flags: { platform: 'ios', session: 'named' },
     },
     sessionName: 'named',
-    sessionStore: makeStore(),
+    sessionStore: makeSessionStore('agent-device-session-state-'),
     ensureReady: async () => {},
     resolveDevice: async () => {
       throw new Error('resolveDevice should not run when explicit session is missing');

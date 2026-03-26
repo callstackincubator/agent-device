@@ -250,13 +250,15 @@ export async function handleSessionObservabilityCommands(params: {
       }
     }
 
-    if (!session.appLog) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'no app log stream active' } };
+    if (action === 'stop') {
+      if (!session.appLog) {
+        return { ok: false, error: { code: 'INVALID_ARGS', message: 'no app log stream active' } };
+      }
+      const outPath = session.appLog.outPath;
+      await appLogOps.stop(session.appLog);
+      sessionStore.set(sessionName, { ...session, appLog: undefined });
+      return { ok: true, data: { path: outPath, stopped: true } };
     }
-    const outPath = session.appLog.outPath;
-    await appLogOps.stop(session.appLog);
-    sessionStore.set(sessionName, { ...session, appLog: undefined });
-    return { ok: true, data: { path: outPath, stopped: true } };
   }
 
   if (req.command === 'network') {

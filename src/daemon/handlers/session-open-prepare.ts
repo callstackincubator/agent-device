@@ -22,6 +22,11 @@ import {
 import type { SessionSurface } from '../../core/session-surface.ts';
 import { clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 
+type ResolveAndroidPackageForOpen = (
+  device: DeviceInfo,
+  openTarget: string | undefined,
+) => Promise<string | undefined>;
+
 type PreparedOpenCommand = {
   device: DeviceInfo;
   surface: SessionSurface;
@@ -178,10 +183,7 @@ async function resolvePreparedOpenIdentity(params: {
   surface: SessionSurface;
   openTarget: string | undefined;
   existingAppBundleId?: string;
-  resolveAndroidPackageForOpen: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>;
+  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
 }): Promise<{ appBundleId?: string; appName?: string }> {
   const { device, surface, openTarget, existingAppBundleId, resolveAndroidPackageForOpen } = params;
   const macOsSurfaceState = await resolveMacOsSurfaceAppState(surface);
@@ -206,10 +208,7 @@ export async function prepareExistingOpenCommand(params: {
   ensureReady: typeof ensureDeviceReady;
   resolveDevice: typeof resolveTargetDevice;
   clearRuntimeHints: typeof clearRuntimeHintsFromApp;
-  resolveAndroidPackageForOpen: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>;
+  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
 }): Promise<{ response: DaemonResponse } | { prepared: PreparedOpenCommand }> {
   const {
     req,
@@ -264,10 +263,7 @@ export async function prepareNewOpenCommand(params: {
   sessionName: string;
   ensureReady: typeof ensureDeviceReady;
   resolveDevice: typeof resolveTargetDevice;
-  resolveAndroidPackageForOpen: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>;
+  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
 }): Promise<{ response: DaemonResponse } | { prepared: PreparedOpenCommand }> {
   const {
     req,

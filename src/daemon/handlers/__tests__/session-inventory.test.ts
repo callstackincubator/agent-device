@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import test from 'node:test';
 import { handleSessionInventoryCommands } from '../session-inventory.ts';
-import { SessionStore } from '../../session-store.ts';
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-inventory-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
+import { makeSessionStore } from './session-test-store.ts';
 
 test('session inventory lists iOS session metadata directly', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-inventory-');
   sessionStore.set('ios-sim', {
     name: 'ios-sim',
     createdAt: 123,
