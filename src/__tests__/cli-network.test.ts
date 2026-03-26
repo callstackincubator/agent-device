@@ -102,3 +102,43 @@ test('network dump prints parsed entries and metadata', async () => {
   assert.match(result.stderr, /matchedLines=2/);
   assert.match(result.stderr, /best-effort parser/);
 });
+
+test('test command prints suite summary and exits non-zero on failures', async () => {
+  const result = await runCliCapture(['test', './suite'], async () => ({
+    ok: true,
+    data: {
+      total: 3,
+      passed: 1,
+      failed: 1,
+      skipped: 1,
+      durationMs: 25,
+      tests: [
+        {
+          file: '/tmp/01-pass.ad',
+          status: 'passed',
+          durationMs: 10,
+        },
+        {
+          file: '/tmp/02-fail.ad',
+          status: 'failed',
+          durationMs: 5,
+          error: { message: 'Replay failed at step 1 (open Demo): boom' },
+        },
+        {
+          file: '/tmp/03-skip.ad',
+          status: 'skipped',
+          durationMs: 0,
+          message: 'missing platform metadata for --platform android',
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 1);
+  assert.match(result.stdout, /PASS \/tmp\/01-pass\.ad \(10ms\)/);
+  assert.match(result.stdout, /FAIL \/tmp\/02-fail\.ad \(5ms\)/);
+  assert.match(result.stdout, /Replay failed at step 1 \(open Demo\): boom/);
+  assert.match(result.stdout, /SKIP \/tmp\/03-skip\.ad/);
+  assert.match(result.stdout, /Test summary: 1 passed, 1 failed, 1 skipped in 25ms \(3 total\)/);
+});

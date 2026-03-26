@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
+import type { PlatformSelector } from '../../utils/device.ts';
 import { appendOpenActionScriptArgs, parseReplayOpenFlags } from '../session-open-script.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
@@ -13,6 +14,14 @@ import {
   parseReplayRuntimeFlags,
 } from '../script-utils.ts';
 
+type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
+
+const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android', 'macos']);
+
+export type ReplayScriptMetadata = {
+  platform?: ReplayScriptPlatform;
+};
+
 export function parseReplayScript(script: string): SessionAction[] {
   const actions: SessionAction[] = [];
   const lines = script.split(/\r?\n/);
@@ -23,6 +32,22 @@ export function parseReplayScript(script: string): SessionAction[] {
     }
   }
   return actions;
+}
+
+export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
+  const lines = script.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
+    if (!trimmed.startsWith('context ')) break;
+    const match = trimmed.match(/(?:^|\s)platform=([^\s]+)/);
+    if (!match) continue;
+    const platform = match[1] as ReplayScriptPlatform | undefined;
+    if (platform && REPLAY_METADATA_PLATFORMS.has(platform)) {
+      return { platform };
+    }
+  }
+  return {};
 }
 
 function parseReplayScriptLine(line: string): SessionAction | null {

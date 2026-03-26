@@ -77,6 +77,7 @@ export type CliFlags = {
   retainPaths?: boolean;
   retentionMs?: number;
   replayUpdate?: boolean;
+  failFast?: boolean;
   steps?: string;
   stepsFile?: string;
   batchOnError?: 'stop';
@@ -157,6 +158,7 @@ const EXAMPLE_LINES = [
   'agent-device snapshot -i',
   'agent-device fill @e3 "test@example.com"',
   'agent-device replay ./session.ad',
+  'agent-device test ./suite --platform android',
 ] as const;
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
@@ -671,6 +673,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Replay: update selectors and rewrite replay file in place',
   },
   {
+    key: 'failFast',
+    names: ['--fail-fast'],
+    type: 'boolean',
+    usageLabel: '--fail-fast',
+    usageDescription: 'Test: stop the suite after the first failing script',
+  },
+  {
     key: 'steps',
     names: ['--steps'],
     type: 'string',
@@ -994,6 +1003,16 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     helpDescription: 'Replay a recorded session',
     positionalArgs: ['path'],
     allowedFlags: ['replayUpdate'],
+    skipCapabilityCheck: true,
+  },
+  test: {
+    usageOverride: 'test <path-or-glob>...',
+    listUsageOverride: 'test <path-or-glob>...',
+    helpDescription: 'Run one or more .ad scripts as a serial test suite',
+    summary: 'Run .ad test suites',
+    positionalArgs: ['pathOrGlob'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['replayUpdate', 'failFast'],
     skipCapabilityCheck: true,
   },
   batch: {

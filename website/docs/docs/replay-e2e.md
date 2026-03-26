@@ -48,6 +48,17 @@ agent-device replay ~/.agent-device/sessions/e2e-2026-02-09T12-00-00-000Z.ad --s
 
 - Replay reads `.ad` scripts.
 
+## Run a lightweight `.ad` suite
+
+```bash
+agent-device test ./workflows
+agent-device test "./workflows/**/*.ad" --platform android
+```
+
+- `test` discovers `.ad` files from files, directories, or globs and runs them serially.
+- `context platform=...` inside each `.ad` file is the target source of truth for suite execution.
+- `--platform` is a filter for suite discovery; files without platform metadata are skipped when a filter is present.
+
 ## Update stale selectors in replay scripts
 
 ```bash

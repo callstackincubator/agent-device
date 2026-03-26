@@ -83,9 +83,11 @@ Use replay updates when selectors drift but the recorded scenario is still corre
 
 ```bash
 agent-device replay -u ./session.ad
+agent-device test ./smoke --platform android
 ```
 
 - Prefer selector-based actions in recorded `.ad` replays.
+- Use `test` when you already have multiple `.ad` flows and want a lightweight serial regression pass.
 - Use update mode for maintenance, not as a substitute for fixing a broken interaction strategy.
 
 ## Performance checks

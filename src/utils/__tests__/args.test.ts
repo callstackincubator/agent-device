@@ -62,6 +62,18 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
         assert.equal(parsed.flags.surface, 'frontmost-app');
       },
     },
+    {
+      label: 'test suite with fail-fast and replay update',
+      argv: ['test', './suite', '--platform', 'android', '--fail-fast', '--update'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'test');
+        assert.deepEqual(parsed.positionals, ['./suite']);
+        assert.equal(parsed.flags.platform, 'android');
+        assert.equal(parsed.flags.failFast, true);
+        assert.equal(parsed.flags.replayUpdate, true);
+      },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -555,6 +567,7 @@ test('usage includes skills, config, environment, and examples footers', () => {
   assert.match(usageText, /agent-device snapshot -i/);
   assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
   assert.match(usageText, /agent-device replay \.\/session\.ad/);
+  assert.match(usageText, /agent-device test \.\/suite --platform android/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {
@@ -723,10 +736,19 @@ test('usage renders concise commands inline with descriptions', () => {
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
   assert.match(help, /  metro prepare --public-base-url <url>\s{2,}Prepare local Metro runtime/);
   assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
+  assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run \.ad test suites/);
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
   assert.doesNotMatch(help, /\n  batch\s{2,}Run multiple commands/);
   assert.doesNotMatch(help, /agent-device-proxy/);
+});
+
+test('command usage describes test suite flags', () => {
+  const help = usageForCommand('test');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Usage:\s+agent-device test <path-or-glob>\.\.\./);
+  assert.match(help, /Run one or more \.ad scripts as a serial test suite/);
+  assert.match(help, /--fail-fast/);
 });
 
 test('command usage shows command and global flags separately', () => {

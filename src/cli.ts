@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
+import type { ReplaySuiteResult, ReplaySuiteTestResult } from './daemon/types.ts';
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
 import {
   createRequestId,
@@ -233,6 +234,16 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         });
 
         if (response.ok) {
+          if (command === 'test' && flags.json) {
+            printJson({ success: true, data: response.data ?? {} });
+            const suite = (response.data ?? {}) as ReplaySuiteResult;
+            const failed = typeof suite.failed === 'number' ? suite.failed : 0;
+            if (logTailStopper) logTailStopper();
+            if (failed > 0) {
+              process.exit(1);
+            }
+            return;
+          }
           if (flags.json) {
             printJson({ success: true, data: response.data ?? {} });
             if (logTailStopper) logTailStopper();
@@ -246,6 +257,14 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               }),
             );
             if (logTailStopper) logTailStopper();
+            return;
+          }
+          if (command === 'test') {
+            const testExitCode = renderTestSummary((response.data ?? {}) as ReplaySuiteResult);
+            if (logTailStopper) logTailStopper();
+            if (testExitCode !== 0) {
+              process.exit(testExitCode);
+            }
             return;
           }
           if (command === 'diff' && positionals[0] === 'snapshot') {
@@ -604,6 +623,48 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   process.stdout.write(
     `Batch completed: ${executed}/${total} steps${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
   );
+}
+
+function renderTestSummary(data: ReplaySuiteResult): number {
+  const tests = Array.isArray(data.tests) ? data.tests : [];
+  for (const entry of tests) {
+    renderTestResult(entry);
+  }
+
+  const total = typeof data.total === 'number' ? data.total : 0;
+  const passed = typeof data.passed === 'number' ? data.passed : 0;
+  const failed = typeof data.failed === 'number' ? data.failed : 0;
+  const skipped = typeof data.skipped === 'number' ? data.skipped : 0;
+  const notRun = typeof data.notRun === 'number' ? data.notRun : 0;
+  const durationMs = typeof data.durationMs === 'number' ? data.durationMs : undefined;
+  const notRunSuffix = notRun > 0 ? `, ${notRun} not run` : '';
+  process.stdout.write(
+    `Test summary: ${passed} passed, ${failed} failed, ${skipped} skipped${notRunSuffix}${durationMs !== undefined ? ` in ${durationMs}ms` : ''} (${total} total)\n`,
+  );
+  return failed > 0 ? 1 : 0;
+}
+
+function renderTestResult(result: ReplaySuiteTestResult): void {
+  const status = result.status;
+  const file = result.file;
+  const durationMs = result.durationMs;
+  const prefix =
+    status === 'passed'
+      ? 'PASS'
+      : status === 'failed'
+        ? 'FAIL'
+        : status === 'skipped'
+          ? 'SKIP'
+          : 'INFO';
+  const suffix = durationMs > 0 ? ` (${durationMs}ms)` : '';
+  process.stdout.write(`${prefix} ${file}${suffix}\n`);
+  if (status === 'failed') {
+    process.stdout.write(`  ${result.error.message}\n`);
+    return;
+  }
+  if (status === 'skipped') {
+    process.stdout.write(`  ${result.message}\n`);
+  }
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseReplayScript, writeReplayScript } from '../session-replay-script.ts';
+import {
+  parseReplayScript,
+  readReplayScriptMetadata,
+  writeReplayScript,
+} from '../session-replay-script.ts';
 import type { SessionAction, SessionState } from '../../types.ts';
 
 function makeSession(): SessionState {
@@ -68,4 +72,20 @@ test('record replay script round-trips fps and hide-touches flags', () => {
   assert.deepEqual(parsed[0]?.positionals, ['start', './capture.mp4']);
   assert.equal(parsed[0]?.flags.fps, 24);
   assert.equal(parsed[0]?.flags.hideTouches, true);
+});
+
+test('readReplayScriptMetadata extracts platform from context header', () => {
+  const metadata = readReplayScriptMetadata(
+    '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, 'android');
+});
+
+test('readReplayScriptMetadata ignores non-concrete platform aliases', () => {
+  const metadata = readReplayScriptMetadata(
+    'context platform=apple device="Host Mac"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, undefined);
 });
