@@ -6,6 +6,7 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 
 export type ReinstallOps = {
@@ -186,10 +187,10 @@ export async function handleAppDeployCommand(params: {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result: { ...result, message: buildDeployMessage(result) },
+        result: withSuccessText(result, buildDeployMessage(result)),
       });
     }
-    return { ok: true, data: { ...result, message: buildDeployMessage(result) } };
+    return { ok: true, data: withSuccessText(result, buildDeployMessage(result)) };
   } finally {
     if (uploadedArtifactId) {
       cleanupUploadedArtifact(uploadedArtifactId);

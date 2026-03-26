@@ -3,6 +3,7 @@ import { buildSelectorChainForNode } from '../selectors.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
 import { buildScrollIntoViewPlan, resolveViewportRect } from '../scroll-planner.ts';
 import type { DaemonResponse } from '../types.ts';
+import { successText } from '../../utils/success-text.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
@@ -77,12 +78,17 @@ export async function handleScrollIntoViewCommand(
         alreadyVisible: true,
         refLabel,
         selectorChain,
-        message: `Scrolled into view: @${ref}`,
+        ...successText(`Scrolled into view: @${ref}`),
       },
     });
     return {
       ok: true,
-      data: { ref, attempts: 0, alreadyVisible: true, message: `Scrolled into view: @${ref}` },
+      data: {
+        ref,
+        attempts: 0,
+        alreadyVisible: true,
+        ...successText(`Scrolled into view: @${ref}`),
+      },
     };
   }
   const data = await dispatch(
@@ -108,7 +114,7 @@ export async function handleScrollIntoViewCommand(
       direction: plan.direction,
       refLabel,
       selectorChain,
-      message: `Scrolled into view: @${ref}`,
+      ...successText(`Scrolled into view: @${ref}`),
     },
   });
   return {
@@ -118,7 +124,7 @@ export async function handleScrollIntoViewCommand(
       ref,
       attempts: plan.count,
       direction: plan.direction,
-      message: `Scrolled into view: @${ref}`,
+      ...successText(`Scrolled into view: @${ref}`),
     },
   };
 }

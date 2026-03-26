@@ -3,6 +3,7 @@ import type { DaemonCommandContext } from '../context.ts';
 import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import { successText } from '../../utils/success-text.ts';
 
 export type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -35,7 +36,7 @@ export function buildTouchVisualizationResult(params: {
     ...(referenceFrame ?? {}),
     ...(extra ?? {}),
     ...(data ?? {}),
-    ...(message ? { message } : {}),
+    ...successText(message),
   };
 }
 

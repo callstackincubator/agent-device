@@ -12,6 +12,7 @@ import type {
   SessionCloseResult,
 } from './client-types.ts';
 import type { Platform } from './utils/device.ts';
+import { successText, withSuccessText } from './utils/success-text.ts';
 
 export function buildAppIdentifiers(params: {
   session?: string;
@@ -88,61 +89,69 @@ export function serializeEnsureSimulatorResult(
 ): Record<string, unknown> {
   const action = result.created ? 'Created' : 'Reused';
   const bootedSuffix = result.booted ? ' (booted)' : '';
-  return {
-    udid: result.udid,
-    device: result.device,
-    runtime: result.runtime,
-    ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
-    created: result.created,
-    booted: result.booted,
-    message: `${action}: ${result.device} ${result.udid}${bootedSuffix}`,
-  };
+  return withSuccessText(
+    {
+      udid: result.udid,
+      device: result.device,
+      runtime: result.runtime,
+      ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
+      created: result.created,
+      booted: result.booted,
+    },
+    `${action}: ${result.device} ${result.udid}${bootedSuffix}`,
+  );
 }
 
 export function serializeDeployResult(result: AppDeployResult): Record<string, unknown> {
   const target = result.bundleId ?? result.package ?? result.app;
-  return {
-    app: result.app,
-    appPath: result.appPath,
-    platform: result.platform,
-    ...(result.appId ? { appId: result.appId } : {}),
-    ...(result.bundleId ? { bundleId: result.bundleId } : {}),
-    ...(result.package ? { package: result.package } : {}),
-    message: `Installed: ${target}`,
-  };
+  return withSuccessText(
+    {
+      app: result.app,
+      appPath: result.appPath,
+      platform: result.platform,
+      ...(result.appId ? { appId: result.appId } : {}),
+      ...(result.bundleId ? { bundleId: result.bundleId } : {}),
+      ...(result.package ? { package: result.package } : {}),
+    },
+    `Installed: ${target}`,
+  );
 }
 
 export function serializeInstallFromSourceResult(
   result: AppInstallFromSourceResult,
 ): Record<string, unknown> {
   const target = result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget;
-  return {
-    launchTarget: result.launchTarget,
-    ...(result.appName ? { appName: result.appName } : {}),
-    ...(result.appId ? { appId: result.appId } : {}),
-    ...(result.bundleId ? { bundleId: result.bundleId } : {}),
-    ...(result.packageName ? { package: result.packageName } : {}),
-    ...(result.installablePath ? { installablePath: result.installablePath } : {}),
-    ...(result.archivePath ? { archivePath: result.archivePath } : {}),
-    ...(result.materializationId ? { materializationId: result.materializationId } : {}),
-    ...(result.materializationExpiresAt
-      ? { materializationExpiresAt: result.materializationExpiresAt }
-      : {}),
-    message: target ? `Installed: ${target}` : 'Installed from source',
-  };
+  return withSuccessText(
+    {
+      launchTarget: result.launchTarget,
+      ...(result.appName ? { appName: result.appName } : {}),
+      ...(result.appId ? { appId: result.appId } : {}),
+      ...(result.bundleId ? { bundleId: result.bundleId } : {}),
+      ...(result.packageName ? { package: result.packageName } : {}),
+      ...(result.installablePath ? { installablePath: result.installablePath } : {}),
+      ...(result.archivePath ? { archivePath: result.archivePath } : {}),
+      ...(result.materializationId ? { materializationId: result.materializationId } : {}),
+      ...(result.materializationExpiresAt
+        ? { materializationExpiresAt: result.materializationExpiresAt }
+        : {}),
+    },
+    target ? `Installed: ${target}` : 'Installed from source',
+  );
 }
 
 export function serializeOpenResult(result: AppOpenResult): Record<string, unknown> {
   const target = result.appName ?? result.appBundleId ?? result.session;
-  return {
-    session: result.session,
-    ...(result.appName ? { appName: result.appName } : {}),
-    ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
-    ...(result.startup ? { startup: result.startup } : {}),
-    ...(result.runtime ? { runtime: result.runtime } : {}),
-    ...(result.device ? serializeSessionDevice(result.device) : {}),
-    message: target ? `Opened: ${target}` : 'Opened',
-  };
+  return withSuccessText(
+    {
+      session: result.session,
+      ...(result.appName ? { appName: result.appName } : {}),
+      ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
+      ...(result.startup ? { startup: result.startup } : {}),
+      ...(result.runtime ? { runtime: result.runtime } : {}),
+      ...(result.device ? serializeSessionDevice(result.device) : {}),
+    },
+    target ? `Opened: ${target}` : 'Opened',
+  );
 }
 
 export function serializeCloseResult(
@@ -151,7 +160,7 @@ export function serializeCloseResult(
   return {
     session: result.session,
     ...(result.shutdown ? { shutdown: result.shutdown } : {}),
-    message: result.session ? `Closed: ${result.session}` : 'Closed',
+    ...successText(result.session ? `Closed: ${result.session}` : 'Closed'),
   };
 }
 

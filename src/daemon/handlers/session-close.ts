@@ -10,6 +10,7 @@ import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
+import { successText, withSuccessText } from '../../utils/success-text.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   isAndroidEmulator,
@@ -170,7 +171,7 @@ export async function handleCloseCommand(params: {
     command: 'close',
     positionals: req.positionals ?? [],
     flags: req.flags ?? {},
-    result: { session: sessionName, message: `Closed: ${sessionName}` },
+    result: { session: sessionName, ...successText(`Closed: ${sessionName}`) },
   });
   if (req.flags?.saveScript) {
     session.recordSession = true;
@@ -187,8 +188,11 @@ export async function handleCloseCommand(params: {
   if (shutdownResult) {
     return {
       ok: true,
-      data: { session: sessionName, shutdown: shutdownResult, message: `Closed: ${sessionName}` },
+      data: withSuccessText(
+        { session: sessionName, shutdown: shutdownResult },
+        `Closed: ${sessionName}`,
+      ),
     };
   }
-  return { ok: true, data: { session: sessionName, message: `Closed: ${sessionName}` } };
+  return { ok: true, data: { session: sessionName, ...successText(`Closed: ${sessionName}`) } };
 }

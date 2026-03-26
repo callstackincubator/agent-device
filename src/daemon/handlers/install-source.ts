@@ -10,6 +10,7 @@ import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
+import { withSuccessText } from '../../utils/success-text.ts';
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
@@ -122,10 +123,13 @@ export async function handleInstallFromSourceCommand(params: {
             command: 'install_source',
             positionals: [],
             flags: req.flags ?? {},
-            result: { ...result, message: buildInstallFromSourceMessage(result) },
+            result: withSuccessText(result, buildInstallFromSourceMessage(result)),
           });
         }
-        return { ok: true, data: { ...result, message: buildInstallFromSourceMessage(result) } };
+        return {
+          ok: true,
+          data: withSuccessText(result, buildInstallFromSourceMessage(result)),
+        };
       } catch (error) {
         if (retained) {
           await cleanupRetainedMaterializedPaths(
@@ -189,10 +193,13 @@ export async function handleInstallFromSourceCommand(params: {
           command: 'install_source',
           positionals: [],
           flags: req.flags ?? {},
-          result: { ...result, message: buildInstallFromSourceMessage(result) },
+          result: withSuccessText(result, buildInstallFromSourceMessage(result)),
         });
       }
-      return { ok: true, data: { ...result, message: buildInstallFromSourceMessage(result) } };
+      return {
+        ok: true,
+        data: withSuccessText(result, buildInstallFromSourceMessage(result)),
+      };
     } catch (error) {
       if (retained) {
         await cleanupRetainedMaterializedPaths(
