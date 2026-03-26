@@ -1307,3 +1307,96 @@ test('is visible captures one snapshot before evaluating selector predicate', as
     assert.equal(response.data?.selector, 'id=auth_continue');
   }
 });
+
+test('is visible passes for list text that inherits viewport visibility from an ancestor', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'visible-list-item';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['visible', 'label="Trip ideas"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command) => {
+      if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+      return {
+        nodes: [
+          { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+          {
+            index: 1,
+            parentIndex: 0,
+            type: 'XCUIElementTypeCell',
+            rect: { x: 0, y: 160, width: 390, height: 44 },
+            hittable: false,
+          },
+          {
+            index: 2,
+            parentIndex: 1,
+            type: 'XCUIElementTypeStaticText',
+            label: 'Trip ideas',
+            hittable: false,
+          },
+        ],
+        backend: 'xctest',
+      };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.equal(response.data?.predicate, 'visible');
+    assert.equal(response.data?.pass, true);
+    assert.equal(response.data?.selector, 'label=\"Trip ideas\"');
+  }
+});
+
+test('is visible fails for nodes outside the current viewport', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'visible-offscreen';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['visible', 'label="Far item"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command) => {
+      if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+      return {
+        nodes: [
+          { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+          {
+            index: 1,
+            parentIndex: 0,
+            type: 'XCUIElementTypeStaticText',
+            label: 'Far item',
+            rect: { x: 20, y: 2600, width: 120, height: 40 },
+            hittable: false,
+          },
+        ],
+        backend: 'xctest',
+      };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error?.code, 'COMMAND_FAILED');
+    assert.match(response.error?.message ?? '', /actual=\{"visible":false/);
+  }
+});

@@ -134,11 +134,16 @@ Use this loop when the task starts from acceptance criteria and you need to turn
 
 Preferred mapping:
 
-- visibility or presence claim: `is visible` or plain `snapshot`
+- visibility claim for what is on-screen now: `is visible` or plain `snapshot`
+- presence claim regardless of viewport visibility: `is exists`
 - exact text, label, or value claim: `get text`
 - post-action state change: act, then `wait`, then `is` or `get`
 - nearby structural UI change: `diff snapshot`
 - proof artifact for the final result: `screenshot` or `record`
+
+Notes:
+
+- `wait text` is useful for synchronizing on text presence, but it is not the same as `is visible`.
 
 Anti-hallucination rules:
 

@@ -123,6 +123,7 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
   const result = evaluateIsPredicate({
     predicate,
     node: resolved.node,
+    nodes: resolvedSelectorTarget.snapshot.nodes,
     expectedText,
     platform: session.device.platform,
   });
