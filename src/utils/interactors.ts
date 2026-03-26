@@ -30,9 +30,11 @@ import {
   setIosSetting,
   writeIosClipboardText,
 } from '../platforms/ios/index.ts';
+import type { RunnerCommand } from '../platforms/ios/runner-client.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../daemon/request-cancel.ts';
 import type { PermissionSettingOptions } from '../platforms/permission-utils.ts';
+import { DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS } from './scroll-into-view.ts';
 
 export type RunnerContext = {
   requestId?: string;
@@ -76,6 +78,10 @@ type Interactor = {
     options?: { amount?: number; pixels?: number },
   ): Promise<Record<string, unknown> | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
+  scrollIntoView(
+    text: string,
+    options?: { maxScrolls?: number },
+  ): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
@@ -112,7 +118,7 @@ export function getInteractor(
         type: (text, delayMs) => typeAndroid(device, text, delayMs),
         fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
         scroll: (direction, options) => scrollAndroid(device, direction, options),
-        scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
+        scrollIntoView: (text, options) => scrollIntoViewAndroid(device, text, options),
         screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
@@ -299,51 +305,65 @@ function iosRunnerOverrides(
       scroll: async (direction, options) => {
         return await runAppleScroll(runRunnerCommand, device, ctx, runnerOpts, direction, options);
       },
-      scrollIntoView: async (text) => {
-        // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.
-        const initial = (await runRunnerCommand(
-          device,
-          { command: 'findText', text, appBundleId: ctx.appBundleId },
-          runnerOpts,
-        )) as { found?: boolean };
-        if (initial?.found) return { attempts: 1 };
-
-        const maxBursts = 12;
-        const swipesPerBurst = 4;
-        let cachedInteractionFrame: InteractionFrame | undefined;
-        for (let burst = 0; burst < maxBursts; burst += 1) {
-          for (let i = 0; i < swipesPerBurst; i += 1) {
-            throwIfCanceled();
-            cachedInteractionFrame ??= await resolveAppleInteractionFrame(
-              runRunnerCommand,
-              device,
-              ctx,
-              runnerOpts,
-            );
-            await runAppleScroll(
-              runRunnerCommand,
-              device,
-              ctx,
-              runnerOpts,
-              'down',
-              undefined,
-              cachedInteractionFrame,
-            );
-            // Small settle keeps gesture chain stable without long visible pauses.
-            await sleepMs(80);
-          }
-          throwIfCanceled();
-          const found = (await runRunnerCommand(
-            device,
-            { command: 'findText', text, appBundleId: ctx.appBundleId },
-            runnerOpts,
-          )) as { found?: boolean };
-          if (found?.found) return { attempts: burst + 2 };
-        }
-        throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`);
+      scrollIntoView: async (text, options) => {
+        return await scrollIntoViewIosRunnerText(
+          (command) =>
+            runRunnerCommand(device, { ...command, appBundleId: ctx.appBundleId }, runnerOpts),
+          throwIfCanceled,
+          text,
+          options,
+        );
       },
     },
   };
+}
+
+type RunnerCommandExecutor = (command: RunnerCommand) => Promise<Record<string, unknown>>;
+
+export async function scrollIntoViewIosRunnerText(
+  runCommand: RunnerCommandExecutor,
+  throwIfCanceled: () => void,
+  text: string,
+  options?: { maxScrolls?: number },
+): Promise<{ attempts?: number }> {
+  const maxScrolls = options?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
+  const initial = await runCommand({ command: 'findText', text });
+  if (initial?.found) return { attempts: 0 };
+
+  let previousSnapshot = snapshotProgressFingerprint(
+    await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
+  );
+
+  for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
+    throwIfCanceled();
+    await runCommand({ command: 'swipe', direction: 'up' });
+    // Small settle keeps gesture chain stable without long visible pauses.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const found = await runCommand({ command: 'findText', text });
+    if (found?.found) return { attempts };
+
+    const snapshot = snapshotProgressFingerprint(
+      await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
+    );
+    if (snapshot === previousSnapshot) {
+      throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+        reason: 'not_found',
+        attempts,
+        stalled: true,
+      });
+    }
+    previousSnapshot = snapshot;
+  }
+
+  throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+    reason: 'not_found',
+    attempts: maxScrolls,
+  });
+}
+
+function snapshotProgressFingerprint(snapshot: Record<string, unknown>): string {
+  const nodes = snapshot.nodes;
+  return JSON.stringify(Array.isArray(nodes) ? nodes : snapshot);
 }
 
 function invertScrollDirection(direction: ScrollDirection): ScrollDirection {

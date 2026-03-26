@@ -108,6 +108,16 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
         assert.equal(parsed.flags.artifactsDir, '.agent-device/test-artifacts');
       },
     },
+    {
+      label: 'scrollintoview --max-scrolls',
+      argv: ['scrollintoview', '@e2', '--max-scrolls', '5'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'scrollintoview');
+        assert.deepEqual(parsed.positionals, ['@e2']);
+        assert.equal(parsed.flags.maxScrolls, 5);
+      },
+    },
   ];
 
   for (const scenario of scenarios) {

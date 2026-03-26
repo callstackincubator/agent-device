@@ -68,6 +68,7 @@ export type CliFlags = {
   backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
+  maxScrolls?: number;
   activity?: string;
   header?: string[];
   saveScript?: boolean | string;
@@ -632,6 +633,15 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Swipe repeat pattern',
   },
   {
+    key: 'maxScrolls',
+    names: ['--max-scrolls'],
+    type: 'int',
+    min: 1,
+    max: 200,
+    usageLabel: '--max-scrolls <n>',
+    usageDescription: 'scrollintoview: cap the number of scroll gestures before failing',
+  },
+  {
     key: 'verbose',
     names: ['--debug', '--verbose', '-v'],
     type: 'boolean',
@@ -1152,7 +1162,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Scroll until text or ref is visible',
     positionalArgs: ['target'],
     allowsExtraPositionals: true,
-    allowedFlags: [],
+    allowedFlags: ['maxScrolls'],
   },
   pinch: {
     helpDescription: 'Pinch/zoom gesture (iOS simulator)',

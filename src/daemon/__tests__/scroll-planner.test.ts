@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { type RawSnapshotNode } from '../../utils/snapshot.ts';
 import {
   buildScrollIntoViewPlan,
+  distanceFromSafeViewportBand,
   isRectWithinSafeViewportBand,
   resolveViewportRect,
 } from '../scroll-planner.ts';
@@ -35,7 +36,6 @@ test('buildScrollIntoViewPlan computes downward content scroll when target is be
   const plan = buildScrollIntoViewPlan(targetRect, viewportRect);
   assert.ok(plan);
   assert.equal(plan?.direction, 'down');
-  assert.ok((plan?.count ?? 0) > 1);
   assert.equal(plan?.x, 80);
   assert.equal(plan?.startY, 726);
   assert.equal(plan?.endY, 118);
@@ -47,6 +47,7 @@ test('buildScrollIntoViewPlan returns null when already in safe viewport band', 
   const plan = buildScrollIntoViewPlan(targetRect, viewportRect);
   assert.equal(plan, null);
   assert.equal(isRectWithinSafeViewportBand(targetRect, viewportRect), true);
+  assert.equal(distanceFromSafeViewportBand(targetRect, viewportRect), 0);
 });
 
 test('buildScrollIntoViewPlan keeps swipe lane inside viewport when target center is out of bounds', () => {
@@ -55,4 +56,16 @@ test('buildScrollIntoViewPlan keeps swipe lane inside viewport when target cente
   const plan = buildScrollIntoViewPlan(targetRect, viewportRect);
   assert.ok(plan);
   assert.equal(plan?.x, 351);
+});
+
+test('distanceFromSafeViewportBand reports pixels outside the safe band', () => {
+  const viewportRect = { x: 0, y: 0, width: 390, height: 844 };
+  assert.equal(
+    distanceFromSafeViewportBand({ x: 20, y: 2100, width: 120, height: 40 }, viewportRect) > 0,
+    true,
+  );
+  assert.equal(
+    distanceFromSafeViewportBand({ x: 20, y: -200, width: 120, height: 40 }, viewportRect) > 0,
+    true,
+  );
 });

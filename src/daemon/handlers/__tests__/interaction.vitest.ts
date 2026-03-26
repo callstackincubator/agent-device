@@ -24,12 +24,18 @@ vi.mock('../../../platforms/android/index.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../interaction-snapshot.ts', () => ({
+  captureSnapshotForSession: vi.fn(async (session) => session.snapshot),
+}));
+
 import { dispatchCommand } from '../../../core/dispatch.ts';
 import { getAndroidScreenSize } from '../../../platforms/android/index.ts';
+import { captureSnapshotForSession } from '../interaction-snapshot.ts';
 import { handleInteractionCommands } from '../interaction.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockGetAndroidScreenSize = vi.mocked(getAndroidScreenSize);
+const mockCaptureSnapshotForSession = vi.mocked(captureSnapshotForSession);
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-interaction-handler-'));
@@ -106,6 +112,8 @@ beforeEach(() => {
   mockDispatch.mockResolvedValue({});
   mockGetAndroidScreenSize.mockReset();
   mockGetAndroidScreenSize.mockResolvedValue({ width: 1344, height: 2992 });
+  mockCaptureSnapshotForSession.mockReset();
+  mockCaptureSnapshotForSession.mockImplementation(async (session) => session.snapshot);
 });
 
 test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
@@ -1188,7 +1196,7 @@ test('press coordinates does not treat extra trailing args as selector', async (
   expect(sessionStore.get(sessionName)?.actions.length).toBe(1);
 });
 
-test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
+test('scrollintoview @ref dispatches geometry-based swipe series with verification snapshots', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const session = makeSession(sessionName);
@@ -1211,7 +1219,37 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
   };
   sessionStore.set(sessionName, session);
 
-  mockDispatch.mockResolvedValue({ ok: true });
+  let snapshotCallCount = 0;
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    snapshotCallCount += 1;
+    activeSession.snapshot = {
+      nodes: attachRefs([
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        ...(snapshotCallCount === 1
+          ? [
+              {
+                index: 1,
+                type: 'XCUIElementTypeStaticText',
+                label: 'Inserted item',
+                rect: { x: 20, y: 900, width: 120, height: 40 },
+              },
+            ]
+          : []),
+        {
+          index: snapshotCallCount === 1 ? 2 : 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Far item',
+          rect:
+            snapshotCallCount === 1
+              ? { x: 20, y: 1300, width: 120, height: 40 }
+              : { x: 20, y: 320, width: 120, height: 40 },
+        },
+      ]),
+      createdAt: Date.now(),
+      backend: 'xctest',
+    };
+    return activeSession.snapshot;
+  });
 
   const response = await handleInteractionCommands({
     req: {
@@ -1228,14 +1266,15 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch).toHaveBeenCalledTimes(2);
   expect(mockDispatch.mock.calls[0]?.[1]).toBe('swipe');
   expect(mockDispatch.mock.calls[0]?.[2]?.length).toBe(5);
   const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
   expect(context?.pattern).toBe('one-way');
   expect(context?.pauseMs).toBe(0);
-  expect(typeof context?.count).toBe('number');
-  expect(context?.count as number).toBeGreaterThan(1);
+  expect(context?.count).toBe(1);
+  expect(mockDispatch.mock.calls[1]?.[1]).toBe('swipe');
+  expect(snapshotCallCount).toBe(2);
 
   const stored = sessionStore.get(sessionName);
   expect(stored).toBeTruthy();
@@ -1243,6 +1282,7 @@ test('scrollintoview @ref dispatches geometry-based swipe series', async () => {
   expect(stored?.actions[0]?.command).toBe('scrollintoview');
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   expect(result.ref).toBe('e2');
+  expect(result.attempts).toBe(2);
 });
 
 test('scrollintoview @ref returns immediately when target is already in viewport safe band', async () => {
@@ -1290,7 +1330,112 @@ test('scrollintoview @ref returns immediately when target is already in viewport
   }
 });
 
-test('scrollintoview @ref does not run post-scroll verification snapshot', async () => {
+test('scrollintoview @ref missing from snapshot reports structured not-found details', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'scrollintoview',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    expect(response.error.message).toMatch(/not found/i);
+    expect(response.error.details?.reason).toBe('not_found');
+    expect(response.error.details?.attempts).toBe(0);
+  }
+});
+
+test('scrollintoview @ref tolerates a single overshoot and recovers on the next swipe', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Edge item',
+        rect: { x: 20, y: 700, width: 120, height: 40 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  let snapshotCallCount = 0;
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    snapshotCallCount += 1;
+    activeSession.snapshot = {
+      nodes: attachRefs([
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        {
+          index: 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Edge item',
+          rect:
+            snapshotCallCount === 1
+              ? { x: 20, y: 0, width: 120, height: 40 }
+              : { x: 20, y: 320, width: 120, height: 40 },
+        },
+      ]),
+      createdAt: Date.now(),
+      backend: 'xctest',
+    };
+    return activeSession.snapshot;
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'scrollintoview',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(snapshotCallCount).toBe(2);
+  if (response?.ok) {
+    expect(response.data?.attempts).toBe(2);
+  }
+});
+
+test('scrollintoview @ref stops when post-scroll snapshots make no progress', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const session = makeSession(sessionName);
@@ -1313,22 +1458,23 @@ test('scrollintoview @ref does not run post-scroll verification snapshot', async
   };
   sessionStore.set(sessionName, session);
 
-  mockDispatch.mockImplementation(async (_device, command) => {
-    if (command === 'snapshot') {
-      return {
-        nodes: [
-          { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-          {
-            index: 1,
-            type: 'XCUIElementTypeStaticText',
-            label: 'Far item',
-            rect: { x: 20, y: 2600, width: 120, height: 40 },
-          },
-        ],
-        backend: 'xctest',
-      };
-    }
-    return { ok: true };
+  let snapshotCallCount = 0;
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    snapshotCallCount += 1;
+    activeSession.snapshot = {
+      nodes: attachRefs([
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        {
+          index: 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Far item',
+          rect: { x: 20, y: 2600, width: 120, height: 40 },
+        },
+      ]),
+      createdAt: Date.now(),
+      backend: 'xctest',
+    };
+    return activeSession.snapshot;
   });
 
   const response = await handleInteractionCommands({
@@ -1345,9 +1491,81 @@ test('scrollintoview @ref does not run post-scroll verification snapshot', async
   });
 
   expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  const snapshotCalls = mockDispatch.mock.calls.filter((c) => c[1] === 'snapshot');
-  expect(snapshotCalls.length).toBe(0);
+  expect(response?.ok).toBe(false);
+  expect(snapshotCallCount).toBe(2);
+  if (response && !response.ok) {
+    expect(response.error.message).toMatch(/made no progress/i);
+    expect(response.error.details?.reason).toBe('not_found');
+    expect(response.error.details?.attempts).toBe(2);
+  }
+});
+
+test('scrollintoview @ref respects --max-scrolls before failing not found', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Far item',
+        rect: { x: 20, y: 2600, width: 120, height: 40 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  let snapshotCallCount = 0;
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    snapshotCallCount += 1;
+    activeSession.snapshot = {
+      nodes: attachRefs([
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        {
+          index: 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Far item',
+          rect:
+            snapshotCallCount === 1
+              ? { x: 20, y: 1900, width: 120, height: 40 }
+              : { x: 20, y: 1200, width: 120, height: 40 },
+        },
+      ]),
+      createdAt: Date.now(),
+      backend: 'xctest',
+    };
+    return activeSession.snapshot;
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'scrollintoview',
+      positionals: ['@e2'],
+      flags: { maxScrolls: 2 },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(snapshotCallCount).toBe(2);
+  if (response && !response.ok) {
+    expect(response.error.message).toMatch(/--max-scrolls=2/);
+    expect(response.error.details?.reason).toBe('not_found');
+    expect(response.error.details?.attempts).toBe(2);
+  }
 });
 
 test('is visible captures one snapshot before evaluating selector predicate', async () => {

@@ -4,7 +4,6 @@ type ScrollIntoViewPlan = {
   x: number;
   startY: number;
   endY: number;
-  count: number;
   direction: 'up' | 'down';
 };
 
@@ -66,34 +65,36 @@ export function buildScrollIntoViewPlan(
   const swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY));
 
   if (targetCenterY > safeBottom) {
-    const delta = targetCenterY - safeBottom;
     return {
       x,
       startY: dragUpStartY,
       endY: dragUpEndY,
-      count: clampInt(Math.ceil(delta / swipeStepPx), 1, 50),
       direction: 'down',
     };
   }
 
-  const delta = safeTop - targetCenterY;
   return {
     x,
     startY: dragDownStartY,
     endY: dragDownEndY,
-    count: clampInt(Math.ceil(delta / swipeStepPx), 1, 50),
     direction: 'up',
   };
 }
 
 export function isRectWithinSafeViewportBand(targetRect: Rect, viewportRect: Rect): boolean {
+  return distanceFromSafeViewportBand(targetRect, viewportRect) === 0;
+}
+
+export function distanceFromSafeViewportBand(targetRect: Rect, viewportRect: Rect): number {
   const viewportHeight = Math.max(1, viewportRect.height);
   const viewportTop = viewportRect.y;
   const viewportBottom = viewportRect.y + viewportHeight;
   const safeTop = viewportTop + viewportHeight * 0.25;
   const safeBottom = viewportBottom - viewportHeight * 0.25;
   const targetCenterY = targetRect.y + targetRect.height / 2;
-  return targetCenterY >= safeTop && targetCenterY <= safeBottom;
+  if (targetCenterY < safeTop) return Math.ceil(safeTop - targetCenterY);
+  if (targetCenterY > safeBottom) return Math.ceil(targetCenterY - safeBottom);
+  return 0;
 }
 
 function hasValidRect(rect: Rect | undefined): rect is Rect {
@@ -121,10 +122,6 @@ function pickLargestRect(rects: Rect[]): Rect | null {
     }
   }
   return best;
-}
-
-function clampInt(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, Math.round(value)));
 }
 
 function clamp(value: number, min: number, max: number): number {
