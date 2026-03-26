@@ -4756,7 +4756,7 @@ test('test filters replay scripts by context platform and skips untyped files', 
       command: 'test',
       positionals: [root],
       flags: { platform: 'android' },
-      meta: { cwd: root },
+      meta: { cwd: root, requestId: 'suite-filter' },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -4770,7 +4770,7 @@ test('test filters replay scripts by context platform and skips untyped files', 
   assert.ok(response?.ok);
   assert.equal(invoked.length, 1);
   assert.equal(invoked[0]?.flags?.platform, 'android');
-  assert.equal(invoked[0]?.session, 'default:test:1-01-android');
+  assert.equal(invoked[0]?.session, 'default:test:suite-filter:1-01-android');
   if (response?.ok) {
     assert.equal(response.data?.passed, 1);
     assert.equal(response.data?.failed, 0);
@@ -4796,7 +4796,7 @@ test('test binds each replay script to its declared platform metadata', async ()
       session: 'default',
       command: 'test',
       positionals: [root],
-      meta: { cwd: root },
+      meta: { cwd: root, requestId: 'suite-platforms' },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -4814,7 +4814,7 @@ test('test binds each replay script to its declared platform metadata', async ()
   );
   assert.deepEqual(
     invoked.map((req) => req.session),
-    ['default:test:1-01-android', 'default:test:2-02-ios'],
+    ['default:test:suite-platforms:1-01-android', 'default:test:suite-platforms:2-02-ios'],
   );
   if (response?.ok) {
     assert.equal(response.data?.passed, 2);
@@ -4834,7 +4834,7 @@ test('test cleans up suite-owned sessions after each executed script', async () 
       session: 'default',
       command: 'test',
       positionals: [root],
-      meta: { cwd: root },
+      meta: { cwd: root, requestId: 'suite-cleanup' },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -4855,7 +4855,7 @@ test('test cleans up suite-owned sessions after each executed script', async () 
   });
 
   assert.ok(response?.ok);
-  assert.equal(sessionStore.get('default:test:1-01-android'), undefined);
+  assert.equal(sessionStore.get('default:test:suite-cleanup:1-01-android'), undefined);
 });
 
 test('test stops after the first failing script when --fail-fast is set', async () => {
@@ -4872,7 +4872,7 @@ test('test stops after the first failing script when --fail-fast is set', async 
       command: 'test',
       positionals: [root],
       flags: { failFast: true },
-      meta: { cwd: root },
+      meta: { cwd: root, requestId: 'suite-fail-fast' },
     },
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),

@@ -51,6 +51,7 @@ export async function runReplayTestSuite(params: {
       cwd: req.meta?.cwd,
       platformFilter: req.flags?.platform,
     });
+    const suiteInvocationId = buildReplayTestInvocationId(req.meta?.requestId);
     const results: ReplaySuiteTestResult[] = [];
     const suiteStartedAt = Date.now();
     let passed = 0;
@@ -71,7 +72,12 @@ export async function runReplayTestSuite(params: {
         continue;
       }
 
-      const testSessionName = buildReplayTestSessionName(sessionName, entry.path, executed);
+      const testSessionName = buildReplayTestSessionName(
+        sessionName,
+        suiteInvocationId,
+        entry.path,
+        executed,
+      );
       const startedAt = Date.now();
       let replayResponse: DaemonResponse;
       try {
@@ -180,6 +186,7 @@ export function discoverReplayTestEntries(params: {
 
 export function buildReplayTestSessionName(
   sessionName: string,
+  suiteInvocationId: string,
   filePath: string,
   index: number,
 ): string {
@@ -188,7 +195,16 @@ export function buildReplayTestSessionName(
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return `${sessionName}:test:${index + 1}${slug ? `-${slug}` : ''}`;
+  return `${sessionName}:test:${suiteInvocationId}:${index + 1}${slug ? `-${slug}` : ''}`;
+}
+
+function buildReplayTestInvocationId(requestId?: string): string {
+  const raw = requestId?.trim() || `${process.pid}-${Date.now().toString(36)}`;
+  const normalized = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || 'suite';
 }
 
 function expandReplayTestInput(input: string, cwd: string): string[] {
