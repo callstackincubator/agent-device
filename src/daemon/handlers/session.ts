@@ -22,6 +22,7 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
@@ -408,6 +409,7 @@ export async function handleSessionCommands(params: {
   installOps?: InstallOps;
   reinstallOps?: ReinstallOps;
   stopIosRunner?: typeof stopIosRunnerSession;
+  dismissMacOsAlert?: typeof runMacOsAlertAction;
   appLogOps?: {
     start: typeof startAppLog;
     stop: typeof stopAppLog;
@@ -441,6 +443,7 @@ export async function handleSessionCommands(params: {
     installOps = defaultInstallOps,
     reinstallOps = defaultReinstallOps,
     stopIosRunner: stopIosRunnerOverride,
+    dismissMacOsAlert = runMacOsAlertAction,
     appLogOps = {
       start: startAppLog,
       stop: stopAppLog,
@@ -957,6 +960,7 @@ export async function handleSessionCommands(params: {
           sessionStore,
           dispatch,
           stopIosRunner,
+          dismissMacOsAlert,
           clearRuntimeHints,
           settleSimulator,
           appLogOps,
@@ -1235,6 +1239,7 @@ export async function handleSessionCommands(params: {
       sessionStore,
       dispatch,
       stopIosRunner,
+      dismissMacOsAlert,
       clearRuntimeHints,
       settleSimulator,
       shutdownSimulator: doShutdownSimulator,
@@ -1345,6 +1350,7 @@ async function cleanupReplayTestSession(params: {
   sessionStore: SessionStore;
   dispatch: typeof dispatchCommand;
   stopIosRunner: typeof stopIosRunnerSession;
+  dismissMacOsAlert: typeof runMacOsAlertAction;
   clearRuntimeHints: typeof clearRuntimeHintsFromApp;
   settleSimulator: typeof settleIosSimulator;
   appLogOps: {
@@ -1358,6 +1364,7 @@ async function cleanupReplayTestSession(params: {
     sessionStore,
     dispatch,
     stopIosRunner,
+    dismissMacOsAlert,
     clearRuntimeHints,
     settleSimulator,
     appLogOps,
@@ -1377,6 +1384,7 @@ async function cleanupReplayTestSession(params: {
     sessionStore,
     dispatch,
     stopIosRunner,
+    dismissMacOsAlert,
     clearRuntimeHints,
     settleSimulator,
     appLogOps,

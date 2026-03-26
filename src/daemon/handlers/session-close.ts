@@ -1,6 +1,7 @@
 import { normalizeError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { contextFromFlags } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -70,6 +71,26 @@ async function maybeShutdownSessionTarget(params: {
   }
 }
 
+async function stopAppleRunnerForClose(params: {
+  session: SessionState;
+  stopIosRunner: typeof stopIosRunnerSession;
+  dismissMacOsAlert: typeof runMacOsAlertAction;
+}): Promise<void> {
+  const { session, stopIosRunner, dismissMacOsAlert } = params;
+  await stopIosRunner(session.device.id);
+  if (session.device.platform !== 'macos') {
+    return;
+  }
+
+  const dismissOptions =
+    session.surface === 'frontmost-app'
+      ? { surface: 'frontmost-app' as const }
+      : session.appBundleId
+        ? { bundleId: session.appBundleId }
+        : {};
+  await dismissMacOsAlert('dismiss', dismissOptions).catch(() => {});
+}
+
 export async function handleCloseCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -83,6 +104,7 @@ export async function handleCloseCommand(params: {
     context?: Record<string, unknown>,
   ) => Promise<Record<string, unknown> | void>;
   stopIosRunner?: typeof stopIosRunnerSession;
+  dismissMacOsAlert?: typeof runMacOsAlertAction;
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   settleSimulator?: typeof settleIosSimulator;
   shutdownSimulator?: typeof shutdownSimulator;
@@ -98,6 +120,7 @@ export async function handleCloseCommand(params: {
     sessionStore,
     dispatch,
     stopIosRunner = stopIosRunnerSession,
+    dismissMacOsAlert = runMacOsAlertAction,
     clearRuntimeHints = clearRuntimeHintsFromApp,
     settleSimulator = settleIosSimulator,
     shutdownSimulator: shutdownSimulatorFn = shutdownSimulator,
@@ -112,18 +135,18 @@ export async function handleCloseCommand(params: {
     await appLogOps.stop(session.appLog);
   }
   if (req.positionals && req.positionals.length > 0) {
-    if (session.device.platform === 'ios') {
-      await stopIosRunner(session.device.id);
+    if (session.device.platform === 'ios' || session.device.platform === 'macos') {
+      await stopAppleRunnerForClose({ session, stopIosRunner, dismissMacOsAlert });
     }
     await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
     });
     await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
   }
-  if (session.device.platform === 'ios') {
+  if (session.device.platform === 'ios' || session.device.platform === 'macos') {
     // The targeted close path stops before dispatch to avoid runner/app races.
     // Stop again here so both plain and targeted closes end with the runner down.
-    await stopIosRunner(session.device.id);
+    await stopAppleRunnerForClose({ session, stopIosRunner, dismissMacOsAlert });
   }
   const runtime = sessionStore.getRuntimeHints(sessionName);
   if (hasRuntimeTransportHints(runtime) && session.appBundleId) {

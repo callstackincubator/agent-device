@@ -3020,6 +3020,53 @@ test('close on iOS session with recording stops runner session before delete', a
   assert.equal(sessionStore.get(sessionName), undefined);
 });
 
+test('close on macOS session stops runner and dismisses automation alert before delete', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+    appName: 'System Settings',
+  });
+
+  const calls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async (deviceId) => {
+      calls.push(`stop-runner:${deviceId}`);
+    },
+    dismissMacOsAlert: async (action, options) => {
+      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
+      return {};
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(calls, [
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+  ]);
+  assert.equal(sessionStore.get(sessionName), undefined);
+});
+
 test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-close-session';
@@ -3059,6 +3106,59 @@ test('close <app> on iOS stops runner before app close dispatch and performs fin
   assert.ok(response);
   assert.equal(response?.ok, true);
   assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'stop-runner']);
+});
+
+test('close <app> on macOS stops runner before app close dispatch and dismisses automation alert', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-close-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+    appName: 'System Settings',
+  });
+
+  const calls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: ['System Settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async (deviceId) => {
+      calls.push(`stop-runner:${deviceId}`);
+    },
+    dismissMacOsAlert: async (action, options) => {
+      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
+      return {};
+    },
+    dispatch: async (_device, command, positionals) => {
+      calls.push(`${command}:${positionals.join(' ')}`);
+      return {};
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(calls, [
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+    'close:System Settings',
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+  ]);
 });
 
 test('open --relaunch rejects URL targets', async () => {
