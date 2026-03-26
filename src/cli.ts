@@ -13,8 +13,9 @@ import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
-import type { ReplaySuiteResult, ReplaySuiteTestResult } from './daemon/types.ts';
+import type { ReplaySuiteResult } from './daemon/types.ts';
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
+import { announceReplayTestRun, renderReplayTestResponse } from './cli-test.ts';
 import {
   createRequestId,
   emitDiagnostic,
@@ -227,8 +228,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           return;
         }
 
-        if (command === 'test' && !flags.json) {
-          process.stderr.write('Running replay suite...\n');
+        if (command === 'test') {
+          announceReplayTestRun({ json: flags.json });
         }
 
         const response = await sendDaemonRequest({
@@ -238,17 +239,18 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         });
 
         if (response.ok) {
-          if (command === 'test' && flags.json) {
-            printJson({ success: true, data: response.data ?? {} });
-            const suite = (response.data ?? {}) as ReplaySuiteResult;
-            if (logTailStopper) logTailStopper();
-            const testExitCode = getTestExitCode(suite);
-            if (testExitCode !== 0) {
-              process.exit(testExitCode);
-            }
-            return;
-          }
           if (flags.json) {
+            if (command === 'test') {
+              const testExitCode = renderReplayTestResponse({
+                suite: (response.data ?? {}) as ReplaySuiteResult,
+                json: true,
+              });
+              if (logTailStopper) logTailStopper();
+              if (testExitCode !== 0) {
+                process.exit(testExitCode);
+              }
+              return;
+            }
             printJson({ success: true, data: response.data ?? {} });
             if (logTailStopper) logTailStopper();
             return;
@@ -264,7 +266,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             return;
           }
           if (command === 'test') {
-            const testExitCode = renderTestSummary((response.data ?? {}) as ReplaySuiteResult, {
+            const testExitCode = renderReplayTestResponse({
+              suite: (response.data ?? {}) as ReplaySuiteResult,
               verbose: flags.verbose,
             });
             if (logTailStopper) logTailStopper();
@@ -629,82 +632,6 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   process.stdout.write(
     `Batch completed: ${executed}/${total} steps${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
   );
-}
-
-function renderTestSummary(data: ReplaySuiteResult, options: { verbose?: boolean } = {}): number {
-  const flaky = data.tests.filter(isFlakyReplayTestResult);
-  if (options.verbose) {
-    for (const entry of data.tests) {
-      renderVerboseTestResult(entry);
-    }
-  } else {
-    for (const entry of data.failures) {
-      renderFailedTestResult(entry);
-    }
-    for (const entry of flaky) {
-      renderFlakyTestResult(entry);
-    }
-  }
-
-  const durationMs = typeof data.durationMs === 'number' ? data.durationMs : undefined;
-  const flakySuffix = flaky.length > 0 ? `, ${flaky.length} flaky` : '';
-  process.stdout.write(
-    `Test summary: ${data.passed} passed, ${data.failed} failed${flakySuffix}${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
-  );
-  return getTestExitCode(data);
-}
-
-function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
-  if (result.status === 'failed') {
-    renderFailedTestResult(result);
-    return;
-  }
-
-  const prefix =
-    result.status === 'passed'
-      ? isFlakyReplayTestResult(result)
-        ? 'FLAKY'
-        : 'PASS'
-      : result.status === 'skipped'
-        ? 'SKIP'
-        : 'INFO';
-  const attemptSuffix =
-    'attempts' in result && result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`${prefix} ${result.file}${attemptSuffix}${durationSuffix}\n`);
-  if (result.status === 'skipped') {
-    process.stdout.write(`  ${result.message ?? 'skipped'}\n`);
-  }
-}
-
-function renderFailedTestResult(
-  result: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
-): void {
-  const attemptSuffix = result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`FAIL ${result.file}${attemptSuffix}${durationSuffix}\n`);
-  process.stdout.write(`  ${result.error?.message ?? 'Unknown test failure'}\n`);
-  if (result.error?.hint) process.stdout.write(`  hint: ${result.error.hint}\n`);
-  if (result.artifactsDir) process.stdout.write(`  artifacts: ${result.artifactsDir}\n`);
-  if (result.error?.logPath) process.stdout.write(`  log: ${result.error.logPath}\n`);
-  if (result.error?.diagnosticId) {
-    process.stdout.write(`  diagnostic: ${result.error.diagnosticId}\n`);
-  }
-}
-
-function renderFlakyTestResult(result: Extract<ReplaySuiteTestResult, { status: 'passed' }>): void {
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`FLAKY ${result.file} after ${result.attempts} attempts${durationSuffix}\n`);
-}
-
-function isFlakyReplayTestResult(
-  result: ReplaySuiteTestResult,
-): result is Extract<ReplaySuiteTestResult, { status: 'passed' }> {
-  return result.status === 'passed' && result.attempts > 1;
-}
-
-function getTestExitCode(data: ReplaySuiteResult): number {
-  return data.failed > 0 ? 1 : 0;
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {
