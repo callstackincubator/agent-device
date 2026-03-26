@@ -217,6 +217,40 @@ test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => 
   }
 });
 
+test('cli prints success acknowledgment for client-backed open in human mode', async () => {
+  const result = await runCliCapture(['open', 'settings'], async () => ({
+    ok: true,
+    data: {
+      session: 'default',
+      appName: 'Settings',
+      platform: 'ios',
+      target: 'mobile',
+      device: 'iPhone 16',
+      id: 'SIM-001',
+    },
+  }));
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /Opened: Settings/);
+});
+
+test('cli prints success acknowledgment for client-backed close in human mode', async () => {
+  const result = await runCliCapture(['close'], async () => ({
+    ok: true,
+    data: { session: 'default' },
+  }));
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /Closed: default/);
+});
+
+test('cli prints success acknowledgment for daemon-backed mutating commands in human mode', async () => {
+  const result = await runCliCapture(['scroll', 'down'], async () => ({
+    ok: true,
+    data: { direction: 'down' },
+  }));
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /Scrolled down/);
+});
+
 test('cli forwards bound-session lock policy when session defaults are configured', async () => {
   const previousSession = process.env.AGENT_DEVICE_SESSION;
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;

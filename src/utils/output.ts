@@ -23,6 +23,51 @@ export function printJson(result: JsonResult): void {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
+export function describeCommandSuccess(
+  command: string,
+  data: Record<string, unknown> | undefined,
+): string | null {
+  switch (command) {
+    case 'open': {
+      const target = firstString(data?.appName, data?.appBundleId, data?.app, data?.session);
+      return target ? `Opened: ${target}` : 'Opened';
+    }
+    case 'close': {
+      const target = firstString(data?.session);
+      return target ? `Closed: ${target}` : 'Closed';
+    }
+    case 'click':
+    case 'press': {
+      const ref = firstString(data?.ref);
+      const x = typeof data?.x === 'number' ? data.x : undefined;
+      const y = typeof data?.y === 'number' ? data.y : undefined;
+      if (ref && x !== undefined && y !== undefined) return `Tapped @${ref} (${x}, ${y})`;
+      if (x !== undefined && y !== undefined) return `Tapped (${x}, ${y})`;
+      return 'Tapped';
+    }
+    case 'fill': {
+      const text = firstString(data?.text);
+      return text ? `Filled ${Array.from(text).length} chars` : 'Filled';
+    }
+    case 'type': {
+      const text = firstString(data?.text);
+      return text ? `Typed ${Array.from(text).length} chars` : 'Typed';
+    }
+    case 'scroll': {
+      const direction = firstString(data?.direction);
+      return direction ? `Scrolled ${direction}` : 'Scrolled';
+    }
+    case 'back':
+      return 'Back';
+    case 'home':
+      return 'Home';
+    case 'app-switcher':
+      return 'Opened app switcher';
+    default:
+      return null;
+  }
+}
+
 export function printHumanError(
   err: AppError | NormalizedError,
   options: { showDetails?: boolean } = {},
@@ -203,6 +248,13 @@ function supportsColor(): boolean {
     return false;
   }
   return Boolean(process.stdout.isTTY);
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return undefined;
 }
 
 function colorize(text: string, format: Parameters<typeof styleText>[0]): string {

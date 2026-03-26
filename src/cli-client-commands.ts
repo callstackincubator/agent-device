@@ -2,7 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { CliFlags } from './utils/command-schema.ts';
-import { formatScreenshotDiffText, formatSnapshotText, printJson } from './utils/output.ts';
+import {
+  describeCommandSuccess,
+  formatScreenshotDiffText,
+  formatSnapshotText,
+  printJson,
+} from './utils/output.ts';
 import { AppError } from './utils/errors.ts';
 import {
   serializeCloseResult,
@@ -136,15 +141,24 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       runtime,
       ...buildSelectionOptions(flags),
     });
-    if (flags.json) printJson({ success: true, data: serializeOpenResult(result) });
+    const data = serializeOpenResult(result);
+    if (flags.json) printJson({ success: true, data });
+    else {
+      const successText = describeCommandSuccess('open', data);
+      if (successText) process.stdout.write(`${successText}\n`);
+    }
     return true;
   },
   close: async ({ positionals, flags, client }) => {
     const result = positionals[0]
       ? await client.apps.close({ app: positionals[0], shutdown: flags.shutdown })
       : await client.sessions.close({ shutdown: flags.shutdown });
+    const data = serializeCloseResult(result);
     if (flags.json) {
-      printJson({ success: true, data: serializeCloseResult(result) });
+      printJson({ success: true, data });
+    } else {
+      const successText = describeCommandSuccess('close', data);
+      if (successText) process.stdout.write(`${successText}\n`);
     }
     return true;
   },

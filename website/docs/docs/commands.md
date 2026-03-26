@@ -290,10 +290,12 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- Each step has `command`, optional `positionals`, and optional `flags`.
+- Each step has `command`, optional `positionals`, optional `flags`, and optional `runtime`.
+- Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.
 - Batch requests inherit the same daemon lock policy and session binding metadata as the parent command.
+- In non-JSON mode, successful batches print a short per-step summary.
 
 See [Batching](/docs/batching) for payload format, response shape, and usage guidelines.
 

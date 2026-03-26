@@ -215,12 +215,14 @@ Step payload contract:
 
 - `positionals` is optional and defaults to `[]`.
 - `flags` is optional and defaults to `{}`.
+- Only `command`, `positionals`, `flags`, and `runtime` are accepted as top-level step keys.
 - Nested `batch` and `replay` are rejected.
 - Supported error mode is stop-on-first-error.
 
 Response handling:
 
 - Success returns fields such as `total`, `executed`, `totalDurationMs`, and `results[]`.
+- Human-mode `batch` runs also print a short per-step success summary.
 - Failed runs include `details.step`, `details.command`, `details.executed`, and `details.partialResults`.
 - Replan from the first failing step instead of rerunning the whole flow blindly.
 
