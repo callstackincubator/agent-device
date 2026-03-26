@@ -1,5 +1,6 @@
 import { normalizeError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { contextFromFlags } from '../context.ts';
@@ -88,7 +89,16 @@ async function stopAppleRunnerForClose(params: {
       : session.appBundleId
         ? { bundleId: session.appBundleId }
         : {};
-  await dismissMacOsAlert('dismiss', dismissOptions).catch(() => {});
+  await dismissMacOsAlert('dismiss', dismissOptions).catch((error) => {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'macos_close_alert_dismiss_failed',
+      data: {
+        session: session.name,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+  });
 }
 
 export async function handleCloseCommand(params: {
@@ -146,6 +156,7 @@ export async function handleCloseCommand(params: {
   if (session.device.platform === 'ios' || session.device.platform === 'macos') {
     // The targeted close path stops before dispatch to avoid runner/app races.
     // Stop again here so both plain and targeted closes end with the runner down.
+    // macOS may no-op the second alert dismiss, but it keeps teardown symmetric with runner stop.
     await stopAppleRunnerForClose({ session, stopIosRunner, dismissMacOsAlert });
   }
   const runtime = sessionStore.getRuntimeHints(sessionName);

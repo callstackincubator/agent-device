@@ -63,8 +63,21 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
       },
     },
     {
-      label: 'test suite with fail-fast and replay update',
-      argv: ['test', './suite', '--platform', 'android', '--fail-fast', '--update'],
+      label: 'test suite with retries, timeout, artifacts, fail-fast, and replay update',
+      argv: [
+        'test',
+        './suite',
+        '--platform',
+        'android',
+        '--fail-fast',
+        '--update',
+        '--timeout',
+        '60000',
+        '--retries',
+        '2',
+        '--artifacts-dir',
+        '.agent-device/test-artifacts',
+      ],
       strictFlags: true,
       assertParsed: (parsed) => {
         assert.equal(parsed.command, 'test');
@@ -72,6 +85,9 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
         assert.equal(parsed.flags.platform, 'android');
         assert.equal(parsed.flags.failFast, true);
         assert.equal(parsed.flags.replayUpdate, true);
+        assert.equal(parsed.flags.timeoutMs, 60000);
+        assert.equal(parsed.flags.retries, 2);
+        assert.equal(parsed.flags.artifactsDir, '.agent-device/test-artifacts');
       },
     },
   ];
@@ -749,6 +765,9 @@ test('command usage describes test suite flags', () => {
   assert.match(help, /Usage:\s+agent-device test <path-or-glob>\.\.\./);
   assert.match(help, /Run one or more \.ad scripts as a serial test suite/);
   assert.match(help, /--fail-fast/);
+  assert.match(help, /--timeout <ms>/);
+  assert.match(help, /--retries <n>/);
+  assert.match(help, /--artifacts-dir <path>/);
 });
 
 test('command usage shows command and global flags separately', () => {

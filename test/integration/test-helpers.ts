@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -129,7 +129,7 @@ export function assertReplaySuiteResult(
   assert.equal(result.json?.data?.notRun, expected.notRun, debug);
   assert.equal(
     Array.isArray(result.json?.data?.tests) ? result.json.data.tests.length : -1,
-    expected.total,
+    expected.executed + expected.skipped,
     debug,
   );
   assert.equal(
@@ -143,19 +143,36 @@ export async function withIntegrationLock<T>(name: string, run: () => Promise<T>
   const lockRoot = path.join(os.tmpdir(), 'agent-device-integration-locks');
   const lockName = name.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
   const lockPath = path.join(lockRoot, lockName);
+  const lockOwnerPath = path.join(lockPath, 'owner.json');
   mkdirSync(lockRoot, { recursive: true });
 
   const timeoutMs = 180_000;
+  const staleLockMs = 10 * 60_000;
   const pollMs = 250;
   const startedAt = Date.now();
   while (true) {
     try {
       mkdirSync(lockPath);
+      writeFileSync(
+        lockOwnerPath,
+        JSON.stringify(
+          {
+            pid: process.pid,
+            acquiredAt: new Date().toISOString(),
+          },
+          null,
+          2,
+        ),
+      );
       break;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException | undefined)?.code;
       if (code !== 'EEXIST') {
         throw error;
+      }
+      if (shouldRemoveStaleIntegrationLock(lockPath, lockOwnerPath, staleLockMs)) {
+        rmSync(lockPath, { recursive: true, force: true });
+        continue;
       }
       if (Date.now() - startedAt >= timeoutMs) {
         throw new Error(`Timed out waiting for integration lock "${name}"`);
@@ -168,6 +185,55 @@ export async function withIntegrationLock<T>(name: string, run: () => Promise<T>
     return await run();
   } finally {
     rmSync(lockPath, { recursive: true, force: true });
+  }
+}
+
+function shouldRemoveStaleIntegrationLock(
+  lockPath: string,
+  lockOwnerPath: string,
+  staleLockMs: number,
+): boolean {
+  try {
+    const stat = readLockStat(lockPath);
+    if (!stat) return false;
+    const ageMs = Date.now() - stat.mtimeMs;
+    const owner = readIntegrationLockOwner(lockOwnerPath);
+    if (owner?.pid) {
+      return !isProcessAlive(owner.pid);
+    }
+    if (ageMs > staleLockMs) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function readLockStat(lockPath: string): { mtimeMs: number } | null {
+  try {
+    const stat = statSync(lockPath);
+    return { mtimeMs: stat.mtimeMs };
+  } catch {
+    return null;
+  }
+}
+
+function readIntegrationLockOwner(lockOwnerPath: string): { pid?: number } | null {
+  try {
+    const raw = JSON.parse(readFileSync(lockOwnerPath, 'utf8')) as { pid?: unknown };
+    return typeof raw.pid === 'number' && Number.isInteger(raw.pid) ? { pid: raw.pid } : {};
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException | undefined)?.code === 'EPERM';
   }
 }
 

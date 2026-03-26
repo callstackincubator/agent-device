@@ -78,6 +78,9 @@ export type CliFlags = {
   retentionMs?: number;
   replayUpdate?: boolean;
   failFast?: boolean;
+  timeoutMs?: number;
+  retries?: number;
+  artifactsDir?: string;
   steps?: string;
   stepsFile?: string;
   batchOnError?: 'stop';
@@ -680,6 +683,29 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Test: stop the suite after the first failing script',
   },
   {
+    key: 'timeoutMs',
+    names: ['--timeout'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--timeout <ms>',
+    usageDescription: 'Test: maximum wall-clock time per script attempt',
+  },
+  {
+    key: 'retries',
+    names: ['--retries'],
+    type: 'int',
+    min: 0,
+    usageLabel: '--retries <n>',
+    usageDescription: 'Test: retry each failed script up to n additional times',
+  },
+  {
+    key: 'artifactsDir',
+    names: ['--artifacts-dir'],
+    type: 'string',
+    usageLabel: '--artifacts-dir <path>',
+    usageDescription: 'Test: root directory for suite artifacts',
+  },
+  {
     key: 'steps',
     names: ['--steps'],
     type: 'string',
@@ -1012,7 +1038,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Run .ad test suites',
     positionalArgs: ['pathOrGlob'],
     allowsExtraPositionals: true,
-    allowedFlags: ['replayUpdate', 'failFast'],
+    allowedFlags: ['replayUpdate', 'failFast', 'timeoutMs', 'retries', 'artifactsDir'],
     skipCapabilityCheck: true,
   },
   batch: {

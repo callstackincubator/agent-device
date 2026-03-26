@@ -4870,7 +4870,7 @@ test('test filters replay scripts by context platform and skips untyped files', 
   assert.ok(response?.ok);
   assert.equal(invoked.length, 1);
   assert.equal(invoked[0]?.flags?.platform, 'android');
-  assert.equal(invoked[0]?.session, 'default:test:suite-filter:1-01-android');
+  assert.equal(invoked[0]?.session, 'default:test:suite-filter:1-01-android:attempt-1');
   if (response?.ok) {
     assert.equal(response.data?.passed, 1);
     assert.equal(response.data?.failed, 0);
@@ -4914,7 +4914,10 @@ test('test binds each replay script to its declared platform metadata', async ()
   );
   assert.deepEqual(
     invoked.map((req) => req.session),
-    ['default:test:suite-platforms:1-01-android', 'default:test:suite-platforms:2-02-ios'],
+    [
+      'default:test:suite-platforms:1-01-android:attempt-1',
+      'default:test:suite-platforms:2-02-ios:attempt-1',
+    ],
   );
   if (response?.ok) {
     assert.equal(response.data?.passed, 2);
@@ -4955,7 +4958,106 @@ test('test cleans up suite-owned sessions after each executed script', async () 
   });
 
   assert.ok(response?.ok);
-  assert.equal(sessionStore.get('default:test:suite-cleanup:1-01-android'), undefined);
+  assert.equal(sessionStore.get('default:test:suite-cleanup:1-01-android:attempt-1'), undefined);
+});
+
+test('test retries failed scripts with fresh suite-owned sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-retries-'));
+  fs.writeFileSync(
+    path.join(root, '01-retry.ad'),
+    'context platform=android retries=1\nopen "Demo"\n',
+  );
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-retries' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      if (invoked.length === 1) {
+        return {
+          ok: false,
+          error: {
+            code: 'ASSERTION_FAILED',
+            message: 'expected selector to exist',
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.deepEqual(
+    invoked.map((req) => req.session),
+    [
+      'default:test:suite-retries:1-01-retry:attempt-1',
+      'default:test:suite-retries:1-01-retry:attempt-2',
+    ],
+  );
+  if (response?.ok) {
+    assert.equal(response.data?.passed, 1);
+    assert.equal(response.data?.failed, 0);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.[0]?.status, 'passed');
+    assert.equal(tests?.[0]?.attempts, 2);
+  }
+});
+
+test('test applies per-script timeout and writes attempt artifacts', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-timeout-'));
+  const screenshotPath = path.join(root, 'capture.png');
+  fs.writeFileSync(screenshotPath, 'screenshot');
+  fs.writeFileSync(
+    path.join(root, '01-timeout.ad'),
+    'context platform=android timeout=10\nscreenshot "./capture.png"\nopen "Demo"\n',
+  );
+
+  let invocationCount = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-timeout' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invocationCount += 1;
+      if (invocationCount === 1) {
+        return { ok: true, data: { path: screenshotPath } };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  if (response?.ok) {
+    assert.equal(response.data?.failed, 1);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.[0]?.status, 'failed');
+    assert.equal(tests?.[0]?.attempts, 1);
+    const artifactsDir = tests?.[0]?.artifactsDir;
+    assert.equal(typeof artifactsDir, 'string');
+    const attemptDir = path.join(artifactsDir as string, 'attempt-1');
+    assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'capture.png')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'failure.txt')), true);
+  }
 });
 
 test('test stops after the first failing script when --fail-fast is set', async () => {

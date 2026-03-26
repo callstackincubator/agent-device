@@ -63,6 +63,8 @@ export type ReplaySuiteTestPassed = {
   session: string;
   status: 'passed';
   durationMs: number;
+  attempts: number;
+  artifactsDir?: string;
   replayed: number;
   healed: number;
 };
@@ -72,6 +74,8 @@ export type ReplaySuiteTestFailed = {
   session: string;
   status: 'failed';
   durationMs: number;
+  attempts: number;
+  artifactsDir?: string;
   error: {
     code: string;
     message: string;

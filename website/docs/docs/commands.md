@@ -257,12 +257,16 @@ agent-device is text 'id="greeting"' "Welcome back"
 agent-device open Settings --platform ios --session e2e --save-script [path]
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device test ./suite             # Run every .ad file in a folder or glob serially
+agent-device test ./suite --timeout 60000 --retries 1
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 - `replay` runs deterministic `.ad` scripts.
 - `test` runs one or more `.ad` scripts as a serial suite from files, directories, or glob inputs.
 - `test --platform <platform>` filters suite files by `context platform=...` metadata instead of overriding the script target.
+- `test --timeout <ms>` and `test --retries <n>` apply per script attempt; `context timeout=...` and `context retries=...` can be declared inside the `.ad` header.
+- `test --artifacts-dir <path>` overrides the default suite artifact root at `.agent-device/test-artifacts`.
+- `test` prints only failures by default; add `--verbose` to print pass and skip lines too.
 - `replay -u` updates stale recorded actions and rewrites the same script.
 - `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 

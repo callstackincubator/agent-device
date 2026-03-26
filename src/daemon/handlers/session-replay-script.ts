@@ -20,6 +20,8 @@ const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android
 
 export type ReplayScriptMetadata = {
   platform?: ReplayScriptPlatform;
+  timeoutMs?: number;
+  retries?: number;
 };
 
 export function parseReplayScript(script: string): SessionAction[] {
@@ -36,18 +38,35 @@ export function parseReplayScript(script: string): SessionAction[] {
 
 export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
   const lines = script.split(/\r?\n/);
+  const metadata: ReplayScriptMetadata = {};
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
+    // Metadata comes only from the leading context header block.
     if (!trimmed.startsWith('context ')) break;
-    const match = trimmed.match(/(?:^|\s)platform=([^\s]+)/);
-    if (!match) continue;
-    const platform = match[1] as ReplayScriptPlatform | undefined;
-    if (platform && REPLAY_METADATA_PLATFORMS.has(platform)) {
-      return { platform };
+    const platformMatch = trimmed.match(/(?:^|\s)platform=([^\s]+)/);
+    if (platformMatch) {
+      const platform = platformMatch[1] as ReplayScriptPlatform | undefined;
+      if (platform && REPLAY_METADATA_PLATFORMS.has(platform)) {
+        metadata.platform = platform;
+      }
+    }
+    const timeoutMatch = trimmed.match(/(?:^|\s)timeout=(\d+)/);
+    if (timeoutMatch) {
+      const timeoutMs = Number(timeoutMatch[1]);
+      if (Number.isFinite(timeoutMs) && timeoutMs >= 1) {
+        metadata.timeoutMs = Math.floor(timeoutMs);
+      }
+    }
+    const retriesMatch = trimmed.match(/(?:^|\s)retries=(\d+)/);
+    if (retriesMatch) {
+      const retries = Number(retriesMatch[1]);
+      if (Number.isFinite(retries) && retries >= 0) {
+        metadata.retries = Math.floor(retries);
+      }
     }
   }
-  return {};
+  return metadata;
 }
 
 function parseReplayScriptLine(line: string): SessionAction | null {

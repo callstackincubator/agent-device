@@ -89,3 +89,13 @@ test('readReplayScriptMetadata ignores non-concrete platform aliases', () => {
 
   assert.equal(metadata.platform, undefined);
 });
+
+test('readReplayScriptMetadata extracts timeout and retries from context header', () => {
+  const metadata = readReplayScriptMetadata(
+    'context platform=ios timeout=45000\ncontext retries=2 device="iPhone 17"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, 'ios');
+  assert.equal(metadata.timeoutMs, 45000);
+  assert.equal(metadata.retries, 2);
+});

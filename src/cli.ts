@@ -237,10 +237,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           if (command === 'test' && flags.json) {
             printJson({ success: true, data: response.data ?? {} });
             const suite = (response.data ?? {}) as ReplaySuiteResult;
-            const failed = typeof suite.failed === 'number' ? suite.failed : 0;
             if (logTailStopper) logTailStopper();
-            if (failed > 0) {
-              process.exit(1);
+            const testExitCode = getTestExitCode(suite);
+            if (testExitCode !== 0) {
+              process.exit(testExitCode);
             }
             return;
           }
@@ -260,7 +260,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             return;
           }
           if (command === 'test') {
-            const testExitCode = renderTestSummary((response.data ?? {}) as ReplaySuiteResult);
+            const testExitCode = renderTestSummary((response.data ?? {}) as ReplaySuiteResult, {
+              verbose: flags.verbose,
+            });
             if (logTailStopper) logTailStopper();
             if (testExitCode !== 0) {
               process.exit(testExitCode);
@@ -625,46 +627,58 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   );
 }
 
-function renderTestSummary(data: ReplaySuiteResult): number {
-  const tests = Array.isArray(data.tests) ? data.tests : [];
-  for (const entry of tests) {
-    renderTestResult(entry);
+function renderTestSummary(data: ReplaySuiteResult, options: { verbose?: boolean } = {}): number {
+  if (options.verbose) {
+    for (const entry of data.tests) {
+      renderVerboseTestResult(entry);
+    }
+  } else {
+    for (const entry of data.failures) {
+      renderFailedTestResult(entry);
+    }
   }
 
-  const total = typeof data.total === 'number' ? data.total : 0;
-  const passed = typeof data.passed === 'number' ? data.passed : 0;
-  const failed = typeof data.failed === 'number' ? data.failed : 0;
-  const skipped = typeof data.skipped === 'number' ? data.skipped : 0;
-  const notRun = typeof data.notRun === 'number' ? data.notRun : 0;
   const durationMs = typeof data.durationMs === 'number' ? data.durationMs : undefined;
-  const notRunSuffix = notRun > 0 ? `, ${notRun} not run` : '';
   process.stdout.write(
-    `Test summary: ${passed} passed, ${failed} failed, ${skipped} skipped${notRunSuffix}${durationMs !== undefined ? ` in ${durationMs}ms` : ''} (${total} total)\n`,
+    `Test summary: ${data.passed} passed, ${data.failed} failed${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
   );
-  return failed > 0 ? 1 : 0;
+  return getTestExitCode(data);
 }
 
-function renderTestResult(result: ReplaySuiteTestResult): void {
-  const status = result.status;
-  const file = result.file;
-  const durationMs = result.durationMs;
-  const prefix =
-    status === 'passed'
-      ? 'PASS'
-      : status === 'failed'
-        ? 'FAIL'
-        : status === 'skipped'
-          ? 'SKIP'
-          : 'INFO';
-  const suffix = durationMs > 0 ? ` (${durationMs}ms)` : '';
-  process.stdout.write(`${prefix} ${file}${suffix}\n`);
-  if (status === 'failed') {
-    process.stdout.write(`  ${result.error.message}\n`);
+function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
+  if (result.status === 'failed') {
+    renderFailedTestResult(result);
     return;
   }
-  if (status === 'skipped') {
-    process.stdout.write(`  ${result.message}\n`);
+
+  const prefix =
+    result.status === 'passed' ? 'PASS' : result.status === 'skipped' ? 'SKIP' : 'INFO';
+  const attemptSuffix =
+    'attempts' in result && result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
+  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
+  process.stdout.write(`${prefix} ${result.file}${attemptSuffix}${durationSuffix}\n`);
+  if (result.status === 'skipped') {
+    process.stdout.write(`  ${result.message ?? 'skipped'}\n`);
   }
+}
+
+function renderFailedTestResult(
+  result: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
+): void {
+  const attemptSuffix = result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
+  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
+  process.stdout.write(`FAIL ${result.file}${attemptSuffix}${durationSuffix}\n`);
+  process.stdout.write(`  ${result.error?.message ?? 'Unknown test failure'}\n`);
+  if (result.error.hint) process.stdout.write(`  hint: ${result.error.hint}\n`);
+  if (result.artifactsDir) process.stdout.write(`  artifacts: ${result.artifactsDir}\n`);
+  if (result.error.logPath) process.stdout.write(`  log: ${result.error.logPath}\n`);
+  if (result.error.diagnosticId) {
+    process.stdout.write(`  diagnostic: ${result.error.diagnosticId}\n`);
+  }
+}
+
+function getTestExitCode(data: ReplaySuiteResult): number {
+  return data.failed > 0 ? 1 : 0;
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

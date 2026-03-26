@@ -937,21 +937,45 @@ export async function handleSessionCommands(params: {
     return await runReplayTestSuite({
       req,
       sessionName,
-      runReplay: async ({ filePath, sessionName: testSessionName, platform }) =>
-        await runReplayScriptFile({
-          req: {
-            ...req,
-            command: 'replay',
-            session: testSessionName,
-            positionals: [filePath],
-            flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
-          },
-          sessionName: testSessionName,
-          logPath,
-          sessionStore,
-          invoke,
-          dispatch,
-        }),
+      runReplay: async ({
+        filePath,
+        sessionName: testSessionName,
+        platform,
+        requestId,
+        artifactPaths,
+      }) => {
+        const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
+          if (!artifactPaths) return response;
+          collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
+          const replayArtifactPaths = response.ok
+            ? (response.data as Record<string, unknown> | undefined)?.artifactPaths
+            : response.error.details?.artifactPaths;
+          if (Array.isArray(replayArtifactPaths)) {
+            for (const entry of replayArtifactPaths) {
+              if (typeof entry === 'string') artifactPaths.add(entry);
+            }
+          }
+          return response;
+        };
+
+        return captureArtifacts(
+          await runReplayScriptFile({
+            req: {
+              ...req,
+              command: 'replay',
+              session: testSessionName,
+              positionals: [filePath],
+              flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
+              meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
+            },
+            sessionName: testSessionName,
+            logPath,
+            sessionStore,
+            invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
+            dispatch,
+          }),
+        );
+      },
       cleanupSession: async (testSessionName) => {
         await cleanupReplayTestSession({
           req,
@@ -1275,8 +1299,10 @@ async function runReplayScriptFile(params: {
   if (!filePath) {
     return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
   }
+  let resolved = '';
+  const artifactPaths = new Set<string>();
   try {
-    const resolved = SessionStore.expandHome(filePath, req.meta?.cwd);
+    resolved = SessionStore.expandHome(filePath, req.meta?.cwd);
     const script = fs.readFileSync(resolved, 'utf8');
     const firstNonWhitespace = script.trimStart()[0];
     if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
@@ -1303,9 +1329,12 @@ async function runReplayScriptFile(params: {
         runtime: action.runtime,
         meta: req.meta,
       });
-      if (response.ok) continue;
+      if (response.ok) {
+        collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
+        continue;
+      }
       if (!shouldUpdate) {
-        return withReplayFailureContext(response, action, index, resolved);
+        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
       }
       const nextAction = await healReplayAction({
         action,
@@ -1315,7 +1344,7 @@ async function runReplayScriptFile(params: {
         dispatch,
       });
       if (!nextAction) {
-        return withReplayFailureContext(response, action, index, resolved);
+        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
       }
       actions[index] = nextAction;
       response = await invoke({
@@ -1328,18 +1357,34 @@ async function runReplayScriptFile(params: {
         meta: req.meta,
       });
       if (!response.ok) {
-        return withReplayFailureContext(response, nextAction, index, resolved);
+        return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
       }
+      collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
       healed += 1;
     }
     if (shouldUpdate && healed > 0) {
       const session = sessionStore.get(sessionName);
       writeReplayScript(resolved, actions, session);
     }
-    return { ok: true, data: { replayed: actions.length, healed, session: sessionName } };
+    return {
+      ok: true,
+      data: {
+        replayed: actions.length,
+        healed,
+        session: sessionName,
+        artifactPaths: [...artifactPaths],
+      },
+    };
   } catch (err) {
     const appErr = asAppError(err);
-    return { ok: false, error: { code: appErr.code, message: appErr.message } };
+    return {
+      ok: false,
+      error: {
+        code: appErr.code,
+        message: appErr.message,
+        details: artifactPaths.size > 0 ? { artifactPaths: [...artifactPaths] } : undefined,
+      },
+    };
   }
 }
 
@@ -1396,6 +1441,7 @@ function withReplayFailureContext(
   action: SessionAction,
   index: number,
   replayPath: string,
+  artifactPaths: string[] = [],
 ): DaemonResponse {
   if (response.ok) return response;
   const step = index + 1;
@@ -1406,6 +1452,7 @@ function withReplayFailureContext(
     step,
     action: action.command,
     positionals: action.positionals ?? [],
+    artifactPaths,
   };
   return {
     ok: false,
@@ -1418,6 +1465,35 @@ function withReplayFailureContext(
       details,
     },
   };
+}
+
+function collectReplayActionArtifactPaths(response: DaemonResponse): string[] {
+  if (!response.ok || !response.data) return [];
+  const candidates: string[] = [];
+  const data = response.data as Record<string, unknown>;
+  if (typeof data.path === 'string') candidates.push(data.path);
+  if (typeof data.outPath === 'string') candidates.push(data.outPath);
+  if (Array.isArray(data.artifacts)) {
+    for (const artifact of data.artifacts) {
+      if (!artifact || typeof artifact !== 'object') continue;
+      const artifactRecord = artifact as Record<string, unknown>;
+      const localPath =
+        typeof artifactRecord.localPath === 'string' ? artifactRecord.localPath : undefined;
+      const artifactPath =
+        typeof artifactRecord.path === 'string' ? artifactRecord.path : undefined;
+      if (localPath) candidates.push(localPath);
+      else if (artifactPath) candidates.push(artifactPath);
+    }
+  }
+  return [...new Set(candidates.filter((candidate) => isReplayArtifactPath(candidate)))];
+}
+
+function isReplayArtifactPath(candidate: string): boolean {
+  try {
+    return fs.statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function buildReplayActionFlags(
