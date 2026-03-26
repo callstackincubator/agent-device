@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +6,48 @@ import { createRequestHandler } from '../request-router.ts';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+
+let snapshotCalls = 0;
+
+vi.mock('../../platforms/android/index.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../platforms/android/index.ts')>();
+  return {
+    ...actual,
+    snapshotAndroid: vi.fn(async () => {
+      snapshotCalls += 1;
+      if (snapshotCalls === 1) {
+        return {
+          nodes: [
+            {
+              index: 0,
+              type: 'android.widget.TextView',
+              label: 'Process system is not responding',
+              rect: { x: 50, y: 400, width: 500, height: 80 },
+            },
+            {
+              index: 1,
+              type: 'android.widget.Button',
+              label: 'Close app',
+              rect: { x: 100, y: 600, width: 220, height: 80 },
+            },
+          ],
+        };
+      }
+      return { nodes: [] };
+    }),
+    openAndroidApp: vi.fn(async () => {}),
+    getAndroidAppState: vi.fn(async () => ({ package: 'com.android.settings' })),
+  };
+});
+
+const execCalls: string[][] = [];
+
+vi.mock('../../utils/exec.ts', () => ({
+  runCmd: vi.fn(async (_cmd: string, args: string[]) => {
+    execCalls.push(args);
+    return { stdout: '', stderr: '', exitCode: 0 };
+  }),
+}));
 
 function makeStore(): SessionStore {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-android-modal-'));
@@ -40,12 +81,14 @@ function makeAndroidSession(name: string): SessionState {
 }
 
 test('generic Android gesture commands dismiss blocking system dialogs during recording', async () => {
+  snapshotCalls = 0;
+  execCalls.length = 0;
+
   const sessionStore = makeStore();
   sessionStore.set('default', makeAndroidSession('default'));
   const dispatchCalls: string[][] = [];
-  const execCalls: string[][] = [];
-  const reopenedApps: string[] = [];
-  let snapshotCalls = 0;
+
+  const { openAndroidApp } = await import('../../platforms/android/index.ts');
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -57,36 +100,6 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
       dispatchCalls.push([command, ...positionals]);
       return {};
     },
-    snapshotAndroidUi: async () => {
-      snapshotCalls += 1;
-      if (snapshotCalls === 1) {
-        return {
-          nodes: [
-            {
-              index: 0,
-              type: 'android.widget.TextView',
-              label: 'Process system is not responding',
-              rect: { x: 50, y: 400, width: 500, height: 80 },
-            },
-            {
-              index: 1,
-              type: 'android.widget.Button',
-              label: 'Close app',
-              rect: { x: 100, y: 600, width: 220, height: 80 },
-            },
-          ],
-        };
-      }
-      return { nodes: [] };
-    },
-    reopenAndroidApp: async (_device, app) => {
-      reopenedApps.push(app);
-    },
-    readAndroidAppState: async () => ({ package: 'com.android.settings' }),
-    execCommand: async (_cmd, args) => {
-      execCalls.push(args);
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
   });
 
   const response = await handler({
@@ -97,9 +110,12 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
     meta: { requestId: 'req-android-modal' },
   });
 
-  assert.equal(response.ok, true);
-  assert.deepEqual(dispatchCalls, [['scroll', 'down', '0.55']]);
-  assert.deepEqual(execCalls, [['-s', 'emulator-5554', 'shell', 'input', 'tap', '210', '640']]);
-  assert.deepEqual(reopenedApps, ['com.android.settings']);
-  assert.equal(snapshotCalls, 2);
+  expect(response.ok).toBe(true);
+  expect(dispatchCalls).toEqual([['scroll', 'down', '0.55']]);
+  expect(execCalls).toEqual([['-s', 'emulator-5554', 'shell', 'input', 'tap', '210', '640']]);
+  expect(openAndroidApp).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'emulator-5554' }),
+    'com.android.settings',
+  );
+  expect(snapshotCalls).toBe(2);
 });

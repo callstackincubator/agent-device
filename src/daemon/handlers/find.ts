@@ -17,10 +17,8 @@ export async function handleFindCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  dispatch?: typeof dispatchCommand;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore, invoke } = params;
-  const dispatch = params.dispatch ?? dispatchCommand;
   const command = req.command;
   if (command !== 'find') return null;
 
@@ -64,7 +62,7 @@ export async function handleFindCommands(params: {
       return { nodes: lastNodes };
     }
     const { snapshot } = await captureSnapshot({
-      dispatchSnapshotCommand: dispatch,
+      dispatchSnapshotCommand: dispatchCommand,
       device,
       session,
       flags: {
@@ -169,7 +167,7 @@ export async function handleFindCommands(params: {
       surface: session?.surface,
       contextFromFlags: (flags, appBundleId, traceLogPath) =>
         contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-      dispatch,
+      dispatch: dispatchCommand,
     });
     if (session) {
       sessionStore.recordAction(session, {
@@ -247,7 +245,7 @@ export async function handleFindCommands(params: {
         error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
       };
     }
-    const response = await dispatch(
+    const response = await dispatchCommand(
       device,
       'focus',
       [String(coords.x), String(coords.y)],
@@ -277,10 +275,10 @@ export async function handleFindCommands(params: {
         error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
       };
     }
-    await dispatch(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
+    await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
     });
-    const response = await dispatch(device, 'type', [value], req.flags?.out, {
+    const response = await dispatchCommand(device, 'type', [value], req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
     });
     if (session) {

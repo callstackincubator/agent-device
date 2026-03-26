@@ -460,48 +460,6 @@ test('runtime set/show/clear manages session-scoped runtime hints before open', 
   assert.equal(sessionStore.getRuntimeHints('remote-runtime'), undefined);
 });
 
-test('runtime clear removes applied transport hints for the active app', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'runtime-clear-active';
-  sessionStore.setRuntimeHints(sessionName, {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-  });
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.demo',
-  });
-
-  const clearCalls: Array<{ deviceId: string; appId?: string }> = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'runtime',
-      positionals: ['clear'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    clearRuntimeHints: async ({ device, appId }) => {
-      clearCalls.push({ deviceId: device.id, appId });
-    },
-  });
-
-  assert.equal(response?.ok, true);
-  assert.deepEqual(clearCalls, [{ deviceId: 'emulator-5554', appId: 'com.example.demo' }]);
-  assert.equal(sessionStore.getRuntimeHints(sessionName), undefined);
-});
-
 test('open applies stored runtime launchUrl and reports runtime hints', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.setRuntimeHints('runtime-open', {

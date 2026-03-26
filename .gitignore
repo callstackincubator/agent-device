@@ -5,6 +5,7 @@ dist/
 *.log
 test/screenshots/*.png
 test/artifacts/
+*.gesture-telemetry.json
 .build/
 .swiftpm/
 DerivedData/

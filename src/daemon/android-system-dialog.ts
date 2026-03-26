@@ -15,32 +15,22 @@ export type AndroidBlockingDialogRecoveryResult = 'absent' | 'recovered' | 'fail
 
 export async function recoverAndroidBlockingSystemDialog(params: {
   session: SessionState;
-  snapshotAndroidUi?: typeof snapshotAndroid;
-  reopenAndroidApp?: typeof openAndroidApp;
-  readAndroidAppState?: typeof getAndroidAppState;
-  execCommand?: typeof runCmd;
 }): Promise<AndroidBlockingDialogRecoveryResult> {
-  const {
-    session,
-    snapshotAndroidUi = snapshotAndroid,
-    reopenAndroidApp = openAndroidApp,
-    readAndroidAppState = getAndroidAppState,
-    execCommand = runCmd,
-  } = params;
+  const { session } = params;
 
   if (session.device.platform !== 'android' || !session.recording) {
     return 'absent';
   }
 
   try {
-    const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
+    const nodes = await readAndroidSnapshotNodes(session);
     const closeAppButton = findCloseAppButton(nodes);
     if (!closeAppButton?.rect) {
       return 'absent';
     }
 
     const { x, y } = centerOfRect(closeAppButton.rect);
-    const tapResult = await execCommand(
+    const tapResult = await runCmd(
       'adb',
       adbArgs(session.device, [
         'shell',
@@ -66,7 +56,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
       return 'failed';
     }
 
-    const dismissed = await waitForBlockingDialogToDismiss(session, snapshotAndroidUi);
+    const dismissed = await waitForBlockingDialogToDismiss(session);
     if (!dismissed) {
       emitDiagnostic({
         level: 'warn',
@@ -80,12 +70,8 @@ export async function recoverAndroidBlockingSystemDialog(params: {
     }
 
     if (session.appBundleId) {
-      await reopenAndroidApp(session.device, session.appBundleId);
-      const focused = await waitForFocusedAndroidApp(
-        session,
-        session.appBundleId,
-        readAndroidAppState,
-      );
+      await openAndroidApp(session.device, session.appBundleId);
+      const focused = await waitForFocusedAndroidApp(session, session.appBundleId);
       if (!focused) {
         emitDiagnostic({
           level: 'warn',
@@ -126,11 +112,8 @@ export async function recoverAndroidBlockingSystemDialog(params: {
   }
 }
 
-async function readAndroidSnapshotNodes(
-  session: SessionState,
-  snapshotAndroidUi: typeof snapshotAndroid,
-): Promise<SnapshotNode[]> {
-  const rawSnapshot = await snapshotAndroidUi(session.device, {
+async function readAndroidSnapshotNodes(session: SessionState): Promise<SnapshotNode[]> {
+  const rawSnapshot = await snapshotAndroid(session.device, {
     interactiveOnly: false,
     compact: false,
   });
@@ -147,34 +130,30 @@ function findCloseAppButton(nodes: SnapshotNode[]): SnapshotNode | undefined {
   });
 }
 
-async function waitForBlockingDialogToDismiss(
-  session: SessionState,
-  snapshotAndroidUi: typeof snapshotAndroid,
-): Promise<boolean> {
+async function waitForBlockingDialogToDismiss(session: SessionState): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_MODAL_POLL_ATTEMPTS; attempt += 1) {
-    const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
+    const nodes = await readAndroidSnapshotNodes(session);
     if (!containsBlockingDialog(nodes)) {
       return true;
     }
     await sleep(ANDROID_MODAL_POLL_MS);
   }
-  const nodes = await readAndroidSnapshotNodes(session, snapshotAndroidUi);
+  const nodes = await readAndroidSnapshotNodes(session);
   return !containsBlockingDialog(nodes);
 }
 
 async function waitForFocusedAndroidApp(
   session: SessionState,
   appBundleId: string,
-  readAndroidAppState: typeof getAndroidAppState,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_MODAL_POLL_ATTEMPTS; attempt += 1) {
-    const state = await readAndroidAppState(session.device);
+    const state = await getAndroidAppState(session.device);
     if (state.package === appBundleId) {
       return true;
     }
     await sleep(ANDROID_MODAL_POLL_MS);
   }
-  const state = await readAndroidAppState(session.device);
+  const state = await getAndroidAppState(session.device);
   return state.package === appBundleId;
 }
 

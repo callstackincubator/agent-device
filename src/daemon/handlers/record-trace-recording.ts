@@ -13,11 +13,7 @@ import type {
 } from '../types.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
-import {
-  deriveRecordingTelemetryPath,
-  persistRecordingTelemetry,
-  writeRecordingTelemetry,
-} from '../recording-telemetry.ts';
+import { deriveRecordingTelemetryPath, persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import {
   getRecordingOverlaySupportWarning,
@@ -47,7 +43,6 @@ export type RecordTraceDeps = {
   runIosRunnerCommand: typeof runIosRunnerCommand;
   waitForStableFile: typeof waitForStableFile;
   isPlayableVideo: typeof isPlayableVideo;
-  writeRecordingTelemetry: typeof writeRecordingTelemetry;
   trimRecordingStart: typeof trimRecordingStart;
   overlayRecordingTouches: typeof overlayRecordingTouches;
 };
@@ -67,7 +62,6 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
     runIosRunnerCommand,
     waitForStableFile,
     isPlayableVideo,
-    writeRecordingTelemetry,
     trimRecordingStart,
     overlayRecordingTouches,
     ...overrides,
@@ -306,7 +300,6 @@ async function stopNonRunnerRecording(params: {
 
   const telemetryPath = persistRecordingTelemetry({
     recording,
-    writeTelemetry: deps.writeRecordingTelemetry,
   });
 
   if (recording.showTouches) {

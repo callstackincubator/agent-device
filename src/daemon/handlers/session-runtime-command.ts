@@ -13,9 +13,8 @@ export async function handleRuntimeCommand(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, clearRuntimeHints = clearRuntimeHintsFromApp } = params;
+  const { req, sessionName, sessionStore } = params;
   const action = (req.positionals?.[0] ?? 'show').toLowerCase();
   const session = sessionStore.get(sessionName);
   const current = sessionStore.getRuntimeHints(sessionName);
@@ -27,7 +26,7 @@ export async function handleRuntimeCommand(params: {
   }
   if (action === 'clear') {
     if (hasRuntimeTransportHints(current) && session?.appBundleId) {
-      await clearRuntimeHints({
+      await clearRuntimeHintsFromApp({
         device: session.device,
         appId: session.appBundleId,
       });

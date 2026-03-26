@@ -35,7 +35,7 @@
     "prepack": "pnpm build:all",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test",
-    "test:unit": "node --test src/__tests__/*.test.ts src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts src/utils/**/__tests__/*.test.ts",
+    "test:unit": "node --test $(find src -path '*/__tests__/*.test.ts' ! -name '*.vitest.test.ts' | sort) && vitest run",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts"
   },
@@ -78,6 +78,7 @@
     "@types/node": "^22.0.0",
     "@types/pngjs": "^6.0.5",
     "prettier": "^3.3.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
   }
 }

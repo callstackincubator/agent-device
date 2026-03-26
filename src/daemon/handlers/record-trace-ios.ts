@@ -336,7 +336,6 @@ export async function stopIosDeviceRecording(params: {
   const telemetryPath = persistRecordingTelemetry({
     recording,
     trimStartMs,
-    writeTelemetry: deps.writeRecordingTelemetry,
   });
 
   if (recording.showTouches) {
@@ -392,7 +391,6 @@ export async function stopMacOsRecording(params: {
 
   const telemetryPath = persistRecordingTelemetry({
     recording,
-    writeTelemetry: deps.writeRecordingTelemetry,
   });
 
   if (recording.showTouches) {

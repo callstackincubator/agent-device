@@ -72,10 +72,9 @@ export function writeRecordingTelemetry(params: {
 export function persistRecordingTelemetry(params: {
   recording: RecordingTelemetryState;
   trimStartMs?: number;
-  writeTelemetry?: typeof writeRecordingTelemetry;
 }): string {
-  const { recording, trimStartMs, writeTelemetry = writeRecordingTelemetry } = params;
-  const telemetryPath = writeTelemetry({
+  const { recording, trimStartMs } = params;
+  const telemetryPath = writeRecordingTelemetry({
     videoPath: recording.outPath,
     events: recording.gestureEvents,
     trimStartMs,

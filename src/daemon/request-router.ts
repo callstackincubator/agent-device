@@ -405,10 +405,6 @@ export function createRequestHandler(
           if (session.device.platform === 'android' && session.recording && command !== 'record') {
             const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({
               session,
-              snapshotAndroidUi,
-              reopenAndroidApp,
-              readAndroidAppState,
-              execCommand,
             });
             if (androidRecoveryResult === 'failed') {
               return finalize({
