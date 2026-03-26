@@ -49,11 +49,16 @@ agent-device replay ~/.agent-device/sessions/e2e-2026-02-09T12-00-00-000Z.ad --s
 ```bash
 agent-device test ./workflows
 agent-device test "./workflows/**/*.ad" --platform android
+agent-device test ./workflows --timeout 60000 --retries 1
+agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 ```
 
 - `test` discovers `.ad` files from files, directories, or globs and runs them serially.
 - `context platform=...` inside each `.ad` file is the target source of truth for suite execution.
 - `--platform` is a filter for suite discovery; files without platform metadata are skipped when a filter is present.
+- `context timeout=...` and `context retries=...` can be declared per script; CLI flags override metadata.
+- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`.
+- The default text reporter prints the suite summary and failed tests only; use `--verbose` to print every test result.
 
 ## Update stale selectors in replay scripts
 

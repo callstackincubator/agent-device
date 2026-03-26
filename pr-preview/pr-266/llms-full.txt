@@ -538,12 +538,16 @@ agent-device is text 'id="greeting"' "Welcome back"
 agent-device open Settings --platform ios --session e2e --save-script [path]
 agent-device replay ./session.ad      # Run deterministic replay from .ad script
 agent-device test ./suite             # Run every .ad file in a folder or glob serially
+agent-device test ./suite --timeout 60000 --retries 1
 agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad script in place
 ```
 
 - `replay` runs deterministic `.ad` scripts.
 - `test` runs one or more `.ad` scripts as a serial suite from files, directories, or glob inputs.
 - `test --platform <platform>` filters suite files by `context platform=...` metadata instead of overriding the script target.
+- `test --timeout <ms>` and `test --retries <n>` apply per script attempt; `context timeout=...` and `context retries=...` can be declared inside the `.ad` header.
+- `test --artifacts-dir <path>` overrides the default suite artifact root at `.agent-device/test-artifacts`.
+- `test` prints only failures by default; add `--verbose` to print pass and skip lines too.
 - `replay -u` updates stale recorded actions and rewrites the same script.
 - `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 
@@ -1258,11 +1262,16 @@ agent-device replay ~/.agent-device/sessions/e2e-2026-02-09T12-00-00-000Z.ad --s
 ```bash
 agent-device test ./workflows
 agent-device test "./workflows/**/*.ad" --platform android
+agent-device test ./workflows --timeout 60000 --retries 1
+agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 ```
 
 - `test` discovers `.ad` files from files, directories, or globs and runs them serially.
 - `context platform=...` inside each `.ad` file is the target source of truth for suite execution.
 - `--platform` is a filter for suite discovery; files without platform metadata are skipped when a filter is present.
+- `context timeout=...` and `context retries=...` can be declared per script; CLI flags override metadata.
+- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`.
+- The default text reporter prints the suite summary and failed tests only; use `--verbose` to print every test result.
 
 ## Update stale selectors in replay scripts
 
