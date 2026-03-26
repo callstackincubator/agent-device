@@ -628,6 +628,7 @@ function renderBatchSummary(data: Record<string, unknown>): void {
 }
 
 function renderTestSummary(data: ReplaySuiteResult, options: { verbose?: boolean } = {}): number {
+  const flaky = data.tests.filter(isFlakyReplayTestResult);
   if (options.verbose) {
     for (const entry of data.tests) {
       renderVerboseTestResult(entry);
@@ -636,11 +637,15 @@ function renderTestSummary(data: ReplaySuiteResult, options: { verbose?: boolean
     for (const entry of data.failures) {
       renderFailedTestResult(entry);
     }
+    for (const entry of flaky) {
+      renderFlakyTestResult(entry);
+    }
   }
 
   const durationMs = typeof data.durationMs === 'number' ? data.durationMs : undefined;
+  const flakySuffix = flaky.length > 0 ? `, ${flaky.length} flaky` : '';
   process.stdout.write(
-    `Test summary: ${data.passed} passed, ${data.failed} failed${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
+    `Test summary: ${data.passed} passed, ${data.failed} failed${flakySuffix}${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
   );
   return getTestExitCode(data);
 }
@@ -652,7 +657,13 @@ function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
   }
 
   const prefix =
-    result.status === 'passed' ? 'PASS' : result.status === 'skipped' ? 'SKIP' : 'INFO';
+    result.status === 'passed'
+      ? isFlakyReplayTestResult(result)
+        ? 'FLAKY'
+        : 'PASS'
+      : result.status === 'skipped'
+        ? 'SKIP'
+        : 'INFO';
   const attemptSuffix =
     'attempts' in result && result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
   const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
@@ -669,12 +680,23 @@ function renderFailedTestResult(
   const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
   process.stdout.write(`FAIL ${result.file}${attemptSuffix}${durationSuffix}\n`);
   process.stdout.write(`  ${result.error?.message ?? 'Unknown test failure'}\n`);
-  if (result.error.hint) process.stdout.write(`  hint: ${result.error.hint}\n`);
+  if (result.error?.hint) process.stdout.write(`  hint: ${result.error.hint}\n`);
   if (result.artifactsDir) process.stdout.write(`  artifacts: ${result.artifactsDir}\n`);
-  if (result.error.logPath) process.stdout.write(`  log: ${result.error.logPath}\n`);
-  if (result.error.diagnosticId) {
+  if (result.error?.logPath) process.stdout.write(`  log: ${result.error.logPath}\n`);
+  if (result.error?.diagnosticId) {
     process.stdout.write(`  diagnostic: ${result.error.diagnosticId}\n`);
   }
+}
+
+function renderFlakyTestResult(result: Extract<ReplaySuiteTestResult, { status: 'passed' }>): void {
+  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
+  process.stdout.write(`FLAKY ${result.file} after ${result.attempts} attempts${durationSuffix}\n`);
+}
+
+function isFlakyReplayTestResult(
+  result: ReplaySuiteTestResult,
+): result is Extract<ReplaySuiteTestResult, { status: 'passed' }> {
+  return result.status === 'passed' && result.attempts > 1;
 }
 
 function getTestExitCode(data: ReplaySuiteResult): number {

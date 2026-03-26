@@ -215,3 +215,32 @@ test('test command --verbose prints all test statuses', async () => {
   assert.match(result.stdout, /PASS \/tmp\/01-pass\.ad \(10ms\)/);
   assert.match(result.stdout, /SKIP \/tmp\/03-skip\.ad/);
 });
+
+test('test command reports flaky passed-on-retry cases in the default summary', async () => {
+  const result = await runCliCapture(['test', './suite'], async () => ({
+    ok: true,
+    data: {
+      total: 1,
+      executed: 1,
+      passed: 1,
+      failed: 0,
+      skipped: 0,
+      notRun: 0,
+      durationMs: 25,
+      failures: [],
+      tests: [
+        {
+          file: '/tmp/01-flaky.ad',
+          session: 'default:test:suite:1',
+          status: 'passed',
+          durationMs: 10,
+          attempts: 2,
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /FLAKY \/tmp\/01-flaky\.ad after 2 attempts \(10ms\)/);
+  assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 25ms/);
+});

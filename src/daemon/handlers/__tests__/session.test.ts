@@ -4966,7 +4966,7 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-retries-'));
   fs.writeFileSync(
     path.join(root, '01-retry.ad'),
-    'context platform=android retries=1\nopen "Demo"\n',
+    'context platform=android retries=9\nopen "Demo"\n',
   );
 
   const invoked: DaemonRequest[] = [];
@@ -4983,7 +4983,7 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
     sessionStore,
     invoke: async (req) => {
       invoked.push(req);
-      if (invoked.length === 1) {
+      if (invoked.length < 4) {
         return {
           ok: false,
           error: {
@@ -5002,6 +5002,8 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
     [
       'default:test:suite-retries:1-01-retry:attempt-1',
       'default:test:suite-retries:1-01-retry:attempt-2',
+      'default:test:suite-retries:1-01-retry:attempt-3',
+      'default:test:suite-retries:1-01-retry:attempt-4',
     ],
   );
   if (response?.ok) {
@@ -5009,7 +5011,7 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
     assert.equal(response.data?.failed, 0);
     const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
     assert.equal(tests?.[0]?.status, 'passed');
-    assert.equal(tests?.[0]?.attempts, 2);
+    assert.equal(tests?.[0]?.attempts, 4);
   }
 });
 

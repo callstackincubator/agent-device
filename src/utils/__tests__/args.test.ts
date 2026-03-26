@@ -118,6 +118,16 @@ test('parseArgs recognizes device isolation flags', () => {
   assert.equal(parsed.flags.androidDeviceAllowlist, 'emulator-5554,device-1234');
 });
 
+test('parseArgs rejects test retries above the supported ceiling', () => {
+  assert.throws(
+    () => parseArgs(['test', './suite', '--retries', '4'], { strictFlags: true }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Invalid retries: 4/.test(error.message),
+  );
+});
+
 test('parseArgs recognizes logs clear --restart', () => {
   const parsed = parseArgs(['logs', 'clear', '--restart'], { strictFlags: true });
   assert.equal(parsed.command, 'logs');

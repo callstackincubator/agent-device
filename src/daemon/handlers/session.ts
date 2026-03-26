@@ -947,34 +947,24 @@ export async function handleSessionCommands(params: {
         const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
           if (!artifactPaths) return response;
           collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
-          const replayArtifactPaths = response.ok
-            ? (response.data as Record<string, unknown> | undefined)?.artifactPaths
-            : response.error.details?.artifactPaths;
-          if (Array.isArray(replayArtifactPaths)) {
-            for (const entry of replayArtifactPaths) {
-              if (typeof entry === 'string') artifactPaths.add(entry);
-            }
-          }
           return response;
         };
 
-        return captureArtifacts(
-          await runReplayScriptFile({
-            req: {
-              ...req,
-              command: 'replay',
-              session: testSessionName,
-              positionals: [filePath],
-              flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
-              meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
-            },
-            sessionName: testSessionName,
-            logPath,
-            sessionStore,
-            invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
-            dispatch,
-          }),
-        );
+        return await runReplayScriptFile({
+          req: {
+            ...req,
+            command: 'replay',
+            session: testSessionName,
+            positionals: [filePath],
+            flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
+            meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
+          },
+          sessionName: testSessionName,
+          logPath,
+          sessionStore,
+          invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
+          dispatch,
+        });
       },
       cleanupSession: async (testSessionName) => {
         await cleanupReplayTestSession({

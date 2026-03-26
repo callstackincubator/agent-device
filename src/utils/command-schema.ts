@@ -695,6 +695,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--retries'],
     type: 'int',
     min: 0,
+    max: 3,
     usageLabel: '--retries <n>',
     usageDescription: 'Test: retry each failed script up to n additional times',
   },

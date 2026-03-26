@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { PlatformSelector } from '../../utils/device.ts';
@@ -21,6 +22,8 @@ import { readReplayScriptMetadata, type ReplayScriptMetadata } from './session-r
 
 const GLOB_PATTERN_CHARS = /[*?[\]{}]/;
 const DEFAULT_TEST_ARTIFACTS_ROOT = '.agent-device/test-artifacts';
+const MAX_REPLAY_TEST_RETRIES = 3;
+const REPLAY_TIMEOUT_CLEANUP_GRACE_MS = 2_000;
 
 export type ReplayTestDiscoveryEntry =
   | {
@@ -68,7 +71,6 @@ export async function runReplayTestSuite(params: {
       cwd: req.meta?.cwd,
       suiteInvocationId,
     });
-    fs.mkdirSync(suiteArtifactsDir, { recursive: true });
 
     const results: ReplaySuiteTestResult[] = [];
     const suiteStartedAt = Date.now();
@@ -305,6 +307,7 @@ async function runReplayTestAttempt(params: {
   registerRequestAbort(requestId);
   const artifactPaths = new Set<string>();
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
   const replayPromise = runReplay({
     filePath,
     sessionName,
@@ -323,6 +326,7 @@ async function runReplayTestAttempt(params: {
             replayPromise,
             new Promise<DaemonResponse>((resolve) => {
               timeoutHandle = setTimeout(() => {
+                timedOut = true;
                 markRequestCanceled(requestId);
                 resolve(createReplayTestTimeoutResponse(timeoutMs, [...artifactPaths]));
               }, timeoutMs);
@@ -332,6 +336,20 @@ async function runReplayTestAttempt(params: {
     return response;
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
+    if (timedOut) {
+      const settled = await waitForReplayAfterTimeout(replayPromise);
+      if (!settled) {
+        emitDiagnostic({
+          level: 'warn',
+          phase: 'test_timeout_cleanup_race',
+          data: {
+            session: sessionName,
+            requestId,
+            graceMs: REPLAY_TIMEOUT_CLEANUP_GRACE_MS,
+          },
+        });
+      }
+    }
     clearRequestCanceled(requestId);
     try {
       await cleanupSession(sessionName);
@@ -347,6 +365,13 @@ async function runReplayTestAttempt(params: {
       });
     }
   }
+}
+
+async function waitForReplayAfterTimeout(replayPromise: Promise<DaemonResponse>): Promise<boolean> {
+  return await Promise.race([
+    replayPromise.then(() => true),
+    sleep(REPLAY_TIMEOUT_CLEANUP_GRACE_MS).then(() => false),
+  ]);
 }
 
 function createReplayTestTimeoutResponse(
@@ -474,7 +499,8 @@ function resolveReplayTestRetries(
   metadataRetries: number | undefined,
 ): number {
   const resolved = typeof cliRetries === 'number' ? cliRetries : metadataRetries;
-  return typeof resolved === 'number' ? resolved : 0;
+  if (typeof resolved !== 'number') return 0;
+  return Math.max(0, Math.min(MAX_REPLAY_TEST_RETRIES, resolved));
 }
 
 function expandReplayTestInput(input: string, cwd: string): string[] {
