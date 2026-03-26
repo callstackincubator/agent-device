@@ -495,6 +495,7 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
+      clearRuntimeHints,
     });
   }
 
