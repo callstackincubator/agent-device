@@ -3338,6 +3338,67 @@ test('open --relaunch rejects Android app binary paths for active sessions', asy
   );
 });
 
+test('open --relaunch rejects Android app binary paths for active sessions before device refresh', async () => {
+  const sessionStore = makeSessionStore();
+  const session = makeSession('default', {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  });
+  session.appName = 'com.example.app';
+  session.appBundleId = 'com.example.app';
+  sessionStore.set('default', session);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['/tmp/app-debug.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'stale session device is unavailable');
+    },
+  });
+
+  assertInvalidArgsMessage(
+    response,
+    'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+  );
+});
+
+test('open --relaunch rejects Android app binary paths before resolving a new device', async () => {
+  const sessionStore = makeSessionStore();
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'open',
+      positionals: ['/tmp/app-debug.apk'],
+      flags: { relaunch: true, platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    resolveTargetDevice: async () => {
+      throw new AppError('DEVICE_NOT_FOUND', 'no Android devices available');
+    },
+  });
+
+  assertInvalidArgsMessage(
+    response,
+    'Android runtime hints require an installed package name, not "/tmp/app-debug.apk". Install or reinstall the app first, then relaunch by package.',
+  );
+});
+
 test('open on in-use device returns DEVICE_IN_USE before readiness checks', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.set(

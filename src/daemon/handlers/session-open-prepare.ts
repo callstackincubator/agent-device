@@ -96,6 +96,22 @@ function validatePreparedOpenRequest(params: {
   return null;
 }
 
+function validatePreResolvedOpenRequest(params: {
+  shouldRelaunch: boolean;
+  openTarget: string | undefined;
+  platform: DeviceInfo['platform'] | undefined;
+}): DaemonResponse | null {
+  const { shouldRelaunch, openTarget, platform } = params;
+  if (!shouldRelaunch) return null;
+  if (openTarget && isDeepLinkTarget(openTarget)) {
+    return invalidArgs('open --relaunch does not support URL targets.');
+  }
+  if (platform === 'android' && openTarget && classifyAndroidAppTarget(openTarget) === 'binary') {
+    return invalidArgs(formatAndroidInstalledPackageRequiredMessage(openTarget));
+  }
+  return null;
+}
+
 async function prepareResolvedOpenCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -241,6 +257,16 @@ export async function prepareExistingOpenCommand(params: {
     };
   }
 
+  const validation = validatePreparedOpenRequest({
+    shouldRelaunch,
+    openTarget,
+    surface: surfaceResult,
+    device: session.device,
+  });
+  if (validation) {
+    return { response: validation };
+  }
+
   const device = await refreshSessionDeviceIfNeeded(session.device, resolveDevice);
   return await prepareResolvedOpenCommand({
     req,
@@ -277,6 +303,15 @@ export async function prepareNewOpenCommand(params: {
   const openTarget = req.positionals?.[0];
   if (shouldRelaunch && !openTarget) {
     return { response: invalidArgs('open --relaunch requires an app argument.') };
+  }
+
+  const preResolvedValidation = validatePreResolvedOpenRequest({
+    shouldRelaunch,
+    openTarget,
+    platform: req.flags?.platform === 'android' ? 'android' : undefined,
+  });
+  if (preResolvedValidation) {
+    return { response: preResolvedValidation };
   }
 
   const device = await resolveDevice(req.flags ?? {});
