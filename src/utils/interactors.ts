@@ -41,6 +41,9 @@ export type RunnerContext = {
   traceLogPath?: string;
 };
 
+export type BackMode = 'in-app' | 'system';
+export type AppleBackRunnerCommand = 'back' | 'backInApp' | 'backSystem';
+
 type Interactor = {
   open(
     app: string,
@@ -64,7 +67,7 @@ type Interactor = {
   scroll(direction: string, amount?: number): Promise<Record<string, unknown> | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
-  back(): Promise<void>;
+  back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   appSwitcher(): Promise<void>;
   readClipboard(): Promise<string>;
@@ -97,7 +100,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         scroll: (direction, amount) => scrollAndroid(device, direction, amount),
         scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
         screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
-        back: () => backAndroid(device),
+        back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
         appSwitcher: () => appSwitcherAndroid(device),
         readClipboard: () => readAndroidClipboardText(device),
@@ -114,10 +117,13 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
         screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
-        back: async () => {
+        back: async (mode) => {
           await runIosRunnerCommand(
             device,
-            { command: 'back', appBundleId: runnerContext.appBundleId },
+            {
+              command: resolveAppleBackRunnerCommand(mode),
+              appBundleId: runnerContext.appBundleId,
+            },
             runnerOpts,
           );
         },
@@ -145,6 +151,12 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
     default:
       throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform: ${device.platform}`);
   }
+}
+
+export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
+  if (mode === 'in-app') return 'backInApp';
+  if (mode === 'system') return 'backSystem';
+  return 'back';
 }
 
 type RunnerOpts = {

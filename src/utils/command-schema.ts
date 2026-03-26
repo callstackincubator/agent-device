@@ -63,6 +63,7 @@ export type CliFlags = {
   jitterPx?: number;
   doubleTap?: boolean;
   clickButton?: 'primary' | 'secondary' | 'middle';
+  backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
@@ -574,6 +575,24 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Click: choose mouse button (middle reserved for future macOS support)',
   },
   {
+    key: 'backMode',
+    names: ['--in-app'],
+    type: 'enum',
+    enumValues: ['in-app', 'system'],
+    setValue: 'in-app',
+    usageLabel: '--in-app',
+    usageDescription: 'Back: use app-provided back UI when available',
+  },
+  {
+    key: 'backMode',
+    names: ['--system'],
+    type: 'enum',
+    enumValues: ['in-app', 'system'],
+    setValue: 'system',
+    usageLabel: '--system',
+    usageDescription: 'Back: use system back input or gesture when available',
+  },
+  {
     key: 'pauseMs',
     names: ['--pause-ms'],
     type: 'int',
@@ -971,10 +990,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   back: {
-    helpDescription: 'Navigate back (where supported)',
+    usageOverride: 'back [--in-app|--system]',
+    helpDescription: 'Navigate back with explicit app or system semantics',
     summary: 'Go back',
     positionalArgs: [],
-    allowedFlags: [],
+    allowedFlags: ['backMode'],
   },
   home: {
     helpDescription: 'Go to home screen (where supported)',

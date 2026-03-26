@@ -511,11 +511,20 @@ extension RunnerTests {
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
 #endif
     case .back:
-      if tapNavigationBack(app: activeApp) {
+      if performDefaultBackAction(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "back"))
       }
-      performBackGesture(app: activeApp)
-      return Response(ok: true, data: DataPayload(message: "back"))
+      return Response(ok: false, error: ErrorPayload(message: "back is not available"))
+    case .backInApp:
+      if tapInAppBackControl(app: activeApp) {
+        return Response(ok: true, data: DataPayload(message: "backInApp"))
+      }
+      return Response(ok: false, error: ErrorPayload(message: "in-app back control is not available"))
+    case .backSystem:
+      if performSystemBackAction(app: activeApp) {
+        return Response(ok: true, data: DataPayload(message: "backSystem"))
+      }
+      return Response(ok: false, error: ErrorPayload(message: "system back is not available"))
     case .home:
       pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))

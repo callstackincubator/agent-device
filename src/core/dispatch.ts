@@ -67,6 +67,7 @@ export async function dispatchCommand(
     jitterPx?: number;
     doubleTap?: boolean;
     clickButton?: 'primary' | 'secondary' | 'middle';
+    backMode?: 'in-app' | 'system';
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
     surface?: SessionSurface;
@@ -406,8 +407,8 @@ export async function dispatchCommand(
           return { path: screenshotPath };
         }
         case 'back': {
-          await interactor.back();
-          return { action: 'back' };
+          await interactor.back(context?.backMode);
+          return { action: 'back', mode: context?.backMode ?? 'default' };
         }
         case 'home': {
           await interactor.home();
