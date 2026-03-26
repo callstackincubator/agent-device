@@ -8,7 +8,12 @@ import {
 import { centerOfRect, findNodeByRef, type Rect, type SnapshotNode } from '../../utils/snapshot.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { findNodeByLabel, isFillableType, resolveRefLabel } from '../snapshot-processing.ts';
+import {
+  findNearestHittableAncestor,
+  findNodeByLabel,
+  isFillableType,
+  resolveRefLabel,
+} from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
   formatSelectorFailure,
@@ -261,7 +266,8 @@ export async function handleTouchInteractionCommands(params: {
         },
       };
     }
-    const pressPoint = resolveRectCenter(resolved.node.rect);
+    const actionableNode = resolveActionableTouchNode(snapshot.nodes, resolved.node);
+    const pressPoint = resolveRectCenter(actionableNode.rect);
     if (!pressPoint) {
       return {
         ok: false,
@@ -272,10 +278,10 @@ export async function handleTouchInteractionCommands(params: {
       };
     }
     const { x, y } = pressPoint;
-    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
+    const selectorChain = buildSelectorChainForNode(actionableNode, session.device.platform, {
       action: selectorAction,
     });
-    const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
+    const refLabel = resolveRefLabel(actionableNode, snapshot.nodes);
     return dispatchRecordedTouchInteraction({
       session,
       sessionStore,
@@ -672,7 +678,10 @@ async function resolveRefTargetWithRectRefresh(params: {
   if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
 
   const { ref } = resolvedRefTarget.target;
-  let node = resolvedRefTarget.target.node;
+  let node = resolveActionableTouchNode(
+    resolvedRefTarget.target.snapshotNodes,
+    resolvedRefTarget.target.node,
+  );
   let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
   let point = resolveRectCenter(node.rect);
 
@@ -685,16 +694,20 @@ async function resolveRefTargetWithRectRefresh(params: {
       { interactiveOnly: true },
       dispatch,
     );
-    const refNode = findNodeByRef(refreshed.nodes, ref);
+    const refNode = findNodeByRef(refreshed.nodes, resolvedRefTarget.target.ref);
     const fallbackNode =
       fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
-    const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
-    const refNodePoint = resolveRectCenter(refNode?.rect);
+    const actionableRefNode = refNode ? resolveActionableTouchNode(refreshed.nodes, refNode) : null;
+    const actionableFallbackNode = fallbackNode
+      ? resolveActionableTouchNode(refreshed.nodes, fallbackNode)
+      : null;
+    const fallbackNodePoint = resolveRectCenter(actionableFallbackNode?.rect);
+    const refNodePoint = resolveRectCenter(actionableRefNode?.rect);
     const refreshedNode = refNodePoint
-      ? refNode
+      ? actionableRefNode
       : fallbackNodePoint
-        ? fallbackNode
-        : (refNode ?? fallbackNode);
+        ? actionableFallbackNode
+        : (actionableRefNode ?? actionableFallbackNode ?? refNode ?? fallbackNode);
     const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
     if (refreshedNode && refreshedPoint) {
       node = refreshedNode;
@@ -717,6 +730,14 @@ async function resolveRefTargetWithRectRefresh(params: {
   }
 
   return { ok: true, target: { ref, node, snapshotNodes, point } };
+}
+
+function resolveActionableTouchNode(nodes: SnapshotNode[], node: SnapshotNode): SnapshotNode {
+  const ancestor = findNearestHittableAncestor(nodes, node);
+  if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
+    return ancestor;
+  }
+  return node;
 }
 
 function readSnapshotNodesReferenceFrame(
