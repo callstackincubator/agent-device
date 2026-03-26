@@ -121,6 +121,10 @@ Minimal operating guide for AI coding agents in this repo.
   - keep detailed workflows/troubleshooting in a `references/` folder instead of growing the router.
   - isolate true platform/infra exceptions (for example macOS-only or remote-tenancy-only guidance) in dedicated files.
   - do not delete high-value operational guidance during refactors; move or condense it unless the behavior is obsolete.
+- Optimize skills for cheap, less capable models:
+  - keep routing explicit, shallow, and easy to follow in one pass.
+  - prefer short task-first steps, concrete commands, and low-ambiguity wording over dense prose.
+  - avoid long reference chains or “figure it out” guidance when a direct next action can be stated.
 - In final summaries, state whether docs/skills were updated; if not, explain why.
 
 ## When Blocked
