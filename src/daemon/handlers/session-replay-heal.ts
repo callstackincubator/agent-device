@@ -1,14 +1,18 @@
-import { extractNodeText, normalizeType } from '../snapshot-processing.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
+import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
+import { extractNodeText, normalizeType, pruneGroupNodes } from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
+  resolveSelectorChain,
   splitIsSelectorArgs,
   splitSelectorFromArgs,
   tryParseSelectorChain,
 } from '../selectors.ts';
-import { uniqueStrings } from '../action-utils.ts';
+import { inferFillText, uniqueStrings } from '../action-utils.ts';
 import type { SessionAction, SessionState } from '../types.ts';
-import type { SnapshotState } from '../../utils/snapshot.ts';
 import { isClickLikeCommand } from '../script-utils.ts';
+import { contextFromFlags } from '../context.ts';
+import { SessionStore } from '../session-store.ts';
 
 export function parseSelectorWaitPositionals(positionals: string[]): {
   selectorExpression: string | null;
@@ -137,4 +141,126 @@ export function healNumericGetTextDrift(
     ...action,
     positionals: ['text', selectorChain.join(' || ')],
   };
+}
+
+export async function healReplayAction(params: {
+  action: SessionAction;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  dispatch: typeof dispatchCommand;
+}): Promise<SessionAction | null> {
+  const { action, sessionName, logPath, sessionStore, dispatch } = params;
+  if (
+    !(isClickLikeCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command))
+  ) {
+    return null;
+  }
+
+  const session = sessionStore.get(sessionName);
+  if (!session) return null;
+
+  const requiresRect = isClickLikeCommand(action.command) || action.command === 'fill';
+  const allowDisambiguation =
+    isClickLikeCommand(action.command) ||
+    action.command === 'fill' ||
+    (action.command === 'get' && action.positionals?.[0] === 'text');
+  const snapshot = await captureSnapshotForReplay(
+    session,
+    action,
+    logPath,
+    requiresRect,
+    dispatch,
+    sessionStore,
+  );
+  const selectorCandidates = collectReplaySelectorCandidates(action);
+  for (const candidate of selectorCandidates) {
+    const chain = tryParseSelectorChain(candidate);
+    if (!chain) continue;
+    const resolved = resolveSelectorChain(snapshot.nodes, chain, {
+      platform: session.device.platform,
+      requireRect: requiresRect,
+      requireUnique: true,
+      disambiguateAmbiguous: allowDisambiguation,
+    });
+    if (!resolved) continue;
+
+    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
+      action: isClickLikeCommand(action.command)
+        ? 'click'
+        : action.command === 'fill'
+          ? 'fill'
+          : 'get',
+    });
+    const selectorExpression = selectorChain.join(' || ');
+
+    if (isClickLikeCommand(action.command)) {
+      return { ...action, positionals: [selectorExpression] };
+    }
+    if (action.command === 'fill') {
+      const fillText = inferFillText(action);
+      if (!fillText) continue;
+      return { ...action, positionals: [selectorExpression, fillText] };
+    }
+    if (action.command === 'get') {
+      const sub = action.positionals?.[0];
+      if (sub !== 'text' && sub !== 'attrs') continue;
+      return { ...action, positionals: [sub, selectorExpression] };
+    }
+    if (action.command === 'is') {
+      const { predicate, split } = splitIsSelectorArgs(action.positionals);
+      if (!predicate) continue;
+      const expectedText = split?.rest.join(' ').trim() ?? '';
+      const nextPositionals = [predicate, selectorExpression];
+      if (predicate === 'text' && expectedText.length > 0) {
+        nextPositionals.push(expectedText);
+      }
+      return { ...action, positionals: nextPositionals };
+    }
+    if (action.command === 'wait') {
+      const { selectorTimeout } = parseSelectorWaitPositionals(action.positionals ?? []);
+      const nextPositionals = [selectorExpression];
+      if (selectorTimeout) nextPositionals.push(selectorTimeout);
+      return { ...action, positionals: nextPositionals };
+    }
+  }
+
+  return healNumericGetTextDrift(action, snapshot, session);
+}
+
+async function captureSnapshotForReplay(
+  session: SessionState,
+  action: SessionAction,
+  logPath: string,
+  interactiveOnly: boolean,
+  dispatch: typeof dispatchCommand,
+  sessionStore: SessionStore,
+): Promise<SnapshotState> {
+  const data = (await dispatch(session.device, 'snapshot', [], action.flags?.out, {
+    ...contextFromFlags(
+      logPath,
+      {
+        ...(action.flags ?? {}),
+        snapshotInteractiveOnly: interactiveOnly,
+        snapshotCompact: interactiveOnly,
+      },
+      session.appBundleId,
+      session.trace?.outPath,
+    ),
+  })) as {
+    nodes?: RawSnapshotNode[];
+    truncated?: boolean;
+    backend?: 'xctest' | 'android' | 'macos-helper';
+  };
+  const rawNodes = data?.nodes ?? [];
+  const nodes = attachRefs(action.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+  const snapshot: SnapshotState = {
+    nodes,
+    truncated: data?.truncated,
+    createdAt: Date.now(),
+    backend: data?.backend,
+  };
+  session.snapshot = snapshot;
+  sessionStore.set(session.name, session);
+  return snapshot;
 }

@@ -1,0 +1,120 @@
+import { parseSessionSurface, type SessionSurface } from '../../core/session-surface.ts';
+import { resolveFrontmostMacOsApp } from '../../platforms/ios/macos-helper.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
+import type { SessionRuntimeHints, SessionState } from '../types.ts';
+import { AppError } from '../../utils/errors.ts';
+import type { StartupPerfSample } from './session-startup-metrics.ts';
+
+export function buildOpenResult(params: {
+  sessionName: string;
+  appName?: string;
+  appBundleId?: string;
+  surface: SessionSurface;
+  startup?: StartupPerfSample;
+  device?: DeviceInfo;
+  runtime?: SessionRuntimeHints;
+  runtimeHintCount: (runtime: SessionRuntimeHints) => number;
+}): Record<string, unknown> {
+  const { sessionName, appName, appBundleId, surface, startup, device, runtime, runtimeHintCount } =
+    params;
+  const result: Record<string, unknown> = { session: sessionName, surface };
+  if (appName) result.appName = appName;
+  if (appBundleId) result.appBundleId = appBundleId;
+  if (startup) result.startup = startup;
+  if (runtime && runtimeHintCount(runtime) > 0) {
+    result.runtime = runtime;
+  }
+  if (device) {
+    result.platform = device.platform;
+    result.target = device.target ?? 'mobile';
+    result.device = device.name;
+    result.id = device.id;
+    result.kind = device.kind;
+    if (device.platform === 'android') {
+      result.serial = device.id;
+    }
+  }
+  if (device?.platform === 'ios') {
+    result.device_udid = device.id;
+    result.ios_simulator_device_set = device.simulatorSetPath ?? null;
+  }
+  return result;
+}
+
+export function buildNextOpenSession(params: {
+  existingSession?: SessionState;
+  sessionName: string;
+  device: DeviceInfo;
+  surface: SessionSurface;
+  appBundleId?: string;
+  appName?: string;
+  saveScript: boolean;
+}): SessionState {
+  const { existingSession, sessionName, device, surface, appBundleId, appName, saveScript } =
+    params;
+  if (existingSession) {
+    return {
+      ...existingSession,
+      device,
+      surface,
+      appBundleId,
+      appName,
+      recordSession: existingSession.recordSession || saveScript,
+      snapshot: undefined,
+    };
+  }
+  return {
+    name: sessionName,
+    device,
+    createdAt: Date.now(),
+    surface,
+    appBundleId,
+    appName,
+    recordSession: saveScript,
+    actions: [],
+  };
+}
+
+function resolveOpenSurface(
+  device: DeviceInfo,
+  surfaceFlag: string | undefined,
+  openTarget: string | undefined,
+): SessionSurface {
+  if (device.platform !== 'macos') {
+    if (surfaceFlag) {
+      throw new AppError('INVALID_ARGS', 'surface is only supported on macOS');
+    }
+    return 'app';
+  }
+  const surface = surfaceFlag ? parseSessionSurface(surfaceFlag) : 'app';
+  if (surface !== 'app' && openTarget) {
+    throw new AppError('INVALID_ARGS', `open --surface ${surface} does not accept an app target`);
+  }
+  return surface;
+}
+
+export function resolveRequestedOpenSurface(params: {
+  device: DeviceInfo;
+  surfaceFlag: string | undefined;
+  openTarget: string | undefined;
+  existingSurface?: SessionSurface;
+}): SessionSurface {
+  const { device, surfaceFlag, openTarget, existingSurface } = params;
+  if (device.platform === 'macos' && !surfaceFlag) {
+    return existingSurface ?? 'app';
+  }
+  return resolveOpenSurface(device, surfaceFlag, openTarget);
+}
+
+export async function resolveMacOsSurfaceAppState(
+  surface: SessionSurface,
+): Promise<{ appBundleId?: string; appName?: string }> {
+  if (surface === 'app' || surface === 'desktop' || surface === 'menubar') {
+    return {};
+  }
+  const frontmost = await resolveFrontmostMacOsApp();
+  return {
+    appBundleId: frontmost.bundleId,
+    appName: frontmost.appName,
+  };
+}
