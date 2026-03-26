@@ -26,13 +26,36 @@ export function buildTouchVisualizationResult(params: {
   extra?: Record<string, unknown>;
 }): Record<string, unknown> {
   const { data, fallbackX, fallbackY, referenceFrame, extra } = params;
+  const message =
+    buildTouchMessage(extra, fallbackX, fallbackY) ??
+    (typeof data?.message === 'string' ? data.message : undefined);
   return {
     x: fallbackX,
     y: fallbackY,
     ...(referenceFrame ?? {}),
     ...(extra ?? {}),
     ...(data ?? {}),
+    ...(message ? { message } : {}),
   };
+}
+
+function buildTouchMessage(
+  extra: Record<string, unknown> | undefined,
+  x: number,
+  y: number,
+): string | undefined {
+  const ref = typeof extra?.ref === 'string' ? extra.ref : undefined;
+  const button = typeof extra?.button === 'string' ? extra.button : undefined;
+  if (typeof extra?.text === 'string') {
+    return `Filled ${Array.from(extra.text).length} chars`;
+  }
+  if (ref) {
+    if (button && button !== 'primary') {
+      return `Clicked ${button} @${ref} (${x}, ${y})`;
+    }
+    return `Tapped @${ref} (${x}, ${y})`;
+  }
+  return undefined;
 }
 
 export async function dispatchRecordedTouchInteraction(params: {

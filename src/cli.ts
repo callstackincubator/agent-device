@@ -1,7 +1,6 @@
 import { toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import {
-  describeCommandSuccess,
   formatSnapshotDiffText,
   formatSnapshotText,
   printHumanError,
@@ -572,7 +571,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               if (logTailStopper) logTailStopper();
               return;
             }
-            const successText = describeCommandSuccess(command, data);
+            const successText = readCommandMessage(data);
             if (successText) {
               process.stdout.write(`${successText}\n`);
               if (logTailStopper) logTailStopper();
@@ -650,11 +649,15 @@ function renderBatchSummary(data: Record<string, unknown>): void {
       result.data && typeof result.data === 'object'
         ? (result.data as Record<string, unknown>)
         : undefined;
-    const description = describeCommandSuccess(command, stepData) ?? command;
+    const description = readCommandMessage(stepData) ?? command;
     const prefix = step !== undefined ? `${step}. ` : '- ';
     const durationSuffix = stepDurationMs !== undefined ? ` (${stepDurationMs}ms)` : '';
     process.stdout.write(`${prefix}OK ${description}${durationSuffix}\n`);
   }
+}
+
+function readCommandMessage(data: Record<string, unknown> | undefined): string | null {
+  return typeof data?.message === 'string' && data.message.length > 0 ? data.message : null;
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

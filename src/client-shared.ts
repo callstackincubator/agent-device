@@ -86,6 +86,8 @@ export function serializeDevice(device: AgentDeviceDevice): Record<string, unkno
 export function serializeEnsureSimulatorResult(
   result: EnsureSimulatorResult,
 ): Record<string, unknown> {
+  const action = result.created ? 'Created' : 'Reused';
+  const bootedSuffix = result.booted ? ' (booted)' : '';
   return {
     udid: result.udid,
     device: result.device,
@@ -93,10 +95,12 @@ export function serializeEnsureSimulatorResult(
     ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
     created: result.created,
     booted: result.booted,
+    message: `${action}: ${result.device} ${result.udid}${bootedSuffix}`,
   };
 }
 
 export function serializeDeployResult(result: AppDeployResult): Record<string, unknown> {
+  const target = result.bundleId ?? result.package ?? result.app;
   return {
     app: result.app,
     appPath: result.appPath,
@@ -104,12 +108,14 @@ export function serializeDeployResult(result: AppDeployResult): Record<string, u
     ...(result.appId ? { appId: result.appId } : {}),
     ...(result.bundleId ? { bundleId: result.bundleId } : {}),
     ...(result.package ? { package: result.package } : {}),
+    message: `Installed: ${target}`,
   };
 }
 
 export function serializeInstallFromSourceResult(
   result: AppInstallFromSourceResult,
 ): Record<string, unknown> {
+  const target = result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget;
   return {
     launchTarget: result.launchTarget,
     ...(result.appName ? { appName: result.appName } : {}),
@@ -122,10 +128,12 @@ export function serializeInstallFromSourceResult(
     ...(result.materializationExpiresAt
       ? { materializationExpiresAt: result.materializationExpiresAt }
       : {}),
+    message: target ? `Installed: ${target}` : 'Installed from source',
   };
 }
 
 export function serializeOpenResult(result: AppOpenResult): Record<string, unknown> {
+  const target = result.appName ?? result.appBundleId ?? result.session;
   return {
     session: result.session,
     ...(result.appName ? { appName: result.appName } : {}),
@@ -133,6 +141,7 @@ export function serializeOpenResult(result: AppOpenResult): Record<string, unkno
     ...(result.startup ? { startup: result.startup } : {}),
     ...(result.runtime ? { runtime: result.runtime } : {}),
     ...(result.device ? serializeSessionDevice(result.device) : {}),
+    message: target ? `Opened: ${target}` : 'Opened',
   };
 }
 
@@ -142,6 +151,7 @@ export function serializeCloseResult(
   return {
     session: result.session,
     ...(result.shutdown ? { shutdown: result.shutdown } : {}),
+    message: result.session ? `Closed: ${result.session}` : 'Closed',
   };
 }
 

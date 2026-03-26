@@ -103,7 +103,7 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
         await new Promise((resolve) => setTimeout(resolve, 300));
         return {
           ok: true,
-          data: { action: 'write' },
+          data: { action: 'write', message: 'Clipboard updated' },
         };
       },
     );
@@ -223,6 +223,7 @@ test('cli prints success acknowledgment for client-backed open in human mode', a
     data: {
       session: 'default',
       appName: 'Settings',
+      message: 'Opened: Settings',
       platform: 'ios',
       target: 'mobile',
       device: 'iPhone 16',
@@ -236,7 +237,7 @@ test('cli prints success acknowledgment for client-backed open in human mode', a
 test('cli prints success acknowledgment for client-backed close in human mode', async () => {
   const result = await runCliCapture(['close'], async () => ({
     ok: true,
-    data: { session: 'default' },
+    data: { session: 'default', message: 'Closed: default' },
   }));
   assert.equal(result.code, null);
   assert.match(result.stdout, /Closed: default/);
@@ -245,7 +246,7 @@ test('cli prints success acknowledgment for client-backed close in human mode', 
 test('cli prints success acknowledgment for daemon-backed mutating commands in human mode', async () => {
   const result = await runCliCapture(['scroll', 'down'], async () => ({
     ok: true,
-    data: { direction: 'down' },
+    data: { direction: 'down', message: 'Scrolled down' },
   }));
   assert.equal(result.code, null);
   assert.match(result.stdout, /Scrolled down/);

@@ -186,13 +186,27 @@ export async function handleAppDeployCommand(params: {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result,
+        result: { ...result, message: buildDeployMessage(result) },
       });
     }
-    return { ok: true, data: result };
+    return { ok: true, data: { ...result, message: buildDeployMessage(result) } };
   } finally {
     if (uploadedArtifactId) {
       cleanupUploadedArtifact(uploadedArtifactId);
     }
   }
+}
+
+function buildDeployMessage(result: DeployCommandResult): string {
+  let target = result.appName;
+  if (!target) {
+    target = 'bundleId' in result ? result.bundleId : undefined;
+  }
+  if (!target) {
+    target = 'package' in result ? result.package : undefined;
+  }
+  if (!target) {
+    target = result.app;
+  }
+  return `Installed: ${target}`;
 }

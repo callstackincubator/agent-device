@@ -402,6 +402,30 @@ test('open with --remote-config preserves CLI overrides over profile defaults', 
   assert.equal(parsed.flags.metroPublicBaseUrl, 'https://sandbox.example.test');
 });
 
+test('install prints command-owned success output in human mode', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install-from-source call');
+    },
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'install',
+      positionals: ['Demo', '/tmp/Demo.app'],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  assert.match(stdout, /Installed: Demo/);
+});
+
 async function captureStdout(run: () => Promise<void>): Promise<string> {
   let stdout = '';
   const originalWrite = process.stdout.write.bind(process.stdout);

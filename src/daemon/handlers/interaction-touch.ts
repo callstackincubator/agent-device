@@ -397,6 +397,7 @@ export async function handleTouchInteractionCommands(params: {
               ref,
               refLabel,
               selectorChain,
+              text,
             },
           });
           const responseData: Record<string, unknown> = {

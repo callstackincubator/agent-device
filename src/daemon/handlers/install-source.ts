@@ -122,10 +122,10 @@ export async function handleInstallFromSourceCommand(params: {
             command: 'install_source',
             positionals: [],
             flags: req.flags ?? {},
-            result,
+            result: { ...result, message: buildInstallFromSourceMessage(result) },
           });
         }
-        return { ok: true, data: result };
+        return { ok: true, data: { ...result, message: buildInstallFromSourceMessage(result) } };
       } catch (error) {
         if (retained) {
           await cleanupRetainedMaterializedPaths(
@@ -189,10 +189,10 @@ export async function handleInstallFromSourceCommand(params: {
           command: 'install_source',
           positionals: [],
           flags: req.flags ?? {},
-          result,
+          result: { ...result, message: buildInstallFromSourceMessage(result) },
         });
       }
-      return { ok: true, data: result };
+      return { ok: true, data: { ...result, message: buildInstallFromSourceMessage(result) } };
     } catch (error) {
       if (retained) {
         await cleanupRetainedMaterializedPaths(
@@ -209,6 +209,15 @@ export async function handleInstallFromSourceCommand(params: {
     const normalized = normalizeError(error);
     return { ok: false, error: normalized };
   }
+}
+
+function buildInstallFromSourceMessage(result: {
+  appName?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget: string;
+}): string {
+  return `Installed: ${result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget}`;
 }
 
 export async function handleReleaseMaterializedPathsCommand(params: {

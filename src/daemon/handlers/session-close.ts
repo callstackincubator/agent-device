@@ -170,7 +170,7 @@ export async function handleCloseCommand(params: {
     command: 'close',
     positionals: req.positionals ?? [],
     flags: req.flags ?? {},
-    result: { session: sessionName },
+    result: { session: sessionName, message: `Closed: ${sessionName}` },
   });
   if (req.flags?.saveScript) {
     session.recordSession = true;
@@ -187,8 +187,8 @@ export async function handleCloseCommand(params: {
   if (shutdownResult) {
     return {
       ok: true,
-      data: { session: sessionName, shutdown: shutdownResult },
+      data: { session: sessionName, shutdown: shutdownResult, message: `Closed: ${sessionName}` },
     };
   }
-  return { ok: true, data: { session: sessionName } };
+  return { ok: true, data: { session: sessionName, message: `Closed: ${sessionName}` } };
 }

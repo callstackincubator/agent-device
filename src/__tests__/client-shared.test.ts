@@ -76,6 +76,7 @@ test('serializeOpenResult includes android serial for open payloads', () => {
     device: 'Pixel 9',
     id: 'emulator-5554',
     serial: 'emulator-5554',
+    message: 'Opened: qa',
   });
 });
 
@@ -96,5 +97,6 @@ test('serializeInstallFromSourceResult uses install-family package naming', () =
     appName: 'Demo',
     appId: 'com.example.demo',
     package: 'com.example.demo',
+    message: 'Installed: Demo',
   });
 });

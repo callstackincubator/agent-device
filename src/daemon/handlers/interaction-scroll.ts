@@ -71,9 +71,19 @@ export async function handleScrollIntoViewCommand(
       command: req.command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
-      result: { ref, attempts: 0, alreadyVisible: true, refLabel, selectorChain },
+      result: {
+        ref,
+        attempts: 0,
+        alreadyVisible: true,
+        refLabel,
+        selectorChain,
+        message: `Scrolled into view: @${ref}`,
+      },
     });
-    return { ok: true, data: { ref, attempts: 0, alreadyVisible: true } };
+    return {
+      ok: true,
+      data: { ref, attempts: 0, alreadyVisible: true, message: `Scrolled into view: @${ref}` },
+    };
   }
   const data = await dispatch(
     session.device,
@@ -98,6 +108,7 @@ export async function handleScrollIntoViewCommand(
       direction: plan.direction,
       refLabel,
       selectorChain,
+      message: `Scrolled into view: @${ref}`,
     },
   });
   return {
@@ -107,6 +118,7 @@ export async function handleScrollIntoViewCommand(
       ref,
       attempts: plan.count,
       direction: plan.direction,
+      message: `Scrolled into view: @${ref}`,
     },
   };
 }

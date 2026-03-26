@@ -132,12 +132,14 @@ test('install_from_source returns Android package identity resolved after instal
       packageName: 'com.example.app',
       appName: 'App',
       launchTarget: 'com.example.app',
+      message: 'Installed: App',
     },
   });
   expect(session.actions.at(-1)?.result).toEqual({
     packageName: 'com.example.app',
     appName: 'App',
     launchTarget: 'com.example.app',
+    message: 'Installed: App',
   });
 });
 
