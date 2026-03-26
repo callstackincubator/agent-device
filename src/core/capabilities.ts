@@ -58,7 +58,12 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     supports: (device) =>
       device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
   },
-  keyboard: { apple: {}, android: { emulator: true, device: true, unknown: true } },
+  keyboard: {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    supports: (device) =>
+      device.platform === 'android' || (device.platform === 'ios' && device.target !== 'tv'),
+  },
   close: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },

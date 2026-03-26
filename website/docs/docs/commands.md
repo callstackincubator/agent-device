@@ -455,7 +455,7 @@ agent-device clipboard write ""   # clear clipboard
 - Supported on macOS, Android emulator/device, and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
-## Keyboard (Android)
+## Keyboard
 
 ```bash
 agent-device keyboard status
@@ -463,10 +463,12 @@ agent-device keyboard get
 agent-device keyboard dismiss
 ```
 
-- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification.
-- `keyboard dismiss` dismisses keyboard with Android back keyevent only when the keyboard is visible, then confirms hidden state.
+- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification on Android.
+- `keyboard dismiss` attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.
+- If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit `UNSUPPORTED_OPERATION` error instead of falling back to back navigation.
 - Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
-- Supported on Android emulator/device.
+- `keyboard status|get` is supported on Android emulator/device.
+- `keyboard dismiss` is supported on Android emulator/device and iOS simulator/device.
 
 ## Performance metrics
 

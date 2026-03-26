@@ -488,12 +488,6 @@ export async function dispatchCommand(
           };
         }
         case 'keyboard': {
-          if (device.platform !== 'android') {
-            throw new AppError(
-              'UNSUPPORTED_OPERATION',
-              'keyboard is currently supported only on Android',
-            );
-          }
           const action = (positionals[0] ?? 'status').toLowerCase();
           if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
             throw new AppError(
@@ -504,29 +498,54 @@ export async function dispatchCommand(
           if (positionals.length > 1) {
             throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
           }
-          if (action === 'dismiss') {
-            const result = await dismissAndroidKeyboard(device);
+          if (device.platform === 'android') {
+            if (action === 'dismiss') {
+              const result = await dismissAndroidKeyboard(device);
+              return {
+                platform: 'android',
+                action: 'dismiss',
+                attempts: result.attempts,
+                wasVisible: result.wasVisible,
+                dismissed: result.dismissed,
+                visible: result.visible,
+                inputType: result.inputType,
+                type: result.type,
+              };
+            }
+            const state = await getAndroidKeyboardState(device);
             return {
               platform: 'android',
+              action: 'status',
+              visible: state.visible,
+              inputType: state.inputType,
+              type: state.type,
+            };
+          }
+          if (device.platform === 'ios') {
+            if (action !== 'dismiss') {
+              throw new AppError(
+                'UNSUPPORTED_OPERATION',
+                'keyboard status/get is currently supported only on Android; use keyboard dismiss on iOS',
+              );
+            }
+            const result = await runIosRunnerCommand(
+              device,
+              { command: 'keyboardDismiss', appBundleId: context?.appBundleId },
+              runnerCtx,
+            );
+            return {
+              platform: 'ios',
               action: 'dismiss',
-              attempts: result.attempts,
               wasVisible: result.wasVisible,
               dismissed: result.dismissed,
               visible: result.visible,
-              inputType: result.inputType,
-              type: result.type,
               ...successText(result.dismissed ? 'Keyboard dismissed' : 'Keyboard already hidden'),
             };
           }
-          const state = await getAndroidKeyboardState(device);
-          return {
-            platform: 'android',
-            action: 'status',
-            visible: state.visible,
-            inputType: state.inputType,
-            type: state.type,
-            ...successText(state.visible ? 'Keyboard visible' : 'Keyboard hidden'),
-          };
+          throw new AppError(
+            'UNSUPPORTED_OPERATION',
+            'keyboard is supported only on Android and iOS',
+          );
         }
         case 'settings': {
           const [setting, state, target, mode, appBundleId] = positionals;

@@ -1825,7 +1825,7 @@ test('keyboard dismiss supports explicit selector without active session', async
   }
 });
 
-test('keyboard rejects unsupported iOS simulator devices', async () => {
+test('keyboard dismiss uses active iOS session device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-session';
   sessionStore.set(
@@ -1844,7 +1844,7 @@ test('keyboard rejects unsupported iOS simulator devices', async () => {
       token: 't',
       session: sessionName,
       command: 'keyboard',
-      positionals: ['status'],
+      positionals: ['dismiss'],
       flags: {},
     },
     sessionName,
@@ -1852,16 +1852,21 @@ test('keyboard rejects unsupported iOS simulator devices', async () => {
     sessionStore,
     invoke: noopInvoke,
     ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('dispatch should not run for unsupported targets');
+    dispatch: async (device, command, positionals) => {
+      assert.equal(device.platform, 'ios');
+      assert.equal(command, 'keyboard');
+      assert.deepEqual(positionals, ['dismiss']);
+      return { platform: 'ios', action: 'dismiss', dismissed: true, visible: false };
     },
   });
 
   assert.ok(response);
-  assert.equal(response?.ok, false);
-  if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(response.error.message, /keyboard is not supported on this device/i);
+  assert.equal(response?.ok, true);
+  if (response && response.ok) {
+    assert.equal(response.data?.platform, 'ios');
+    assert.equal(response.data?.action, 'dismiss');
+    assert.equal(response.data?.dismissed, true);
+    assert.equal(response.data?.visible, false);
   }
 });
 

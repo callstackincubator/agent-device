@@ -1403,7 +1403,7 @@ test('dismissAndroidKeyboard skips keyevent when keyboard is already hidden', as
       '  echo "mInputShown=false mIsInputViewShown=false"',
       '  exit 0',
       'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "4" ]; then',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "111" ]; then',
       '  echo "unexpected keyevent" >&2',
       '  exit 1',
       'fi',
@@ -1419,12 +1419,12 @@ test('dismissAndroidKeyboard skips keyevent when keyboard is already hidden', as
       assert.equal(result.visible, false);
 
       const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.doesNotMatch(logged, /shell\ninput\nkeyevent\n4/);
+      assert.doesNotMatch(logged, /shell\ninput\nkeyevent\n111/);
     },
   );
 });
 
-test('dismissAndroidKeyboard sends back keyevent and confirms hidden state', async () => {
+test('dismissAndroidKeyboard sends escape keyevent and confirms hidden state', async () => {
   await withMockedAdb(
     'agent-device-android-keyboard-dismiss-visible-',
     [
@@ -1445,7 +1445,7 @@ test('dismissAndroidKeyboard sends back keyevent and confirms hidden state', asy
       '  echo "inputType=0x2"',
       '  exit 0',
       'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "4" ]; then',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "111" ]; then',
       '  touch "$STATE_FILE"',
       '  exit 0',
       'fi',
@@ -1462,7 +1462,46 @@ test('dismissAndroidKeyboard sends back keyevent and confirms hidden state', asy
 
       const logged = await fs.readFile(argsLogPath, 'utf8');
       assert.match(logged, /shell\ndumpsys\ninput_method/);
-      assert.match(logged, /shell\ninput\nkeyevent\n4/);
+      assert.match(logged, /shell\ninput\nkeyevent\n111/);
+    },
+  );
+});
+
+test('dismissAndroidKeyboard fails explicitly when non-navigation dismiss does not hide the keyboard', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-dismiss-unsupported-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=true mIsInputViewShown=true"',
+      '  echo "inputType=0x1"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "111" ]; then',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await assert.rejects(
+        dismissAndroidKeyboard(device),
+        (error: unknown) =>
+          error instanceof AppError &&
+          error.code === 'UNSUPPORTED_OPERATION' &&
+          /without back navigation/i.test(error.message),
+      );
+
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\ninput\nkeyevent\n111/);
+      assert.doesNotMatch(logged, /shell\ninput\nkeyevent\n4/);
     },
   );
 });

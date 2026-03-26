@@ -990,8 +990,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   keyboard: {
     usageOverride: 'keyboard [status|get|dismiss]',
-    helpDescription: 'Inspect Android keyboard visibility/type or dismiss it',
-    summary: 'Inspect or dismiss Android keyboard',
+    helpDescription: 'Inspect Android keyboard visibility/type or dismiss the device keyboard',
+    summary: 'Inspect or dismiss the device keyboard',
     positionalArgs: ['action?'],
     allowedFlags: [],
   },

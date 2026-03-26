@@ -1,7 +1,6 @@
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { backAndroid } from './input-actions.ts';
 import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
 
 const ANDROID_INPUT_TYPE_CLASS_MASK = 0x0000000f;
@@ -17,6 +16,7 @@ const ANDROID_TEXT_VARIATION_WEB_PASSWORD = 0x000000e0;
 const ANDROID_TEXT_VARIATION_VISIBLE_PASSWORD = 0x00000090;
 const ANDROID_KEYBOARD_DISMISS_MAX_ATTEMPTS = 2;
 const ANDROID_KEYBOARD_DISMISS_RETRY_DELAY_MS = 120;
+const ANDROID_KEYCODE_ESCAPE = '111';
 
 type AndroidKeyboardType =
   | 'text'
@@ -60,10 +60,22 @@ export async function dismissAndroidKeyboard(device: DeviceInfo): Promise<{
   let attempts = 0;
 
   while (state.visible && attempts < ANDROID_KEYBOARD_DISMISS_MAX_ATTEMPTS) {
-    await backAndroid(device);
+    await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', ANDROID_KEYCODE_ESCAPE]));
     attempts += 1;
     await sleep(ANDROID_KEYBOARD_DISMISS_RETRY_DELAY_MS);
     state = await getAndroidKeyboardState(device);
+  }
+
+  if (initialState.visible && state.visible) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'Android keyboard dismiss is unavailable for the current IME without back navigation.',
+      {
+        attempts,
+        inputType: state.inputType,
+        type: state.type,
+      },
+    );
   }
 
   return {

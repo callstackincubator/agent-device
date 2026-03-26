@@ -97,8 +97,8 @@ test('device capability matrix stays consistent across shared command groups', (
     {
       commands: ['keyboard'],
       checks: [
-        { device: iosSimulator, expected: false, label: 'on iOS sim' },
-        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: true, label: 'on iOS device' },
         { device: androidDevice, expected: true, label: 'on Android' },
       ],
     },
