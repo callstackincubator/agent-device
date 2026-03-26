@@ -22,6 +22,7 @@ import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
@@ -50,6 +51,7 @@ import {
   parseSelectorWaitPositionals,
 } from './session-replay-heal.ts';
 import { parseReplayScript, writeReplayScript } from './session-replay-script.ts';
+import { runReplayTestSuite } from './session-test.ts';
 import {
   handleInstallFromSourceCommand,
   handleReleaseMaterializedPathsCommand,
@@ -407,6 +409,7 @@ export async function handleSessionCommands(params: {
   installOps?: InstallOps;
   reinstallOps?: ReinstallOps;
   stopIosRunner?: typeof stopIosRunnerSession;
+  dismissMacOsAlert?: typeof runMacOsAlertAction;
   appLogOps?: {
     start: typeof startAppLog;
     stop: typeof stopAppLog;
@@ -440,6 +443,7 @@ export async function handleSessionCommands(params: {
     installOps = defaultInstallOps,
     reinstallOps = defaultReinstallOps,
     stopIosRunner: stopIosRunnerOverride,
+    dismissMacOsAlert = runMacOsAlertAction,
     appLogOps = {
       start: startAppLog,
       stop: stopAppLog,
@@ -919,77 +923,64 @@ export async function handleSessionCommands(params: {
   }
 
   if (command === 'replay') {
-    const filePath = req.positionals?.[0];
-    if (!filePath) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
-    }
-    try {
-      const resolved = SessionStore.expandHome(filePath, req.meta?.cwd);
-      const script = fs.readFileSync(resolved, 'utf8');
-      const firstNonWhitespace = script.trimStart()[0];
-      if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message:
-              'replay accepts .ad script files. JSON replay payloads are no longer supported.',
-          },
+    return await runReplayScriptFile({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
+      invoke,
+      dispatch,
+    });
+  }
+
+  if (command === 'test') {
+    return await runReplayTestSuite({
+      req,
+      sessionName,
+      runReplay: async ({
+        filePath,
+        sessionName: testSessionName,
+        platform,
+        requestId,
+        artifactPaths,
+      }) => {
+        const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
+          if (!artifactPaths) return response;
+          collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
+          return response;
         };
-      }
-      const actions = parseReplayScript(script);
-      const shouldUpdate = req.flags?.replayUpdate === true;
-      let healed = 0;
-      for (let index = 0; index < actions.length; index += 1) {
-        const action = actions[index];
-        if (!action || action.command === 'replay') continue;
-        let response = await invoke({
-          token: req.token,
-          session: sessionName,
-          command: action.command,
-          positionals: action.positionals ?? [],
-          flags: buildReplayActionFlags(req.flags, action.flags),
-          runtime: action.runtime,
-          meta: req.meta,
+
+        return await runReplayScriptFile({
+          req: {
+            ...req,
+            command: 'replay',
+            session: testSessionName,
+            positionals: [filePath],
+            flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
+            meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
+          },
+          sessionName: testSessionName,
+          logPath,
+          sessionStore,
+          invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
+          dispatch,
         });
-        if (response.ok) continue;
-        if (!shouldUpdate) {
-          return withReplayFailureContext(response, action, index, resolved);
-        }
-        const nextAction = await healReplayAction({
-          action,
-          sessionName,
+      },
+      cleanupSession: async (testSessionName) => {
+        await cleanupReplayTestSession({
+          req,
+          sessionName: testSessionName,
           logPath,
           sessionStore,
           dispatch,
+          stopIosRunner,
+          dismissMacOsAlert,
+          clearRuntimeHints,
+          settleSimulator,
+          appLogOps,
         });
-        if (!nextAction) {
-          return withReplayFailureContext(response, action, index, resolved);
-        }
-        actions[index] = nextAction;
-        response = await invoke({
-          token: req.token,
-          session: sessionName,
-          command: nextAction.command,
-          positionals: nextAction.positionals ?? [],
-          flags: buildReplayActionFlags(req.flags, nextAction.flags),
-          runtime: nextAction.runtime,
-          meta: req.meta,
-        });
-        if (!response.ok) {
-          return withReplayFailureContext(response, nextAction, index, resolved);
-        }
-        healed += 1;
-      }
-      if (shouldUpdate && healed > 0) {
-        const session = sessionStore.get(sessionName);
-        writeReplayScript(resolved, actions, session);
-      }
-      return { ok: true, data: { replayed: actions.length, healed, session: sessionName } };
-    } catch (err) {
-      const appErr = asAppError(err);
-      return { ok: false, error: { code: appErr.code, message: appErr.message } };
-    }
+      },
+    });
   }
 
   if (command === 'logs') {
@@ -1262,6 +1253,7 @@ export async function handleSessionCommands(params: {
       sessionStore,
       dispatch,
       stopIosRunner,
+      dismissMacOsAlert,
       clearRuntimeHints,
       settleSimulator,
       shutdownSimulator: doShutdownSimulator,
@@ -1284,11 +1276,162 @@ function maybeResolvePushPayloadPath(payloadArg: string, cwd?: string): string {
   return resolved.kind === 'file' ? resolved.path : resolved.text;
 }
 
+async function runReplayScriptFile(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  dispatch: typeof dispatchCommand;
+}): Promise<DaemonResponse> {
+  const { req, sessionName, logPath, sessionStore, invoke, dispatch } = params;
+  const filePath = req.positionals?.[0];
+  if (!filePath) {
+    return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
+  }
+  let resolved = '';
+  const artifactPaths = new Set<string>();
+  try {
+    resolved = SessionStore.expandHome(filePath, req.meta?.cwd);
+    const script = fs.readFileSync(resolved, 'utf8');
+    const firstNonWhitespace = script.trimStart()[0];
+    if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message: 'replay accepts .ad script files. JSON replay payloads are no longer supported.',
+        },
+      };
+    }
+    const actions = parseReplayScript(script);
+    const shouldUpdate = req.flags?.replayUpdate === true;
+    let healed = 0;
+    for (let index = 0; index < actions.length; index += 1) {
+      const action = actions[index];
+      if (!action || action.command === 'replay') continue;
+      let response = await invoke({
+        token: req.token,
+        session: sessionName,
+        command: action.command,
+        positionals: action.positionals ?? [],
+        flags: buildReplayActionFlags(req.flags, action.flags),
+        runtime: action.runtime,
+        meta: req.meta,
+      });
+      if (response.ok) {
+        collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
+        continue;
+      }
+      if (!shouldUpdate) {
+        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
+      }
+      const nextAction = await healReplayAction({
+        action,
+        sessionName,
+        logPath,
+        sessionStore,
+        dispatch,
+      });
+      if (!nextAction) {
+        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
+      }
+      actions[index] = nextAction;
+      response = await invoke({
+        token: req.token,
+        session: sessionName,
+        command: nextAction.command,
+        positionals: nextAction.positionals ?? [],
+        flags: buildReplayActionFlags(req.flags, nextAction.flags),
+        runtime: nextAction.runtime,
+        meta: req.meta,
+      });
+      if (!response.ok) {
+        return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
+      }
+      collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
+      healed += 1;
+    }
+    if (shouldUpdate && healed > 0) {
+      const session = sessionStore.get(sessionName);
+      writeReplayScript(resolved, actions, session);
+    }
+    return {
+      ok: true,
+      data: {
+        replayed: actions.length,
+        healed,
+        session: sessionName,
+        artifactPaths: [...artifactPaths],
+      },
+    };
+  } catch (err) {
+    const appErr = asAppError(err);
+    return {
+      ok: false,
+      error: {
+        code: appErr.code,
+        message: appErr.message,
+        details: artifactPaths.size > 0 ? { artifactPaths: [...artifactPaths] } : undefined,
+      },
+    };
+  }
+}
+
+async function cleanupReplayTestSession(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  dispatch: typeof dispatchCommand;
+  stopIosRunner: typeof stopIosRunnerSession;
+  dismissMacOsAlert: typeof runMacOsAlertAction;
+  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
+  settleSimulator: typeof settleIosSimulator;
+  appLogOps: {
+    stop: typeof stopAppLog;
+  };
+}): Promise<void> {
+  const {
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    dispatch,
+    stopIosRunner,
+    dismissMacOsAlert,
+    clearRuntimeHints,
+    settleSimulator,
+    appLogOps,
+  } = params;
+  if (!sessionStore.get(sessionName)) return;
+  await handleCloseCommand({
+    req: {
+      token: req.token,
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+      meta: req.meta,
+    },
+    sessionName,
+    logPath,
+    sessionStore,
+    dispatch,
+    stopIosRunner,
+    dismissMacOsAlert,
+    clearRuntimeHints,
+    settleSimulator,
+    appLogOps,
+  });
+}
+
 function withReplayFailureContext(
   response: DaemonResponse,
   action: SessionAction,
   index: number,
   replayPath: string,
+  artifactPaths: string[] = [],
 ): DaemonResponse {
   if (response.ok) return response;
   const step = index + 1;
@@ -1299,6 +1442,7 @@ function withReplayFailureContext(
     step,
     action: action.command,
     positionals: action.positionals ?? [],
+    artifactPaths,
   };
   return {
     ok: false,
@@ -1311,6 +1455,35 @@ function withReplayFailureContext(
       details,
     },
   };
+}
+
+function collectReplayActionArtifactPaths(response: DaemonResponse): string[] {
+  if (!response.ok || !response.data) return [];
+  const candidates: string[] = [];
+  const data = response.data as Record<string, unknown>;
+  if (typeof data.path === 'string') candidates.push(data.path);
+  if (typeof data.outPath === 'string') candidates.push(data.outPath);
+  if (Array.isArray(data.artifacts)) {
+    for (const artifact of data.artifacts) {
+      if (!artifact || typeof artifact !== 'object') continue;
+      const artifactRecord = artifact as Record<string, unknown>;
+      const localPath =
+        typeof artifactRecord.localPath === 'string' ? artifactRecord.localPath : undefined;
+      const artifactPath =
+        typeof artifactRecord.path === 'string' ? artifactRecord.path : undefined;
+      if (localPath) candidates.push(localPath);
+      else if (artifactPath) candidates.push(artifactPath);
+    }
+  }
+  return [...new Set(candidates.filter((candidate) => isReplayArtifactPath(candidate)))];
+}
+
+function isReplayArtifactPath(candidate: string): boolean {
+  try {
+    return fs.statSync(candidate).isFile();
+  } catch {
+    return false;
+  }
 }
 
 function buildReplayActionFlags(

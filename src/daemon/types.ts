@@ -56,6 +56,61 @@ export type DaemonResponseData = Record<string, unknown> & {
   artifacts?: DaemonArtifact[];
 };
 
+export type ReplaySuiteTestSkipReason = 'skipped-by-filter';
+
+export type ReplaySuiteTestPassed = {
+  file: string;
+  session: string;
+  status: 'passed';
+  durationMs: number;
+  attempts: number;
+  artifactsDir?: string;
+  replayed: number;
+  healed: number;
+};
+
+export type ReplaySuiteTestFailed = {
+  file: string;
+  session: string;
+  status: 'failed';
+  durationMs: number;
+  attempts: number;
+  artifactsDir?: string;
+  error: {
+    code: string;
+    message: string;
+    hint?: string;
+    diagnosticId?: string;
+    logPath?: string;
+    details?: Record<string, unknown>;
+  };
+};
+
+export type ReplaySuiteTestSkipped = {
+  file: string;
+  status: 'skipped';
+  durationMs: 0;
+  reason: ReplaySuiteTestSkipReason;
+  message: string;
+};
+
+export type ReplaySuiteTestResult =
+  | ReplaySuiteTestPassed
+  | ReplaySuiteTestFailed
+  | ReplaySuiteTestSkipped;
+
+export type ReplaySuiteResult = {
+  total: number;
+  executed: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  notRun: number;
+  durationMs: number;
+  failures: ReplaySuiteTestFailed[];
+  tests: ReplaySuiteTestResult[];
+};
+
 export type DaemonResponse =
   | { ok: true; data?: DaemonResponseData }
   | {

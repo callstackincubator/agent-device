@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { parseReplayScript, writeReplayScript } from '../session-replay-script.ts';
+import { AppError } from '../../../utils/errors.ts';
+import {
+  parseReplayScript,
+  readReplayScriptMetadata,
+  writeReplayScript,
+} from '../session-replay-script.ts';
 import type { SessionAction, SessionState } from '../../types.ts';
 
 function makeSession(): SessionState {
@@ -68,4 +73,56 @@ test('record replay script round-trips fps and hide-touches flags', () => {
   assert.deepEqual(parsed[0]?.positionals, ['start', './capture.mp4']);
   assert.equal(parsed[0]?.flags.fps, 24);
   assert.equal(parsed[0]?.flags.hideTouches, true);
+});
+
+test('readReplayScriptMetadata extracts platform from context header', () => {
+  const metadata = readReplayScriptMetadata(
+    '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, 'android');
+});
+
+test('readReplayScriptMetadata ignores non-concrete platform aliases', () => {
+  const metadata = readReplayScriptMetadata(
+    'context platform=apple device="Host Mac"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, undefined);
+});
+
+test('readReplayScriptMetadata extracts timeout and retries from context header', () => {
+  const metadata = readReplayScriptMetadata(
+    'context platform=ios timeout=45000\ncontext retries=2 device="iPhone 17"\nopen "Demo"\n',
+  );
+
+  assert.equal(metadata.platform, 'ios');
+  assert.equal(metadata.timeoutMs, 45000);
+  assert.equal(metadata.retries, 2);
+});
+
+test('readReplayScriptMetadata rejects duplicate metadata keys in context header', () => {
+  assert.throws(
+    () =>
+      readReplayScriptMetadata(
+        'context platform=ios timeout=45000\ncontext platform=ios retries=2\nopen "Demo"\n',
+      ),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Duplicate replay test metadata "platform"/.test(error.message),
+  );
+});
+
+test('readReplayScriptMetadata rejects conflicting metadata keys in context header', () => {
+  assert.throws(
+    () =>
+      readReplayScriptMetadata(
+        'context platform=ios timeout=45000\ncontext retries=2 timeout=5000\nopen "Demo"\n',
+      ),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Conflicting replay test metadata "timeoutMs"/.test(error.message),
+  );
 });

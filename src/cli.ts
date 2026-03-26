@@ -13,7 +13,9 @@ import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
+import type { ReplaySuiteResult } from './daemon/types.ts';
 import { tryRunClientBackedCommand } from './cli-client-commands.ts';
+import { announceReplayTestRun, renderReplayTestResponse } from './cli-test.ts';
 import {
   createRequestId,
   emitDiagnostic,
@@ -226,6 +228,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           return;
         }
 
+        if (command === 'test') {
+          announceReplayTestRun({ json: flags.json });
+        }
+
         const response = await sendDaemonRequest({
           command: command!,
           positionals,
@@ -234,6 +240,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
 
         if (response.ok) {
           if (flags.json) {
+            if (command === 'test') {
+              const testExitCode = renderReplayTestResponse({
+                suite: (response.data ?? {}) as ReplaySuiteResult,
+                json: true,
+              });
+              if (logTailStopper) logTailStopper();
+              if (testExitCode !== 0) {
+                process.exit(testExitCode);
+              }
+              return;
+            }
             printJson({ success: true, data: response.data ?? {} });
             if (logTailStopper) logTailStopper();
             return;
@@ -246,6 +263,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               }),
             );
             if (logTailStopper) logTailStopper();
+            return;
+          }
+          if (command === 'test') {
+            const testExitCode = renderReplayTestResponse({
+              suite: (response.data ?? {}) as ReplaySuiteResult,
+              verbose: flags.verbose,
+            });
+            if (logTailStopper) logTailStopper();
+            if (testExitCode !== 0) {
+              process.exit(testExitCode);
+            }
             return;
           }
           if (command === 'diff' && positionals[0] === 'snapshot') {

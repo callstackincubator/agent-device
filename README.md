@@ -26,6 +26,9 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 - Sessions: open a target once, interact within that session, then close it cleanly.
 - Snapshots: inspect the current accessibility tree in a compact form and get stable refs for exploration.
 - Refs vs selectors: use refs for discovery, use selectors for durable replay and assertions.
+- Tests: run deterministic `.ad` scripts as a light e2e test suite.
+- Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
+  `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
 - Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
 
 ## Command Flow

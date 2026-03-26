@@ -3020,6 +3020,53 @@ test('close on iOS session with recording stops runner session before delete', a
   assert.equal(sessionStore.get(sessionName), undefined);
 });
 
+test('close on macOS session stops runner and dismisses automation alert before delete', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+    appName: 'System Settings',
+  });
+
+  const calls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async (deviceId) => {
+      calls.push(`stop-runner:${deviceId}`);
+    },
+    dismissMacOsAlert: async (action, options) => {
+      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
+      return {};
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(calls, [
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+  ]);
+  assert.equal(sessionStore.get(sessionName), undefined);
+});
+
 test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-close-session';
@@ -3059,6 +3106,59 @@ test('close <app> on iOS stops runner before app close dispatch and performs fin
   assert.ok(response);
   assert.equal(response?.ok, true);
   assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'stop-runner']);
+});
+
+test('close <app> on macOS stops runner before app close dispatch and dismisses automation alert', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-close-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.apple.systempreferences',
+    appName: 'System Settings',
+  });
+
+  const calls: string[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: ['System Settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+    stopIosRunner: async (deviceId) => {
+      calls.push(`stop-runner:${deviceId}`);
+    },
+    dismissMacOsAlert: async (action, options) => {
+      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
+      return {};
+    },
+    dispatch: async (_device, command, positionals) => {
+      calls.push(`${command}:${positionals.join(' ')}`);
+      return {};
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, true);
+  assert.deepEqual(calls, [
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+    'close:System Settings',
+    'stop-runner:host-macos-local',
+    'dismiss-alert:dismiss:com.apple.systempreferences',
+  ]);
 });
 
 test('open --relaunch rejects URL targets', async () => {
@@ -4739,4 +4839,325 @@ test('close --shutdown returns success and failure payload when shutdownSimulato
     assert.equal(shutdown?.error?.code, 'COMMAND_FAILED');
     assert.equal(shutdown?.error?.message, 'simctl shutdown failed');
   }
+});
+
+test('test filters replay scripts by context platform and skips untyped files', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-filter-'));
+  fs.writeFileSync(path.join(root, '01-android.ad'), 'context platform=android\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-ios.ad'), 'context platform=ios\nopen "Settings"\n');
+  fs.writeFileSync(path.join(root, '03-untyped.ad'), 'open "Calculator"\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      flags: { platform: 'android' },
+      meta: { cwd: root, requestId: 'suite-filter' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.equal(invoked.length, 1);
+  assert.equal(invoked[0]?.flags?.platform, 'android');
+  assert.equal(invoked[0]?.session, 'default:test:suite-filter:1-01-android:attempt-1');
+  if (response?.ok) {
+    assert.equal(response.data?.passed, 1);
+    assert.equal(response.data?.failed, 0);
+    assert.equal(response.data?.skipped, 1);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.length, 2);
+    assert.equal(tests?.[0]?.status, 'passed');
+    assert.equal(tests?.[1]?.status, 'skipped');
+    assert.equal(tests?.[1]?.reason, 'skipped-by-filter');
+  }
+});
+
+test('test binds each replay script to its declared platform metadata', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-platforms-'));
+  fs.writeFileSync(path.join(root, '01-android.ad'), 'context platform=android\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-ios.ad'), 'context platform=ios\nopen "Settings"\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-platforms' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.deepEqual(
+    invoked.map((req) => req.flags?.platform),
+    ['android', 'ios'],
+  );
+  assert.deepEqual(
+    invoked.map((req) => req.session),
+    [
+      'default:test:suite-platforms:1-01-android:attempt-1',
+      'default:test:suite-platforms:2-02-ios:attempt-1',
+    ],
+  );
+  if (response?.ok) {
+    assert.equal(response.data?.passed, 2);
+    assert.equal(response.data?.failed, 0);
+    assert.equal(response.data?.skipped, 0);
+  }
+});
+
+test('test cleans up suite-owned sessions after each executed script', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-cleanup-'));
+  fs.writeFileSync(path.join(root, '01-android.ad'), 'context platform=android\nopen "Demo"\n');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-cleanup' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      sessionStore.set(
+        req.session,
+        makeSession(req.session, {
+          platform: 'android',
+          id: 'emulator-5554',
+          name: 'Pixel',
+          kind: 'emulator',
+          booted: true,
+        }),
+      );
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.equal(sessionStore.get('default:test:suite-cleanup:1-01-android:attempt-1'), undefined);
+});
+
+test('test retries failed scripts with fresh suite-owned sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-retries-'));
+  fs.writeFileSync(
+    path.join(root, '01-retry.ad'),
+    'context platform=android retries=9\nopen "Demo"\n',
+  );
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-retries' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      if (invoked.length < 4) {
+        return {
+          ok: false,
+          error: {
+            code: 'ASSERTION_FAILED',
+            message: 'expected selector to exist',
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.deepEqual(
+    invoked.map((req) => req.session),
+    [
+      'default:test:suite-retries:1-01-retry:attempt-1',
+      'default:test:suite-retries:1-01-retry:attempt-2',
+      'default:test:suite-retries:1-01-retry:attempt-3',
+      'default:test:suite-retries:1-01-retry:attempt-4',
+    ],
+  );
+  if (response?.ok) {
+    assert.equal(response.data?.passed, 1);
+    assert.equal(response.data?.failed, 0);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.[0]?.status, 'passed');
+    assert.equal(tests?.[0]?.attempts, 4);
+  }
+});
+
+test('test applies per-script timeout and writes attempt artifacts', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-timeout-'));
+  const screenshotPath = path.join(root, 'capture.png');
+  fs.writeFileSync(screenshotPath, 'screenshot');
+  fs.writeFileSync(
+    path.join(root, '01-timeout.ad'),
+    'context platform=android timeout=10\nscreenshot "./capture.png"\nopen "Demo"\n',
+  );
+
+  let invocationCount = 0;
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-timeout' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invocationCount += 1;
+      if (invocationCount === 1) {
+        return { ok: true, data: { path: screenshotPath } };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.ok(response?.ok);
+  if (response?.ok) {
+    assert.equal(response.data?.failed, 1);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.[0]?.status, 'failed');
+    assert.equal(tests?.[0]?.attempts, 1);
+    const artifactsDir = tests?.[0]?.artifactsDir;
+    assert.equal(typeof artifactsDir, 'string');
+    const attemptDir = path.join(artifactsDir as string, 'attempt-1');
+    assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'capture.png')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'result.txt')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'failure.txt')), true);
+    const resultText = fs.readFileSync(path.join(attemptDir, 'result.txt'), 'utf8');
+    assert.match(resultText, /status: failed/);
+    assert.match(resultText, /timeoutMode: cooperative/);
+  }
+});
+
+test('test stops after the first failing script when --fail-fast is set', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-fail-fast-'));
+  fs.writeFileSync(path.join(root, '01-fail.ad'), 'context platform=android\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-pass.ad'), 'context platform=android\nopen "Demo"\n');
+
+  const invoked: DaemonRequest[] = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      flags: { failFast: true },
+      meta: { cwd: root, requestId: 'suite-fail-fast' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      invoked.push(req);
+      return {
+        ok: false,
+        error: {
+          code: 'ASSERTION_FAILED',
+          message: 'expected selector to exist',
+        },
+      };
+    },
+  });
+
+  assert.ok(response?.ok);
+  assert.equal(invoked.length, 1);
+  if (response?.ok) {
+    assert.equal(response.data?.total, 2);
+    assert.equal(response.data?.executed, 1);
+    assert.equal(response.data?.passed, 0);
+    assert.equal(response.data?.failed, 1);
+    assert.equal(response.data?.notRun, 1);
+    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
+    assert.equal(tests?.length, 1);
+    assert.equal(tests?.[0]?.status, 'failed');
+  }
+});
+
+test('test returns invalid args when no replay scripts match the platform filter', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-empty-filter-'));
+  fs.writeFileSync(path.join(root, '01-ios.ad'), 'context platform=ios\nopen "Settings"\n');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      flags: { platform: 'android' },
+      meta: { cwd: root },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assertInvalidArgsMessage(response, 'No .ad tests matched for --platform android.');
+});
+
+test('test rejects duplicate replay test metadata in the context header', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-metadata-'));
+  fs.writeFileSync(
+    path.join(root, '01-invalid.ad'),
+    'context platform=ios timeout=1000\ncontext timeout=2000\nopen "Demo"\n',
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assertInvalidArgsMessage(
+    response,
+    'Conflicting replay test metadata "timeoutMs" in context header: 1000 vs 2000.',
+  );
 });

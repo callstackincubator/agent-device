@@ -62,6 +62,34 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
         assert.equal(parsed.flags.surface, 'frontmost-app');
       },
     },
+    {
+      label: 'test suite with retries, timeout, artifacts, fail-fast, and replay update',
+      argv: [
+        'test',
+        './suite',
+        '--platform',
+        'android',
+        '--fail-fast',
+        '--update',
+        '--timeout',
+        '60000',
+        '--retries',
+        '2',
+        '--artifacts-dir',
+        '.agent-device/test-artifacts',
+      ],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'test');
+        assert.deepEqual(parsed.positionals, ['./suite']);
+        assert.equal(parsed.flags.platform, 'android');
+        assert.equal(parsed.flags.failFast, true);
+        assert.equal(parsed.flags.replayUpdate, true);
+        assert.equal(parsed.flags.timeoutMs, 60000);
+        assert.equal(parsed.flags.retries, 2);
+        assert.equal(parsed.flags.artifactsDir, '.agent-device/test-artifacts');
+      },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -88,6 +116,16 @@ test('parseArgs recognizes device isolation flags', () => {
   assert.equal(parsed.flags.platform, 'ios');
   assert.equal(parsed.flags.iosSimulatorDeviceSet, '/tmp/tenant-a/simulators');
   assert.equal(parsed.flags.androidDeviceAllowlist, 'emulator-5554,device-1234');
+});
+
+test('parseArgs rejects test retries above the supported ceiling', () => {
+  assert.throws(
+    () => parseArgs(['test', './suite', '--retries', '4'], { strictFlags: true }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Invalid retries: 4/.test(error.message),
+  );
 });
 
 test('parseArgs recognizes logs clear --restart', () => {
@@ -555,6 +593,7 @@ test('usage includes skills, config, environment, and examples footers', () => {
   assert.match(usageText, /agent-device snapshot -i/);
   assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
   assert.match(usageText, /agent-device replay \.\/session\.ad/);
+  assert.match(usageText, /agent-device test \.\/suite --platform android/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {
@@ -723,10 +762,22 @@ test('usage renders concise commands inline with descriptions', () => {
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
   assert.match(help, /  metro prepare --public-base-url <url>\s{2,}Prepare local Metro runtime/);
   assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
+  assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run \.ad test suites/);
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
   assert.doesNotMatch(help, /\n  batch\s{2,}Run multiple commands/);
   assert.doesNotMatch(help, /agent-device-proxy/);
+});
+
+test('command usage describes test suite flags', () => {
+  const help = usageForCommand('test');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Usage:\s+agent-device test <path-or-glob>\.\.\./);
+  assert.match(help, /Run one or more \.ad scripts as a serial test suite/);
+  assert.match(help, /--fail-fast/);
+  assert.match(help, /--timeout <ms>/);
+  assert.match(help, /--retries <n>/);
+  assert.match(help, /--artifacts-dir <path>/);
 });
 
 test('command usage shows command and global flags separately', () => {

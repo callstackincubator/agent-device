@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
+import type { PlatformSelector } from '../../utils/device.ts';
 import { appendOpenActionScriptArgs, parseReplayOpenFlags } from '../session-open-script.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
@@ -13,6 +14,16 @@ import {
   parseReplayRuntimeFlags,
 } from '../script-utils.ts';
 
+type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
+
+const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android', 'macos']);
+
+export type ReplayScriptMetadata = {
+  platform?: ReplayScriptPlatform;
+  timeoutMs?: number;
+  retries?: number;
+};
+
 export function parseReplayScript(script: string): SessionAction[] {
   const actions: SessionAction[] = [];
   const lines = script.split(/\r?\n/);
@@ -23,6 +34,55 @@ export function parseReplayScript(script: string): SessionAction[] {
     }
   }
   return actions;
+}
+
+export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
+  const lines = script.split(/\r?\n/);
+  const metadata: ReplayScriptMetadata = {};
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
+    // Metadata comes only from the leading context header block.
+    if (!trimmed.startsWith('context ')) break;
+    const platformMatch = trimmed.match(/(?:^|\s)platform=([^\s]+)/);
+    if (platformMatch) {
+      const platform = platformMatch[1] as ReplayScriptPlatform | undefined;
+      if (platform && REPLAY_METADATA_PLATFORMS.has(platform)) {
+        assignReplayMetadataValue(metadata, 'platform', platform);
+      }
+    }
+    const timeoutMatch = trimmed.match(/(?:^|\s)timeout=(\d+)/);
+    if (timeoutMatch) {
+      const timeoutMs = Number(timeoutMatch[1]);
+      if (Number.isFinite(timeoutMs) && timeoutMs >= 1) {
+        assignReplayMetadataValue(metadata, 'timeoutMs', Math.floor(timeoutMs));
+      }
+    }
+    const retriesMatch = trimmed.match(/(?:^|\s)retries=(\d+)/);
+    if (retriesMatch) {
+      const retries = Number(retriesMatch[1]);
+      if (Number.isFinite(retries) && retries >= 0) {
+        assignReplayMetadataValue(metadata, 'retries', Math.floor(retries));
+      }
+    }
+  }
+  return metadata;
+}
+
+function assignReplayMetadataValue<Key extends keyof ReplayScriptMetadata>(
+  metadata: ReplayScriptMetadata,
+  key: Key,
+  value: NonNullable<ReplayScriptMetadata[Key]>,
+): void {
+  const previous = metadata[key];
+  if (previous !== undefined) {
+    const duplicateMessage =
+      previous === value
+        ? `Duplicate replay test metadata "${key}" in context header.`
+        : `Conflicting replay test metadata "${key}" in context header: ${String(previous)} vs ${String(value)}.`;
+    throw new AppError('INVALID_ARGS', duplicateMessage);
+  }
+  metadata[key] = value as ReplayScriptMetadata[Key];
 }
 
 function parseReplayScriptLine(line: string): SessionAction | null {

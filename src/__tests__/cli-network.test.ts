@@ -102,3 +102,148 @@ test('network dump prints parsed entries and metadata', async () => {
   assert.match(result.stderr, /matchedLines=2/);
   assert.match(result.stderr, /best-effort parser/);
 });
+
+test('test command prints suite summary and exits non-zero on failures', async () => {
+  const result = await runCliCapture(['test', './suite'], async () => ({
+    ok: true,
+    data: {
+      total: 3,
+      executed: 2,
+      passed: 1,
+      failed: 1,
+      skipped: 1,
+      notRun: 0,
+      durationMs: 25,
+      failures: [
+        {
+          file: '/tmp/02-fail.ad',
+          session: 'default:test:suite:2',
+          status: 'failed',
+          durationMs: 5,
+          attempts: 2,
+          artifactsDir: '/tmp/test-artifacts/02-fail',
+          error: { message: 'Replay failed at step 1 (open Demo): boom' },
+        },
+      ],
+      tests: [
+        {
+          file: '/tmp/01-pass.ad',
+          session: 'default:test:suite:1',
+          status: 'passed',
+          durationMs: 10,
+          attempts: 1,
+        },
+        {
+          file: '/tmp/02-fail.ad',
+          session: 'default:test:suite:2',
+          status: 'failed',
+          durationMs: 5,
+          attempts: 2,
+          artifactsDir: '/tmp/test-artifacts/02-fail',
+          error: { message: 'Replay failed at step 1 (open Demo): boom' },
+        },
+        {
+          file: '/tmp/03-skip.ad',
+          status: 'skipped',
+          durationMs: 0,
+          message: 'missing platform metadata for --platform android',
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 1);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.doesNotMatch(result.stdout, /PASS \/tmp\/01-pass\.ad/);
+  assert.match(result.stdout, /FAIL \/tmp\/02-fail\.ad after 2 attempts \(5ms\)/);
+  assert.match(result.stdout, /Replay failed at step 1 \(open Demo\): boom/);
+  assert.match(result.stdout, /artifacts: \/tmp\/test-artifacts\/02-fail/);
+  assert.doesNotMatch(result.stdout, /SKIP \/tmp\/03-skip\.ad/);
+  assert.match(result.stdout, /Test summary: 1 passed, 1 failed in 25ms/);
+});
+
+test('test command --verbose prints all test statuses', async () => {
+  const result = await runCliCapture(['test', './suite', '--verbose'], async () => ({
+    ok: true,
+    data: {
+      total: 3,
+      executed: 2,
+      passed: 1,
+      failed: 1,
+      skipped: 1,
+      notRun: 0,
+      durationMs: 25,
+      failures: [
+        {
+          file: '/tmp/02-fail.ad',
+          session: 'default:test:suite:2',
+          status: 'failed',
+          durationMs: 5,
+          attempts: 2,
+          artifactsDir: '/tmp/test-artifacts/02-fail',
+          error: { message: 'Replay failed at step 1 (open Demo): boom' },
+        },
+      ],
+      tests: [
+        {
+          file: '/tmp/01-pass.ad',
+          session: 'default:test:suite:1',
+          status: 'passed',
+          durationMs: 10,
+          attempts: 1,
+        },
+        {
+          file: '/tmp/02-fail.ad',
+          session: 'default:test:suite:2',
+          status: 'failed',
+          durationMs: 5,
+          attempts: 2,
+          artifactsDir: '/tmp/test-artifacts/02-fail',
+          error: { message: 'Replay failed at step 1 (open Demo): boom' },
+        },
+        {
+          file: '/tmp/03-skip.ad',
+          status: 'skipped',
+          durationMs: 0,
+          message: 'missing platform metadata for --platform android',
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.match(result.stdout, /PASS \/tmp\/01-pass\.ad \(10ms\)/);
+  assert.match(result.stdout, /SKIP \/tmp\/03-skip\.ad/);
+});
+
+test('test command reports flaky passed-on-retry cases in the default summary', async () => {
+  const result = await runCliCapture(['test', './suite'], async () => ({
+    ok: true,
+    data: {
+      total: 1,
+      executed: 1,
+      passed: 1,
+      failed: 0,
+      skipped: 0,
+      notRun: 0,
+      durationMs: 25,
+      failures: [],
+      tests: [
+        {
+          file: '/tmp/01-flaky.ad',
+          session: 'default:test:suite:1',
+          status: 'passed',
+          durationMs: 10,
+          attempts: 2,
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.match(result.stdout, /FLAKY \/tmp\/01-flaky\.ad after 2 attempts \(10ms\)/);
+  assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 25ms/);
+});
