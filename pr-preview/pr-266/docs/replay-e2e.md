@@ -56,8 +56,9 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - `test` discovers `.ad` files from files, directories, or globs and runs them serially.
 - `context platform=...` inside each `.ad` file is the target source of truth for suite execution.
 - `--platform` is a filter for suite discovery; files without platform metadata are skipped when a filter is present.
-- `context timeout=...` and `context retries=...` can be declared per script; CLI flags override metadata. Retries are capped at `3`.
-- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`.
+- `context timeout=...` and `context retries=...` can be declared per script; CLI flags override metadata. Retries are capped at `3`, and duplicate keys in the context header fail fast instead of silently overriding each other.
+- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifact files when the replay produced them.
+- Timeouts are cooperative: the runner marks the attempt failed at the timeout boundary, then gives the underlying replay a short grace period to stop before session cleanup.
 - The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use `--verbose` to print every test result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
 

@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-266/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-266/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-266/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-266/static/js/index.849aa94dd7.js"></script>
+<script defer src="/agent-device/pr-preview/pr-266/static/js/index.849ac288a0.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -237,9 +237,9 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <li><code>replay</code> runs deterministic <code>.ad</code> scripts.</li>
 <li><code>test</code> runs one or more <code>.ad</code> scripts as a serial suite from files, directories, or glob inputs.</li>
 <li><code>test --platform &lt;platform&gt;</code> filters suite files by <code>context platform=...</code> metadata instead of overriding the script target.</li>
-<li><code>test --timeout &lt;ms&gt;</code> and <code>test --retries &lt;n&gt;</code> apply per script attempt; <code>context timeout=...</code> and <code>context retries=...</code> can be declared inside the <code>.ad</code> header. Retries are capped at <code>3</code>.</li>
+<li><code>test --timeout &lt;ms&gt;</code> and <code>test --retries &lt;n&gt;</code> apply per script attempt; <code>context timeout=...</code> and <code>context retries=...</code> can be declared inside the <code>.ad</code> header. Retries are capped at <code>3</code>, duplicate metadata keys are rejected, and timeouts are cooperative.</li>
 <li><code>test --artifacts-dir &lt;path&gt;</code> overrides the default suite artifact root at <code>.agent-device/test-artifacts</code>.</li>
-<li><code>test</code> prints failures and flaky passed-on-retry tests by default; add <code>--verbose</code> to print pass and skip lines too.</li>
+<li><code>test</code> prints failures and flaky passed-on-retry tests by default, and prints a short <code>Running replay suite...</code> line before dispatch; add <code>--verbose</code> to print pass and skip lines too.</li>
 <li><code>replay -u</code> updates stale recorded actions and rewrites the same script.</li>
 <li><code>--save-script</code> records a replay script on <code>close</code>; optional path is a file path and parent directories are created.</li>
 </ul>

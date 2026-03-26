@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-266/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-266/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-266/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-266/static/js/index.849aa94dd7.js"></script>
+<script defer src="/agent-device/pr-preview/pr-266/static/js/index.849ac288a0.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -58,8 +58,9 @@
 <li><code>test</code> discovers <code>.ad</code> files from files, directories, or globs and runs them serially.</li>
 <li><code>context platform=...</code> inside each <code>.ad</code> file is the target source of truth for suite execution.</li>
 <li><code>--platform</code> is a filter for suite discovery; files without platform metadata are skipped when a filter is present.</li>
-<li><code>context timeout=...</code> and <code>context retries=...</code> can be declared per script; CLI flags override metadata. Retries are capped at <code>3</code>.</li>
-<li>By default, suite artifacts are written under <code>.agent-device/test-artifacts/&lt;run-id&gt;/...</code>.</li>
+<li><code>context timeout=...</code> and <code>context retries=...</code> can be declared per script; CLI flags override metadata. Retries are capped at <code>3</code>, and duplicate keys in the context header fail fast instead of silently overriding each other.</li>
+<li>By default, suite artifacts are written under <code>.agent-device/test-artifacts/&lt;run-id&gt;/...</code>. Each attempt writes <code>replay.ad</code> and <code>result.txt</code>; failed attempts also keep copied logs and artifact files when the replay produced them.</li>
+<li>Timeouts are cooperative: the runner marks the attempt failed at the timeout boundary, then gives the underlying replay a short grace period to stop before session cleanup.</li>
 <li>The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use <code>--verbose</code> to print every test result.</li>
 <li>When <code>--fail-fast</code> and retries are both set, the current test still consumes its retries before the suite stops.</li>
 </ul>
