@@ -264,9 +264,9 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 - `replay` runs deterministic `.ad` scripts.
 - `test` runs one or more `.ad` scripts as a serial suite from files, directories, or glob inputs.
 - `test --platform <platform>` filters suite files by `context platform=...` metadata instead of overriding the script target.
-- `test --timeout <ms>` and `test --retries <n>` apply per script attempt; `context timeout=...` and `context retries=...` can be declared inside the `.ad` header. Retries are capped at `3`.
+- `test --timeout <ms>` and `test --retries <n>` apply per script attempt; `context timeout=...` and `context retries=...` can be declared inside the `.ad` header. Retries are capped at `3`, duplicate metadata keys are rejected, and timeouts are cooperative.
 - `test --artifacts-dir <path>` overrides the default suite artifact root at `.agent-device/test-artifacts`.
-- `test` prints failures and flaky passed-on-retry tests by default; add `--verbose` to print pass and skip lines too.
+- `test` prints failures and flaky passed-on-retry tests by default, and prints a short `Running replay suite...` line before dispatch; add `--verbose` to print pass and skip lines too.
 - `replay -u` updates stale recorded actions and rewrites the same script.
 - `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 

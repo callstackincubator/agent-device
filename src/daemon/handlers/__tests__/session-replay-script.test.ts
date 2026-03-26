@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { AppError } from '../../../utils/errors.ts';
 import {
   parseReplayScript,
   readReplayScriptMetadata,
@@ -98,4 +99,30 @@ test('readReplayScriptMetadata extracts timeout and retries from context header'
   assert.equal(metadata.platform, 'ios');
   assert.equal(metadata.timeoutMs, 45000);
   assert.equal(metadata.retries, 2);
+});
+
+test('readReplayScriptMetadata rejects duplicate metadata keys in context header', () => {
+  assert.throws(
+    () =>
+      readReplayScriptMetadata(
+        'context platform=ios timeout=45000\ncontext platform=ios retries=2\nopen "Demo"\n',
+      ),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Duplicate replay test metadata "platform"/.test(error.message),
+  );
+});
+
+test('readReplayScriptMetadata rejects conflicting metadata keys in context header', () => {
+  assert.throws(
+    () =>
+      readReplayScriptMetadata(
+        'context platform=ios timeout=45000\ncontext retries=2 timeout=5000\nopen "Demo"\n',
+      ),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /Conflicting replay test metadata "timeoutMs"/.test(error.message),
+  );
 });

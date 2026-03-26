@@ -48,25 +48,41 @@ export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
     if (platformMatch) {
       const platform = platformMatch[1] as ReplayScriptPlatform | undefined;
       if (platform && REPLAY_METADATA_PLATFORMS.has(platform)) {
-        metadata.platform = platform;
+        assignReplayMetadataValue(metadata, 'platform', platform);
       }
     }
     const timeoutMatch = trimmed.match(/(?:^|\s)timeout=(\d+)/);
     if (timeoutMatch) {
       const timeoutMs = Number(timeoutMatch[1]);
       if (Number.isFinite(timeoutMs) && timeoutMs >= 1) {
-        metadata.timeoutMs = Math.floor(timeoutMs);
+        assignReplayMetadataValue(metadata, 'timeoutMs', Math.floor(timeoutMs));
       }
     }
     const retriesMatch = trimmed.match(/(?:^|\s)retries=(\d+)/);
     if (retriesMatch) {
       const retries = Number(retriesMatch[1]);
       if (Number.isFinite(retries) && retries >= 0) {
-        metadata.retries = Math.floor(retries);
+        assignReplayMetadataValue(metadata, 'retries', Math.floor(retries));
       }
     }
   }
   return metadata;
+}
+
+function assignReplayMetadataValue<Key extends keyof ReplayScriptMetadata>(
+  metadata: ReplayScriptMetadata,
+  key: Key,
+  value: NonNullable<ReplayScriptMetadata[Key]>,
+): void {
+  const previous = metadata[key];
+  if (previous !== undefined) {
+    const duplicateMessage =
+      previous === value
+        ? `Duplicate replay test metadata "${key}" in context header.`
+        : `Conflicting replay test metadata "${key}" in context header: ${String(previous)} vs ${String(value)}.`;
+    throw new AppError('INVALID_ARGS', duplicateMessage);
+  }
+  metadata[key] = value as ReplayScriptMetadata[Key];
 }
 
 function parseReplayScriptLine(line: string): SessionAction | null {

@@ -89,8 +89,8 @@ agent-device test ./smoke --timeout 60000 --retries 1 --verbose
 
 - Prefer selector-based actions in recorded `.ad` replays.
 - Use `test` when you already have multiple `.ad` flows and want a lightweight serial regression pass.
-- Use `context timeout=...` / `context retries=...` in `.ad` headers for per-flow defaults, or override them with CLI flags. Retries are capped at `3`.
-- Failed runs keep suite artifacts under `.agent-device/test-artifacts` by default.
+- Use `context timeout=...` / `context retries=...` in `.ad` headers for per-flow defaults, or override them with CLI flags. Retries are capped at `3`, and duplicate keys fail fast.
+- Failed runs keep suite artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`.
 - Passed-on-retry flows are reported as flaky so you can spot unstable suites without turning on `--verbose`.
 - Use update mode for maintenance, not as a substitute for fixing a broken interaction strategy.
 

@@ -5058,7 +5058,11 @@ test('test applies per-script timeout and writes attempt artifacts', async () =>
     const attemptDir = path.join(artifactsDir as string, 'attempt-1');
     assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
     assert.equal(fs.existsSync(path.join(attemptDir, 'capture.png')), true);
+    assert.equal(fs.existsSync(path.join(attemptDir, 'result.txt')), true);
     assert.equal(fs.existsSync(path.join(attemptDir, 'failure.txt')), true);
+    const resultText = fs.readFileSync(path.join(attemptDir, 'result.txt'), 'utf8');
+    assert.match(resultText, /status: failed/);
+    assert.match(resultText, /timeoutMode: cooperative/);
   }
 });
 
@@ -5128,4 +5132,32 @@ test('test returns invalid args when no replay scripts match the platform filter
   });
 
   assertInvalidArgsMessage(response, 'No .ad tests matched for --platform android.');
+});
+
+test('test rejects duplicate replay test metadata in the context header', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-metadata-'));
+  fs.writeFileSync(
+    path.join(root, '01-invalid.ad'),
+    'context platform=ios timeout=1000\ncontext timeout=2000\nopen "Demo"\n',
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assertInvalidArgsMessage(
+    response,
+    'Conflicting replay test metadata "timeoutMs" in context header: 1000 vs 2000.',
+  );
 });

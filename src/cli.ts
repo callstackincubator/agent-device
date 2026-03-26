@@ -227,6 +227,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           return;
         }
 
+        if (command === 'test' && !flags.json) {
+          process.stderr.write('Running replay suite...\n');
+        }
+
         const response = await sendDaemonRequest({
           command: command!,
           positionals,

@@ -154,6 +154,7 @@ test('test command prints suite summary and exits non-zero on failures', async (
 
   assert.equal(result.code, 1);
   assert.equal(result.calls.length, 1);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.doesNotMatch(result.stdout, /PASS \/tmp\/01-pass\.ad/);
   assert.match(result.stdout, /FAIL \/tmp\/02-fail\.ad after 2 attempts \(5ms\)/);
   assert.match(result.stdout, /Replay failed at step 1 \(open Demo\): boom/);
@@ -212,6 +213,7 @@ test('test command --verbose prints all test statuses', async () => {
   }));
 
   assert.equal(result.code, 1);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.match(result.stdout, /PASS \/tmp\/01-pass\.ad \(10ms\)/);
   assert.match(result.stdout, /SKIP \/tmp\/03-skip\.ad/);
 });
@@ -241,6 +243,7 @@ test('test command reports flaky passed-on-retry cases in the default summary', 
   }));
 
   assert.equal(result.code, null);
+  assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.match(result.stdout, /FLAKY \/tmp\/01-flaky\.ad after 2 attempts \(10ms\)/);
   assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 25ms/);
 });
