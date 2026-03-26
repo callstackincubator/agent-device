@@ -64,6 +64,9 @@ test('isFlagSupportedForCommand consults option schema support map', () => {
   assert.equal(isFlagSupportedForCommand('snapshotDepth', 'snapshot'), true);
   assert.equal(isFlagSupportedForCommand('snapshotDepth', 'open'), false);
   assert.equal(isFlagSupportedForCommand('platform', 'open'), true);
+  assert.equal(isFlagSupportedForCommand('delayMs', 'type'), true);
+  assert.equal(isFlagSupportedForCommand('delayMs', 'fill'), true);
+  assert.equal(isFlagSupportedForCommand('delayMs', 'press'), false);
 });
 
 test('option schema parses enum options with multiple CLI aliases from env/config sources', () => {

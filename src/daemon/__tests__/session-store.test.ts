@@ -294,6 +294,15 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
     result: {},
   });
   store.recordAction(session, {
+    command: 'fill',
+    positionals: ['@e5', 'search'],
+    flags: {
+      platform: 'ios',
+      delayMs: 40,
+    },
+    result: {},
+  });
+  store.recordAction(session, {
     command: 'close',
     positionals: [],
     flags: { platform: 'ios' },
@@ -310,4 +319,5 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
   );
   assert.match(script, /press 201 545 --count 4 --interval-ms 8/);
   assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
+  assert.match(script, /fill @e5 "search" --delay-ms 40/);
 });

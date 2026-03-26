@@ -176,21 +176,23 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   }
 
   if (command === 'fill') {
-    if (args.length < 2) {
-      action.positionals = args;
+    const parsed = parseReplaySeriesFlags(command, args);
+    Object.assign(action.flags, parsed.flags);
+    if (parsed.positionals.length < 2) {
+      action.positionals = parsed.positionals;
       return action;
     }
-    const target = args[0];
+    const target = parsed.positionals[0];
     if (target.startsWith('@')) {
-      if (args.length >= 3) {
-        action.positionals = [target, args.slice(2).join(' ')];
-        action.result = { refLabel: args[1] };
+      if (parsed.positionals.length >= 3) {
+        action.positionals = [target, parsed.positionals.slice(2).join(' ')];
+        action.result = { refLabel: parsed.positionals[1] };
         return action;
       }
-      action.positionals = [target, args[1]];
+      action.positionals = [target, parsed.positionals[1]];
       return action;
     }
-    action.positionals = [target, args.slice(1).join(' ')];
+    action.positionals = [target, parsed.positionals.slice(1).join(' ')];
     return action;
   }
 
@@ -212,7 +214,7 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     return action;
   }
 
-  if (command === 'swipe') {
+  if (command === 'swipe' || command === 'type') {
     const parsed = parseReplaySeriesFlags(command, args);
     Object.assign(action.flags, parsed.flags);
     action.positionals = parsed.positionals;

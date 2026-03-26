@@ -208,7 +208,9 @@ agent-device click @e1
 agent-device click @e1 --button secondary   # macOS secondary click / context menu
 agent-device focus @e2
 agent-device fill @e2 "text"          # Clear then type
+agent-device fill @e2 "search" --delay-ms 80
 agent-device type "text"              # Type into focused field without clearing
+agent-device type "query" --delay-ms 80
 agent-device press 300 500
 agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
@@ -223,6 +225,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
 ```
 
 `fill` clears then types. `type` does not clear.
+Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
+Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
 Some Android images cannot enter non-ASCII text over shell input; in that case use a trusted ADB keyboard IME and verify APK checksum/signature before install.
 `click --button secondary` is the desktop context-menu flow on macOS.

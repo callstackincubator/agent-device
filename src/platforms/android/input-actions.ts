@@ -65,7 +65,15 @@ export async function longPressAndroid(
   );
 }
 
-export async function typeAndroid(device: DeviceInfo, text: string): Promise<void> {
+export async function typeAndroid(device: DeviceInfo, text: string, delayMs = 0): Promise<void> {
+  if (delayMs > 0 && Array.from(text).length > 1) {
+    await typeAndroidChunked(device, text, 1, delayMs);
+    return;
+  }
+  await typeAndroidImmediate(device, text);
+}
+
+async function typeAndroidImmediate(device: DeviceInfo, text: string): Promise<void> {
   const shouldInjectViaClipboard = shouldUseClipboardTextInjection(text);
   if (shouldInjectViaClipboard) {
     const clipboardResult = await typeAndroidViaClipboard(device, text);
@@ -96,6 +104,7 @@ export async function fillAndroid(
   x: number,
   y: number,
   text: string,
+  delayMs = 0,
 ): Promise<void> {
   const textCodePointLength = Array.from(text).length;
   const requiresClipboardInjection = shouldUseClipboardTextInjection(text);
@@ -105,8 +114,10 @@ export async function fillAndroid(
     minClear: number;
     maxClear: number;
   }> = [{ strategy: 'input_text', clearPadding: 12, minClear: 8, maxClear: 48 }];
-  if (!requiresClipboardInjection) {
+  if (!requiresClipboardInjection && delayMs <= 0) {
     attempts.push({ strategy: 'clipboard_paste', clearPadding: 12, minClear: 8, maxClear: 48 });
+  }
+  if (!requiresClipboardInjection || delayMs > 0) {
     attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
   }
 
@@ -121,14 +132,14 @@ export async function fillAndroid(
     );
     await clearFocusedText(device, clearCount);
     if (attempt.strategy === 'input_text') {
-      await typeAndroid(device, text);
+      await typeAndroid(device, text, delayMs);
     } else if (attempt.strategy === 'clipboard_paste') {
       const clipboardResult = await typeAndroidViaClipboard(device, text);
       if (clipboardResult !== 'ok') {
         continue;
       }
     } else {
-      await typeAndroidChunked(device, text, 1, 15);
+      await typeAndroidChunked(device, text, 1, delayMs > 0 ? delayMs : 15);
     }
     lastActual = await readAndroidTextAtPoint(device, x, y);
     if (lastActual === text) return;
@@ -236,7 +247,7 @@ async function typeAndroidChunked(
   const chars = Array.from(text);
   for (let i = 0; i < chars.length; i += size) {
     const chunk = chars.slice(i, i + size).join('');
-    await typeAndroid(device, chunk);
+    await typeAndroidImmediate(device, chunk);
     if (delayMs > 0 && i + size < chars.length) {
       await sleep(delayMs);
     }

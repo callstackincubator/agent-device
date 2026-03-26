@@ -16,8 +16,14 @@ const SWIPE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'pauseMs'>([
   ['--pause-ms', 'pauseMs'],
 ]);
 
+const TYPING_NUMERIC_FLAG_MAP = new Map<string, 'delayMs'>([['--delay-ms', 'delayMs']]);
+
 export function isClickLikeCommand(command: string): command is 'click' | 'press' {
   return command === 'click' || command === 'press';
+}
+
+function isTypingCommand(command: string): command is 'type' | 'fill' {
+  return command === 'type' || command === 'fill';
 }
 
 export function formatScriptArg(value: string): string {
@@ -61,6 +67,10 @@ export function appendScriptSeriesFlags(
     if (flags.pattern === 'one-way' || flags.pattern === 'ping-pong') {
       parts.push('--pattern', flags.pattern);
     }
+    return;
+  }
+  if (isTypingCommand(action.command) && typeof flags.delayMs === 'number') {
+    parts.push('--delay-ms', String(flags.delayMs));
   }
 }
 
@@ -122,7 +132,9 @@ export function parseReplaySeriesFlags(
     ? CLICK_LIKE_NUMERIC_FLAG_MAP
     : command === 'swipe'
       ? SWIPE_NUMERIC_FLAG_MAP
-      : undefined;
+      : isTypingCommand(command)
+        ? TYPING_NUMERIC_FLAG_MAP
+        : undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];

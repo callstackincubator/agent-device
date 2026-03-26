@@ -240,6 +240,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     hideTouches,
     count,
     intervalMs,
+    delayMs,
     holdMs,
     jitterPx,
     doubleTap,
@@ -270,6 +271,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     hideTouches,
     count,
     intervalMs,
+    delayMs,
     holdMs,
     jitterPx,
     doubleTap,
@@ -327,6 +329,7 @@ function formatActionLine(action: SessionAction): string {
       if (text) {
         parts.push(formatScriptArg(text));
       }
+      appendScriptSeriesFlags(parts, action);
       return parts.join(' ');
     }
   }

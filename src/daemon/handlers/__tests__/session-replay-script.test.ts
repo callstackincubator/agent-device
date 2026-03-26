@@ -75,6 +75,34 @@ test('record replay script round-trips fps and hide-touches flags', () => {
   assert.equal(parsed[0]?.flags.hideTouches, true);
 });
 
+test('type and fill replay scripts round-trip typing delay flags', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-typing-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'type',
+      positionals: ['hello world'],
+      flags: { delayMs: 75 },
+    },
+    {
+      ts: Date.now(),
+      command: 'fill',
+      positionals: ['@e2', 'search'],
+      flags: { delayMs: 40 },
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+  assert.match(script, /type "hello world" --delay-ms 75/);
+  assert.match(script, /fill @e2 "search" --delay-ms 40/);
+
+  const parsed = parseReplayScript(script);
+  assert.equal(parsed[0]?.flags.delayMs, 75);
+  assert.equal(parsed[1]?.flags.delayMs, 40);
+});
+
 test('readReplayScriptMetadata extracts platform from context header', () => {
   const metadata = readReplayScriptMetadata(
     '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',

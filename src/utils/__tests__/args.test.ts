@@ -472,6 +472,22 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
   assert.equal(parsed.flags.pattern, 'ping-pong');
 });
 
+test('parseArgs recognizes type and fill delay flags', () => {
+  const typeParsed = parseArgs(['type', 'hello', '--delay-ms', '75'], {
+    strictFlags: true,
+  });
+  assert.equal(typeParsed.command, 'type');
+  assert.deepEqual(typeParsed.positionals, ['hello']);
+  assert.equal(typeParsed.flags.delayMs, 75);
+
+  const fillParsed = parseArgs(['fill', '@e5', 'search', '--delay-ms', '40'], {
+    strictFlags: true,
+  });
+  assert.equal(fillParsed.command, 'fill');
+  assert.deepEqual(fillParsed.positionals, ['@e5', 'search']);
+  assert.equal(fillParsed.flags.delayMs, 40);
+});
+
 test('parseArgs recognizes record --fps flag', () => {
   const parsed = parseArgs(['record', 'start', './capture.mp4', '--fps', '30'], {
     strictFlags: true,
@@ -807,6 +823,16 @@ test('command usage describes test suite flags', () => {
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /--retries <n>/);
   assert.match(help, /--artifacts-dir <path>/);
+});
+
+test('command usage describes delayed typing flags', () => {
+  const typeHelp = usageForCommand('type');
+  const fillHelp = usageForCommand('fill');
+  if (typeHelp === null || fillHelp === null) {
+    throw new Error('Expected command help text');
+  }
+  assert.match(typeHelp, /--delay-ms <ms>/);
+  assert.match(fillHelp, /--delay-ms <ms>/);
 });
 
 test('command usage shows command and global flags separately', () => {

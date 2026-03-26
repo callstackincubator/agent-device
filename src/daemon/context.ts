@@ -17,6 +17,7 @@ export type DaemonCommandContext = {
   snapshotRaw?: boolean;
   count?: number;
   intervalMs?: number;
+  delayMs?: number;
   holdMs?: number;
   jitterPx?: number;
   doubleTap?: boolean;
@@ -49,6 +50,7 @@ export function contextFromFlags(
     snapshotRaw: flags?.snapshotRaw,
     count: flags?.count,
     intervalMs: flags?.intervalMs,
+    delayMs: flags?.delayMs,
     holdMs: flags?.holdMs,
     jitterPx: flags?.jitterPx,
     doubleTap: flags?.doubleTap,

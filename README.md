@@ -41,6 +41,7 @@ agent-device snapshot -i
 agent-device press @e3
 agent-device diff snapshot -i
 agent-device fill @e5 "test"
+agent-device fill @e5 "search" --delay-ms 80
 agent-device close
 ```
 

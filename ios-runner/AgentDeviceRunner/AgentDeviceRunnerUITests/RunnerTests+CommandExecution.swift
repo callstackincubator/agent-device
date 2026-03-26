@@ -422,18 +422,31 @@ extension RunnerTests {
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
+      let delaySeconds = max(command.delayMs ?? 0, 0) / 1000.0
+      let target = focusedTextInput(app: activeApp)
+      func typeIntoTarget(_ value: String) {
+        if let focused = target {
+          focused.typeText(value)
+        } else {
+          activeApp.typeText(value)
+        }
+      }
       if command.clearFirst == true {
-        guard let focused = focusedTextInput(app: activeApp) else {
+        guard let focused = target else {
           return Response(ok: false, error: ErrorPayload(message: "no focused text input to clear"))
         }
         clearTextInput(focused)
-        focused.typeText(text)
-        return Response(ok: true, data: DataPayload(message: "typed"))
       }
-      if let focused = focusedTextInput(app: activeApp) {
-        focused.typeText(text)
+      if delaySeconds > 0 && text.count > 1 {
+        let chunks = Array(text)
+        for (index, character) in chunks.enumerated() {
+          typeIntoTarget(String(character))
+          if index + 1 < chunks.count {
+            Thread.sleep(forTimeInterval: delaySeconds)
+          }
+        }
       } else {
-        activeApp.typeText(text)
+        typeIntoTarget(text)
       }
       return Response(ok: true, data: DataPayload(message: "typed"))
     case .swipe:
