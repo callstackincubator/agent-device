@@ -84,14 +84,13 @@ Use replay updates when selectors drift but the recorded scenario is still corre
 ```bash
 agent-device replay -u ./session.ad
 agent-device test ./smoke --platform android
-agent-device test ./smoke --timeout 60000 --retries 1 --verbose
 ```
 
 - Prefer selector-based actions in recorded `.ad` replays.
-- Use `test` when you already have multiple `.ad` flows and want a lightweight serial regression pass.
-- Use `context timeout=...` / `context retries=...` in `.ad` headers for per-flow defaults, or override them with CLI flags. Retries are capped at `3`, and duplicate keys fail fast.
-- Failed runs keep suite artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`.
-- Passed-on-retry flows are reported as flaky so you can spot unstable suites without turning on `--verbose`.
+- Use `test` when you already have multiple `.ad` flows and need a quick regression pass after updating or recording them.
+- Keep the skill-level rule simple: use `replay -u` to maintain one script, use `test` to verify a folder or matcher of scripts.
+- Treat `test` as a human and CI-facing suite runner that an agent can invoke for verification, not as the main source of product documentation.
+- Failed runs keep suite artifacts under `.agent-device/test-artifacts` by default, which is usually enough for debugging without extra agent-side processing.
 - Use update mode for maintenance, not as a substitute for fixing a broken interaction strategy.
 
 ## Performance checks
