@@ -13,10 +13,10 @@ import {
   serializeOpenResult,
   serializeSessionListEntry,
   serializeSnapshotResult,
-} from './client-shared.ts';
+} from './cli-serializers.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
-import { resolveRemoteOpenRuntime } from './utils/remote-open.ts';
+import { resolveRemoteOpenRuntime } from './core/remote-open.ts';
 import { readCommandMessage } from './utils/success-text.ts';
 import type { AgentDeviceClient, AgentDeviceDevice, AppDeployResult } from './client.ts';
 

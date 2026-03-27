@@ -3,7 +3,7 @@ import type { DaemonRequest, SessionRuntimeHints } from './daemon/types.ts';
 import { AppError } from './utils/errors.ts';
 import type { DeviceKind, DeviceTarget, Platform } from './utils/device.ts';
 import type { Point, ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
-import { buildAppIdentifiers, buildDeviceIdentifiers } from './client-shared.ts';
+import { buildAppIdentifiers, buildDeviceIdentifiers } from './cli-serializers.ts';
 import type {
   AgentDeviceDevice,
   AgentDeviceSession,

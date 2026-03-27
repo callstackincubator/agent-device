@@ -4,7 +4,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { resolveDeployResultTarget } from '../../client-shared.ts';
+import { resolveDeployResultTarget } from '../../cli-serializers.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 

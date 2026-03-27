@@ -2,7 +2,7 @@ import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { extractNodeText, normalizeType } from './snapshot-processing.ts';
 import { uniqueStrings } from './action-utils.ts';
-import { isNodeVisible } from './selectors-match.ts';
+import { isNodeVisible } from './selectors.ts';
 
 export function buildSelectorChainForNode(
   node: SnapshotNode,

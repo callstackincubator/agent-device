@@ -9,7 +9,7 @@ import {
   readAndroidTextAtPoint,
   snapshotAndroid,
 } from '../platforms/android/index.ts';
-import { getInteractor, type RunnerContext } from '../utils/interactors.ts';
+import { getInteractor, type RunnerContext } from './interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import {
   runMacOsPressAction,
