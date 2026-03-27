@@ -278,13 +278,20 @@ export async function runMacOsAlertAction(
   return await runMacOsHelper(args);
 }
 
-export async function runMacOsSnapshotAction(surface: Exclude<SessionSurface, 'app'>): Promise<{
+export async function runMacOsSnapshotAction(
+  surface: Exclude<SessionSurface, 'app'>,
+  options: { bundleId?: string } = {},
+): Promise<{
   surface: Exclude<SessionSurface, 'app'>;
   nodes: MacOsSnapshotNode[];
   truncated: boolean;
   backend: 'macos-helper';
 }> {
-  return await runMacOsHelper(['snapshot', '--surface', surface]);
+  const args = ['snapshot', '--surface', surface];
+  if (options.bundleId) {
+    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
+  }
+  return await runMacOsHelper(args);
 }
 
 export async function runMacOsReadTextAction(

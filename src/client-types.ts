@@ -160,6 +160,7 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     app: string;
     url?: string;
+    surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
     activity?: string;
     relaunch?: boolean;
     saveScript?: boolean | string;
@@ -274,6 +275,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     overlayRefs?: boolean;
     boot?: boolean;
     reuseExisting?: boolean;
+    surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
     activity?: string;
     relaunch?: boolean;
     shutdown?: boolean;

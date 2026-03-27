@@ -136,6 +136,7 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     const result = await client.apps.open({
       app: positionals[0],
       url: positionals[1],
+      surface: flags.surface,
       activity: flags.activity,
       relaunch: flags.relaunch,
       saveScript: flags.saveScript,

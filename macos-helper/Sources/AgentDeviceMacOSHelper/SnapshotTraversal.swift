@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 private enum SnapshotTraversalLimits {
@@ -62,7 +63,17 @@ private struct SnapshotTraversalState {
   var truncated = false
 }
 
-func captureSnapshotResponse(surface: String) throws -> SnapshotResponse {
+private struct MenuBarWindowFallbackCandidate {
+  let windowNumber: Int
+  let rect: RectResponse
+  let layer: Int
+
+  var area: Double {
+    rect.width * rect.height
+  }
+}
+
+func captureSnapshotResponse(surface: String, bundleId: String? = nil) throws -> SnapshotResponse {
   let result: SnapshotBuildResult
   switch surface {
   case "frontmost-app":
@@ -70,7 +81,7 @@ func captureSnapshotResponse(surface: String) throws -> SnapshotResponse {
   case "desktop":
     result = snapshotDesktop()
   case "menubar":
-    result = snapshotMenuBar()
+    result = try snapshotMenuBar(bundleId: bundleId)
   default:
     throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
   }
@@ -200,7 +211,7 @@ private func appendApplicationSnapshot(
   return true
 }
 
-private func snapshotMenuBar() -> SnapshotBuildResult {
+private func snapshotMenuBar(bundleId: String?) throws -> SnapshotBuildResult {
   var state = SnapshotTraversalState()
   guard
     let rootIndex = appendSyntheticSnapshotNode(
@@ -215,23 +226,47 @@ private func snapshotMenuBar() -> SnapshotBuildResult {
     return SnapshotBuildResult(nodes: state.nodes, truncated: true)
   }
 
-  if let frontmost = NSWorkspace.shared.frontmostApplication {
-    let frontmostElement = AXUIElementCreateApplication(frontmost.processIdentifier)
-    if let menuBar = elementAttribute(frontmostElement, attribute: kAXMenuBarAttribute as String) {
-      _ = appendElementSnapshot(
-        menuBar,
+  if let bundleId {
+    let targetApp = try resolveTargetApplication(bundleId: bundleId, surface: nil)
+    let appendedExtras = appendMenuBarSnapshot(
+      targetApp,
+      attribute: kAXExtrasMenuBarAttribute as String,
+      depth: 1,
+      parentIndex: rootIndex,
+      surface: "menubar",
+      state: &state
+    )
+    if !appendedExtras {
+      let appendedMenuBar = appendMenuBarSnapshot(
+        targetApp,
+        attribute: kAXMenuBarAttribute as String,
         depth: 1,
         parentIndex: rootIndex,
-        context: SnapshotContext(
-          surface: "menubar",
-          pid: Int32(frontmost.processIdentifier),
-          bundleId: frontmost.bundleIdentifier,
-          appName: frontmost.localizedName,
-          windowTitle: frontmost.localizedName
-        ),
+        surface: "menubar",
         state: &state
       )
+      if !appendedMenuBar {
+        _ = appendMenuBarWindowFallback(
+          targetApp,
+          depth: 1,
+          parentIndex: rootIndex,
+          surface: "menubar",
+          state: &state
+        )
+      }
     }
+    return SnapshotBuildResult(nodes: state.nodes, truncated: state.truncated)
+  }
+
+  if let frontmost = NSWorkspace.shared.frontmostApplication {
+    _ = appendMenuBarSnapshot(
+      frontmost,
+      attribute: kAXMenuBarAttribute as String,
+      depth: 1,
+      parentIndex: rootIndex,
+      surface: "menubar",
+      state: &state
+    )
   }
 
   if !state.truncated,
@@ -239,25 +274,90 @@ private func snapshotMenuBar() -> SnapshotBuildResult {
        withBundleIdentifier: "com.apple.systemuiserver"
      ).first
   {
-    let systemUiElement = AXUIElementCreateApplication(systemUiServer.processIdentifier)
-    if let menuExtras = elementAttribute(systemUiElement, attribute: kAXMenuBarAttribute as String) {
-      _ = appendElementSnapshot(
-        menuExtras,
+    let appendedExtras = appendMenuBarSnapshot(
+      systemUiServer,
+      attribute: kAXExtrasMenuBarAttribute as String,
+      depth: 1,
+      parentIndex: rootIndex,
+      surface: "menubar",
+      state: &state,
+      windowTitle: "System Menu Extras"
+    )
+    if !appendedExtras {
+      _ = appendMenuBarSnapshot(
+        systemUiServer,
+        attribute: kAXMenuBarAttribute as String,
         depth: 1,
         parentIndex: rootIndex,
-        context: SnapshotContext(
-          surface: "menubar",
-          pid: Int32(systemUiServer.processIdentifier),
-          bundleId: systemUiServer.bundleIdentifier,
-          appName: systemUiServer.localizedName,
-          windowTitle: "System Menu Extras"
-        ),
-        state: &state
+        surface: "menubar",
+        state: &state,
+        windowTitle: "System Menu Extras"
       )
     }
   }
 
   return SnapshotBuildResult(nodes: state.nodes, truncated: state.truncated)
+}
+
+@discardableResult
+private func appendMenuBarSnapshot(
+  _ app: NSRunningApplication,
+  attribute: String,
+  depth: Int,
+  parentIndex: Int,
+  surface: String,
+  state: inout SnapshotTraversalState,
+  windowTitle: String? = nil
+) -> Bool {
+  let appElement = AXUIElementCreateApplication(app.processIdentifier)
+  guard let menuBar = elementAttribute(appElement, attribute: attribute) else {
+    return false
+  }
+
+  let nodeCountBefore = state.nodes.count
+  _ = appendElementSnapshot(
+    menuBar,
+    depth: depth,
+    parentIndex: parentIndex,
+    context: SnapshotContext(
+      surface: surface,
+      pid: Int32(app.processIdentifier),
+      bundleId: app.bundleIdentifier,
+      appName: app.localizedName,
+      windowTitle: windowTitle ?? app.localizedName
+    ),
+    state: &state
+  )
+  return state.nodes.count > nodeCountBefore
+}
+
+@discardableResult
+private func appendMenuBarWindowFallback(
+  _ app: NSRunningApplication,
+  depth: Int,
+  parentIndex: Int,
+  surface: String,
+  state: inout SnapshotTraversalState
+) -> Bool {
+  guard let candidate = menuBarWindowFallbackCandidate(for: app) else {
+    return false
+  }
+
+  return appendSyntheticSnapshotNode(
+    into: &state,
+    type: "MenuBarItem",
+    label: app.localizedName ?? app.bundleIdentifier ?? "Menu Bar Item",
+    depth: depth,
+    parentIndex: parentIndex,
+    surface: surface,
+    identifier: "cgwindow:\(candidate.windowNumber)",
+    pid: Int32(app.processIdentifier),
+    bundleId: app.bundleIdentifier,
+    appName: app.localizedName,
+    windowTitle: app.localizedName,
+    rect: candidate.rect,
+    hittable: true
+  ) != nil
 }
 
 @discardableResult
@@ -272,7 +372,9 @@ private func appendSyntheticSnapshotNode(
   pid: Int32? = nil,
   bundleId: String? = nil,
   appName: String? = nil,
-  windowTitle: String? = nil
+  windowTitle: String? = nil,
+  rect: RectResponse? = nil,
+  hittable: Bool = false
 ) -> Int? {
   guard reserveSnapshotNodeCapacity(&state) else {
     return nil
@@ -288,10 +390,10 @@ private func appendSyntheticSnapshotNode(
       label: label,
       value: nil,
       identifier: identifier ?? "surface:\(surface):\(type.lowercased())",
-      rect: nil,
+      rect: rect,
       enabled: true,
       selected: nil,
-      hittable: false,
+      hittable: hittable && rect != nil,
       depth: depth,
       parentIndex: parentIndex,
       pid: pid,
@@ -302,6 +404,68 @@ private func appendSyntheticSnapshotNode(
     )
   )
   return index
+}
+
+private func menuBarWindowFallbackCandidate(
+  for app: NSRunningApplication
+) -> MenuBarWindowFallbackCandidate? {
+  guard
+    let windowInfoList = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID)
+      as? [[String: Any]]
+  else {
+    return nil
+  }
+
+  let pid = Int(app.processIdentifier)
+  let allCandidates = windowInfoList.compactMap { info -> MenuBarWindowFallbackCandidate? in
+    let ownerPid = (info[kCGWindowOwnerPID as String] as? NSNumber)?.intValue
+    guard ownerPid == pid else {
+      return nil
+    }
+    guard let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary,
+          let bounds = CGRect(dictionaryRepresentation: boundsDictionary)
+    else {
+      return nil
+    }
+    guard bounds.width > 0, bounds.height > 0 else {
+      return nil
+    }
+    let alpha = (info[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
+    guard alpha > 0 else {
+      return nil
+    }
+    let rect = RectResponse(
+      x: Double(bounds.origin.x),
+      y: Double(bounds.origin.y),
+      width: Double(bounds.width),
+      height: Double(bounds.height)
+    )
+    let windowNumber = (info[kCGWindowNumber as String] as? NSNumber)?.intValue ?? 0
+    let layer = (info[kCGWindowLayer as String] as? NSNumber)?.intValue ?? 0
+    return MenuBarWindowFallbackCandidate(
+      windowNumber: windowNumber,
+      rect: rect,
+      layer: layer
+    )
+  }
+
+  let menuBarBandCandidates = allCandidates.filter { candidate in
+    candidate.rect.y <= 64 && candidate.rect.height <= 64
+  }
+  let narrowCandidates = menuBarBandCandidates.filter { candidate in
+    candidate.rect.width <= 256
+  }
+  let rankedCandidates = (narrowCandidates.isEmpty ? menuBarBandCandidates : narrowCandidates)
+    .sorted { left, right in
+      if left.area != right.area {
+        return left.area < right.area
+      }
+      if left.layer != right.layer {
+        return left.layer < right.layer
+      }
+      return left.windowNumber < right.windowNumber
+    }
+  return rankedCandidates.first
 }
 
 @discardableResult
@@ -361,7 +525,7 @@ private func appendElementSnapshot(
     return index
   }
 
-  for child in children(of: element) {
+  for child in snapshotChildren(of: element, role: role) {
     if state.truncated {
       break
     }
@@ -522,14 +686,31 @@ private func accessibilityAxValue(_ value: CFTypeRef?) -> AXValue? {
   return (value as! AXValue)
 }
 
-func children(of element: AXUIElement) -> [AXUIElement] {
+private func elementArrayAttribute(_ element: AXUIElement, attribute: String) -> [AXUIElement] {
   var value: CFTypeRef?
-  guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value) == .success,
+  guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
         let children = value as? [AXUIElement]
   else {
     return []
   }
   return children
+}
+
+func children(of element: AXUIElement) -> [AXUIElement] {
+  return elementArrayAttribute(element, attribute: kAXChildrenAttribute as String)
+}
+
+private func snapshotChildren(of element: AXUIElement, role: String?) -> [AXUIElement] {
+  let directChildren = children(of: element)
+  if !directChildren.isEmpty {
+    return directChildren
+  }
+  switch role {
+  case "AXMenuBar", "AXMenuBarItem", "AXMenu":
+    return elementArrayAttribute(element, attribute: kAXVisibleChildrenAttribute as String)
+  default:
+    return []
+  }
 }
 
 func windows(of appElement: AXUIElement) -> [AXUIElement] {

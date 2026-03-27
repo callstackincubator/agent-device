@@ -39,3 +39,19 @@ test('resolveRequestedOpenSurface rejects surface flag on iOS', () => {
       /surface is only supported on macOS/i.test(error.message),
   );
 });
+
+test('resolveRequestedOpenSurface allows an app target for macOS menubar sessions', () => {
+  const surface = resolveRequestedOpenSurface({
+    device: {
+      platform: 'macos',
+      id: 'host-mac',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+    },
+    surfaceFlag: 'menubar',
+    openTarget: 'Minisim',
+  });
+
+  assert.equal(surface, 'menubar');
+});

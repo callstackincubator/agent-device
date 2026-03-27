@@ -142,6 +142,8 @@ agent-device snapshot -i --platform apple --target desktop
 - `open --platform macos --surface frontmost-app` inspects the currently focused app without naming it first.
 - `open --platform macos --surface desktop` inspects visible windows across the desktop.
 - `open --platform macos --surface menubar` inspects the active app menu bar and system menu extras.
+- `open <app> --platform macos --surface menubar` targets one menu bar app's extras bar, which is useful for status-item apps like MiniSim.
+- Status-item apps often expose little or no useful UI through the default macOS `app` surface. Prefer `--surface menubar` for discovery when the app lives in the top menu bar.
 - Use `frontmost-app`, `desktop`, and `menubar` mainly for `snapshot`, `get`, `is`, and `wait`.
 - If you inspect with `desktop` or `menubar` and then need to click or fill inside one app, open that app in a normal `app` session.
 - macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `pinch` in app sessions, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
@@ -171,6 +173,11 @@ agent-device close
 agent-device open --platform macos --surface menubar
 agent-device snapshot -i
 agent-device wait 'label~="Wi-Fi|Control Center|Battery"'
+agent-device close
+
+# Targeted menu bar app inspection
+agent-device open Minisim --platform macos --surface menubar
+agent-device snapshot -i
 agent-device close
 ```
 

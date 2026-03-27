@@ -196,6 +196,41 @@ test('screenshot forwards --overlay-refs to the client capture API', async () =>
   });
 });
 
+test('open forwards macOS surface to the client apps API', async () => {
+  let observed: AppOpenOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    open: async (options) => {
+      observed = options;
+      return {
+        session: 'default',
+        appName: 'Minisim',
+        appBundleId: 'com.oskarkwasniewski.MiniSim',
+        identifiers: { session: 'default', appBundleId: 'com.oskarkwasniewski.MiniSim' },
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'open',
+    positionals: ['Minisim'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+      platform: 'macos',
+      surface: 'menubar',
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.equal(observed?.platform, 'macos');
+  assert.equal(observed?.surface, 'menubar');
+});
+
 test('screenshot reports annotated ref count in non-json mode', async () => {
   const client = createStubClient({
     installFromSource: async () => {

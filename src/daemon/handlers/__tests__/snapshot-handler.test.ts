@@ -389,6 +389,59 @@ test('snapshot on macOS menubar surface uses helper-backed surface snapshot', as
   );
 });
 
+test('snapshot on targeted macOS menubar surface passes bundle id to helper', async () => {
+  await withMockedMacOsHelper(
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      "cat <<'JSON'",
+      '{"ok":true,"data":{"surface":"menubar","nodes":[{"index":0,"depth":0,"type":"MenuBarSurface","label":"Menu Bar","surface":"menubar"},{"index":1,"depth":1,"parentIndex":0,"type":"MenuBarItem","label":"MiniSim","surface":"menubar","bundleId":"com.oskarkwasniewski.MiniSim","appName":"MiniSim"}],"truncated":false,"backend":"macos-helper"}}',
+      'JSON',
+      '',
+    ].join('\n'),
+    async () => {
+      const sessionStore = makeSessionStore();
+      const sessionName = 'macos-menubar-targeted-snapshot';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-menubar-targeted-'));
+      const argsLogPath = path.join(tmpDir, 'args.log');
+      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+      sessionStore.set(sessionName, {
+        ...makeSession(sessionName, macOsDevice),
+        surface: 'menubar',
+        appBundleId: 'com.oskarkwasniewski.MiniSim',
+        appName: 'MiniSim',
+      });
+
+      try {
+        const response = await handleSnapshotCommands({
+          req: {
+            token: 't',
+            session: sessionName,
+            command: 'snapshot',
+            positionals: [],
+            flags: {},
+          },
+          sessionName,
+          logPath: '/tmp/daemon.log',
+          sessionStore,
+        });
+
+        expect(response?.ok).toBe(true);
+        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
+        expect(logged).toBe(
+          'snapshot\n--surface\nmenubar\n--bundle-id\ncom.oskarkwasniewski.MiniSim\n',
+        );
+        expect(sessionStore.get(sessionName)?.snapshot?.nodes[1]?.label).toBe('MiniSim');
+      } finally {
+        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
 test('snapshot on macOS frontmost-app surface uses helper-backed surface snapshot', async () => {
   await withMockedMacOsHelper(
     [

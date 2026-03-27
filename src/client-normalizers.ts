@@ -236,6 +236,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     runtime: options.simulatorRuntimeId,
     boot: options.boot,
     reuseExisting: options.reuseExisting,
+    surface: options.surface,
     activity: options.activity,
     relaunch: options.relaunch,
     shutdown: options.shutdown,

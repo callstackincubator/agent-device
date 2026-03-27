@@ -315,11 +315,13 @@ struct AgentDeviceMacOSHelper {
       throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
     }
 
+    let bundleId = try optionValue(arguments: arguments, name: "--bundle-id").map(validatedBundleId)
+
     switch surface {
     case "frontmost-app":
-      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface))
+      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface, bundleId: bundleId))
     case "desktop", "menubar":
-      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface))
+      return SuccessEnvelope(data: try captureSnapshotResponse(surface: surface, bundleId: bundleId))
     default:
       throw HelperError.invalidArgs("snapshot requires --surface <frontmost-app|desktop|menubar>")
     }

@@ -36,7 +36,9 @@ export async function captureSnapshot(
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
   const { device, session, flags, outPath, logPath, snapshotScope } = params;
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
-    const helperSnapshot = await runMacOsSnapshotAction(session.surface);
+    const helperSnapshot = await runMacOsSnapshotAction(session.surface, {
+      bundleId: session.surface === 'menubar' ? session.appBundleId : undefined,
+    });
     return shapeMacOsSurfaceSnapshot(helperSnapshot, {
       snapshotDepth: flags?.snapshotDepth,
       snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,

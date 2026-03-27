@@ -91,7 +91,7 @@ function resolveOpenSurface(
     return 'app';
   }
   const surface = surfaceFlag ? parseSessionSurface(surfaceFlag) : 'app';
-  if (surface !== 'app' && openTarget) {
+  if (surface !== 'app' && surface !== 'menubar' && openTarget) {
     throw new AppError('INVALID_ARGS', `open --surface ${surface} does not accept an app target`);
   }
   return surface;

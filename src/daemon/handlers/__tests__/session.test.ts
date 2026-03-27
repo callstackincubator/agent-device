@@ -7,7 +7,11 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
 vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
 vi.mock('../../runtime-hints.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../runtime-hints.ts')>();
-  return { ...actual, applyRuntimeHintsToApp: vi.fn(async () => {}), clearRuntimeHintsFromApp: vi.fn(async () => {}) };
+  return {
+    ...actual,
+    applyRuntimeHintsToApp: vi.fn(async () => {}),
+    clearRuntimeHintsFromApp: vi.fn(async () => {}),
+  };
 });
 vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
@@ -39,7 +43,11 @@ vi.mock('../../materialized-path-registry.ts', async (importOriginal) => {
 });
 vi.mock('../../../platforms/android/devices.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/android/devices.ts')>();
-  return { ...actual, listAndroidDevices: vi.fn(async () => []), ensureAndroidEmulatorBooted: vi.fn() };
+  return {
+    ...actual,
+    listAndroidDevices: vi.fn(async () => []),
+    ensureAndroidEmulatorBooted: vi.fn(),
+  };
 });
 vi.mock('../../../platforms/ios/devices.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/devices.ts')>();
@@ -47,7 +55,11 @@ vi.mock('../../../platforms/ios/devices.ts', async (importOriginal) => {
 });
 vi.mock('../../../platforms/ios/index.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/index.ts')>();
-  return { ...actual, listIosApps: vi.fn(async () => []) };
+  return {
+    ...actual,
+    listIosApps: vi.fn(async () => []),
+    resolveIosApp: vi.fn(async () => undefined),
+  };
 });
 vi.mock('../../app-log.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../app-log.ts')>();
@@ -55,7 +67,11 @@ vi.mock('../../app-log.ts', async (importOriginal) => {
 });
 vi.mock('../session-deploy.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../session-deploy.ts')>();
-  return { ...actual, defaultInstallOps: { ios: vi.fn(), android: vi.fn() }, defaultReinstallOps: { ios: vi.fn(), android: vi.fn() } };
+  return {
+    ...actual,
+    defaultInstallOps: { ios: vi.fn(), android: vi.fn() },
+    defaultReinstallOps: { ios: vi.fn(), android: vi.fn() },
+  };
 });
 
 import fs from 'node:fs';
@@ -77,9 +93,12 @@ import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
 import { settleIosSimulator } from '../session-device-utils.ts';
 import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
 import { runCmd } from '../../../utils/exec.ts';
-import { listAndroidDevices, ensureAndroidEmulatorBooted } from '../../../platforms/android/devices.ts';
+import {
+  listAndroidDevices,
+  ensureAndroidEmulatorBooted,
+} from '../../../platforms/android/devices.ts';
 import { listAppleDevices } from '../../../platforms/ios/devices.ts';
-import { listIosApps } from '../../../platforms/ios/index.ts';
+import { listIosApps, resolveIosApp } from '../../../platforms/ios/index.ts';
 import { startAppLog, stopAppLog } from '../../app-log.ts';
 import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 
@@ -97,6 +116,7 @@ const mockRunCmd = vi.mocked(runCmd);
 const mockListAndroidDevices = vi.mocked(listAndroidDevices);
 const mockListAppleDevices = vi.mocked(listAppleDevices);
 const mockListIosApps = vi.mocked(listIosApps);
+const mockResolveIosApp = vi.mocked(resolveIosApp);
 const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
 const mockStartAppLog = vi.mocked(startAppLog);
 const mockStopAppLog = vi.mocked(stopAppLog);
@@ -133,6 +153,17 @@ beforeEach(() => {
   mockListAppleDevices.mockResolvedValue([]);
   mockListIosApps.mockReset();
   mockListIosApps.mockResolvedValue([]);
+  mockResolveIosApp.mockReset();
+  mockResolveIosApp.mockImplementation(async (device, app) => {
+    const normalizedApp = app.toLowerCase();
+    if (normalizedApp === 'settings') {
+      return device.platform === 'macos' ? 'com.apple.systempreferences' : 'com.apple.Preferences';
+    }
+    if (normalizedApp === 'minisim') {
+      return 'com.oskarkwasniewski.MiniSim';
+    }
+    return app.includes('.') ? app : `com.example.${normalizedApp}`;
+  });
   mockEnsureAndroidEmulatorBooted.mockReset();
   mockStartAppLog.mockReset();
   mockStopAppLog.mockReset();
@@ -227,27 +258,21 @@ test('devices filters Apple-family platform selectors', async () => {
   expect(macosResponse?.ok).toBeTruthy();
   if (macosResponse?.ok) {
     const devices = macosResponse.data?.devices as Array<{ platform: string }> | undefined;
-    expect(
-      devices?.map((device) => device.platform),
-    ).toEqual(['macos']);
+    expect(devices?.map((device) => device.platform)).toEqual(['macos']);
   }
 
   const iosResponse = await runDevices({ platform: 'ios' });
   expect(iosResponse?.ok).toBeTruthy();
   if (iosResponse?.ok) {
     const devices = iosResponse.data?.devices as Array<{ platform: string }> | undefined;
-    expect(
-      devices?.map((device) => device.platform),
-    ).toEqual(['ios']);
+    expect(devices?.map((device) => device.platform)).toEqual(['ios']);
   }
 
   const appleDesktopResponse = await runDevices({ platform: 'apple', target: 'desktop' });
   expect(appleDesktopResponse?.ok).toBeTruthy();
   if (appleDesktopResponse?.ok) {
     const devices = appleDesktopResponse.data?.devices as Array<{ platform: string }> | undefined;
-    expect(
-      devices?.map((device) => device.platform),
-    ).toEqual(['macos']);
+    expect(devices?.map((device) => device.platform)).toEqual(['macos']);
   }
 });
 
@@ -623,11 +648,13 @@ test('runtime clear removes applied transport hints for the active app', async (
 
   expect(response?.ok).toBe(true);
   expect(mockClearRuntimeHints).toHaveBeenCalledWith(
-    expect.objectContaining({ device: expect.objectContaining({ id: 'emulator-5554' }), appId: 'com.example.demo' }),
+    expect.objectContaining({
+      device: expect.objectContaining({ id: 'emulator-5554' }),
+      appId: 'com.example.demo',
+    }),
   );
   expect(sessionStore.getRuntimeHints(sessionName)).toBe(undefined);
 });
-
 
 test('close clears applied runtime transport hints before deleting the session', async () => {
   const sessionStore = makeSessionStore();
@@ -879,9 +906,7 @@ test('boot prefers explicit device selector over active session device', async (
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(mockEnsureDeviceReady).toHaveBeenCalledWith(
-    expect.objectContaining({ id: 'sim-2' }),
-  );
+  expect(mockEnsureDeviceReady).toHaveBeenCalledWith(expect.objectContaining({ id: 'sim-2' }));
   if (response && response.ok) {
     expect(response.data?.platform).toBe('ios');
     expect(response.data?.id).toBe('sim-2');
@@ -961,9 +986,7 @@ test('boot launches Android emulator with GUI when no running device matches', a
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(launchCalls).toEqual([
-    { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
-  ]);
+  expect(launchCalls).toEqual([{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
   if (response && response.ok) {
     expect(response.data?.platform).toBe('android');
     expect(response.data?.id).toBe('emulator-5554');
@@ -1055,9 +1078,7 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(false);
   expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
-  expect(launchCalls).toEqual([
-    { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
-  ]);
+  expect(launchCalls).toEqual([{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false }]);
   if (response && !response.ok) {
     expect(response.error.code).toBe('DEVICE_NOT_FOUND');
     expect(response.error.message).toMatch(/matching --target tv/i);
@@ -1502,7 +1523,12 @@ test('keyboard dismiss supports explicit selector without active session', async
     booted: true,
   };
   mockResolveTargetDevice.mockResolvedValue(selectedDevice);
-  mockDispatch.mockResolvedValue({ platform: 'android', action: 'dismiss', dismissed: true, visible: false });
+  mockDispatch.mockResolvedValue({
+    platform: 'android',
+    action: 'dismiss',
+    dismissed: true,
+    visible: false,
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -1574,7 +1600,12 @@ test('keyboard dismiss uses active iOS session device', async () => {
     kind: 'simulator',
     booted: true,
   });
-  mockDispatch.mockResolvedValue({ platform: 'ios', action: 'dismiss', dismissed: true, visible: false });
+  mockDispatch.mockResolvedValue({
+    platform: 'ios',
+    action: 'dismiss',
+    dismissed: true,
+    visible: false,
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -2391,6 +2422,54 @@ test('open on macOS stores menubar surface without app context', async () => {
   }
 });
 
+test('open on macOS menubar surface can keep targeted app context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-menubar-targeted-surface';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+  mockResolveIosApp.mockResolvedValue('com.oskarkwasniewski.MiniSim');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Minisim'],
+      flags: {
+        platform: 'macos',
+        surface: 'menubar',
+      },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'macos' }),
+    'open',
+    ['Minisim'],
+    undefined,
+    expect.objectContaining({ appBundleId: 'com.oskarkwasniewski.MiniSim' }),
+  );
+  const session = sessionStore.get(sessionName);
+  expect(session?.surface).toBe('menubar');
+  expect(session?.appBundleId).toBe('com.oskarkwasniewski.MiniSim');
+  expect(session?.appName).toBe('Minisim');
+  if (response && response.ok) {
+    expect(response.data?.surface).toBe('menubar');
+    expect(response.data?.appBundleId).toBe('com.oskarkwasniewski.MiniSim');
+  }
+});
+
 test('open on existing iOS session refreshes unavailable simulator by name', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';
@@ -2780,7 +2859,9 @@ test('close on macOS session stops runner and dismisses automation alert before 
     calls.push(`stop-runner:${deviceId}`);
   });
   mockDismissMacOsAlert.mockImplementation(async (action, options) => {
-    calls.push(`dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`);
+    calls.push(
+      `dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`,
+    );
     return {};
   });
 
@@ -2870,7 +2951,9 @@ test('close <app> on macOS stops runner before app close dispatch and dismisses 
     calls.push(`stop-runner:${deviceId}`);
   });
   mockDismissMacOsAlert.mockImplementation(async (action, options) => {
-    calls.push(`dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`);
+    calls.push(
+      `dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`,
+    );
     return {};
   });
   mockDispatch.mockImplementation(async (_device, command, positionals) => {
@@ -4274,12 +4357,8 @@ test('test binds each replay script to its declared platform metadata', async ()
   });
 
   expect(response?.ok).toBeTruthy();
-  expect(
-    invoked.map((req) => req.flags?.platform),
-  ).toEqual(['android', 'ios']);
-  expect(
-    invoked.map((req) => req.session),
-  ).toEqual([
+  expect(invoked.map((req) => req.flags?.platform)).toEqual(['android', 'ios']);
+  expect(invoked.map((req) => req.session)).toEqual([
     'default:test:suite-platforms:1-01-android:attempt-1',
     'default:test:suite-platforms:2-02-ios:attempt-1',
   ]);
@@ -4361,9 +4440,7 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
   });
 
   expect(response?.ok).toBeTruthy();
-  expect(
-    invoked.map((req) => req.session),
-  ).toEqual([
+  expect(invoked.map((req) => req.session)).toEqual([
     'default:test:suite-retries:1-01-retry:attempt-1',
     'default:test:suite-retries:1-01-retry:attempt-2',
     'default:test:suite-retries:1-01-retry:attempt-3',

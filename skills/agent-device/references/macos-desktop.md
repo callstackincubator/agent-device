@@ -30,7 +30,8 @@ agent-device close
 - `app`: default surface and the normal choice for `click`, `fill`, `press`, `scroll`, `screenshot`, and `record`.
 - `frontmost-app`: inspect the currently focused app without naming it first.
 - `desktop`: inspect visible desktop windows across apps.
-- `menubar`: inspect the active app menu bar and system menu extras.
+- `menubar`: inspect the active app menu bar and system menu extras. Use `open <app> --platform macos --surface menubar` when you need one menu bar app's extras, such as MiniSim.
+- Menu bar apps can expose a sparse or empty default `app` tree. Prefer the `menubar` surface first when the app lives entirely in the top bar.
 
 Use inspect-first surfaces to understand desktop-global UI, then switch back to `app` when you need to act in one app.
 
@@ -81,6 +82,6 @@ Troubleshooting:
 
 - If visible content is missing from `snapshot -i`, re-snapshot after the UI settles.
 - If `desktop` is too broad, retry with `frontmost-app`.
-- If `menubar` is missing the expected menu, make the app frontmost first and retry.
+- If `menubar` is missing the expected menu, retry with `open <app> --platform macos --surface menubar` for menu bar apps, or make the app frontmost first and retry the generic menubar surface.
 - If the wrong menu opened, retry secondary-clicking the row or cell wrapper rather than the nested text node.
 - If the app has multiple windows, make the correct window frontmost before relying on refs.
