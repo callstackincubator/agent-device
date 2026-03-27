@@ -1,3 +1,4 @@
+import type { CommandFlags } from '../../core/dispatch.ts';
 import {
   centerOfRect,
   findNodeByRef,
@@ -5,8 +6,13 @@ import {
   type Rect,
   type SnapshotNode,
 } from '../../utils/snapshot.ts';
-import { findNodeByLabel } from '../snapshot-processing.ts';
+import { findNearestHittableAncestor, findNodeByLabel } from '../snapshot-processing.ts';
+import type { SessionStore } from '../session-store.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
+import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
+import type { ContextFromFlags } from './interaction-common.ts';
+
+export type ResolveRefTarget = typeof resolveRefTarget;
 
 export function parseCoordinateTarget(positionals: string[]): { x: number; y: number } | null {
   if (positionals.length < 2) return null;
@@ -81,4 +87,124 @@ function normalizeRect(rect: Rect | undefined): Rect | null {
   }
   if (width < 0 || height < 0) return null;
   return { x, y, width, height };
+}
+
+export async function resolveRefTargetWithRectRefresh(params: {
+  session: SessionState;
+  refInput: string;
+  fallbackLabel: string;
+  promoteToHittableAncestor: boolean;
+  invalidRefMessage: string;
+  missingBoundsMessage: string;
+  invalidBoundsMessage: string;
+  reqFlags: CommandFlags | undefined;
+  sessionStore: SessionStore;
+  contextFromFlags: ContextFromFlags;
+  captureSnapshotForSession: CaptureSnapshotForSession;
+  resolveRefTarget: ResolveRefTarget;
+}): Promise<
+  | {
+      ok: true;
+      target: {
+        ref: string;
+        node: SnapshotNode;
+        snapshotNodes: SnapshotNode[];
+        point: { x: number; y: number };
+      };
+    }
+  | { ok: false; response: DaemonResponse }
+> {
+  const {
+    session,
+    refInput,
+    fallbackLabel,
+    promoteToHittableAncestor,
+    invalidRefMessage,
+    missingBoundsMessage,
+    invalidBoundsMessage,
+    reqFlags,
+    sessionStore,
+    contextFromFlags,
+    captureSnapshotForSession,
+    resolveRefTarget,
+  } = params;
+  const resolvedRefTarget = resolveRefTarget({
+    session,
+    refInput,
+    fallbackLabel,
+    requireRect: true,
+    invalidRefMessage,
+    notFoundMessage: missingBoundsMessage,
+  });
+  if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
+
+  const { ref } = resolvedRefTarget.target;
+  let node = promoteToHittableAncestor
+    ? resolveActionableTouchNode(
+        resolvedRefTarget.target.snapshotNodes,
+        resolvedRefTarget.target.node,
+      )
+    : resolvedRefTarget.target.node;
+  let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
+  let point = resolveRectCenter(node.rect);
+
+  if (!point) {
+    const refreshed = await captureSnapshotForSession(
+      session,
+      reqFlags,
+      sessionStore,
+      contextFromFlags,
+      { interactiveOnly: true },
+    );
+    const refNode = findNodeByRef(refreshed.nodes, ref);
+    const fallbackNode =
+      fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
+    const resolvedRefNode =
+      refNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, refNode)
+        : refNode;
+    const resolvedFallbackNode =
+      fallbackNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, fallbackNode)
+        : fallbackNode;
+    const fallbackNodePoint = resolveRectCenter(resolvedFallbackNode?.rect);
+    const refNodePoint = resolveRectCenter(resolvedRefNode?.rect);
+    const refreshedNode = refNodePoint
+      ? resolvedRefNode
+      : fallbackNodePoint
+        ? resolvedFallbackNode
+        : (resolvedRefNode ?? resolvedFallbackNode);
+    const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
+    if (refreshedNode && refreshedPoint) {
+      node = refreshedNode;
+      snapshotNodes = refreshed.nodes;
+      point = refreshedPoint;
+    }
+  }
+
+  if (!point) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: invalidBoundsMessage,
+        },
+      },
+    };
+  }
+
+  return { ok: true, target: { ref, node, snapshotNodes, point } };
+}
+
+export function resolveActionableTouchNode(
+  nodes: SnapshotNode[],
+  node: SnapshotNode,
+): SnapshotNode {
+  const ancestor = findNearestHittableAncestor(nodes, node);
+  if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
+    return ancestor;
+  }
+  return node;
 }

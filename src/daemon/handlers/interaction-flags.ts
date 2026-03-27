@@ -22,6 +22,8 @@ export function refSnapshotFlagGuardResponse(
   };
 }
 
+export type RefSnapshotFlagGuardResponse = typeof refSnapshotFlagGuardResponse;
+
 export function unsupportedRefSnapshotFlags(flags: CommandFlags | undefined): string[] {
   if (!flags) return [];
   const unsupported: string[] = [];

@@ -25,13 +25,17 @@ vi.mock('../../../platforms/android/index.ts', async (importOriginal) => {
   };
 });
 
-vi.mock('../interaction-snapshot.ts', () => ({
-  captureSnapshotForSession: vi.fn(async () => ({
-    nodes: [],
-    createdAt: 0,
-    backend: 'xctest' as const,
-  })),
-}));
+vi.mock('../interaction-snapshot.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../interaction-snapshot.ts')>();
+  return {
+    ...actual,
+    captureSnapshotForSession: vi.fn(async () => ({
+      nodes: [],
+      createdAt: 0,
+      backend: 'xctest' as const,
+    })),
+  };
+});
 
 import { dispatchCommand } from '../../../core/dispatch.ts';
 import { getAndroidScreenSize } from '../../../platforms/android/index.ts';

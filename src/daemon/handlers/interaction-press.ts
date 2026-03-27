@@ -1,0 +1,279 @@
+import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import {
+  buttonTag,
+  getClickButtonValidationError,
+  resolveClickButton,
+} from '../../core/click-button.ts';
+import type { DaemonRequest, DaemonResponse } from '../types.ts';
+import {
+  buildSelectorChainForNode,
+  formatSelectorFailure,
+  parseSelectorChain,
+  resolveSelectorChain,
+} from '../selectors.ts';
+import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
+import {
+  buildTouchVisualizationResult,
+  dispatchRecordedTouchInteraction,
+  type ContextFromFlags,
+} from './interaction-common.ts';
+import type { SessionStore } from '../session-store.ts';
+import {
+  parseCoordinateTarget,
+  resolveActionableTouchNode,
+  resolveRectCenter,
+  resolveRefTargetWithRectRefresh,
+  type ResolveRefTarget,
+} from './interaction-targeting.ts';
+import {
+  readSnapshotNodesReferenceFrame,
+  resolveDirectTouchReferenceFrameSafely,
+  type CaptureSnapshotForSession,
+} from './interaction-snapshot.ts';
+import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
+import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
+import { resolveRefLabel } from '../snapshot-processing.ts';
+
+export async function handlePressCommand(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  sessionStore: SessionStore;
+  contextFromFlags: ContextFromFlags;
+  captureSnapshotForSession: CaptureSnapshotForSession;
+  resolveRefTarget: ResolveRefTarget;
+  refSnapshotFlagGuardResponse: RefSnapshotFlagGuardResponse;
+}): Promise<DaemonResponse> {
+  const {
+    req,
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    captureSnapshotForSession,
+    resolveRefTarget,
+    refSnapshotFlagGuardResponse,
+  } = params;
+  const session = sessionStore.get(sessionName);
+  const command = req.command;
+  const commandLabel = command === 'click' ? 'click' : 'press';
+  if (!session) {
+    return {
+      ok: false,
+      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+    };
+  }
+
+  const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
+    session,
+    commandLabel,
+  );
+  if (unsupportedSurfaceResponse) {
+    return unsupportedSurfaceResponse;
+  }
+  if (!isCommandSupportedOnDevice('press', session.device)) {
+    return {
+      ok: false,
+      error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
+    };
+  }
+
+  const clickButton = resolveClickButton(req.flags);
+  const resultButtonTag = buttonTag(clickButton);
+  if (clickButton !== 'primary') {
+    const validationError = getClickButtonValidationError({
+      commandLabel,
+      platform: session.device.platform,
+      button: clickButton,
+      count: req.flags?.count,
+      intervalMs: req.flags?.intervalMs,
+      holdMs: req.flags?.holdMs,
+      jitterPx: req.flags?.jitterPx,
+      doubleTap: req.flags?.doubleTap,
+    });
+    if (validationError) {
+      return {
+        ok: false,
+        error: {
+          code: validationError.code,
+          message: validationError.message,
+          details: validationError.details,
+        },
+      };
+    }
+  }
+
+  const directCoordinates = parseCoordinateTarget(req.positionals ?? []);
+  if (directCoordinates) {
+    return dispatchRecordedTouchInteraction({
+      session,
+      sessionStore,
+      requestCommand: command,
+      requestPositionals: req.positionals ?? [
+        String(directCoordinates.x),
+        String(directCoordinates.y),
+      ],
+      flags: req.flags,
+      contextFromFlags,
+      interactionCommand: 'press',
+      interactionPositionals: [String(directCoordinates.x), String(directCoordinates.y)],
+      outPath: req.flags?.out,
+      buildPayloads: async (data) => {
+        const visualizationFrame = await resolveDirectTouchReferenceFrameSafely({
+          session,
+          flags: req.flags,
+          sessionStore,
+          contextFromFlags,
+          captureSnapshotForSession,
+        });
+        const result = buildTouchVisualizationResult({
+          data,
+          fallbackX: directCoordinates.x,
+          fallbackY: directCoordinates.y,
+          referenceFrame: visualizationFrame,
+          extra: resultButtonTag,
+        });
+        return { result, responseData: result };
+      },
+    });
+  }
+
+  const selectorAction = 'click';
+  const refInput = req.positionals?.[0] ?? '';
+  if (refInput.startsWith('@')) {
+    const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('press', req.flags);
+    if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
+    const fallbackLabel =
+      req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
+    const resolvedRefPressTarget = await resolveRefTargetWithRectRefresh({
+      session,
+      refInput,
+      fallbackLabel,
+      promoteToHittableAncestor: true,
+      invalidRefMessage: `${commandLabel} requires a ref like @e2`,
+      missingBoundsMessage: `Ref ${refInput} not found or has no bounds`,
+      invalidBoundsMessage: `Ref ${refInput} not found or has invalid bounds`,
+      reqFlags: req.flags,
+      sessionStore,
+      contextFromFlags,
+      captureSnapshotForSession,
+      resolveRefTarget,
+    });
+    if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget.response;
+
+    const { ref, node, snapshotNodes, point: pressPoint } = resolvedRefPressTarget.target;
+    const refLabel = resolveRefLabel(node, snapshotNodes);
+    const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
+      action: selectorAction,
+    });
+    const { x, y } = pressPoint;
+    return dispatchRecordedTouchInteraction({
+      session,
+      sessionStore,
+      requestCommand: command,
+      requestPositionals: req.positionals ?? [],
+      flags: req.flags,
+      contextFromFlags,
+      interactionCommand: 'press',
+      interactionPositionals: [String(x), String(y)],
+      outPath: req.flags?.out,
+      buildPayloads: (data) => {
+        const result = buildTouchVisualizationResult({
+          data,
+          fallbackX: x,
+          fallbackY: y,
+          referenceFrame: readSnapshotNodesReferenceFrame(snapshotNodes),
+          extra: {
+            ref,
+            refLabel,
+            selectorChain,
+            ...resultButtonTag,
+          },
+        });
+        return { result, responseData: result };
+      },
+    });
+  }
+
+  const selectorExpression = (req.positionals ?? []).join(' ').trim();
+  if (!selectorExpression) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: `${commandLabel} requires @ref, selector expression, or x y coordinates`,
+      },
+    };
+  }
+
+  const chain = parseSelectorChain(selectorExpression);
+  const snapshot = await captureSnapshotForSession(
+    session,
+    req.flags,
+    sessionStore,
+    contextFromFlags,
+    { interactiveOnly: true },
+  );
+  const resolved = await withDiagnosticTimer(
+    'selector_resolve',
+    () =>
+      resolveSelectorChain(snapshot.nodes, chain, {
+        platform: session.device.platform,
+        requireRect: true,
+        requireUnique: true,
+        disambiguateAmbiguous: true,
+      }),
+    { command },
+  );
+  if (!resolved || !resolved.node.rect) {
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
+      },
+    };
+  }
+
+  const actionableNode = resolveActionableTouchNode(snapshot.nodes, resolved.node);
+  const pressPoint = resolveRectCenter(actionableNode.rect);
+  if (!pressPoint) {
+    return {
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: `Selector ${resolved.selector.raw} resolved to invalid bounds`,
+      },
+    };
+  }
+
+  const { x, y } = pressPoint;
+  const selectorChain = buildSelectorChainForNode(actionableNode, session.device.platform, {
+    action: selectorAction,
+  });
+  const refLabel = resolveRefLabel(actionableNode, snapshot.nodes);
+  return dispatchRecordedTouchInteraction({
+    session,
+    sessionStore,
+    requestCommand: command,
+    requestPositionals: req.positionals ?? [],
+    flags: req.flags,
+    contextFromFlags,
+    interactionCommand: 'press',
+    interactionPositionals: [String(x), String(y)],
+    outPath: req.flags?.out,
+    buildPayloads: (data) => {
+      const result = buildTouchVisualizationResult({
+        data,
+        fallbackX: x,
+        fallbackY: y,
+        referenceFrame: readSnapshotNodesReferenceFrame(snapshot.nodes),
+        extra: {
+          selector: resolved.selector.raw,
+          selectorChain,
+          refLabel,
+          ...resultButtonTag,
+        },
+      });
+      return { result, responseData: result };
+    },
+  });
+}
