@@ -129,7 +129,13 @@ async function dispatchInteractionCommand(params: {
   const dispatchContext = {
     ...contextFromFlags(flags, session.appBundleId, session.trace?.outPath),
   };
-  const rawData = await dispatchCommand(session.device, command, positionals, outPath, dispatchContext);
+  const rawData = await dispatchCommand(
+    session.device,
+    command,
+    positionals,
+    outPath,
+    dispatchContext,
+  );
   const actionFinishedAt = Date.now();
   const data = rawData && typeof rawData === 'object' ? rawData : undefined;
   return { data, actionStartedAt, actionFinishedAt };

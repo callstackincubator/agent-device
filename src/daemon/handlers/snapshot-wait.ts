@@ -125,15 +125,7 @@ async function waitForSelector(params: {
   sessionName: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
-  const {
-    device,
-    logPath,
-    parsed,
-    req,
-    session,
-    sessionName,
-    sessionStore,
-  } = params;
+  const { device, logPath, parsed, req, session, sessionName, sessionStore } = params;
   const timeout = parsed.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   while (Date.now() - start < timeout) {

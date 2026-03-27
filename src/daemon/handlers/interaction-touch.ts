@@ -534,13 +534,7 @@ async function resolveDirectTouchReferenceFrame(params: {
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
 }): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
-  const {
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    captureSnapshotForSession,
-  } = params;
+  const { session, flags, sessionStore, contextFromFlags, captureSnapshotForSession } = params;
   if (!session.recording) {
     return undefined;
   }
@@ -572,13 +566,9 @@ async function resolveDirectTouchReferenceFrame(params: {
     return undefined;
   }
 
-  const snapshot = await captureSnapshotForSession(
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly: true },
-  );
+  const snapshot = await captureSnapshotForSession(session, flags, sessionStore, contextFromFlags, {
+    interactiveOnly: true,
+  });
   const referenceFrame = getSnapshotReferenceFrame(snapshot);
   if (referenceFrame && session.recording) {
     session.recording.touchReferenceFrame = referenceFrame;

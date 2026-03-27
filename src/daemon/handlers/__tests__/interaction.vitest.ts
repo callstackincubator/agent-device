@@ -1405,6 +1405,30 @@ test('is visible passes for list text that inherits viewport visibility from an 
   const sessionName = 'visible-list-item';
   sessionStore.set(sessionName, makeSession(sessionName));
 
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+    return {
+      nodes: [
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        {
+          index: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeCell',
+          rect: { x: 0, y: 160, width: 390, height: 44 },
+          hittable: false,
+        },
+        {
+          index: 2,
+          parentIndex: 1,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Trip ideas',
+          hittable: false,
+        },
+      ],
+      backend: 'xctest',
+    };
+  });
+
   const response = await handleInteractionCommands({
     req: {
       token: 't',
@@ -1416,37 +1440,14 @@ test('is visible passes for list text that inherits viewport visibility from an 
     sessionName,
     sessionStore,
     contextFromFlags,
-    dispatch: async (_device, command) => {
-      if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
-      return {
-        nodes: [
-          { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-          {
-            index: 1,
-            parentIndex: 0,
-            type: 'XCUIElementTypeCell',
-            rect: { x: 0, y: 160, width: 390, height: 44 },
-            hittable: false,
-          },
-          {
-            index: 2,
-            parentIndex: 1,
-            type: 'XCUIElementTypeStaticText',
-            label: 'Trip ideas',
-            hittable: false,
-          },
-        ],
-        backend: 'xctest',
-      };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, true);
-  if (response.ok) {
-    assert.equal(response.data?.predicate, 'visible');
-    assert.equal(response.data?.pass, true);
-    assert.equal(response.data?.selector, 'label=\"Trip ideas\"');
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.predicate).toBe('visible');
+    expect(response.data?.pass).toBe(true);
+    expect(response.data?.selector).toBe('label="Trip ideas"');
   }
 });
 
@@ -1454,6 +1455,24 @@ test('is visible fails for nodes outside the current viewport', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'visible-offscreen';
   sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+    return {
+      nodes: [
+        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+        {
+          index: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeStaticText',
+          label: 'Far item',
+          rect: { x: 20, y: 2600, width: 120, height: 40 },
+          hittable: false,
+        },
+      ],
+      backend: 'xctest',
+    };
+  });
 
   const response = await handleInteractionCommands({
     req: {
@@ -1466,29 +1485,12 @@ test('is visible fails for nodes outside the current viewport', async () => {
     sessionName,
     sessionStore,
     contextFromFlags,
-    dispatch: async (_device, command) => {
-      if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
-      return {
-        nodes: [
-          { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-          {
-            index: 1,
-            parentIndex: 0,
-            type: 'XCUIElementTypeStaticText',
-            label: 'Far item',
-            rect: { x: 20, y: 2600, width: 120, height: 40 },
-            hittable: false,
-          },
-        ],
-        backend: 'xctest',
-      };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error?.code, 'COMMAND_FAILED');
-    assert.match(response.error?.message ?? '', /actual=\{"visible":false/);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/actual=\{"visible":false/);
   }
 });

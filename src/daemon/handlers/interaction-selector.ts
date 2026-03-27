@@ -39,13 +39,9 @@ export async function resolveSelectorTarget(params: {
     disambiguateAmbiguous,
   } = params;
   const chain = parseSelectorChain(selectorExpression);
-  const snapshot = await captureSnapshotForSession(
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly },
-  );
+  const snapshot = await captureSnapshotForSession(session, flags, sessionStore, contextFromFlags, {
+    interactiveOnly,
+  });
   const resolved = await withDiagnosticTimer(
     'selector_resolve',
     () =>
