@@ -9,6 +9,8 @@ import {
 import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { MaterializeInstallSource } from '../../platforms/install-source.ts';
+import { resolveInstallFromSourceResultTarget } from '../../client-shared.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 
@@ -118,18 +120,16 @@ export async function handleInstallFromSourceCommand(params: {
               }
             : {}),
         };
+        const data = withSuccessText(result, buildInstallFromSourceMessage(result));
         if (session) {
           sessionStore.recordAction(session, {
             command: 'install_source',
             positionals: [],
             flags: req.flags ?? {},
-            result: withSuccessText(result, buildInstallFromSourceMessage(result)),
+            result: data,
           });
         }
-        return {
-          ok: true,
-          data: withSuccessText(result, buildInstallFromSourceMessage(result)),
-        };
+        return { ok: true, data };
       } catch (error) {
         if (retained) {
           await cleanupRetainedMaterializedPaths(
@@ -188,18 +188,16 @@ export async function handleInstallFromSourceCommand(params: {
             }
           : {}),
       };
+      const data = withSuccessText(result, buildInstallFromSourceMessage(result));
       if (session) {
         sessionStore.recordAction(session, {
           command: 'install_source',
           positionals: [],
           flags: req.flags ?? {},
-          result: withSuccessText(result, buildInstallFromSourceMessage(result)),
+          result: data,
         });
       }
-      return {
-        ok: true,
-        data: withSuccessText(result, buildInstallFromSourceMessage(result)),
-      };
+      return { ok: true, data };
     } catch (error) {
       if (retained) {
         await cleanupRetainedMaterializedPaths(
@@ -224,7 +222,7 @@ function buildInstallFromSourceMessage(result: {
   packageName?: string;
   launchTarget: string;
 }): string {
-  return `Installed: ${result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget}`;
+  return `Installed: ${resolveInstallFromSourceResultTarget(result)}`;
 }
 
 export async function handleReleaseMaterializedPathsCommand(params: {

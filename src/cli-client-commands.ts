@@ -17,6 +17,7 @@ import {
 import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
 import { resolveRemoteOpenRuntime } from './utils/remote-open.ts';
+import { readCommandMessage } from './utils/success-text.ts';
 import type { AgentDeviceClient, AgentDeviceDevice, AppDeployResult } from './client.ts';
 
 export async function tryRunClientBackedCommand(params: {
@@ -239,10 +240,6 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     return true;
   },
 };
-
-function readCommandMessage(data: Record<string, unknown>): string | null {
-  return typeof data.message === 'string' && data.message.length > 0 ? data.message : null;
-}
 
 function writeHumanMessage(data: Record<string, unknown>): void {
   const message = readCommandMessage(data);

@@ -102,8 +102,15 @@ export function serializeEnsureSimulatorResult(
   );
 }
 
+export function resolveDeployResultTarget(result: {
+  app: string;
+  bundleId?: string;
+  package?: string;
+}): string {
+  return result.bundleId ?? result.package ?? result.app;
+}
+
 export function serializeDeployResult(result: AppDeployResult): Record<string, unknown> {
-  const target = result.bundleId ?? result.package ?? result.app;
   return withSuccessText(
     {
       app: result.app,
@@ -113,14 +120,22 @@ export function serializeDeployResult(result: AppDeployResult): Record<string, u
       ...(result.bundleId ? { bundleId: result.bundleId } : {}),
       ...(result.package ? { package: result.package } : {}),
     },
-    `Installed: ${target}`,
+    `Installed: ${resolveDeployResultTarget(result)}`,
   );
+}
+
+export function resolveInstallFromSourceResultTarget(result: {
+  appName?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget: string;
+}): string {
+  return result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget;
 }
 
 export function serializeInstallFromSourceResult(
   result: AppInstallFromSourceResult,
 ): Record<string, unknown> {
-  const target = result.appName ?? result.bundleId ?? result.packageName ?? result.launchTarget;
   return withSuccessText(
     {
       launchTarget: result.launchTarget,
@@ -135,7 +150,7 @@ export function serializeInstallFromSourceResult(
         ? { materializationExpiresAt: result.materializationExpiresAt }
         : {}),
     },
-    target ? `Installed: ${target}` : 'Installed from source',
+    `Installed: ${resolveInstallFromSourceResultTarget(result)}`,
   );
 }
 

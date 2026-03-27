@@ -7,6 +7,7 @@ import {
   printJson,
 } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
+import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
@@ -644,20 +645,27 @@ function renderBatchSummary(data: Record<string, unknown>): void {
     const result = entry as Record<string, unknown>;
     const step = typeof result.step === 'number' ? result.step : undefined;
     const command = typeof result.command === 'string' ? result.command : 'step';
+    const stepOk = result.ok !== false;
     const stepDurationMs = typeof result.durationMs === 'number' ? result.durationMs : undefined;
     const stepData =
       result.data && typeof result.data === 'object'
         ? (result.data as Record<string, unknown>)
         : undefined;
-    const description = readCommandMessage(stepData) ?? command;
+    const stepError =
+      result.error && typeof result.error === 'object'
+        ? (result.error as Record<string, unknown>)
+        : undefined;
+    const description = stepOk
+      ? (readCommandMessage(stepData) ?? command)
+      : (readBatchStepFailure(stepError) ?? command);
     const prefix = step !== undefined ? `${step}. ` : '- ';
     const durationSuffix = stepDurationMs !== undefined ? ` (${stepDurationMs}ms)` : '';
-    process.stdout.write(`${prefix}OK ${description}${durationSuffix}\n`);
+    process.stdout.write(`${prefix}${stepOk ? 'OK' : 'FAILED'} ${description}${durationSuffix}\n`);
   }
 }
 
-function readCommandMessage(data: Record<string, unknown> | undefined): string | null {
-  return typeof data?.message === 'string' && data.message.length > 0 ? data.message : null;
+function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
+  return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

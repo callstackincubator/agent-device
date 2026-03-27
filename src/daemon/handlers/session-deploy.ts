@@ -6,6 +6,7 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import { resolveDeployResultTarget } from '../../client-shared.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 
@@ -199,15 +200,5 @@ export async function handleAppDeployCommand(params: {
 }
 
 function buildDeployMessage(result: DeployCommandResult): string {
-  let target = result.appName;
-  if (!target) {
-    target = 'bundleId' in result ? result.bundleId : undefined;
-  }
-  if (!target) {
-    target = 'package' in result ? result.package : undefined;
-  }
-  if (!target) {
-    target = result.app;
-  }
-  return `Installed: ${target}`;
+  return `Installed: ${result.appName ?? resolveDeployResultTarget(result)}`;
 }
