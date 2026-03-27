@@ -13,7 +13,7 @@ export function isSupportedPredicate(input: string): input is IsPredicate {
 export function evaluateIsPredicate(params: {
   predicate: Exclude<IsPredicate, 'exists'>;
   node: SnapshotState['nodes'][number];
-  nodes?: SnapshotState['nodes'];
+  nodes: SnapshotState['nodes'];
   expectedText?: string;
   platform: Platform;
 }): { pass: boolean; actualText: string; details: string } {
@@ -53,7 +53,7 @@ export function evaluateIsPredicate(params: {
 
 function isAssertionVisible(
   node: SnapshotState['nodes'][number],
-  nodes: SnapshotState['nodes'] | undefined,
+  nodes: SnapshotState['nodes'],
 ): boolean {
   if (node.hittable === true) return true;
   if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node.rect, nodes);
@@ -67,9 +67,8 @@ function isAssertionVisible(
 
 function isRectVisibleInViewport(
   rect: NonNullable<SnapshotState['nodes'][number]['rect']>,
-  nodes: SnapshotState['nodes'] | undefined,
+  nodes: SnapshotState['nodes'],
 ): boolean {
-  if (!nodes?.length) return true;
   const viewport = resolveViewportRect(nodes, rect);
   if (!viewport) return true;
   return rectsIntersect(rect, viewport);
@@ -77,14 +76,14 @@ function isRectVisibleInViewport(
 
 function resolveVisibilityAnchor(
   node: SnapshotState['nodes'][number],
-  nodes: SnapshotState['nodes'] | undefined,
+  nodes: SnapshotState['nodes'],
 ): SnapshotState['nodes'][number] | null {
-  if (!nodes?.length) return null;
+  const nodesByIndex = new Map(nodes.map((entry) => [entry.index, entry]));
   let current = node;
   const visited = new Set<number>();
   while (typeof current.parentIndex === 'number' && !visited.has(current.index)) {
     visited.add(current.index);
-    const parent = nodes[current.parentIndex];
+    const parent = nodesByIndex.get(current.parentIndex);
     if (!parent) break;
     if (isUsefulVisibilityAnchor(parent)) return parent;
     current = parent;
@@ -94,6 +93,7 @@ function resolveVisibilityAnchor(
 
 function isUsefulVisibilityAnchor(node: SnapshotState['nodes'][number]): boolean {
   const type = normalizeType(node.type ?? '');
+  // These containers often report the full content frame, not the clipped on-screen geometry.
   if (
     type.includes('application') ||
     type.includes('window') ||

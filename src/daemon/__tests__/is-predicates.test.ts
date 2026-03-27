@@ -136,6 +136,32 @@ test('evaluateIsPredicate visible does not inherit viewport visibility from gene
   assert.equal(visible.pass, false);
 });
 
+test('evaluateIsPredicate visible resolves parent links by node index instead of array offset', () => {
+  const listItem = {
+    ref: 'e11',
+    index: 11,
+    parentIndex: 5,
+    type: 'XCUIElementTypeCell',
+    rect: { x: 0, y: 160, width: 390, height: 44 },
+    hittable: false,
+  };
+  const listText = {
+    ref: 'e12',
+    index: 12,
+    parentIndex: 11,
+    type: 'XCUIElementTypeStaticText',
+    label: 'Trip ideas',
+    hittable: false,
+  };
+  const visible = evaluateIsPredicate({
+    predicate: 'visible',
+    node: listText,
+    nodes: [viewportNode, listText, listItem],
+    platform: 'ios',
+  });
+  assert.equal(visible.pass, true);
+});
+
 test('evaluateIsPredicate editable and selected', () => {
   const editable = evaluateIsPredicate({
     predicate: 'editable',
