@@ -2042,6 +2042,22 @@ test('setIosSetting rejects unsupported macOS permission deny action', async () 
   );
 });
 
+test('setIosSetting rejects unsupported macOS wifi setting with explicit subset guidance', async () => {
+  await assert.rejects(
+    () => setIosSetting(MACOS_TEST_DEVICE, 'wifi', 'on'),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /Unsupported macOS setting: wifi/i);
+      assert.match(
+        (error as AppError).message,
+        /wifi\|airplane\|location remain unsupported on macOS/i,
+      );
+      return true;
+    },
+  );
+});
+
 test('setIosSetting appearance toggle flips current simulator appearance', async () => {
   await withMockedXcrun(
     'agent-device-ios-appearance-toggle-test-',

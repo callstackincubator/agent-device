@@ -81,7 +81,7 @@ type Interactor = {
     text: string,
     options?: { maxScrolls?: number },
   ): Promise<{ attempts?: number } | void>;
-  screenshot(outPath: string, appBundleId?: string): Promise<void>;
+  screenshot(outPath: string, appBundleId?: string, fullscreen?: boolean): Promise<void>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   appSwitcher(): Promise<void>;
@@ -114,7 +114,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
         scroll: (direction, options) => scrollAndroid(device, direction, options),
         scrollIntoView: (text, options) => scrollIntoViewAndroid(device, text, options),
-        screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
+        screenshot: (outPath, _appBundleId, _fullscreen) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
         appSwitcher: () => appSwitcherAndroid(device),
@@ -131,7 +131,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
-        screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
+        screenshot: (outPath, appBundleId, fullscreen) =>
+          screenshotIos(device, outPath, appBundleId, fullscreen),
         back: async (mode) => {
           await runIosRunnerCommand(
             device,

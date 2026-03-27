@@ -27,8 +27,11 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     supports: isMacOsOrAppleSimulator,
   },
   pinch: {
-    apple: { simulator: true },
+    // macOS desktop targets report kind=device, so this stays enabled here and the
+    // supports() guard excludes iOS physical devices.
+    apple: { simulator: true, device: true },
     android: {},
+    supports: isMacOsOrAppleSimulator,
   },
   'app-switcher': {
     apple: { simulator: true, device: true },

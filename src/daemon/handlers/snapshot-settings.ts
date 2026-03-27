@@ -1,5 +1,9 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { SETTINGS_INVALID_ARGS_MESSAGE } from '../../core/settings-contract.ts';
+import {
+  getUnsupportedMacOsSettingMessage,
+  isMacOsSettingSupported,
+  SETTINGS_INVALID_ARGS_MESSAGE,
+} from '../../core/settings-contract.ts';
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
@@ -53,6 +57,15 @@ export async function handleSettingsCommand(
       error: {
         code: 'UNSUPPORTED_OPERATION',
         message: 'settings is not supported on this device',
+      },
+    };
+  }
+  if (device.platform === 'macos' && !isMacOsSettingSupported(setting)) {
+    return {
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: getUnsupportedMacOsSettingMessage(setting),
       },
     };
   }

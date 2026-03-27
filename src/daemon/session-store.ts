@@ -233,6 +233,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
+    screenshotFullscreen,
     relaunch,
     saveScript,
     noRecord,
@@ -264,6 +265,7 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
     snapshotDepth,
     snapshotScope,
     snapshotRaw,
+    screenshotFullscreen,
     relaunch,
     saveScript,
     noRecord,
@@ -358,6 +360,13 @@ function formatActionLine(action: SessionAction): string {
       parts.push('-s', formatScriptArg(action.flags.snapshotScope));
     }
     if (action.flags?.snapshotRaw) parts.push('--raw');
+    return parts.join(' ');
+  }
+  if (action.command === 'screenshot') {
+    for (const positional of action.positionals ?? []) {
+      parts.push(formatScriptArg(positional));
+    }
+    if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
     return parts.join(' ');
   }
   if (action.command === 'open') {

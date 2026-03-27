@@ -215,6 +215,38 @@ test('settings on macOS returns helper-backed permission status', async () => {
   );
 });
 
+test('settings on macOS rejects wifi before dispatch with explicit subset guidance', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-settings-wifi';
+  sessionStore.set(sessionName, makeSession(sessionName, macOsDevice));
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'settings',
+      positionals: ['wifi', 'on'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/Unsupported macOS setting: wifi/i);
+    expect(response.error.message).toMatch(/appearance <light\|dark\|toggle>/);
+    expect(response.error.message).toMatch(
+      /permission <grant\|reset> <accessibility\|screen-recording\|input-monitoring>/,
+    );
+    expect(response.error.message).toMatch(/wifi\|airplane\|location remain unsupported on macOS/i);
+  }
+});
+
 test('snapshot on macOS desktop surface uses helper-backed surface snapshot', async () => {
   await withMockedMacOsHelper(
     [

@@ -74,6 +74,7 @@ test('device capability matrix stays consistent across shared command groups', (
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
         { device: androidDevice, expected: false, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
       ],
     },
     {
@@ -183,6 +184,7 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
       'logs',
       'network',
       'open',
+      'pinch',
       'perf',
       'press',
       'record',
@@ -199,16 +201,7 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
     [{ device: macOsDevice, expected: true, label: 'on macOS' }],
   );
   assertCommandSupport(
-    [
-      'app-switcher',
-      'boot',
-      'home',
-      'install',
-      'install-from-source',
-      'pinch',
-      'push',
-      'reinstall',
-    ],
+    ['app-switcher', 'boot', 'home', 'install', 'install-from-source', 'push', 'reinstall'],
     [{ device: macOsDevice, expected: false, label: 'on macOS' }],
   );
 });

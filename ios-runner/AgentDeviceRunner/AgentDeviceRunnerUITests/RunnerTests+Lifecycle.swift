@@ -38,6 +38,16 @@ extension RunnerTests {
     return image
   }
 
+  func screenshotRoot(app: XCUIApplication) -> XCUIElement {
+#if os(macOS)
+    let windows = app.windows.allElementsBoundByIndex
+    if let window = windows.first(where: { $0.exists && !$0.frame.isNull && !$0.frame.isEmpty }) {
+      return window
+    }
+#endif
+    return app
+  }
+
   func stopRecordingIfNeeded() {
     guard let recorder = activeRecording else { return }
     do {

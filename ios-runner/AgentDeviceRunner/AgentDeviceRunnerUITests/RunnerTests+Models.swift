@@ -55,6 +55,7 @@ struct Command: Codable {
   let depth: Int?
   let scope: String?
   let raw: Bool?
+  let fullscreen: Bool?
 }
 
 struct Response: Codable {

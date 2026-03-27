@@ -53,6 +53,7 @@ export type CliFlags = {
   snapshotScope?: string;
   snapshotRaw?: boolean;
   overlayRefs?: boolean;
+  screenshotFullscreen?: boolean;
   baseline?: string;
   threshold?: string;
   appsFilter?: 'user-installed' | 'all';
@@ -857,6 +858,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
       'Screenshot: draw current snapshot refs and target rectangles onto the saved PNG',
   },
   {
+    key: 'screenshotFullscreen',
+    names: ['--fullscreen'],
+    type: 'boolean',
+    usageLabel: '--fullscreen',
+    usageDescription: 'Screenshot: capture the full screen instead of the app window',
+  },
+  {
     key: 'baseline',
     names: ['--baseline', '-b'],
     type: 'string',
@@ -1174,14 +1182,15 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['maxScrolls'],
   },
   pinch: {
-    helpDescription: 'Pinch/zoom gesture (iOS simulator)',
+    helpDescription: 'Pinch/zoom gesture (Apple simulator or macOS app session)',
     positionalArgs: ['scale', 'x?', 'y?'],
     allowedFlags: [],
   },
   screenshot: {
-    helpDescription: 'Capture screenshot',
+    helpDescription:
+      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, or --overlay-refs to annotate the image with current refs)',
     positionalArgs: ['path?'],
-    allowedFlags: ['out', 'overlayRefs'],
+    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen'],
   },
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',
@@ -1243,7 +1252,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
     listUsageOverride: 'settings [area] [options]',
     helpDescription:
-      'Toggle OS settings, appearance, and app permissions (macOS supports appearance plus permission <grant|reset> for accessibility|screen-recording|input-monitoring; mobile permission actions use the active session app)',
+      'Toggle OS settings, appearance, and app permissions (macOS supports only settings appearance <light|dark|toggle> and settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>; wifi|airplane|location remain unsupported on macOS; mobile permission actions use the active session app)',
     summary: 'Change OS settings and app permissions',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],

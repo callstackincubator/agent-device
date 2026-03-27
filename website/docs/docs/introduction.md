@@ -23,7 +23,8 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 
 - iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
-- iOS simulator-only: `alert`, `pinch`, `settings`, `push`, `clipboard`.
+- iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
+- Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
 - Session performance metrics: `perf`/`metrics` is available on iOS and Android and currently reports startup timing sampled from `open` command round-trip duration.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.

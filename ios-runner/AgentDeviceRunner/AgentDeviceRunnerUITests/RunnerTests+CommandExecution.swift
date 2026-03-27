@@ -533,10 +533,22 @@ extension RunnerTests {
       if let bundleId = command.appBundleId, !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let targetApp = XCUIApplication(bundleIdentifier: bundleId)
         targetApp.activate()
+        activeApp = targetApp
         // Brief wait for the app transition animation to complete
         Thread.sleep(forTimeInterval: 0.5)
       }
-      let screenshot = XCUIScreen.main.screenshot()
+      let screenshot: XCUIScreenshot
+#if os(macOS)
+      if command.fullscreen == true {
+        screenshot = XCUIScreen.main.screenshot()
+      } else if let bundleId = command.appBundleId, !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        screenshot = screenshotRoot(app: activeApp).screenshot()
+      } else {
+        screenshot = XCUIScreen.main.screenshot()
+      }
+#else
+      screenshot = XCUIScreen.main.screenshot()
+#endif
       guard let pngData = runnerPngData(for: screenshot.image) else {
         return Response(ok: false, error: ErrorPayload(message: "Failed to encode screenshot as PNG"))
       }

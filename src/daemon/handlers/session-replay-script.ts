@@ -243,6 +243,19 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     return action;
   }
 
+  if (command === 'screenshot') {
+    const positionals: string[] = [];
+    for (const token of args) {
+      if (token === '--fullscreen') {
+        action.flags.screenshotFullscreen = true;
+        continue;
+      }
+      positionals.push(token);
+    }
+    action.positionals = positionals;
+    return action;
+  }
+
   action.positionals = args;
   return action;
 }
@@ -340,6 +353,13 @@ function formatReplayActionLine(action: SessionAction): string {
   }
   if (action.command === 'record') {
     appendRecordActionScriptArgs(parts, action);
+    return parts.join(' ');
+  }
+  if (action.command === 'screenshot') {
+    for (const positional of action.positionals ?? []) {
+      parts.push(formatScriptArg(positional));
+    }
+    if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {

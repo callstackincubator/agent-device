@@ -125,7 +125,7 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
     scope: 'app',
     raw: false,
   },
-  screenshot: { command: 'screenshot', outPath: '/tmp/runner-screenshot.png' },
+  screenshot: { command: 'screenshot', outPath: '/tmp/runner-screenshot.png', fullscreen: true },
   back: { command: 'back' },
   backInApp: { command: 'backInApp' },
   backSystem: { command: 'backSystem' },
@@ -223,6 +223,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
   assert.equal(roundTrip.tap.command, 'tap');
   assert.equal(roundTrip.mouseClick.button, 'secondary');
   assert.equal(roundTrip.snapshot.scope, 'app');
+  assert.equal(roundTrip.screenshot.fullscreen, true);
   assert.equal(roundTrip.recordStart.fps, 30);
 });
 

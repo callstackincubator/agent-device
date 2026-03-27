@@ -27,17 +27,38 @@ function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<type
   return runCmd('xcrun', simctlArgs(device, args), options);
 }
 
+type SimulatorScreenshotFlowDeps = {
+  ensureBooted: (device: DeviceInfo) => Promise<void>;
+  prepareStatusBarForScreenshot: (device: DeviceInfo) => Promise<() => Promise<void>>;
+  captureWithRetry: (device: DeviceInfo, outPath: string) => Promise<void>;
+  captureWithRunner: (
+    device: DeviceInfo,
+    outPath: string,
+    appBundleId?: string,
+    fullscreen?: boolean,
+  ) => Promise<void>;
+  shouldFallbackToRunner: (error: unknown) => boolean;
+};
+
+const defaultSimulatorScreenshotFlowDeps: SimulatorScreenshotFlowDeps = {
+  ensureBooted: ensureBootedSimulator,
+  prepareStatusBarForScreenshot: prepareSimulatorStatusBarForScreenshot,
+  captureWithRetry: captureSimulatorScreenshotWithRetry,
+  captureWithRunner: captureScreenshotViaRunner,
+  shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
+};
 export async function screenshotIos(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
+  fullscreen?: boolean,
 ): Promise<void> {
   if (device.platform === 'macos') {
-    await captureScreenshotViaRunner(device, outPath, appBundleId);
+    await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen);
     return;
   }
   if (device.kind === 'simulator') {
-    await captureSimulatorScreenshotWithFallback(device, outPath, appBundleId);
+    await captureSimulatorScreenshotWithFallback(device, outPath, appBundleId, fullscreen);
     return;
   }
 
@@ -54,13 +75,15 @@ export async function screenshotIos(
     emitScreenshotFallbackDiagnostic(device, 'devicectl_screenshot', error);
   }
 
-  await captureScreenshotViaRunner(device, outPath, appBundleId);
+  await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen);
 }
 
 export async function captureSimulatorScreenshotWithFallback(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
+  fullscreenOrDeps?: boolean | SimulatorScreenshotFlowDeps,
+  deps: SimulatorScreenshotFlowDeps = defaultSimulatorScreenshotFlowDeps,
 ): Promise<void> {
   if (device.kind !== 'simulator') {
     throw new AppError(
@@ -69,24 +92,28 @@ export async function captureSimulatorScreenshotWithFallback(
     );
   }
 
-  await ensureBootedSimulator(device);
+  const fullscreen = typeof fullscreenOrDeps === 'boolean' ? fullscreenOrDeps : undefined;
+  const effectiveDeps =
+    typeof fullscreenOrDeps === 'object' && fullscreenOrDeps !== null ? fullscreenOrDeps : deps;
+
+  await effectiveDeps.ensureBooted(device);
   let restoreStatusBar = async () => {};
   try {
-    restoreStatusBar = await prepareSimulatorStatusBarForScreenshot(device);
+    restoreStatusBar = await effectiveDeps.prepareStatusBarForScreenshot(device);
   } catch (error) {
     emitStatusBarDiagnostic(device, 'prepare_failed', error);
   }
   try {
     try {
-      await captureSimulatorScreenshotWithRetry(device, outPath);
+      await effectiveDeps.captureWithRetry(device, outPath);
       return;
     } catch (error) {
-      if (!shouldRetryIosSimulatorScreenshot(error)) {
+      if (!effectiveDeps.shouldFallbackToRunner(error)) {
         throw error;
       }
       emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
     }
-    await captureScreenshotViaRunner(device, outPath, appBundleId);
+    await effectiveDeps.captureWithRunner(device, outPath, appBundleId, fullscreen);
   } finally {
     await restoreStatusBar().catch((error) =>
       emitStatusBarDiagnostic(device, 'restore_failed', error),
@@ -127,10 +154,15 @@ async function captureScreenshotViaRunner(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
+  fullscreen?: boolean,
 ): Promise<void> {
   // Capture with the XCTest runner, then pull from the runner container.
   // Devices use `devicectl ... copy from`; simulators use `simctl get_app_container`.
-  const result = await runIosRunnerCommand(device, { command: 'screenshot', appBundleId });
+  const result = await runIosRunnerCommand(device, {
+    command: 'screenshot',
+    appBundleId,
+    fullscreen,
+  });
   const remoteFileName = result['message'] as string;
   if (!remoteFileName) {
     throw new AppError(

@@ -178,6 +178,30 @@ test('writeSessionLog persists record --hide-touches flags in script output', ()
   assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --hide-touches/);
 });
 
+test('writeSessionLog persists screenshot --fullscreen in script output', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-screenshot-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'screenshot',
+    positionals: ['./page.png'],
+    flags: { platform: 'ios', screenshotFullscreen: true },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(script, /screenshot "\.\/page\.png" --fullscreen/);
+});
+
 test('writeSessionLog persists inline open runtime hints in script output', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-open-runtime-'));
   const store = new SessionStore(root);
