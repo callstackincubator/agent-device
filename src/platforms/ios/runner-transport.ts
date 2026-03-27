@@ -306,11 +306,11 @@ export async function getFreePort(): Promise<number> {
     const server = net.createServer();
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
-      server.close();
       if (typeof address === 'object' && address?.port) {
-        resolve(address.port);
+        const port = address.port;
+        server.close(() => resolve(port));
       } else {
-        reject(new AppError('COMMAND_FAILED', 'Failed to allocate port'));
+        server.close(() => reject(new AppError('COMMAND_FAILED', 'Failed to allocate port')));
       }
     });
     server.on('error', reject);
@@ -323,8 +323,8 @@ export function logChunk(
   traceLogPath?: string,
   verbose?: boolean,
 ): void {
-  if (logPath) fs.appendFileSync(logPath, chunk);
-  if (traceLogPath) fs.appendFileSync(traceLogPath, chunk);
+  if (logPath) fs.appendFile(logPath, chunk, () => {});
+  if (traceLogPath) fs.appendFile(traceLogPath, chunk, () => {});
   if (verbose) {
     process.stderr.write(chunk);
   }

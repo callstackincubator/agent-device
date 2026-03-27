@@ -216,6 +216,14 @@ export async function runCmdStreaming(
     let stdout = '';
     let stderr = '';
     let stdoutBuffer: Buffer | undefined = options.binaryStdout ? Buffer.alloc(0) : undefined;
+    let didTimeout = false;
+    const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
+    const timeoutHandle = timeoutMs
+      ? setTimeout(() => {
+          didTimeout = true;
+          child.kill('SIGKILL');
+        }, timeoutMs)
+      : null;
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
@@ -245,6 +253,7 @@ export async function runCmdStreaming(
     });
 
     child.on('error', (err) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
         reject(new AppError('TOOL_MISSING', `${cmd} not found in PATH`, { cmd }, err));
@@ -254,7 +263,21 @@ export async function runCmdStreaming(
     });
 
     child.on('close', (code) => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       const exitCode = code ?? 1;
+      if (didTimeout && timeoutMs) {
+        reject(
+          new AppError('COMMAND_FAILED', `${cmd} timed out after ${timeoutMs}ms`, {
+            cmd,
+            args,
+            stdout,
+            stderr,
+            exitCode,
+            timeoutMs,
+          }),
+        );
+        return;
+      }
       if (exitCode !== 0 && !options.allowFailure) {
         reject(
           new AppError('COMMAND_FAILED', `${cmd} exited with code ${exitCode}`, {

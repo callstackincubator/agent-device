@@ -143,6 +143,12 @@ async function start(): Promise<void> {
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
     void shutdown();
   });
+  process.on('unhandledRejection', (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    const appErr = err instanceof AppError ? err : asAppError(err);
+    process.stderr.write(`Daemon error: ${appErr.message}\n`);
+    void shutdown();
+  });
 }
 
 void start();
