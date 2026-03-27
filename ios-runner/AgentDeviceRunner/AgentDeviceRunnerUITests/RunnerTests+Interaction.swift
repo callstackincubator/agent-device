@@ -200,12 +200,10 @@ extension RunnerTests {
     }
 
     let keyboard = app.keyboards.firstMatch
-    if keyboard.exists {
-      keyboard.swipeDown()
-      sleepFor(0.2)
-      if !isKeyboardVisible(app: app) {
-        return (wasVisible: true, dismissed: true, visible: false)
-      }
+    keyboard.swipeDown()
+    sleepFor(0.2)
+    if !isKeyboardVisible(app: app) {
+      return (wasVisible: true, dismissed: true, visible: false)
     }
 
     if tapKeyboardDismissControl(app: app) {
