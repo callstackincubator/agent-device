@@ -29,9 +29,9 @@ extension RunnerTests {
       let combined = buffer + data
       if let body = self.parseRequest(data: combined) {
         let result = self.handleRequestBody(body)
-        self.sendResponse(result.data, over: connection) {
+        self.sendResponse(result.data, over: connection) { [weak self] in
           if result.shouldFinish {
-            self.finish()
+            self?.finish()
           }
         }
       } else {
@@ -48,8 +48,8 @@ extension RunnerTests {
     connection.send(content: response, isComplete: true, completion: .contentProcessed { error in
       if let error {
         NSLog("AGENT_DEVICE_RUNNER_SEND_FAILED=%@", String(describing: error))
-        connection.cancel()
       }
+      connection.cancel()
       afterSend()
     })
   }
