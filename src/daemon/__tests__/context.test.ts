@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { CommandFlags } from '../../core/dispatch.ts';
 import { contextFromFlags } from '../context.ts';

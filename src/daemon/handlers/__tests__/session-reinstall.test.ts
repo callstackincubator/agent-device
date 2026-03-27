@@ -5,6 +5,10 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
 });
 vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+vi.mock('../session-deploy.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session-deploy.ts')>();
+  return { ...actual, defaultInstallOps: { ios: vi.fn(), android: vi.fn() }, defaultReinstallOps: { ios: vi.fn(), android: vi.fn() } };
+});
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -15,14 +19,23 @@ import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { resolveTargetDevice } from '../../../core/dispatch.ts';
 import { ensureDeviceReady } from '../../device-ready.ts';
+import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
 const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
+const mockDefaultInstallOpsIos = vi.mocked(defaultInstallOps.ios);
+const mockDefaultInstallOpsAndroid = vi.mocked(defaultInstallOps.android);
+const mockDefaultReinstallOpsIos = vi.mocked(defaultReinstallOps.ios);
+const mockDefaultReinstallOpsAndroid = vi.mocked(defaultReinstallOps.android);
 
 beforeEach(() => {
   mockResolveTargetDevice.mockReset();
   mockEnsureDeviceReady.mockReset();
   mockEnsureDeviceReady.mockResolvedValue(undefined);
+  mockDefaultInstallOpsIos.mockReset();
+  mockDefaultInstallOpsAndroid.mockReset();
+  mockDefaultReinstallOpsIos.mockReset();
+  mockDefaultReinstallOpsAndroid.mockReset();
 });
 
 function makeStore(): SessionStore {
@@ -118,6 +131,11 @@ test('reinstall succeeds on active iOS physical device session', async () => {
   const appPath = path.join(tempRoot, 'Sample.app');
   fs.writeFileSync(appPath, 'placeholder');
 
+  mockDefaultReinstallOpsIos.mockImplementation(async (_device, app, pathToBinary) => {
+    expect(app).toBe('com.example.app');
+    expect(pathToBinary).toBe(appPath);
+    return { bundleId: 'com.example.app' };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -130,16 +148,6 @@ test('reinstall succeeds on active iOS physical device session', async () => {
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    reinstallOps: {
-      ios: async (_device, app, pathToBinary) => {
-        expect(app).toBe('com.example.app');
-        expect(pathToBinary).toBe(appPath);
-        return { bundleId: 'com.example.app' };
-      },
-      android: async () => {
-        throw new Error('unexpected android reinstall');
-      },
-    },
   });
   expect(response).toBeTruthy();
   if (!response) return;
@@ -169,6 +177,11 @@ test('reinstall succeeds on active iOS simulator session and records action', as
   const appPath = path.join(tempRoot, 'Sample.app');
   fs.writeFileSync(appPath, 'placeholder');
 
+  mockDefaultReinstallOpsIos.mockImplementation(async (_device, app, pathToBinary) => {
+    expect(app).toBe('com.example.app');
+    expect(pathToBinary).toBe(appPath);
+    return { bundleId: 'com.example.app' };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -181,16 +194,6 @@ test('reinstall succeeds on active iOS simulator session and records action', as
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    reinstallOps: {
-      ios: async (_device, app, pathToBinary) => {
-        expect(app).toBe('com.example.app');
-        expect(pathToBinary).toBe(appPath);
-        return { bundleId: 'com.example.app' };
-      },
-      android: async () => {
-        throw new Error('unexpected android reinstall');
-      },
-    },
   });
 
   expect(response).toBeTruthy();
@@ -225,6 +228,11 @@ test('reinstall succeeds on active Android session with normalized appId', async
   const appPath = path.join(tempRoot, 'Sample.apk');
   fs.writeFileSync(appPath, 'placeholder');
 
+  mockDefaultReinstallOpsAndroid.mockImplementation(async (_device, app, pathToBinary) => {
+    expect(app).toBe('com.example.app');
+    expect(pathToBinary).toBe(appPath);
+    return { package: 'com.example.app' };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -237,16 +245,6 @@ test('reinstall succeeds on active Android session with normalized appId', async
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    reinstallOps: {
-      ios: async () => {
-        throw new Error('unexpected ios reinstall');
-      },
-      android: async (_device, app, pathToBinary) => {
-        expect(app).toBe('com.example.app');
-        expect(pathToBinary).toBe(appPath);
-        return { package: 'com.example.app' };
-      },
-    },
   });
 
   expect(response).toBeTruthy();
@@ -301,6 +299,11 @@ test('install succeeds on active iOS simulator session and records action', asyn
   const appPath = path.join(tempRoot, 'Sample.app');
   fs.writeFileSync(appPath, 'placeholder');
 
+  mockDefaultInstallOpsIos.mockImplementation(async (_device, app, pathToBinary) => {
+    expect(app).toBe('com.example.app');
+    expect(pathToBinary).toBe(appPath);
+    return { bundleId: 'com.example.app' };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -313,16 +316,6 @@ test('install succeeds on active iOS simulator session and records action', asyn
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    installOps: {
-      ios: async (_device, app, pathToBinary) => {
-        expect(app).toBe('com.example.app');
-        expect(pathToBinary).toBe(appPath);
-        return { bundleId: 'com.example.app' };
-      },
-      android: async () => {
-        throw new Error('unexpected android install');
-      },
-    },
   });
 
   expect(response).toBeTruthy();
@@ -355,6 +348,7 @@ test('install omits app id fields when platform op cannot resolve them', async (
   const appPath = path.join(tempRoot, 'Sample.apk');
   fs.writeFileSync(appPath, 'placeholder');
 
+  mockDefaultInstallOpsAndroid.mockResolvedValue({});
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -367,12 +361,6 @@ test('install omits app id fields when platform op cannot resolve them', async (
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    installOps: {
-      ios: async () => {
-        throw new Error('unexpected ios install');
-      },
-      android: async () => ({}),
-    },
   });
 
   expect(response).toBeTruthy();
@@ -404,6 +392,11 @@ test('reinstall resolves uploaded artifacts by id and cleans temp files after co
   fs.writeFileSync(appPath, 'placeholder');
   const uploadedArtifactId = trackUploadedArtifact({ artifactPath: appPath, tempDir: tempRoot });
 
+  mockDefaultReinstallOpsIos.mockImplementation(async (_device, app, pathToBinary) => {
+    expect(app).toBe('com.example.app');
+    expect(pathToBinary).toBe(appPath);
+    return { bundleId: 'com.example.app' };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -417,16 +410,6 @@ test('reinstall resolves uploaded artifacts by id and cleans temp files after co
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    reinstallOps: {
-      ios: async (_device, app, pathToBinary) => {
-        expect(app).toBe('com.example.app');
-        expect(pathToBinary).toBe(appPath);
-        return { bundleId: 'com.example.app' };
-      },
-      android: async () => {
-        throw new Error('unexpected android reinstall');
-      },
-    },
   });
 
   expect(response).toBeTruthy();

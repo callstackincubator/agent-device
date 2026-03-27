@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { applyRequestLockPolicy } from '../request-lock-policy.ts';
 import type { SessionState } from '../types.ts';

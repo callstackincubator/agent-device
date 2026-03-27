@@ -12,11 +12,14 @@ import {
   selectorTargetsSessionDevice,
 } from './session-device-utils.ts';
 
-export type EnsureAndroidEmulatorBoot = (params: {
+async function ensureAndroidEmulatorBoot(params: {
   avdName: string;
   serial?: string;
   headless?: boolean;
-}) => Promise<DeviceInfo>;
+}): Promise<DeviceInfo> {
+  const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
+  return await ensureAndroidEmulatorBooted(params);
+}
 
 const IOS_APPSTATE_SESSION_REQUIRED_MESSAGE =
   'iOS appstate requires an active session on the target device. Run open first (for example: open --session sim --platform ios --device "<name>" <app>).';
@@ -161,9 +164,8 @@ export async function handleSessionStateCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  ensureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot;
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, sessionStore, ensureAndroidEmulatorBoot } = params;
+  const { req, sessionName, sessionStore } = params;
 
   if (req.command === 'boot') {
     const session = sessionStore.get(sessionName);

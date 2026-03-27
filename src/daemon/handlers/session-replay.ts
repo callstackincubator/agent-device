@@ -1,9 +1,7 @@
-import { dispatchCommand } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
-import { stopAppLog } from '../app-log.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
 
 export async function handleSessionReplayCommands(params: {
@@ -12,10 +10,6 @@ export async function handleSessionReplayCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  dispatch: typeof dispatchCommand;
-  appLogOps?: {
-    stop: typeof stopAppLog;
-  };
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -23,10 +17,6 @@ export async function handleSessionReplayCommands(params: {
     logPath,
     sessionStore,
     invoke,
-    dispatch,
-    appLogOps = {
-      stop: stopAppLog,
-    },
   } = params;
 
   if (req.command === 'replay') {
@@ -36,7 +26,7 @@ export async function handleSessionReplayCommands(params: {
       logPath,
       sessionStore,
       invoke,
-      dispatch,
+
     });
   }
 
@@ -70,7 +60,7 @@ export async function handleSessionReplayCommands(params: {
           logPath,
           sessionStore,
           invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
-          dispatch,
+    
         });
       },
       cleanupSession: async (testSessionName) => {
@@ -87,8 +77,6 @@ export async function handleSessionReplayCommands(params: {
           sessionName: testSessionName,
           logPath,
           sessionStore,
-          dispatch,
-          appLogOps,
         });
       },
     });

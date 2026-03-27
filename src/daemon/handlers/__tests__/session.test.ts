@@ -37,6 +37,26 @@ vi.mock('../../materialized-path-registry.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../materialized-path-registry.ts')>();
   return { ...actual, cleanupRetainedMaterializedPathsForSession: vi.fn(async () => {}) };
 });
+vi.mock('../../../platforms/android/devices.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/android/devices.ts')>();
+  return { ...actual, listAndroidDevices: vi.fn(async () => []), ensureAndroidEmulatorBooted: vi.fn() };
+});
+vi.mock('../../../platforms/ios/devices.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/devices.ts')>();
+  return { ...actual, listAppleDevices: vi.fn(async () => []) };
+});
+vi.mock('../../../platforms/ios/index.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/index.ts')>();
+  return { ...actual, listIosApps: vi.fn(async () => []) };
+});
+vi.mock('../../app-log.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../app-log.ts')>();
+  return { ...actual, startAppLog: vi.fn(), stopAppLog: vi.fn(async () => {}) };
+});
+vi.mock('../session-deploy.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session-deploy.ts')>();
+  return { ...actual, defaultInstallOps: { ios: vi.fn(), android: vi.fn() }, defaultReinstallOps: { ios: vi.fn(), android: vi.fn() } };
+});
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -57,6 +77,11 @@ import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
 import { settleIosSimulator } from '../session-device-utils.ts';
 import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
 import { runCmd } from '../../../utils/exec.ts';
+import { listAndroidDevices, ensureAndroidEmulatorBooted } from '../../../platforms/android/devices.ts';
+import { listAppleDevices } from '../../../platforms/ios/devices.ts';
+import { listIosApps } from '../../../platforms/ios/index.ts';
+import { startAppLog, stopAppLog } from '../../app-log.ts';
+import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
@@ -69,6 +94,16 @@ const mockSettleSimulator = vi.mocked(settleIosSimulator);
 const mockResolveAndroidPackage = vi.mocked(resolveAndroidPackageForOpen);
 const mockCleanupRetainedMaterializedPaths = vi.mocked(cleanupRetainedMaterializedPathsForSession);
 const mockRunCmd = vi.mocked(runCmd);
+const mockListAndroidDevices = vi.mocked(listAndroidDevices);
+const mockListAppleDevices = vi.mocked(listAppleDevices);
+const mockListIosApps = vi.mocked(listIosApps);
+const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
+const mockStartAppLog = vi.mocked(startAppLog);
+const mockStopAppLog = vi.mocked(stopAppLog);
+const mockDefaultInstallOpsIos = vi.mocked(defaultInstallOps.ios);
+const mockDefaultInstallOpsAndroid = vi.mocked(defaultInstallOps.android);
+const mockDefaultReinstallOpsIos = vi.mocked(defaultReinstallOps.ios);
+const mockDefaultReinstallOpsAndroid = vi.mocked(defaultReinstallOps.android);
 
 beforeEach(() => {
   mockDispatch.mockReset();
@@ -92,6 +127,20 @@ beforeEach(() => {
   mockCleanupRetainedMaterializedPaths.mockResolvedValue(undefined);
   mockRunCmd.mockReset();
   mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+  mockListAndroidDevices.mockReset();
+  mockListAndroidDevices.mockResolvedValue([]);
+  mockListAppleDevices.mockReset();
+  mockListAppleDevices.mockResolvedValue([]);
+  mockListIosApps.mockReset();
+  mockListIosApps.mockResolvedValue([]);
+  mockEnsureAndroidEmulatorBooted.mockReset();
+  mockStartAppLog.mockReset();
+  mockStopAppLog.mockReset();
+  mockStopAppLog.mockResolvedValue(undefined);
+  mockDefaultInstallOpsIos.mockReset();
+  mockDefaultInstallOpsAndroid.mockReset();
+  mockDefaultReinstallOpsIos.mockReset();
+  mockDefaultReinstallOpsAndroid.mockReset();
 });
 
 function makeSessionStore(): SessionStore {
@@ -131,7 +180,7 @@ async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promis
 
 test('devices filters Apple-family platform selectors', async () => {
   const sessionStore = makeSessionStore();
-  const listAndroidDevices = async () => [
+  mockListAndroidDevices.mockResolvedValue([
     {
       platform: 'android' as const,
       id: 'emulator-5554',
@@ -140,8 +189,8 @@ test('devices filters Apple-family platform selectors', async () => {
       target: 'mobile' as const,
       booted: true,
     },
-  ];
-  const listAppleDevices = async () => [
+  ]);
+  mockListAppleDevices.mockResolvedValue([
     {
       platform: 'ios' as const,
       id: 'sim-1',
@@ -158,7 +207,7 @@ test('devices filters Apple-family platform selectors', async () => {
       target: 'desktop' as const,
       booted: true,
     },
-  ];
+  ]);
   const runDevices = async (flags: DaemonRequest['flags']) =>
     handleSessionCommands({
       req: {
@@ -172,8 +221,6 @@ test('devices filters Apple-family platform selectors', async () => {
       logPath: path.join(os.tmpdir(), 'daemon.log'),
       sessionStore,
       invoke: noopInvoke,
-      listAndroidDevices,
-      listAppleDevices,
     });
 
   const macosResponse = await runDevices({ platform: 'macos' });
@@ -845,6 +892,17 @@ test('boot --headless launches Android emulator when no running device matches',
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  mockEnsureAndroidEmulatorBooted.mockImplementation(async ({ avdName, serial, headless }) => {
+    launchCalls.push({ avdName, serial, headless });
+    return {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel_9_Pro_XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -857,17 +915,6 @@ test('boot --headless launches Android emulator when no running device matches',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
-      launchCalls.push({ avdName, serial, headless });
-      return {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel_9_Pro_XL',
-        kind: 'emulator',
-        target: 'mobile',
-        booted: true,
-      };
-    },
   });
 
   expect(response).toBeTruthy();
@@ -887,6 +934,17 @@ test('boot launches Android emulator with GUI when no running device matches', a
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  mockEnsureAndroidEmulatorBooted.mockImplementation(async ({ avdName, serial, headless }) => {
+    launchCalls.push({ avdName, serial, headless });
+    return {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel_9_Pro_XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -899,17 +957,6 @@ test('boot launches Android emulator with GUI when no running device matches', a
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
-      launchCalls.push({ avdName, serial, headless });
-      return {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel_9_Pro_XL',
-        kind: 'emulator',
-        target: 'mobile',
-        booted: true,
-      };
-    },
   });
 
   expect(response).toBeTruthy();
@@ -927,7 +974,7 @@ test('boot launches Android emulator with GUI when no running device matches', a
 test('boot --headless requires avd selector when device cannot be resolved', async () => {
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
-  let bootCalled = false;
+  mockEnsureAndroidEmulatorBooted.mockRejectedValue(new Error('unexpected'));
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -940,15 +987,11 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureAndroidEmulatorBoot: async () => {
-      bootCalled = true;
-      throw new Error('unexpected');
-    },
   });
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(false);
-  expect(bootCalled).toBe(false);
+  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
   if (response && !response.ok) {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/boot --headless requires --device <avd-name>/);
@@ -969,13 +1012,11 @@ test('boot --headless rejects non-Android selectors', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureAndroidEmulatorBoot: async () => {
-      throw new Error('unexpected emulator launch');
-    },
   });
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(false);
+  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
   if (response && !response.ok) {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/headless is supported only for Android emulators/i);
@@ -986,6 +1027,17 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
+  mockEnsureAndroidEmulatorBooted.mockImplementation(async ({ avdName, serial, headless }) => {
+    launchCalls.push({ avdName, serial, headless });
+    return {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel_9_Pro_XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    };
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -998,17 +1050,6 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
-      launchCalls.push({ avdName, serial, headless });
-      return {
-        platform: 'android',
-        id: 'emulator-5554',
-        name: 'Pixel_9_Pro_XL',
-        kind: 'emulator',
-        target: 'mobile',
-        booted: true,
-      };
-    },
   });
 
   expect(response).toBeTruthy();
@@ -1271,7 +1312,11 @@ test('apps on macOS uses Apple app listing path', async () => {
     }),
   );
 
-  let listAppleAppsCalls = 0;
+  mockListIosApps.mockImplementation(async (device, filter) => {
+    expect(device.platform).toBe('macos');
+    expect(filter).toBe('all');
+    return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1284,16 +1329,10 @@ test('apps on macOS uses Apple app listing path', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    listAppleApps: async (device, filter) => {
-      listAppleAppsCalls += 1;
-      expect(device.platform).toBe('macos');
-      expect(filter).toBe('all');
-      return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
-    },
   });
 
   expect(response?.ok).toBe(true);
-  expect(listAppleAppsCalls).toBe(1);
+  expect(mockListIosApps).toHaveBeenCalledTimes(1);
   if (response && response.ok) {
     expect(response.data?.apps).toEqual(['System Settings (com.apple.systempreferences)']);
   }
@@ -3517,7 +3556,13 @@ test('logs start stores session app log state on success', async () => {
     }),
     appBundleId: 'com.example.app',
   });
-  let startCalls = 0;
+  mockStartAppLog.mockResolvedValue({
+    backend: 'android',
+    startedAt: 123,
+    getState: () => 'active' as const,
+    stop: async () => {},
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3530,23 +3575,10 @@ test('logs start stores session app log state on success', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    appLogOps: {
-      start: async (_device, _bundleId, _outPath) => {
-        startCalls += 1;
-        return {
-          backend: 'android',
-          startedAt: 123,
-          getState: () => 'active' as const,
-          stop: async () => {},
-          wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-        };
-      },
-      stop: async () => {},
-    },
   });
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(startCalls).toBe(1);
+  expect(mockStartAppLog).toHaveBeenCalledTimes(1);
   const session = sessionStore.get(sessionName);
   expect(session?.appLog).toBeTruthy();
   expect(session?.appLog?.getState()).toBe('active');
@@ -3576,7 +3608,6 @@ test('logs stop clears active session app log state', async () => {
       wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
   });
-  let stopCalls = 0;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3589,18 +3620,10 @@ test('logs stop clears active session app log state', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    appLogOps: {
-      start: async () => {
-        throw new Error('should not be called');
-      },
-      stop: async () => {
-        stopCalls += 1;
-      },
-    },
   });
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(stopCalls).toBe(1);
+  expect(mockStopAppLog).toHaveBeenCalledTimes(1);
   const session = sessionStore.get(sessionName);
   expect(session?.appLog).toBe(undefined);
 });
@@ -3627,7 +3650,6 @@ test('close auto-stops active app log stream', async () => {
       wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
   });
-  let stopCalls = 0;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3640,18 +3662,10 @@ test('close auto-stops active app log stream', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    appLogOps: {
-      start: async () => {
-        throw new Error('should not be called');
-      },
-      stop: async () => {
-        stopCalls += 1;
-      },
-    },
   });
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(stopCalls).toBe(1);
+  expect(mockStopAppLog).toHaveBeenCalledTimes(1);
   expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
@@ -3837,8 +3851,13 @@ test('logs clear --restart stops active stream, clears logs, and restarts stream
       wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
   });
-  let stopCalls = 0;
-  let startCalls = 0;
+  mockStartAppLog.mockResolvedValue({
+    backend: 'android',
+    startedAt: 321,
+    getState: () => 'active' as const,
+    stop: async () => {},
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  });
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3851,21 +3870,6 @@ test('logs clear --restart stops active stream, clears logs, and restarts stream
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    appLogOps: {
-      start: async () => {
-        startCalls += 1;
-        return {
-          backend: 'android',
-          startedAt: 321,
-          getState: () => 'active' as const,
-          stop: async () => {},
-          wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-        };
-      },
-      stop: async () => {
-        stopCalls += 1;
-      },
-    },
   });
 
   expect(response).toBeTruthy();
@@ -3875,8 +3879,8 @@ test('logs clear --restart stops active stream, clears logs, and restarts stream
     expect(response.data?.cleared).toBe(true);
     expect(response.data?.restarted).toBe(true);
   }
-  expect(stopCalls).toBe(1);
-  expect(startCalls).toBe(1);
+  expect(mockStopAppLog).toHaveBeenCalledTimes(1);
+  expect(mockStartAppLog).toHaveBeenCalledTimes(1);
   expect(fs.readFileSync(outPath, 'utf8')).toBe('');
   expect(fs.existsSync(`${outPath}.1`)).toBe(false);
   const session = sessionStore.get(sessionName);

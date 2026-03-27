@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   requireIntInRange,
@@ -163,13 +163,13 @@ test('runRepeatedSeries does not invoke operation when count is 0', async () => 
   assert.deepEqual(indices, []);
 });
 
-test('runRepeatedSeries pauses between operations but not after the last', async (t) => {
+test('runRepeatedSeries pauses between operations but not after the last', async () => {
   const timeoutDelays: number[] = [];
-  t.mock.method(globalThis, 'setTimeout', (cb: () => void, ms: number) => {
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((cb: () => void, ms: number) => {
     timeoutDelays.push(ms);
     cb();
     return 0;
-  });
+  }) as typeof setTimeout);
   const pauseMs = 50;
   const calls: number[] = [];
   await runRepeatedSeries(3, pauseMs, async (i) => {

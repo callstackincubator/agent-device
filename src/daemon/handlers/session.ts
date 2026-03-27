@@ -6,7 +6,6 @@ import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
-import { startAppLog, stopAppLog } from '../app-log.ts';
 import {
   handleInstallFromSourceCommand,
   handleReleaseMaterializedPathsCommand,
@@ -26,38 +25,23 @@ import {
   defaultInstallOps,
   defaultReinstallOps,
   handleAppDeployCommand,
-  type InstallOps,
-  type ReinstallOps,
 } from './session-deploy.ts';
 import { runBatchCommands } from './session-batch.ts';
 import { handleSessionInventoryCommands } from './session-inventory.ts';
-import { handleSessionStateCommands, type EnsureAndroidEmulatorBoot } from './session-state.ts';
+import { handleSessionStateCommands } from './session-state.ts';
 import { handleSessionObservabilityCommands } from './session-observability.ts';
 import { handleSessionReplayCommands } from './session-replay.ts';
-
-type ListAndroidDevices = typeof import('../../platforms/android/devices.ts').listAndroidDevices;
-type ListAppleDevices = typeof import('../../platforms/ios/devices.ts').listAppleDevices;
 
 const INVENTORY_COMMANDS = new Set(['session_list', 'ensure-simulator', 'devices', 'apps']);
 const STATE_COMMANDS = new Set(['boot', 'appstate']);
 const OBSERVABILITY_COMMANDS = new Set(['perf', 'logs', 'network']);
 const REPLAY_COMMANDS = new Set(['replay', 'test']);
 
-const defaultEnsureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot = async ({
-  avdName,
-  serial,
-  headless,
-}) => {
-  const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
-  return await ensureAndroidEmulatorBooted({ avdName, serial, headless });
-};
-
 async function runSessionOrSelectorDispatch(params: {
   req: DaemonRequest;
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatch: typeof dispatchCommand;
   command: string;
   positionals: string[];
   recordPositionals?: string[];
@@ -72,7 +56,6 @@ async function runSessionOrSelectorDispatch(params: {
     sessionName,
     logPath,
     sessionStore,
-    dispatch,
     command,
     positionals,
     recordPositionals,
@@ -98,7 +81,7 @@ async function runSessionOrSelectorDispatch(params: {
     };
   }
 
-  const result = await dispatch(device, command, positionals, req.flags?.out, {
+  const result = await dispatchCommand(device, command, positionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
   });
   if (session) {
@@ -123,9 +106,8 @@ async function handleClipboardCommand(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatch: typeof dispatchCommand;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore, dispatch } = params;
+  const { req, sessionName, logPath, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
   const guard = requireSessionOrExplicitSelector('clipboard', session, flags);
@@ -157,7 +139,7 @@ async function handleClipboardCommand(params: {
     };
   }
 
-  const result = await dispatch(device, 'clipboard', req.positionals ?? [], req.flags?.out, {
+  const result = await dispatchCommand(device, 'clipboard', req.positionals ?? [], req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
   });
   if (session) {
@@ -177,20 +159,6 @@ export async function handleSessionCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  dispatch?: typeof dispatchCommand;
-  installOps?: InstallOps;
-  reinstallOps?: ReinstallOps;
-  appLogOps?: {
-    start: typeof startAppLog;
-    stop: typeof stopAppLog;
-  };
-  ensureAndroidEmulatorBoot?: EnsureAndroidEmulatorBoot;
-  listAndroidDevices?: ListAndroidDevices;
-  listAppleDevices?: ListAppleDevices;
-  listAppleApps?: (
-    device: DeviceInfo,
-    filter: 'user-installed' | 'all',
-  ) => Promise<Array<{ bundleId: string; name?: string }>>;
 }): Promise<DaemonResponse | null> {
   const {
     req,
@@ -198,29 +166,13 @@ export async function handleSessionCommands(params: {
     logPath,
     sessionStore,
     invoke,
-    dispatch: dispatchOverride,
-    installOps = defaultInstallOps,
-    reinstallOps = defaultReinstallOps,
-    appLogOps = {
-      start: startAppLog,
-      stop: stopAppLog,
-    },
-    ensureAndroidEmulatorBoot = defaultEnsureAndroidEmulatorBoot,
-    listAndroidDevices,
-    listAppleDevices,
-    listAppleApps,
   } = params;
-
-  const dispatch = dispatchOverride ?? dispatchCommand;
 
   if (INVENTORY_COMMANDS.has(req.command)) {
     return await handleSessionInventoryCommands({
       req,
       sessionName,
       sessionStore,
-      listAndroidDevices,
-      listAppleDevices,
-      listAppleApps,
     });
   }
 
@@ -237,7 +189,6 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
-      ensureAndroidEmulatorBoot,
     });
   }
 
@@ -247,7 +198,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
     });
   }
 
@@ -273,7 +223,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
       command: 'keyboard',
       positionals: req.positionals ?? [],
     });
@@ -284,7 +233,6 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
-      appLogOps,
     });
   }
 
@@ -294,7 +242,7 @@ export async function handleSessionCommands(params: {
       command: req.command,
       sessionName,
       sessionStore,
-      deployOps: req.command === 'install' ? installOps : reinstallOps,
+      deployOps: req.command === 'install' ? defaultInstallOps : defaultReinstallOps,
     });
   }
 
@@ -328,7 +276,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
       command: 'push',
       positionals: [appId, maybeResolvePushPayloadPath(payloadArg, req.meta?.cwd)],
       recordPositionals: [appId, payloadArg],
@@ -341,7 +288,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
       command: 'trigger-app-event',
       positionals: req.positionals ?? [],
       deriveNextSession: async (session, result) => {
@@ -378,8 +324,6 @@ export async function handleSessionCommands(params: {
       logPath,
       sessionStore,
       invoke,
-      dispatch,
-      appLogOps: { stop: appLogOps.stop },
     });
   }
 
@@ -393,10 +337,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
-      appLogOps: {
-        stop: appLogOps.stop,
-      },
     });
   }
 

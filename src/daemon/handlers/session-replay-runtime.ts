@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import { type CommandFlags } from '../../core/dispatch.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -23,9 +23,8 @@ export async function runReplayScriptFile(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  dispatch: typeof dispatchCommand;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore, invoke, dispatch } = params;
+  const { req, sessionName, logPath, sessionStore, invoke } = params;
   const filePath = req.positionals?.[0];
   if (!filePath) {
     return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
@@ -73,7 +72,6 @@ export async function runReplayScriptFile(params: {
         sessionName,
         logPath,
         sessionStore,
-        dispatch,
       });
       if (!nextAction) {
         return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);

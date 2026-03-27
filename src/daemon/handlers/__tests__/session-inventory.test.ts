@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { handleSessionInventoryCommands } from '../session-inventory.ts';
 import { makeSessionStore } from './session-test-store.ts';
 

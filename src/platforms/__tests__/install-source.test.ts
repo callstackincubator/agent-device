@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, onTestFinished } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import http from 'node:http';
@@ -106,7 +106,7 @@ test('prepareIosInstallArtifact rejects untrusted URL sources', async () => {
   );
 });
 
-test('prepareAndroidInstallArtifact resolves package identity for direct APK URL sources even when untrusted', async (t) => {
+test('prepareAndroidInstallArtifact resolves package identity for direct APK URL sources even when untrusted', async () => {
   const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
   process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
 
@@ -126,7 +126,7 @@ test('prepareAndroidInstallArtifact resolves package identity for direct APK URL
     res.end(apkBytes);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
     });

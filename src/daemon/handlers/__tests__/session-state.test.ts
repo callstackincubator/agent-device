@@ -1,7 +1,19 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../../platforms/android/devices.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/android/devices.ts')>();
+  return { ...actual, ensureAndroidEmulatorBooted: vi.fn() };
+});
+
 import { handleSessionStateCommands } from '../session-state.ts';
 import { makeSessionStore } from './session-test-store.ts';
+import { ensureAndroidEmulatorBooted } from '../../../platforms/android/devices.ts';
+
+const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
+
+beforeEach(() => {
+  mockEnsureAndroidEmulatorBooted.mockReset();
+});
 
 test('boot rejects --headless outside Android directly', async () => {
   const response = await handleSessionStateCommands({
@@ -14,17 +26,15 @@ test('boot rejects --headless outside Android directly', async () => {
     },
     sessionName: 'default',
     sessionStore: makeSessionStore('agent-device-session-state-'),
-    ensureAndroidEmulatorBoot: async () => {
-      throw new Error('ensureAndroidEmulatorBoot should not run for invalid headless iOS boot');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /supported only for Android emulators/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/supported only for Android emulators/i);
   }
+  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
 });
 
 test('appstate returns missing-session error for explicit session flag', async () => {
@@ -38,15 +48,13 @@ test('appstate returns missing-session error for explicit session flag', async (
     },
     sessionName: 'named',
     sessionStore: makeSessionStore('agent-device-session-state-'),
-    ensureAndroidEmulatorBoot: async () => {
-      throw new Error('ensureAndroidEmulatorBoot should not run for appstate');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
-    assert.match(response.error.message, /Run open with --session named first/i);
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/Run open with --session named first/i);
   }
+  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
 });

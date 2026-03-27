@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { validateAndNormalizeBatchSteps } from '../batch.ts';
 import type { BatchStep } from '../dispatch.ts';

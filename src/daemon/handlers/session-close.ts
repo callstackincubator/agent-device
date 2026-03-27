@@ -3,9 +3,11 @@ import { runCmd } from '../../utils/exec.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { contextFromFlags } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import { stopAppLog } from '../app-log.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
@@ -17,8 +19,6 @@ import {
   isIosSimulator,
   settleIosSimulator,
 } from './session-device-utils.ts';
-
-type AppLogStream = NonNullable<SessionState['appLog']>;
 
 async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   success: boolean;
@@ -98,37 +98,25 @@ export async function handleCloseCommand(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatch: (
-    device: DeviceInfo,
-    command: string,
-    positionals: string[],
-    out?: string,
-    context?: Record<string, unknown>,
-  ) => Promise<Record<string, unknown> | void>;
-  appLogOps: {
-    stop: (stream: AppLogStream) => Promise<void>;
-  };
 }): Promise<DaemonResponse> {
   const {
     req,
     sessionName,
     logPath,
     sessionStore,
-    dispatch,
-    appLogOps,
   } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
   }
   if (session.appLog) {
-    await appLogOps.stop(session.appLog);
+    await stopAppLog(session.appLog);
   }
   if (req.positionals && req.positionals.length > 0) {
     if (session.device.platform === 'ios' || session.device.platform === 'macos') {
       await stopAppleRunnerForClose(session);
     }
-    await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
+    await dispatchCommand(session.device, 'close', req.positionals, req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
     });
     await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
