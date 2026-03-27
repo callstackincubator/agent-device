@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-288/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-288/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-288/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-288/static/js/index.b633628677.js"></script>
+<script defer src="/agent-device/pr-preview/pr-288/static/js/index.6c7347b031.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -52,7 +52,7 @@
 <li><code>open --platform macos --surface app|frontmost-app|desktop|menubar</code> selects the macOS session surface explicitly. <code>app</code> is the default when an app argument is provided.</li>
 <li><code>back</code> without flags preserves the legacy default: on Apple targets it prefers an in-app back control first, then falls back to the platform back gesture or remote action; on Android it sends the system back event.</li>
 <li><code>back --in-app</code> asks for app-owned back navigation explicitly. On Apple targets that means visible in-app back UI only. On Android this currently falls back to the same system back event because Android routes in-app back through that platform event.</li>
-<li><code>back --system</code> asks for system back input explicitly. On Android this is the normal back keyevent. On iOS and tvOS it uses the platform back gesture or Siri Remote menu action. On macOS, where there is no generic system back input, it falls back to the app back control when available.</li>
+<li><code>back --system</code> asks for system back input explicitly. On Android this is the normal back keyevent. On iOS and tvOS it uses the platform back gesture or Siri Remote menu action. On macOS, where there is no generic system back input, <code>back --system</code> reports unavailable instead of falling back to app-owned navigation.</li>
 <li>On iOS devices, <code>http(s)://</code> URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.</li>
 <li><code>AGENT_DEVICE_SESSION</code> and <code>AGENT_DEVICE_PLATFORM</code> can pre-bind a default session/platform for CLI automation runs, so normal commands (<code>open</code>, <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>screenshot</code>, <code>devices</code>, and <code>batch</code>) do not need those flags repeated on every call.</li>
 <li>A configured <code>AGENT_DEVICE_SESSION</code> implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.</li>
