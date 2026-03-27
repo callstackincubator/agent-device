@@ -5,6 +5,14 @@ import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 
+export type CaptureSnapshotForSession = (
+  session: SessionState,
+  flags: CommandFlags | undefined,
+  sessionStore: SessionStore,
+  contextFromFlags: ContextFromFlags,
+  options: { interactiveOnly: boolean },
+) => Promise<SnapshotState>;
+
 export async function captureSnapshotForSession(
   session: SessionState,
   flags: CommandFlags | undefined,
