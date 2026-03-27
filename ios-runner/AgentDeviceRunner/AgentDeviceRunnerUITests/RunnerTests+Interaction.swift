@@ -394,7 +394,7 @@ extension RunnerTests {
     }
   }
 
-  func swipe(app: XCUIApplication, direction: String) -> DragVisualizationFrame {
+  func swipe(app: XCUIApplication, direction: String) -> DragVisualizationFrame? {
     if performTvRemoteSwipeIfAvailable(direction: direction) {
       let frame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
       let midX = frame.midX
@@ -408,7 +408,7 @@ extension RunnerTests {
         referenceHeight: frame.height
       )
     }
-    return DragVisualizationFrame(x: 0, y: 0, x2: 0, y2: 0, referenceWidth: 0, referenceHeight: 0)
+    return nil
   }
 
   private func performTvRemoteSwipeIfAvailable(direction: String) -> Bool {

@@ -474,9 +474,6 @@ extension RunnerTests {
         }
       }
       guard let dragFrame = executedFrame else {
-        return Response(ok: false, error: ErrorPayload(message: "swipe did not produce a gesture frame"))
-      }
-      if dragFrame.referenceWidth == 0 && dragFrame.referenceHeight == 0 {
         return Response(ok: false, error: ErrorPayload(message: "swipe is only supported on tvOS"))
       }
       return Response(

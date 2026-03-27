@@ -44,6 +44,7 @@ export type RunnerContext = {
 
 export type BackMode = 'in-app' | 'system';
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
+type RunIosRunnerCommand = typeof runIosRunnerCommand;
 
 type Interactor = {
   open(
@@ -89,7 +90,11 @@ type Interactor = {
   ): Promise<Record<string, unknown> | void>;
 };
 
-export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
+export function getInteractor(
+  device: DeviceInfo,
+  runnerContext: RunnerContext,
+  deps: InteractorDeps = {},
+): Interactor {
   switch (device.platform) {
     case 'android':
       return {
@@ -119,7 +124,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
       };
     case 'ios':
     case 'macos': {
-      const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
+      const runRunnerCommand = deps.runIosRunnerCommand ?? runIosRunnerCommand;
+      const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext, deps);
       return {
         open: (app, options) =>
           openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
@@ -127,7 +133,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         close: (app) => closeIosApp(device, app),
         screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
         back: async (mode) => {
-          await runIosRunnerCommand(
+          await runRunnerCommand(
             device,
             {
               command: resolveAppleBackRunnerCommand(mode),
@@ -137,14 +143,14 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           );
         },
         home: async () => {
-          await runIosRunnerCommand(
+          await runRunnerCommand(
             device,
             { command: 'home', appBundleId: runnerContext.appBundleId },
             runnerOpts,
           );
         },
         appSwitcher: async () => {
-          await runIosRunnerCommand(
+          await runRunnerCommand(
             device,
             { command: 'appSwitcher', appBundleId: runnerContext.appBundleId },
             runnerOpts,
@@ -181,6 +187,12 @@ type InteractionFrame = {
   referenceHeight: number;
 };
 
+type NormalizedScrollOptions = {
+  amount?: number;
+  pixels?: number;
+  preferProvidedPixels?: boolean;
+};
+
 type IoRunnerOverrides = Pick<
   Interactor,
   | 'tap'
@@ -194,10 +206,19 @@ type IoRunnerOverrides = Pick<
   | 'scrollIntoView'
 >;
 
+type InteractorDeps = {
+  runIosRunnerCommand?: RunIosRunnerCommand;
+  sleepMs?: (ms: number) => Promise<void>;
+};
+
 function iosRunnerOverrides(
   device: DeviceInfo,
   ctx: RunnerContext,
+  deps: InteractorDeps,
 ): { overrides: IoRunnerOverrides; runnerOpts: RunnerOpts } {
+  const runRunnerCommand = deps.runIosRunnerCommand ?? runIosRunnerCommand;
+  const sleepMs =
+    deps.sleepMs ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const runnerOpts = {
     verbose: ctx.verbose,
     logPath: ctx.logPath,
@@ -213,14 +234,14 @@ function iosRunnerOverrides(
     runnerOpts,
     overrides: {
       tap: async (x, y) => {
-        return await runIosRunnerCommand(
+        return await runRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       doubleTap: async (x, y) => {
-        return await runIosRunnerCommand(
+        return await runRunnerCommand(
           device,
           {
             command: 'tapSeries',
@@ -235,40 +256,40 @@ function iosRunnerOverrides(
         );
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
-        return await runIosRunnerCommand(
+        return await runRunnerCommand(
           device,
           { command: 'drag', x: x1, y: y1, x2, y2, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       longPress: async (x, y, durationMs) => {
-        return await runIosRunnerCommand(
+        return await runRunnerCommand(
           device,
           { command: 'longPress', x, y, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       focus: async (x, y) => {
-        return await runIosRunnerCommand(
+        return await runRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       type: async (text, delayMs) => {
-        await runIosRunnerCommand(
+        await runRunnerCommand(
           device,
           { command: 'type', text, delayMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       fill: async (x, y, text, delayMs) => {
-        const tapResult = await runIosRunnerCommand(
+        const tapResult = await runRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
-        await runIosRunnerCommand(
+        await runRunnerCommand(
           device,
           { command: 'type', text, clearFirst: true, delayMs, appBundleId: ctx.appBundleId },
           runnerOpts,
@@ -276,11 +297,11 @@ function iosRunnerOverrides(
         return tapResult;
       },
       scroll: async (direction, options) => {
-        return await runAppleScroll(device, ctx, runnerOpts, direction, options);
+        return await runAppleScroll(runRunnerCommand, device, ctx, runnerOpts, direction, options);
       },
       scrollIntoView: async (text) => {
         // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.
-        const initial = (await runIosRunnerCommand(
+        const initial = (await runRunnerCommand(
           device,
           { command: 'findText', text, appBundleId: ctx.appBundleId },
           runnerOpts,
@@ -289,15 +310,30 @@ function iosRunnerOverrides(
 
         const maxBursts = 12;
         const swipesPerBurst = 4;
+        let cachedInteractionFrame: InteractionFrame | undefined;
         for (let burst = 0; burst < maxBursts; burst += 1) {
           for (let i = 0; i < swipesPerBurst; i += 1) {
             throwIfCanceled();
-            await runAppleScroll(device, ctx, runnerOpts, 'down');
+            cachedInteractionFrame ??= await resolveAppleInteractionFrame(
+              runRunnerCommand,
+              device,
+              ctx,
+              runnerOpts,
+            );
+            await runAppleScroll(
+              runRunnerCommand,
+              device,
+              ctx,
+              runnerOpts,
+              'down',
+              undefined,
+              cachedInteractionFrame,
+            );
             // Small settle keeps gesture chain stable without long visible pauses.
-            await new Promise((resolve) => setTimeout(resolve, 80));
+            await sleepMs(80);
           }
           throwIfCanceled();
-          const found = (await runIosRunnerCommand(
+          const found = (await runRunnerCommand(
             device,
             { command: 'findText', text, appBundleId: ctx.appBundleId },
             runnerOpts,
@@ -320,20 +356,24 @@ function invertScrollDirection(direction: ScrollDirection): ScrollDirection {
       return 'right';
     case 'right':
       return 'left';
+    default: {
+      const _exhaustive: never = direction;
+      return _exhaustive;
+    }
   }
-  const _exhaustive: never = direction;
-  return _exhaustive;
 }
 
 async function runAppleScroll(
+  runRunnerCommand: RunIosRunnerCommand,
   device: DeviceInfo,
   ctx: RunnerContext,
   runnerOpts: RunnerOpts,
   direction: ScrollDirection,
   options?: { amount?: number; pixels?: number },
+  interactionFrame?: InteractionFrame,
 ): Promise<Record<string, unknown>> {
   if (device.target === 'tv') {
-    const runnerResult = await runIosRunnerCommand(
+    const runnerResult = await runRunnerCommand(
       device,
       {
         command: 'swipe',
@@ -345,7 +385,9 @@ async function runAppleScroll(
     return normalizeIosScrollResult(runnerResult, options);
   }
 
-  const frame = await resolveAppleInteractionFrame(device, ctx, runnerOpts);
+  const frame =
+    interactionFrame ??
+    (await resolveAppleInteractionFrame(runRunnerCommand, device, ctx, runnerOpts));
   const plan = buildScrollGesturePlan({
     direction,
     amount: options?.amount,
@@ -353,7 +395,7 @@ async function runAppleScroll(
     referenceWidth: frame.referenceWidth,
     referenceHeight: frame.referenceHeight,
   });
-  const runnerResult = await runIosRunnerCommand(
+  const runnerResult = await runRunnerCommand(
     device,
     {
       command: 'drag',
@@ -368,15 +410,17 @@ async function runAppleScroll(
   return normalizeIosScrollResult(runnerResult, {
     amount: plan.amount,
     pixels: plan.pixels,
+    preferProvidedPixels: true,
   });
 }
 
 async function resolveAppleInteractionFrame(
+  runRunnerCommand: RunIosRunnerCommand,
   device: DeviceInfo,
   ctx: RunnerContext,
   runnerOpts: RunnerOpts,
 ): Promise<InteractionFrame> {
-  const runnerResult = await runIosRunnerCommand(
+  const runnerResult = await runRunnerCommand(
     device,
     { command: 'interactionFrame', appBundleId: ctx.appBundleId },
     runnerOpts,
@@ -402,7 +446,7 @@ function readFiniteNumber(value: unknown): number | undefined {
 
 function normalizeIosScrollResult(
   runnerResult: Record<string, unknown>,
-  options?: { amount?: number; pixels?: number },
+  options?: NormalizedScrollOptions,
 ): Record<string, unknown> {
   const { x1, y1, x2, y2 } = remapRunnerCoordinates(runnerResult);
   const referenceWidth = readFiniteNumber(runnerResult.referenceWidth);
@@ -412,11 +456,13 @@ function normalizeIosScrollResult(
   const verticalTravel =
     y1 !== undefined && y2 !== undefined ? Math.round(Math.abs(y2 - y1)) : undefined;
   const travelPixels =
-    horizontalTravel && horizontalTravel > 0
-      ? horizontalTravel
-      : verticalTravel && verticalTravel > 0
-        ? verticalTravel
-        : undefined;
+    options?.preferProvidedPixels && options.pixels !== undefined
+      ? options.pixels
+      : horizontalTravel && horizontalTravel > 0
+        ? horizontalTravel
+        : verticalTravel && verticalTravel > 0
+          ? verticalTravel
+          : undefined;
 
   return {
     ...(x1 !== undefined ? { x1 } : {}),
