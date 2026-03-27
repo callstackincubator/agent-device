@@ -37,7 +37,11 @@
     "test": "node --test && vitest run",
     "test:unit": "node --test src/__tests__/*.test.ts src/core/__tests__/*.test.ts src/daemon/__tests__/*.test.ts src/daemon/handlers/__tests__/*.test.ts src/platforms/**/__tests__/*.test.ts src/utils/**/__tests__/*.test.ts && vitest run",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
-    "test:integration": "node --test test/integration/*.test.ts"
+    "test:integration": "node --test test/integration/*.test.ts",
+    "test:replay:ios": "node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator",
+    "test:replay:ios-device": "node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device",
+    "test:replay:android": "node --experimental-strip-types src/bin.ts test test/integration/replays/android",
+    "test:replay:macos": "node --experimental-strip-types src/bin.ts test test/integration/replays/macos"
   },
   "files": [
     "bin",
