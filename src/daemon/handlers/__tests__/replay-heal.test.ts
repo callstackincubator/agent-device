@@ -478,6 +478,8 @@ test('replay --update does not heal clicks from stored ref labels alone', async 
   const sessionName = 'heal-ref-label-session';
   sessionStore.set(sessionName, makeSession(sessionName));
 
+  // @refs are never selector candidates; this guards against reintroducing
+  // fallback healing from the stored replay label.
   fs.writeFileSync(replayPath, 'click @e1 "Continue"\n');
   const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
