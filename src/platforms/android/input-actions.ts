@@ -1,7 +1,7 @@
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { buildScrollGesturePlan } from '../../core/scroll-gesture.ts';
+import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { findBounds, parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
@@ -155,7 +155,7 @@ export async function fillAndroid(
 
 export async function scrollAndroid(
   device: DeviceInfo,
-  direction: string,
+  direction: ScrollDirection,
   options?: { amount?: number; pixels?: number },
 ): Promise<Record<string, unknown>> {
   const size = await getAndroidScreenSize(device);

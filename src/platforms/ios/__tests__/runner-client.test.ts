@@ -16,6 +16,7 @@ import {
   resolveRunnerSigningBuildSettings,
   shouldRetryRunnerConnectError,
 } from '../runner-client.ts';
+import { isReadOnlyRunnerCommand } from '../runner-errors.ts';
 import {
   ensureXctestrun,
   resolveRunnerPerformanceBuildSettings,
@@ -99,6 +100,10 @@ test('resolveRunnerDestination uses tvOS destination for tvOS devices', () => {
 test('resolveRunnerBuildDestination uses tvOS destinations for tvOS devices and simulators', () => {
   assert.equal(resolveRunnerBuildDestination(tvOsSimulator), 'platform=tvOS Simulator,id=tv-sim-1');
   assert.equal(resolveRunnerBuildDestination(tvOsDevice), 'generic/platform=tvOS');
+});
+
+test('isReadOnlyRunnerCommand treats interactionFrame as read-only', () => {
+  assert.equal(isReadOnlyRunnerCommand('interactionFrame'), true);
 });
 
 test('resolveRunnerMaxConcurrentDestinationsFlag uses simulator flag for simulators', () => {

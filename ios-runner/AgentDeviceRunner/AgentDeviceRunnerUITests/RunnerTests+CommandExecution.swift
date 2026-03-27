@@ -449,6 +449,17 @@ extension RunnerTests {
         typeIntoTarget(text)
       }
       return Response(ok: true, data: DataPayload(message: "typed"))
+    case .interactionFrame:
+      let frame = resolvedTouchReferenceFrame(app: activeApp, appFrame: activeApp.frame)
+      return Response(
+        ok: true,
+        data: DataPayload(
+          x: frame.minX,
+          y: frame.minY,
+          referenceWidth: frame.width,
+          referenceHeight: frame.height
+        )
+      )
     case .swipe:
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
@@ -458,14 +469,15 @@ extension RunnerTests {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
           executedFrame = swipe(
             app: activeApp,
-            direction: direction,
-            amount: command.amount,
-            pixels: command.pixels
+            direction: direction
           )
         }
       }
       guard let dragFrame = executedFrame else {
         return Response(ok: false, error: ErrorPayload(message: "swipe did not produce a gesture frame"))
+      }
+      if dragFrame.referenceWidth == 0 && dragFrame.referenceHeight == 0 {
+        return Response(ok: false, error: ErrorPayload(message: "swipe is only supported on tvOS"))
       }
       return Response(
         ok: true,

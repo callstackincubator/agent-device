@@ -109,6 +109,7 @@ export function resolveSigningFailureHint(error: AppError): string | undefined {
 
 export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return (
+    command === 'interactionFrame' ||
     command === 'snapshot' ||
     command === 'screenshot' ||
     command === 'findText' ||

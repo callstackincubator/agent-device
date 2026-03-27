@@ -371,7 +371,7 @@ extension RunnerTests {
     )
   }
 
-  private func resolvedTouchReferenceFrame(app: XCUIApplication, appFrame: CGRect) -> CGRect {
+  func resolvedTouchReferenceFrame(app: XCUIApplication, appFrame: CGRect) -> CGRect {
     let window = app.windows.firstMatch
     let windowFrame = window.frame
     if window.exists && !windowFrame.isEmpty {
@@ -394,12 +394,7 @@ extension RunnerTests {
     }
   }
 
-  func swipe(
-    app: XCUIApplication,
-    direction: SwipeDirection,
-    amount: Double?,
-    pixels: Double?
-  ) -> DragVisualizationFrame {
+  func swipe(app: XCUIApplication, direction: String) -> DragVisualizationFrame {
     if performTvRemoteSwipeIfAvailable(direction: direction) {
       let frame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
       let midX = frame.midX
@@ -413,29 +408,22 @@ extension RunnerTests {
         referenceHeight: frame.height
       )
     }
-    let frame = resolvedScrollFrame(app: app, direction: direction, amount: amount, pixels: pixels)
-    dragAt(
-      app: app,
-      x: frame.x,
-      y: frame.y,
-      x2: frame.x2,
-      y2: frame.y2,
-      holdDuration: 0.1
-    )
-    return frame
+    return DragVisualizationFrame(x: 0, y: 0, x2: 0, y2: 0, referenceWidth: 0, referenceHeight: 0)
   }
 
-  private func performTvRemoteSwipeIfAvailable(direction: SwipeDirection) -> Bool {
+  private func performTvRemoteSwipeIfAvailable(direction: String) -> Bool {
 #if os(tvOS)
     switch direction {
-    case .up:
+    case "up":
       XCUIRemote.shared.press(.up)
-    case .down:
+    case "down":
       XCUIRemote.shared.press(.down)
-    case .left:
+    case "left":
       XCUIRemote.shared.press(.left)
-    case .right:
+    case "right":
       XCUIRemote.shared.press(.right)
+    default:
+      return false
     }
     return true
 #else
@@ -511,65 +499,4 @@ extension RunnerTests {
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
   }
-
-  func resolvedScrollFrame(
-    app: XCUIApplication,
-    direction: SwipeDirection,
-    amount: Double?,
-    pixels: Double?
-  ) -> DragVisualizationFrame {
-    let referenceFrame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
-    let axisLength =
-      direction == .up || direction == .down ? referenceFrame.height : referenceFrame.width
-    let resolvedAmount = amount != nil && amount! > 0 ? amount! : 0.6
-    let requestedPixels = pixels != nil && pixels! > 0
-      ? pixels!
-      : round(axisLength * resolvedAmount)
-    let edgePadding = max(1.0, round(axisLength * 0.05))
-    let maxTravelPixels = max(1.0, axisLength - (edgePadding * 2))
-    let travelPixels = min(max(1.0, requestedPixels), maxTravelPixels)
-    let halfTravel = round(travelPixels / 2)
-    let midX = referenceFrame.midX
-    let midY = referenceFrame.midY
-
-    switch direction {
-    case .up:
-      return DragVisualizationFrame(
-        x: midX,
-        y: midY - halfTravel,
-        x2: midX,
-        y2: midY + halfTravel,
-        referenceWidth: referenceFrame.width,
-        referenceHeight: referenceFrame.height
-      )
-    case .down:
-      return DragVisualizationFrame(
-        x: midX,
-        y: midY + halfTravel,
-        x2: midX,
-        y2: midY - halfTravel,
-        referenceWidth: referenceFrame.width,
-        referenceHeight: referenceFrame.height
-      )
-    case .left:
-      return DragVisualizationFrame(
-        x: midX - halfTravel,
-        y: midY,
-        x2: midX + halfTravel,
-        y2: midY,
-        referenceWidth: referenceFrame.width,
-        referenceHeight: referenceFrame.height
-      )
-    case .right:
-      return DragVisualizationFrame(
-        x: midX + halfTravel,
-        y: midY,
-        x2: midX - halfTravel,
-        y2: midY,
-        referenceWidth: referenceFrame.width,
-        referenceHeight: referenceFrame.height
-      )
-    }
-  }
-
 }

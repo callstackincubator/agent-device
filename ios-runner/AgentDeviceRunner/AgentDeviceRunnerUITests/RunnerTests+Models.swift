@@ -5,6 +5,7 @@ enum CommandType: String, Codable {
   case mouseClick
   case tapSeries
   case longPress
+  case interactionFrame
   case drag
   case dragSeries
   case type
@@ -27,13 +28,6 @@ enum CommandType: String, Codable {
   case shutdown
 }
 
-enum SwipeDirection: String, Codable {
-  case up
-  case down
-  case left
-  case right
-}
-
 struct Command: Codable {
   let command: CommandType
   let appBundleId: String?
@@ -52,9 +46,7 @@ struct Command: Codable {
   let x2: Double?
   let y2: Double?
   let durationMs: Double?
-  let direction: SwipeDirection?
-  let amount: Double?
-  let pixels: Double?
+  let direction: String?
   let scale: Double?
   let outPath: String?
   let fps: Int?

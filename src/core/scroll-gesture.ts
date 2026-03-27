@@ -3,7 +3,7 @@ import { AppError } from '../utils/errors.ts';
 export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 
 export type ScrollGestureOptions = {
-  direction: string;
+  direction: ScrollDirection;
   amount?: number;
   pixels?: number;
   referenceWidth: number;
@@ -26,7 +26,7 @@ const DEFAULT_SCROLL_AMOUNT = 0.6;
 const DEFAULT_EDGE_PADDING_FRACTION = 0.05;
 
 export function buildScrollGesturePlan(options: ScrollGestureOptions): ScrollGesturePlan {
-  const direction = parseScrollDirection(options.direction);
+  const direction = options.direction;
   const axisLength =
     direction === 'up' || direction === 'down' ? options.referenceHeight : options.referenceWidth;
   const requestedAmount = resolveRequestedAmount(options.amount);

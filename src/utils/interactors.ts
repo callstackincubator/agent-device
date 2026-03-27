@@ -1,6 +1,6 @@
 import { AppError } from './errors.ts';
 import type { DeviceInfo } from './device.ts';
-import type { ScrollDirection } from '../core/scroll-gesture.ts';
+import { buildScrollGesturePlan, type ScrollDirection } from '../core/scroll-gesture.ts';
 import {
   appSwitcherAndroid,
   backAndroid,
@@ -174,6 +174,13 @@ type RunnerOpts = {
   requestId?: string;
 };
 
+type InteractionFrame = {
+  originX: number;
+  originY: number;
+  referenceWidth: number;
+  referenceHeight: number;
+};
+
 type IoRunnerOverrides = Pick<
   Interactor,
   | 'tap'
@@ -269,19 +276,7 @@ function iosRunnerOverrides(
         return tapResult;
       },
       scroll: async (direction, options) => {
-        const inverted = invertScrollDirection(direction);
-        const runnerResult = await runIosRunnerCommand(
-          device,
-          {
-            command: 'swipe',
-            direction: inverted,
-            amount: options?.amount,
-            pixels: options?.pixels,
-            appBundleId: ctx.appBundleId,
-          },
-          runnerOpts,
-        );
-        return normalizeIosScrollResult(runnerResult, options);
+        return await runAppleScroll(device, ctx, runnerOpts, direction, options);
       },
       scrollIntoView: async (text) => {
         // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.
@@ -297,11 +292,7 @@ function iosRunnerOverrides(
         for (let burst = 0; burst < maxBursts; burst += 1) {
           for (let i = 0; i < swipesPerBurst; i += 1) {
             throwIfCanceled();
-            await runIosRunnerCommand(
-              device,
-              { command: 'swipe', direction: 'up', appBundleId: ctx.appBundleId },
-              runnerOpts,
-            );
+            await runAppleScroll(device, ctx, runnerOpts, 'down');
             // Small settle keeps gesture chain stable without long visible pauses.
             await new Promise((resolve) => setTimeout(resolve, 80));
           }
@@ -332,6 +323,77 @@ function invertScrollDirection(direction: ScrollDirection): ScrollDirection {
   }
   const _exhaustive: never = direction;
   return _exhaustive;
+}
+
+async function runAppleScroll(
+  device: DeviceInfo,
+  ctx: RunnerContext,
+  runnerOpts: RunnerOpts,
+  direction: ScrollDirection,
+  options?: { amount?: number; pixels?: number },
+): Promise<Record<string, unknown>> {
+  if (device.target === 'tv') {
+    const runnerResult = await runIosRunnerCommand(
+      device,
+      {
+        command: 'swipe',
+        direction: invertScrollDirection(direction),
+        appBundleId: ctx.appBundleId,
+      },
+      runnerOpts,
+    );
+    return normalizeIosScrollResult(runnerResult, options);
+  }
+
+  const frame = await resolveAppleInteractionFrame(device, ctx, runnerOpts);
+  const plan = buildScrollGesturePlan({
+    direction,
+    amount: options?.amount,
+    pixels: options?.pixels,
+    referenceWidth: frame.referenceWidth,
+    referenceHeight: frame.referenceHeight,
+  });
+  const runnerResult = await runIosRunnerCommand(
+    device,
+    {
+      command: 'drag',
+      x: frame.originX + plan.x1,
+      y: frame.originY + plan.y1,
+      x2: frame.originX + plan.x2,
+      y2: frame.originY + plan.y2,
+      appBundleId: ctx.appBundleId,
+    },
+    runnerOpts,
+  );
+  return normalizeIosScrollResult(runnerResult, {
+    amount: plan.amount,
+    pixels: plan.pixels,
+  });
+}
+
+async function resolveAppleInteractionFrame(
+  device: DeviceInfo,
+  ctx: RunnerContext,
+  runnerOpts: RunnerOpts,
+): Promise<InteractionFrame> {
+  const runnerResult = await runIosRunnerCommand(
+    device,
+    { command: 'interactionFrame', appBundleId: ctx.appBundleId },
+    runnerOpts,
+  );
+  const originX = readFiniteNumber(runnerResult.x);
+  const originY = readFiniteNumber(runnerResult.y);
+  const referenceWidth = readFiniteNumber(runnerResult.referenceWidth);
+  const referenceHeight = readFiniteNumber(runnerResult.referenceHeight);
+  if (
+    originX === undefined ||
+    originY === undefined ||
+    referenceWidth === undefined ||
+    referenceHeight === undefined
+  ) {
+    throw new AppError('COMMAND_FAILED', 'interactionFrame did not return a usable frame');
+  }
+  return { originX, originY, referenceWidth, referenceHeight };
 }
 
 function readFiniteNumber(value: unknown): number | undefined {
