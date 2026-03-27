@@ -181,6 +181,7 @@ export async function handleTouchInteractionCommands(params: {
         session,
         refInput,
         fallbackLabel,
+        promoteToHittableAncestor: true,
         invalidRefMessage: `${commandLabel} requires a ref like @e2`,
         missingBoundsMessage: `Ref ${refInput} not found or has no bounds`,
         invalidBoundsMessage: `Ref ${refInput} not found or has invalid bounds`,
@@ -352,6 +353,7 @@ export async function handleTouchInteractionCommands(params: {
         session,
         refInput: req.positionals[0],
         fallbackLabel: labelCandidate,
+        promoteToHittableAncestor: false,
         invalidRefMessage: 'fill requires a ref like @e2',
         missingBoundsMessage: `Ref ${req.positionals[0]} not found or has no bounds`,
         invalidBoundsMessage: `Ref ${req.positionals[0]} not found or has invalid bounds`,
@@ -632,6 +634,7 @@ async function resolveRefTargetWithRectRefresh(params: {
   session: SessionState;
   refInput: string;
   fallbackLabel: string;
+  promoteToHittableAncestor: boolean;
   invalidRefMessage: string;
   missingBoundsMessage: string;
   invalidBoundsMessage: string;
@@ -657,6 +660,7 @@ async function resolveRefTargetWithRectRefresh(params: {
     session,
     refInput,
     fallbackLabel,
+    promoteToHittableAncestor,
     invalidRefMessage,
     missingBoundsMessage,
     invalidBoundsMessage,
@@ -678,10 +682,12 @@ async function resolveRefTargetWithRectRefresh(params: {
   if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
 
   const { ref } = resolvedRefTarget.target;
-  let node = resolveActionableTouchNode(
-    resolvedRefTarget.target.snapshotNodes,
-    resolvedRefTarget.target.node,
-  );
+  let node = promoteToHittableAncestor
+    ? resolveActionableTouchNode(
+        resolvedRefTarget.target.snapshotNodes,
+        resolvedRefTarget.target.node,
+      )
+    : resolvedRefTarget.target.node;
   let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
   let point = resolveRectCenter(node.rect);
 
@@ -697,17 +703,21 @@ async function resolveRefTargetWithRectRefresh(params: {
     const refNode = findNodeByRef(refreshed.nodes, ref);
     const fallbackNode =
       fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
-    const actionableRefNode = refNode ? resolveActionableTouchNode(refreshed.nodes, refNode) : null;
-    const actionableFallbackNode = fallbackNode
-      ? resolveActionableTouchNode(refreshed.nodes, fallbackNode)
-      : null;
-    const fallbackNodePoint = resolveRectCenter(actionableFallbackNode?.rect);
-    const refNodePoint = resolveRectCenter(actionableRefNode?.rect);
+    const resolvedRefNode =
+      refNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, refNode)
+        : refNode;
+    const resolvedFallbackNode =
+      fallbackNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, fallbackNode)
+        : fallbackNode;
+    const fallbackNodePoint = resolveRectCenter(resolvedFallbackNode?.rect);
+    const refNodePoint = resolveRectCenter(resolvedRefNode?.rect);
     const refreshedNode = refNodePoint
-      ? actionableRefNode
+      ? resolvedRefNode
       : fallbackNodePoint
-        ? actionableFallbackNode
-        : (actionableRefNode ?? actionableFallbackNode);
+        ? resolvedFallbackNode
+        : (resolvedRefNode ?? resolvedFallbackNode);
     const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
     if (refreshedNode && refreshedPoint) {
       node = refreshedNode;

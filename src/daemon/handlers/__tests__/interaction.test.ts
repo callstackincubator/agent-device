@@ -776,6 +776,65 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
   assert.equal(event?.y, 40);
 });
 
+test('fill @ref keeps the original editable node when its parent is the hittable ancestor', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeCell',
+        label: 'Email row',
+        rect: { x: 20, y: 100, width: 320, height: 72 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeTextField',
+        label: 'Email',
+        identifier: 'auth_email',
+        rect: { x: 44, y: 120, width: 200, height: 32 },
+        enabled: true,
+        hittable: false,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e2', 'hello@example.com'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return { filled: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'fill');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['144', '136', 'hello@example.com']);
+
+  const stored = sessionStore.get(sessionName);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  assert.equal(result.ref, 'e2');
+});
+
 test('click --button secondary on @ref dispatches a secondary press on macOS and records click', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
