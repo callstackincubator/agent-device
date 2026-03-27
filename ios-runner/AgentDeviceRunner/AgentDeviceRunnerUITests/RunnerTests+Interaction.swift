@@ -51,17 +51,16 @@ extension RunnerTests {
     start.press(forDuration: 0.05, thenDragTo: end)
   }
 
-  func performDefaultBackAction(app: XCUIApplication) -> Bool {
+  func performDefaultBackAction(app: XCUIApplication) {
     if tapInAppBackControl(app: app) {
-      return true
+      return
     }
     performBackGesture(app: app)
-    return true
   }
 
   func performSystemBackAction(app: XCUIApplication) -> Bool {
 #if os(macOS)
-    return tapInAppBackControl(app: app)
+    return false
 #else
     if pressTvRemoteMenuIfAvailable() {
       return true

@@ -43,28 +43,31 @@ async function withMockedAdb(
   }
 }
 
-test('dispatch back --in-app falls back to Android system back keyevent', async () => {
-  await withMockedAdb('agent-device-dispatch-back-in-app-', async (argsLogPath) => {
-    const result = await dispatchCommand(ANDROID_DEVICE, 'back', [], undefined, {
-      backMode: 'in-app',
-    });
+test('dispatch back maps explicit Android back modes to keyevent 4', async () => {
+  await withMockedAdb('agent-device-dispatch-back-modes-', async (argsLogPath) => {
+    for (const backMode of ['in-app', 'system'] as const) {
+      const result = await dispatchCommand(ANDROID_DEVICE, 'back', [], undefined, {
+        backMode,
+      });
 
-    assert.equal(result?.action, 'back');
-    assert.equal(result?.mode, 'in-app');
+      assert.equal(result?.action, 'back');
+      assert.equal(result?.mode, backMode);
+    }
+
     const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
-    assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'keyevent', '4']);
-  });
-});
-
-test('dispatch back --system uses Android system back keyevent', async () => {
-  await withMockedAdb('agent-device-dispatch-back-system-', async (argsLogPath) => {
-    const result = await dispatchCommand(ANDROID_DEVICE, 'back', [], undefined, {
-      backMode: 'system',
-    });
-
-    assert.equal(result?.action, 'back');
-    assert.equal(result?.mode, 'system');
-    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
-    assert.deepEqual(args, ['-s', 'emulator-5554', 'shell', 'input', 'keyevent', '4']);
+    assert.deepEqual(args, [
+      '-s',
+      'emulator-5554',
+      'shell',
+      'input',
+      'keyevent',
+      '4',
+      '-s',
+      'emulator-5554',
+      'shell',
+      'input',
+      'keyevent',
+      '4',
+    ]);
   });
 });

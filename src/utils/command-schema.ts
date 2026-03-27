@@ -574,6 +574,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageLabel: '--button primary|secondary|middle',
     usageDescription: 'Click: choose mouse button (middle reserved for future macOS support)',
   },
+  // These aliases encode the value directly in the flag name so `back` reads naturally as
+  // `back --in-app` or `back --system` without introducing a separate `--back-mode` flag.
   {
     key: 'backMode',
     names: ['--in-app'],

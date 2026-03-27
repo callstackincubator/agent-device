@@ -511,10 +511,8 @@ extension RunnerTests {
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
 #endif
     case .back:
-      if performDefaultBackAction(app: activeApp) {
-        return Response(ok: true, data: DataPayload(message: "back"))
-      }
-      return Response(ok: false, error: ErrorPayload(message: "back is not available"))
+      performDefaultBackAction(app: activeApp)
+      return Response(ok: true, data: DataPayload(message: "back"))
     case .backInApp:
       if tapInAppBackControl(app: activeApp) {
         return Response(ok: true, data: DataPayload(message: "backInApp"))
