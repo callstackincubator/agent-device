@@ -16,10 +16,8 @@ import {
   dispatchRecordedTouchInteraction,
   type ContextFromFlags,
 } from './interaction-common.ts';
-import {
-  readSnapshotNodesReferenceFrame,
-  type CaptureSnapshotForSession,
-} from './interaction-snapshot.ts';
+import { type CaptureSnapshotForSession } from './interaction-snapshot.ts';
+import { readSnapshotNodesReferenceFrame } from './interaction-touch-reference-frame.ts';
 import { resolveRefTargetWithRectRefresh, type ResolveRefTarget } from './interaction-targeting.ts';
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';

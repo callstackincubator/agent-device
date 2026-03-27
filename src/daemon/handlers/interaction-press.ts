@@ -25,11 +25,11 @@ import {
   resolveRefTargetWithRectRefresh,
   type ResolveRefTarget,
 } from './interaction-targeting.ts';
+import { type CaptureSnapshotForSession } from './interaction-snapshot.ts';
 import {
   readSnapshotNodesReferenceFrame,
   resolveDirectTouchReferenceFrameSafely,
-  type CaptureSnapshotForSession,
-} from './interaction-snapshot.ts';
+} from './interaction-touch-reference-frame.ts';
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
