@@ -36,11 +36,6 @@ type AppleDeviceSelector = {
   serial?: string;
 };
 
-type ResolveAppleDeviceDeps = {
-  resolveDevice: typeof resolveDevice;
-  findBootableSimulator: typeof findBootableIosSimulator;
-};
-
 /**
  * Resolves the best iOS device given pre-fetched candidates.  When no explicit
  * device selector was used, physical devices are rejected in favour of a
@@ -52,13 +47,12 @@ export async function resolveAppleDevice(
   devices: DeviceInfo[],
   selector: AppleDeviceSelector,
   context: { simulatorSetPath?: string },
-  deps: ResolveAppleDeviceDeps,
 ): Promise<DeviceInfo> {
   const hasExplicitSelector = !!(selector.udid || selector.serial || selector.deviceName);
 
   let selected: DeviceInfo | undefined;
   try {
-    selected = await deps.resolveDevice(devices, selector, context);
+    selected = await resolveDevice(devices, selector, context);
   } catch (err) {
     // When resolveDevice throws DEVICE_NOT_FOUND and no explicit device
     // selector was used, attempt the simulator fallback before giving up.
@@ -77,7 +71,7 @@ export async function resolveAppleDevice(
     selector.target !== 'desktop';
 
   if (shouldUseSimulatorFallback && (!selected || selected.kind === 'device')) {
-    const simulator = await deps.findBootableSimulator({
+    const simulator = await findBootableIosSimulator({
       simulatorSetPath: context.simulatorSetPath,
       target: selector.target,
     });
@@ -123,12 +117,9 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
 
       if (selector.platform) {
         const devices = await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath });
-        return await resolveAppleDevice(
-          devices,
-          selector as AppleDeviceSelector,
-          { simulatorSetPath: iosSimulatorSetPath },
-          { resolveDevice, findBootableSimulator: findBootableIosSimulator },
-        );
+        return await resolveAppleDevice(devices, selector as AppleDeviceSelector, {
+          simulatorSetPath: iosSimulatorSetPath,
+        });
       }
 
       const devices: DeviceInfo[] = [];

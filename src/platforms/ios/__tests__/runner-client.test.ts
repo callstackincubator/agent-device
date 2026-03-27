@@ -19,7 +19,7 @@ import {
 } from '../runner-client.ts';
 import { isReadOnlyRunnerCommand } from '../runner-errors.ts';
 import {
-  ensureXctestrun,
+  ensureXctestrunWithDeps,
   resolveRunnerPerformanceBuildSettings,
   shouldDeleteRunnerDerivedRootEntry,
   xctestrunReferencesExistingProducts,
@@ -490,7 +490,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   let buildCalls = 0;
   const repairedPaths: string[] = [];
 
-  const result = await ensureXctestrun(
+  const result = await ensureXctestrunWithDeps(
     macOsDevice,
     {},
     {
@@ -557,7 +557,7 @@ test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', as
   });
 
   await assert.rejects(
-    ensureXctestrun(
+    ensureXctestrunWithDeps(
       macOsDevice,
       {},
       {

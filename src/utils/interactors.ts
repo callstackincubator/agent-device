@@ -95,11 +95,7 @@ type Interactor = {
   ): Promise<Record<string, unknown> | void>;
 };
 
-export function getInteractor(
-  device: DeviceInfo,
-  runnerContext: RunnerContext,
-  deps: InteractorDeps = {},
-): Interactor {
+export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
   switch (device.platform) {
     case 'android':
       return {
@@ -129,8 +125,8 @@ export function getInteractor(
       };
     case 'ios':
     case 'macos': {
-      const runRunnerCommand = deps.runIosRunnerCommand ?? runIosRunnerCommand;
-      const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext, deps);
+      const runRunnerCommand = runIosRunnerCommand;
+      const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
       return {
         open: (app, options) =>
           openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
@@ -254,19 +250,11 @@ type IoRunnerOverrides = Pick<
   | 'scrollIntoView'
 >;
 
-type InteractorDeps = {
-  runIosRunnerCommand?: RunIosRunnerCommand;
-  sleepMs?: (ms: number) => Promise<void>;
-};
-
 function iosRunnerOverrides(
   device: DeviceInfo,
   ctx: RunnerContext,
-  deps: InteractorDeps,
 ): { overrides: IoRunnerOverrides; runnerOpts: RunnerOpts } {
-  const runRunnerCommand = deps.runIosRunnerCommand ?? runIosRunnerCommand;
-  const sleepMs =
-    deps.sleepMs ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const runRunnerCommand = runIosRunnerCommand;
   const runnerOpts = {
     verbose: ctx.verbose,
     logPath: ctx.logPath,

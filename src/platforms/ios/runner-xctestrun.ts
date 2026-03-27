@@ -95,7 +95,14 @@ const defaultEnsureXctestrunDeps: EnsureXctestrunDeps = {
 export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
-  deps: EnsureXctestrunDeps = defaultEnsureXctestrunDeps,
+): Promise<string> {
+  return await ensureXctestrunWithDeps(device, options, defaultEnsureXctestrunDeps);
+}
+
+export async function ensureXctestrunWithDeps(
+  device: DeviceInfo,
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
+  deps: EnsureXctestrunDeps,
 ): Promise<string> {
   const derived = resolveRunnerDerivedPath(device);
   const projectRoot = deps.findProjectRoot();

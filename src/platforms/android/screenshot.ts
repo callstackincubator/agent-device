@@ -8,32 +8,14 @@ import { adbArgs, sleep } from './adb.ts';
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const ANDROID_SCREENSHOT_SETTLE_DELAY_MS = 1_000;
 
-type ScreenshotAndroidDeps = {
-  enableDemoMode: (device: DeviceInfo) => Promise<void>;
-  settle: (ms: number) => Promise<void>;
-  capture: (device: DeviceInfo, outPath: string) => Promise<void>;
-  disableDemoMode: (device: DeviceInfo) => Promise<void>;
-};
-
-const defaultScreenshotAndroidDeps: ScreenshotAndroidDeps = {
-  enableDemoMode: enableAndroidDemoMode,
-  settle: sleep,
-  capture: captureAndroidScreenshot,
-  disableDemoMode: disableAndroidDemoMode,
-};
-
-export async function screenshotAndroid(
-  device: DeviceInfo,
-  outPath: string,
-  deps: ScreenshotAndroidDeps = defaultScreenshotAndroidDeps,
-): Promise<void> {
-  await deps.enableDemoMode(device);
+export async function screenshotAndroid(device: DeviceInfo, outPath: string): Promise<void> {
+  await enableAndroidDemoMode(device);
   try {
     // Allow transient UI affordances like scrollbars to fade before capture.
-    await deps.settle(ANDROID_SCREENSHOT_SETTLE_DELAY_MS);
-    await deps.capture(device, outPath);
+    await sleep(ANDROID_SCREENSHOT_SETTLE_DELAY_MS);
+    await captureAndroidScreenshot(device, outPath);
   } finally {
-    await deps.disableDemoMode(device).catch(() => {});
+    await disableAndroidDemoMode(device).catch(() => {});
   }
 }
 
