@@ -41,19 +41,11 @@ export async function handleSessionObservabilityCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  appLogOps?: {
-    start: typeof startAppLog;
-    stop: typeof stopAppLog;
-  };
 }): Promise<DaemonResponse | null> {
   const {
     req,
     sessionName,
     sessionStore,
-    appLogOps = {
-      start: startAppLog,
-      stop: stopAppLog,
-    },
   } = params;
 
   if (req.command === 'perf') {
@@ -173,12 +165,12 @@ export async function handleSessionObservabilityCommands(params: {
       }
 
       if (session.appLog) {
-        await appLogOps.stop(session.appLog);
+        await stopAppLog(session.appLog);
       }
       const cleared = clearAppLogFiles(logPath);
       const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
       try {
-        const appLogStream = await appLogOps.start(
+        const appLogStream = await startAppLog(
           session.device,
           session.appBundleId as string,
           logPath,
@@ -226,7 +218,7 @@ export async function handleSessionObservabilityCommands(params: {
       const appLogPath = sessionStore.resolveAppLogPath(sessionName);
       const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
       try {
-        const appLogStream = await appLogOps.start(
+        const appLogStream = await startAppLog(
           session.device,
           session.appBundleId,
           appLogPath,
@@ -255,7 +247,7 @@ export async function handleSessionObservabilityCommands(params: {
         return { ok: false, error: { code: 'INVALID_ARGS', message: 'no app log stream active' } };
       }
       const outPath = session.appLog.outPath;
-      await appLogOps.stop(session.appLog);
+      await stopAppLog(session.appLog);
       sessionStore.set(sessionName, { ...session, appLog: undefined });
       return { ok: true, data: { path: outPath, stopped: true } };
     }

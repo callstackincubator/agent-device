@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, onTestFinished } from 'vitest';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
@@ -121,9 +121,9 @@ async function callGet(
   });
 }
 
-test('HTTP RPC does not cancel active requests after the request body completes', async (t) => {
+test('HTTP RPC does not cancel active requests after the request body completes', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+    ctx.skip();
     return;
   }
 
@@ -136,7 +136,7 @@ test('HTTP RPC does not cancel active requests after the request body completes'
     },
   });
   const port = await listen(server);
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -168,9 +168,9 @@ test('HTTP RPC does not cancel active requests after the request body completes'
   assert.equal(observedCanceled, false);
 });
 
-test('HTTP install_from_source RPC maps typed params to an install_source daemon request', async (t) => {
+test('HTTP install_from_source RPC maps typed params to an install_source daemon request', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+    ctx.skip();
     return;
   }
 
@@ -183,7 +183,7 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
     token: 'test-token',
   });
   const port = await listen(server);
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -233,9 +233,9 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
   });
 });
 
-test('HTTP release_materialized_paths RPC maps typed params to a release_materialized_paths daemon request', async (t) => {
+test('HTTP release_materialized_paths RPC maps typed params to a release_materialized_paths daemon request', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+    ctx.skip();
     return;
   }
 
@@ -248,7 +248,7 @@ test('HTTP release_materialized_paths RPC maps typed params to a release_materia
     token: 'test-token',
   });
   const port = await listen(server);
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -280,9 +280,9 @@ test('HTTP release_materialized_paths RPC maps typed params to a release_materia
   assert.equal(observedRequest?.meta?.materializationId, 'materialized-123');
 });
 
-test('HTTP artifact download streams registered files', async (t) => {
+test('HTTP artifact download streams registered files', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+    ctx.skip();
     return;
   }
 
@@ -298,7 +298,7 @@ test('HTTP artifact download streams registered files', async (t) => {
     token: 'test-token',
   });
   const port = await listen(server);
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -319,9 +319,9 @@ test('HTTP artifact download streams registered files', async (t) => {
   assert.match(String(response.headers['content-disposition'] ?? ''), /screen\.png/);
 });
 
-test('HTTP artifact download rejects requests without the daemon token', async (t) => {
+test('HTTP artifact download rejects requests without the daemon token', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+    ctx.skip();
     return;
   }
 
@@ -337,7 +337,7 @@ test('HTTP artifact download rejects requests without the daemon token', async (
     token: 'test-token',
   });
   const port = await listen(server);
-  t.after(async () => {
+  onTestFinished(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {

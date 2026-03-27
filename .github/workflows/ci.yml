@@ -29,6 +29,21 @@ jobs:
             exit 1
           fi
 
+  no-test-di-seams:
+    name: No test-only DI seams
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Fail if test-only DI seams reappear in production code
+        run: |
+          if rg '\?\s*:\s*typeof\s+' src/ --glob '!**/__tests__/**' --glob '!*.test.ts'; then
+            echo "Found test-only DI seams (optional typeof params) in production code."
+            exit 1
+          fi
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest

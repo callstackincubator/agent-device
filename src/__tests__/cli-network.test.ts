@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';

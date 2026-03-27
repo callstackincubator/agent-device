@@ -86,9 +86,8 @@ export async function healReplayAction(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatch: typeof dispatchCommand;
 }): Promise<SessionAction | null> {
-  const { action, sessionName, logPath, sessionStore, dispatch } = params;
+  const { action, sessionName, logPath, sessionStore } = params;
   if (
     !(isClickLikeCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command))
   ) {
@@ -110,7 +109,6 @@ export async function healReplayAction(params: {
     action,
     logPath,
     requiresRect,
-    dispatch,
     sessionStore,
   );
   for (const chain of selectorChains) {
@@ -169,10 +167,9 @@ async function captureSnapshotForReplay(
   action: SessionAction,
   logPath: string,
   interactiveOnly: boolean,
-  dispatch: typeof dispatchCommand,
   sessionStore: SessionStore,
 ): Promise<SnapshotState> {
-  const data = (await dispatch(session.device, 'snapshot', [], action.flags?.out, {
+  const data = (await dispatchCommand(session.device, 'snapshot', [], action.flags?.out, {
     ...contextFromFlags(
       logPath,
       {

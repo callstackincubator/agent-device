@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import type { RunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../device.ts';
@@ -26,11 +26,11 @@ test('resolveAppleBackRunnerCommand maps explicit back modes to runner commands'
   assert.equal(resolveAppleBackRunnerCommand('system'), 'backSystem');
 });
 
-test('ios scrollIntoView uses snapshot progress checks between swipes', async (t) => {
-  t.mock.method(globalThis, 'setTimeout', (cb: () => void, _ms: number) => {
+test('ios scrollIntoView uses snapshot progress checks between swipes', async () => {
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((cb: () => void, _ms: number) => {
     cb();
     return 0 as unknown as ReturnType<typeof setTimeout>;
-  });
+  }) as typeof setTimeout);
 
   const commands: string[] = [];
   let findTextCalls = 0;
@@ -136,11 +136,11 @@ test('ios fill preserves target coordinates for the follow-up type command', asy
   ]);
 });
 
-test('scrollIntoViewIosRunnerText stops when post-swipe snapshots stall', async (t) => {
-  t.mock.method(globalThis, 'setTimeout', (cb: () => void, _ms: number) => {
+test('scrollIntoViewIosRunnerText stops when post-swipe snapshots stall', async () => {
+  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((cb: () => void, _ms: number) => {
     cb();
     return 0 as unknown as ReturnType<typeof setTimeout>;
-  });
+  }) as typeof setTimeout);
 
   let snapshotCalls = 0;
   const runCommand = async (command: RunnerCommand): Promise<Record<string, unknown>> => {

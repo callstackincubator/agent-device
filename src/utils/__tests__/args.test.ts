@@ -1,11 +1,11 @@
-import test, { type TestContext } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { parseArgs, toDaemonFlags, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
 
-test('parseArgs recognizes command-specific flag combinations', async (t: TestContext) => {
+test('parseArgs recognizes command-specific flag combinations', async () => {
   const scenarios: Array<{
     label: string;
     argv: string[];
@@ -121,9 +121,7 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
   ];
 
   for (const scenario of scenarios) {
-    await t.test(scenario.label, () => {
-      scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
-    });
+    scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
   }
 });
 

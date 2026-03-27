@@ -1,4 +1,4 @@
-import { describe, test } from 'node:test';
+import { describe, test } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -131,7 +131,7 @@ async function runCliCapture(
 }
 
 // Tests must run serially because they monkey-patch process.exit and process.stdout.write.
-describe('cli diff commands', { concurrency: false }, () => {
+describe('cli diff commands', () => {
   test('diff snapshot renders human-readable unified diff text', async () => {
     const result = await runCliCapture(['diff', 'snapshot']);
     assert.equal(result.code, null);

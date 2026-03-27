@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon/types.ts';

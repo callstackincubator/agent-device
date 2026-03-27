@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test, onTestFinished } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -114,9 +114,9 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   shutdown: { command: 'shutdown' },
 };
 
-async function makeTmpDir(t: test.TestContext): Promise<string> {
+async function makeTmpDir(): Promise<string> {
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
-  t.after(async () => {
+  onTestFinished(async () => {
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
   return tmpDir;
@@ -378,8 +378,8 @@ test('isRetryableRunnerError does not retry busy-connecting errors', () => {
   assert.equal(isRetryableRunnerError(err), false);
 });
 
-test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async (t) => {
-  const tmpDir = await makeTmpDir(t);
+test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async () => {
+  const tmpDir = await makeTmpDir();
   const xctestrunPath = path.join(tmpDir, 'AgentDeviceRunner.xctestrun');
   fs.writeFileSync(
     xctestrunPath,
@@ -397,8 +397,8 @@ test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async (t
   );
 });
 
-test('xctestrunReferencesExistingProducts rejects missing runner host artifacts', async (t) => {
-  const tmpDir = await makeTmpDir(t);
+test('xctestrunReferencesExistingProducts rejects missing runner host artifacts', async () => {
+  const tmpDir = await makeTmpDir();
   const productsDir = path.join(tmpDir, 'Build', 'Products');
   const debugDir = path.join(productsDir, 'Debug');
   await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
@@ -421,8 +421,8 @@ test('xctestrunReferencesExistingProducts rejects missing runner host artifacts'
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), false);
 });
 
-test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async (t) => {
-  const tmpDir = await makeTmpDir(t);
+test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async () => {
+  const tmpDir = await makeTmpDir();
   const productsDir = path.join(tmpDir, 'Build', 'Products');
   const debugDir = path.join(productsDir, 'Debug');
   await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
@@ -455,10 +455,10 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
 
-test('ensureXctestrun rebuilds after cached macOS runner repair failure', async (t) => {
+test('ensureXctestrun rebuilds after cached macOS runner repair failure', async () => {
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
-  const tmpDir = await makeTmpDir(t);
+  const tmpDir = await makeTmpDir();
   const projectRoot = path.join(tmpDir, 'project');
   const derivedPath = path.join(tmpDir, 'derived');
   const projectPath = path.join(
@@ -477,7 +477,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
 
   const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
   process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
-  t.after(() => {
+  onTestFinished(() => {
     if (previousDerivedPath === undefined) {
       delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
       return;
@@ -529,8 +529,8 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   assert.deepEqual(repairedPaths, [existingXctestrunPath, rebuiltXctestrunPath]);
 });
 
-test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async (t) => {
-  const tmpDir = await makeTmpDir(t);
+test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {
+  const tmpDir = await makeTmpDir();
   const projectRoot = path.join(tmpDir, 'project');
   const derivedPath = path.join(tmpDir, 'derived');
   const projectPath = path.join(
@@ -548,7 +548,7 @@ test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', as
 
   const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
   process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
-  t.after(() => {
+  onTestFinished(() => {
     if (previousDerivedPath === undefined) {
       delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
       return;

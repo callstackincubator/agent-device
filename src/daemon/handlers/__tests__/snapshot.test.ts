@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { parseWaitArgs } from '../snapshot.ts';
 import { parseTimeout } from '../parse-utils.ts';

@@ -1,5 +1,11 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
+});
+vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +14,20 @@ import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../../types.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
+import { ensureDeviceReady } from '../../device-ready.ts';
+
+const mockDispatchCommand = vi.mocked(dispatchCommand);
+const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
+const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
+
+beforeEach(() => {
+  mockDispatchCommand.mockReset();
+  mockDispatchCommand.mockResolvedValue({});
+  mockResolveTargetDevice.mockReset();
+  mockEnsureDeviceReady.mockReset();
+  mockEnsureDeviceReady.mockResolvedValue(undefined);
+});
 
 function makeDevice(): DeviceInfo {
   return {
@@ -120,7 +140,7 @@ test('replay --update heals selector and rewrites replay file', async () => {
   };
 
   let snapshotDispatchCalls = 0;
-  const dispatch = async (
+  mockDispatchCommand.mockImplementation(async (
     _device: DeviceInfo,
     command: string,
     _positionals: string[],
@@ -146,7 +166,7 @@ test('replay --update heals selector and rewrites replay file', async () => {
       truncated: false,
       backend: 'xctest',
     };
-  };
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -160,22 +180,21 @@ test('replay --update heals selector and rewrites replay file', async () => {
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, true, JSON.stringify(response));
-  if (response.ok) {
-    assert.equal(response.data?.healed, 1);
-    assert.equal(response.data?.replayed, 1);
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(true);
+  if (response!.ok) {
+    expect(response!.data?.healed).toBe(1);
+    expect(response!.data?.replayed).toBe(1);
   }
-  assert.equal(snapshotDispatchCalls, 1);
-  assert.equal(invokeCalls.length, 2);
-  assert.ok(invokeCalls[0].includes('old_continue'));
-  assert.ok(invokeCalls[1].includes('auth_continue'));
+  expect(snapshotDispatchCalls).toBe(1);
+  expect(invokeCalls.length).toBe(2);
+  expect(invokeCalls[0]).toContain('old_continue');
+  expect(invokeCalls[1]).toContain('auth_continue');
   const rewrittenSelector = readReplaySelector(replayPath, 'click');
-  assert.ok(rewrittenSelector.includes('auth_continue'));
-  assert.ok(!rewrittenSelector.includes('old_continue'));
+  expect(rewrittenSelector).toContain('auth_continue');
+  expect(rewrittenSelector).not.toContain('old_continue');
 });
 
 test('replay tolerates legacy snapshot --backend and strips it on rewrite', async () => {
@@ -216,23 +235,21 @@ test('replay tolerates legacy snapshot --backend and strips it on rewrite', asyn
     };
   };
 
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        identifier: 'auth_continue',
+        rect: { x: 10, y: 10, width: 100, height: 44 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -246,14 +263,13 @@ test('replay tolerates legacy snapshot --backend and strips it on rewrite', asyn
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, true, JSON.stringify(response));
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(true);
   const rewritten = fs.readFileSync(replayPath, 'utf8');
-  assert.match(rewritten, /^snapshot -i$/m);
-  assert.doesNotMatch(rewritten, /--backend/);
+  expect(rewritten).toMatch(/^snapshot -i$/m);
+  expect(rewritten).not.toMatch(/--backend/);
 });
 
 test('replay without --update does not heal or rewrite', async () => {
@@ -286,18 +302,6 @@ test('replay without --update does not heal or rewrite', async () => {
     };
   };
 
-  let snapshotDispatchCalls = 0;
-  const dispatch = async (
-    _device: DeviceInfo,
-    _command: string,
-    _positionals: string[],
-    _out?: string,
-    _context?: CommandFlags,
-  ): Promise<Record<string, unknown> | void> => {
-    snapshotDispatchCalls += 1;
-    return {};
-  };
-
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -310,21 +314,20 @@ test('replay without --update does not heal or rewrite', async () => {
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.match(response.error.message, /Replay failed at step 1/);
-    assert.equal(response.error.details?.step, 1);
-    assert.equal(response.error.details?.action, 'click');
-    assert.equal(response.error.hint, 'update selector');
-    assert.equal(response.error.diagnosticId, 'diag-replay-1');
-    assert.equal(response.error.logPath, '/tmp/diag-replay-1.ndjson');
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.message).toMatch(/Replay failed at step 1/);
+    expect(response!.error.details?.step).toBe(1);
+    expect(response!.error.details?.action).toBe('click');
+    expect(response!.error.hint).toBe('update selector');
+    expect(response!.error.diagnosticId).toBe('diag-replay-1');
+    expect(response!.error.logPath).toBe('/tmp/diag-replay-1.ndjson');
   }
-  assert.equal(snapshotDispatchCalls, 0);
-  assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
+  expect(mockDispatchCommand).not.toHaveBeenCalled();
+  expect(fs.readFileSync(replayPath, 'utf8')).toBe(originalPayload);
 });
 
 test('replay --update skips malformed selector candidates and preserves replay error context', async () => {
@@ -345,26 +348,6 @@ test('replay --update skips malformed selector candidates and preserves replay e
     result: {},
   });
 
-  let snapshotDispatchCalls = 0;
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    snapshotDispatchCalls += 1;
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
-
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -380,19 +363,18 @@ test('replay --update skips malformed selector candidates and preserves replay e
       ok: false,
       error: { code: 'COMMAND_FAILED', message: 'selector stale' },
     }),
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'COMMAND_FAILED');
-    assert.match(response.error.message, /Replay failed at step 1/);
-    assert.equal(response.error.details?.step, 1);
-    assert.equal(response.error.details?.action, 'click');
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.code).toBe('COMMAND_FAILED');
+    expect(response!.error.message).toMatch(/Replay failed at step 1/);
+    expect(response!.error.details?.step).toBe(1);
+    expect(response!.error.details?.action).toBe('click');
   }
-  assert.equal(snapshotDispatchCalls, 0);
-  assert.equal(fs.readFileSync(replayPath, 'utf8'), 'click "id=\\"old_continue\\" ||"\n');
+  expect(mockDispatchCommand).not.toHaveBeenCalled();
+  expect(fs.readFileSync(replayPath, 'utf8')).toBe('click "id=\\"old_continue\\" ||"\n');
 });
 
 test('replay --update heals selector in is command', async () => {
@@ -428,23 +410,21 @@ test('replay --update heals selector in is command', async () => {
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'unexpected selector' } };
   };
 
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        identifier: 'auth_continue',
+        rect: { x: 10, y: 10, width: 100, height: 44 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -458,16 +438,15 @@ test('replay --update heals selector in is command', async () => {
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, true, JSON.stringify(response));
-  if (response.ok) {
-    assert.equal(response.data?.healed, 1);
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(true);
+  if (response!.ok) {
+    expect(response!.data?.healed).toBe(1);
   }
   const rewrittenSelector = readReplaySelector(replayPath, 'is');
-  assert.ok(rewrittenSelector.includes('auth_continue'));
+  expect(rewrittenSelector).toContain('auth_continue');
 });
 
 test('replay --update does not heal clicks from stored ref labels alone', async () => {
@@ -483,7 +462,6 @@ test('replay --update does not heal clicks from stored ref labels alone', async 
   fs.writeFileSync(replayPath, 'click @e1 "Continue"\n');
   const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
-  let snapshotDispatchCalls = 0;
   const invokeCalls: string[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'click') {
@@ -497,24 +475,21 @@ test('replay --update does not heal clicks from stored ref labels alone', async 
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'missing ref target' } };
   };
 
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    snapshotDispatchCalls += 1;
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        identifier: 'auth_continue',
+        rect: { x: 10, y: 10, width: 100, height: 44 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -528,19 +503,18 @@ test('replay --update does not heal clicks from stored ref labels alone', async 
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.match(response.error.message, /Replay failed at step 1/);
-    assert.equal(response.error.details?.step, 1);
-    assert.equal(response.error.details?.action, 'click');
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.message).toMatch(/Replay failed at step 1/);
+    expect(response!.error.details?.step).toBe(1);
+    expect(response!.error.details?.action).toBe('click');
   }
-  assert.equal(snapshotDispatchCalls, 0);
-  assert.deepEqual(invokeCalls, ['@e1']);
-  assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
+  expect(mockDispatchCommand).not.toHaveBeenCalled();
+  expect(invokeCalls).toEqual(['@e1']);
+  expect(fs.readFileSync(replayPath, 'utf8')).toBe(originalPayload);
 });
 
 test('replay --update does not heal numeric get text drift from snapshot text alone', async () => {
@@ -560,7 +534,6 @@ test('replay --update does not heal numeric get text drift from snapshot text al
   });
   const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
-  let snapshotDispatchCalls = 0;
   const invokeCalls: string[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'get') {
@@ -574,31 +547,28 @@ test('replay --update does not heal numeric get text drift from snapshot text al
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } };
   };
 
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    snapshotDispatchCalls += 1;
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeStaticText',
-          label: '20',
-          rect: { x: 0, y: 100, width: 100, height: 24 },
-          enabled: true,
-          hittable: true,
-        },
-        {
-          index: 1,
-          type: 'XCUIElementTypeStaticText',
-          label: 'Version: 0.84.0',
-          rect: { x: 0, y: 200, width: 220, height: 17 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        type: 'XCUIElementTypeStaticText',
+        label: '20',
+        rect: { x: 0, y: 100, width: 100, height: 24 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Version: 0.84.0',
+        rect: { x: 0, y: 200, width: 220, height: 17 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -612,19 +582,18 @@ test('replay --update does not heal numeric get text drift from snapshot text al
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.match(response.error.message, /Replay failed at step 1/);
-    assert.equal(response.error.details?.step, 1);
-    assert.equal(response.error.details?.action, 'get');
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.message).toMatch(/Replay failed at step 1/);
+    expect(response!.error.details?.step).toBe(1);
+    expect(response!.error.details?.action).toBe('get');
   }
-  assert.equal(snapshotDispatchCalls, 1);
-  assert.equal(invokeCalls.length, 1);
-  assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
+  expect(mockDispatchCommand).toHaveBeenCalledTimes(1);
+  expect(invokeCalls.length).toBe(1);
+  expect(fs.readFileSync(replayPath, 'utf8')).toBe(originalPayload);
 });
 
 test('replay --update heals selector in press command and preserves press series flags', async () => {
@@ -658,23 +627,21 @@ test('replay --update heals selector in press command and preserves press series
     return { ok: false, error: { code: 'COMMAND_FAILED', message: 'unexpected selector' } };
   };
 
-  const dispatch = async (): Promise<Record<string, unknown> | void> => {
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  };
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        identifier: 'auth_continue',
+        rect: { x: 10, y: 10, width: 100, height: 44 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -688,27 +655,26 @@ test('replay --update heals selector in press command and preserves press series
     logPath: path.join(tempRoot, 'daemon.log'),
     sessionStore,
     invoke,
-    dispatch,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, true, JSON.stringify(response));
-  if (response.ok) {
-    assert.equal(response.data?.healed, 1);
-    assert.equal(response.data?.replayed, 1);
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(true);
+  if (response!.ok) {
+    expect(response!.data?.healed).toBe(1);
+    expect(response!.data?.replayed).toBe(1);
   }
-  assert.equal(invokeCalls.length, 2);
-  assert.equal(invokeCalls[0]?.flags?.count, 3);
-  assert.equal(invokeCalls[0]?.flags?.intervalMs, 1);
-  assert.equal(invokeCalls[0]?.flags?.doubleTap, true);
+  expect(invokeCalls.length).toBe(2);
+  expect(invokeCalls[0]?.flags?.count).toBe(3);
+  expect(invokeCalls[0]?.flags?.intervalMs).toBe(1);
+  expect(invokeCalls[0]?.flags?.doubleTap).toBe(true);
   const updatedLine = fs
     .readFileSync(replayPath, 'utf8')
     .split(/\r?\n/)
     .find((line) => line.startsWith('press '));
-  assert.ok(updatedLine);
+  expect(updatedLine).toBeTruthy();
   const tokens = tokenizeReplayLine(updatedLine!);
-  assert.ok(tokens[1]?.includes('auth_continue'));
-  assert.deepEqual(tokens.slice(2), ['--count', '3', '--interval-ms', '1', '--double-tap']);
+  expect(tokens[1]).toContain('auth_continue');
+  expect(tokens.slice(2)).toEqual(['--count', '3', '--interval-ms', '1', '--double-tap']);
 });
 
 test('replay rejects legacy JSON payload files', async () => {
@@ -734,11 +700,11 @@ test('replay rejects legacy JSON payload files', async () => {
     invoke: async () => ({ ok: true, data: {} }),
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /\.ad script files/);
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.code).toBe('INVALID_ARGS');
+    expect(response!.error.message).toMatch(/\.ad script files/);
   }
 });
 
@@ -765,10 +731,10 @@ test('replay rejects malformed .ad lines with unclosed quotes', async () => {
     invoke: async () => ({ ok: true, data: {} }),
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /Invalid replay script line/);
+  expect(response).toBeTruthy();
+  expect(response!.ok).toBe(false);
+  if (!response!.ok) {
+    expect(response!.error.code).toBe('INVALID_ARGS');
+    expect(response!.error.message).toMatch(/Invalid replay script line/);
   }
 });

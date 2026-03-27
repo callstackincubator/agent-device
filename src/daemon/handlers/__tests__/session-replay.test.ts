@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { buildReplayActionFlags, withReplayFailureContext } from '../session-replay-runtime.ts';
 
 test('buildReplayActionFlags keeps allowed parent flags only', () => {

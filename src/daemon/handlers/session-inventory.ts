@@ -16,28 +16,15 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 
-type ListAndroidDevices = typeof import('../../platforms/android/devices.ts').listAndroidDevices;
-type ListAppleDevices = typeof import('../../platforms/ios/devices.ts').listAppleDevices;
-type ListAppleApps = (
-  device: DeviceInfo,
-  filter: 'user-installed' | 'all',
-) => Promise<Array<{ bundleId: string; name?: string }>>;
-
 export async function handleSessionInventoryCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  listAndroidDevices?: ListAndroidDevices;
-  listAppleDevices?: ListAppleDevices;
-  listAppleApps?: ListAppleApps;
 }): Promise<DaemonResponse | null> {
   const {
     req,
     sessionName,
     sessionStore,
-    listAndroidDevices: listAndroidDevicesOverride,
-    listAppleDevices: listAppleDevicesOverride,
-    listAppleApps: listAppleAppsOverride,
   } = params;
 
   if (req.command === 'session_list') {
@@ -117,20 +104,14 @@ export async function handleSessionInventoryCommands(params: {
       });
 
       if (requestedPlatform === 'android') {
-        const listAndroidDevices =
-          listAndroidDevicesOverride ??
-          (await import('../../platforms/android/devices.ts')).listAndroidDevices;
+        const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
         devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
       } else if (requestedPlatform === 'ios' || requestedPlatform === 'macos') {
-        const listAppleDevices =
-          listAppleDevicesOverride ??
-          (await import('../../platforms/ios/devices.ts')).listAppleDevices;
+        const { listAppleDevices } = await import('../../platforms/ios/devices.ts');
         devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
       } else {
         if (requestedPlatform !== 'apple') {
-          const listAndroidDevices =
-            listAndroidDevicesOverride ??
-            (await import('../../platforms/android/devices.ts')).listAndroidDevices;
+          const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
           try {
             devices.push(
               ...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })),
@@ -140,9 +121,7 @@ export async function handleSessionInventoryCommands(params: {
           }
         }
 
-        const listAppleDevices =
-          listAppleDevicesOverride ??
-          (await import('../../platforms/ios/devices.ts')).listAppleDevices;
+        const { listAppleDevices } = await import('../../platforms/ios/devices.ts');
         try {
           devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
         } catch {
@@ -190,9 +169,8 @@ export async function handleSessionInventoryCommands(params: {
 
     const appsFilter = req.flags?.appsFilter ?? 'all';
     if (isApplePlatform(device.platform)) {
-      const listAppleApps =
-        listAppleAppsOverride ?? (await import('../../platforms/ios/index.ts')).listIosApps;
-      const apps = await listAppleApps(device, appsFilter);
+      const { listIosApps } = await import('../../platforms/ios/index.ts');
+      const apps = await listIosApps(device, appsFilter);
       return {
         ok: true,
         data: {

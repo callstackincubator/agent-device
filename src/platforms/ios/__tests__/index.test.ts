@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
@@ -365,7 +365,7 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
   }
 });
 
-test('focusIosSimulatorWindow times out instead of hanging indefinitely', async () => {
+test('focusIosSimulatorWindow times out instead of hanging indefinitely', { timeout: 15_000 }, async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-focus-timeout-test-'));
   const openPath = path.join(tmpDir, 'open');
   await fs.writeFile(openPath, '#!/bin/sh\nsleep 10\n', 'utf8');
