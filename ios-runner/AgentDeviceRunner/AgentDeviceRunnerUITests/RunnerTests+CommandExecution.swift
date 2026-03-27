@@ -438,7 +438,11 @@ extension RunnerTests {
       }
       if command.clearFirst == true {
         guard let focused = target else {
-          return Response(ok: false, error: ErrorPayload(message: "no focused text input to clear"))
+          let message =
+            (command.x != nil && command.y != nil)
+            ? "no text input found at the provided coordinates to clear"
+            : "no focused text input to clear"
+          return Response(ok: false, error: ErrorPayload(message: message))
         }
         clearTextInput(focused)
       }

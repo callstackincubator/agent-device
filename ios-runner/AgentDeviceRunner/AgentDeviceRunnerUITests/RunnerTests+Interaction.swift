@@ -172,6 +172,7 @@ extension RunnerTests {
     let point = CGPoint(x: x, y: y)
     var matched: XCUIElement?
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      // Prefer the smallest matching field so nested editable controls win over large containers.
       let candidates = app.descendants(matching: .any).allElementsBoundByIndex
         .filter { element in
           guard element.exists else { return false }
