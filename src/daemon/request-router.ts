@@ -38,9 +38,7 @@ import {
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
 import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
-import { snapshotAndroid, openAndroidApp, getAndroidAppState } from '../platforms/android/index.ts';
 import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
-import { runCmd } from '../utils/exec.ts';
 
 const selectorValidationExemptCommands = new Set([
   'session_list',
@@ -247,10 +245,6 @@ export type RequestRouterDeps = {
     fileName?: string;
   }) => string;
   dispatchCommand?: typeof dispatchCommand;
-  snapshotAndroidUi?: typeof snapshotAndroid;
-  reopenAndroidApp?: typeof openAndroidApp;
-  readAndroidAppState?: typeof getAndroidAppState;
-  execCommand?: typeof runCmd;
 };
 
 export function createRequestHandler(
@@ -258,10 +252,6 @@ export function createRequestHandler(
 ): (req: DaemonRequest) => Promise<DaemonResponse> {
   const { logPath, token, sessionStore, leaseRegistry, trackDownloadableArtifact } = deps;
   const dispatch = deps.dispatchCommand ?? dispatchCommand;
-  const snapshotAndroidUi = deps.snapshotAndroidUi ?? snapshotAndroid;
-  const reopenAndroidApp = deps.reopenAndroidApp ?? openAndroidApp;
-  const readAndroidAppState = deps.readAndroidAppState ?? getAndroidAppState;
-  const execCommand = deps.execCommand ?? runCmd;
 
   async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     const normalizedReq = normalizeAliasedCommands(req);
@@ -405,10 +395,6 @@ export function createRequestHandler(
           if (session.device.platform === 'android' && session.recording && command !== 'record') {
             const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({
               session,
-              snapshotAndroidUi,
-              reopenAndroidApp,
-              readAndroidAppState,
-              execCommand,
             });
             if (androidRecoveryResult === 'failed') {
               return finalize({

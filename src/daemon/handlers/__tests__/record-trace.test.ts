@@ -132,7 +132,7 @@ function makeRunnerRecordingDeps(
     runIosRunnerCommand,
     waitForStableFile: async () => {},
     isPlayableVideo: async () => true,
-    writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
     trimRecordingStart: async () => {},
     overlayRecordingTouches: async () => {},
   };
@@ -147,7 +147,7 @@ function makeRecordDeps(overrides: Partial<RecordTraceDeps> = {}): RecordTraceDe
     runIosRunnerCommand: async () => ({}),
     waitForStableFile: async () => {},
     isPlayableVideo: async () => true,
-    writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
     trimRecordingStart: async () => {},
     overlayRecordingTouches: async () => {},
     ...overrides,
@@ -395,7 +395,7 @@ test('record start rejects invalid fps value', async () => {
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -425,7 +425,7 @@ test('record start on iOS device requires active app session context', async () 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -456,7 +456,7 @@ test('record start returns structured error when iOS runner start fails', async 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -497,7 +497,7 @@ test('record start recovers from stale iOS runner recording state', async () => 
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -545,7 +545,7 @@ test('record start does not stop recording owned by another session during desyn
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -591,7 +591,7 @@ test('record stop clears iOS runner recording state when runner stop fails', asy
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },
@@ -629,10 +629,6 @@ test('record stop trims iOS device recordings from target app readiness before o
       trimRecordingStart: async ({ videoPath, trimStartMs }) => {
         lifecycleCalls.push(`trim:${videoPath}:${trimStartMs}`);
       },
-      writeRecordingTelemetry: ({ videoPath, events }) => {
-        lifecycleCalls.push(`telemetry:${videoPath}:${events.length}`);
-        return deriveRecordingTelemetryPath(videoPath);
-      },
       overlayRecordingTouches: async ({ videoPath, telemetryPath }) => {
         lifecycleCalls.push(`overlay:${videoPath}:${telemetryPath}`);
       },
@@ -640,7 +636,7 @@ test('record stop trims iOS device recordings from target app readiness before o
   });
 
   assert.equal(response?.ok, true);
-  const expectedLifecycleCalls = ['trim:/tmp/device.mp4:3250', 'telemetry:/tmp/device.mp4:1'];
+  const expectedLifecycleCalls = ['trim:/tmp/device.mp4:3250'];
   if (!overlaySupportWarning) {
     expectedLifecycleCalls.push(
       `overlay:/tmp/device.mp4:${deriveRecordingTelemetryPath('/tmp/device.mp4')}`,
@@ -747,7 +743,7 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
       runIosRunnerCommand: async () => ({}),
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {
         throw new Error('swift export failed');
@@ -767,7 +763,7 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
       runIosRunnerCommand: async () => ({}),
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {
         throw new Error('swift export failed');
@@ -814,7 +810,7 @@ test('record start does not fail when iOS simulator runner warm-up fails', async
       },
       waitForStableFile: async () => {},
       isPlayableVideo: async () => true,
-      writeRecordingTelemetry: ({ videoPath }) => deriveRecordingTelemetryPath(videoPath),
+
       trimRecordingStart: async () => {},
       overlayRecordingTouches: async () => {},
     },

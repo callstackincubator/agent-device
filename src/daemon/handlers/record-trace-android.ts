@@ -374,7 +374,6 @@ export async function stopAndroidRecording(params: {
 
     persistRecordingTelemetry({
       recording,
-      writeTelemetry: deps.writeRecordingTelemetry,
     });
     if (recording.showTouches && recording.telemetryPath) {
       const overlaySupportWarning = getRecordingOverlaySupportWarning();

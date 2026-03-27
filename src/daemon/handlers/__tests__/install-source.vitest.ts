@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +7,31 @@ import { resolveInstallSource } from '../../install-source-resolution.ts';
 import { SessionStore } from '../../session-store.ts';
 import { trackUploadedArtifact } from '../../upload-registry.ts';
 import type { DaemonRequest, SessionState } from '../../types.ts';
+
+vi.mock('../../device-ready.ts', () => ({
+  ensureDeviceReady: vi.fn(async () => {}),
+}));
+
+vi.mock('../../../core/dispatch.ts', () => ({
+  resolveTargetDevice: vi.fn(),
+}));
+
+vi.mock('../../request-cancel.ts', () => ({
+  getRequestSignal: vi.fn(() => undefined),
+}));
+
+vi.mock('../../../platforms/android/install-artifact.ts', () => ({
+  prepareAndroidInstallArtifact: vi.fn(async () => ({
+    installablePath: '/tmp/materialized/app.apk',
+    packageName: undefined,
+    cleanup: async () => {},
+  })),
+}));
+
+vi.mock('../../../platforms/android/index.ts', () => ({
+  installAndroidInstallablePathAndResolvePackageName: vi.fn(async () => 'com.example.app'),
+  inferAndroidAppName: vi.fn(() => 'App'),
+}));
 
 function makeRequest(meta?: DaemonRequest['meta']): DaemonRequest {
   return {
@@ -56,11 +80,13 @@ test('resolveInstallSource uses uploaded artifact path for uploaded path sources
     }),
   );
 
-  assert.equal(resolved.source.kind, 'path');
-  assert.equal(resolved.source.path, artifactPath);
+  expect(resolved.source.kind).toBe('path');
+  if (resolved.source.kind === 'path') {
+    expect(resolved.source.path).toBe(artifactPath);
+  }
 
   resolved.cleanup();
-  assert.equal(fs.existsSync(tempRoot), false);
+  expect(fs.existsSync(tempRoot)).toBe(false);
 });
 
 test('resolveInstallSource leaves URL sources unchanged even when upload metadata exists', () => {
@@ -75,7 +101,7 @@ test('resolveInstallSource leaves URL sources unchanged even when upload metadat
     }),
   );
 
-  assert.deepEqual(resolved.source, {
+  expect(resolved.source).toEqual({
     kind: 'url',
     url: 'https://example.com/app.apk',
     headers: {},
@@ -98,19 +124,9 @@ test('install_from_source returns Android package identity resolved after instal
     }),
     sessionName: session.name,
     sessionStore,
-    deps: {
-      resolveInstallDevice: async () => session.device,
-      prepareAndroidInstallArtifact: async () => ({
-        installablePath: '/tmp/materialized/app.apk',
-        packageName: undefined,
-        cleanup: async () => {},
-      }),
-      installAndroidInstallablePathAndResolvePackageName: async () => 'com.example.app',
-      inferAndroidAppName: () => 'App',
-    },
   });
 
-  assert.deepEqual(response, {
+  expect(response).toEqual({
     ok: true,
     data: {
       packageName: 'com.example.app',
@@ -118,7 +134,7 @@ test('install_from_source returns Android package identity resolved after instal
       launchTarget: 'com.example.app',
     },
   });
-  assert.deepEqual(session.actions.at(-1)?.result, {
+  expect(session.actions.at(-1)?.result).toEqual({
     packageName: 'com.example.app',
     appName: 'App',
     launchTarget: 'com.example.app',
@@ -126,6 +142,10 @@ test('install_from_source returns Android package identity resolved after instal
 });
 
 test('install_from_source returns an error when Android package identity cannot be resolved', async () => {
+  const { installAndroidInstallablePathAndResolvePackageName } =
+    await import('../../../platforms/android/index.ts');
+  vi.mocked(installAndroidInstallablePathAndResolvePackageName).mockResolvedValueOnce(undefined);
+
   const sessionStore = makeSessionStore();
   const session = makeAndroidSession('default');
   sessionStore.set(session.name, session);
@@ -140,19 +160,11 @@ test('install_from_source returns an error when Android package identity cannot 
     }),
     sessionName: session.name,
     sessionStore,
-    deps: {
-      resolveInstallDevice: async () => session.device,
-      prepareAndroidInstallArtifact: async () => ({
-        installablePath: '/tmp/materialized/app.apk',
-        packageName: undefined,
-        cleanup: async () => {},
-      }),
-      installAndroidInstallablePathAndResolvePackageName: async () => undefined,
-      inferAndroidAppName: () => 'App',
-    },
   });
 
-  assert.equal(response.ok, false);
-  assert.equal(response.error?.code, 'COMMAND_FAILED');
-  assert.match(response.error?.message ?? '', /identity could not be resolved/i);
+  expect(response.ok).toBe(false);
+  if (!response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/identity could not be resolved/i);
+  }
 });

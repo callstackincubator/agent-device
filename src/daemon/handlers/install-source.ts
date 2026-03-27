@@ -9,23 +9,7 @@ import {
 import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
-import type { MaterializeInstallSource } from '../../platforms/install-source.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
-
-type PreparedIosInstallArtifact = {
-  archivePath?: string;
-  installablePath: string;
-  bundleId?: string;
-  appName?: string;
-  cleanup: () => Promise<void>;
-};
-
-type PreparedAndroidInstallArtifact = {
-  archivePath?: string;
-  installablePath: string;
-  packageName?: string;
-  cleanup: () => Promise<void>;
-};
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
@@ -75,35 +59,13 @@ export async function handleInstallFromSourceCommand(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  deps?: {
-    resolveInstallDevice?: typeof resolveInstallDevice;
-    getRequestSignal?: typeof getRequestSignal;
-    prepareIosInstallArtifact?: (
-      source: MaterializeInstallSource,
-      options?: { signal?: AbortSignal },
-    ) => Promise<PreparedIosInstallArtifact>;
-    installIosInstallablePath?: (
-      device: SessionState['device'],
-      installablePath: string,
-    ) => Promise<void>;
-    prepareAndroidInstallArtifact?: (
-      source: MaterializeInstallSource,
-      options?: { signal?: AbortSignal; resolveIdentity?: boolean },
-    ) => Promise<PreparedAndroidInstallArtifact>;
-    installAndroidInstallablePathAndResolvePackageName?: (
-      device: SessionState['device'],
-      installablePath: string,
-      packageNameHint?: string,
-    ) => Promise<string | undefined>;
-    inferAndroidAppName?: (packageName: string) => string;
-  };
 }): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, deps } = params;
+  const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   try {
     const resolvedSource = resolveInstallSource(req);
     const retention = resolveRetainMaterializedPaths(req);
-    const device = await (deps?.resolveInstallDevice ?? resolveInstallDevice)({
+    const device = await resolveInstallDevice({
       session,
       flags: req.flags,
     });
@@ -117,14 +79,10 @@ export async function handleInstallFromSourceCommand(params: {
       };
     }
 
-    const requestSignal = (deps?.getRequestSignal ?? getRequestSignal)(req.meta?.requestId);
+    const requestSignal = getRequestSignal(req.meta?.requestId);
     if (device.platform === 'ios') {
-      const installIosInstallablePath =
-        deps?.installIosInstallablePath ??
-        (await import('../../platforms/ios/index.ts')).installIosInstallablePath;
-      const prepareIosInstallArtifact =
-        deps?.prepareIosInstallArtifact ??
-        (await import('../../platforms/ios/install-artifact.ts')).prepareIosInstallArtifact;
+      const { installIosInstallablePath } = await import('../../platforms/ios/index.ts');
+      const { prepareIosInstallArtifact } = await import('../../platforms/ios/install-artifact.ts');
       const prepared = await prepareIosInstallArtifact(resolvedSource.source, {
         signal: requestSignal,
       });
@@ -182,13 +140,10 @@ export async function handleInstallFromSourceCommand(params: {
       }
     }
 
-    const prepareAndroidInstallArtifact =
-      deps?.prepareAndroidInstallArtifact ??
-      (await import('../../platforms/android/install-artifact.ts')).prepareAndroidInstallArtifact;
-    const installAndroidInstallablePathAndResolvePackageName =
-      deps?.installAndroidInstallablePathAndResolvePackageName ??
-      (await import('../../platforms/android/index.ts'))
-        .installAndroidInstallablePathAndResolvePackageName;
+    const { prepareAndroidInstallArtifact } =
+      await import('../../platforms/android/install-artifact.ts');
+    const { installAndroidInstallablePathAndResolvePackageName } =
+      await import('../../platforms/android/index.ts');
     const prepared = await prepareAndroidInstallArtifact(resolvedSource.source, {
       signal: requestSignal,
     });
@@ -214,9 +169,7 @@ export async function handleInstallFromSourceCommand(params: {
           'Installed Android app identity could not be resolved from the artifact or device state',
         );
       }
-      const inferAndroidAppName =
-        deps?.inferAndroidAppName ??
-        (await import('../../platforms/android/index.ts')).inferAndroidAppName;
+      const { inferAndroidAppName } = await import('../../platforms/android/index.ts');
       const appName = inferAndroidAppName(packageName);
       const result = {
         ...(retained?.archivePath ? { archivePath: retained.archivePath } : {}),

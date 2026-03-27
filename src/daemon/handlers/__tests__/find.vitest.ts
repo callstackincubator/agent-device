@@ -1,14 +1,27 @@
-import test, { type TestContext } from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parseFindArgs, handleFindCommands } from '../find.ts';
-import { AppError } from '../../../utils/errors.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
-import type { DaemonRequest } from '../../types.ts';
+import type { DaemonRequest, DaemonResponse } from '../../types.ts';
 import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
+
+vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
+  return {
+    ...actual,
+    dispatchCommand: vi.fn(async (_device: unknown, command: string) => {
+      return command === 'snapshot' ? { nodes: [] } : {};
+    }),
+    resolveTargetDevice: actual.resolveTargetDevice,
+  };
+});
+
+import { dispatchCommand } from '../../../core/dispatch.ts';
+
+const mockDispatch = vi.mocked(dispatchCommand);
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-find-handler-'));
@@ -66,6 +79,13 @@ async function runFindClickScenario(options: {
   const sessionName = 'default';
   sessionStore.set(sessionName, makeSession(sessionName));
 
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'snapshot') {
+      return { nodes: options.nodes };
+    }
+    return {};
+  });
+
   const invokeCalls: DaemonRequest[] = [];
   const response = await handleFindCommands({
     req: {
@@ -81,116 +101,108 @@ async function runFindClickScenario(options: {
     invoke: async (req) => {
       invokeCalls.push(req);
       const data = options.invoke ? await options.invoke(req) : {};
-      return { ok: true, data };
-    },
-    dispatch: async (_device, command) => {
-      if (command === 'snapshot') {
-        return { nodes: options.nodes };
-      }
-      return {};
+      return { ok: true, data } as DaemonResponse;
     },
   });
 
-  assert.ok(response, 'expected a response');
-  return { response, invokeCalls };
+  expect(response).toBeTruthy();
+  return { response: response!, invokeCalls };
 }
 
 test('parseFindArgs defaults to click with any locator', () => {
   const parsed = parseFindArgs(['Login']);
-  assert.equal(parsed.locator, 'any');
-  assert.equal(parsed.query, 'Login');
-  assert.equal(parsed.action, 'click');
+  expect(parsed.locator).toBe('any');
+  expect(parsed.query).toBe('Login');
+  expect(parsed.action).toBe('click');
 });
 
 test('parseFindArgs supports explicit locator and fill payload', () => {
   const parsed = parseFindArgs(['label', 'Email', 'fill', 'user@example.com']);
-  assert.equal(parsed.locator, 'label');
-  assert.equal(parsed.query, 'Email');
-  assert.equal(parsed.action, 'fill');
-  assert.equal(parsed.value, 'user@example.com');
+  expect(parsed.locator).toBe('label');
+  expect(parsed.query).toBe('Email');
+  expect(parsed.action).toBe('fill');
+  expect(parsed.value).toBe('user@example.com');
 });
 
 test('parseFindArgs parses wait timeout', () => {
   const parsed = parseFindArgs(['text', 'Settings', 'wait', '2500']);
-  assert.equal(parsed.locator, 'text');
-  assert.equal(parsed.action, 'wait');
-  assert.equal(parsed.timeoutMs, 2500);
+  expect(parsed.locator).toBe('text');
+  expect(parsed.action).toBe('wait');
+  expect(parsed.timeoutMs).toBe(2500);
 });
 
 test('parseFindArgs parses get text', () => {
   const parsed = parseFindArgs(['label', 'Price', 'get', 'text']);
-  assert.equal(parsed.locator, 'label');
-  assert.equal(parsed.query, 'Price');
-  assert.equal(parsed.action, 'get_text');
+  expect(parsed.locator).toBe('label');
+  expect(parsed.query).toBe('Price');
+  expect(parsed.action).toBe('get_text');
 });
 
 test('parseFindArgs parses get attrs', () => {
   const parsed = parseFindArgs(['id', 'btn-1', 'get', 'attrs']);
-  assert.equal(parsed.locator, 'id');
-  assert.equal(parsed.query, 'btn-1');
-  assert.equal(parsed.action, 'get_attrs');
+  expect(parsed.locator).toBe('id');
+  expect(parsed.query).toBe('btn-1');
+  expect(parsed.action).toBe('get_attrs');
 });
 
 test('parseFindArgs rejects invalid get sub-action', () => {
-  assert.throws(
-    () => parseFindArgs(['text', 'Settings', 'get', 'foo']),
-    (err: unknown) =>
-      err instanceof AppError &&
-      err.code === 'INVALID_ARGS' &&
-      err.message.includes('find get only supports text or attrs'),
+  expect(() => parseFindArgs(['text', 'Settings', 'get', 'foo'])).toThrow(
+    expect.objectContaining({
+      code: 'INVALID_ARGS',
+      message: expect.stringContaining('find get only supports text or attrs'),
+    }),
   );
 });
 
 test('parseFindArgs parses type action with value', () => {
   const parsed = parseFindArgs(['label', 'Name', 'type', 'Jane']);
-  assert.equal(parsed.locator, 'label');
-  assert.equal(parsed.query, 'Name');
-  assert.equal(parsed.action, 'type');
-  assert.equal(parsed.value, 'Jane');
+  expect(parsed.locator).toBe('label');
+  expect(parsed.query).toBe('Name');
+  expect(parsed.action).toBe('type');
+  expect(parsed.value).toBe('Jane');
 });
 
 test('parseFindArgs joins multi-word fill value', () => {
   const parsed = parseFindArgs(['label', 'Bio', 'fill', 'hello', 'world']);
-  assert.equal(parsed.action, 'fill');
-  assert.equal(parsed.value, 'hello world');
+  expect(parsed.action).toBe('fill');
+  expect(parsed.value).toBe('hello world');
 });
 
 test('parseFindArgs joins multi-word type value', () => {
   const parsed = parseFindArgs(['label', 'Bio', 'type', 'hello', 'world']);
-  assert.equal(parsed.action, 'type');
-  assert.equal(parsed.value, 'hello world');
+  expect(parsed.action).toBe('type');
+  expect(parsed.value).toBe('hello world');
 });
 
 test('parseFindArgs wait without timeout leaves timeoutMs undefined', () => {
   const parsed = parseFindArgs(['text', 'Loading', 'wait']);
-  assert.equal(parsed.action, 'wait');
-  assert.equal(parsed.timeoutMs, undefined);
+  expect(parsed.action).toBe('wait');
+  expect(parsed.timeoutMs).toBeUndefined();
 });
 
 test('parseFindArgs wait with non-numeric timeout leaves timeoutMs undefined', () => {
   const parsed = parseFindArgs(['text', 'Loading', 'wait', 'abc']);
-  assert.equal(parsed.action, 'wait');
-  assert.equal(parsed.timeoutMs, undefined);
+  expect(parsed.action).toBe('wait');
+  expect(parsed.timeoutMs).toBeUndefined();
 });
 
 test('parseFindArgs throws on unsupported action', () => {
-  assert.throws(
-    () => parseFindArgs(['text', 'OK', 'swipe']),
-    (err: unknown) =>
-      err instanceof AppError &&
-      err.code === 'INVALID_ARGS' &&
-      err.message.includes('Unsupported find action: swipe'),
+  expect(() => parseFindArgs(['text', 'OK', 'swipe'])).toThrow(
+    expect.objectContaining({
+      code: 'INVALID_ARGS',
+      message: expect.stringContaining('Unsupported find action: swipe'),
+    }),
   );
 });
 
 test('parseFindArgs with bare locator yields empty query', () => {
   const parsed = parseFindArgs(['text']);
-  assert.equal(parsed.locator, 'text');
-  assert.equal(parsed.query, '');
-  assert.equal(parsed.action, 'click');
+  expect(parsed.locator).toBe('text');
+  expect(parsed.query).toBe('');
+  expect(parsed.action).toBe('click');
 });
 
-test('handleFindCommands click returns deterministic metadata across locator variants', async (t: TestContext) => {
+test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
   const hittableParentNoRect = { index: 0, type: 'View', hittable: true, depth: 0 };
   const nonHittableChildWithRect = {
     index: 1,
@@ -202,16 +214,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
     parentIndex: 0,
   };
 
-  const scenarios: Array<{
-    label: string;
-    positionals: string[];
-    nodes: Array<Record<string, unknown>>;
-    invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
-    expectedKeys: string[];
-    expectedLocator: string;
-    expectedQuery: string;
-    expectedCoordinates?: { x: number; y: number };
-  }> = [
+  const scenarios = [
     {
       label: 'returns deterministic matched-target metadata',
       positionals: ['Increment', 'click'],
@@ -243,27 +246,25 @@ test('handleFindCommands click returns deterministic metadata across locator var
   ];
 
   for (const scenario of scenarios) {
-    await t.test(scenario.label, async () => {
-      const { response, invokeCalls } = await runFindClickScenario(scenario);
-      assert.ok(response.ok, 'expected success');
+    const { response, invokeCalls } = await runFindClickScenario(scenario);
+    expect(response.ok, scenario.label).toBe(true);
+    if (!response.ok) return;
+    const data = response.data as Record<string, unknown>;
+    expect(Object.keys(data).sort()).toEqual(scenario.expectedKeys);
+    expect(data.ref).toBe('@e1');
+    expect(data.locator).toBe(scenario.expectedLocator);
+    expect(data.query).toBe(scenario.expectedQuery);
 
-      const data = response.data as Record<string, unknown>;
-      assert.deepEqual(Object.keys(data).sort(), scenario.expectedKeys);
-      assert.equal(data.ref, '@e1', 'ref must match the resolved snapshot node');
-      assert.equal(data.locator, scenario.expectedLocator);
-      assert.equal(data.query, scenario.expectedQuery);
+    if (scenario.expectedCoordinates) {
+      expect(data.x).toBe(scenario.expectedCoordinates.x);
+      expect(data.y).toBe(scenario.expectedCoordinates.y);
+    } else {
+      expect(Object.hasOwn(data, 'x')).toBe(false);
+      expect(Object.hasOwn(data, 'y')).toBe(false);
+    }
 
-      if (scenario.expectedCoordinates) {
-        assert.equal(data.x, scenario.expectedCoordinates.x);
-        assert.equal(data.y, scenario.expectedCoordinates.y);
-      } else {
-        assert.equal(Object.hasOwn(data, 'x'), false);
-        assert.equal(Object.hasOwn(data, 'y'), false);
-      }
-
-      assert.equal(invokeCalls.length, 1);
-      assert.equal(invokeCalls[0].positionals?.[0], '@e1');
-    });
+    expect(invokeCalls.length).toBe(1);
+    expect(invokeCalls[0].positionals?.[0]).toBe('@e1');
   }
 });
 
@@ -286,6 +287,13 @@ test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions
       sessionStore.set(sessionName, makeMacOsSession(sessionName));
       let snapshotDispatchCalls = 0;
 
+      mockDispatch.mockImplementation(async (_device, command) => {
+        if (command === 'snapshot') {
+          snapshotDispatchCalls += 1;
+        }
+        return {};
+      });
+
       try {
         const response = await handleFindCommands({
           req: {
@@ -298,19 +306,13 @@ test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions
           sessionName,
           logPath: '/tmp/test.log',
           sessionStore,
-          invoke: async () => ({ ok: true }),
-          dispatch: async (_device, command) => {
-            if (command === 'snapshot') {
-              snapshotDispatchCalls += 1;
-            }
-            return {};
-          },
+          invoke: async () => ({ ok: true }) as DaemonResponse,
         });
 
-        assert.equal(response?.ok, true);
-        assert.equal(snapshotDispatchCalls, 0);
+        expect(response?.ok).toBe(true);
+        expect(snapshotDispatchCalls).toBe(0);
         const logged = await fs.promises.readFile(argsLogPath, 'utf8');
-        assert.equal(logged, 'snapshot\n--surface\ndesktop\n');
+        expect(logged).toBe('snapshot\n--surface\ndesktop\n');
       } finally {
         if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
         else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
