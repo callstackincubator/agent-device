@@ -40,6 +40,8 @@ export type RunnerCommand = {
     | 'snapshot'
     | 'screenshot'
     | 'back'
+    | 'backInApp'
+    | 'backSystem'
     | 'home'
     | 'appSwitcher'
     | 'alert'

@@ -24,7 +24,7 @@ extension RunnerTests {
 
   // MARK: - Navigation Gestures
 
-  func tapNavigationBack(app: XCUIApplication) -> Bool {
+  func tapInAppBackControl(app: XCUIApplication) -> Bool {
 #if os(macOS)
     if let back = macOSNavigationBackElement(app: app) {
       tapElementCenter(app: app, element: back)
@@ -37,7 +37,7 @@ extension RunnerTests {
       back.tap()
       return true
     }
-    return pressTvRemoteMenuIfAvailable()
+    return false
 #endif
   }
 
@@ -49,6 +49,18 @@ extension RunnerTests {
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
     start.press(forDuration: 0.05, thenDragTo: end)
+  }
+
+  func performSystemBackAction(app: XCUIApplication) -> Bool {
+#if os(macOS)
+    return false
+#else
+    if pressTvRemoteMenuIfAvailable() {
+      return true
+    }
+    performBackGesture(app: app)
+    return true
+#endif
   }
 
   func performAppSwitcherGesture(app: XCUIApplication) {

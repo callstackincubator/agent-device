@@ -129,6 +129,7 @@ export function finalizeParsedArgs(
       delete (flags as Record<string, unknown>)[key];
     }
   }
+  assertNoConflictingBackModeFlags(parsed);
   if (commandSchema?.defaults) {
     for (const [key, value] of Object.entries(commandSchema.defaults) as Array<
       [FlagKey, unknown]
@@ -148,6 +149,17 @@ export function finalizeParsedArgs(
     }
   }
   return { command: parsed.command, positionals: parsed.positionals, flags, warnings };
+}
+
+function assertNoConflictingBackModeFlags(parsed: RawParsedArgs): void {
+  if (parsed.command !== 'back') return;
+  const providedBackModeFlags = parsed.providedFlags.filter((entry) => entry.key === 'backMode');
+  const distinctTokens = new Set(providedBackModeFlags.map((entry) => entry.token));
+  if (distinctTokens.size <= 1) return;
+  throw new AppError(
+    'INVALID_ARGS',
+    'back accepts only one explicit mode flag: use either --in-app or --system.',
+  );
 }
 
 function splitLongFlag(flag: string): [string, string | undefined] {

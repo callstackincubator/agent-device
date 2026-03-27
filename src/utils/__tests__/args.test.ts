@@ -43,6 +43,24 @@ test('parseArgs recognizes command-specific flag combinations', async (t: TestCo
       },
     },
     {
+      label: 'back --in-app',
+      argv: ['back', '--in-app'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'back');
+        assert.equal(parsed.flags.backMode, 'in-app');
+      },
+    },
+    {
+      label: 'back --system',
+      argv: ['back', '--system'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'back');
+        assert.equal(parsed.flags.backMode, 'system');
+      },
+    },
+    {
       label: 'open --platform apple alias',
       argv: ['open', 'Settings', '--platform', 'apple', '--target', 'tv'],
       strictFlags: true,
@@ -534,6 +552,17 @@ test('parseArgs rejects invalid swipe pattern', () => {
   );
 });
 
+test('parseArgs rejects conflicting back mode flags', () => {
+  assert.throws(
+    () => parseArgs(['back', '--in-app', '--system'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message ===
+        'back accepts only one explicit mode flag: use either --in-app or --system.',
+  );
+});
+
 test('usage includes concise top-level commands', () => {
   const usageText = usage();
   assert.match(usageText, /install-from-source <url>/);
@@ -788,6 +817,14 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /Global flags:/);
   assert.match(help, /--platform ios\|macos\|android\|apple/);
+});
+
+test('back command usage documents explicit mode flags', () => {
+  const help = usageForCommand('back');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /agent-device back \[--in-app\|--system\]/);
+  assert.match(help, /--in-app/);
+  assert.match(help, /--system/);
 });
 
 test('open command usage documents macOS desktop surface flags', () => {

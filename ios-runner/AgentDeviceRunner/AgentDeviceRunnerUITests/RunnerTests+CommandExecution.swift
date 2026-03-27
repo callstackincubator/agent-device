@@ -510,12 +510,17 @@ extension RunnerTests {
       // Return path relative to app container root (tmp/ maps to NSTemporaryDirectory)
       return Response(ok: true, data: DataPayload(message: "tmp/\(fileName)"))
 #endif
-    case .back:
-      if tapNavigationBack(app: activeApp) {
-        return Response(ok: true, data: DataPayload(message: "back"))
+    case .back, .backInApp:
+      if tapInAppBackControl(app: activeApp) {
+        let message = command.command == .back ? "back" : "backInApp"
+        return Response(ok: true, data: DataPayload(message: message))
       }
-      performBackGesture(app: activeApp)
-      return Response(ok: true, data: DataPayload(message: "back"))
+      return Response(ok: false, error: ErrorPayload(message: "in-app back control is not available"))
+    case .backSystem:
+      if performSystemBackAction(app: activeApp) {
+        return Response(ok: true, data: DataPayload(message: "backSystem"))
+      }
+      return Response(ok: false, error: ErrorPayload(message: "system back is not available"))
     case .home:
       pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))

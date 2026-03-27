@@ -14,6 +14,8 @@ enum CommandType: String, Codable {
   case snapshot
   case screenshot
   case back
+  case backInApp
+  case backSystem
   case home
   case appSwitcher
   case alert
