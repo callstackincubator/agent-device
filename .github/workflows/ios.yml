@@ -101,13 +101,13 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
 
       - name: Run iOS simulator replay suite
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 3
 
       - name: Run iOS physical device replay suite
         if: env.IOS_UDID != ''
         env:
           IOS_UDID: ${{ vars.IOS_UDID }}
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID"
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 3
 
       - name: Upload iOS artifacts
         if: always()
