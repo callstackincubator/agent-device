@@ -33,6 +33,7 @@ const FONT: Record<string, readonly string[]> = {
   '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
   '9': ['01110', '10001', '10001', '01111', '00001', '00001', '01110'],
 } as const;
+// Badges currently render only `eN` refs, so the bitmap font intentionally covers `e` and digits.
 
 type OverlayCandidate = ScreenshotOverlayRef & {
   score: number;
@@ -108,7 +109,12 @@ export function buildScreenshotOverlayRefs(
       return compareNumericRefs(left.ref, right.ref);
     });
 
-  return ranked.map(({ score: _score, ...overlayRef }) => overlayRef);
+  return ranked.map((candidate) => ({
+    ref: candidate.ref,
+    label: candidate.label,
+    rect: candidate.rect,
+    overlayRect: candidate.overlayRect,
+  }));
 }
 
 function isOverlaySourceNode(node: SnapshotNode): boolean {
@@ -144,6 +150,8 @@ function scoreOverlayCandidate(
 
 function suppressContainedCandidates(candidates: OverlayCandidate[]): OverlayCandidate[] {
   const kept: OverlayCandidate[] = [];
+  // Candidate counts are intentionally bounded by snapshot-derived actionable elements
+  // and a hard max overlay cap, so this quadratic duplicate pass stays small in practice.
   for (const candidate of candidates.sort(
     (left, right) => rectArea(left.overlayRect) - rectArea(right.overlayRect),
   )) {

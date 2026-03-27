@@ -196,7 +196,11 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       ...(result.overlayRefs ? { overlayRefs: result.overlayRefs } : {}),
     };
     if (flags.json) printJson({ success: true, data });
-    else process.stdout.write(`${result.path}\n`);
+    else if (result.overlayRefs) {
+      process.stdout.write(`Annotated ${result.overlayRefs.length} refs onto ${result.path}\n`);
+    } else {
+      process.stdout.write(`${result.path}\n`);
+    }
     return true;
   },
   diff: async ({ positionals, flags, client }) => {
