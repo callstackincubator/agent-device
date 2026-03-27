@@ -3,11 +3,23 @@ import assert from 'node:assert/strict';
 import type { RunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../device.ts';
 import { AppError } from '../errors.ts';
-import {
-  getInteractor,
-  resolveAppleBackRunnerCommand,
-  scrollIntoViewIosRunnerText,
-} from '../interactors.ts';
+
+const mockRunIosRunnerCommand = vi.fn<
+  (device: DeviceInfo, command: RunnerCommand, opts?: unknown) => Promise<Record<string, unknown>>
+>();
+
+vi.mock('../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../platforms/ios/runner-client.ts')>();
+  return {
+    ...original,
+    runIosRunnerCommand: (...args: Parameters<typeof mockRunIosRunnerCommand>) =>
+      mockRunIosRunnerCommand(...args),
+  };
+});
+
+const { getInteractor, resolveAppleBackRunnerCommand, scrollIntoViewIosRunnerText } = await import(
+  '../interactors.ts'
+);
 
 const iosSimulator: DeviceInfo = {
   platform: 'ios',
@@ -35,28 +47,23 @@ test('ios scrollIntoView uses snapshot progress checks between swipes', async ()
   const commands: string[] = [];
   let findTextCalls = 0;
   let snapshotCalls = 0;
-  const interactor = getInteractor(
-    iosSimulator,
-    { appBundleId: 'com.example.app' },
-    {
-      runIosRunnerCommand: async (_device, command) => {
-        commands.push(command.command);
-        if (command.command === 'findText') {
-          findTextCalls += 1;
-          return { found: findTextCalls > 2 };
-        }
-        if (command.command === 'snapshot') {
-          snapshotCalls += 1;
-          return {
-            nodes: [{ type: 'XCUIElementTypeStaticText', label: `frame-${snapshotCalls}` }],
-          };
-        }
-        if (command.command === 'swipe') return {};
-        throw new Error(`Unexpected runner command: ${command.command}`);
-      },
-      sleepMs: async () => {},
-    },
-  );
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    commands.push(command.command);
+    if (command.command === 'findText') {
+      findTextCalls += 1;
+      return { found: findTextCalls > 2 };
+    }
+    if (command.command === 'snapshot') {
+      snapshotCalls += 1;
+      return {
+        nodes: [{ type: 'XCUIElementTypeStaticText', label: `frame-${snapshotCalls}` }],
+      };
+    }
+    if (command.command === 'swipe') return {};
+    throw new Error(`Unexpected runner command: ${command.command}`);
+  });
+
+  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
   const result = await interactor.scrollIntoView('Target');
 
   assert.deepEqual(result, { attempts: 2 });
@@ -73,33 +80,29 @@ test('ios scrollIntoView uses snapshot progress checks between swipes', async ()
 });
 
 test('ios scroll reports planned pixels without recomputing from runner coordinates', async () => {
-  const interactor = getInteractor(
-    iosSimulator,
-    { appBundleId: 'com.example.app' },
-    {
-      runIosRunnerCommand: async (_device, command) => {
-        if (command.command === 'interactionFrame') {
-          return {
-            x: 5,
-            y: 10,
-            referenceWidth: 300,
-            referenceHeight: 600,
-          };
-        }
-        if (command.command === 'drag') {
-          return {
-            x: 155,
-            y: 420,
-            x2: 155,
-            y2: 301,
-            referenceWidth: 300,
-            referenceHeight: 600,
-          };
-        }
-        throw new Error(`Unexpected runner command: ${command.command}`);
-      },
-    },
-  );
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    if (command.command === 'interactionFrame') {
+      return {
+        x: 5,
+        y: 10,
+        referenceWidth: 300,
+        referenceHeight: 600,
+      };
+    }
+    if (command.command === 'drag') {
+      return {
+        x: 155,
+        y: 420,
+        x2: 155,
+        y2: 301,
+        referenceWidth: 300,
+        referenceHeight: 600,
+      };
+    }
+    throw new Error(`Unexpected runner command: ${command.command}`);
+  });
+
+  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
   const result = await interactor.scroll('down', { pixels: 120 });
 
   const pixels =
@@ -109,16 +112,12 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
 
 test('ios fill preserves target coordinates for the follow-up type command', async () => {
   const commands: RunnerCommand[] = [];
-  const interactor = getInteractor(
-    iosSimulator,
-    { appBundleId: 'com.example.app' },
-    {
-      runIosRunnerCommand: async (_device, command) => {
-        commands.push(command);
-        return {};
-      },
-    },
-  );
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    commands.push(command);
+    return {};
+  });
+
+  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
 
   await interactor.fill(120, 240, 'hunter2');
 

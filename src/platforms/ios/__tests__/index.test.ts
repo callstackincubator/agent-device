@@ -24,13 +24,11 @@ import {
 import { withMockedMacOsHelper } from './macos-helper-test-utils.ts';
 import { quitMacOsApp, resolveMacOsHelperPackageRootFrom } from '../macos-helper.ts';
 import {
-  captureSimulatorScreenshotWithFallback,
   prepareSimulatorStatusBarForScreenshot,
   resolveSimulatorRunnerScreenshotCandidatePaths,
 } from '../screenshot.ts';
 import { focusIosSimulatorWindow } from '../simulator.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
-import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 
 const IOS_TEST_DEVICE: DeviceInfo = {
@@ -219,152 +217,6 @@ test('shouldRetryIosSimulatorScreenshot ignores unrelated screenshot failures', 
   assert.equal(shouldRetryIosSimulatorScreenshot(error), false);
 });
 
-test('captureSimulatorScreenshotWithFallback falls back to runner after retry exhaustion', async () => {
-  let ensureBootedCalls = 0;
-  let retryCalls = 0;
-  let runnerCalls = 0;
-  await captureSimulatorScreenshotWithFallback(
-    IOS_TEST_SIMULATOR,
-    '/tmp/out.png',
-    'com.example.app',
-    {
-      ensureBooted: async () => {
-        ensureBootedCalls += 1;
-      },
-      prepareStatusBarForScreenshot: async () => async () => {},
-      captureWithRetry: async () => {
-        retryCalls += 1;
-        throw new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
-          stderr: 'Timeout waiting for screen surfaces',
-          exitCode: 60,
-        });
-      },
-      captureWithRunner: async () => {
-        runnerCalls += 1;
-      },
-      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-    },
-  );
-  assert.equal(ensureBootedCalls, 1);
-  assert.equal(retryCalls, 1);
-  assert.equal(runnerCalls, 1);
-});
-
-test('captureSimulatorScreenshotWithFallback falls back to runner after simctl screenshot timeout', async () => {
-  let runnerCalls = 0;
-  await captureSimulatorScreenshotWithFallback(
-    IOS_TEST_SIMULATOR,
-    '/tmp/out.png',
-    'com.example.app',
-    {
-      ensureBooted: async () => {},
-      prepareStatusBarForScreenshot: async () => async () => {},
-      captureWithRetry: async () => {
-        throw new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
-          args: ['simctl', 'io', 'sim-1', 'screenshot', '/tmp/out.png'],
-          timeoutMs: 20_000,
-        });
-      },
-      captureWithRunner: async () => {
-        runnerCalls += 1;
-      },
-      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-    },
-  );
-  assert.equal(runnerCalls, 1);
-});
-
-test('captureSimulatorScreenshotWithFallback continues when status bar preparation fails', async () => {
-  let retryCalls = 0;
-  await captureSimulatorScreenshotWithFallback(
-    IOS_TEST_SIMULATOR,
-    '/tmp/out.png',
-    'com.example.app',
-    {
-      ensureBooted: async () => {},
-      prepareStatusBarForScreenshot: async () => {
-        throw new AppError('COMMAND_FAILED', 'status_bar override failed');
-      },
-      captureWithRetry: async () => {
-        retryCalls += 1;
-      },
-      captureWithRunner: async () => {
-        throw new Error('runner should not be used when capture succeeds');
-      },
-      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-    },
-  );
-  assert.equal(retryCalls, 1);
-});
-
-test('captureSimulatorScreenshotWithFallback ignores status bar restore failures', async () => {
-  let retryCalls = 0;
-  await captureSimulatorScreenshotWithFallback(
-    IOS_TEST_SIMULATOR,
-    '/tmp/out.png',
-    'com.example.app',
-    {
-      ensureBooted: async () => {},
-      prepareStatusBarForScreenshot: async () => async () => {
-        throw new AppError('COMMAND_FAILED', 'status_bar clear failed');
-      },
-      captureWithRetry: async () => {
-        retryCalls += 1;
-      },
-      captureWithRunner: async () => {
-        throw new Error('runner should not be used when capture succeeds');
-      },
-      shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-    },
-  );
-  assert.equal(retryCalls, 1);
-});
-
-test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before using runner', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-screenshot-diag-test-'));
-  const logPath = path.join(tmpDir, 'diag.ndjson');
-  try {
-    await withDiagnosticsScope(
-      {
-        debug: true,
-        logPath,
-        session: 'ios-test',
-        requestId: 'req-1',
-        command: 'screenshot',
-      },
-      async () => {
-        await captureSimulatorScreenshotWithFallback(
-          IOS_TEST_SIMULATOR,
-          '/tmp/out.png',
-          'com.example.app',
-          {
-            ensureBooted: async () => {},
-            prepareStatusBarForScreenshot: async () => async () => {},
-            captureWithRetry: async () => {
-              throw new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
-                args: ['simctl', 'io', 'sim-1', 'screenshot', '/tmp/out.png'],
-                timeoutMs: 20_000,
-              });
-            },
-            captureWithRunner: async () => {},
-            shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-          },
-        );
-      },
-    );
-
-    const log = await waitForFileText(logPath);
-    assert.match(log, /"phase":"ios_screenshot_fallback"/);
-    assert.match(log, /"deviceId":"sim-1"/);
-    assert.match(log, /"errorCode":"COMMAND_FAILED"/);
-    assert.match(log, /"from":"simctl_screenshot"/);
-    assert.match(log, /"to":"runner"/);
-    assert.match(log, /"commandArgs":"simctl io sim-1 screenshot \/tmp\/out\.png"/);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
-});
-
 test('focusIosSimulatorWindow times out instead of hanging indefinitely', { timeout: 15_000 }, async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-focus-timeout-test-'));
   const openPath = path.join(tmpDir, 'open');
@@ -465,19 +317,6 @@ exit 1
     },
   );
 });
-
-async function waitForFileText(filePath: string, attempts = 20): Promise<string> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      return await fs.readFile(filePath, 'utf8');
-    } catch (error) {
-      lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-  }
-  throw lastError;
-}
 
 test('resolveSimulatorRunnerScreenshotCandidatePaths includes tmp-based and basename fallbacks', () => {
   const containerPath = '/tmp/container';

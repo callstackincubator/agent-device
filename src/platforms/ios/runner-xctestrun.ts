@@ -61,56 +61,24 @@ export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerB
   process.env,
 );
 
-type EnsureXctestrunDeps = {
-  findProjectRoot: () => string;
-  findXctestrun: (root: string, device?: DeviceInfo) => string | null;
-  xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
-  resolveExistingXctestrunProductPaths: (xctestrunPath: string) => string[] | null;
-  repairRunnerProductsIfNeeded: (
-    device: DeviceInfo,
-    productPaths: string[],
-    xctestrunPath: string,
-  ) => Promise<void>;
-  assertSafeDerivedCleanup: (derivedPath: string) => void;
-  cleanRunnerDerivedArtifacts: (derivedPath: string) => void;
-  buildRunnerXctestrun: (
-    device: DeviceInfo,
-    projectPath: string,
-    derived: string,
-    options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
-  ) => Promise<void>;
-};
-
-const defaultEnsureXctestrunDeps: EnsureXctestrunDeps = {
-  findProjectRoot,
-  findXctestrun,
-  xctestrunReferencesProjectRoot,
-  resolveExistingXctestrunProductPaths,
-  repairRunnerProductsIfNeeded: repairMacOsRunnerProductsIfNeeded,
-  assertSafeDerivedCleanup,
-  cleanRunnerDerivedArtifacts,
-  buildRunnerXctestrun,
-};
-
 export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
-  deps: EnsureXctestrunDeps = defaultEnsureXctestrunDeps,
 ): Promise<string> {
   const derived = resolveRunnerDerivedPath(device);
-  const projectRoot = deps.findProjectRoot();
+  const projectRoot = findProjectRoot();
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
     if (shouldCleanDerived()) {
       emitRunnerXctestrunDecision('clean', 'forced_clean', { derived });
-      deps.assertSafeDerivedCleanup(derived);
-      deps.cleanRunnerDerivedArtifacts(derived);
+      assertSafeDerivedCleanup(derived);
+      cleanRunnerDerivedArtifacts(derived);
     }
     const existing = evaluateExistingXctestrun({
       derived,
       projectRoot,
-      findXctestrun: (root) => deps.findXctestrun(root, device),
-      xctestrunReferencesProjectRoot: deps.xctestrunReferencesProjectRoot,
-      resolveExistingXctestrunProductPaths: deps.resolveExistingXctestrunProductPaths,
+      findXctestrun: (root) => findXctestrun(root, device),
+      xctestrunReferencesProjectRoot,
+      resolveExistingXctestrunProductPaths,
     });
     if (existing.reason !== 'reuse_ready') {
       emitRunnerXctestrunDecision('rebuild', existing.reason, {
@@ -120,7 +88,7 @@ export async function ensureXctestrun(
     }
     if (existing.reason === 'reuse_ready') {
       try {
-        await deps.repairRunnerProductsIfNeeded(
+        await repairMacOsRunnerProductsIfNeeded(
           device,
           existing.productPaths,
           existing.xctestrunPath,
@@ -142,8 +110,8 @@ export async function ensureXctestrun(
       }
     }
     if (existing.xctestrunPath) {
-      deps.assertSafeDerivedCleanup(derived);
-      deps.cleanRunnerDerivedArtifacts(derived);
+      assertSafeDerivedCleanup(derived);
+      cleanRunnerDerivedArtifacts(derived);
     }
     const projectPath = path.join(
       projectRoot,
@@ -156,19 +124,19 @@ export async function ensureXctestrun(
       throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
     }
 
-    await deps.buildRunnerXctestrun(device, projectPath, derived, options);
+    await buildRunnerXctestrun(device, projectPath, derived, options);
 
-    const built = deps.findXctestrun(derived, device);
+    const built = findXctestrun(derived, device);
     if (!built) {
       throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
     }
-    const builtProductPaths = deps.resolveExistingXctestrunProductPaths(built);
+    const builtProductPaths = resolveExistingXctestrunProductPaths(built);
     if (!builtProductPaths) {
       throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
         xctestrunPath: built,
       });
     }
-    await deps.repairRunnerProductsIfNeeded(device, builtProductPaths, built);
+    await repairMacOsRunnerProductsIfNeeded(device, builtProductPaths, built);
     emitRunnerXctestrunDecision('build', 'built_new', {
       derived,
       xctestrunPath: built,
@@ -340,7 +308,9 @@ export function xctestrunReferencesProjectRoot(
   }
 }
 
-function findProjectRoot(): string {
+function findProjectRoot(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env.AGENT_DEVICE_PROJECT_ROOT?.trim();
+  if (override) return path.resolve(override);
   const start = path.dirname(fileURLToPath(import.meta.url));
   let current = start;
   for (let i = 0; i < 6; i += 1) {

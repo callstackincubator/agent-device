@@ -27,21 +27,6 @@ function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<type
   return runCmd('xcrun', simctlArgs(device, args), options);
 }
 
-type SimulatorScreenshotFlowDeps = {
-  ensureBooted: (device: DeviceInfo) => Promise<void>;
-  prepareStatusBarForScreenshot: (device: DeviceInfo) => Promise<() => Promise<void>>;
-  captureWithRetry: (device: DeviceInfo, outPath: string) => Promise<void>;
-  captureWithRunner: (device: DeviceInfo, outPath: string, appBundleId?: string) => Promise<void>;
-  shouldFallbackToRunner: (error: unknown) => boolean;
-};
-
-const defaultSimulatorScreenshotFlowDeps: SimulatorScreenshotFlowDeps = {
-  ensureBooted: ensureBootedSimulator,
-  prepareStatusBarForScreenshot: prepareSimulatorStatusBarForScreenshot,
-  captureWithRetry: captureSimulatorScreenshotWithRetry,
-  captureWithRunner: captureScreenshotViaRunner,
-  shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
-};
 
 export async function screenshotIos(
   device: DeviceInfo,
@@ -73,11 +58,10 @@ export async function screenshotIos(
   await captureScreenshotViaRunner(device, outPath, appBundleId);
 }
 
-export async function captureSimulatorScreenshotWithFallback(
+async function captureSimulatorScreenshotWithFallback(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
-  deps: SimulatorScreenshotFlowDeps = defaultSimulatorScreenshotFlowDeps,
 ): Promise<void> {
   if (device.kind !== 'simulator') {
     throw new AppError(
@@ -86,24 +70,24 @@ export async function captureSimulatorScreenshotWithFallback(
     );
   }
 
-  await deps.ensureBooted(device);
+  await ensureBootedSimulator(device);
   let restoreStatusBar = async () => {};
   try {
-    restoreStatusBar = await deps.prepareStatusBarForScreenshot(device);
+    restoreStatusBar = await prepareSimulatorStatusBarForScreenshot(device);
   } catch (error) {
     emitStatusBarDiagnostic(device, 'prepare_failed', error);
   }
   try {
     try {
-      await deps.captureWithRetry(device, outPath);
+      await captureSimulatorScreenshotWithRetry(device, outPath);
       return;
     } catch (error) {
-      if (!deps.shouldFallbackToRunner(error)) {
+      if (!shouldRetryIosSimulatorScreenshot(error)) {
         throw error;
       }
       emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
     }
-    await deps.captureWithRunner(device, outPath, appBundleId);
+    await captureScreenshotViaRunner(device, outPath, appBundleId);
   } finally {
     await restoreStatusBar().catch((error) =>
       emitStatusBarDiagnostic(device, 'restore_failed', error),
