@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
+import type { RunnerCommand } from '../runner-client.ts';
 import {
   assertSafeDerivedCleanup,
   isRetryableRunnerError,
@@ -69,6 +70,50 @@ const macOsDevice: DeviceInfo = {
   booted: true,
 };
 
+const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerCommand> = {
+  tap: { command: 'tap', x: 120, y: 240 },
+  mouseClick: { command: 'mouseClick', x: 120, y: 240, button: 'secondary' },
+  tapSeries: { command: 'tapSeries', x: 120, y: 240, count: 2, intervalMs: 80 },
+  longPress: { command: 'longPress', x: 120, y: 240, durationMs: 750 },
+  interactionFrame: { command: 'interactionFrame' },
+  drag: { command: 'drag', x: 120, y: 240, x2: 300, y2: 420, durationMs: 400 },
+  dragSeries: {
+    command: 'dragSeries',
+    x: 120,
+    y: 240,
+    x2: 300,
+    y2: 420,
+    count: 2,
+    pauseMs: 100,
+    pattern: 'ping-pong',
+  },
+  type: { command: 'type', text: 'hello', delayMs: 20, clearFirst: true },
+  swipe: { command: 'swipe', direction: 'down', durationMs: 250 },
+  findText: { command: 'findText', text: 'Settings' },
+  readText: { command: 'readText' },
+  snapshot: {
+    command: 'snapshot',
+    interactiveOnly: true,
+    compact: true,
+    depth: 2,
+    scope: 'app',
+    raw: false,
+  },
+  screenshot: { command: 'screenshot', outPath: '/tmp/runner-screenshot.png' },
+  back: { command: 'back' },
+  backInApp: { command: 'backInApp' },
+  backSystem: { command: 'backSystem' },
+  home: { command: 'home' },
+  appSwitcher: { command: 'appSwitcher' },
+  keyboardDismiss: { command: 'keyboardDismiss' },
+  alert: { command: 'alert', action: 'accept' },
+  pinch: { command: 'pinch', scale: 0.5 },
+  recordStart: { command: 'recordStart', outPath: '/tmp/runner-recording.mp4', fps: 30 },
+  recordStop: { command: 'recordStop' },
+  uptime: { command: 'uptime' },
+  shutdown: { command: 'shutdown' },
+};
+
 async function makeTmpDir(t: test.TestContext): Promise<string> {
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
   t.after(async () => {
@@ -79,6 +124,46 @@ async function makeTmpDir(t: test.TestContext): Promise<string> {
 
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
+});
+
+test('runner protocol fixtures cover every runner command with JSON-safe samples', () => {
+  const commands = Object.keys(runnerProtocolCommandFixtures).sort();
+  assert.deepEqual(commands, [
+    'alert',
+    'appSwitcher',
+    'back',
+    'backInApp',
+    'backSystem',
+    'drag',
+    'dragSeries',
+    'findText',
+    'home',
+    'interactionFrame',
+    'keyboardDismiss',
+    'longPress',
+    'mouseClick',
+    'pinch',
+    'readText',
+    'recordStart',
+    'recordStop',
+    'screenshot',
+    'shutdown',
+    'snapshot',
+    'swipe',
+    'tap',
+    'tapSeries',
+    'type',
+    'uptime',
+  ]);
+
+  const roundTrip = JSON.parse(JSON.stringify(runnerProtocolCommandFixtures)) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.equal(roundTrip.tap.command, 'tap');
+  assert.equal(roundTrip.mouseClick.button, 'secondary');
+  assert.equal(roundTrip.snapshot.scope, 'app');
+  assert.equal(roundTrip.recordStart.fps, 30);
 });
 
 test('resolveRunnerDestination uses device destination for physical devices', () => {
