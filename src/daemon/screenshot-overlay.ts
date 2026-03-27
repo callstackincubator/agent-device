@@ -125,7 +125,9 @@ export function buildScreenshotOverlayRefs(
 }
 
 function isOverlaySourceNode(node: SnapshotNode): boolean {
-  const hasTextSignal = [node.label, node.value, node.identifier].some(isOverlaySignal);
+  const hasTextSignal =
+    [node.label, node.value].some(isOverlaySignal) ||
+    isMeaningfulOverlayIdentifier(node.identifier);
   if (hasActionableRole(node)) return hasTextSignal;
   return hasTextSignal && isProxyOverlayNode(node);
 }
@@ -151,9 +153,11 @@ function resolveOverlayLabel(
   target: SnapshotNode,
   nodes: SnapshotState['nodes'],
 ): string | undefined {
-  const sourceLabel = resolveRefLabel(source, nodes);
+  const sourceLabel = resolveNodeOverlayLabel(source);
   if (source.ref !== target.ref && sourceLabel) return sourceLabel;
-  return resolveRefLabel(target, nodes);
+  const descendantLabel = findDescendantOverlayLabel(target, nodes);
+  if (descendantLabel) return descendantLabel;
+  return resolveNodeOverlayLabel(target) ?? resolveRefLabel(target, nodes);
 }
 
 function scoreOverlayCandidate(
@@ -167,7 +171,7 @@ function scoreOverlayCandidate(
   if (hasActionableRole(target)) score += 3;
   if (hasActionableRole(source)) score += 2;
   if (label) score += 2;
-  if (isMeaningfulSignal(target.identifier)) score += 1;
+  if (isMeaningfulOverlayIdentifier(target.identifier)) score += 1;
   if (isMeaningfulSignal(target.value)) score += 1;
   return score;
 }
@@ -341,6 +345,59 @@ function isOverlaySignal(value: string | undefined): boolean {
   return !isGenericOverlayLabel(value);
 }
 
+function isMeaningfulOverlayIdentifier(value: string | undefined): boolean {
+  if (typeof value !== 'string' || !isOverlaySignal(value)) return false;
+  return !isGenericOverlayIdentifier(value);
+}
+
+function resolveNodeOverlayLabel(node: SnapshotNode): string | undefined {
+  const direct = [node.label, node.value].find(isOverlaySignal);
+  if (direct) return direct.trim();
+  if (isMeaningfulOverlayIdentifier(node.identifier)) return node.identifier!.trim();
+  return undefined;
+}
+
+function findDescendantOverlayLabel(
+  target: SnapshotNode,
+  nodes: SnapshotState['nodes'],
+): string | undefined {
+  let best: { label: string; score: number } | null = null;
+  for (const node of nodes) {
+    if (node.ref === target.ref || !isDescendantOf(node, target, nodes)) continue;
+    const label = resolveNodeOverlayLabel(node);
+    if (!label) continue;
+    const score = scoreDescendantLabelCandidate(node);
+    if (!best || score > best.score) {
+      best = { label, score };
+    }
+  }
+  return best?.label;
+}
+
+function isDescendantOf(
+  node: SnapshotNode,
+  ancestor: SnapshotNode,
+  nodes: SnapshotState['nodes'],
+): boolean {
+  let current = node;
+  while (current.parentIndex !== undefined) {
+    const parent = nodes[current.parentIndex];
+    if (!parent) return false;
+    if (parent.ref === ancestor.ref) return true;
+    current = parent;
+  }
+  return false;
+}
+
+function scoreDescendantLabelCandidate(node: SnapshotNode): number {
+  let score = 0;
+  const normalizedType = normalizeType(node.type ?? '');
+  if (normalizedType.includes('text')) score += 2;
+  if (isOverlaySignal(node.label)) score += 2;
+  if (isOverlaySignal(node.value)) score += 1;
+  return score;
+}
+
 function isGenericOverlayLabel(value: string | undefined): boolean {
   const normalized = value?.trim().toLowerCase();
   return (
@@ -349,6 +406,10 @@ function isGenericOverlayLabel(value: string | undefined): boolean {
     normalized === 'application' ||
     normalized?.startsWith('vertical scroll bar') === true
   );
+}
+
+function isGenericOverlayIdentifier(value: string): boolean {
+  return /^[a-z0-9_.]+:id\/[a-z0-9_.-]+$/i.test(value.trim());
 }
 
 function hasPositiveRect(rect: Rect | undefined): rect is Rect {

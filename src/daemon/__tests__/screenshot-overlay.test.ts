@@ -182,6 +182,50 @@ test('buildScreenshotOverlayRefs skips generic actionable container labels when 
   );
 });
 
+test('buildScreenshotOverlayRefs prefers descendant text over generic android resource ids', () => {
+  const snapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 100, height: 200 },
+    },
+    {
+      index: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      identifier: 'com.android.settings:id/dashboard_tile',
+      hittable: true,
+      rect: { x: 0, y: 20, width: 100, height: 24 },
+    },
+    {
+      index: 2,
+      parentIndex: 1,
+      type: 'android.widget.ImageView',
+      identifier: 'android:id/icon',
+      rect: { x: 4, y: 24, width: 10, height: 10 },
+    },
+    {
+      index: 3,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'Network & internet',
+      rect: { x: 20, y: 24, width: 40, height: 10 },
+    },
+  ]);
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 200, 400);
+
+  assert.deepEqual(overlayRefs, [
+    {
+      ref: 'e2',
+      label: 'Network & internet',
+      rect: { x: 0, y: 20, width: 100, height: 24 },
+      overlayRect: { x: 0, y: 40, width: 200, height: 48 },
+      center: { x: 100, y: 64 },
+    },
+  ]);
+});
+
 test('annotateScreenshotWithRefs draws the overlay onto the saved PNG', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-screenshot-overlay-'));
   const screenshotPath = path.join(root, 'screen.png');
