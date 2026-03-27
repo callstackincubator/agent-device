@@ -5,19 +5,16 @@ import path from 'node:path';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 
-const clearCalls: Array<{ deviceId: string; appId?: string }> = [];
-
 vi.mock('../../runtime-hints.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../runtime-hints.ts')>();
   return {
     ...actual,
-    clearRuntimeHintsFromApp: vi.fn(async ({ device, appId }) => {
-      clearCalls.push({ deviceId: device.id, appId });
-    }),
+    clearRuntimeHintsFromApp: vi.fn(async () => {}),
   };
 });
 
 import { handleRuntimeCommand } from '../session-runtime-command.ts';
+import { clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runtime-cmd-'));
@@ -25,7 +22,6 @@ function makeSessionStore(): SessionStore {
 }
 
 test('runtime clear removes applied transport hints for the active app', async () => {
-  clearCalls.length = 0;
   const sessionStore = makeSessionStore();
   const sessionName = 'runtime-clear-active';
   sessionStore.setRuntimeHints(sessionName, {
@@ -60,6 +56,9 @@ test('runtime clear removes applied transport hints for the active app', async (
   });
 
   expect(response.ok).toBe(true);
-  expect(clearCalls).toEqual([{ deviceId: 'emulator-5554', appId: 'com.example.demo' }]);
+  expect(vi.mocked(clearRuntimeHintsFromApp)).toHaveBeenCalledWith({
+    device: expect.objectContaining({ id: 'emulator-5554' }),
+    appId: 'com.example.demo',
+  });
   expect(sessionStore.getRuntimeHints(sessionName)).toBeUndefined();
 });
