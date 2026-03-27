@@ -10,6 +10,7 @@ extension RunnerTests {
   ]
 
   private struct SnapshotTraversalContext {
+    let queryRoot: XCUIElement
     let rootSnapshot: XCUIElementSnapshot
     let viewport: CGRect
     let flatSnapshots: [XCUIElementSnapshot]
@@ -82,7 +83,7 @@ extension RunnerTests {
         return cachedDescendantElements
       }
       let fetched = safeSnapshotElementsQuery {
-        app.descendants(matching: .any).allElementsBoundByIndex
+        context.queryRoot.descendants(matching: .any).allElementsBoundByIndex
       }
       cachedDescendantElements = fetched
       return fetched
@@ -95,13 +96,14 @@ extension RunnerTests {
       makeSnapshotNode(snapshot: context.rootSnapshot, evaluation: rootEvaluation, depth: 0, index: 0)
     )
     if context.maxDepth > 0 {
-      appendCollapsedTabFallbackNodes(
+      let didTruncateFallback = appendCollapsedTabFallbackNodes(
         to: &nodes,
         containerSnapshot: context.rootSnapshot,
         resolveElements: collapsedTabDescendants,
         depth: 1,
         nodeLimit: fastSnapshotLimit
       )
+      truncated = truncated || didTruncateFallback
     }
 
     var seen = Set<String>()
@@ -149,13 +151,14 @@ extension RunnerTests {
         )
       )
       if visibleDepth < context.maxDepth {
-        appendCollapsedTabFallbackNodes(
+        let didTruncateFallback = appendCollapsedTabFallbackNodes(
           to: &nodes,
           containerSnapshot: snapshot,
           resolveElements: collapsedTabDescendants,
           depth: visibleDepth + 1,
           nodeLimit: fastSnapshotLimit
         )
+        truncated = truncated || didTruncateFallback
       }
 
     }
@@ -285,6 +288,7 @@ extension RunnerTests {
 
     let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
     return SnapshotTraversalContext(
+      queryRoot: queryRoot,
       rootSnapshot: rootSnapshot,
       viewport: viewport,
       flatSnapshots: flatSnapshots,
@@ -421,17 +425,18 @@ extension RunnerTests {
     resolveElements: () -> [XCUIElement],
     depth: Int,
     nodeLimit: Int
-  ) {
+  ) -> Bool {
     let fallbackNodes = collapsedTabFallbackNodes(
       for: containerSnapshot,
       resolveElements: resolveElements,
       startingIndex: nodes.count,
       depth: depth
     )
-    if fallbackNodes.isEmpty { return }
+    if fallbackNodes.isEmpty { return false }
     let remaining = max(0, nodeLimit - nodes.count)
-    if remaining == 0 { return }
+    if remaining == 0 { return true }
     nodes.append(contentsOf: fallbackNodes.prefix(remaining))
+    return fallbackNodes.count > remaining
   }
 
   private func collapsedTabFallbackNodes(
