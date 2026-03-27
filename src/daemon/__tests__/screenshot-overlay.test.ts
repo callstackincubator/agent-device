@@ -49,7 +49,44 @@ test('buildScreenshotOverlayRefs reuses existing eN refs and promotes labeled ch
   assert.equal(overlayRefs[0]?.label, 'Continue');
 });
 
-test('buildScreenshotOverlayRefs suppresses nested duplicates with the same label', () => {
+test('buildScreenshotOverlayRefs promotes labeled children to actionable ancestors before hittable roots', () => {
+  const snapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'XCUIElementTypeApplication',
+      label: 'Settings',
+      hittable: true,
+      rect: { x: 0, y: 0, width: 100, height: 200 },
+    },
+    {
+      index: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'General',
+      rect: { x: 10, y: 20, width: 80, height: 30 },
+    },
+    {
+      index: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'General',
+      rect: { x: 14, y: 26, width: 40, height: 12 },
+    },
+  ]);
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 200, 400);
+
+  assert.deepEqual(overlayRefs, [
+    {
+      ref: 'e2',
+      label: 'General',
+      rect: { x: 10, y: 20, width: 80, height: 30 },
+      overlayRect: { x: 20, y: 40, width: 160, height: 60 },
+    },
+  ]);
+});
+
+test('buildScreenshotOverlayRefs suppresses contained duplicates with the same label, keeping the smaller rect', () => {
   const snapshot = makeSnapshotState([
     {
       index: 0,
@@ -73,6 +110,70 @@ test('buildScreenshotOverlayRefs suppresses nested duplicates with the same labe
   assert.deepEqual(
     overlayRefs.map((overlayRef) => overlayRef.ref),
     ['e2'],
+  );
+});
+
+test('buildScreenshotOverlayRefs projects against the viewport instead of snapshot outliers', () => {
+  const snapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'XCUIElementTypeApplication',
+      label: 'Settings',
+      rect: { x: 0, y: 0, width: 100, height: 200 },
+    },
+    {
+      index: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeImage',
+      rect: { x: -30, y: 150, width: 160, height: 40 },
+    },
+    {
+      index: 2,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Continue',
+      rect: { x: 10, y: 20, width: 80, height: 30 },
+    },
+  ]);
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 200, 400);
+
+  assert.deepEqual(overlayRefs[0]?.overlayRect, {
+    x: 20,
+    y: 40,
+    width: 160,
+    height: 60,
+  });
+});
+
+test('buildScreenshotOverlayRefs skips generic actionable container labels when specific children exist', () => {
+  const snapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'XCUIElementTypeApplication',
+      rect: { x: 0, y: 0, width: 100, height: 200 },
+    },
+    {
+      index: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeSearchField',
+      label: 'Toolbar',
+      rect: { x: 0, y: 150, width: 100, height: 30 },
+    },
+    {
+      index: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeSearchField',
+      label: 'Search',
+      rect: { x: 8, y: 154, width: 70, height: 20 },
+    },
+  ]);
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 200, 400);
+
+  assert.deepEqual(
+    overlayRefs.map((overlayRef) => overlayRef.label),
+    ['Search'],
   );
 });
 

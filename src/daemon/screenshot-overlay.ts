@@ -64,13 +64,13 @@ export function buildScreenshotOverlayRefs(
   screenshotHeight: number,
   options: { maxRefs?: number } = {},
 ): ScreenshotOverlayRef[] {
-  const snapshotBounds = measureSnapshotBounds(snapshot.nodes);
+  const snapshotBounds = resolveSnapshotBounds(snapshot.nodes);
   const candidatesByRef = new Map<string, OverlayCandidate>();
   for (const node of snapshot.nodes) {
     if (!isOverlaySourceNode(node)) continue;
     const target = resolveOverlayTarget(snapshot.nodes, node);
     if (!target?.rect || !hasPositiveRect(target.rect)) continue;
-    const label = resolveRefLabel(target, snapshot.nodes);
+    const label = resolveOverlayLabel(node, target, snapshot.nodes);
     const score = scoreOverlayCandidate(node, target, label);
     const overlayRect = projectRectToScreenshot(
       snapshotBounds,
@@ -118,18 +118,35 @@ export function buildScreenshotOverlayRefs(
 }
 
 function isOverlaySourceNode(node: SnapshotNode): boolean {
-  const hasTextSignal = [node.label, node.value, node.identifier].some(isMeaningfulSignal);
-  return hasTextSignal || hasActionableRole(node);
+  const hasTextSignal = [node.label, node.value, node.identifier].some(isOverlaySignal);
+  if (hasActionableRole(node)) return hasTextSignal;
+  return hasTextSignal && isProxyOverlayNode(node);
 }
 
 function resolveOverlayTarget(
   nodes: SnapshotState['nodes'],
   node: SnapshotNode,
 ): SnapshotNode | null {
-  if (node.hittable && hasPositiveRect(node.rect)) return node;
+  if (isOverlayActionableNode(node) && hasPositiveRect(node.rect)) return node;
+  const actionableAncestor = findNearestActionableAncestor(nodes, node);
+  if (actionableAncestor?.rect && hasPositiveRect(actionableAncestor.rect))
+    return actionableAncestor;
+  if (node.hittable && hasPositiveRect(node.rect) && !isViewportLikeNode(node)) return node;
   const ancestor = findNearestHittableAncestor(nodes, node);
-  if (ancestor?.rect && hasPositiveRect(ancestor.rect)) return ancestor;
+  if (ancestor?.rect && hasPositiveRect(ancestor.rect) && !isViewportLikeNode(ancestor)) {
+    return ancestor;
+  }
   return null;
+}
+
+function resolveOverlayLabel(
+  source: SnapshotNode,
+  target: SnapshotNode,
+  nodes: SnapshotState['nodes'],
+): string | undefined {
+  const sourceLabel = resolveRefLabel(source, nodes);
+  if (source.ref !== target.ref && sourceLabel) return sourceLabel;
+  return resolveRefLabel(target, nodes);
 }
 
 function scoreOverlayCandidate(
@@ -204,7 +221,22 @@ function projectRectToScreenshot(
   );
 }
 
-function measureSnapshotBounds(nodes: SnapshotState['nodes']): Rect | null {
+function resolveSnapshotBounds(nodes: SnapshotState['nodes']): Rect | null {
+  let viewport: Rect | null = null;
+  for (const node of nodes) {
+    if (!isViewportLikeNode(node) || !hasPositiveRect(node.rect)) continue;
+    if (!viewport || rectArea(node.rect) > rectArea(viewport)) {
+      viewport = node.rect;
+    }
+  }
+  if (viewport) return viewport;
+
+  return measureSnapshotBounds(
+    nodes.filter((node) => hasPositiveRect(node.rect) && !isSnapshotBoundsOutlier(node)),
+  );
+}
+
+function measureSnapshotBounds(nodes: Array<Pick<SnapshotNode, 'rect'>>): Rect | null {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxRight = Number.NEGATIVE_INFINITY;
@@ -227,6 +259,11 @@ function measureSnapshotBounds(nodes: SnapshotState['nodes']): Rect | null {
   };
 }
 
+function isSnapshotBoundsOutlier(node: SnapshotNode): boolean {
+  const normalizedType = normalizeType(node.type ?? '');
+  return normalizedType === 'image' && !isMeaningfulSignal(node.label);
+}
+
 function hasActionableRole(node: SnapshotNode): boolean {
   const roleText = [node.type, node.role, node.subrole]
     .map((value) => normalizeType(value ?? ''))
@@ -246,12 +283,65 @@ function hasActionableRole(node: SnapshotNode): boolean {
   );
 }
 
+function isOverlayActionableNode(node: SnapshotNode): boolean {
+  return hasActionableRole(node) && !isViewportLikeNode(node);
+}
+
+function isProxyOverlayNode(node: SnapshotNode): boolean {
+  const normalizedType = normalizeType(node.type ?? '');
+  return (
+    normalizedType.includes('statictext') ||
+    normalizedType.includes('image') ||
+    normalizedType.includes('text') ||
+    normalizedType.includes('other')
+  );
+}
+
+function isViewportLikeNode(node: Pick<SnapshotNode, 'type' | 'role' | 'subrole'>): boolean {
+  const roleText = [node.type, node.role, node.subrole]
+    .map((value) => normalizeType(value ?? ''))
+    .join(' ');
+  return roleText.includes('application') || roleText.includes('window');
+}
+
+function findNearestActionableAncestor(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+): SnapshotNode | null {
+  let current = node;
+  const visited = new Set<string>();
+  while (current.parentIndex !== undefined) {
+    if (visited.has(current.ref)) break;
+    visited.add(current.ref);
+    const parent = nodes[current.parentIndex];
+    if (!parent) break;
+    if (isOverlayActionableNode(parent) && hasPositiveRect(parent.rect)) return parent;
+    current = parent;
+  }
+  return null;
+}
+
 function isMeaningfulSignal(value: string | undefined): boolean {
   if (typeof value !== 'string') return false;
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (/^(true|false)$/i.test(trimmed)) return false;
   return true;
+}
+
+function isOverlaySignal(value: string | undefined): boolean {
+  if (!isMeaningfulSignal(value)) return false;
+  return !isGenericOverlayLabel(value);
+}
+
+function isGenericOverlayLabel(value: string | undefined): boolean {
+  const normalized = value?.trim().toLowerCase();
+  return (
+    normalized === 'toolbar' ||
+    normalized === 'window' ||
+    normalized === 'application' ||
+    normalized?.startsWith('vertical scroll bar') === true
+  );
 }
 
 function hasPositiveRect(rect: Rect | undefined): rect is Rect {
