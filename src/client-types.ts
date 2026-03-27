@@ -8,6 +8,7 @@ import type {
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { SnapshotNode } from './utils/snapshot.ts';
 import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
+import type { ScreenshotOverlayRef } from './daemon/screenshot-overlay.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
@@ -258,10 +259,12 @@ export type CaptureSnapshotResult = {
 
 export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {
   path?: string;
+  overlayRefs?: boolean;
 };
 
 export type CaptureScreenshotResult = {
   path: string;
+  overlayRefs?: ScreenshotOverlayRef[];
   identifiers: AgentDeviceIdentifiers;
 };
 
@@ -269,6 +272,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
   AgentDeviceSelectionOptions & {
     simulatorRuntimeId?: string;
     runtime?: SessionRuntimeHints;
+    overlayRefs?: boolean;
     boot?: boolean;
     reuseExisting?: boolean;
     activity?: string;

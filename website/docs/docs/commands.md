@@ -497,6 +497,7 @@ agent-device metrics --json
 ```bash
 agent-device screenshot                 # Auto filename
 agent-device screenshot page.png        # Explicit screenshot path
+agent-device screenshot page.png --overlay-refs  # Draw current @eN refs onto the PNG
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
@@ -504,6 +505,7 @@ agent-device record stop                # Stop active recording
 ```
 
 - Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
+- `screenshot --overlay-refs` reuses the current session snapshot and burns visible `@eN` refs into the saved PNG. Run `snapshot` first so the daemon has refs to draw.
 - Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
 - On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
 

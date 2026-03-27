@@ -52,6 +52,7 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  overlayRefs?: boolean;
   baseline?: string;
   threshold?: string;
   appsFilter?: 'user-installed' | 'all';
@@ -848,6 +849,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Output path',
   },
   {
+    key: 'overlayRefs',
+    names: ['--overlay-refs'],
+    type: 'boolean',
+    usageLabel: '--overlay-refs',
+    usageDescription: 'Screenshot: draw current snapshot refs onto the saved PNG',
+  },
+  {
     key: 'baseline',
     names: ['--baseline', '-b'],
     type: 'string',
@@ -1172,7 +1180,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   screenshot: {
     helpDescription: 'Capture screenshot',
     positionalArgs: ['path?'],
-    allowedFlags: ['out'],
+    allowedFlags: ['out', 'overlayRefs'],
   },
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',

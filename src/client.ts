@@ -231,6 +231,7 @@ export function createAgentDeviceClient(
         const data = await execute('screenshot', options.path ? [options.path] : [], options);
         return {
           path: readRequiredString(data, 'path'),
+          overlayRefs: Array.isArray(data.overlayRefs) ? (data.overlayRefs as any) : undefined,
           identifiers: { session },
         };
       },

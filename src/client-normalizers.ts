@@ -226,6 +226,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotDepth: options.depth,
     snapshotScope: options.scope,
     snapshotRaw: options.raw,
+    overlayRefs: options.overlayRefs,
     verbose: options.debug,
   }) as CommandFlags;
 }

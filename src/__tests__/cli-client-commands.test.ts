@@ -157,6 +157,45 @@ test('metro prepare forwards normalized options to client.metro.prepare', async 
   assert.equal(payload.runtimeFilePath, null);
 });
 
+test('screenshot forwards --overlay-refs to the client capture API', async () => {
+  let observed:
+    | {
+        path?: string;
+        overlayRefs?: boolean;
+      }
+    | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    screenshot: async (options) => {
+      observed = options;
+      return {
+        path: '/tmp/screenshot.png',
+        identifiers: { session: 'default' },
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'screenshot',
+    positionals: ['/tmp/screenshot.png'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+      overlayRefs: true,
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.deepEqual(observed, {
+    path: '/tmp/screenshot.png',
+    overlayRefs: true,
+  });
+});
+
 test('metro prepare wraps output in the standard success envelope for --json', async () => {
   const client = createStubClient({
     installFromSource: async () => {
@@ -447,6 +486,7 @@ function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];
   prepareMetro?: AgentDeviceClient['metro']['prepare'];
   open?: AgentDeviceClient['apps']['open'];
+  screenshot?: AgentDeviceClient['capture']['screenshot'];
 }): AgentDeviceClient {
   return {
     devices: {
@@ -533,10 +573,12 @@ function createStubClient(params: {
         truncated: false,
         identifiers: { session: 'default' },
       }),
-      screenshot: async () => ({
-        path: '/tmp/screenshot.png',
-        identifiers: { session: 'default' },
-      }),
+      screenshot:
+        params.screenshot ??
+        (async () => ({
+          path: '/tmp/screenshot.png',
+          identifiers: { session: 'default' },
+        })),
     },
   };
 }

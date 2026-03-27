@@ -187,8 +187,14 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     return true;
   },
   screenshot: async ({ positionals, flags, client }) => {
-    const result = await client.capture.screenshot({ path: positionals[0] ?? flags.out });
-    const data = { path: result.path };
+    const result = await client.capture.screenshot({
+      path: positionals[0] ?? flags.out,
+      overlayRefs: flags.overlayRefs,
+    });
+    const data = {
+      path: result.path,
+      ...(result.overlayRefs ? { overlayRefs: result.overlayRefs } : {}),
+    };
     if (flags.json) printJson({ success: true, data });
     else process.stdout.write(`${result.path}\n`);
     return true;

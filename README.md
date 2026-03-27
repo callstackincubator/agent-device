@@ -38,6 +38,7 @@ The canonical loop is:
 ```bash
 agent-device open SampleApp --platform ios
 agent-device snapshot -i
+agent-device screenshot current-screen.png --overlay-refs
 agent-device press @e3
 agent-device diff snapshot -i
 agent-device fill @e5 "test"
@@ -49,9 +50,10 @@ In practice, most work follows the same pattern:
 
 1. `open` a target app or URL.
 2. `snapshot -i` to inspect the current screen.
-3. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
-4. `diff snapshot` or re-snapshot after UI changes.
-5. `close` when the session is finished.
+3. Optionally capture `screenshot --overlay-refs` to burn current `@eN` refs into the PNG for visual inspection.
+4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
+5. `diff snapshot` or re-snapshot after UI changes.
+6. `close` when the session is finished.
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
 

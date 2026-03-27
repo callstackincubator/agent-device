@@ -39,6 +39,7 @@ import {
 } from './recording-gestures.ts';
 import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
 import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
+import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
 
 const selectorValidationExemptCommands = new Set([
   'session_list',
@@ -424,6 +425,20 @@ export function createRequestHandler(
             command === 'screenshot' && resolvedOut
               ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
               : (lockedReq.flags ?? {});
+          if (command === 'screenshot' && lockedReq.flags?.overlayRefs && !session.snapshot) {
+            return finalize({
+              ok: false,
+              error: normalizeError(
+                new AppError(
+                  'INVALID_ARGS',
+                  'screenshot --overlay-refs requires an existing session snapshot',
+                  {
+                    hint: 'Run snapshot first so the daemon can annotate refs onto the screenshot.',
+                  },
+                ),
+              ),
+            });
+          }
           const actionStartedAt = Date.now();
           const dispatchContext = {
             ...contextFromFlags(
@@ -436,6 +451,18 @@ export function createRequestHandler(
           const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
             ...dispatchContext,
           });
+          if (
+            command === 'screenshot' &&
+            lockedReq.flags?.overlayRefs &&
+            session.snapshot &&
+            typeof data?.path === 'string'
+          ) {
+            const overlayRefs = await annotateScreenshotWithRefs({
+              screenshotPath: data.path,
+              snapshot: session.snapshot,
+            });
+            data.overlayRefs = overlayRefs;
+          }
           const actionFinishedAt = Date.now();
           const visualizationData = augmentScrollVisualizationResult(
             session,
