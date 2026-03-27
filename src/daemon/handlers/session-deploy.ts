@@ -183,15 +183,16 @@ export async function handleAppDeployCommand(params: {
           };
     }
 
+    const data = withSuccessText(result, buildDeployMessage(result));
     if (session) {
       sessionStore.recordAction(session, {
         command,
         positionals: req.positionals ?? [],
         flags: req.flags ?? {},
-        result: withSuccessText(result, buildDeployMessage(result)),
+        result: data,
       });
     }
-    return { ok: true, data: withSuccessText(result, buildDeployMessage(result)) };
+    return { ok: true, data };
   } finally {
     if (uploadedArtifactId) {
       cleanupUploadedArtifact(uploadedArtifactId);
