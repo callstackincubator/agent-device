@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.3bc22a95ee.js"></script>
+<script defer src="/agent-device/static/js/index.4abbbd46e2.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -204,6 +204,7 @@
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> swipe</span><span style="color:var(--shiki-token-constant)"> 540</span><span style="color:var(--shiki-token-constant)"> 1500</span><span style="color:var(--shiki-token-constant)"> 540</span><span style="color:var(--shiki-token-constant)"> 500</span><span style="color:var(--shiki-token-constant)"> 120</span><span style="color:var(--shiki-token-string)"> --count</span><span style="color:var(--shiki-token-constant)"> 8</span><span style="color:var(--shiki-token-string)"> --pause-ms</span><span style="color:var(--shiki-token-constant)"> 30</span><span style="color:var(--shiki-token-string)"> --pattern</span><span style="color:var(--shiki-token-string)"> ping-pong</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> longpress</span><span style="color:var(--shiki-token-constant)"> 300</span><span style="color:var(--shiki-token-constant)"> 500</span><span style="color:var(--shiki-token-constant)"> 800</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> scroll</span><span style="color:var(--shiki-token-string)"> down</span><span style="color:var(--shiki-token-constant)"> 0.5</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> scroll</span><span style="color:var(--shiki-token-string)"> down</span><span style="color:var(--shiki-token-string)"> --pixels</span><span style="color:var(--shiki-token-constant)"> 320</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> scrollintoview</span><span style="color:var(--shiki-token-string-expression)"> &quot;Sign in&quot;</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> scrollintoview</span><span style="color:var(--shiki-token-string)"> @e42</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> pinch</span><span style="color:var(--shiki-token-constant)"> 2.0</span><span style="color:var(--shiki-token-comment)">          # zoom in 2x (iOS simulator)</span></span>
@@ -217,6 +218,7 @@ Some Android images cannot enter non-ASCII text over shell input; in that case u
 <code>click --button middle</code> is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 <code>swipe</code> accepts an optional <code>durationMs</code> argument (default <code>250ms</code>, range <code>16..10000</code>).
 On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avoid longpress side effects.
+<code>scroll</code> accepts either a relative amount (<code>0.5</code> means roughly half of the viewport on that axis) or <code>--pixels &lt;n&gt;</code> for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 <code>scrollintoview</code> accepts plain text or a snapshot ref (<code>@eN</code>); ref mode uses best-effort geometry-based scrolling without post-scroll verification. Run <code>snapshot</code> again before follow-up <code>@ref</code> commands.
 <code>longpress</code> is supported on iOS and Android.
 <code>pinch</code> is iOS simulator-only.</p>
