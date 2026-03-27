@@ -222,6 +222,28 @@ export async function handleOpenCommand(params: {
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn = resolveAndroidPackageForOpen,
   } = params;
 
+  const completeOpen = (openParams: {
+    device: DeviceInfo;
+    surface: SessionSurface;
+    openTarget?: string;
+    openPositionals: string[];
+    appBundleId?: string;
+    appName?: string;
+    runtime: SessionRuntimeHints | undefined;
+    existingSession?: SessionState;
+  }) =>
+    completeOpenCommand({
+      req,
+      sessionName,
+      sessionStore,
+      logPath,
+      dispatch,
+      applyRuntimeHints,
+      stopIosRunner,
+      settleSimulator,
+      ...openParams,
+    });
+
   if (sessionStore.has(sessionName)) {
     const session = sessionStore.get(sessionName);
     if (!session) {
@@ -242,58 +264,18 @@ export async function handleOpenCommand(params: {
       resolveDevice,
       clearRuntimeHints,
       resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn,
+      completeOpen,
     });
-    if ('response' in preparation) {
-      return preparation.response;
-    }
-    const { prepared } = preparation;
-    return await completeOpenCommand({
-      req,
-      sessionName,
-      sessionStore,
-      logPath,
-      device: prepared.device,
-      dispatch,
-      applyRuntimeHints,
-      stopIosRunner,
-      settleSimulator,
-      openTarget: prepared.openTarget,
-      openPositionals: prepared.openPositionals,
-      appName: prepared.appName,
-      surface: prepared.surface,
-      appBundleId: prepared.appBundleId,
-      runtime: prepared.runtime,
-      existingSession: prepared.existingSession,
-    });
+    return preparation;
   }
 
-  const preparation = await prepareNewOpenCommand({
+  return await prepareNewOpenCommand({
     req,
     sessionStore,
     sessionName,
     ensureReady,
     resolveDevice,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn,
-  });
-  if ('response' in preparation) {
-    return preparation.response;
-  }
-  const { prepared } = preparation;
-  return await completeOpenCommand({
-    req,
-    sessionName,
-    sessionStore,
-    logPath,
-    device: prepared.device,
-    dispatch,
-    applyRuntimeHints,
-    stopIosRunner,
-    settleSimulator,
-    openTarget: prepared.openTarget,
-    openPositionals: prepared.openPositionals,
-    appName: prepared.appName,
-    surface: prepared.surface,
-    appBundleId: prepared.appBundleId,
-    runtime: prepared.runtime,
+    completeOpen,
   });
 }
