@@ -1,6 +1,14 @@
 import XCTest
 
 extension RunnerTests {
+  private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
+    .button,
+    .link,
+    .menuItem,
+    .other,
+    .staticText
+  ]
+
   private struct SnapshotTraversalContext {
     let rootSnapshot: XCUIElementSnapshot
     let viewport: CGRect
@@ -67,8 +75,17 @@ extension RunnerTests {
     guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
       return DataPayload(nodes: [], truncated: false)
     }
-    let descendantElements = safeSnapshotElementsQuery {
-      app.descendants(matching: .any).allElementsBoundByIndex
+
+    var cachedDescendantElements: [XCUIElement]?
+    func collapsedTabDescendants() -> [XCUIElement] {
+      if let cachedDescendantElements {
+        return cachedDescendantElements
+      }
+      let fetched = safeSnapshotElementsQuery {
+        app.descendants(matching: .any).allElementsBoundByIndex
+      }
+      cachedDescendantElements = fetched
+      return fetched
     }
 
     var nodes: [SnapshotNode] = []
@@ -81,7 +98,7 @@ extension RunnerTests {
       appendCollapsedTabFallbackNodes(
         to: &nodes,
         containerSnapshot: context.rootSnapshot,
-        elements: descendantElements,
+        resolveElements: collapsedTabDescendants,
         depth: 1,
         nodeLimit: fastSnapshotLimit
       )
@@ -135,7 +152,7 @@ extension RunnerTests {
         appendCollapsedTabFallbackNodes(
           to: &nodes,
           containerSnapshot: snapshot,
-          elements: descendantElements,
+          resolveElements: collapsedTabDescendants,
           depth: visibleDepth + 1,
           nodeLimit: fastSnapshotLimit
         )
@@ -401,13 +418,13 @@ extension RunnerTests {
   private func appendCollapsedTabFallbackNodes(
     to nodes: inout [SnapshotNode],
     containerSnapshot: XCUIElementSnapshot,
-    elements: [XCUIElement],
+    resolveElements: () -> [XCUIElement],
     depth: Int,
     nodeLimit: Int
   ) {
     let fallbackNodes = collapsedTabFallbackNodes(
       for: containerSnapshot,
-      elements: elements,
+      resolveElements: resolveElements,
       startingIndex: nodes.count,
       depth: depth
     )
@@ -419,7 +436,7 @@ extension RunnerTests {
 
   private func collapsedTabFallbackNodes(
     for containerSnapshot: XCUIElementSnapshot,
-    elements: [XCUIElement],
+    resolveElements: () -> [XCUIElement],
     startingIndex: Int,
     depth: Int
   ) -> [SnapshotNode] {
@@ -428,6 +445,9 @@ extension RunnerTests {
     let containerFrame = containerSnapshot.frame
     if containerFrame.isNull || containerFrame.isEmpty { return [] }
 
+    // Collapsed tab containers should be rare, so a full descendant scan is acceptable once per
+    // snapshot as a fallback for XCTest omitting the tab children from the snapshot tree.
+    let elements = resolveElements()
     let candidates = elements.compactMap { element in
       collapsedTabCandidateNode(
         element: element,
@@ -445,6 +465,7 @@ extension RunnerTests {
     if candidates.count < 2 { return [] }
     let rowMidpoints = candidates.map { $0.rect.y + ($0.rect.height / 2) }
     let rowSpread = (rowMidpoints.max() ?? 0) - (rowMidpoints.min() ?? 0)
+    // Allow modest vertical jitter and short two-row wraps while still rejecting unrelated controls.
     if rowSpread > max(24.0, Double(containerFrame.height) * 0.6) { return [] }
 
     var seen = Set<String>()
@@ -480,7 +501,7 @@ extension RunnerTests {
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
       if !element.exists { return }
       let elementType = element.elementType
-      if !collapsedTabCandidateTypes.contains(elementType) { return }
+      if !Self.collapsedTabCandidateTypes.contains(elementType) { return }
       let frame = element.frame
       if frame.isNull || frame.isEmpty { return }
       if frame.equalTo(containerFrame) { return }
@@ -536,16 +557,6 @@ extension RunnerTests {
     default:
       return false
     }
-  }
-
-  private var collapsedTabCandidateTypes: Set<XCUIElement.ElementType> {
-    [
-      .button,
-      .link,
-      .menuItem,
-      .other,
-      .staticText
-    ]
   }
 
   private func snapshotValueText(_ element: XCUIElement) -> String? {
