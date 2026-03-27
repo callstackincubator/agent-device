@@ -694,7 +694,7 @@ async function resolveRefTargetWithRectRefresh(params: {
       { interactiveOnly: true },
       dispatch,
     );
-    const refNode = findNodeByRef(refreshed.nodes, resolvedRefTarget.target.ref);
+    const refNode = findNodeByRef(refreshed.nodes, ref);
     const fallbackNode =
       fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
     const actionableRefNode = refNode ? resolveActionableTouchNode(refreshed.nodes, refNode) : null;
@@ -707,7 +707,7 @@ async function resolveRefTargetWithRectRefresh(params: {
       ? actionableRefNode
       : fallbackNodePoint
         ? actionableFallbackNode
-        : (actionableRefNode ?? actionableFallbackNode ?? refNode ?? fallbackNode);
+        : (actionableRefNode ?? actionableFallbackNode);
     const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
     if (refreshedNode && refreshedPoint) {
       node = refreshedNode;
