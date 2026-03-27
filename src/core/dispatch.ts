@@ -20,6 +20,7 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
+import { successText, withSuccessText } from '../utils/success-text.ts';
 import {
   requireIntInRange,
   clampIosSwipeDuration,
@@ -105,7 +106,7 @@ export async function dispatchCommand(
           }
           if (!app) {
             await interactor.openDevice();
-            return { app: null };
+            return { app: null, ...successText('Opened device') };
           }
           if (url !== undefined) {
             if (device.platform === 'android') {
@@ -128,21 +129,21 @@ export async function dispatchCommand(
               appBundleId: context?.appBundleId,
               url,
             });
-            return { app, url };
+            return { app, url, ...successText(`Opened: ${app}`) };
           }
           await interactor.open(app, {
             activity: context?.activity,
             appBundleId: context?.appBundleId,
           });
-          return { app };
+          return { app, ...successText(`Opened: ${app}`) };
         }
         case 'close': {
           const app = positionals[0];
           if (!app) {
-            return { closed: 'session' };
+            return { closed: 'session', ...successText('Closed session') };
           }
           await interactor.close(app);
-          return { app };
+          return { app, ...successText(`Closed: ${app}`) };
         }
         case 'press': {
           const [x, y] = positionals.map(Number);
@@ -179,7 +180,12 @@ export async function dispatchCommand(
                 requestId: context?.requestId,
               },
             );
-            return { x, y, button: clickButton };
+            return {
+              x,
+              y,
+              button: clickButton,
+              ...successText(formatPressMessage({ x, y, button: clickButton })),
+            };
           }
           const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
           const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
@@ -223,6 +229,7 @@ export async function dispatchCommand(
               doubleTap,
               timingMode: 'runner-series',
               ...runnerResult,
+              ...successText(formatPressMessage({ x, y })),
             };
           }
 
@@ -243,7 +250,19 @@ export async function dispatchCommand(
             }
           });
 
-          return { x, y, count, intervalMs, holdMs, jitterPx, doubleTap, ...interactionResult };
+          return withSuccessText(
+            {
+              x,
+              y,
+              count,
+              intervalMs,
+              holdMs,
+              jitterPx,
+              doubleTap,
+              ...interactionResult,
+            },
+            formatPressMessage({ x, y }),
+          );
         }
         case 'swipe': {
           const x1 = Number(positionals[0]);
@@ -299,6 +318,7 @@ export async function dispatchCommand(
               pauseMs,
               pattern,
               ...runnerResult,
+              ...successText(formatSwipeMessage(count, pattern)),
             };
           }
 
@@ -308,18 +328,21 @@ export async function dispatchCommand(
             else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
           });
 
-          return {
-            x1,
-            y1,
-            x2,
-            y2,
-            durationMs,
-            effectiveDurationMs,
-            timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
-            count,
-            pauseMs,
-            pattern,
-          };
+          return withSuccessText(
+            {
+              x1,
+              y1,
+              x2,
+              y2,
+              durationMs,
+              effectiveDurationMs,
+              timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
+              count,
+              pauseMs,
+              pattern,
+            },
+            formatSwipeMessage(count, pattern),
+          );
         }
         case 'longpress': {
           const x = Number(positionals[0]);
@@ -329,20 +352,20 @@ export async function dispatchCommand(
             throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
           }
           await interactor.longPress(x, y, durationMs);
-          return { x, y, durationMs };
+          return { x, y, durationMs, ...successText(`Long pressed (${x}, ${y})`) };
         }
         case 'focus': {
           const [x, y] = positionals.map(Number);
           if (Number.isNaN(x) || Number.isNaN(y))
             throw new AppError('INVALID_ARGS', 'focus requires x y');
           await interactor.focus(x, y);
-          return { x, y };
+          return { x, y, ...successText(`Focused (${x}, ${y})`) };
         }
         case 'type': {
           const text = positionals.join(' ');
           if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
           await interactor.type(text);
-          return { text };
+          return { text, ...successText(formatTextLengthMessage('Typed', text)) };
         }
         case 'fill': {
           const x = Number(positionals[0]);
@@ -352,21 +375,30 @@ export async function dispatchCommand(
             throw new AppError('INVALID_ARGS', 'fill requires x y text');
           }
           await interactor.fill(x, y, text);
-          return { x, y, text };
+          return { x, y, text, ...successText(formatTextLengthMessage('Filled', text)) };
         }
         case 'scroll': {
           const direction = positionals[0];
           const amount = positionals[1] ? Number(positionals[1]) : undefined;
           if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
           const interactionResult = await interactor.scroll(direction, amount);
-          return { direction, amount, ...interactionResult };
+          return withSuccessText(
+            { direction, amount, ...interactionResult },
+            amount !== undefined ? `Scrolled ${direction} by ${amount}` : `Scrolled ${direction}`,
+          );
         }
         case 'scrollintoview': {
           const text = positionals.join(' ').trim();
           if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
           const result = await interactor.scrollIntoView(text);
-          if (result?.attempts) return { text, attempts: result.attempts };
-          return { text };
+          if (result?.attempts) {
+            return {
+              text,
+              attempts: result.attempts,
+              ...successText(`Scrolled into view: ${text}`),
+            };
+          }
+          return { text, ...successText(`Scrolled into view: ${text}`) };
         }
         case 'pinch': {
           if (device.platform === 'android') {
@@ -391,32 +423,37 @@ export async function dispatchCommand(
               requestId: context?.requestId,
             },
           );
-          return { scale, x, y };
+          return { scale, x, y, ...successText(`Pinched to scale ${scale}`) };
         }
         case 'trigger-app-event': {
           const { eventName, payload } = parseTriggerAppEventArgs(positionals);
           const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);
           await interactor.open(eventUrl, { appBundleId: context?.appBundleId });
-          return { event: eventName, eventUrl, transport: 'deep-link' };
+          return {
+            event: eventName,
+            eventUrl,
+            transport: 'deep-link',
+            ...successText(`Triggered app event: ${eventName}`),
+          };
         }
         case 'screenshot': {
           const positionalPath = positionals[0];
           const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
           await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
           await interactor.screenshot(screenshotPath, context?.appBundleId);
-          return { path: screenshotPath };
+          return { path: screenshotPath, ...successText(`Saved screenshot: ${screenshotPath}`) };
         }
         case 'back': {
           await interactor.back(context?.backMode);
-          return { action: 'back', mode: context?.backMode ?? 'in-app' };
+          return { action: 'back', mode: context?.backMode ?? 'in-app', ...successText('Back') };
         }
         case 'home': {
           await interactor.home();
-          return { action: 'home' };
+          return { action: 'home', ...successText('Home') };
         }
         case 'app-switcher': {
           await interactor.appSwitcher();
-          return { action: 'app-switcher' };
+          return { action: 'app-switcher', ...successText('Opened app switcher') };
         }
         case 'clipboard': {
           const action = (positionals[0] ?? '').toLowerCase();
@@ -441,7 +478,11 @@ export async function dispatchCommand(
           }
           const text = positionals.slice(1).join(' ');
           await interactor.writeClipboard(text);
-          return { action, textLength: Array.from(text).length };
+          return {
+            action,
+            textLength: Array.from(text).length,
+            ...successText('Clipboard updated'),
+          };
         }
         case 'keyboard': {
           if (device.platform !== 'android') {
@@ -471,6 +512,7 @@ export async function dispatchCommand(
               visible: result.visible,
               inputType: result.inputType,
               type: result.type,
+              ...successText(result.dismissed ? 'Keyboard dismissed' : 'Keyboard already hidden'),
             };
           }
           const state = await getAndroidKeyboardState(device);
@@ -480,6 +522,7 @@ export async function dispatchCommand(
             visible: state.visible,
             inputType: state.inputType,
             type: state.type,
+            ...successText(state.visible ? 'Keyboard visible' : 'Keyboard hidden'),
           };
         }
         case 'settings': {
@@ -509,8 +552,11 @@ export async function dispatchCommand(
             permissionOptions,
           );
           return result && typeof result === 'object'
-            ? { setting, state, ...result }
-            : { setting, state };
+            ? withSuccessText(
+                { setting, state, ...result },
+                readResultMessage(result) ?? `Updated setting: ${setting}`,
+              )
+            : { setting, state, ...successText(`Updated setting: ${setting}`) };
         }
         case 'push': {
           const target = positionals[0]?.trim();
@@ -524,7 +570,11 @@ export async function dispatchCommand(
           const payload = await readNotificationPayload(payloadArg);
           if (device.platform === 'ios') {
             await pushIosNotification(device, target, payload);
-            return { platform: 'ios', bundleId: target };
+            return {
+              platform: 'ios',
+              bundleId: target,
+              ...successText(`Pushed notification to ${target}`),
+            };
           }
           const androidResult = await pushAndroidNotification(device, target, payload);
           return {
@@ -532,6 +582,7 @@ export async function dispatchCommand(
             package: target,
             action: androidResult.action,
             extrasCount: androidResult.extrasCount,
+            ...successText(`Pushed notification to ${target}`),
           };
         }
         case 'snapshot': {
@@ -639,4 +690,30 @@ export async function dispatchCommand(
       platform: device.platform,
     },
   );
+}
+
+function formatPressMessage(params: {
+  x: number;
+  y: number;
+  button?: 'primary' | 'secondary' | 'middle';
+}): string {
+  if (params.button && params.button !== 'primary') {
+    return `Clicked ${params.button} (${params.x}, ${params.y})`;
+  }
+  return `Tapped (${params.x}, ${params.y})`;
+}
+
+function formatSwipeMessage(count: number, pattern: 'one-way' | 'ping-pong'): string {
+  if (count <= 1) return 'Swiped';
+  return pattern === 'ping-pong' ? `Swiped ${count} times (ping-pong)` : `Swiped ${count} times`;
+}
+
+function formatTextLengthMessage(action: 'Typed' | 'Filled', text: string): string {
+  return `${action} ${Array.from(text).length} chars`;
+}
+
+function readResultMessage(result: Record<string, unknown>): string | undefined {
+  return typeof result.message === 'string' && result.message.length > 0
+    ? result.message
+    : undefined;
 }

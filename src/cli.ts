@@ -7,6 +7,7 @@ import {
   printJson,
 } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
+import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
@@ -508,9 +509,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             const y = (response.data as any)?.y;
             if (ref && typeof x === 'number' && typeof y === 'number') {
               process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
+              if (logTailStopper) logTailStopper();
+              return;
             }
-            if (logTailStopper) logTailStopper();
-            return;
           }
           if (response.data && typeof response.data === 'object') {
             const data = response.data as Record<string, unknown>;
@@ -568,6 +569,12 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             }
             if (command === 'perf') {
               process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+              if (logTailStopper) logTailStopper();
+              return;
+            }
+            const successText = readCommandMessage(data);
+            if (successText) {
+              process.stdout.write(`${successText}\n`);
               if (logTailStopper) logTailStopper();
               return;
             }
@@ -632,6 +639,33 @@ function renderBatchSummary(data: Record<string, unknown>): void {
   process.stdout.write(
     `Batch completed: ${executed}/${total} steps${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
   );
+  const results = Array.isArray(data.results) ? data.results : [];
+  for (const entry of results) {
+    if (!entry || typeof entry !== 'object') continue;
+    const result = entry as Record<string, unknown>;
+    const step = typeof result.step === 'number' ? result.step : undefined;
+    const command = typeof result.command === 'string' ? result.command : 'step';
+    const stepOk = result.ok !== false;
+    const stepDurationMs = typeof result.durationMs === 'number' ? result.durationMs : undefined;
+    const stepData =
+      result.data && typeof result.data === 'object'
+        ? (result.data as Record<string, unknown>)
+        : undefined;
+    const stepError =
+      result.error && typeof result.error === 'object'
+        ? (result.error as Record<string, unknown>)
+        : undefined;
+    const description = stepOk
+      ? (readCommandMessage(stepData) ?? command)
+      : (readBatchStepFailure(stepError) ?? command);
+    const prefix = step !== undefined ? `${step}. ` : '- ';
+    const durationSuffix = stepDurationMs !== undefined ? ` (${stepDurationMs}ms)` : '';
+    process.stdout.write(`${prefix}${stepOk ? 'OK' : 'FAILED'} ${description}${durationSuffix}\n`);
+  }
+}
+
+function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
+  return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

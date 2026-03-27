@@ -52,6 +52,8 @@ In practice, most work follows the same pattern:
 4. `diff snapshot` or re-snapshot after UI changes.
 5. `close` when the session is finished.
 
+In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
+
 ## Where To Go Next
 
 For people:

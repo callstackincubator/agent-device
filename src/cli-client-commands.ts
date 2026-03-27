@@ -17,6 +17,7 @@ import {
 import { compareScreenshots, type ScreenshotDiffResult } from './utils/screenshot-diff.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
 import { resolveRemoteOpenRuntime } from './utils/remote-open.ts';
+import { readCommandMessage } from './utils/success-text.ts';
 import type { AgentDeviceClient, AgentDeviceDevice, AppDeployResult } from './client.ts';
 
 export async function tryRunClientBackedCommand(params: {
@@ -108,17 +109,23 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
   },
   install: async ({ positionals, flags, client }) => {
     const result = await runDeployCommand('install', positionals, flags, client);
-    if (flags.json) printJson({ success: true, data: serializeDeployResult(result) });
+    const data = serializeDeployResult(result);
+    if (flags.json) printJson({ success: true, data });
+    else writeHumanMessage(data);
     return true;
   },
   reinstall: async ({ positionals, flags, client }) => {
     const result = await runDeployCommand('reinstall', positionals, flags, client);
-    if (flags.json) printJson({ success: true, data: serializeDeployResult(result) });
+    const data = serializeDeployResult(result);
+    if (flags.json) printJson({ success: true, data });
+    else writeHumanMessage(data);
     return true;
   },
   'install-from-source': async ({ positionals, flags, client }) => {
     const result = await runInstallFromSourceCommand(positionals, flags, client);
-    if (flags.json) printJson({ success: true, data: serializeInstallFromSourceResult(result) });
+    const data = serializeInstallFromSourceResult(result);
+    if (flags.json) printJson({ success: true, data });
+    else writeHumanMessage(data);
     return true;
   },
   open: async ({ positionals, flags, client }) => {
@@ -136,15 +143,24 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
       runtime,
       ...buildSelectionOptions(flags),
     });
-    if (flags.json) printJson({ success: true, data: serializeOpenResult(result) });
+    const data = serializeOpenResult(result);
+    if (flags.json) printJson({ success: true, data });
+    else {
+      const successText = readCommandMessage(data);
+      if (successText) process.stdout.write(`${successText}\n`);
+    }
     return true;
   },
   close: async ({ positionals, flags, client }) => {
     const result = positionals[0]
       ? await client.apps.close({ app: positionals[0], shutdown: flags.shutdown })
       : await client.sessions.close({ shutdown: flags.shutdown });
+    const data = serializeCloseResult(result);
     if (flags.json) {
-      printJson({ success: true, data: serializeCloseResult(result) });
+      printJson({ success: true, data });
+    } else {
+      const successText = readCommandMessage(data);
+      if (successText) process.stdout.write(`${successText}\n`);
     }
     return true;
   },
@@ -224,6 +240,11 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
     return true;
   },
 };
+
+function writeHumanMessage(data: Record<string, unknown>): void {
+  const message = readCommandMessage(data);
+  if (message) process.stdout.write(`${message}\n`);
+}
 
 async function runDeployCommand(
   command: 'install' | 'reinstall',

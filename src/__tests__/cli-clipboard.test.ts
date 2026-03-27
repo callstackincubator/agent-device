@@ -80,7 +80,7 @@ test('clipboard read prints clipboard text', async () => {
 test('clipboard write prints update confirmation', async () => {
   const result = await runCliCapture(['clipboard', 'write', 'hello'], async () => ({
     ok: true,
-    data: { action: 'write', textLength: 5 },
+    data: { action: 'write', textLength: 5, message: 'Clipboard updated' },
   }));
 
   assert.equal(result.code, null);

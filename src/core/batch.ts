@@ -3,6 +3,7 @@ import type { BatchStep, CommandFlags } from './dispatch.ts';
 
 export const DEFAULT_BATCH_MAX_STEPS = 100;
 const BATCH_BLOCKED_COMMANDS = new Set(['batch', 'replay']);
+const BATCH_ALLOWED_STEP_KEYS = new Set(['command', 'positionals', 'flags', 'runtime']);
 
 export type NormalizedBatchStep = {
   command: string;
@@ -51,6 +52,14 @@ export function validateAndNormalizeBatchSteps(
     const step = steps[index];
     if (!step || typeof step !== 'object') {
       throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}.`);
+    }
+    const unknownKeys = Object.keys(step).filter((key) => !BATCH_ALLOWED_STEP_KEYS.has(key));
+    if (unknownKeys.length > 0) {
+      const fields = unknownKeys.map((key) => `"${key}"`).join(', ');
+      throw new AppError(
+        'INVALID_ARGS',
+        `Batch step ${index + 1} has unknown field(s): ${fields}. Allowed fields: command, positionals, flags, runtime.`,
+      );
     }
     const command = typeof step.command === 'string' ? step.command.trim().toLowerCase() : '';
     if (!command) {

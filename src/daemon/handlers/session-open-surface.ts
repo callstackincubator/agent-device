@@ -3,6 +3,7 @@ import { resolveFrontmostMacOsApp } from '../../platforms/ios/macos-helper.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { SessionRuntimeHints, SessionState } from '../types.ts';
 import { AppError } from '../../utils/errors.ts';
+import { successText } from '../../utils/success-text.ts';
 import type { StartupPerfSample } from './session-startup-metrics.ts';
 
 export function buildOpenResult(params: {
@@ -38,7 +39,10 @@ export function buildOpenResult(params: {
     result.device_udid = device.id;
     result.ios_simulator_device_set = device.simulatorSetPath ?? null;
   }
-  return result;
+  return {
+    ...result,
+    ...successText(`Opened: ${appName ?? appBundleId ?? sessionName}`),
+  };
 }
 
 export function buildNextOpenSession(params: {

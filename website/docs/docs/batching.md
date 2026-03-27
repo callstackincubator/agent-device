@@ -44,6 +44,7 @@ Notes:
 
 - `positionals` is optional (defaults to `[]`).
 - `flags` is optional (defaults to `{}`).
+- Unknown top-level step fields are rejected. Supported keys are `command`, `positionals`, `flags`, and `runtime`.
 - nested `batch` and `replay` steps are rejected.
 - `--on-error stop` is the supported behavior.
 
@@ -67,6 +68,8 @@ Success:
   }
 }
 ```
+
+In non-JSON mode, `batch` also prints a short per-step summary after the overall completion line.
 
 Failure:
 

@@ -73,6 +73,7 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
       package: 'com.example.app',
       action: 'com.example.app.PUSH',
       extrasCount: 1,
+      message: 'Pushed notification to com.example.app',
     });
     const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(args.includes('-a'), true);

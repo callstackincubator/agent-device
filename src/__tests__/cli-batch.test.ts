@@ -22,7 +22,10 @@ type RunResult = {
   calls: Omit<DaemonRequest, 'token'>[];
 };
 
-async function runCliCapture(argv: string[]): Promise<RunResult> {
+async function runCliCapture(
+  argv: string[],
+  responder?: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>,
+): Promise<RunResult> {
   let stdout = '';
   let stderr = '';
   let code: number | null = null;
@@ -46,6 +49,9 @@ async function runCliCapture(argv: string[]): Promise<RunResult> {
 
   const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
     calls.push(req);
+    if (responder) {
+      return await responder(req);
+    }
     return { ok: true, data: { total: 1, executed: 1, totalDurationMs: 1 } };
   };
 
@@ -229,4 +235,67 @@ test('batch step without explicit platform inherits parent platform over env def
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
   }
+});
+
+test('batch human output renders per-step results', async () => {
+  const result = await runCliCapture(['batch', '--steps', '[{"command":"open"}]'], async () => ({
+    ok: true,
+    data: {
+      total: 2,
+      executed: 2,
+      totalDurationMs: 15,
+      results: [
+        {
+          step: 1,
+          command: 'open',
+          ok: true,
+          data: { appName: 'Settings', message: 'Opened: Settings' },
+          durationMs: 7,
+        },
+        {
+          step: 2,
+          command: 'type',
+          ok: true,
+          data: { text: 'hello', message: 'Typed 5 chars' },
+          durationMs: 8,
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /Batch completed: 2\/2 steps in 15ms/);
+  assert.match(result.stdout, /1\. OK Opened: Settings \(7ms\)/);
+  assert.match(result.stdout, /2\. OK Typed 5 chars \(8ms\)/);
+});
+
+test('batch human output renders failed steps distinctly', async () => {
+  const result = await runCliCapture(['batch', '--steps', '[{"command":"open"}]'], async () => ({
+    ok: true,
+    data: {
+      total: 2,
+      executed: 1,
+      totalDurationMs: 15,
+      results: [
+        {
+          step: 1,
+          command: 'open',
+          ok: true,
+          data: { appName: 'Settings', message: 'Opened: Settings' },
+          durationMs: 7,
+        },
+        {
+          step: 2,
+          command: 'type',
+          ok: false,
+          error: { message: 'type requires text' },
+          durationMs: 8,
+        },
+      ],
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.match(result.stdout, /1\. OK Opened: Settings \(7ms\)/);
+  assert.match(result.stdout, /2\. FAILED type requires text \(8ms\)/);
 });

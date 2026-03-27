@@ -9,7 +9,10 @@ import {
 import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { MaterializeInstallSource } from '../../platforms/install-source.ts';
+import { resolveInstallFromSourceResultTarget } from '../../client-shared.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
+import { withSuccessText } from '../../utils/success-text.ts';
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
@@ -117,15 +120,16 @@ export async function handleInstallFromSourceCommand(params: {
               }
             : {}),
         };
+        const data = withSuccessText(result, buildInstallFromSourceMessage(result));
         if (session) {
           sessionStore.recordAction(session, {
             command: 'install_source',
             positionals: [],
             flags: req.flags ?? {},
-            result,
+            result: data,
           });
         }
-        return { ok: true, data: result };
+        return { ok: true, data };
       } catch (error) {
         if (retained) {
           await cleanupRetainedMaterializedPaths(
@@ -184,15 +188,16 @@ export async function handleInstallFromSourceCommand(params: {
             }
           : {}),
       };
+      const data = withSuccessText(result, buildInstallFromSourceMessage(result));
       if (session) {
         sessionStore.recordAction(session, {
           command: 'install_source',
           positionals: [],
           flags: req.flags ?? {},
-          result,
+          result: data,
         });
       }
-      return { ok: true, data: result };
+      return { ok: true, data };
     } catch (error) {
       if (retained) {
         await cleanupRetainedMaterializedPaths(
@@ -209,6 +214,15 @@ export async function handleInstallFromSourceCommand(params: {
     const normalized = normalizeError(error);
     return { ok: false, error: normalized };
   }
+}
+
+function buildInstallFromSourceMessage(result: {
+  appName?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget: string;
+}): string {
+  return `Installed: ${resolveInstallFromSourceResultTarget(result)}`;
 }
 
 export async function handleReleaseMaterializedPathsCommand(params: {
