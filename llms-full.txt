@@ -535,6 +535,9 @@ agent-device is text 'id="greeting"' "Welcome back"
 
 - `is` evaluates UI predicates against a selector expression and exits non-zero on failure.
 - Supported predicates are `visible`, `hidden`, `exists`, `editable`, `selected`, and `text`.
+- `is visible` checks whether the resolved element is present in the current visible snapshot viewport. A node without its own rect still passes when a visible ancestor within the viewport provides the on-screen geometry.
+- `is exists` only checks whether the selector matches in the current snapshot.
+- `wait text` is a text-presence wait, not a hittability assertion.
 - `is text <selector> <value>` compares the resolved element text against the expected value.
 - `is` does not accept snapshot refs like `@e3`; use a selector expression instead.
 - `is` accepts the same selector-oriented snapshot flags as `click`, `fill`, `get`, and `wait`.

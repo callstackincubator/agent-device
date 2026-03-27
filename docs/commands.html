@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.b3ba5aa462.js"></script>
+<script defer src="/agent-device/static/js/index.b521bc56db.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -230,6 +230,9 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <ul>
 <li><code>is</code> evaluates UI predicates against a selector expression and exits non-zero on failure.</li>
 <li>Supported predicates are <code>visible</code>, <code>hidden</code>, <code>exists</code>, <code>editable</code>, <code>selected</code>, and <code>text</code>.</li>
+<li><code>is visible</code> checks whether the resolved element is present in the current visible snapshot viewport. A node without its own rect still passes when a visible ancestor within the viewport provides the on-screen geometry.</li>
+<li><code>is exists</code> only checks whether the selector matches in the current snapshot.</li>
+<li><code>wait text</code> is a text-presence wait, not a hittability assertion.</li>
 <li><code>is text &lt;selector&gt; &lt;value&gt;</code> compares the resolved element text against the expected value.</li>
 <li><code>is</code> does not accept snapshot refs like <code>@e3</code>; use a selector expression instead.</li>
 <li><code>is</code> accepts the same selector-oriented snapshot flags as <code>click</code>, <code>fill</code>, <code>get</code>, and <code>wait</code>.</li>
