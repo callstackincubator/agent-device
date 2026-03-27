@@ -5,6 +5,11 @@ export type Rect = {
   height: number;
 };
 
+export type Point = {
+  x: number;
+  y: number;
+};
+
 export type SnapshotOptions = {
   interactiveOnly?: boolean;
   compact?: boolean;
@@ -50,6 +55,7 @@ export type ScreenshotOverlayRef = {
   label?: string;
   rect: Rect;
   overlayRect: Rect;
+  center: Point;
 };
 
 export function attachRefs(nodes: RawSnapshotNode[]): SnapshotNode[] {
@@ -70,7 +76,7 @@ export function findNodeByRef(nodes: SnapshotNode[], ref: string): SnapshotNode 
   return nodes.find((node) => node.ref === ref) ?? null;
 }
 
-export function centerOfRect(rect: Rect): { x: number; y: number } {
+export function centerOfRect(rect: Rect): Point {
   return {
     x: Math.round(rect.x + rect.width / 2),
     y: Math.round(rect.y + rect.height / 2),

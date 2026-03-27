@@ -82,6 +82,7 @@ test('buildScreenshotOverlayRefs promotes labeled children to actionable ancesto
       label: 'General',
       rect: { x: 10, y: 20, width: 80, height: 30 },
       overlayRect: { x: 20, y: 40, width: 160, height: 60 },
+      center: { x: 100, y: 70 },
     },
   ]);
 });
@@ -143,6 +144,10 @@ test('buildScreenshotOverlayRefs projects against the viewport instead of snapsh
     y: 40,
     width: 160,
     height: 60,
+  });
+  assert.deepEqual(overlayRefs[0]?.center, {
+    x: 100,
+    y: 70,
   });
 });
 

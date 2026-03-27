@@ -1,6 +1,12 @@
 import { promises as fs } from 'node:fs';
 import { PNG } from 'pngjs';
-import type { Rect, ScreenshotOverlayRef, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import {
+  centerOfRect,
+  type Rect,
+  type ScreenshotOverlayRef,
+  type SnapshotNode,
+  type SnapshotState,
+} from '../utils/snapshot.ts';
 import { decodePng } from '../utils/png.ts';
 import {
   findNearestHittableAncestor,
@@ -35,7 +41,7 @@ const FONT: Record<string, readonly string[]> = {
 } as const;
 // Badges currently render only `eN` refs, so the bitmap font intentionally covers `e` and digits.
 
-type OverlayCandidate = ScreenshotOverlayRef & {
+type OverlayCandidate = Omit<ScreenshotOverlayRef, 'center'> & {
   score: number;
 };
 
@@ -114,6 +120,7 @@ export function buildScreenshotOverlayRefs(
     label: candidate.label,
     rect: candidate.rect,
     overlayRect: candidate.overlayRect,
+    center: centerOfRect(candidate.overlayRect),
   }));
 }
 

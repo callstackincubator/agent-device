@@ -217,6 +217,7 @@ test('screenshot --overlay-refs captures a fresh snapshot when the session has n
         label: 'Continue',
         rect: { x: 0, y: 0, width: 40, height: 20 },
         overlayRect: { x: 0, y: 0, width: 100, height: 50 },
+        center: { x: 50, y: 25 },
       },
     ]);
   }
@@ -288,6 +289,7 @@ test('screenshot --overlay-refs uses a fresh snapshot instead of stale session s
         label: 'Fresh',
         rect: { x: 0, y: 0, width: 40, height: 20 },
         overlayRect: { x: 0, y: 0, width: 100, height: 50 },
+        center: { x: 50, y: 25 },
       },
     ]);
   }

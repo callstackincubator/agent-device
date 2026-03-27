@@ -208,11 +208,13 @@ test('screenshot reports annotated ref count in non-json mode', async () => {
           ref: 'e1',
           rect: { x: 0, y: 0, width: 10, height: 10 },
           overlayRect: { x: 0, y: 0, width: 20, height: 20 },
+          center: { x: 10, y: 10 },
         },
         {
           ref: 'e2',
           rect: { x: 20, y: 0, width: 10, height: 10 },
           overlayRect: { x: 40, y: 0, width: 20, height: 20 },
+          center: { x: 50, y: 10 },
         },
       ],
       identifiers: { session: 'default' },

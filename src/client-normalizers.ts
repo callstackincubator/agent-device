@@ -2,7 +2,7 @@ import type { CommandFlags } from './core/dispatch.ts';
 import type { DaemonRequest, SessionRuntimeHints } from './daemon/types.ts';
 import { AppError } from './utils/errors.ts';
 import type { DeviceKind, DeviceTarget, Platform } from './utils/device.ts';
-import type { ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
+import type { Point, ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
 import { buildAppIdentifiers, buildDeviceIdentifiers } from './client-shared.ts';
 import type {
   AgentDeviceDevice,
@@ -202,12 +202,14 @@ export function readScreenshotOverlayRefs(
     const ref = readOptionalString(entry, 'ref');
     const rect = readRect(entry, 'rect');
     const overlayRect = readRect(entry, 'overlayRect');
-    if (!ref || !rect || !overlayRect) continue;
+    const center = readPoint(entry, 'center');
+    if (!ref || !rect || !overlayRect || !center) continue;
     refs.push({
       ref,
       label: readOptionalString(entry, 'label'),
       rect,
       overlayRect,
+      center,
     });
   }
   return refs;
@@ -367,6 +369,17 @@ function readRect(
     return undefined;
   }
   return { x, y, width, height };
+}
+
+function readPoint(record: Record<string, unknown>, key: string): Point | undefined {
+  const value = record[key];
+  if (!isRecord(value)) return undefined;
+  const x = typeof value.x === 'number' ? value.x : undefined;
+  const y = typeof value.y === 'number' ? value.y : undefined;
+  if (x === undefined || y === undefined) {
+    return undefined;
+  }
+  return { x, y };
 }
 
 function readOptional<T>(
