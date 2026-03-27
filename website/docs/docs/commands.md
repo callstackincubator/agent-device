@@ -238,7 +238,7 @@ On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpres
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`).
 Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
-When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8`.
+When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
 Ref mode re-snapshots after each swipe and stops early when the target enters the safe viewport band or scrolling stops making progress.
 `longpress` is supported on iOS and Android.
 `pinch` is iOS simulator-only.

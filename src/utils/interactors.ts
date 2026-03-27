@@ -199,6 +199,49 @@ type NormalizedScrollOptions = {
   preferProvidedPixels?: boolean;
 };
 
+type RunnerCommandExecutor = (command: RunnerCommand) => Promise<Record<string, unknown>>;
+
+export async function scrollIntoViewIosRunnerText(
+  runCommand: RunnerCommandExecutor,
+  throwIfCanceled: () => void,
+  text: string,
+  options?: { maxScrolls?: number },
+): Promise<{ attempts?: number }> {
+  const maxScrolls = options?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
+  const initial = await runCommand({ command: 'findText', text });
+  if (initial?.found) return { attempts: 0 };
+
+  let previousSnapshot = snapshotProgressFingerprint(
+    await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
+  );
+
+  for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
+    throwIfCanceled();
+    await runCommand({ command: 'swipe', direction: 'up' });
+    // Small settle keeps gesture chain stable without long visible pauses.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const found = await runCommand({ command: 'findText', text });
+    if (found?.found) return { attempts };
+
+    const snapshot = snapshotProgressFingerprint(
+      await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
+    );
+    if (snapshot === previousSnapshot) {
+      throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+        reason: 'not_found',
+        attempts,
+        stalled: true,
+      });
+    }
+    previousSnapshot = snapshot;
+  }
+
+  throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+    reason: 'not_found',
+    attempts: maxScrolls,
+  });
+}
+
 type IoRunnerOverrides = Pick<
   Interactor,
   | 'tap'
@@ -316,49 +359,6 @@ function iosRunnerOverrides(
       },
     },
   };
-}
-
-type RunnerCommandExecutor = (command: RunnerCommand) => Promise<Record<string, unknown>>;
-
-export async function scrollIntoViewIosRunnerText(
-  runCommand: RunnerCommandExecutor,
-  throwIfCanceled: () => void,
-  text: string,
-  options?: { maxScrolls?: number },
-): Promise<{ attempts?: number }> {
-  const maxScrolls = options?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
-  const initial = await runCommand({ command: 'findText', text });
-  if (initial?.found) return { attempts: 0 };
-
-  let previousSnapshot = snapshotProgressFingerprint(
-    await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
-  );
-
-  for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
-    throwIfCanceled();
-    await runCommand({ command: 'swipe', direction: 'up' });
-    // Small settle keeps gesture chain stable without long visible pauses.
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    const found = await runCommand({ command: 'findText', text });
-    if (found?.found) return { attempts };
-
-    const snapshot = snapshotProgressFingerprint(
-      await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
-    );
-    if (snapshot === previousSnapshot) {
-      throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
-        reason: 'not_found',
-        attempts,
-        stalled: true,
-      });
-    }
-    previousSnapshot = snapshot;
-  }
-
-  throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
-    reason: 'not_found',
-    attempts: maxScrolls,
-  });
 }
 
 function snapshotProgressFingerprint(snapshot: Record<string, unknown>): string {

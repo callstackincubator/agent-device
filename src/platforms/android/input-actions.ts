@@ -2,6 +2,7 @@ import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
+import { DEFAULT_ANDROID_SCROLL_INTO_VIEW_MAX_SCROLLS } from '../../utils/scroll-into-view.ts';
 import { findBounds, parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
@@ -189,7 +190,7 @@ export async function scrollIntoViewAndroid(
   text: string,
   options?: { maxScrolls?: number },
 ): Promise<{ attempts: number }> {
-  const maxScrolls = options?.maxScrolls ?? 8;
+  const maxScrolls = options?.maxScrolls ?? DEFAULT_ANDROID_SCROLL_INTO_VIEW_MAX_SCROLLS;
   let previousXml = '';
 
   try {

@@ -102,7 +102,6 @@ export async function handleScrollIntoViewCommand(
       },
     };
   }
-
   const maxScrolls = req.flags?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
   let attempts = 0;
   let stalledCount = 0;
