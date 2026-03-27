@@ -214,6 +214,7 @@ agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
+agent-device scroll down --pixels 320
 agent-device scrollintoview "Sign in"
 agent-device scrollintoview "Sign in" --max-scrolls 6
 agent-device scrollintoview @e42
@@ -230,6 +231,7 @@ Some Android images cannot enter non-ASCII text over shell input; in that case u
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
+`scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`).
 Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
 When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
@@ -455,7 +457,7 @@ agent-device clipboard write ""   # clear clipboard
 - Supported on macOS, Android emulator/device, and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
-## Keyboard (Android)
+## Keyboard
 
 ```bash
 agent-device keyboard status
@@ -463,10 +465,12 @@ agent-device keyboard get
 agent-device keyboard dismiss
 ```
 
-- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification.
-- `keyboard dismiss` dismisses keyboard with Android back keyevent only when the keyboard is visible, then confirms hidden state.
+- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification on Android.
+- `keyboard dismiss` attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.
+- If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit `UNSUPPORTED_OPERATION` error instead of falling back to back navigation.
 - Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
-- Supported on Android emulator/device.
+- `keyboard status|get` is supported on Android emulator/device.
+- `keyboard dismiss` is supported on Android emulator/device and iOS simulator/device.
 
 ## Performance metrics
 
