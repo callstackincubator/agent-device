@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.631979820b.js"></script>
+<script defer src="/agent-device/static/js/index.bdcc11059b.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -52,6 +52,7 @@
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> diff</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-comment)">               # First run initializes baseline; next runs show structural deltas</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> click</span><span style="color:var(--shiki-token-string)"> @e2</span><span style="color:var(--shiki-token-comment)">                   # Click by ref</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> fill</span><span style="color:var(--shiki-token-string)"> @e3</span><span style="color:var(--shiki-token-string-expression)"> &quot;test@example.com&quot;</span><span style="color:var(--shiki-token-comment)"> # Clear then type (Android verifies and retries once if needed)</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> fill</span><span style="color:var(--shiki-token-string)"> @e3</span><span style="color:var(--shiki-token-string-expression)"> &quot;search&quot;</span><span style="color:var(--shiki-token-string)"> --delay-ms</span><span style="color:var(--shiki-token-constant)"> 80</span><span style="color:var(--shiki-token-comment)"> # Pace typing for debounced search fields</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> get</span><span style="color:var(--shiki-token-string)"> text</span><span style="color:var(--shiki-token-string)"> @e1</span><span style="color:var(--shiki-token-comment)">                # Get text content</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> screenshot</span><span style="color:var(--shiki-token-string)"> page.png</span><span style="color:var(--shiki-token-comment)">         # Save to specific path</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> install</span><span style="color:var(--shiki-token-string)"> com.example.app</span><span style="color:var(--shiki-token-string)"> ./build/app.apk</span><span style="color:var(--shiki-token-comment)">     # Install app binary in-place</span></span>
