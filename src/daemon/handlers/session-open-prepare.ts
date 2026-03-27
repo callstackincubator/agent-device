@@ -31,6 +31,10 @@ type OpenCommandDetails = {
   runtime: SessionRuntimeHints | undefined;
 };
 
+export type PreparedOpenCommandDetailsResult =
+  | { type: 'response'; response: DaemonResponse }
+  | { type: 'details'; details: OpenCommandDetails };
+
 export function invalidOpenArgs(message: string): DaemonResponse {
   return {
     ok: false,
@@ -119,7 +123,7 @@ export async function prepareOpenCommandDetails(params: {
   ) => Promise<string | undefined>;
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   existingSession?: SessionState;
-}): Promise<DaemonResponse | OpenCommandDetails> {
+}): Promise<PreparedOpenCommandDetailsResult> {
   const {
     req,
     sessionName,
@@ -147,7 +151,10 @@ export async function prepareOpenCommandDetails(params: {
     device,
   });
   if (!runtimeResult.ok) {
-    return runtimeResult.response;
+    return {
+      type: 'response',
+      response: runtimeResult.response,
+    };
   }
 
   if (existingSession && clearRuntimeHints) {
@@ -162,9 +169,12 @@ export async function prepareOpenCommandDetails(params: {
   }
 
   return {
-    appBundleId,
-    appName,
-    runtime: runtimeResult.data.runtime,
+    type: 'details',
+    details: {
+      appBundleId,
+      appName,
+      runtime: runtimeResult.data.runtime,
+    },
   };
 }
 

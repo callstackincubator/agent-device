@@ -281,8 +281,8 @@ export async function handleOpenCommand(params: {
       clearRuntimeHints,
       existingSession: session,
     });
-    if ('ok' in details) {
-      return details;
+    if (details.type === 'response') {
+      return details.response;
     }
 
     return await completeOpenCommand({
@@ -301,9 +301,9 @@ export async function handleOpenCommand(params: {
         : openTarget
           ? [openTarget]
           : [],
-      appBundleId: details.appBundleId,
-      appName: details.appName,
-      runtime: details.runtime,
+      appBundleId: details.details.appBundleId,
+      appName: details.details.appName,
+      runtime: details.details.runtime,
       surface: surfaceResult,
       existingSession: session,
     });
@@ -364,8 +364,8 @@ export async function handleOpenCommand(params: {
     ensureReady,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn,
   });
-  if ('ok' in details) {
-    return details;
+  if (details.type === 'response') {
+    return details.response;
   }
 
   return await completeOpenCommand({
@@ -380,9 +380,9 @@ export async function handleOpenCommand(params: {
     settleSimulator,
     openTarget,
     openPositionals: req.positionals ?? [],
-    appBundleId: details.appBundleId,
-    appName: details.appName,
-    runtime: details.runtime,
+    appBundleId: details.details.appBundleId,
+    appName: details.details.appName,
+    runtime: details.details.runtime,
     surface: surfaceResult,
   });
 }
