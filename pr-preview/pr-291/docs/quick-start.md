@@ -40,6 +40,7 @@ agent-device snapshot -i                 # Get interactive elements with refs
 agent-device diff snapshot               # First run initializes baseline; next runs show structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
+agent-device fill @e3 "search" --delay-ms 80 # Pace typing for debounced search fields
 agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
