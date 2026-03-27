@@ -37,8 +37,8 @@ agent-device app-switcher
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
 - `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.
-- `back` without flags preserves the legacy default: on Apple targets it prefers an in-app back control first, then falls back to the platform back gesture or remote action; on Android it sends the system back event.
-- `back --in-app` asks for app-owned back navigation explicitly. On Apple targets that means visible in-app back UI only. On Android this currently falls back to the same system back event because Android routes in-app back through that platform event.
+- `back` now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.
+- `back --in-app` is an explicit alias for the default app-owned behavior.
 - `back --system` asks for system back input explicitly. On Android this is the normal back keyevent. On iOS and tvOS it uses the platform back gesture or Siri Remote menu action. On macOS, where there is no generic system back input, `back --system` reports unavailable instead of falling back to app-owned navigation.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
@@ -58,7 +58,7 @@ agent-device app-switcher
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
-agent-device back --in-app --platform ios                        # tap visible app back UI only
+agent-device back --platform ios                                 # tap visible app back UI only
 agent-device back --system --platform ios                        # use edge-swipe or remote back action
 agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554

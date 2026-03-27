@@ -408,7 +408,7 @@ export async function dispatchCommand(
         }
         case 'back': {
           await interactor.back(context?.backMode);
-          return { action: 'back', mode: context?.backMode ?? 'default' };
+          return { action: 'back', mode: context?.backMode ?? 'in-app' };
         }
         case 'home': {
           await interactor.home();

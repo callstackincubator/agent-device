@@ -42,7 +42,7 @@ export type RunnerContext = {
 };
 
 export type BackMode = 'in-app' | 'system';
-export type AppleBackRunnerCommand = 'back' | 'backInApp' | 'backSystem';
+export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 
 type Interactor = {
   open(
@@ -154,9 +154,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
 }
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
-  if (mode === 'in-app') return 'backInApp';
   if (mode === 'system') return 'backSystem';
-  return 'back';
+  return 'backInApp';
 }
 
 type RunnerOpts = {

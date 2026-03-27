@@ -51,13 +51,6 @@ extension RunnerTests {
     start.press(forDuration: 0.05, thenDragTo: end)
   }
 
-  func performDefaultBackAction(app: XCUIApplication) {
-    if tapInAppBackControl(app: app) {
-      return
-    }
-    performBackGesture(app: app)
-  }
-
   func performSystemBackAction(app: XCUIApplication) -> Bool {
 #if os(macOS)
     return false
