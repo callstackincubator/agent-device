@@ -77,7 +77,6 @@ type Interactor = {
     direction: ScrollDirection,
     options?: { amount?: number; pixels?: number },
   ): Promise<Record<string, unknown> | void>;
-  scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   scrollIntoView(
     text: string,
     options?: { maxScrolls?: number },

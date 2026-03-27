@@ -202,7 +202,7 @@ export async function scrollIntoViewAndroid(
   if (findBounds(previousXml, text)) return { attempts: 0 };
 
   for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
-    await scrollAndroid(device, 'down', 0.5);
+    await scrollAndroid(device, 'down', { amount: 0.5 });
 
     let xml = '';
     try {
