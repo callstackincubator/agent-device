@@ -114,19 +114,16 @@ agent-device is visible 'id="camera_settings_anchor"'
 
 ## Interaction fallbacks
 
-When `press @ref` fails, escalate in this order:
+When `press @ref` fails:
 
 1. Re-snapshot if the UI may have changed.
 2. Retry `press @ref` or a selector-based `press`.
-3. If the same target has a reliable screenshot-space `center`, use `agent-device press <x> <y>`.
+3. If `screenshot --overlay-refs --json` returned a reliable `overlayRefs[].center`, use `agent-device press <x> <y>`.
 4. Use an external vision-based tap tool only after semantic and coordinate targeting fail.
 
-Rules:
-
 - Prefer `@ref` over coordinates.
-- Treat `overlayRefs[].center` from `screenshot --overlay-refs --json` as the canonical coordinate fallback.
 - Do not guess coordinates from the image when structured `center` is available.
-- `agent-device` does not provide a built-in vision-tap flag. If you escalate to vision, use that external tool's documented syntax instead of inventing `agent-device` flags.
+- `agent-device` does not provide a built-in vision-tap flag.
 
 ## Text entry rules
 

@@ -7,7 +7,7 @@ Open this file only when you must use raw coordinates instead of selectors or `@
 ## Main commands to reach for first
 
 - `screenshot`
-- coordinate-based `press` or `swipe`
+- coordinate-based `click` or `swipe`
 
 ## Most common mistake to avoid
 
@@ -16,8 +16,8 @@ Do not assume coordinates mean the same thing across platforms or runs. Prefer s
 ## Canonical loop
 
 ```bash
-agent-device screenshot /tmp/current-screen.png --overlay-refs --json
-agent-device press 120 240
+agent-device screenshot /tmp/current-screen.png
+agent-device click 120 240
 ```
 
 ## Rules
@@ -26,4 +26,3 @@ agent-device press 120 240
 - iOS uses device points.
 - Android uses pixels.
 - Use screenshots to reason about coordinates before acting.
-- Prefer structured `overlayRefs[].center` from `screenshot --overlay-refs --json` over eyeballing the image.
