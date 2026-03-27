@@ -62,12 +62,7 @@ export async function handleScrollIntoViewCommand(
   if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
   const fallbackLabel =
     req.positionals && req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
-  const initialState = resolveScrollRefState({
-    session,
-    targetInput,
-    fallbackLabel,
-    attempts: 0,
-  });
+  const initialState = resolveInitialScrollRefState(session, targetInput, fallbackLabel);
   if (!initialState.ok) return initialState.response;
 
   const { ref } = initialState.state;
@@ -130,7 +125,7 @@ export async function handleScrollIntoViewCommand(
     await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
       interactiveOnly: true,
     });
-    const refreshedState = resolveScrollRefState({
+    const refreshedState = resolveRefreshedScrollRefState({
       session,
       targetInput,
       fallbackLabel: trackingLabel,
@@ -138,8 +133,6 @@ export async function handleScrollIntoViewCommand(
       ref,
       selectorChain,
       platform: session.device.platform,
-      missingMessage: `scrollintoview lost track of ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
-      boundsMessage: `scrollintoview lost bounds for ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
     });
     if (!refreshedState.ok) return refreshedState.response;
     ({ node, snapshotNodes, viewportRect } = refreshedState.state);
@@ -195,32 +188,45 @@ export async function handleScrollIntoViewCommand(
   };
 }
 
-function resolveScrollRefState(params: {
+function resolveInitialScrollRefState(
+  session: SessionState,
+  targetInput: string,
+  fallbackLabel: string,
+): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
+  const resolvedRefTarget = resolveRefTarget({
+    session,
+    refInput: targetInput,
+    fallbackLabel,
+    requireRect: true,
+    invalidRefMessage: 'scrollintoview requires a ref like @e2',
+    notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
+  });
+  if (!resolvedRefTarget.ok) {
+    const { response } = resolvedRefTarget;
+    if (response.ok || response.error.code !== 'COMMAND_FAILED') {
+      return { ok: false, response };
+    }
+    return {
+      ok: false,
+      response: notFoundScrollResponse(targetInput, 0, {
+        message: response.error.message,
+      }),
+    };
+  }
+  return finalizeScrollRefState(targetInput, 0, resolvedRefTarget.target);
+}
+
+function resolveRefreshedScrollRefState(params: {
   session: SessionState;
   targetInput: string;
   fallbackLabel: string;
   attempts: number;
-  ref?: string;
-  selectorChain?: string[];
-  platform?: SessionState['device']['platform'];
-  missingMessage?: string;
-  boundsMessage?: string;
+  ref: string;
+  selectorChain: string[];
+  platform: SessionState['device']['platform'];
 }): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
-  const {
-    session,
-    targetInput,
-    fallbackLabel,
-    attempts,
-    ref,
-    selectorChain,
-    platform,
-    missingMessage,
-    boundsMessage,
-  } = params;
-  let resolvedTarget: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] } | null =
-    null;
-
-  if (selectorChain && platform && session.snapshot) {
+  const { session, targetInput, fallbackLabel, attempts, ref, selectorChain, platform } = params;
+  if (session.snapshot) {
     const trackedNode = resolveTrackedScrollNode(
       session.snapshot.nodes,
       selectorChain,
@@ -228,45 +234,54 @@ function resolveScrollRefState(params: {
       platform,
     );
     if (trackedNode) {
-      resolvedTarget = {
-        ref: ref ?? targetInput.replace(/^@/, ''),
+      return finalizeScrollRefState(targetInput, attempts, {
+        ref,
         node: trackedNode,
         snapshotNodes: session.snapshot.nodes,
-      };
+      });
     }
   }
 
-  if (!resolvedTarget) {
-    const resolvedRefTarget = resolveRefTarget({
-      session,
-      refInput: targetInput,
-      fallbackLabel,
-      requireRect: true,
-      invalidRefMessage: 'scrollintoview requires a ref like @e2',
-      notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
-    });
-    if (!resolvedRefTarget.ok) {
-      const { response } = resolvedRefTarget;
-      if (response.ok || response.error.code !== 'COMMAND_FAILED') {
-        return { ok: false, response };
-      }
-      return {
-        ok: false,
-        response: notFoundScrollResponse(targetInput, attempts, {
-          message: missingMessage ?? response.error.message,
-          ref,
-        }),
-      };
+  const resolvedRefTarget = resolveRefTarget({
+    session,
+    refInput: targetInput,
+    fallbackLabel,
+    requireRect: true,
+    invalidRefMessage: 'scrollintoview requires a ref like @e2',
+    notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
+  });
+  if (!resolvedRefTarget.ok) {
+    const { response } = resolvedRefTarget;
+    if (response.ok || response.error.code !== 'COMMAND_FAILED') {
+      return { ok: false, response };
     }
-    resolvedTarget = resolvedRefTarget.target;
+    return {
+      ok: false,
+      response: notFoundScrollResponse(targetInput, attempts, {
+        message: `scrollintoview lost track of ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
+        ref,
+      }),
+    };
   }
+  return finalizeScrollRefState(targetInput, attempts, resolvedRefTarget.target, {
+    ref,
+    missingBoundsMessage: `scrollintoview lost bounds for ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
+  });
+}
 
+function finalizeScrollRefState(
+  targetInput: string,
+  attempts: number,
+  resolvedTarget: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] },
+  options: { ref?: string; missingBoundsMessage?: string } = {},
+): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
+  const { ref, missingBoundsMessage } = options;
   const node = resolvedTarget.node;
   if (!node.rect) {
     return {
       ok: false,
       response: notFoundScrollResponse(targetInput, attempts, {
-        message: boundsMessage ?? `Ref ${targetInput} not found or has no bounds`,
+        message: missingBoundsMessage ?? `Ref ${targetInput} not found or has no bounds`,
         ref: ref ?? resolvedTarget.ref,
       }),
     };

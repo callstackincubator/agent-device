@@ -108,6 +108,25 @@ function makeAndroidSession(name: string): SessionState {
   };
 }
 
+function makeScrollSnapshot(nodes: Parameters<typeof attachRefs>[0]) {
+  return {
+    nodes: attachRefs(nodes),
+    createdAt: Date.now(),
+    backend: 'xctest' as const,
+  };
+}
+
+function makeScrollSession(
+  sessionStore: SessionStore,
+  sessionName: string,
+  nodes: Parameters<typeof attachRefs>[0],
+): SessionState {
+  const session = makeSession(sessionName);
+  session.snapshot = makeScrollSnapshot(nodes);
+  sessionStore.set(sessionName, session);
+  return session;
+}
+
 function makeMacOsDesktopSession(name: string): SessionState {
   return {
     name,
@@ -1233,55 +1252,45 @@ test('press coordinates does not treat extra trailing args as selector', async (
 test('scrollintoview @ref dispatches geometry-based swipe series with verification snapshots', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
-      {
-        index: 1,
-        type: 'XCUIElementTypeStaticText',
-        label: 'Far item',
-        rect: { x: 20, y: 2600, width: 120, height: 40 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Far item',
+      rect: { x: 20, y: 2600, width: 120, height: 40 },
+    },
+  ]);
 
   let snapshotCallCount = 0;
   mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
     snapshotCallCount += 1;
-    activeSession.snapshot = {
-      nodes: attachRefs([
-        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-        ...(snapshotCallCount === 1
-          ? [
-              {
-                index: 1,
-                type: 'XCUIElementTypeStaticText',
-                label: 'Inserted item',
-                rect: { x: 20, y: 900, width: 120, height: 40 },
-              },
-            ]
-          : []),
-        {
-          index: snapshotCallCount === 1 ? 2 : 1,
-          type: 'XCUIElementTypeStaticText',
-          label: 'Far item',
-          rect:
-            snapshotCallCount === 1
-              ? { x: 20, y: 1300, width: 120, height: 40 }
-              : { x: 20, y: 320, width: 120, height: 40 },
-        },
-      ]),
-      createdAt: Date.now(),
-      backend: 'xctest',
-    };
+    activeSession.snapshot = makeScrollSnapshot([
+      { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+      ...(snapshotCallCount === 1
+        ? [
+            {
+              index: 1,
+              type: 'XCUIElementTypeStaticText',
+              label: 'Inserted item',
+              rect: { x: 20, y: 900, width: 120, height: 40 },
+            },
+          ]
+        : []),
+      {
+        index: snapshotCallCount === 1 ? 2 : 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Far item',
+        rect:
+          snapshotCallCount === 1
+            ? { x: 20, y: 1300, width: 120, height: 40 }
+            : { x: 20, y: 320, width: 120, height: 40 },
+      },
+    ]);
     return activeSession.snapshot;
   });
 
@@ -1322,25 +1331,19 @@ test('scrollintoview @ref dispatches geometry-based swipe series with verificati
 test('scrollintoview @ref returns immediately when target is already in viewport safe band', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
-      {
-        index: 1,
-        type: 'XCUIElementTypeStaticText',
-        label: 'Visible item',
-        rect: { x: 20, y: 320, width: 120, height: 40 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Visible item',
+      rect: { x: 20, y: 320, width: 120, height: 40 },
+    },
+  ]);
 
   const response = await handleInteractionCommands({
     req: {
@@ -1367,19 +1370,13 @@ test('scrollintoview @ref returns immediately when target is already in viewport
 test('scrollintoview @ref missing from snapshot reports structured not-found details', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+  ]);
 
   const response = await handleInteractionCommands({
     req: {
@@ -1406,45 +1403,35 @@ test('scrollintoview @ref missing from snapshot reports structured not-found det
 test('scrollintoview @ref tolerates a single overshoot and recovers on the next swipe', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
-      {
-        index: 1,
-        type: 'XCUIElementTypeStaticText',
-        label: 'Edge item',
-        rect: { x: 20, y: 700, width: 120, height: 40 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Edge item',
+      rect: { x: 20, y: 700, width: 120, height: 40 },
+    },
+  ]);
 
   let snapshotCallCount = 0;
   mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
     snapshotCallCount += 1;
-    activeSession.snapshot = {
-      nodes: attachRefs([
-        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-        {
-          index: 1,
-          type: 'XCUIElementTypeStaticText',
-          label: 'Edge item',
-          rect:
-            snapshotCallCount === 1
-              ? { x: 20, y: 0, width: 120, height: 40 }
-              : { x: 20, y: 320, width: 120, height: 40 },
-        },
-      ]),
-      createdAt: Date.now(),
-      backend: 'xctest',
-    };
+    activeSession.snapshot = makeScrollSnapshot([
+      { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Edge item',
+        rect:
+          snapshotCallCount === 1
+            ? { x: 20, y: 0, width: 120, height: 40 }
+            : { x: 20, y: 320, width: 120, height: 40 },
+      },
+    ]);
     return activeSession.snapshot;
   });
 
@@ -1472,42 +1459,32 @@ test('scrollintoview @ref tolerates a single overshoot and recovers on the next 
 test('scrollintoview @ref stops when post-scroll snapshots make no progress', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Far item',
+      rect: { x: 20, y: 2600, width: 120, height: 40 },
+    },
+  ]);
+
+  let snapshotCallCount = 0;
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    snapshotCallCount += 1;
+    activeSession.snapshot = makeScrollSnapshot([
+      { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
       {
         index: 1,
         type: 'XCUIElementTypeStaticText',
         label: 'Far item',
         rect: { x: 20, y: 2600, width: 120, height: 40 },
       },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
-
-  let snapshotCallCount = 0;
-  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
-    snapshotCallCount += 1;
-    activeSession.snapshot = {
-      nodes: attachRefs([
-        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-        {
-          index: 1,
-          type: 'XCUIElementTypeStaticText',
-          label: 'Far item',
-          rect: { x: 20, y: 2600, width: 120, height: 40 },
-        },
-      ]),
-      createdAt: Date.now(),
-      backend: 'xctest',
-    };
+    ]);
     return activeSession.snapshot;
   });
 
@@ -1537,45 +1514,35 @@ test('scrollintoview @ref stops when post-scroll snapshots make no progress', as
 test('scrollintoview @ref respects --max-scrolls before failing not found', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'Application',
-        rect: { x: 0, y: 0, width: 390, height: 844 },
-      },
-      {
-        index: 1,
-        type: 'XCUIElementTypeStaticText',
-        label: 'Far item',
-        rect: { x: 20, y: 2600, width: 120, height: 40 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Far item',
+      rect: { x: 20, y: 2600, width: 120, height: 40 },
+    },
+  ]);
 
   let snapshotCallCount = 0;
   mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
     snapshotCallCount += 1;
-    activeSession.snapshot = {
-      nodes: attachRefs([
-        { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
-        {
-          index: 1,
-          type: 'XCUIElementTypeStaticText',
-          label: 'Far item',
-          rect:
-            snapshotCallCount === 1
-              ? { x: 20, y: 1900, width: 120, height: 40 }
-              : { x: 20, y: 1200, width: 120, height: 40 },
-        },
-      ]),
-      createdAt: Date.now(),
-      backend: 'xctest',
-    };
+    activeSession.snapshot = makeScrollSnapshot([
+      { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Far item',
+        rect:
+          snapshotCallCount === 1
+            ? { x: 20, y: 1900, width: 120, height: 40 }
+            : { x: 20, y: 1200, width: 120, height: 40 },
+      },
+    ]);
     return activeSession.snapshot;
   });
 
