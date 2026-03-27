@@ -157,9 +157,9 @@ export function parseReplaySeriesFlags(
       const parsed = parseNonNegativeIntToken(args[index + 1]);
       if (parsed !== null) {
         flags[numericKey] = parsed;
+        index += 1;
+        continue;
       }
-      index += 1;
-      continue;
     }
 
     if (command === 'swipe' && token === '--pattern' && index + 1 < args.length) {

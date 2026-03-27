@@ -103,6 +103,12 @@ test('type and fill replay scripts round-trip typing delay flags', () => {
   assert.equal(parsed[1]?.flags.delayMs, 40);
 });
 
+test('type replay script preserves literal delay flag tokens', () => {
+  const parsed = parseReplayScript('type "--delay-ms" "abc"\n');
+  assert.deepEqual(parsed[0]?.positionals, ['--delay-ms', 'abc']);
+  assert.equal(parsed[0]?.flags.delayMs, undefined);
+});
+
 test('readReplayScriptMetadata extracts platform from context header', () => {
   const metadata = readReplayScriptMetadata(
     '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',
