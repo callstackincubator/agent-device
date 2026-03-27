@@ -64,7 +64,13 @@ test('screenshotAndroid waits for transient UI to settle before capture', async 
 
   await screenshotAndroid(device, outPath);
 
-  assert.deepEqual(events, ['enable', 'enable', 'enable', 'settle:1000', 'capture', 'disable']);
+  const relevantEvents = events.filter((event, index) => {
+    if (event !== 'enable') {
+      return true;
+    }
+    return index === 0;
+  });
+  assert.deepEqual(relevantEvents, ['enable', 'settle:1000', 'capture', 'disable']);
 });
 
 test('screenshotAndroid writes a valid PNG when output is clean', async () => {

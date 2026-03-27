@@ -125,7 +125,6 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
       };
     case 'ios':
     case 'macos': {
-      const runRunnerCommand = runIosRunnerCommand;
       const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
       return {
         open: (app, options) =>
@@ -134,7 +133,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         close: (app) => closeIosApp(device, app),
         screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
         back: async (mode) => {
-          await runRunnerCommand(
+          await runIosRunnerCommand(
             device,
             {
               command: resolveAppleBackRunnerCommand(mode),
@@ -144,14 +143,14 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           );
         },
         home: async () => {
-          await runRunnerCommand(
+          await runIosRunnerCommand(
             device,
             { command: 'home', appBundleId: runnerContext.appBundleId },
             runnerOpts,
           );
         },
         appSwitcher: async () => {
-          await runRunnerCommand(
+          await runIosRunnerCommand(
             device,
             { command: 'appSwitcher', appBundleId: runnerContext.appBundleId },
             runnerOpts,
@@ -254,7 +253,6 @@ function iosRunnerOverrides(
   device: DeviceInfo,
   ctx: RunnerContext,
 ): { overrides: IoRunnerOverrides; runnerOpts: RunnerOpts } {
-  const runRunnerCommand = runIosRunnerCommand;
   const runnerOpts = {
     verbose: ctx.verbose,
     logPath: ctx.logPath,
@@ -270,14 +268,14 @@ function iosRunnerOverrides(
     runnerOpts,
     overrides: {
       tap: async (x, y) => {
-        return await runRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       doubleTap: async (x, y) => {
-        return await runRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           {
             command: 'tapSeries',
@@ -292,40 +290,40 @@ function iosRunnerOverrides(
         );
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
-        return await runRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'drag', x: x1, y: y1, x2, y2, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       longPress: async (x, y, durationMs) => {
-        return await runRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'longPress', x, y, durationMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       focus: async (x, y) => {
-        return await runRunnerCommand(
+        return await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       type: async (text, delayMs) => {
-        await runRunnerCommand(
+        await runIosRunnerCommand(
           device,
           { command: 'type', text, delayMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
       fill: async (x, y, text, delayMs) => {
-        const tapResult = await runRunnerCommand(
+        const tapResult = await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
-        await runRunnerCommand(
+        await runIosRunnerCommand(
           device,
           {
             command: 'type',
@@ -341,12 +339,19 @@ function iosRunnerOverrides(
         return tapResult;
       },
       scroll: async (direction, options) => {
-        return await runAppleScroll(runRunnerCommand, device, ctx, runnerOpts, direction, options);
+        return await runAppleScroll(
+          runIosRunnerCommand,
+          device,
+          ctx,
+          runnerOpts,
+          direction,
+          options,
+        );
       },
       scrollIntoView: async (text, options) => {
         return await scrollIntoViewIosRunnerText(
           (command) =>
-            runRunnerCommand(device, { ...command, appBundleId: ctx.appBundleId }, runnerOpts),
+            runIosRunnerCommand(device, { ...command, appBundleId: ctx.appBundleId }, runnerOpts),
           throwIfCanceled,
           text,
           options,

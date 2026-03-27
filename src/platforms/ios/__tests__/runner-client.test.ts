@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const { mockRunCmdStreaming, mockRepairMacOsRunnerProductsIfNeeded } = vi.hoisted(() => ({
   mockRunCmdStreaming: vi.fn(),
@@ -138,6 +139,8 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   uptime: { command: 'uptime' },
   shutdown: { command: 'shutdown' },
 };
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../');
 
 async function makeTmpDir(): Promise<string> {
   const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctestrun-'));
@@ -516,7 +519,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
   const tmpDir = await makeTmpDir();
-  const projectRoot = path.resolve('.');
+  const projectRoot = repoRoot;
   const derivedPath = path.join(tmpDir, 'custom-derived');
   const projectPath = path.join(
     projectRoot,
@@ -585,7 +588,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {
   const tmpDir = await makeTmpDir();
-  const projectRoot = path.resolve('.');
+  const projectRoot = repoRoot;
   const derivedPath = path.join(tmpDir, 'custom-derived');
   const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
   await fs.promises.mkdir(derivedPath, { recursive: true });
