@@ -16,7 +16,6 @@ export type InteractionHandlerParams = {
   sessionName: string;
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
 };
 
 export function buildTouchVisualizationResult(params: {
@@ -66,7 +65,6 @@ export async function dispatchRecordedTouchInteraction(params: {
   requestPositionals: string[];
   flags: CommandFlags | undefined;
   contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
   interactionCommand: string;
   interactionPositionals: string[];
   outPath: string | undefined;
@@ -87,7 +85,6 @@ export async function dispatchRecordedTouchInteraction(params: {
     requestPositionals,
     flags,
     contextFromFlags,
-    dispatch,
     interactionCommand,
     interactionPositionals,
     outPath,
@@ -97,7 +94,6 @@ export async function dispatchRecordedTouchInteraction(params: {
     session,
     flags,
     contextFromFlags,
-    dispatch,
     command: interactionCommand,
     positionals: interactionPositionals,
     outPath,
@@ -120,7 +116,6 @@ async function dispatchInteractionCommand(params: {
   session: SessionState;
   flags: CommandFlags | undefined;
   contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
   command: string;
   positionals: string[];
   outPath: string | undefined;
@@ -129,12 +124,18 @@ async function dispatchInteractionCommand(params: {
   actionStartedAt: number;
   actionFinishedAt: number;
 }> {
-  const { session, flags, contextFromFlags, dispatch, command, positionals, outPath } = params;
+  const { session, flags, contextFromFlags, command, positionals, outPath } = params;
   const actionStartedAt = Date.now();
   const dispatchContext = {
     ...contextFromFlags(flags, session.appBundleId, session.trace?.outPath),
   };
-  const rawData = await dispatch(session.device, command, positionals, outPath, dispatchContext);
+  const rawData = await dispatchCommand(
+    session.device,
+    command,
+    positionals,
+    outPath,
+    dispatchContext,
+  );
   const actionFinishedAt = Date.now();
   const data = rawData && typeof rawData === 'object' ? rawData : undefined;
   return { data, actionStartedAt, actionFinishedAt };

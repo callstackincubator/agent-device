@@ -1,4 +1,4 @@
-import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import type { CommandFlags } from '../../core/dispatch.ts';
 import type { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
@@ -11,7 +11,6 @@ export async function captureSnapshotForSession(
   sessionStore: SessionStore,
   contextFromFlags: ContextFromFlags,
   options: { interactiveOnly: boolean },
-  dispatch: typeof dispatchCommand = dispatchCommand,
 ): Promise<SnapshotState> {
   const effectiveFlags = {
     ...(flags ?? {}),
@@ -24,7 +23,6 @@ export async function captureSnapshotForSession(
     session.trace?.outPath,
   );
   const { snapshot } = await captureSnapshot({
-    dispatchSnapshotCommand: dispatch,
     device: session.device,
     session,
     flags: effectiveFlags,

@@ -4,7 +4,7 @@ import type { DaemonResponse, SessionState } from '../types.ts';
 import type { SessionStore } from '../session-store.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
-import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import type { CommandFlags } from '../../core/dispatch.ts';
 
 export async function resolveSelectorTarget(params: {
   command: string;
@@ -17,7 +17,6 @@ export async function resolveSelectorTarget(params: {
   requireRect: boolean;
   requireUnique: boolean;
   disambiguateAmbiguous: boolean;
-  dispatch: typeof dispatchCommand;
 }): Promise<
   | {
       ok: true;
@@ -38,17 +37,11 @@ export async function resolveSelectorTarget(params: {
     requireRect,
     requireUnique,
     disambiguateAmbiguous,
-    dispatch,
   } = params;
   const chain = parseSelectorChain(selectorExpression);
-  const snapshot = await captureSnapshotForSession(
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly },
-    dispatch,
-  );
+  const snapshot = await captureSnapshotForSession(session, flags, sessionStore, contextFromFlags, {
+    interactiveOnly,
+  });
   const resolved = await withDiagnosticTimer(
     'selector_resolve',
     () =>

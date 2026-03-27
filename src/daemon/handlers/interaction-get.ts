@@ -8,7 +8,7 @@ import { resolveRefTarget } from './interaction-targeting.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
 
 export async function handleGetCommand(params: InteractionHandlerParams): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, contextFromFlags, dispatch } = params;
+  const { req, sessionName, sessionStore, contextFromFlags } = params;
   const sub = req.positionals?.[0];
   if (sub !== 'text' && sub !== 'attrs') {
     return {
@@ -65,7 +65,6 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
       traceOutPath: session.trace?.outPath,
       surface: session.surface,
       contextFromFlags,
-      dispatch,
     });
     sessionStore.recordAction(session, {
       command: req.command,
@@ -94,7 +93,6 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
     requireRect: false,
     requireUnique: true,
     disambiguateAmbiguous: sub === 'text',
-    dispatch,
   });
   if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget.response;
   const { resolved } = resolvedSelectorTarget;
@@ -119,7 +117,6 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
     traceOutPath: session.trace?.outPath,
     surface: session.surface,
     contextFromFlags,
-    dispatch,
   });
   sessionStore.recordAction(session, {
     command: req.command,

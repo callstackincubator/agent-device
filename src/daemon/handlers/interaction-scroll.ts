@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { buildSelectorChainForNode } from '../selectors.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
 import { buildScrollIntoViewPlan, resolveViewportRect } from '../scroll-planner.ts';
@@ -11,7 +12,7 @@ import { resolveRefTarget } from './interaction-targeting.ts';
 export async function handleScrollIntoViewCommand(
   params: InteractionHandlerParams,
 ): Promise<DaemonResponse | null> {
-  const { req, sessionName, sessionStore, contextFromFlags, dispatch } = params;
+  const { req, sessionName, sessionStore, contextFromFlags } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return {
@@ -91,7 +92,7 @@ export async function handleScrollIntoViewCommand(
       },
     };
   }
-  const data = await dispatch(
+  const data = await dispatchCommand(
     session.device,
     'swipe',
     [String(plan.x), String(plan.startY), String(plan.x), String(plan.endY), '16'],

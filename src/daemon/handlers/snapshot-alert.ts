@@ -12,14 +12,12 @@ type HandleAlertCommandParams = {
   sessionStore: SessionStore;
   session: SessionState | undefined;
   device: SessionState['device'];
-  runnerCommand?: typeof runIosRunnerCommand;
 };
 
 export async function handleAlertCommand(
   params: HandleAlertCommandParams,
 ): Promise<DaemonResponse> {
   const { req, logPath, sessionStore, session, device } = params;
-  const runnerCommand = params.runnerCommand ?? runIosRunnerCommand;
   const action = (req.positionals?.[0] ?? 'get').toLowerCase();
   const macOsAlertTarget = (() => {
     if (!session) return {};
@@ -89,7 +87,7 @@ export async function handleAlertCommand(
     const start = Date.now();
     while (Date.now() - start < timeout) {
       try {
-        const data = await runnerCommand(
+        const data = await runIosRunnerCommand(
           device,
           { command: 'alert', action: 'get', appBundleId: session?.appBundleId },
           {
@@ -123,7 +121,7 @@ export async function handleAlertCommand(
     let lastError: unknown;
     while (Date.now() - start < ALERT_ACTION_RETRY_MS) {
       try {
-        const data = await runnerCommand(
+        const data = await runIosRunnerCommand(
           device,
           { command: 'alert', action: resolvedAction, appBundleId: session?.appBundleId },
           runnerOptions,
@@ -141,7 +139,7 @@ export async function handleAlertCommand(
     throw lastError;
   }
 
-  const data = await runnerCommand(
+  const data = await runIosRunnerCommand(
     device,
     { command: 'alert', action: resolvedAction, appBundleId: session?.appBundleId },
     runnerOptions,

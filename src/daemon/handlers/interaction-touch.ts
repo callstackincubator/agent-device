@@ -1,4 +1,4 @@
-import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import type { CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import {
   buttonTag,
@@ -36,7 +36,6 @@ type CaptureSnapshotForSession = (
   sessionStore: SessionStore,
   contextFromFlags: ContextFromFlags,
   options: { interactiveOnly: boolean },
-  dispatch?: typeof dispatchCommand,
 ) => Promise<{
   nodes: SnapshotNode[];
   truncated?: boolean;
@@ -67,8 +66,6 @@ export async function handleTouchInteractionCommands(params: {
   sessionName: string;
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
-  dispatch?: typeof dispatchCommand;
-  readAndroidScreenSize?: typeof getAndroidScreenSize;
   captureSnapshotForSession: CaptureSnapshotForSession;
   resolveRefTarget: NonNullable<ResolveRefTarget>;
   refSnapshotFlagGuardResponse: RefSnapshotFlagGuardResponse;
@@ -82,8 +79,6 @@ export async function handleTouchInteractionCommands(params: {
     resolveRefTarget,
     refSnapshotFlagGuardResponse,
   } = params;
-  const dispatch = params.dispatch ?? dispatchCommand;
-  const readAndroidScreenSize = params.readAndroidScreenSize ?? getAndroidScreenSize;
   const command = req.command;
 
   if (command === 'press' || command === 'click') {
@@ -144,7 +139,6 @@ export async function handleTouchInteractionCommands(params: {
         ],
         flags: req.flags,
         contextFromFlags,
-        dispatch,
         interactionCommand: 'press',
         interactionPositionals: [String(directCoordinates.x), String(directCoordinates.y)],
         outPath: req.flags?.out,
@@ -155,8 +149,6 @@ export async function handleTouchInteractionCommands(params: {
             sessionStore,
             contextFromFlags,
             captureSnapshotForSession,
-            dispatch,
-            readAndroidScreenSize,
           });
           const result = buildTouchVisualizationResult({
             data,
@@ -189,7 +181,6 @@ export async function handleTouchInteractionCommands(params: {
         sessionStore,
         contextFromFlags,
         captureSnapshotForSession,
-        dispatch,
         resolveRefTarget,
       });
       if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget.response;
@@ -206,7 +197,6 @@ export async function handleTouchInteractionCommands(params: {
         requestPositionals: req.positionals ?? [],
         flags: req.flags,
         contextFromFlags,
-        dispatch,
         interactionCommand: 'press',
         interactionPositionals: [String(x), String(y)],
         outPath: req.flags?.out,
@@ -245,7 +235,6 @@ export async function handleTouchInteractionCommands(params: {
       sessionStore,
       contextFromFlags,
       { interactiveOnly: true },
-      dispatch,
     );
     const resolved = await withDiagnosticTimer(
       'selector_resolve',
@@ -290,7 +279,6 @@ export async function handleTouchInteractionCommands(params: {
       requestPositionals: req.positionals ?? [],
       flags: req.flags,
       contextFromFlags,
-      dispatch,
       interactionCommand: 'press',
       interactionPositionals: [String(x), String(y)],
       outPath: req.flags?.out,
@@ -361,7 +349,6 @@ export async function handleTouchInteractionCommands(params: {
         sessionStore,
         contextFromFlags,
         captureSnapshotForSession,
-        dispatch,
         resolveRefTarget,
       });
       if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget.response;
@@ -383,7 +370,6 @@ export async function handleTouchInteractionCommands(params: {
         requestPositionals: req.positionals ?? [],
         flags: req.flags,
         contextFromFlags,
-        dispatch,
         interactionCommand: 'fill',
         interactionPositionals: [String(x), String(y), text],
         outPath: req.flags?.out,
@@ -441,7 +427,6 @@ export async function handleTouchInteractionCommands(params: {
         sessionStore,
         contextFromFlags,
         { interactiveOnly: true },
-        dispatch,
       );
       const resolved = await withDiagnosticTimer(
         'selector_resolve',
@@ -480,7 +465,6 @@ export async function handleTouchInteractionCommands(params: {
         requestPositionals: req.positionals ?? [],
         flags: req.flags,
         contextFromFlags,
-        dispatch,
         interactionCommand: 'fill',
         interactionPositionals: [String(x), String(y), text],
         outPath: req.flags?.out,
@@ -549,18 +533,8 @@ async function resolveDirectTouchReferenceFrame(params: {
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
-  dispatch: typeof dispatchCommand;
-  readAndroidScreenSize: typeof getAndroidScreenSize;
 }): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
-  const {
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    captureSnapshotForSession,
-    dispatch,
-    readAndroidScreenSize,
-  } = params;
+  const { session, flags, sessionStore, contextFromFlags, captureSnapshotForSession } = params;
   if (!session.recording) {
     return undefined;
   }
@@ -569,7 +543,7 @@ async function resolveDirectTouchReferenceFrame(params: {
   }
 
   if (session.device.platform === 'android') {
-    const size = await readAndroidScreenSize(session.device);
+    const size = await getAndroidScreenSize(session.device);
     const referenceFrame = {
       referenceWidth: size.width,
       referenceHeight: size.height,
@@ -592,14 +566,9 @@ async function resolveDirectTouchReferenceFrame(params: {
     return undefined;
   }
 
-  const snapshot = await captureSnapshotForSession(
-    session,
-    flags,
-    sessionStore,
-    contextFromFlags,
-    { interactiveOnly: true },
-    dispatch,
-  );
+  const snapshot = await captureSnapshotForSession(session, flags, sessionStore, contextFromFlags, {
+    interactiveOnly: true,
+  });
   const referenceFrame = getSnapshotReferenceFrame(snapshot);
   if (referenceFrame && session.recording) {
     session.recording.touchReferenceFrame = referenceFrame;
@@ -613,8 +582,6 @@ async function resolveDirectTouchReferenceFrameSafely(params: {
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
-  dispatch: typeof dispatchCommand;
-  readAndroidScreenSize: typeof getAndroidScreenSize;
 }): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
   try {
     return await resolveDirectTouchReferenceFrame(params);
@@ -643,7 +610,6 @@ async function resolveRefTargetWithRectRefresh(params: {
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
-  dispatch: typeof dispatchCommand;
   resolveRefTarget: NonNullable<ResolveRefTarget>;
 }): Promise<
   | {
@@ -669,7 +635,6 @@ async function resolveRefTargetWithRectRefresh(params: {
     sessionStore,
     contextFromFlags,
     captureSnapshotForSession,
-    dispatch,
     resolveRefTarget,
   } = params;
   const resolvedRefTarget = resolveRefTarget({
@@ -699,7 +664,6 @@ async function resolveRefTargetWithRectRefresh(params: {
       sessionStore,
       contextFromFlags,
       { interactiveOnly: true },
-      dispatch,
     );
     const refNode = findNodeByRef(refreshed.nodes, ref);
     const fallbackNode =

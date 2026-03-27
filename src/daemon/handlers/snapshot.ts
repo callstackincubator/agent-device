@@ -1,6 +1,4 @@
-import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
@@ -22,14 +20,8 @@ export async function handleSnapshotCommands(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  dispatchSnapshotCommand?: typeof dispatchCommand;
-  runnerCommand?: typeof runIosRunnerCommand;
-  sessionlessRunnerCleanup?: typeof withSessionlessRunnerCleanup;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore } = params;
-  const dispatchSnapshotCommand = params.dispatchSnapshotCommand ?? dispatchCommand;
-  const runnerCommand = params.runnerCommand ?? runIosRunnerCommand;
-  const sessionlessRunnerCleanup = params.sessionlessRunnerCleanup ?? withSessionlessRunnerCleanup;
   const command = req.command;
 
   if (command === 'snapshot') {
@@ -46,9 +38,8 @@ export async function handleSnapshotCommands(params: {
     const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
     if (!resolvedScope.ok) return resolvedScope.response;
 
-    return await sessionlessRunnerCleanup(session, device, async () => {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       const capture = await captureSnapshot({
-        dispatchSnapshotCommand,
         device,
         session,
         flags: req.flags,
@@ -106,9 +97,8 @@ export async function handleSnapshotCommands(params: {
     if (!resolvedScope.ok) return resolvedScope.response;
     const flattenForDiff = req.flags?.snapshotInteractiveOnly === true;
 
-    return await sessionlessRunnerCleanup(session, device, async () => {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       const capture = await captureSnapshot({
-        dispatchSnapshotCommand,
         device,
         session,
         flags: req.flags,
@@ -194,25 +184,22 @@ export async function handleSnapshotCommands(params: {
         sessionStore,
         session,
         device,
-        dispatchSnapshotCommand,
-        runnerCommand,
       });
     if (!waitNeedsRunnerCleanup(parsed)) {
       return await executeWait();
     }
-    return await sessionlessRunnerCleanup(session, device, executeWait);
+    return await withSessionlessRunnerCleanup(session, device, executeWait);
   }
 
   if (command === 'alert') {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
-    return await sessionlessRunnerCleanup(session, device, async () => {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       return await handleAlertCommand({
         req,
         logPath,
         sessionStore,
         session,
         device,
-        runnerCommand,
       });
     });
   }
@@ -221,7 +208,7 @@ export async function handleSnapshotCommands(params: {
     const parsedSettings = parseSettingsArgs(req);
     if (!parsedSettings.ok) return parsedSettings.response;
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
-    return await sessionlessRunnerCleanup(session, device, async () => {
+    return await withSessionlessRunnerCleanup(session, device, async () => {
       return await handleSettingsCommand({
         req,
         logPath,
