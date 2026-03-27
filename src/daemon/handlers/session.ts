@@ -2,6 +2,7 @@ import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -305,6 +306,22 @@ export async function handleSessionCommands(params: {
   }
 
   if (req.command === 'keyboard') {
+    const session = sessionStore.get(sessionName);
+    const keyboardAction = req.positionals?.[0]?.trim().toLowerCase();
+    if (!session && keyboardAction === 'dismiss') {
+      const flags = req.flags ?? {};
+      const normalizedPlatform = normalizePlatformSelector(flags.platform);
+      if (normalizedPlatform === 'ios') {
+        return {
+          ok: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message:
+              'iOS keyboard dismiss requires an active session so the target app stays foregrounded. Run open first.',
+          },
+        };
+      }
+    }
     return await runSessionOrSelectorDispatch({
       req,
       sessionName,

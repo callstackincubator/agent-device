@@ -44,6 +44,7 @@ export type RunnerCommand = {
     | 'backSystem'
     | 'home'
     | 'appSwitcher'
+    | 'keyboardDismiss'
     | 'alert'
     | 'pinch'
     | 'recordStart'

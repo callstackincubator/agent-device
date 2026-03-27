@@ -170,7 +170,18 @@ extension RunnerTests {
 
   func isInteractionCommand(_ command: CommandType) -> Bool {
     switch command {
-    case .tap, .longPress, .drag, .type, .swipe, .back, .backInApp, .backSystem, .appSwitcher, .pinch:
+    case
+      .tap,
+      .longPress,
+      .drag,
+      .type,
+      .swipe,
+      .back,
+      .backInApp,
+      .backSystem,
+      .appSwitcher,
+      .keyboardDismiss,
+      .pinch:
       return true
     default:
       return false

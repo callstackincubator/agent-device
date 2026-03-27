@@ -540,6 +540,26 @@ extension RunnerTests {
     case .appSwitcher:
       performAppSwitcherGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "appSwitcher"))
+    case .keyboardDismiss:
+      let result = dismissKeyboard(app: activeApp)
+      if result.wasVisible && !result.dismissed {
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: "UNSUPPORTED_OPERATION",
+            message: "Unable to dismiss the iOS keyboard without a native dismiss gesture or control"
+          )
+        )
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "keyboardDismiss",
+          visible: result.visible,
+          wasVisible: result.wasVisible,
+          dismissed: result.dismissed
+        )
+      )
     case .alert:
       let action = (command.action ?? "get").lowercased()
       let alert = activeApp.alerts.firstMatch

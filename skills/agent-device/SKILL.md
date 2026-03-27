@@ -48,6 +48,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Use `get`, `is`, or `find` when they can answer the question without changing UI state.
 - Use `fill` to replace text.
 - Use `type` to append text.
+- If the on-screen keyboard blocks the next step, prefer `keyboard dismiss` over navigation. On iOS, keep an app session open first; `keyboard status|get` remains Android-only.
 - When a task asks to "go back", use plain `back` for predictable app-owned navigation and reserve `back --system` for platform back gestures or button semantics.
 - Use `type --delay-ms` or `fill --delay-ms` for debounced search fields that drop characters when typed too quickly.
 - If there is no simulator, no app install, or no open app session yet, switch to `bootstrap-install.md` instead of improvising setup steps.

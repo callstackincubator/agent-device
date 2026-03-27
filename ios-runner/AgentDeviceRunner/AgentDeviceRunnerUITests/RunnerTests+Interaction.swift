@@ -188,6 +188,48 @@ extension RunnerTests {
     }
   }
 
+  func isKeyboardVisible(app: XCUIApplication) -> Bool {
+    let keyboard = app.keyboards.firstMatch
+    return keyboard.exists && !keyboard.frame.isEmpty
+  }
+
+  func dismissKeyboard(app: XCUIApplication) -> (wasVisible: Bool, dismissed: Bool, visible: Bool) {
+    let wasVisible = isKeyboardVisible(app: app)
+    guard wasVisible else {
+      return (wasVisible: false, dismissed: false, visible: false)
+    }
+
+    let keyboard = app.keyboards.firstMatch
+    keyboard.swipeDown()
+    sleepFor(0.2)
+    if !isKeyboardVisible(app: app) {
+      return (wasVisible: true, dismissed: true, visible: false)
+    }
+
+    if tapKeyboardDismissControl(app: app) {
+      sleepFor(0.2)
+      let visible = isKeyboardVisible(app: app)
+      return (wasVisible: true, dismissed: !visible, visible: visible)
+    }
+
+    return (wasVisible: true, dismissed: false, visible: isKeyboardVisible(app: app))
+  }
+
+  private func tapKeyboardDismissControl(app: XCUIApplication) -> Bool {
+    for label in ["Hide keyboard", "Dismiss keyboard"] {
+      let candidates = [
+        app.keyboards.buttons[label],
+        app.keyboards.keys[label],
+        app.toolbars.buttons[label],
+      ]
+      if let hittable = candidates.first(where: { $0.exists && $0.isHittable }) {
+        hittable.tap()
+        return true
+      }
+    }
+    return false
+  }
+
   private func moveCaretToEnd(element: XCUIElement) {
     let frame = element.frame
     guard !frame.isEmpty else {

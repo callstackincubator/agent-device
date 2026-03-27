@@ -354,7 +354,11 @@ export async function parseRunnerResponse(
     throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
   }
   if (!json.ok) {
-    throw new AppError('COMMAND_FAILED', json.error?.message ?? 'Runner error', {
+    const errorCode =
+      typeof json.error?.code === 'string' && json.error.code.trim().length > 0
+        ? json.error.code
+        : 'COMMAND_FAILED';
+    throw new AppError(errorCode, json.error?.message ?? 'Runner error', {
       runner: json,
       xcodebuild: {
         exitCode: 1,

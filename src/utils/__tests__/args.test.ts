@@ -895,7 +895,7 @@ test('keyboard command usage is documented', () => {
   const help = usageForCommand('keyboard');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /keyboard \[status\|get\|dismiss\]/);
-  assert.match(help, /Inspect Android keyboard visibility\/type or dismiss it/);
+  assert.match(help, /Inspect Android keyboard visibility\/type or dismiss the device keyboard/);
 });
 
 test('settings usage documents canonical faceid states', () => {

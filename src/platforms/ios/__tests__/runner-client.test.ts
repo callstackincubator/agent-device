@@ -23,6 +23,7 @@ import {
   xctestrunReferencesExistingProducts,
   xctestrunReferencesProjectRoot,
 } from '../runner-xctestrun.ts';
+import { parseRunnerResponse } from '../runner-session.ts';
 
 const iosSimulator: DeviceInfo = {
   platform: 'ios',
@@ -247,6 +248,31 @@ test('shouldRetryRunnerConnectError does not retry xcodebuild early-exit errors'
 test('shouldRetryRunnerConnectError retries transient connect errors', () => {
   const err = new AppError('COMMAND_FAILED', 'Runner endpoint probe failed');
   assert.equal(shouldRetryRunnerConnectError(err), true);
+});
+
+test('parseRunnerResponse preserves runner unsupported-operation codes', async () => {
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_OPERATION',
+        message: 'Unable to dismiss the iOS keyboard without a native dismiss gesture or control',
+      },
+    }),
+  );
+  const session = {
+    ready: false,
+  } as any;
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, '/tmp/runner.log'),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+      assert.match(error.message, /Unable to dismiss the iOS keyboard/i);
+      return true;
+    },
+  );
 });
 
 test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () => {
