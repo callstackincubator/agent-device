@@ -1,8 +1,33 @@
-import { test, onTestFinished } from 'vitest';
+import { beforeEach, test, onTestFinished, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+const { mockRunCmdStreaming, mockRepairMacOsRunnerProductsIfNeeded } = vi.hoisted(() => ({
+  mockRunCmdStreaming: vi.fn(),
+  mockRepairMacOsRunnerProductsIfNeeded: vi.fn(),
+}));
+
+vi.mock('../../../utils/exec.ts', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../../utils/exec.ts')>('../../../utils/exec.ts');
+  return {
+    ...actual,
+    runCmdStreaming: mockRunCmdStreaming,
+  };
+});
+
+vi.mock('../runner-macos-products.ts', async () => {
+  const actual = await vi.importActual<typeof import('../runner-macos-products.ts')>(
+    '../runner-macos-products.ts',
+  );
+  return {
+    ...actual,
+    repairMacOsRunnerProductsIfNeeded: mockRepairMacOsRunnerProductsIfNeeded,
+  };
+});
+
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { RunnerCommand } from '../runner-client.ts';
@@ -19,7 +44,7 @@ import {
 } from '../runner-client.ts';
 import { isReadOnlyRunnerCommand } from '../runner-errors.ts';
 import {
-  ensureXctestrunWithDeps,
+  ensureXctestrun,
   resolveRunnerPerformanceBuildSettings,
   shouldDeleteRunnerDerivedRootEntry,
   xctestrunReferencesExistingProducts,
@@ -121,6 +146,38 @@ async function makeTmpDir(): Promise<string> {
   });
   return tmpDir;
 }
+
+function writeXctestrunFixture(
+  xctestrunPath: string,
+  options: { projectRoot: string; productRelativePaths: string[] },
+): void {
+  const entries = options.productRelativePaths
+    .map((relativePath) => `        <string>__TESTROOT__/${relativePath}</string>`)
+    .join('\n');
+  fs.mkdirSync(path.dirname(xctestrunPath), { recursive: true });
+  fs.writeFileSync(
+    xctestrunPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>ProjectRootHint</key>
+  <string>${options.projectRoot}</string>
+  <key>ProductPaths</key>
+  <array>
+${entries}
+  </array>
+</dict>
+</plist>`,
+    'utf8',
+  );
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockRunCmdStreaming.mockResolvedValue(undefined);
+  mockRepairMacOsRunnerProductsIfNeeded.mockResolvedValue(undefined);
+});
 
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
@@ -459,92 +516,84 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
   const tmpDir = await makeTmpDir();
-  const projectRoot = path.join(tmpDir, 'project');
-  const derivedPath = path.join(tmpDir, 'derived');
+  const projectRoot = path.resolve('.');
+  const derivedPath = path.join(tmpDir, 'custom-derived');
   const projectPath = path.join(
     projectRoot,
     'ios-runner',
     'AgentDeviceRunner',
     'AgentDeviceRunner.xcodeproj',
   );
-  await fs.promises.mkdir(path.dirname(projectPath), { recursive: true });
-  fs.writeFileSync(projectPath, '', 'utf8');
 
   const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
-  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt.xctestrun');
+  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
   await fs.promises.mkdir(derivedPath, { recursive: true });
-  fs.writeFileSync(existingXctestrunPath, 'existing', 'utf8');
+  await fs.promises.mkdir(path.join(derivedPath, 'Runner.app'), { recursive: true });
+  writeXctestrunFixture(existingXctestrunPath, {
+    projectRoot,
+    productRelativePaths: ['Runner.app'],
+  });
 
   const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+  const previousAllowCleanup = process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
   process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
+  process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = '1';
   onTestFinished(() => {
     if (previousDerivedPath === undefined) {
       delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+    } else {
+      process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
+    }
+    if (previousAllowCleanup === undefined) {
+      delete process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
       return;
     }
-    process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
+    process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = previousAllowCleanup;
   });
 
-  let currentXctestrunPath = existingXctestrunPath;
-  let cleanCalls = 0;
-  let buildCalls = 0;
   const repairedPaths: string[] = [];
 
-  const result = await ensureXctestrunWithDeps(
-    macOsDevice,
-    {},
-    {
-      findProjectRoot: () => projectRoot,
-      findXctestrun: () => currentXctestrunPath,
-      xctestrunReferencesProjectRoot: () => true,
-      resolveExistingXctestrunProductPaths: () => ['/tmp/runner.app'],
-      repairRunnerProductsIfNeeded: async (_device, _productPaths, xctestrunPath) => {
-        repairedPaths.push(xctestrunPath);
-        if (xctestrunPath === existingXctestrunPath) {
-          throw new AppError('COMMAND_FAILED', 'cached runner is damaged', {
-            reason: 'RUNNER_PRODUCT_REPAIR_FAILED',
-          });
-        }
-      },
-      assertSafeDerivedCleanup: (targetPath) => {
-        assert.equal(targetPath, derivedPath);
-      },
-      cleanRunnerDerivedArtifacts: (targetPath) => {
-        assert.equal(targetPath, derivedPath);
-        cleanCalls += 1;
-      },
-      buildRunnerXctestrun: async (_device, targetProjectPath, targetDerivedPath) => {
-        assert.equal(targetProjectPath, projectPath);
-        assert.equal(targetDerivedPath, derivedPath);
-        buildCalls += 1;
-        currentXctestrunPath = rebuiltXctestrunPath;
-        fs.writeFileSync(rebuiltXctestrunPath, 'rebuilt', 'utf8');
-      },
+  mockRepairMacOsRunnerProductsIfNeeded.mockImplementation(
+    async (_device, _productPaths, xctestrunPath) => {
+      repairedPaths.push(xctestrunPath);
+      if (xctestrunPath === existingXctestrunPath) {
+        throw new AppError('COMMAND_FAILED', 'cached runner is damaged', {
+          reason: 'RUNNER_PRODUCT_REPAIR_FAILED',
+        });
+      }
     },
   );
+  mockRunCmdStreaming.mockImplementation(async (command, args) => {
+    assert.equal(command, 'xcodebuild');
+    assert.ok(Array.isArray(args));
+    assert.equal(args[args.indexOf('-project') + 1], projectPath);
+    assert.equal(args[args.indexOf('-derivedDataPath') + 1], derivedPath);
+    await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });
+    writeXctestrunFixture(rebuiltXctestrunPath, {
+      projectRoot,
+      productRelativePaths: ['Runner.app'],
+    });
+  });
+
+  const result = await ensureXctestrun(macOsDevice, {});
 
   assert.equal(result, rebuiltXctestrunPath);
-  assert.equal(cleanCalls, 1);
-  assert.equal(buildCalls, 1);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
+  assert.equal(fs.existsSync(existingXctestrunPath), false);
   assert.deepEqual(repairedPaths, [existingXctestrunPath, rebuiltXctestrunPath]);
 });
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {
   const tmpDir = await makeTmpDir();
-  const projectRoot = path.join(tmpDir, 'project');
-  const derivedPath = path.join(tmpDir, 'derived');
-  const projectPath = path.join(
-    projectRoot,
-    'ios-runner',
-    'AgentDeviceRunner',
-    'AgentDeviceRunner.xcodeproj',
-  );
-  await fs.promises.mkdir(path.dirname(projectPath), { recursive: true });
-  fs.writeFileSync(projectPath, '', 'utf8');
-
+  const projectRoot = path.resolve('.');
+  const derivedPath = path.join(tmpDir, 'custom-derived');
   const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
   await fs.promises.mkdir(derivedPath, { recursive: true });
-  fs.writeFileSync(existingXctestrunPath, 'existing', 'utf8');
+  await fs.promises.mkdir(path.join(derivedPath, 'Runner.app'), { recursive: true });
+  writeXctestrunFixture(existingXctestrunPath, {
+    projectRoot,
+    productRelativePaths: ['Runner.app'],
+  });
 
   const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
   process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
@@ -556,31 +605,11 @@ test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', as
     process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
   });
 
-  await assert.rejects(
-    ensureXctestrunWithDeps(
-      macOsDevice,
-      {},
-      {
-        findProjectRoot: () => projectRoot,
-        findXctestrun: () => existingXctestrunPath,
-        xctestrunReferencesProjectRoot: () => true,
-        resolveExistingXctestrunProductPaths: () => ['/tmp/runner.app'],
-        repairRunnerProductsIfNeeded: async () => {
-          throw new Error('permission denied');
-        },
-        assertSafeDerivedCleanup: () => {
-          throw new Error('should not clean derived data for unexpected repair errors');
-        },
-        cleanRunnerDerivedArtifacts: () => {
-          throw new Error('should not rebuild for unexpected repair errors');
-        },
-        buildRunnerXctestrun: async () => {
-          throw new Error('should not rebuild for unexpected repair errors');
-        },
-      },
-    ),
-    /permission denied/,
-  );
+  mockRepairMacOsRunnerProductsIfNeeded.mockRejectedValue(new Error('permission denied'));
+
+  await assert.rejects(ensureXctestrun(macOsDevice, {}), /permission denied/);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 0);
+  assert.equal(fs.existsSync(existingXctestrunPath), true);
 });
 
 test('shouldDeleteRunnerDerivedRootEntry only removes known xcode transient entries', () => {
