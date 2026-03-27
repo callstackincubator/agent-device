@@ -7,6 +7,7 @@ import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { attachRefs } from '../../../utils/snapshot.ts';
+import { buildSnapshotState } from '../snapshot-capture.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -25,7 +26,11 @@ vi.mock('../../../platforms/android/index.ts', async (importOriginal) => {
 });
 
 vi.mock('../interaction-snapshot.ts', () => ({
-  captureSnapshotForSession: vi.fn(async (session) => session.snapshot),
+  captureSnapshotForSession: vi.fn(async () => ({
+    nodes: [],
+    createdAt: 0,
+    backend: 'xctest' as const,
+  })),
 }));
 
 import { dispatchCommand } from '../../../core/dispatch.ts';
@@ -36,6 +41,35 @@ import { handleInteractionCommands } from '../interaction.ts';
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockGetAndroidScreenSize = vi.mocked(getAndroidScreenSize);
 const mockCaptureSnapshotForSession = vi.mocked(captureSnapshotForSession);
+
+async function emulateCaptureSnapshotForSession(
+  session: SessionState,
+  flags: CommandFlags | undefined,
+  sessionStore: SessionStore,
+  contextFromFlags: (
+    flags: CommandFlags | undefined,
+    appBundleId?: string,
+    traceLogPath?: string,
+  ) => Record<string, unknown>,
+  options: { interactiveOnly: boolean },
+) {
+  const effectiveFlags = {
+    ...(flags ?? {}),
+    snapshotInteractiveOnly: options.interactiveOnly,
+    snapshotCompact: options.interactiveOnly,
+  };
+  const snapshotData = (await mockDispatch(
+    session.device,
+    'snapshot',
+    [],
+    effectiveFlags.out,
+    contextFromFlags(effectiveFlags, session.appBundleId, session.trace?.outPath),
+  )) as { nodes?: never[]; truncated?: boolean; backend?: 'xctest' | 'android' | 'macos-helper' };
+  const snapshot = buildSnapshotState(snapshotData ?? {}, effectiveFlags.snapshotRaw);
+  session.snapshot = snapshot;
+  sessionStore.set(session.name, session);
+  return snapshot;
+}
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-interaction-handler-'));
@@ -113,7 +147,7 @@ beforeEach(() => {
   mockGetAndroidScreenSize.mockReset();
   mockGetAndroidScreenSize.mockResolvedValue({ width: 1344, height: 2992 });
   mockCaptureSnapshotForSession.mockReset();
-  mockCaptureSnapshotForSession.mockImplementation(async (session) => session.snapshot);
+  mockCaptureSnapshotForSession.mockImplementation(emulateCaptureSnapshotForSession);
 });
 
 test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
@@ -1360,9 +1394,9 @@ test('scrollintoview @ref missing from snapshot reports structured not-found det
     contextFromFlags,
   });
 
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
     expect(response.error.message).toMatch(/not found/i);
     expect(response.error.details?.reason).toBe('not_found');
     expect(response.error.details?.attempts).toBe(0);

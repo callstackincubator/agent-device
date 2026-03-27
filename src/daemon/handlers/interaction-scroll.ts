@@ -127,13 +127,9 @@ export async function handleScrollIntoViewCommand(
     );
     attempts += 1;
 
-    await captureSnapshotForSession(
-      session,
-      req.flags,
-      sessionStore,
-      contextFromFlags,
-      { interactiveOnly: true },
-    );
+    await captureSnapshotForSession(session, req.flags, sessionStore, contextFromFlags, {
+      interactiveOnly: true,
+    });
     const refreshedState = resolveScrollRefState({
       session,
       targetInput,
