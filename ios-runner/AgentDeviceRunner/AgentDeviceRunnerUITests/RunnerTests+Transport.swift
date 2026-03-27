@@ -21,25 +21,37 @@ extension RunnerTests {
           status: 413,
           response: Response(ok: false, error: ErrorPayload(message: "request too large"))
         )
-        connection.send(content: response, completion: .contentProcessed { [weak self] _ in
-          connection.cancel()
+        self.sendResponse(response, over: connection) { [weak self] in
           self?.finish()
-        })
+        }
         return
       }
       let combined = buffer + data
       if let body = self.parseRequest(data: combined) {
         let result = self.handleRequestBody(body)
-        connection.send(content: result.data, completion: .contentProcessed { _ in
-          connection.cancel()
+        self.sendResponse(result.data, over: connection) {
           if result.shouldFinish {
             self.finish()
           }
-        })
+        }
       } else {
         self.receiveRequest(connection: connection, buffer: combined)
       }
     }
+  }
+
+  private func sendResponse(
+    _ response: Data,
+    over connection: NWConnection,
+    afterSend: @escaping () -> Void = {}
+  ) {
+    connection.send(content: response, isComplete: true, completion: .contentProcessed { error in
+      if let error {
+        NSLog("AGENT_DEVICE_RUNNER_SEND_FAILED=%@", String(describing: error))
+        connection.cancel()
+      }
+      afterSend()
+    })
   }
 
   private func parseRequest(data: Data) -> Data? {
