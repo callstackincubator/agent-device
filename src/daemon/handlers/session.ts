@@ -305,6 +305,22 @@ export async function handleSessionCommands(params: {
   }
 
   if (req.command === 'keyboard') {
+    const session = sessionStore.get(sessionName);
+    const keyboardAction = req.positionals?.[0]?.trim().toLowerCase();
+    if (!session && keyboardAction === 'dismiss') {
+      const flags = req.flags ?? {};
+      const normalizedPlatform = normalizePlatformSelector(flags.platform);
+      if (normalizedPlatform === 'ios') {
+        return {
+          ok: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message:
+              'iOS keyboard dismiss requires an active session so the target app stays foregrounded. Run open first.',
+          },
+        };
+      }
+    }
     return await runSessionOrSelectorDispatch({
       req,
       sessionName,

@@ -546,6 +546,7 @@ extension RunnerTests {
         return Response(
           ok: false,
           error: ErrorPayload(
+            code: "UNSUPPORTED_OPERATION",
             message: "Unable to dismiss the iOS keyboard without a native dismiss gesture or control"
           )
         )

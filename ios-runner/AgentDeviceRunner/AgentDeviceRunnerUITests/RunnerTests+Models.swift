@@ -137,7 +137,13 @@ struct DataPayload: Codable {
 }
 
 struct ErrorPayload: Codable {
+  let code: String?
   let message: String
+
+  init(code: String? = nil, message: String) {
+    self.code = code
+    self.message = message
+  }
 }
 
 struct SnapshotRect: Codable {

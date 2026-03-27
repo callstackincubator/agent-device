@@ -1825,6 +1825,31 @@ test('keyboard dismiss supports explicit selector without active session', async
   }
 });
 
+test('keyboard dismiss requires active iOS session for explicit selectors', async () => {
+  const sessionStore = makeSessionStore();
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'keyboard',
+      positionals: ['dismiss'],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    assert.match(response.error.message, /requires an active session/i);
+  }
+});
+
 test('keyboard dismiss uses active iOS session device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-session';
