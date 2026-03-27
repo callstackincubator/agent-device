@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { PNG } from 'pngjs';
-import type { Rect, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
-import { AppError } from '../utils/errors.ts';
+import type { Rect, ScreenshotOverlayRef, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import { decodePng } from '../utils/png.ts';
 import {
   findNearestHittableAncestor,
   normalizeType,
@@ -34,13 +34,6 @@ const FONT: Record<string, readonly string[]> = {
   '9': ['01110', '10001', '10001', '01111', '00001', '00001', '01110'],
 } as const;
 
-export type ScreenshotOverlayRef = {
-  ref: string;
-  label?: string;
-  rect: Rect;
-  overlayRect: Rect;
-};
-
 type OverlayCandidate = ScreenshotOverlayRef & {
   score: number;
 };
@@ -51,7 +44,7 @@ export async function annotateScreenshotWithRefs(params: {
   maxRefs?: number;
 }): Promise<ScreenshotOverlayRef[]> {
   const screenshotBuffer = await fs.readFile(params.screenshotPath);
-  const png = decodeScreenshotPng(screenshotBuffer);
+  const png = decodePng(screenshotBuffer, 'screenshot');
   const overlayRefs = buildScreenshotOverlayRefs(params.snapshot, png.width, png.height, {
     maxRefs: params.maxRefs,
   });
@@ -70,6 +63,7 @@ export function buildScreenshotOverlayRefs(
   screenshotHeight: number,
   options: { maxRefs?: number } = {},
 ): ScreenshotOverlayRef[] {
+  const snapshotBounds = measureSnapshotBounds(snapshot.nodes);
   const candidatesByRef = new Map<string, OverlayCandidate>();
   for (const node of snapshot.nodes) {
     if (!isOverlaySourceNode(node)) continue;
@@ -78,7 +72,7 @@ export function buildScreenshotOverlayRefs(
     const label = resolveRefLabel(target, snapshot.nodes);
     const score = scoreOverlayCandidate(node, target, label);
     const overlayRect = projectRectToScreenshot(
-      snapshot.nodes,
+      snapshotBounds,
       target.rect,
       screenshotWidth,
       screenshotHeight,
@@ -115,16 +109,6 @@ export function buildScreenshotOverlayRefs(
     });
 
   return ranked.map(({ score: _score, ...overlayRef }) => overlayRef);
-}
-
-function decodeScreenshotPng(buffer: Buffer): PNG {
-  try {
-    return PNG.sync.read(buffer);
-  } catch (error) {
-    throw new AppError('COMMAND_FAILED', 'Failed to decode screenshot as PNG', {
-      reason: error instanceof Error ? error.message : String(error),
-    });
-  }
 }
 
 function isOverlaySourceNode(node: SnapshotNode): boolean {
@@ -181,12 +165,11 @@ function suppressContainedCandidates(candidates: OverlayCandidate[]): OverlayCan
 }
 
 function projectRectToScreenshot(
-  nodes: SnapshotState['nodes'],
+  bounds: Rect | null,
   rect: Rect,
   screenshotWidth: number,
   screenshotHeight: number,
 ): Rect {
-  const bounds = measureSnapshotBounds(nodes);
   if (!bounds) {
     return clampRect(
       {

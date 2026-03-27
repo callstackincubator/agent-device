@@ -6,9 +6,8 @@ import type {
   SessionRuntimeHints,
 } from './daemon/types.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
-import type { SnapshotNode } from './utils/snapshot.ts';
+import type { ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
 import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
-import type { ScreenshotOverlayRef } from './daemon/screenshot-overlay.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';

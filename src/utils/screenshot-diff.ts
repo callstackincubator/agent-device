@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { PNG } from 'pngjs';
 import { AppError } from '../utils/errors.ts';
+import { decodePng } from './png.ts';
 
 export type ScreenshotDimensionMismatch = {
   expected: { width: number; height: number };
@@ -44,8 +45,8 @@ export async function compareScreenshots(
     fs.readFile(currentPath),
   ]);
 
-  const baseline = decodePng(baselineBuffer, 'baseline');
-  const current = decodePng(currentBuffer, 'current');
+  const baseline = decodePng(baselineBuffer, 'baseline screenshot');
+  const current = decodePng(currentBuffer, 'current screenshot');
 
   const threshold = options.threshold ?? 0.1;
 
@@ -128,17 +129,6 @@ async function validateFileExists(filePath: string, errorMessage: string): Promi
     await fs.access(filePath);
   } catch {
     throw new AppError('INVALID_ARGS', `${errorMessage}: ${filePath}`);
-  }
-}
-
-function decodePng(buffer: Buffer, label: 'baseline' | 'current'): PNG {
-  try {
-    return PNG.sync.read(buffer);
-  } catch (error) {
-    throw new AppError('COMMAND_FAILED', `Failed to decode ${label} screenshot as PNG`, {
-      label,
-      reason: error instanceof Error ? error.message : String(error),
-    });
   }
 }
 

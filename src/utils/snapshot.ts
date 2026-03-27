@@ -45,6 +45,13 @@ export type SnapshotState = {
   backend?: 'xctest' | 'android' | 'macos-helper';
 };
 
+export type ScreenshotOverlayRef = {
+  ref: string;
+  label?: string;
+  rect: Rect;
+  overlayRect: Rect;
+};
+
 export function attachRefs(nodes: RawSnapshotNode[]): SnapshotNode[] {
   return nodes.map((node, idx) => ({ ...node, ref: `e${idx + 1}` }));
 }

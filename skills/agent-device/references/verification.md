@@ -45,8 +45,7 @@ agent-device diff snapshot -i
 
 Use `screenshot` when the proof needs a rendered image instead of a structural tree.
 
-- Add `--overlay-refs` when you want the saved PNG to show the current `@eN` refs from the session snapshot.
-- `--overlay-refs` depends on an existing session snapshot, so run `snapshot` first.
+- Add `--overlay-refs` when you want the saved PNG to show fresh `@eN` refs burned into the screenshot.
 
 ## Session recording
 

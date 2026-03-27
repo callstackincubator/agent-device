@@ -166,9 +166,31 @@ test('screenshot resolves --out flag path against request cwd', async () => {
   expect(recordedAction?.flags.out).toBe(path.join(callerCwd, 'evidence/test.png'));
 });
 
-test('screenshot --overlay-refs requires an existing session snapshot', async () => {
+test('screenshot --overlay-refs captures a fresh snapshot when the session has none', async () => {
   const sessionStore = makeStore();
   sessionStore.set('default', makeSession('default'));
+  const screenshotPath = path.join(os.tmpdir(), `agent-device-overlay-${Date.now()}.png`);
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'screenshot') {
+      writeSolidPng(screenshotPath);
+      return { path: screenshotPath };
+    }
+    if (command === 'snapshot') {
+      return {
+        nodes: [
+          {
+            index: 0,
+            type: 'XCUIElementTypeButton',
+            label: 'Continue',
+            hittable: true,
+            rect: { x: 0, y: 0, width: 40, height: 20 },
+          },
+        ],
+      };
+    }
+    return {};
+  });
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -182,19 +204,26 @@ test('screenshot --overlay-refs requires an existing session snapshot', async ()
     token: 'test-token',
     session: 'default',
     command: 'screenshot',
-    positionals: [path.join(os.tmpdir(), 'overlay.png')],
+    positionals: [screenshotPath],
     flags: { overlayRefs: true },
     meta: { requestId: 'req-overlay-missing-snapshot' },
   });
 
-  expect(response.ok).toBe(false);
-  if (!response.ok) {
-    expect(response.error.code).toBe('INVALID_ARGS');
-    expect(response.error.message).toMatch(/requires an existing session snapshot/i);
+  expect(response.ok).toBe(true);
+  if (response.ok) {
+    expect(response.data?.overlayRefs).toEqual([
+      {
+        ref: 'e1',
+        label: 'Continue',
+        rect: { x: 0, y: 0, width: 40, height: 20 },
+        overlayRect: { x: 0, y: 0, width: 100, height: 50 },
+      },
+    ]);
   }
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['screenshot', 'snapshot']);
 });
 
-test('screenshot --overlay-refs annotates the saved PNG and returns overlay refs', async () => {
+test('screenshot --overlay-refs uses a fresh snapshot instead of stale session snapshot', async () => {
   const sessionStore = makeStore();
   const session = makeSession('default');
   session.snapshot = {
@@ -202,7 +231,7 @@ test('screenshot --overlay-refs annotates the saved PNG and returns overlay refs
       {
         index: 0,
         type: 'XCUIElementTypeButton',
-        label: 'Continue',
+        label: 'Stale',
         hittable: true,
         rect: { x: 0, y: 0, width: 40, height: 20 },
       },
@@ -216,6 +245,19 @@ test('screenshot --overlay-refs annotates the saved PNG and returns overlay refs
     if (command === 'screenshot') {
       writeSolidPng(screenshotPath);
       return { path: screenshotPath };
+    }
+    if (command === 'snapshot') {
+      return {
+        nodes: [
+          {
+            index: 0,
+            type: 'XCUIElementTypeButton',
+            label: 'Fresh',
+            hittable: true,
+            rect: { x: 0, y: 0, width: 40, height: 20 },
+          },
+        ],
+      };
     }
     return {};
   });
@@ -243,12 +285,13 @@ test('screenshot --overlay-refs annotates the saved PNG and returns overlay refs
     expect(response.data?.overlayRefs).toEqual([
       {
         ref: 'e1',
-        label: 'Continue',
+        label: 'Fresh',
         rect: { x: 0, y: 0, width: 40, height: 20 },
         overlayRect: { x: 0, y: 0, width: 100, height: 50 },
       },
     ]);
   }
+  expect(sessionStore.get('default')?.snapshot?.nodes[0]?.label).toBe('Fresh');
   const png = PNG.sync.read(fs.readFileSync(screenshotPath));
   expect(Array.from(png.data.slice(0, 4))).not.toEqual([255, 255, 255, 255]);
 });

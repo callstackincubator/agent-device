@@ -21,6 +21,7 @@ import { handleFindCommands } from './handlers/find.ts';
 import { handleRecordTraceCommands } from './handlers/record-trace.ts';
 import { handleInteractionCommands } from './handlers/interaction.ts';
 import { handleLeaseCommands } from './handlers/lease.ts';
+import { buildSnapshotState, captureSnapshotData } from './handlers/snapshot-capture.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
 import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
@@ -425,20 +426,6 @@ export function createRequestHandler(
             command === 'screenshot' && resolvedOut
               ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
               : (lockedReq.flags ?? {});
-          if (command === 'screenshot' && lockedReq.flags?.overlayRefs && !session.snapshot) {
-            return finalize({
-              ok: false,
-              error: normalizeError(
-                new AppError(
-                  'INVALID_ARGS',
-                  'screenshot --overlay-refs requires an existing session snapshot',
-                  {
-                    hint: 'Run snapshot first so the daemon can annotate refs onto the screenshot.',
-                  },
-                ),
-              ),
-            });
-          }
           const actionStartedAt = Date.now();
           const dispatchContext = {
             ...contextFromFlags(
@@ -454,12 +441,20 @@ export function createRequestHandler(
           if (
             command === 'screenshot' &&
             lockedReq.flags?.overlayRefs &&
-            session.snapshot &&
             typeof data?.path === 'string'
           ) {
+            const overlaySnapshotData = await captureSnapshotData({
+              device: session.device,
+              session,
+              flags: undefined,
+              logPath,
+              snapshotScope: undefined,
+            });
+            const overlaySnapshot = buildSnapshotState(overlaySnapshotData, false);
+            session.snapshot = overlaySnapshot;
             const overlayRefs = await annotateScreenshotWithRefs({
               screenshotPath: data.path,
-              snapshot: session.snapshot,
+              snapshot: overlaySnapshot,
             });
             data.overlayRefs = overlayRefs;
           }

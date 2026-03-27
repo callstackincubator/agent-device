@@ -50,7 +50,7 @@ In practice, most work follows the same pattern:
 
 1. `open` a target app or URL.
 2. `snapshot -i` to inspect the current screen.
-3. Optionally capture `screenshot --overlay-refs` to burn current `@eN` refs into the PNG for visual inspection.
+3. Optionally capture `screenshot --overlay-refs` to burn fresh `@eN` refs into the PNG for visual inspection.
 4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
 5. `diff snapshot` or re-snapshot after UI changes.
 6. `close` when the session is finished.

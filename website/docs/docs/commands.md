@@ -505,7 +505,7 @@ agent-device record stop                # Stop active recording
 ```
 
 - Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
-- `screenshot --overlay-refs` reuses the current session snapshot and burns visible `@eN` refs into the saved PNG. Run `snapshot` first so the daemon has refs to draw.
+- `screenshot --overlay-refs` captures a fresh full snapshot and burns visible `@eN` refs into the saved PNG.
 - Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
 - On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
 
