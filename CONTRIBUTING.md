@@ -23,9 +23,10 @@ Build all CLIs and Xcode projects:
 pnpm build:all
 ```
 
-For faster local macOS runner iteration, `pnpm build:xcuitest:macos` reuses the existing
-DerivedData by default. Set `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` when you need a clean macOS
-runner rebuild.
+Apple XCTest builds now share a common helper script. `pnpm build:xcuitest:ios` and
+`pnpm build:xcuitest:tvos` keep their existing cleanup behavior, while
+`pnpm build:xcuitest:macos` reuses the existing DerivedData by default for faster local
+iteration. Set `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` when you need a clean macOS runner rebuild.
 
 Run tests:
 
