@@ -3,20 +3,19 @@ import path from 'node:path';
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { handleRecordCommand, type RecordTraceDeps } from './record-trace-recording.ts';
+import { handleRecordCommand } from './record-trace-recording.ts';
 
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
   logPath?: string;
-  deps?: Partial<RecordTraceDeps>;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, sessionStore, logPath } = params;
   const command = req.command;
 
   if (command === 'record') {
-    return handleRecordCommand({ req, sessionName, sessionStore, logPath, deps: params.deps });
+    return handleRecordCommand({ req, sessionName, sessionStore, logPath });
   }
 
   if (command === 'trace') {

@@ -1,13 +1,21 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+vi.mock('../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})) };
+});
+
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+
+const mockDispatch = vi.mocked(dispatchCommand);
 
 const ANDROID_DEVICE: DeviceInfo = {
   platform: 'android',
@@ -31,24 +39,30 @@ function makeSession(name: string): SessionState {
   };
 }
 
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockResolvedValue({});
+});
+
 test('screenshot resolves relative positional path against request cwd', async () => {
   const callerCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-screenshot-cwd-caller-'));
   const sessionStore = makeStore();
   sessionStore.set('default', makeSession('default'));
 
   let capturedPath: string | undefined;
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    if (command === 'screenshot') {
+      capturedPath = positionals[0];
+    }
+    return {};
+  });
+
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async (_device, command, positionals) => {
-      if (command === 'screenshot') {
-        capturedPath = positionals[0];
-      }
-      return {};
-    },
   });
 
   await handler({
@@ -59,11 +73,11 @@ test('screenshot resolves relative positional path against request cwd', async (
     meta: { cwd: callerCwd, requestId: 'req-1' },
   });
 
-  assert.ok(capturedPath, 'dispatch should have been called with a path');
-  assert.equal(capturedPath, path.join(callerCwd, 'evidence/test.png'));
-  assert.ok(path.isAbsolute(capturedPath), 'path passed to dispatch must be absolute');
+  expect(capturedPath).toBeTruthy();
+  expect(capturedPath).toBe(path.join(callerCwd, 'evidence/test.png'));
+  expect(path.isAbsolute(capturedPath!)).toBe(true);
   const recordedAction = sessionStore.get('default')?.actions.at(-1);
-  assert.deepEqual(recordedAction?.positionals, [path.join(callerCwd, 'evidence/test.png')]);
+  expect(recordedAction?.positionals).toEqual([path.join(callerCwd, 'evidence/test.png')]);
 });
 
 test('screenshot keeps absolute positional path unchanged', async () => {
@@ -73,18 +87,19 @@ test('screenshot keeps absolute positional path unchanged', async () => {
   const absolutePath = path.join(os.tmpdir(), 'evidence/test.png');
   let capturedPath: string | undefined;
 
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    if (command === 'screenshot') {
+      capturedPath = positionals[0];
+    }
+    return {};
+  });
+
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async (_device, command, positionals) => {
-      if (command === 'screenshot') {
-        capturedPath = positionals[0];
-      }
-      return {};
-    },
   });
 
   await handler({
@@ -95,9 +110,9 @@ test('screenshot keeps absolute positional path unchanged', async () => {
     meta: { cwd: '/some/other/dir', requestId: 'req-2' },
   });
 
-  assert.equal(capturedPath, absolutePath);
+  expect(capturedPath).toBe(absolutePath);
   const recordedAction = sessionStore.get('default')?.actions.at(-1);
-  assert.deepEqual(recordedAction?.positionals, [absolutePath]);
+  expect(recordedAction?.positionals).toEqual([absolutePath]);
 });
 
 test('screenshot resolves --out flag path against request cwd', async () => {
@@ -107,18 +122,19 @@ test('screenshot resolves --out flag path against request cwd', async () => {
 
   let capturedOut: string | undefined;
 
+  mockDispatch.mockImplementation(async (_device, command, _positionals, outPath) => {
+    if (command === 'screenshot') {
+      capturedOut = outPath;
+    }
+    return {};
+  });
+
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async (_device, command, _positionals, outPath) => {
-      if (command === 'screenshot') {
-        capturedOut = outPath;
-      }
-      return {};
-    },
   });
 
   await handler({
@@ -130,9 +146,9 @@ test('screenshot resolves --out flag path against request cwd', async () => {
     meta: { cwd: callerCwd, requestId: 'req-3' },
   });
 
-  assert.ok(capturedOut, 'dispatch should have been called with out path');
-  assert.equal(capturedOut, path.join(callerCwd, 'evidence/test.png'));
-  assert.ok(path.isAbsolute(capturedOut), 'out path passed to dispatch must be absolute');
+  expect(capturedOut).toBeTruthy();
+  expect(capturedOut).toBe(path.join(callerCwd, 'evidence/test.png'));
+  expect(path.isAbsolute(capturedOut!)).toBe(true);
   const recordedAction = sessionStore.get('default')?.actions.at(-1);
-  assert.equal(recordedAction?.flags.out, path.join(callerCwd, 'evidence/test.png'));
+  expect(recordedAction?.flags.out).toBe(path.join(callerCwd, 'evidence/test.png'));
 });

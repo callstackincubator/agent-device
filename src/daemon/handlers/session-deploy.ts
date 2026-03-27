@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload-registry.ts';
-import { resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -89,11 +87,9 @@ export async function handleAppDeployCommand(params: {
   command: 'install' | 'reinstall';
   sessionName: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
   deployOps: AppDeployOps;
 }): Promise<DaemonResponse> {
-  const { req, command, sessionName, sessionStore, ensureReady, resolveDevice, deployOps } = params;
+  const { req, command, sessionName, sessionStore, deployOps } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
   const guard = requireSessionOrExplicitSelector(command, session, flags);
@@ -124,8 +120,6 @@ export async function handleAppDeployCommand(params: {
     const device = await resolveCommandDevice({
       session,
       flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
       ensureReady: false,
     });
     if (!isCommandSupportedOnDevice(command, device)) {

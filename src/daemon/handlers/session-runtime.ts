@@ -3,7 +3,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { hasRuntimeTransportHints, type clearRuntimeHintsFromApp } from '../runtime-hints.ts';
+import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 
 const RUNTIME_HINT_FIELD_NAMES = [
   'platform',
@@ -248,9 +248,8 @@ export async function maybeClearRemovedRuntimeTransportHints(params: {
   previousRuntime: SessionRuntimeHints | undefined;
   runtime: SessionRuntimeHints | undefined;
   session: SessionState | undefined;
-  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
 }): Promise<void> {
-  const { replacedStoredRuntime, previousRuntime, runtime, session, clearRuntimeHints } = params;
+  const { replacedStoredRuntime, previousRuntime, runtime, session } = params;
   if (
     !replacedStoredRuntime ||
     !session?.appBundleId ||
@@ -259,7 +258,7 @@ export async function maybeClearRemovedRuntimeTransportHints(params: {
   ) {
     return;
   }
-  await clearRuntimeHints({
+  await clearRuntimeHintsFromApp({
     device: session.device,
     appId: session.appBundleId,
   });

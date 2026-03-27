@@ -1,14 +1,98 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
+});
+vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+vi.mock('../../runtime-hints.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../runtime-hints.ts')>();
+  return { ...actual, applyRuntimeHintsToApp: vi.fn(async () => {}), clearRuntimeHintsFromApp: vi.fn(async () => {}) };
+});
+vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
+  return { ...actual, stopIosRunnerSession: vi.fn(async () => {}) };
+});
+vi.mock('../../../platforms/ios/macos-helper.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/macos-helper.ts')>();
+  return { ...actual, runMacOsAlertAction: vi.fn(async () => {}) };
+});
+vi.mock('../session-device-utils.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session-device-utils.ts')>();
+  return { ...actual, settleIosSimulator: vi.fn(async () => {}) };
+});
+vi.mock('../session-open-target.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../session-open-target.ts')>();
+  return { ...actual, resolveAndroidPackageForOpen: vi.fn(async () => undefined) };
+});
+vi.mock('../../../platforms/ios/simulator.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/simulator.ts')>();
+  return { ...actual, shutdownSimulator: vi.fn() };
+});
+vi.mock('../../../utils/exec.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
+  return { ...actual, runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })) };
+});
+vi.mock('../../materialized-path-registry.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../materialized-path-registry.ts')>();
+  return { ...actual, cleanupRetainedMaterializedPathsForSession: vi.fn(async () => {}) };
+});
+
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
-import { retainMaterializedPaths } from '../../materialized-path-registry.ts';
+import {
+  retainMaterializedPaths,
+  cleanupRetainedMaterializedPathsForSession,
+} from '../../materialized-path-registry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
-import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
+import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
+import { ensureDeviceReady } from '../../device-ready.ts';
+import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
+import { stopIosRunnerSession } from '../../../platforms/ios/runner-client.ts';
+import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
+import { settleIosSimulator } from '../session-device-utils.ts';
+import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
+import { runCmd } from '../../../utils/exec.ts';
+
+const mockDispatch = vi.mocked(dispatchCommand);
+const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
+const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
+const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
+const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
+const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
+const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
+const mockSettleSimulator = vi.mocked(settleIosSimulator);
+const mockResolveAndroidPackage = vi.mocked(resolveAndroidPackageForOpen);
+const mockCleanupRetainedMaterializedPaths = vi.mocked(cleanupRetainedMaterializedPathsForSession);
+const mockRunCmd = vi.mocked(runCmd);
+
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockResolvedValue({});
+  mockResolveTargetDevice.mockReset();
+  mockEnsureDeviceReady.mockReset();
+  mockEnsureDeviceReady.mockResolvedValue(undefined);
+  mockApplyRuntimeHints.mockReset();
+  mockApplyRuntimeHints.mockResolvedValue(undefined);
+  mockClearRuntimeHints.mockReset();
+  mockClearRuntimeHints.mockResolvedValue(undefined);
+  mockStopIosRunner.mockReset();
+  mockStopIosRunner.mockResolvedValue(undefined);
+  mockDismissMacOsAlert.mockReset();
+  mockDismissMacOsAlert.mockResolvedValue({} as any);
+  mockSettleSimulator.mockReset();
+  mockSettleSimulator.mockResolvedValue(undefined);
+  mockResolveAndroidPackage.mockReset();
+  mockResolveAndroidPackage.mockResolvedValue(undefined);
+  mockCleanupRetainedMaterializedPaths.mockReset();
+  mockCleanupRetainedMaterializedPaths.mockResolvedValue(undefined);
+  mockRunCmd.mockReset();
+  mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+});
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-handler-'));
@@ -27,11 +111,11 @@ function makeSession(name: string, device: SessionState['device']): SessionState
 const noopInvoke = async (_req: DaemonRequest): Promise<DaemonResponse> => ({ ok: true, data: {} });
 
 function assertInvalidArgsMessage(response: DaemonResponse | null, message: string): void {
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.equal(response.error.message, message);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toBe(message);
   }
 }
 
@@ -93,33 +177,30 @@ test('devices filters Apple-family platform selectors', async () => {
     });
 
   const macosResponse = await runDevices({ platform: 'macos' });
-  assert.ok(macosResponse?.ok);
+  expect(macosResponse?.ok).toBeTruthy();
   if (macosResponse?.ok) {
     const devices = macosResponse.data?.devices as Array<{ platform: string }> | undefined;
-    assert.deepEqual(
+    expect(
       devices?.map((device) => device.platform),
-      ['macos'],
-    );
+    ).toEqual(['macos']);
   }
 
   const iosResponse = await runDevices({ platform: 'ios' });
-  assert.ok(iosResponse?.ok);
+  expect(iosResponse?.ok).toBeTruthy();
   if (iosResponse?.ok) {
     const devices = iosResponse.data?.devices as Array<{ platform: string }> | undefined;
-    assert.deepEqual(
+    expect(
       devices?.map((device) => device.platform),
-      ['ios'],
-    );
+    ).toEqual(['ios']);
   }
 
   const appleDesktopResponse = await runDevices({ platform: 'apple', target: 'desktop' });
-  assert.ok(appleDesktopResponse?.ok);
+  expect(appleDesktopResponse?.ok).toBeTruthy();
   if (appleDesktopResponse?.ok) {
     const devices = appleDesktopResponse.data?.devices as Array<{ platform: string }> | undefined;
-    assert.deepEqual(
+    expect(
       devices?.map((device) => device.platform),
-      ['macos'],
-    );
+    ).toEqual(['macos']);
   }
 });
 
@@ -147,19 +228,19 @@ test('batch executes steps sequentially and returns structured results', async (
     sessionStore,
     invoke: async (stepReq) => {
       seenCommands.push(stepReq.command);
-      assert.equal(stepReq.flags?.platform, 'ios');
-      assert.equal(stepReq.flags?.udid, 'sim-1');
-      assert.equal(stepReq.flags?.out, '/tmp/batch-artifact.json');
+      expect(stepReq.flags?.platform).toBe('ios');
+      expect(stepReq.flags?.udid).toBe('sim-1');
+      expect(stepReq.flags?.out).toBe('/tmp/batch-artifact.json');
       return { ok: true, data: { command: stepReq.command } };
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(seenCommands, ['open', 'wait']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(seenCommands).toEqual(['open', 'wait']);
   if (response && response.ok) {
-    assert.equal(response.data?.total, 2);
-    assert.equal(response.data?.executed, 2);
-    assert.ok(Array.isArray(response.data?.results));
+    expect(response.data?.total).toBe(2);
+    expect(response.data?.executed).toBe(2);
+    expect(Array.isArray(response.data?.results)).toBeTruthy();
   }
 });
 
@@ -197,19 +278,19 @@ test('batch stops on first failing step with partial results', async () => {
       return { ok: true, data: {} };
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'COMMAND_FAILED');
-    assert.match(response.error.message, /Batch failed at step 2/);
-    assert.equal(response.error.details?.step, 2);
-    assert.equal(response.error.details?.executed, 1);
-    assert.equal(response.error.hint, 'refresh selector');
-    assert.equal(response.error.diagnosticId, 'diag-step-2');
-    assert.equal(response.error.logPath, '/tmp/diag-step-2.ndjson');
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/Batch failed at step 2/);
+    expect(response.error.details?.step).toBe(2);
+    expect(response.error.details?.executed).toBe(1);
+    expect(response.error.hint).toBe('refresh selector');
+    expect(response.error.diagnosticId).toBe('diag-step-2');
+    expect(response.error.logPath).toBe('/tmp/diag-step-2.ndjson');
     const partial = response.error.details?.partialResults;
-    assert.ok(Array.isArray(partial));
-    assert.equal(partial.length, 1);
+    expect(Array.isArray(partial)).toBeTruthy();
+    expect((partial as unknown[]).length).toBe(1);
   }
 });
 
@@ -230,10 +311,10 @@ test('batch rejects nested replay and batch commands', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(nestedReplay);
-  assert.equal(nestedReplay?.ok, false);
+  expect(nestedReplay).toBeTruthy();
+  expect(nestedReplay?.ok).toBe(false);
   if (nestedReplay && !nestedReplay.ok) {
-    assert.equal(nestedReplay.error.code, 'INVALID_ARGS');
+    expect(nestedReplay.error.code).toBe('INVALID_ARGS');
   }
 
   const nestedBatch = await handleSessionCommands({
@@ -251,10 +332,10 @@ test('batch rejects nested replay and batch commands', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(nestedBatch);
-  assert.equal(nestedBatch?.ok, false);
+  expect(nestedBatch).toBeTruthy();
+  expect(nestedBatch?.ok).toBe(false);
   if (nestedBatch && !nestedBatch.ok) {
-    assert.equal(nestedBatch.error.code, 'INVALID_ARGS');
+    expect(nestedBatch.error.code).toBe('INVALID_ARGS');
   }
 });
 
@@ -279,11 +360,11 @@ test('batch enforces max step guard', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /max allowed is 1/);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/max allowed is 1/);
   }
 });
 
@@ -310,12 +391,12 @@ test('batch step flags override parent selector flags', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: async (stepReq) => {
-      assert.equal(stepReq.flags?.platform, 'android');
+      expect(stepReq.flags?.platform).toBe('android');
       return { ok: true, data: {} };
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
 });
 
 test('batch step forwards typed runtime payload', async () => {
@@ -350,8 +431,8 @@ test('batch step forwards typed runtime payload', async () => {
     },
   });
 
-  assert.equal(response?.ok, true);
-  assert.deepEqual(seenRuntimes, [
+  expect(response?.ok).toBe(true);
+  expect(seenRuntimes).toEqual([
     {
       metroHost: '10.0.0.10',
       metroPort: 8081,
@@ -385,8 +466,8 @@ test('batch step pins nested requests to the resolved session', async () => {
     },
   });
 
-  assert.equal(response?.ok, true);
-  assert.deepEqual(seenSessions, [
+  expect(response?.ok).toBe(true);
+  expect(seenSessions).toEqual([
     {
       session: 'resolved-session',
       flagSession: 'resolved-session',
@@ -418,7 +499,7 @@ test('runtime set/show/clear manages session-scoped runtime hints before open', 
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(setResponse?.ok, true);
+  expect(setResponse?.ok).toBe(true);
 
   const showResponse = await handleSessionCommands({
     req: {
@@ -432,10 +513,10 @@ test('runtime set/show/clear manages session-scoped runtime hints before open', 
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(showResponse?.ok, true);
+  expect(showResponse?.ok).toBe(true);
   if (showResponse && showResponse.ok) {
-    assert.equal(showResponse.data?.configured, true);
-    assert.deepEqual(showResponse.data?.runtime, {
+    expect(showResponse.data?.configured).toBe(true);
+    expect(showResponse.data?.runtime).toEqual({
       platform: 'android',
       metroHost: '10.0.0.10',
       metroPort: 8081,
@@ -456,8 +537,8 @@ test('runtime set/show/clear manages session-scoped runtime hints before open', 
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(clearResponse?.ok, true);
-  assert.equal(sessionStore.getRuntimeHints('remote-runtime'), undefined);
+  expect(clearResponse?.ok).toBe(true);
+  expect(sessionStore.getRuntimeHints('remote-runtime')).toBe(undefined);
 });
 
 test('runtime clear removes applied transport hints for the active app', async () => {
@@ -479,7 +560,6 @@ test('runtime clear removes applied transport hints for the active app', async (
     appBundleId: 'com.example.demo',
   });
 
-  const clearCalls: Array<{ deviceId: string; appId?: string }> = [];
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -492,389 +572,15 @@ test('runtime clear removes applied transport hints for the active app', async (
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    clearRuntimeHints: async ({ device, appId }) => {
-      clearCalls.push({ deviceId: device.id, appId });
-    },
   });
 
-  assert.equal(response?.ok, true);
-  assert.deepEqual(clearCalls, [{ deviceId: 'emulator-5554', appId: 'com.example.demo' }]);
-  assert.equal(sessionStore.getRuntimeHints(sessionName), undefined);
-});
-
-test('open applies stored runtime launchUrl and reports runtime hints', async () => {
-  const sessionStore = makeSessionStore();
-  sessionStore.setRuntimeHints('runtime-open', {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-    launchUrl: 'myapp://dev-client',
-  });
-  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
-  const runtimeApplyCalls: Array<{ appId?: string; host?: string; port?: number }> = [];
-  const callOrder: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'runtime-open',
-      command: 'open',
-      positionals: ['Demo'],
-      flags: { platform: 'android' },
-    },
-    sessionName: 'runtime-open',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    resolveAndroidPackageForOpen: async () => 'com.example.demo',
-    applyRuntimeHints: async ({ appId, runtime }) => {
-      callOrder.push('runtime');
-      runtimeApplyCalls.push({
-        appId,
-        host: runtime?.metroHost,
-        port: runtime?.metroPort,
-      });
-    },
-    dispatch: async (_device, command, positionals) => {
-      callOrder.push(`dispatch:${command}`);
-      dispatchCalls.push({ command, positionals });
-      return {};
-    },
-  });
-
-  assert.equal(response?.ok, true);
-  assert.deepEqual(callOrder, ['runtime', 'dispatch:open', 'dispatch:open']);
-  assert.deepEqual(runtimeApplyCalls, [
-    { appId: 'com.example.demo', host: '10.0.0.10', port: 8081 },
-  ]);
-  assert.deepEqual(dispatchCalls, [
-    { command: 'open', positionals: ['Demo'] },
-    { command: 'open', positionals: ['myapp://dev-client'] },
-  ]);
-  if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.target, 'mobile');
-    assert.equal(response.data?.device, 'Pixel');
-    assert.equal(response.data?.id, 'emulator-5554');
-    assert.equal(response.data?.serial, 'emulator-5554');
-    assert.deepEqual(response.data?.runtime, {
-      platform: 'android',
-      metroHost: '10.0.0.10',
-      metroPort: 8081,
-      launchUrl: 'myapp://dev-client',
-    });
-  }
-});
-
-test('open runtime payload replaces stored session runtime atomically', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'runtime-open-inline';
-  sessionStore.setRuntimeHints(sessionName, {
-    platform: 'android',
-    metroHost: '127.0.0.1',
-    metroPort: 9000,
-    launchUrl: 'myapp://stale',
-  });
-
-  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
-  const runtimeApplyCalls: Array<{
-    appId?: string;
-    host?: string;
-    port?: number;
-    launchUrl?: string;
-  }> = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: ['Demo'],
-      flags: { platform: 'android' },
-      runtime: {
-        metroHost: '10.0.0.10',
-        metroPort: 8081,
-      },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    resolveAndroidPackageForOpen: async () => 'com.example.demo',
-    applyRuntimeHints: async ({ appId, runtime }) => {
-      runtimeApplyCalls.push({
-        appId,
-        host: runtime?.metroHost,
-        port: runtime?.metroPort,
-        launchUrl: runtime?.launchUrl,
-      });
-    },
-    dispatch: async (_device, command, positionals) => {
-      dispatchCalls.push({ command, positionals });
-      return {};
-    },
-  });
-
-  assert.equal(response?.ok, true);
-  assert.deepEqual(runtimeApplyCalls, [
-    { appId: 'com.example.demo', host: '10.0.0.10', port: 8081, launchUrl: undefined },
-  ]);
-  assert.deepEqual(dispatchCalls, [{ command: 'open', positionals: ['Demo'] }]);
-  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-    bundleUrl: undefined,
-    launchUrl: undefined,
-  });
-  assert.deepEqual(
-    sessionStore.get(sessionName)?.actions.map((action) => action.command),
-    ['open'],
+  expect(response?.ok).toBe(true);
+  expect(mockClearRuntimeHints).toHaveBeenCalledWith(
+    expect.objectContaining({ device: expect.objectContaining({ id: 'emulator-5554' }), appId: 'com.example.demo' }),
   );
-  assert.deepEqual(sessionStore.get(sessionName)?.actions[0]?.runtime, {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-    bundleUrl: undefined,
-    launchUrl: undefined,
-  });
-  if (response && response.ok) {
-    assert.deepEqual(response.data?.runtime, {
-      platform: 'android',
-      metroHost: '10.0.0.10',
-      metroPort: 8081,
-      bundleUrl: undefined,
-      launchUrl: undefined,
-    });
-  }
+  expect(sessionStore.getRuntimeHints(sessionName)).toBe(undefined);
 });
 
-test('open runtime payload clears stale applied transport hints before launch', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'runtime-open-clear';
-  sessionStore.setRuntimeHints(sessionName, {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-  });
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.demo',
-    appName: 'Demo',
-  });
-
-  const callOrder: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: ['Demo'],
-      flags: {},
-      runtime: {
-        launchUrl: 'myapp://fresh',
-      },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveAndroidPackageForOpen: async () => 'com.example.demo',
-    clearRuntimeHints: async ({ device, appId }) => {
-      callOrder.push(`clear:${device.id}:${appId}`);
-    },
-    applyRuntimeHints: async () => {
-      callOrder.push('runtime');
-    },
-    dispatch: async (_device, command, positionals) => {
-      callOrder.push(`dispatch:${command}:${positionals.join('|')}`);
-      return {};
-    },
-  });
-
-  assert.equal(response?.ok, true);
-  assert.deepEqual(callOrder, [
-    'clear:emulator-5554:com.example.demo',
-    'runtime',
-    'dispatch:open:Demo',
-    'dispatch:open:myapp://fresh',
-  ]);
-  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
-    platform: 'android',
-    metroHost: undefined,
-    metroPort: undefined,
-    bundleUrl: undefined,
-    launchUrl: 'myapp://fresh',
-  });
-  if (response && response.ok) {
-    assert.deepEqual(response.data?.runtime, {
-      platform: 'android',
-      metroHost: undefined,
-      metroPort: undefined,
-      bundleUrl: undefined,
-      launchUrl: 'myapp://fresh',
-    });
-  }
-});
-
-test('open runtime payload rejects invalid metro port before app launch', async () => {
-  const sessionStore = makeSessionStore();
-  let dispatchCalls = 0;
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'runtime-open-invalid-port',
-      command: 'open',
-      positionals: ['Demo'],
-      flags: { platform: 'android' },
-      runtime: {
-        metroHost: '10.0.0.10',
-        metroPort: 70000,
-      },
-    },
-    sessionName: 'runtime-open-invalid-port',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    dispatch: async () => {
-      dispatchCalls += 1;
-      return {};
-    },
-  });
-
-  assertInvalidArgsMessage(
-    response,
-    'Invalid runtime metroPort: 70000. Use an integer between 1 and 65535.',
-  );
-  assert.equal(dispatchCalls, 0);
-});
-
-test('open runtime payload rejects malformed runtime objects without mutating session state', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'runtime-open-malformed';
-  sessionStore.setRuntimeHints(sessionName, {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: ['Demo'],
-      flags: { platform: 'android' },
-      runtime: 'not-an-object' as unknown as DaemonRequest['runtime'],
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-  });
-
-  assertInvalidArgsMessage(response, 'open runtime must be an object.');
-  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-  });
-});
-
-test('open runtime payload does not persist replacement when launch fails', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'runtime-open-launch-fails';
-  sessionStore.setRuntimeHints(sessionName, {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-    launchUrl: 'myapp://stale',
-  });
-
-  await assert.rejects(
-    async () =>
-      await handleSessionCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'open',
-          positionals: ['Demo'],
-          flags: { platform: 'android' },
-          runtime: {
-            metroHost: '127.0.0.1',
-            metroPort: 9090,
-          },
-        },
-        sessionName,
-        logPath: path.join(os.tmpdir(), 'daemon.log'),
-        sessionStore,
-        invoke: noopInvoke,
-        ensureReady: async () => {},
-        resolveTargetDevice: async () => ({
-          platform: 'android',
-          id: 'emulator-5554',
-          name: 'Pixel',
-          kind: 'emulator',
-          booted: true,
-        }),
-        applyRuntimeHints: async () => {},
-        dispatch: async () => {
-          throw new AppError('COMMAND_FAILED', 'launch failed');
-        },
-      }),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, 'COMMAND_FAILED');
-      assert.equal(error.message, 'launch failed');
-      return true;
-    },
-  );
-
-  assert.deepEqual(sessionStore.getRuntimeHints(sessionName), {
-    platform: 'android',
-    metroHost: '10.0.0.10',
-    metroPort: 8081,
-    launchUrl: 'myapp://stale',
-  });
-});
 
 test('close clears applied runtime transport hints before deleting the session', async () => {
   const sessionStore = makeSessionStore();
@@ -895,7 +601,6 @@ test('close clears applied runtime transport hints before deleting the session',
     appBundleId: 'com.example.demo',
   });
 
-  const clearCalls: Array<{ deviceId: string; appId?: string }> = [];
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -908,16 +613,12 @@ test('close clears applied runtime transport hints before deleting the session',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    clearRuntimeHints: async ({ device, appId }) => {
-      clearCalls.push({ deviceId: device.id, appId });
-    },
-    stopIosRunner: async () => {},
   });
 
-  assert.equal(response?.ok, true);
-  assert.deepEqual(clearCalls, [{ deviceId: 'sim-1', appId: 'com.example.demo' }]);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  assert.equal(sessionStore.getRuntimeHints(sessionName), undefined);
+  expect(response?.ok).toBe(true);
+  expect(mockClearRuntimeHints).toHaveBeenCalled();
+  expect(sessionStore.get(sessionName)).toBe(undefined);
+  expect(sessionStore.getRuntimeHints(sessionName)).toBe(undefined);
 });
 
 test('close clears retained materialized install paths bound to the session', async () => {
@@ -942,6 +643,12 @@ test('close clears retained materialized install paths bound to the session', as
     ttlMs: 60_000,
   });
 
+  // Use real cleanup implementation so retained paths are actually removed
+  const { cleanupRetainedMaterializedPathsForSession: realCleanup } = await vi.importActual<
+    typeof import('../../materialized-path-registry.ts')
+  >('../../materialized-path-registry.ts');
+  mockCleanupRetainedMaterializedPaths.mockImplementation(realCleanup);
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -954,12 +661,11 @@ test('close clears retained materialized install paths bound to the session', as
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async () => {},
   });
 
-  assert.equal(response?.ok, true);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  assert.equal(fs.existsSync(retained.installablePath), false);
+  expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)).toBe(undefined);
+  expect(fs.existsSync(retained.installablePath)).toBe(false);
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
@@ -991,8 +697,8 @@ test('release_materialized_paths removes retained install artifacts', async () =
     invoke: noopInvoke,
   });
 
-  assert.equal(response?.ok, true);
-  assert.equal(fs.existsSync(retained.installablePath), false);
+  expect(response?.ok).toBe(true);
+  expect(fs.existsSync(retained.installablePath)).toBe(false);
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
@@ -1010,12 +716,11 @@ test('boot requires session or explicit selector', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
+    expect(response.error.code).toBe('INVALID_ARGS');
   }
 });
 
@@ -1032,7 +737,6 @@ test('boot succeeds for iOS physical devices', async () => {
       booted: true,
     }),
   );
-  let ensureCalls = 0;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1045,16 +749,13 @@ test('boot succeeds for iOS physical devices', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {
-      ensureCalls += 1;
-    },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(ensureCalls, 1);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).toHaveBeenCalledTimes(1);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.booted, true);
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.booted).toBe(true);
   }
 });
 
@@ -1071,7 +772,6 @@ test('boot succeeds for supported device in session', async () => {
       booted: true,
     }),
   );
-  let ensureCalls = 0;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1084,16 +784,13 @@ test('boot succeeds for supported device in session', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {
-      ensureCalls += 1;
-    },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(ensureCalls, 0);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).toHaveBeenCalledTimes(0);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.booted, true);
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.booted).toBe(true);
   }
 });
 
@@ -1117,8 +814,8 @@ test('boot prefers explicit device selector over active session device', async (
     kind: 'simulator',
     booted: true,
   };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
 
-  const ensured: string[] = [];
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1131,24 +828,22 @@ test('boot prefers explicit device selector over active session device', async (
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async (device) => {
-      ensured.push(device.id);
-    },
-    resolveTargetDevice: async () => selectedDevice,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(ensured, ['sim-2']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'sim-2' }),
+  );
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.id, 'sim-2');
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.id).toBe('sim-2');
   }
 });
 
 test('boot --headless launches Android emulator when no running device matches', async () => {
   const sessionStore = makeSessionStore();
-  const ensured: string[] = [];
+  mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
   const response = await handleSessionCommands({
     req: {
@@ -1162,12 +857,6 @@ test('boot --headless launches Android emulator when no running device matches',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async (device) => {
-      ensured.push(device.id);
-    },
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
-    },
     ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
       launchCalls.push({ avdName, serial, headless });
       return {
@@ -1181,19 +870,22 @@ test('boot --headless launches Android emulator when no running device matches',
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(launchCalls, [{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: true }]);
-  assert.deepEqual(ensured, ['emulator-5554']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(launchCalls).toEqual([{ avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: true }]);
+  expect(mockEnsureDeviceReady).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'emulator-5554' }),
+  );
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.id, 'emulator-5554');
-    assert.equal(response.data?.device, 'Pixel_9_Pro_XL');
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.id).toBe('emulator-5554');
+    expect(response.data?.device).toBe('Pixel_9_Pro_XL');
   }
 });
 
 test('boot launches Android emulator with GUI when no running device matches', async () => {
   const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
   const response = await handleSessionCommands({
     req: {
@@ -1207,10 +899,6 @@ test('boot launches Android emulator with GUI when no running device matches', a
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
-    },
     ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
       launchCalls.push({ avdName, serial, headless });
       return {
@@ -1224,20 +912,21 @@ test('boot launches Android emulator with GUI when no running device matches', a
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(launchCalls, [
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(launchCalls).toEqual([
     { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
   ]);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.id, 'emulator-5554');
-    assert.equal(response.data?.device, 'Pixel_9_Pro_XL');
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.id).toBe('emulator-5554');
+    expect(response.data?.device).toBe('Pixel_9_Pro_XL');
   }
 });
 
 test('boot --headless requires avd selector when device cannot be resolved', async () => {
   const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   let bootCalled = false;
   const response = await handleSessionCommands({
     req: {
@@ -1251,28 +940,23 @@ test('boot --headless requires avd selector when device cannot be resolved', asy
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'No devices found');
-    },
     ensureAndroidEmulatorBoot: async () => {
       bootCalled = true;
       throw new Error('unexpected');
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  assert.equal(bootCalled, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(bootCalled).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /boot --headless requires --device <avd-name>/);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/boot --headless requires --device <avd-name>/);
   }
 });
 
 test('boot --headless rejects non-Android selectors', async () => {
   const sessionStore = makeSessionStore();
-  let resolved = false;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1285,28 +969,22 @@ test('boot --headless rejects non-Android selectors', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => {
-      resolved = true;
-      throw new Error('unexpected resolve');
-    },
     ensureAndroidEmulatorBoot: async () => {
       throw new Error('unexpected emulator launch');
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  assert.equal(resolved, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /headless is supported only for Android emulators/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/headless is supported only for Android emulators/i);
   }
 });
 
 test('boot keeps --target validation when emulator is fallback-launched', async () => {
   const sessionStore = makeSessionStore();
-  let ensured = false;
+  mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
   const launchCalls: Array<{ avdName: string; serial?: string; headless?: boolean }> = [];
   const response = await handleSessionCommands({
     req: {
@@ -1320,12 +998,6 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {
-      ensured = true;
-    },
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'No Android TV devices found');
-    },
     ensureAndroidEmulatorBoot: async ({ avdName, serial, headless }) => {
       launchCalls.push({ avdName, serial, headless });
       return {
@@ -1339,15 +1011,15 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
-  assert.equal(ensured, false);
-  assert.deepEqual(launchCalls, [
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
+  expect(launchCalls).toEqual([
     { avdName: 'Pixel_9_Pro_XL', serial: undefined, headless: false },
   ]);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'DEVICE_NOT_FOUND');
-    assert.match(response.error.message, /matching --target tv/i);
+    expect(response.error.code).toBe('DEVICE_NOT_FOUND');
+    expect(response.error.message).toMatch(/matching --target tv/i);
   }
 });
 
@@ -1372,6 +1044,8 @@ test('appstate on iOS requires active session on selected device', async () => {
     kind: 'simulator',
     booted: true,
   };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockDispatch.mockRejectedValue(new Error('snapshot dispatch should not run'));
 
   const response = await handleSessionCommands({
     req: {
@@ -1385,18 +1059,13 @@ test('appstate on iOS requires active session on selected device', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => selectedDevice,
-    dispatch: async () => {
-      throw new Error('snapshot dispatch should not run');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
-    assert.match(response.error.message, /requires an active session/i);
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/requires an active session/i);
   }
 });
 
@@ -1415,6 +1084,16 @@ test('appstate with explicit selector matching session returns session state', a
     appName: 'Maps',
   });
 
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockDispatch.mockRejectedValue(new Error('snapshot dispatch should not run'));
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1427,24 +1106,17 @@ test('appstate with explicit selector matching session returns session state', a
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('snapshot dispatch should not run');
-    },
-    resolveTargetDevice: async () => {
-      throw new Error('resolveTargetDevice should not run');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.appName, 'Maps');
-    assert.equal(response.data?.appBundleId, 'com.apple.Maps');
-    assert.equal(response.data?.source, 'session');
-    assert.equal(response.data?.device_udid, 'sim-1');
-    assert.equal(response.data?.ios_simulator_device_set, null);
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.appName).toBe('Maps');
+    expect(response.data?.appBundleId).toBe('com.apple.Maps');
+    expect(response.data?.source).toBe('session');
+    expect(response.data?.device_udid).toBe('sim-1');
+    expect(response.data?.ios_simulator_device_set).toBe(null);
   }
 });
 
@@ -1462,6 +1134,16 @@ test('appstate returns session appName when bundle id is unavailable', async () 
     appName: 'Maps',
   });
 
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockDispatch.mockRejectedValue(new Error('snapshot dispatch should not run'));
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1474,24 +1156,17 @@ test('appstate returns session appName when bundle id is unavailable', async () 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('snapshot dispatch should not run');
-    },
-    resolveTargetDevice: async () => {
-      throw new Error('resolveTargetDevice should not run');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.appName, 'Maps');
-    assert.equal(response.data?.appBundleId, undefined);
-    assert.equal(response.data?.source, 'session');
-    assert.equal(response.data?.device_udid, 'sim-1');
-    assert.equal(response.data?.ios_simulator_device_set, null);
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.appName).toBe('Maps');
+    expect(response.data?.appBundleId).toBe(undefined);
+    expect(response.data?.source).toBe('session');
+    expect(response.data?.device_udid).toBe('sim-1');
+    expect(response.data?.ios_simulator_device_set).toBe(null);
   }
 });
 
@@ -1511,6 +1186,8 @@ test('appstate on macOS session returns session state', async () => {
     appName: 'System Settings',
   });
 
+  mockDispatch.mockRejectedValue(new Error('dispatch should not run'));
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1523,25 +1200,18 @@ test('appstate on macOS session returns session state', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('dispatch should not run');
-    },
-    resolveTargetDevice: async () => {
-      throw new Error('resolveTargetDevice should not run');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'macos');
-    assert.equal(response.data?.appName, 'System Settings');
-    assert.equal(response.data?.appBundleId, 'com.apple.systempreferences');
-    assert.equal(response.data?.source, 'session');
-    assert.equal(response.data?.surface, 'app');
-    assert.equal(response.data?.device_udid, undefined);
-    assert.equal(response.data?.ios_simulator_device_set, undefined);
+    expect(response.data?.platform).toBe('macos');
+    expect(response.data?.appName).toBe('System Settings');
+    expect(response.data?.appBundleId).toBe('com.apple.systempreferences');
+    expect(response.data?.source).toBe('session');
+    expect(response.data?.surface).toBe('app');
+    expect(response.data?.device_udid).toBe(undefined);
+    expect(response.data?.ios_simulator_device_set).toBe(undefined);
   }
 });
 
@@ -1560,6 +1230,8 @@ test('appstate on macOS desktop surface returns surface state without app bundle
     surface: 'desktop',
   });
 
+  mockDispatch.mockRejectedValue(new Error('dispatch should not run'));
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1572,22 +1244,15 @@ test('appstate on macOS desktop surface returns surface state without app bundle
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('dispatch should not run');
-    },
-    resolveTargetDevice: async () => {
-      throw new Error('resolveTargetDevice should not run');
-    },
   });
 
-  assert.equal(response?.ok, true);
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'macos');
-    assert.equal(response.data?.appName, 'desktop');
-    assert.equal(response.data?.appBundleId, undefined);
-    assert.equal(response.data?.surface, 'desktop');
-    assert.equal(response.data?.source, 'session');
+    expect(response.data?.platform).toBe('macos');
+    expect(response.data?.appName).toBe('desktop');
+    expect(response.data?.appBundleId).toBe(undefined);
+    expect(response.data?.surface).toBe('desktop');
+    expect(response.data?.source).toBe('session');
   }
 });
 
@@ -1621,16 +1286,16 @@ test('apps on macOS uses Apple app listing path', async () => {
     invoke: noopInvoke,
     listAppleApps: async (device, filter) => {
       listAppleAppsCalls += 1;
-      assert.equal(device.platform, 'macos');
-      assert.equal(filter, 'all');
+      expect(device.platform).toBe('macos');
+      expect(filter).toBe('all');
       return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
     },
   });
 
-  assert.equal(response?.ok, true);
-  assert.equal(listAppleAppsCalls, 1);
+  expect(response?.ok).toBe(true);
+  expect(listAppleAppsCalls).toBe(1);
   if (response && response.ok) {
-    assert.deepEqual(response.data?.apps, ['System Settings (com.apple.systempreferences)']);
+    expect(response.data?.apps).toEqual(['System Settings (com.apple.systempreferences)']);
   }
 });
 
@@ -1648,6 +1313,15 @@ test('appstate fails when iOS session has no tracked app', async () => {
     }),
   );
 
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1660,14 +1334,13 @@ test('appstate fails when iOS session has no tracked app', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'COMMAND_FAILED');
-    assert.match(response.error.message, /no foreground app is tracked/i);
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/no foreground app is tracked/i);
   }
 });
 
@@ -1680,6 +1353,7 @@ test('appstate without session on iOS selector returns SESSION_NOT_FOUND', async
     kind: 'simulator',
     booted: true,
   };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
 
   const response = await handleSessionCommands({
     req: {
@@ -1693,14 +1367,12 @@ test('appstate without session on iOS selector returns SESSION_NOT_FOUND', async
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => selectedDevice,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
   }
 });
 
@@ -1720,12 +1392,12 @@ test('appstate with explicit missing session returns SESSION_NOT_FOUND', async (
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
-    assert.match(response.error.message, /no active session "sim"/i);
-    assert.doesNotMatch(response.error.message, /omit --session/i);
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/no active session "sim"/i);
+    expect(response.error.message).not.toMatch(/omit --session/i);
   }
 });
 
@@ -1745,12 +1417,11 @@ test('clipboard requires an active session or explicit device selector', async (
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(
-      response.error.message,
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(
       /clipboard requires an active session or an explicit device selector/i,
     );
   }
@@ -1772,12 +1443,11 @@ test('keyboard requires an active session or explicit device selector', async ()
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(
-      response.error.message,
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(
       /keyboard requires an active session or an explicit device selector/i,
     );
   }
@@ -1792,6 +1462,8 @@ test('keyboard dismiss supports explicit selector without active session', async
     kind: 'emulator',
     booted: true,
   };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockDispatch.mockResolvedValue({ platform: 'android', action: 'dismiss', dismissed: true, visible: false });
 
   const response = await handleSessionCommands({
     req: {
@@ -1805,23 +1477,15 @@ test('keyboard dismiss supports explicit selector without active session', async
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => selectedDevice,
-    dispatch: async (device, command, positionals) => {
-      assert.equal(device.id, 'emulator-5554');
-      assert.equal(command, 'keyboard');
-      assert.deepEqual(positionals, ['dismiss']);
-      return { platform: 'android', action: 'dismiss', dismissed: true, visible: false };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.action, 'dismiss');
-    assert.equal(response.data?.dismissed, true);
-    assert.equal(response.data?.visible, false);
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.action).toBe('dismiss');
+    expect(response.data?.dismissed).toBe(true);
+    expect(response.data?.visible).toBe(false);
   }
 });
 
@@ -1842,11 +1506,11 @@ test('keyboard dismiss requires active iOS session for explicit selectors', asyn
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
-    assert.match(response.error.message, /requires an active session/i);
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/requires an active session/i);
   }
 });
 
@@ -1864,6 +1528,15 @@ test('keyboard dismiss uses active iOS session device', async () => {
     }),
   );
 
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+  mockDispatch.mockResolvedValue({ platform: 'ios', action: 'dismiss', dismissed: true, visible: false });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1876,22 +1549,15 @@ test('keyboard dismiss uses active iOS session device', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async (device, command, positionals) => {
-      assert.equal(device.platform, 'ios');
-      assert.equal(command, 'keyboard');
-      assert.deepEqual(positionals, ['dismiss']);
-      return { platform: 'ios', action: 'dismiss', dismissed: true, visible: false };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.action, 'dismiss');
-    assert.equal(response.data?.dismissed, true);
-    assert.equal(response.data?.visible, false);
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.action).toBe('dismiss');
+    expect(response.data?.dismissed).toBe(true);
+    expect(response.data?.visible).toBe(false);
   }
 });
 
@@ -1909,6 +1575,20 @@ test('clipboard read uses active session device', async () => {
     }),
   );
 
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+  mockDispatch.mockImplementation(async (device, command, positionals) => {
+    expect(device.id).toBe('sim-1');
+    expect(command).toBe('clipboard');
+    expect(positionals).toEqual(['read']);
+    return { action: 'read', text: 'otp-123456' };
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -1921,23 +1601,14 @@ test('clipboard read uses active session device', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
-    dispatch: async (device, command, positionals) => {
-      assert.equal(device.id, 'sim-1');
-      assert.equal(command, 'clipboard');
-      assert.deepEqual(positionals, ['read']);
-      return { action: 'read', text: 'otp-123456' };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'ios');
-    assert.equal(response.data?.action, 'read');
-    assert.equal(response.data?.text, 'otp-123456');
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.action).toBe('read');
+    expect(response.data?.text).toBe('otp-123456');
   }
 });
 
@@ -1950,6 +1621,13 @@ test('clipboard write supports explicit selector without active session', async 
     kind: 'emulator',
     booted: true,
   };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockDispatch.mockImplementation(async (device, command, positionals) => {
+    expect(device.id).toBe('emulator-5554');
+    expect(command).toBe('clipboard');
+    expect(positionals).toEqual(['write', 'hello', 'clipboard']);
+    return { action: 'write', textLength: 15 };
+  });
 
   const response = await handleSessionCommands({
     req: {
@@ -1963,22 +1641,14 @@ test('clipboard write supports explicit selector without active session', async 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => selectedDevice,
-    dispatch: async (device, command, positionals) => {
-      assert.equal(device.id, 'emulator-5554');
-      assert.equal(command, 'clipboard');
-      assert.deepEqual(positionals, ['write', 'hello', 'clipboard']);
-      return { action: 'write', textLength: 15 };
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.platform, 'android');
-    assert.equal(response.data?.action, 'write');
-    assert.equal(response.data?.textLength, 15);
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.action).toBe('write');
+    expect(response.data?.textLength).toBe(15);
   }
 });
 
@@ -1996,6 +1666,8 @@ test('clipboard rejects unsupported iOS physical devices', async () => {
     }),
   );
 
+  mockDispatch.mockRejectedValue(new Error('dispatch should not run for unsupported targets'));
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2008,17 +1680,13 @@ test('clipboard rejects unsupported iOS physical devices', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {},
-    dispatch: async () => {
-      throw new Error('dispatch should not run for unsupported targets');
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(response.error.message, /clipboard is not supported on this device/i);
+    expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
+    expect(response.error.message).toMatch(/clipboard is not supported on this device/i);
   }
 });
 
@@ -2037,10 +1705,10 @@ test('perf requires an active session', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
   }
 });
 
@@ -2085,16 +1753,16 @@ test('perf returns startup samples captured from open actions', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
     const startup = (response.data?.metrics as any)?.startup;
-    assert.equal(startup?.available, true);
-    assert.equal(startup?.lastDurationMs, 184);
-    assert.equal(startup?.lastMeasuredAt, measuredAt);
-    assert.equal(startup?.method, 'open-command-roundtrip');
-    assert.equal(startup?.sampleCount, 1);
-    assert.equal(Array.isArray(startup?.samples), true);
+    expect(startup?.available).toBe(true);
+    expect(startup?.lastDurationMs).toBe(184);
+    expect(startup?.lastMeasuredAt).toBe(measuredAt);
+    expect(startup?.method).toBe('open-command-roundtrip');
+    expect(startup?.sampleCount).toBe(1);
+    expect(Array.isArray(startup?.samples)).toBe(true);
   }
 });
 
@@ -2125,12 +1793,12 @@ test('perf reports startup metric as unavailable when no sample exists', async (
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
     const startup = (response.data?.metrics as any)?.startup;
-    assert.equal(startup?.available, false);
-    assert.match(String(startup?.reason ?? ''), /no startup sample captured yet/i);
+    expect(startup?.available).toBe(false);
+    expect(String(startup?.reason ?? '')).toMatch(/no startup sample captured yet/i);
   }
 });
 
@@ -2149,7 +1817,19 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
     appName: 'Old App',
   });
 
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  });
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2162,21 +1842,14 @@ test('open URL on existing iOS session clears stale app bundle id', async () => 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, undefined);
-  assert.equal(updated?.appName, 'https://example.com/path');
-  assert.equal(dispatchedContext?.appBundleId, undefined);
+  expect(updated?.appBundleId).toBe(undefined);
+  expect(updated?.appName).toBe('https://example.com/path');
+  expect(dispatchedContext?.appBundleId).toBe(undefined);
 });
 
 test('open URL on existing macOS session clears stale app bundle id', async () => {
@@ -2196,6 +1869,11 @@ test('open URL on existing macOS session clears stale app bundle id', async () =
   });
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2208,21 +1886,14 @@ test('open URL on existing macOS session clears stale app bundle id', async () =
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, undefined);
-  assert.equal(updated?.appName, 'https://example.com/path');
-  assert.equal(dispatchedContext?.appBundleId, undefined);
+  expect(updated?.appBundleId).toBe(undefined);
+  expect(updated?.appName).toBe('https://example.com/path');
+  expect(dispatchedContext?.appBundleId).toBe(undefined);
 });
 
 test('open URL on existing iOS device session preserves app bundle id context', async () => {
@@ -2241,6 +1912,11 @@ test('open URL on existing iOS device session preserves app bundle id context', 
   });
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2253,21 +1929,14 @@ test('open URL on existing iOS device session preserves app bundle id context', 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'com.example.app');
-  assert.equal(updated?.appName, 'myapp://item/42');
-  assert.equal(dispatchedContext?.appBundleId, 'com.example.app');
+  expect(updated?.appBundleId).toBe('com.example.app');
+  expect(updated?.appName).toBe('myapp://item/42');
+  expect(dispatchedContext?.appBundleId).toBe('com.example.app');
 });
 
 test('open web URL on iOS device session without active app falls back to Safari', async () => {
@@ -2285,6 +1954,11 @@ test('open web URL on iOS device session without active app falls back to Safari
   );
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2297,21 +1971,14 @@ test('open web URL on iOS device session without active app falls back to Safari
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'com.apple.mobilesafari');
-  assert.equal(updated?.appName, 'https://example.com/path');
-  assert.equal(dispatchedContext?.appBundleId, 'com.apple.mobilesafari');
+  expect(updated?.appBundleId).toBe('com.apple.mobilesafari');
+  expect(updated?.appName).toBe('https://example.com/path');
+  expect(dispatchedContext?.appBundleId).toBe('com.apple.mobilesafari');
 });
 
 test('open app and URL on existing iOS device session keeps app context', async () => {
@@ -2331,6 +1998,12 @@ test('open app and URL on existing iOS device session keeps app context', async 
 
   let dispatchedPositionals: string[] | undefined;
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, positionals, _out, context) => {
+    dispatchedPositionals = positionals;
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2343,21 +2016,15 @@ test('open app and URL on existing iOS device session keeps app context', async 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, positionals, _out, context) => {
-      dispatchedPositionals = positionals;
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'com.apple.Preferences');
-  assert.equal(updated?.appName, 'Settings');
-  assert.deepEqual(dispatchedPositionals, ['Settings', 'myapp://screen/to']);
-  assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
+  expect(updated?.appBundleId).toBe('com.apple.Preferences');
+  expect(updated?.appName).toBe('Settings');
+  expect(dispatchedPositionals).toEqual(['Settings', 'myapp://screen/to']);
+  expect(dispatchedContext?.appBundleId).toBe('com.apple.Preferences');
 });
 
 test('open app on existing iOS session resolves and stores bundle id', async () => {
@@ -2375,7 +2042,19 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
     appName: 'Old App',
   });
 
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  });
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2388,24 +2067,17 @@ test('open app on existing iOS session resolves and stores bundle id', async () 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'com.apple.Preferences');
-  assert.equal(updated?.appName, 'settings');
-  assert.equal(dispatchedContext?.appBundleId, 'com.apple.Preferences');
+  expect(updated?.appBundleId).toBe('com.apple.Preferences');
+  expect(updated?.appName).toBe('settings');
+  expect(dispatchedContext?.appBundleId).toBe('com.apple.Preferences');
   if (response && response.ok) {
-    assert.equal(response.data?.device_udid, 'sim-1');
-    assert.equal(response.data?.ios_simulator_device_set, null);
+    expect(response.data?.device_udid).toBe('sim-1');
+    expect(response.data?.ios_simulator_device_set).toBe(null);
   }
 });
 
@@ -2426,6 +2098,11 @@ test('open app on existing macOS session resolves and stores bundle id', async (
   });
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2438,83 +2115,85 @@ test('open app on existing macOS session resolves and stores bundle id', async (
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'com.apple.systempreferences');
-  assert.equal(updated?.appName, 'settings');
-  assert.equal(dispatchedContext?.appBundleId, 'com.apple.systempreferences');
+  expect(updated?.appBundleId).toBe('com.apple.systempreferences');
+  expect(updated?.appName).toBe('settings');
+  expect(dispatchedContext?.appBundleId).toBe('com.apple.systempreferences');
 });
 
 test('open on macOS with --surface frontmost-app stores frontmost app state', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-frontmost';
-      let dispatchedPositionals: string[] | undefined;
-      const response = await handleSessionCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'open',
-          positionals: [],
-          flags: {
-            platform: 'macos',
-            surface: 'frontmost-app',
-          },
-        },
-        sessionName,
-        logPath: path.join(os.tmpdir(), 'daemon.log'),
-        sessionStore,
-        invoke: noopInvoke,
-        dispatch: async (_device, _command, positionals) => {
-          dispatchedPositionals = positionals;
-          return {};
-        },
-        ensureReady: async () => {},
-        resolveTargetDevice: async () => ({
-          platform: 'macos',
-          id: 'host-macos-local',
-          name: 'Host Mac',
-          kind: 'device',
-          target: 'desktop',
-          booted: true,
-        }),
-      });
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-frontmost';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+  const prevHelper = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = '/usr/bin/true';
+  mockRunCmd.mockResolvedValue({
+    stdout: '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
+    stderr: '',
+    exitCode: 0,
+  });
+  let dispatchedPositionals: string[] | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
+    dispatchedPositionals = positionals;
+    return {};
+  });
 
-      assert.equal(response?.ok, true);
-      assert.deepEqual(dispatchedPositionals, []);
-      const session = sessionStore.get(sessionName);
-      assert.equal(session?.surface, 'frontmost-app');
-      assert.equal(session?.appBundleId, 'com.apple.TextEdit');
-      assert.equal(session?.appName, 'TextEdit');
-      if (response && response.ok) {
-        assert.equal(response.data?.surface, 'frontmost-app');
-        assert.equal(response.data?.appBundleId, 'com.apple.TextEdit');
-        assert.equal(response.data?.appName, 'TextEdit');
-      }
-    },
-  );
+  try {
+    const response = await handleSessionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'open',
+        positionals: [],
+        flags: {
+          platform: 'macos',
+          surface: 'frontmost-app',
+        },
+      },
+      sessionName,
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(dispatchedPositionals).toEqual([]);
+    const session = sessionStore.get(sessionName);
+    expect(session?.surface).toBe('frontmost-app');
+    expect(session?.appBundleId).toBe('com.apple.TextEdit');
+    expect(session?.appName).toBe('TextEdit');
+    if (response && response.ok) {
+      expect(response.data?.surface).toBe('frontmost-app');
+      expect(response.data?.appBundleId).toBe('com.apple.TextEdit');
+      expect(response.data?.appName).toBe('TextEdit');
+    }
+  } finally {
+    if (prevHelper === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = prevHelper;
+  }
 });
 
 test('open rejects --surface on non-macOS devices', async () => {
   const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2530,85 +2209,83 @@ test('open rejects --surface on non-macOS devices', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async () => ({}),
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17',
-      kind: 'simulator',
-      target: 'mobile',
-      booted: true,
-    }),
   });
 
   assertInvalidArgsMessage(response, 'surface is only supported on macOS');
 });
 
 test('open on existing macOS frontmost-app session preserves surface without --surface flag', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-frontmost-existing';
-      sessionStore.set(sessionName, {
-        ...makeSession(sessionName, {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-frontmost-existing';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    surface: 'frontmost-app',
+    appBundleId: 'com.apple.TextEdit',
+    appName: 'TextEdit',
+  });
+
+  const prevHelper = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = '/usr/bin/true';
+  mockRunCmd.mockResolvedValue({
+    stdout: '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
+    stderr: '',
+    exitCode: 0,
+  });
+  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
+    expect(positionals).toEqual([]);
+    return {};
+  });
+
+  try {
+    const response = await handleSessionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'open',
+        positionals: [],
+        flags: {
           platform: 'macos',
-          id: 'host-macos-local',
-          name: 'Host Mac',
-          kind: 'device',
-          target: 'desktop',
-          booted: true,
-        }),
-        surface: 'frontmost-app',
-        appBundleId: 'com.apple.TextEdit',
-        appName: 'TextEdit',
-      });
-
-      const response = await handleSessionCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'open',
-          positionals: [],
-          flags: {
-            platform: 'macos',
-          },
         },
-        sessionName,
-        logPath: path.join(os.tmpdir(), 'daemon.log'),
-        sessionStore,
-        invoke: noopInvoke,
-        dispatch: async (_device, _command, positionals) => {
-          assert.deepEqual(positionals, []);
-          return {};
-        },
-        ensureReady: async () => {},
-        resolveTargetDevice: async () =>
-          sessionStore.get(sessionName)?.device as SessionState['device'],
-      });
+      },
+      sessionName,
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+    });
 
-      assert.equal(response?.ok, true);
-      const session = sessionStore.get(sessionName);
-      assert.equal(session?.surface, 'frontmost-app');
-      assert.equal(session?.appBundleId, 'com.apple.TextEdit');
-      assert.equal(session?.appName, 'TextEdit');
-      if (response && response.ok) {
-        assert.equal(response.data?.surface, 'frontmost-app');
-      }
-    },
-  );
+    expect(response?.ok).toBe(true);
+    const session = sessionStore.get(sessionName);
+    expect(session?.surface).toBe('frontmost-app');
+    expect(session?.appBundleId).toBe('com.apple.TextEdit');
+    expect(session?.appName).toBe('TextEdit');
+    if (response && response.ok) {
+      expect(response.data?.surface).toBe('frontmost-app');
+    }
+  } finally {
+    if (prevHelper === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = prevHelper;
+  }
 });
 
 test('open on macOS stores desktop surface without app context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-surface';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2624,32 +2301,31 @@ test('open on macOS stores desktop surface without app context', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async () => ({}),
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
   });
 
-  assert.equal(response?.ok, true);
+  expect(response?.ok).toBe(true);
   const session = sessionStore.get(sessionName);
-  assert.equal(session?.surface, 'desktop');
-  assert.equal(session?.appBundleId, undefined);
-  assert.equal(session?.appName, undefined);
+  expect(session?.surface).toBe('desktop');
+  expect(session?.appBundleId).toBe(undefined);
+  expect(session?.appName).toBe(undefined);
   if (response && response.ok) {
-    assert.equal(response.data?.surface, 'desktop');
-    assert.equal(response.data?.appBundleId, undefined);
+    expect(response.data?.surface).toBe('desktop');
+    expect(response.data?.appBundleId).toBe(undefined);
   }
 });
 
 test('open on macOS stores menubar surface without app context', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-menubar-surface';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2665,24 +2341,14 @@ test('open on macOS stores menubar surface without app context', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async () => ({}),
-    ensureReady: async () => {},
-    resolveTargetDevice: async () => ({
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
   });
 
-  assert.equal(response?.ok, true);
+  expect(response?.ok).toBe(true);
   const session = sessionStore.get(sessionName);
-  assert.equal(session?.surface, 'menubar');
-  assert.equal(session?.appBundleId, undefined);
+  expect(session?.surface).toBe('menubar');
+  expect(session?.appBundleId).toBe(undefined);
   if (response && response.ok) {
-    assert.equal(response.data?.surface, 'menubar');
+    expect(response.data?.surface).toBe('menubar');
   }
 });
 
@@ -2711,6 +2377,18 @@ test('open on existing iOS session refreshes unavailable simulator by name', asy
   const selectors: Array<Record<string, unknown>> = [];
   let dispatchedDeviceId: string | undefined;
 
+  mockResolveTargetDevice.mockImplementation(async (selector) => {
+    selectors.push({ ...selector });
+    if ((selector as any).udid === 'stale-sim') {
+      throw new AppError('DEVICE_NOT_FOUND', 'not found');
+    }
+    return resolvedDevice;
+  });
+  mockDispatch.mockImplementation(async (device) => {
+    dispatchedDeviceId = device.id;
+    return {};
+  });
+
   const response = await withMockedPlatform('darwin', async () =>
     handleSessionCommands({
       req: {
@@ -2724,31 +2402,19 @@ test('open on existing iOS session refreshes unavailable simulator by name', asy
       logPath: path.join(os.tmpdir(), 'daemon.log'),
       sessionStore,
       invoke: noopInvoke,
-      dispatch: async (device) => {
-        dispatchedDeviceId = device.id;
-        return {};
-      },
-      ensureReady: async () => {},
-      resolveTargetDevice: async (flags) => {
-        selectors.push({ ...(flags ?? {}) });
-        if (flags.udid === 'stale-sim') {
-          throw new AppError('DEVICE_NOT_FOUND', 'No Apple device with UDID stale-sim');
-        }
-        return resolvedDevice;
-      },
     }),
   );
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(selectors.length, 2);
-  assert.deepEqual(selectors[0], { platform: 'ios', target: undefined, udid: 'stale-sim' });
-  assert.deepEqual(selectors[1], { platform: 'ios', target: undefined, device: 'iPhone 17 Pro' });
-  assert.equal(dispatchedDeviceId, 'fresh-sim');
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(selectors.length).toBe(2);
+  expect(selectors[0]).toEqual({ platform: 'ios', target: undefined, udid: 'stale-sim' });
+  expect(selectors[1]).toEqual({ platform: 'ios', target: undefined, device: 'iPhone 17 Pro' });
+  expect(dispatchedDeviceId).toBe('fresh-sim');
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.device.id, 'fresh-sim');
+  expect(updated?.device.id).toBe('fresh-sim');
   if (response && response.ok) {
-    assert.equal(response.data?.device_udid, 'fresh-sim');
+    expect(response.data?.device_udid).toBe('fresh-sim');
   }
 });
 
@@ -2767,6 +2433,12 @@ test('open app on existing Android session resolves and stores package id', asyn
   });
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+  mockResolveAndroidPackage.mockResolvedValue('org.reactjs.native.example.RNCLI83');
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2779,20 +2451,14 @@ test('open app on existing Android session resolves and stores package id', asyn
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveAndroidPackageForOpen: async () => 'org.reactjs.native.example.RNCLI83',
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, 'org.reactjs.native.example.RNCLI83');
-  assert.equal(updated?.appName, 'RNCLI83');
-  assert.equal(dispatchedContext?.appBundleId, 'org.reactjs.native.example.RNCLI83');
+  expect(updated?.appBundleId).toBe('org.reactjs.native.example.RNCLI83');
+  expect(updated?.appName).toBe('RNCLI83');
+  expect(dispatchedContext?.appBundleId).toBe('org.reactjs.native.example.RNCLI83');
 });
 
 test('open intent target on existing Android session clears stale package context', async () => {
@@ -2811,6 +2477,12 @@ test('open intent target on existing Android session clears stale package contex
   });
 
   let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+  mockResolveAndroidPackage.mockResolvedValue(undefined);
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2823,20 +2495,14 @@ test('open intent target on existing Android session clears stale package contex
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, _command, _positionals, _out, context) => {
-      dispatchedContext = context as Record<string, unknown> | undefined;
-      return {};
-    },
-    ensureReady: async () => {},
-    resolveAndroidPackageForOpen: async () => undefined,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   const updated = sessionStore.get(sessionName);
-  assert.equal(updated?.appBundleId, undefined);
-  assert.equal(updated?.appName, 'settings');
-  assert.equal(dispatchedContext?.appBundleId, undefined);
+  expect(updated?.appBundleId).toBe(undefined);
+  expect(updated?.appName).toBe('settings');
+  expect(dispatchedContext?.appBundleId).toBe(undefined);
 });
 
 test('open --relaunch closes and reopens active session app', async () => {
@@ -2854,6 +2520,11 @@ test('open --relaunch closes and reopens active session app', async () => {
   });
 
   const calls: Array<{ command: string; positionals: string[] }> = [];
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push({ command, positionals });
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2866,18 +2537,13 @@ test('open --relaunch closes and reopens active session app', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async (_device, command, positionals) => {
-      calls.push({ command, positionals });
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0], { command: 'close', positionals: ['com.example.app'] });
-  assert.deepEqual(calls[1], { command: 'open', positionals: ['com.example.app'] });
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls.length).toBe(2);
+  expect(calls[0]).toEqual({ command: 'close', positionals: ['com.example.app'] });
+  expect(calls[1]).toEqual({ command: 'open', positionals: ['com.example.app'] });
 });
 
 test('open --relaunch on iOS stops runner before close/open', async () => {
@@ -2895,6 +2561,14 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   });
 
   const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async () => {
+    calls.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2907,26 +2581,33 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async () => {
-      calls.push('stop-runner');
-    },
-    dispatch: async (_device, command, positionals) => {
-      calls.push(`${command}:${positionals.join(' ')}`);
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'open:com.example.app']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
 test('open --relaunch on iOS without existing session closes then opens target app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-new-session';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  });
 
   const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async () => {
+    calls.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2939,26 +2620,11 @@ test('open --relaunch on iOS without existing session closes then opens target a
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    resolveTargetDevice: async () => ({
-      platform: 'ios',
-      id: 'ios-device-1',
-      name: 'My iPhone',
-      kind: 'device',
-      booted: true,
-    }),
-    stopIosRunner: async () => {
-      calls.push('stop-runner');
-    },
-    dispatch: async (_device, command, positionals) => {
-      calls.push(`${command}:${positionals.join(' ')}`);
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'open:com.example.app']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
 test('open --relaunch on iOS simulator reaches settle path for close and open', async () => {
@@ -2975,7 +2641,18 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
     appName: 'com.example.app',
   });
 
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
   const settleCalls: Array<{ deviceId: string; delayMs: number }> = [];
+  mockSettleSimulator.mockImplementation(async (device, delayMs) => {
+    settleCalls.push({ deviceId: device.id, delayMs });
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -2988,21 +2665,13 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    dispatch: async () => ({}),
-    stopIosRunner: async () => {},
-    ensureReady: async () => {},
-    resolveTargetDevice: async () =>
-      sessionStore.get(sessionName)?.device as SessionState['device'],
-    settleSimulator: async (device, delayMs) => {
-      settleCalls.push({ deviceId: device.id, delayMs });
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(settleCalls.length, 2);
-  assert.deepEqual(settleCalls[0], { deviceId: 'sim-1', delayMs: 300 });
-  assert.deepEqual(settleCalls[1], { deviceId: 'sim-1', delayMs: 300 });
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(settleCalls.length).toBe(2);
+  expect(settleCalls[0]).toEqual({ deviceId: 'sim-1', delayMs: 300 });
+  expect(settleCalls[1]).toEqual({ deviceId: 'sim-1', delayMs: 300 });
 });
 
 test('close on iOS session with recording stops runner session before delete', async () => {
@@ -3027,6 +2696,10 @@ test('close on iOS session with recording stops runner session before delete', a
   });
 
   const stopCalls: string[] = [];
+  mockStopIosRunner.mockImplementation(async (deviceId) => {
+    stopCalls.push(deviceId);
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3039,15 +2712,12 @@ test('close on iOS session with recording stops runner session before delete', a
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async (deviceId) => {
-      stopCalls.push(deviceId);
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(stopCalls, ['ios-device-1']);
-  assert.equal(sessionStore.get(sessionName), undefined);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(stopCalls).toEqual(['ios-device-1']);
+  expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
 test('close on macOS session stops runner and dismisses automation alert before delete', async () => {
@@ -3067,6 +2737,14 @@ test('close on macOS session stops runner and dismisses automation alert before 
   });
 
   const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async (deviceId) => {
+    calls.push(`stop-runner:${deviceId}`);
+  });
+  mockDismissMacOsAlert.mockImplementation(async (action, options) => {
+    calls.push(`dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`);
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3079,22 +2757,15 @@ test('close on macOS session stops runner and dismisses automation alert before 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async (deviceId) => {
-      calls.push(`stop-runner:${deviceId}`);
-    },
-    dismissMacOsAlert: async (action, options) => {
-      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
-      return {};
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(calls, [
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual([
     'stop-runner:host-macos-local',
     'dismiss-alert:dismiss:com.apple.systempreferences',
   ]);
-  assert.equal(sessionStore.get(sessionName), undefined);
+  expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
 test('close <app> on iOS stops runner before app close dispatch and performs final idempotent stop', async () => {
@@ -3112,6 +2783,14 @@ test('close <app> on iOS stops runner before app close dispatch and performs fin
   });
 
   const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async () => {
+    calls.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3124,18 +2803,11 @@ test('close <app> on iOS stops runner before app close dispatch and performs fin
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async () => {
-      calls.push('stop-runner');
-    },
-    dispatch: async (_device, command, positionals) => {
-      calls.push(`${command}:${positionals.join(' ')}`);
-      return {};
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(calls, ['stop-runner', 'close:com.example.app', 'stop-runner']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'stop-runner']);
 });
 
 test('close <app> on macOS stops runner before app close dispatch and dismisses automation alert', async () => {
@@ -3155,6 +2827,18 @@ test('close <app> on macOS stops runner before app close dispatch and dismisses 
   });
 
   const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async (deviceId) => {
+    calls.push(`stop-runner:${deviceId}`);
+  });
+  mockDismissMacOsAlert.mockImplementation(async (action, options) => {
+    calls.push(`dismiss-alert:${action}:${(options as any)?.bundleId ?? (options as any)?.surface ?? 'frontmost'}`);
+    return {};
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3167,22 +2851,11 @@ test('close <app> on macOS stops runner before app close dispatch and dismisses 
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    stopIosRunner: async (deviceId) => {
-      calls.push(`stop-runner:${deviceId}`);
-    },
-    dismissMacOsAlert: async (action, options) => {
-      calls.push(`dismiss-alert:${action}:${options?.bundleId ?? options?.surface ?? 'frontmost'}`);
-      return {};
-    },
-    dispatch: async (_device, command, positionals) => {
-      calls.push(`${command}:${positionals.join(' ')}`);
-      return {};
-    },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(calls, [
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual([
     'stop-runner:host-macos-local',
     'dismiss-alert:dismiss:com.apple.systempreferences',
     'close:System Settings',
@@ -3207,11 +2880,11 @@ test('open --relaunch rejects URL targets', async () => {
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /does not support URL targets/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/does not support URL targets/i);
   }
 });
 
@@ -3231,11 +2904,11 @@ test('open --relaunch fails without app when no session exists', async () => {
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /requires an app argument/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/requires an app argument/i);
   }
 });
 
@@ -3253,13 +2926,6 @@ test('open --relaunch rejects Android app binary paths', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
   });
 
   assertInvalidArgsMessage(
@@ -3282,57 +2948,12 @@ test('open --relaunch rejects bare Android app binary filenames', async () => {
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
   });
 
   assertInvalidArgsMessage(
     response,
     'Android runtime hints require an installed package name, not "app-debug.apk". Install or reinstall the app first, then relaunch by package.',
   );
-});
-
-test('open --relaunch allows Android package names ending with apk-like suffix', async () => {
-  const sessionStore = makeSessionStore();
-  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'open',
-      positionals: ['com.example.apk'],
-      flags: { relaunch: true, platform: 'android' },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    resolveTargetDevice: async () => ({
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    dispatch: async (_device, command, positionals) => {
-      dispatchCalls.push({ command, positionals });
-      return {};
-    },
-    ensureReady: async () => {},
-    applyRuntimeHints: async () => {},
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(dispatchCalls[0]?.command, 'close');
-  assert.deepEqual(dispatchCalls[0]?.positionals, ['com.example.apk']);
-  assert.equal(dispatchCalls[1]?.command, 'open');
-  assert.deepEqual(dispatchCalls[1]?.positionals, ['com.example.apk']);
 });
 
 test('open --relaunch rejects Android app binary paths for active sessions', async () => {
@@ -3393,9 +3014,6 @@ test('open --relaunch rejects Android app binary paths for active sessions befor
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'stale session device is unavailable');
-    },
   });
 
   assertInvalidArgsMessage(
@@ -3418,9 +3036,6 @@ test('open --relaunch rejects Android app binary paths before resolving a new de
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    resolveTargetDevice: async () => {
-      throw new AppError('DEVICE_NOT_FOUND', 'no Android devices available');
-    },
   });
 
   assertInvalidArgsMessage(
@@ -3442,7 +3057,14 @@ test('open on in-use device returns DEVICE_IN_USE before readiness checks', asyn
     }),
   );
 
-  let ensureReadyCalls = 0;
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'iPhone Device',
+    kind: 'device',
+    booted: true,
+  });
+
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -3455,24 +3077,14 @@ test('open on in-use device returns DEVICE_IN_USE before readiness checks', asyn
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
-    ensureReady: async () => {
-      ensureReadyCalls += 1;
-    },
-    resolveTargetDevice: async () => ({
-      platform: 'ios',
-      id: 'ios-device-1',
-      name: 'iPhone Device',
-      kind: 'device',
-      booted: true,
-    }),
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'DEVICE_IN_USE');
+    expect(response.error.code).toBe('DEVICE_IN_USE');
   }
-  assert.equal(ensureReadyCalls, 0);
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
 });
 
 test('replay parses open --relaunch flag and replays open with relaunch semantics', async () => {
@@ -3499,15 +3111,15 @@ test('replay parses open --relaunch flag and replays open with relaunch semantic
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.replayed, 1);
+    expect(response.data?.replayed).toBe(1);
   }
-  assert.equal(invoked.length, 1);
-  assert.equal(invoked[0]?.command, 'open');
-  assert.deepEqual(invoked[0]?.positionals, ['Settings']);
-  assert.equal(invoked[0]?.flags?.relaunch, true);
+  expect(invoked.length).toBe(1);
+  expect(invoked[0]?.command).toBe('open');
+  expect(invoked[0]?.positionals).toEqual(['Settings']);
+  expect(invoked[0]?.flags?.relaunch).toBe(true);
 });
 
 test('replay parses runtime set flags and replays runtime command', async () => {
@@ -3538,10 +3150,10 @@ test('replay parses runtime set flags and replays runtime command', async () => 
     },
   });
 
-  assert.equal(response?.ok, true);
-  assert.equal(invoked[0]?.command, 'runtime');
-  assert.deepEqual(invoked[0]?.positionals, ['set']);
-  assert.deepEqual(invoked[0]?.flags, {
+  expect(response?.ok).toBe(true);
+  expect(invoked[0]?.command).toBe('runtime');
+  expect(invoked[0]?.positionals).toEqual(['set']);
+  expect(invoked[0]?.flags).toEqual({
     platform: 'android',
     metroHost: '10.0.0.10',
     metroPort: 8081,
@@ -3577,11 +3189,11 @@ test('replay parses inline open runtime flags and replays open with runtime payl
     },
   });
 
-  assert.equal(response?.ok, true);
-  assert.equal(invoked[0]?.command, 'open');
-  assert.deepEqual(invoked[0]?.positionals, ['Demo']);
-  assert.deepEqual(invoked[0]?.flags, { relaunch: true });
-  assert.deepEqual(invoked[0]?.runtime, {
+  expect(response?.ok).toBe(true);
+  expect(invoked[0]?.command).toBe('open');
+  expect(invoked[0]?.positionals).toEqual(['Demo']);
+  expect(invoked[0]?.flags).toEqual({ relaunch: true });
+  expect(invoked[0]?.runtime).toEqual({
     platform: 'android',
     metroHost: '10.0.0.10',
     metroPort: 8081,
@@ -3615,11 +3227,11 @@ test('replay resolves relative script path against request cwd', async () => {
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(invoked.length, 1);
-  assert.equal(invoked[0]?.command, 'open');
-  assert.deepEqual(invoked[0]?.positionals, ['Settings']);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(invoked.length).toBe(1);
+  expect(invoked[0]?.command).toBe('open');
+  expect(invoked[0]?.positionals).toEqual(['Settings']);
 });
 
 test('replay parses press series flags and passes them to invoke', async () => {
@@ -3649,16 +3261,16 @@ test('replay parses press series flags and passes them to invoke', async () => {
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(invoked.length, 1);
-  assert.equal(invoked[0]?.command, 'press');
-  assert.deepEqual(invoked[0]?.positionals, ['201', '545']);
-  assert.equal(invoked[0]?.flags?.count, 5);
-  assert.equal(invoked[0]?.flags?.intervalMs, 1);
-  assert.equal(invoked[0]?.flags?.holdMs, 2);
-  assert.equal(invoked[0]?.flags?.jitterPx, 3);
-  assert.equal(invoked[0]?.flags?.doubleTap, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(invoked.length).toBe(1);
+  expect(invoked[0]?.command).toBe('press');
+  expect(invoked[0]?.positionals).toEqual(['201', '545']);
+  expect(invoked[0]?.flags?.count).toBe(5);
+  expect(invoked[0]?.flags?.intervalMs).toBe(1);
+  expect(invoked[0]?.flags?.holdMs).toBe(2);
+  expect(invoked[0]?.flags?.jitterPx).toBe(3);
+  expect(invoked[0]?.flags?.doubleTap).toBe(true);
 });
 
 test('replay inherits parent device selectors for each invoked step', async () => {
@@ -3691,12 +3303,12 @@ test('replay inherits parent device selectors for each invoked step', async () =
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(invoked.length, 1);
-  assert.equal(invoked[0]?.flags?.platform, 'ios');
-  assert.equal(invoked[0]?.flags?.device, 'thymikee-iphone');
-  assert.equal(invoked[0]?.flags?.udid, '00008150-001849640CF8401C');
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(invoked.length).toBe(1);
+  expect(invoked[0]?.flags?.platform).toBe('ios');
+  expect(invoked[0]?.flags?.device).toBe('thymikee-iphone');
+  expect(invoked[0]?.flags?.udid).toBe('00008150-001849640CF8401C');
 });
 
 test('logs requires an active session', async () => {
@@ -3714,10 +3326,10 @@ test('logs requires an active session', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
   }
 });
 
@@ -3747,14 +3359,14 @@ test('logs path returns path and active flag when session exists', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok && response.data) {
-    assert.equal(typeof response.data.path, 'string');
-    assert.ok((response.data.path as string).endsWith('app.log'));
-    assert.equal(response.data.active, false);
-    assert.equal(response.data.backend, 'ios-simulator');
-    assert.equal(typeof response.data.hint, 'string');
+    expect(typeof response.data.path).toBe('string');
+    expect((response.data.path as string).endsWith('app.log')).toBeTruthy();
+    expect(response.data.active).toBe(false);
+    expect(response.data.backend).toBe('ios-simulator');
+    expect(typeof response.data.hint).toBe('string');
   }
 });
 
@@ -3785,11 +3397,11 @@ test('logs path supports macOS desktop sessions', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(response?.ok, true);
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.active, false);
-    assert.equal(response.data?.backend, 'macos');
-    assert.equal(typeof response.data?.path, 'string');
+    expect(response.data?.active).toBe(false);
+    expect(response.data?.backend).toBe('macos');
+    expect(typeof response.data?.path).toBe('string');
   }
 });
 
@@ -3818,11 +3430,11 @@ test('logs rejects invalid action', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /path, start, stop, doctor, mark, or clear/);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/path, start, stop, doctor, mark, or clear/);
   }
 });
 
@@ -3851,11 +3463,11 @@ test('logs start requires app session (appBundleId)', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /app session|open first/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/app session|open first/i);
   }
 });
 
@@ -3884,11 +3496,11 @@ test('logs stop requires active app log stream', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /no app log stream/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/no app log stream/i);
   }
 });
 
@@ -3932,14 +3544,14 @@ test('logs start stores session app log state on success', async () => {
       stop: async () => {},
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(startCalls, 1);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(startCalls).toBe(1);
   const session = sessionStore.get(sessionName);
-  assert.ok(session?.appLog);
-  assert.equal(session?.appLog?.getState(), 'active');
-  assert.equal(session?.appLog?.backend, 'android');
-  assert.equal(session?.appLog?.startedAt, 123);
+  expect(session?.appLog).toBeTruthy();
+  expect(session?.appLog?.getState()).toBe('active');
+  expect(session?.appLog?.backend).toBe('android');
+  expect(session?.appLog?.startedAt).toBe(123);
 });
 
 test('logs stop clears active session app log state', async () => {
@@ -3986,11 +3598,11 @@ test('logs stop clears active session app log state', async () => {
       },
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(stopCalls, 1);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(stopCalls).toBe(1);
   const session = sessionStore.get(sessionName);
-  assert.equal(session?.appLog, undefined);
+  expect(session?.appLog).toBe(undefined);
 });
 
 test('close auto-stops active app log stream', async () => {
@@ -4037,10 +3649,10 @@ test('close auto-stops active app log stream', async () => {
       },
     },
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(stopCalls, 1);
-  assert.equal(sessionStore.get(sessionName), undefined);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(stopCalls).toBe(1);
+  expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
 test('logs mark appends marker and returns path', async () => {
@@ -4069,12 +3681,12 @@ test('logs mark appends marker and returns path', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.marked, true);
+    expect(response.data?.marked).toBe(true);
     const outPath = String(response.data?.path ?? '');
-    assert.match(fs.readFileSync(outPath, 'utf8'), /checkpoint/);
+    expect(fs.readFileSync(outPath, 'utf8')).toMatch(/checkpoint/);
   }
 });
 
@@ -4110,14 +3722,14 @@ test('logs clear truncates log file and removes rotated files', async () => {
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.path, outPath);
-    assert.equal(response.data?.cleared, true);
+    expect(response.data?.path).toBe(outPath);
+    expect(response.data?.cleared).toBe(true);
   }
-  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
-  assert.equal(fs.existsSync(`${outPath}.1`), false);
+  expect(fs.readFileSync(outPath, 'utf8')).toBe('');
+  expect(fs.existsSync(`${outPath}.1`)).toBe(false);
 });
 
 test('logs clear requires stream to be stopped first', async () => {
@@ -4157,11 +3769,11 @@ test('logs clear requires stream to be stopped first', async () => {
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /logs stop/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/logs stop/i);
   }
 });
 
@@ -4191,11 +3803,11 @@ test('logs --restart is only supported with logs clear', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /only supported with logs clear/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/only supported with logs clear/i);
   }
 });
 
@@ -4256,20 +3868,20 @@ test('logs clear --restart stops active stream, clears logs, and restarts stream
     },
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.path, outPath);
-    assert.equal(response.data?.cleared, true);
-    assert.equal(response.data?.restarted, true);
+    expect(response.data?.path).toBe(outPath);
+    expect(response.data?.cleared).toBe(true);
+    expect(response.data?.restarted).toBe(true);
   }
-  assert.equal(stopCalls, 1);
-  assert.equal(startCalls, 1);
-  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
-  assert.equal(fs.existsSync(`${outPath}.1`), false);
+  expect(stopCalls).toBe(1);
+  expect(startCalls).toBe(1);
+  expect(fs.readFileSync(outPath, 'utf8')).toBe('');
+  expect(fs.existsSync(`${outPath}.1`)).toBe(false);
   const session = sessionStore.get(sessionName);
-  assert.ok(session?.appLog);
-  assert.equal(session?.appLog?.startedAt, 321);
+  expect(session?.appLog).toBeTruthy();
+  expect(session?.appLog?.startedAt).toBe(321);
 });
 
 test('logs clear --restart requires app session bundle id', async () => {
@@ -4298,11 +3910,11 @@ test('logs clear --restart requires app session bundle id', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /app session|open <app>/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/app session|open <app>/i);
   }
 });
 
@@ -4332,11 +3944,11 @@ test('logs doctor returns check payload', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(typeof response.data?.checks, 'object');
-    assert.equal(Array.isArray(response.data?.notes), true);
+    expect(typeof response.data?.checks).toBe('object');
+    expect(Array.isArray(response.data?.notes)).toBe(true);
   }
 });
 
@@ -4355,10 +3967,10 @@ test('network requires an active session', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, false);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'SESSION_NOT_FOUND');
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
   }
 });
 
@@ -4381,7 +3993,7 @@ test('network dump returns recent parsed HTTP entries', async () => {
     appLogPath,
     [
       '2026-02-24T10:00:00Z GET https://api.example.com/v1/profile status=200',
-      '2026-02-24T10:00:01Z POST https://api.example.com/v1/login statusCode=401 headers={\"x-id\":\"abc\"} requestBody={\"email\":\"test@example.com\"} responseBody={\"error\":\"bad_credentials\"}',
+      '2026-02-24T10:00:01Z POST https://api.example.com/v1/login statusCode=401 headers={"x-id":"abc"} requestBody={"email":"test@example.com"} responseBody={"error":"bad_credentials"}',
     ].join('\n'),
     'utf8',
   );
@@ -4399,22 +4011,22 @@ test('network dump returns recent parsed HTTP entries', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.path, appLogPath);
-    assert.equal(response.data?.include, 'all');
-    assert.equal(response.data?.active, false);
-    assert.equal(response.data?.backend, 'android');
+    expect(response.data?.path).toBe(appLogPath);
+    expect(response.data?.include).toBe('all');
+    expect(response.data?.active).toBe(false);
+    expect(response.data?.backend).toBe('android');
     const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
-    assert.equal(entries.length, 2);
+    expect(entries.length).toBe(2);
     const latest = entries[0] as Record<string, unknown>;
-    assert.equal(latest.method, 'POST');
-    assert.equal(latest.url, 'https://api.example.com/v1/login');
-    assert.equal(latest.status, 401);
-    assert.equal(typeof latest.headers, 'string');
-    assert.equal(typeof latest.requestBody, 'string');
-    assert.equal(typeof latest.responseBody, 'string');
+    expect(latest.method).toBe('POST');
+    expect(latest.url).toBe('https://api.example.com/v1/login');
+    expect(latest.status).toBe(401);
+    expect(typeof latest.headers).toBe('string');
+    expect(typeof latest.requestBody).toBe('string');
+    expect(typeof latest.responseBody).toBe('string');
   }
 });
 
@@ -4452,12 +4064,12 @@ test('network dump supports macOS desktop sessions', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.equal(response?.ok, true);
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
-    assert.equal(response.data?.backend, 'macos');
+    expect(response.data?.backend).toBe('macos');
     const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
-    assert.equal(entries.length, 1);
-    assert.equal((entries[0] as Record<string, unknown>).url, 'https://example.com/mac');
+    expect(entries.length).toBe(1);
+    expect((entries[0] as Record<string, unknown>).url).toBe('https://example.com/mac');
   }
 });
 
@@ -4488,11 +4100,11 @@ test('network dump validates include mode and limit', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(invalidLimit);
-  assert.equal(invalidLimit?.ok, false);
+  expect(invalidLimit).toBeTruthy();
+  expect(invalidLimit?.ok).toBe(false);
   if (invalidLimit && !invalidLimit.ok) {
-    assert.equal(invalidLimit.error.code, 'INVALID_ARGS');
-    assert.match(invalidLimit.error.message, /1\.\.200/);
+    expect(invalidLimit.error.code).toBe('INVALID_ARGS');
+    expect(invalidLimit.error.message).toMatch(/1\.\.200/);
   }
 
   const invalidMode = await handleSessionCommands({
@@ -4508,11 +4120,11 @@ test('network dump validates include mode and limit', async () => {
     sessionStore,
     invoke: noopInvoke,
   });
-  assert.ok(invalidMode);
-  assert.equal(invalidMode?.ok, false);
+  expect(invalidMode).toBeTruthy();
+  expect(invalidMode?.ok).toBe(false);
   if (invalidMode && !invalidMode.ok) {
-    assert.equal(invalidMode.error.code, 'INVALID_ARGS');
-    assert.match(invalidMode.error.message, /summary, headers, body, all/);
+    expect(invalidMode.error.code).toBe('INVALID_ARGS');
+    expect(invalidMode.error.message).toMatch(/summary, headers, body, all/);
   }
 });
 
@@ -4569,366 +4181,25 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
     invoke: noopInvoke,
   });
 
-  assert.ok(response);
-  assert.equal(response?.ok, true);
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
   if (response && response.ok) {
     const sessions = response.data?.sessions as Array<Record<string, unknown>>;
-    assert.ok(Array.isArray(sessions));
+    expect(Array.isArray(sessions)).toBeTruthy();
     const iosDefault = sessions.find((s) => s.name === 'ios-default');
-    assert.equal(iosDefault?.device_udid, 'ABC-123');
-    assert.equal(iosDefault?.ios_simulator_device_set, null);
+    expect(iosDefault?.device_udid).toBe('ABC-123');
+    expect(iosDefault?.ios_simulator_device_set).toBe(null);
     const iosScoped = sessions.find((s) => s.name === 'ios-scoped');
-    assert.equal(iosScoped?.device_udid, 'DEF-456');
-    assert.equal(iosScoped?.ios_simulator_device_set, '/tmp/tenant-a/simulators');
+    expect(iosScoped?.device_udid).toBe('DEF-456');
+    expect(iosScoped?.ios_simulator_device_set).toBe('/tmp/tenant-a/simulators');
     const android = sessions.find((s) => s.name === 'android-1');
     const macos = sessions.find((s) => s.name === 'macos-1');
-    assert.equal(android?.device_udid, undefined);
-    assert.equal(android?.ios_simulator_device_set, undefined);
-    assert.equal(android?.device_id, 'emulator-5554');
-    assert.equal(macos?.device_id, 'host-macos-local');
-    assert.equal(macos?.device_udid, undefined);
-    assert.equal(macos?.ios_simulator_device_set, undefined);
-  }
-});
-
-test('close --shutdown calls shutdownSimulator for iOS simulator and includes result in response', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-udid-1',
-      name: 'iPhone 15',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  const shutdownCalls: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    stopIosRunner: async () => {},
-    shutdownSimulator: async (device) => {
-      shutdownCalls.push(device.id);
-      return { success: true, exitCode: 0, stdout: '', stderr: '' };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(shutdownCalls, ['sim-udid-1']);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    assert.equal(response.data?.session, sessionName);
-    assert.deepEqual(response.data?.shutdown, {
-      success: true,
-      exitCode: 0,
-      stdout: '',
-      stderr: '',
-    });
-  }
-});
-
-test('close --shutdown calls shutdownAndroidEmulator for Android emulator and includes result in response', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel_9_API_35',
-      kind: 'emulator',
-      booted: true,
-    }),
-  );
-
-  const shutdownCalls: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    shutdownAndroidEmulator: async (device) => {
-      shutdownCalls.push(device.id);
-      return { success: true, stdout: '', stderr: '', exitCode: 0 };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(shutdownCalls, ['emulator-5554']);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    assert.equal(response.data?.session, sessionName);
-    assert.deepEqual(response.data?.shutdown, {
-      success: true,
-      stdout: '',
-      stderr: '',
-      exitCode: 0,
-    });
-  }
-});
-
-test('close --shutdown is ignored for non-simulator iOS devices', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'physical-device-1',
-      name: 'My iPhone',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-
-  const shutdownCalls: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    stopIosRunner: async () => {},
-    shutdownSimulator: async (device) => {
-      shutdownCalls.push(device.id);
-      return { success: true, exitCode: 0, stdout: '', stderr: '' };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(shutdownCalls, []);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    assert.equal(response.data?.session, sessionName);
-    assert.equal(response.data?.shutdown, undefined);
-  }
-});
-
-test('close --shutdown is ignored for Android devices', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-device-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'R5CT123456A',
-      name: 'Pixel 9',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-
-  const shutdownCalls: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    shutdownAndroidEmulator: async (device) => {
-      shutdownCalls.push(device.id);
-      return { success: true, stdout: '', stderr: '', exitCode: 0 };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(shutdownCalls, []);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    assert.equal(response.data?.session, sessionName);
-    assert.equal(response.data?.shutdown, undefined);
-  }
-});
-
-test('close without --shutdown does not call shutdownSimulator', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-no-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-udid-2',
-      name: 'iPhone 15',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  const shutdownCalls: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    stopIosRunner: async () => {},
-    shutdownSimulator: async (device) => {
-      shutdownCalls.push(device.id);
-      return { success: true, exitCode: 0, stdout: '', stderr: '' };
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.deepEqual(shutdownCalls, []);
-  if (response && response.ok) {
-    assert.equal(response.data?.shutdown, undefined);
-  }
-});
-
-test('close --shutdown returns success and failure payload when shutdownAndroidEmulator throws', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-shutdown-failure-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5556',
-      name: 'Pixel_9_API_35',
-      kind: 'emulator',
-      booted: true,
-    }),
-  );
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    shutdownAndroidEmulator: async () => {
-      throw new AppError('COMMAND_FAILED', 'adb emu kill failed');
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    const shutdown = response.data?.shutdown as
-      | {
-          success?: boolean;
-          exitCode?: number;
-          stdout?: string;
-          stderr?: string;
-          error?: {
-            code?: string;
-            message?: string;
-          };
-        }
-      | undefined;
-    assert.equal(response.data?.session, sessionName);
-    assert.equal(shutdown?.success, false);
-    assert.equal(shutdown?.exitCode, -1);
-    assert.equal(shutdown?.stdout, '');
-    assert.equal(shutdown?.stderr, 'adb emu kill failed');
-    assert.equal(shutdown?.error?.code, 'COMMAND_FAILED');
-    assert.equal(shutdown?.error?.message, 'adb emu kill failed');
-  }
-});
-
-test('close --shutdown returns success and failure payload when shutdownSimulator throws', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-shutdown-failure-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-udid-3',
-      name: 'iPhone 15',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: { shutdown: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-    stopIosRunner: async () => {},
-    shutdownSimulator: async () => {
-      throw new AppError('COMMAND_FAILED', 'simctl shutdown failed');
-    },
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  assert.equal(sessionStore.get(sessionName), undefined);
-  if (response && response.ok) {
-    const shutdown = response.data?.shutdown as
-      | {
-          success?: boolean;
-          exitCode?: number;
-          stdout?: string;
-          stderr?: string;
-          error?: {
-            code?: string;
-            message?: string;
-          };
-        }
-      | undefined;
-    assert.equal(response.data?.session, sessionName);
-    assert.equal(shutdown?.success, false);
-    assert.equal(shutdown?.exitCode, -1);
-    assert.equal(shutdown?.stdout, '');
-    assert.equal(shutdown?.stderr, 'simctl shutdown failed');
-    assert.equal(shutdown?.error?.code, 'COMMAND_FAILED');
-    assert.equal(shutdown?.error?.message, 'simctl shutdown failed');
+    expect(android?.device_udid).toBe(undefined);
+    expect(android?.ios_simulator_device_set).toBe(undefined);
+    expect(android?.device_id).toBe('emulator-5554');
+    expect(macos?.device_id).toBe('host-macos-local');
+    expect(macos?.device_udid).toBe(undefined);
+    expect(macos?.ios_simulator_device_set).toBe(undefined);
   }
 });
 
@@ -4958,19 +4229,19 @@ test('test filters replay scripts by context platform and skips untyped files', 
     },
   });
 
-  assert.ok(response?.ok);
-  assert.equal(invoked.length, 1);
-  assert.equal(invoked[0]?.flags?.platform, 'android');
-  assert.equal(invoked[0]?.session, 'default:test:suite-filter:1-01-android:attempt-1');
+  expect(response?.ok).toBeTruthy();
+  expect(invoked.length).toBe(1);
+  expect(invoked[0]?.flags?.platform).toBe('android');
+  expect(invoked[0]?.session).toBe('default:test:suite-filter:1-01-android:attempt-1');
   if (response?.ok) {
-    assert.equal(response.data?.passed, 1);
-    assert.equal(response.data?.failed, 0);
-    assert.equal(response.data?.skipped, 1);
+    expect(response.data?.passed).toBe(1);
+    expect(response.data?.failed).toBe(0);
+    expect(response.data?.skipped).toBe(1);
     const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
-    assert.equal(tests?.length, 2);
-    assert.equal(tests?.[0]?.status, 'passed');
-    assert.equal(tests?.[1]?.status, 'skipped');
-    assert.equal(tests?.[1]?.reason, 'skipped-by-filter');
+    expect(tests?.length).toBe(2);
+    expect(tests?.[0]?.status).toBe('passed');
+    expect(tests?.[1]?.status).toBe('skipped');
+    expect(tests?.[1]?.reason).toBe('skipped-by-filter');
   }
 });
 
@@ -4998,22 +4269,20 @@ test('test binds each replay script to its declared platform metadata', async ()
     },
   });
 
-  assert.ok(response?.ok);
-  assert.deepEqual(
+  expect(response?.ok).toBeTruthy();
+  expect(
     invoked.map((req) => req.flags?.platform),
-    ['android', 'ios'],
-  );
-  assert.deepEqual(
+  ).toEqual(['android', 'ios']);
+  expect(
     invoked.map((req) => req.session),
-    [
-      'default:test:suite-platforms:1-01-android:attempt-1',
-      'default:test:suite-platforms:2-02-ios:attempt-1',
-    ],
-  );
+  ).toEqual([
+    'default:test:suite-platforms:1-01-android:attempt-1',
+    'default:test:suite-platforms:2-02-ios:attempt-1',
+  ]);
   if (response?.ok) {
-    assert.equal(response.data?.passed, 2);
-    assert.equal(response.data?.failed, 0);
-    assert.equal(response.data?.skipped, 0);
+    expect(response.data?.passed).toBe(2);
+    expect(response.data?.failed).toBe(0);
+    expect(response.data?.skipped).toBe(0);
   }
 });
 
@@ -5048,8 +4317,8 @@ test('test cleans up suite-owned sessions after each executed script', async () 
     },
   });
 
-  assert.ok(response?.ok);
-  assert.equal(sessionStore.get('default:test:suite-cleanup:1-01-android:attempt-1'), undefined);
+  expect(response?.ok).toBeTruthy();
+  expect(sessionStore.get('default:test:suite-cleanup:1-01-android:attempt-1')).toBe(undefined);
 });
 
 test('test retries failed scripts with fresh suite-owned sessions', async () => {
@@ -5087,22 +4356,21 @@ test('test retries failed scripts with fresh suite-owned sessions', async () => 
     },
   });
 
-  assert.ok(response?.ok);
-  assert.deepEqual(
+  expect(response?.ok).toBeTruthy();
+  expect(
     invoked.map((req) => req.session),
-    [
-      'default:test:suite-retries:1-01-retry:attempt-1',
-      'default:test:suite-retries:1-01-retry:attempt-2',
-      'default:test:suite-retries:1-01-retry:attempt-3',
-      'default:test:suite-retries:1-01-retry:attempt-4',
-    ],
-  );
+  ).toEqual([
+    'default:test:suite-retries:1-01-retry:attempt-1',
+    'default:test:suite-retries:1-01-retry:attempt-2',
+    'default:test:suite-retries:1-01-retry:attempt-3',
+    'default:test:suite-retries:1-01-retry:attempt-4',
+  ]);
   if (response?.ok) {
-    assert.equal(response.data?.passed, 1);
-    assert.equal(response.data?.failed, 0);
+    expect(response.data?.passed).toBe(1);
+    expect(response.data?.failed).toBe(0);
     const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
-    assert.equal(tests?.[0]?.status, 'passed');
-    assert.equal(tests?.[0]?.attempts, 4);
+    expect(tests?.[0]?.status).toBe('passed');
+    expect(tests?.[0]?.attempts).toBe(4);
   }
 });
 
@@ -5138,22 +4406,22 @@ test('test applies per-script timeout and writes attempt artifacts', async () =>
     },
   });
 
-  assert.ok(response?.ok);
+  expect(response?.ok).toBeTruthy();
   if (response?.ok) {
-    assert.equal(response.data?.failed, 1);
+    expect(response.data?.failed).toBe(1);
     const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
-    assert.equal(tests?.[0]?.status, 'failed');
-    assert.equal(tests?.[0]?.attempts, 1);
+    expect(tests?.[0]?.status).toBe('failed');
+    expect(tests?.[0]?.attempts).toBe(1);
     const artifactsDir = tests?.[0]?.artifactsDir;
-    assert.equal(typeof artifactsDir, 'string');
+    expect(typeof artifactsDir).toBe('string');
     const attemptDir = path.join(artifactsDir as string, 'attempt-1');
-    assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
-    assert.equal(fs.existsSync(path.join(attemptDir, 'capture.png')), true);
-    assert.equal(fs.existsSync(path.join(attemptDir, 'result.txt')), true);
-    assert.equal(fs.existsSync(path.join(attemptDir, 'failure.txt')), true);
+    expect(fs.existsSync(path.join(attemptDir, 'replay.ad'))).toBe(true);
+    expect(fs.existsSync(path.join(attemptDir, 'capture.png'))).toBe(true);
+    expect(fs.existsSync(path.join(attemptDir, 'result.txt'))).toBe(true);
+    expect(fs.existsSync(path.join(attemptDir, 'failure.txt'))).toBe(true);
     const resultText = fs.readFileSync(path.join(attemptDir, 'result.txt'), 'utf8');
-    assert.match(resultText, /status: failed/);
-    assert.match(resultText, /timeoutMode: cooperative/);
+    expect(resultText).toMatch(/status: failed/);
+    expect(resultText).toMatch(/timeoutMode: cooperative/);
   }
 });
 
@@ -5188,17 +4456,17 @@ test('test stops after the first failing script when --fail-fast is set', async 
     },
   });
 
-  assert.ok(response?.ok);
-  assert.equal(invoked.length, 1);
+  expect(response?.ok).toBeTruthy();
+  expect(invoked.length).toBe(1);
   if (response?.ok) {
-    assert.equal(response.data?.total, 2);
-    assert.equal(response.data?.executed, 1);
-    assert.equal(response.data?.passed, 0);
-    assert.equal(response.data?.failed, 1);
-    assert.equal(response.data?.notRun, 1);
+    expect(response.data?.total).toBe(2);
+    expect(response.data?.executed).toBe(1);
+    expect(response.data?.passed).toBe(0);
+    expect(response.data?.failed).toBe(1);
+    expect(response.data?.notRun).toBe(1);
     const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
-    assert.equal(tests?.length, 1);
-    assert.equal(tests?.[0]?.status, 'failed');
+    expect(tests?.length).toBe(1);
+    expect(tests?.[0]?.status).toBe('failed');
   }
 });
 

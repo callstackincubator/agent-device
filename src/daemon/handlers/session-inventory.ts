@@ -1,4 +1,3 @@
-import { resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
@@ -28,8 +27,6 @@ export async function handleSessionInventoryCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
   listAndroidDevices?: ListAndroidDevices;
   listAppleDevices?: ListAppleDevices;
   listAppleApps?: ListAppleApps;
@@ -38,8 +35,6 @@ export async function handleSessionInventoryCommands(params: {
     req,
     sessionName,
     sessionStore,
-    ensureReady,
-    resolveDevice,
     listAndroidDevices: listAndroidDevicesOverride,
     listAppleDevices: listAppleDevicesOverride,
     listAppleApps: listAppleAppsOverride,
@@ -86,7 +81,7 @@ export async function handleSessionInventoryCommands(params: {
         simulatorSetPath: iosSimulatorSetPath,
         reuseExisting: flags.reuseExisting !== false,
         boot: flags.boot === true,
-        ensureReady,
+        ensureReady: ensureDeviceReady,
       });
       return {
         ok: true,
@@ -184,8 +179,6 @@ export async function handleSessionInventoryCommands(params: {
     const device = await resolveCommandDevice({
       session,
       flags,
-      ensureReadyFn: ensureReady,
-      resolveTargetDeviceFn: resolveDevice,
       ensureReady: true,
     });
     if (!isCommandSupportedOnDevice('apps', device)) {
