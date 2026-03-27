@@ -329,9 +329,9 @@ function invertScrollDirection(direction: ScrollDirection): ScrollDirection {
       return 'right';
     case 'right':
       return 'left';
-    default:
-      throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
   }
+  const _exhaustive: never = direction;
+  return _exhaustive;
 }
 
 function readFiniteNumber(value: unknown): number | undefined {
