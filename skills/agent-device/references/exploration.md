@@ -37,6 +37,7 @@ Open this file when the app or screen is already running and you need to discove
 - `press`
 - `fill`
 - `type`
+- `scrollintoview`
 - `wait`
 - `keyboard dismiss` when the keyboard obscures the next target
 
@@ -96,6 +97,8 @@ App: com.apple.Preferences
 ## Refs vs selectors
 
 - Use refs for discovery, debugging, and short local loops.
+- Use `scrollintoview @ref` when the target is already known from the current snapshot and you want the command to re-snapshot after each swipe until the element reaches the viewport safe band.
+- Cap long searches with `--max-scrolls <n>` when the list may be unbounded or the target may not exist.
 - Use selectors for deterministic scripts, assertions, and replay-friendly actions.
 - Prefer selector or `@ref` targeting over raw coordinates.
 - For tap interactions, `press` is canonical and `click` is an equivalent alias.

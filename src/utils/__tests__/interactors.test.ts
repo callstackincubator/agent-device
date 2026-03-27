@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type { RunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../device.ts';
-import { getInteractor, resolveAppleBackRunnerCommand } from '../interactors.ts';
+import { AppError } from '../errors.ts';
+import {
+  getInteractor,
+  resolveAppleBackRunnerCommand,
+  scrollIntoViewIosRunnerText,
+} from '../interactors.ts';
 
 const iosSimulator: DeviceInfo = {
   platform: 'ios',
@@ -20,9 +26,15 @@ test('resolveAppleBackRunnerCommand maps explicit back modes to runner commands'
   assert.equal(resolveAppleBackRunnerCommand('system'), 'backSystem');
 });
 
-test('ios scrollIntoView reuses a single interactionFrame across a burst', async () => {
+test('ios scrollIntoView uses snapshot progress checks between swipes', async (t) => {
+  t.mock.method(globalThis, 'setTimeout', (cb: () => void, _ms: number) => {
+    cb();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  });
+
   const commands: string[] = [];
   let findTextCalls = 0;
+  let snapshotCalls = 0;
   const interactor = getInteractor(
     iosSimulator,
     { appBundleId: 'com.example.app' },
@@ -31,26 +43,15 @@ test('ios scrollIntoView reuses a single interactionFrame across a burst', async
         commands.push(command.command);
         if (command.command === 'findText') {
           findTextCalls += 1;
-          return { found: findTextCalls > 1 };
+          return { found: findTextCalls > 2 };
         }
-        if (command.command === 'interactionFrame') {
+        if (command.command === 'snapshot') {
+          snapshotCalls += 1;
           return {
-            x: 10,
-            y: 20,
-            referenceWidth: 200,
-            referenceHeight: 400,
+            nodes: [{ type: 'XCUIElementTypeStaticText', label: `frame-${snapshotCalls}` }],
           };
         }
-        if (command.command === 'drag') {
-          return {
-            x: 110,
-            y: 300,
-            x2: 110,
-            y2: 100,
-            referenceWidth: 200,
-            referenceHeight: 400,
-          };
-        }
+        if (command.command === 'swipe') return {};
         throw new Error(`Unexpected runner command: ${command.command}`);
       },
       sleepMs: async () => {},
@@ -59,8 +60,16 @@ test('ios scrollIntoView reuses a single interactionFrame across a burst', async
   const result = await interactor.scrollIntoView('Target');
 
   assert.deepEqual(result, { attempts: 2 });
-  assert.equal(commands.filter((command) => command === 'interactionFrame').length, 1);
-  assert.equal(commands.filter((command) => command === 'drag').length, 4);
+  assert.deepEqual(commands, [
+    'findText',
+    'snapshot',
+    'swipe',
+    'findText',
+    'snapshot',
+    'swipe',
+    'findText',
+  ]);
+  assert.equal(snapshotCalls, 2);
 });
 
 test('ios scroll reports planned pixels without recomputing from runner coordinates', async () => {
@@ -96,4 +105,42 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
   const pixels =
     result && typeof result === 'object' && 'pixels' in result ? result.pixels : undefined;
   assert.equal(pixels, 120);
+});
+
+test('scrollIntoViewIosRunnerText stops when post-swipe snapshots stall', async (t) => {
+  t.mock.method(globalThis, 'setTimeout', (cb: () => void, _ms: number) => {
+    cb();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  });
+
+  let snapshotCalls = 0;
+  const runCommand = async (command: RunnerCommand): Promise<Record<string, unknown>> => {
+    switch (command.command) {
+      case 'findText':
+        return { found: false };
+      case 'snapshot':
+        snapshotCalls += 1;
+        return {
+          nodes: [{ type: 'XCUIElementTypeStaticText', label: 'Still here' }],
+        };
+      case 'swipe':
+        return {};
+      default:
+        throw new Error(`Unexpected command: ${command.command}`);
+    }
+  };
+
+  await assert.rejects(
+    () => scrollIntoViewIosRunnerText(runCommand, () => {}, 'Missing item', { maxScrolls: 4 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.equal(error.details?.reason, 'not_found');
+      assert.equal(error.details?.attempts, 1);
+      assert.equal(error.details?.stalled, true);
+      return true;
+    },
+  );
+
+  assert.equal(snapshotCalls, 2);
 });

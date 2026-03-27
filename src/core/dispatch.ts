@@ -74,6 +74,7 @@ export async function dispatchCommand(
     backMode?: 'in-app' | 'system';
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
+    maxScrolls?: number;
     surface?: SessionSurface;
   },
 ): Promise<Record<string, unknown> | void> {
@@ -415,8 +416,10 @@ export async function dispatchCommand(
         case 'scrollintoview': {
           const text = positionals.join(' ').trim();
           if (!text) throw new AppError('INVALID_ARGS', 'scrollintoview requires text');
-          const result = await interactor.scrollIntoView(text);
-          if (result?.attempts) {
+          const result = await interactor.scrollIntoView(text, {
+            maxScrolls: context?.maxScrolls,
+          });
+          if (typeof result?.attempts === 'number') {
             return {
               text,
               attempts: result.attempts,

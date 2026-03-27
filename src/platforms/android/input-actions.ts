@@ -2,6 +2,7 @@ import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
+import { DEFAULT_ANDROID_SCROLL_INTO_VIEW_MAX_SCROLLS } from '../../utils/scroll-into-view.ts';
 import { findBounds, parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
@@ -184,9 +185,25 @@ export async function scrollAndroid(
   return plan;
 }
 
-export async function scrollIntoViewAndroid(device: DeviceInfo, text: string): Promise<void> {
-  const maxAttempts = 8;
-  for (let i = 0; i < maxAttempts; i += 1) {
+export async function scrollIntoViewAndroid(
+  device: DeviceInfo,
+  text: string,
+  options?: { maxScrolls?: number },
+): Promise<{ attempts: number }> {
+  const maxScrolls = options?.maxScrolls ?? DEFAULT_ANDROID_SCROLL_INTO_VIEW_MAX_SCROLLS;
+  let previousXml = '';
+
+  try {
+    previousXml = await dumpUiHierarchy(device);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new AppError('UNSUPPORTED_OPERATION', `uiautomator dump failed: ${message}`);
+  }
+  if (findBounds(previousXml, text)) return { attempts: 0 };
+
+  for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
+    await scrollAndroid(device, 'down', { amount: 0.5 });
+
     let xml = '';
     try {
       xml = await dumpUiHierarchy(device);
@@ -194,13 +211,21 @@ export async function scrollIntoViewAndroid(device: DeviceInfo, text: string): P
       const message = err instanceof Error ? err.message : String(err);
       throw new AppError('UNSUPPORTED_OPERATION', `uiautomator dump failed: ${message}`);
     }
-    if (findBounds(xml, text)) return;
-    await scrollAndroid(device, 'down', { amount: 0.5 });
+    if (findBounds(xml, text)) return { attempts };
+    if (xml === previousXml) {
+      throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+        reason: 'not_found',
+        attempts,
+        stalled: true,
+      });
+    }
+    previousXml = xml;
   }
-  throw new AppError(
-    'COMMAND_FAILED',
-    `Could not find element containing "${text}" after scrolling`,
-  );
+
+  throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
+    reason: 'not_found',
+    attempts: maxScrolls,
+  });
 }
 
 export async function getAndroidScreenSize(
