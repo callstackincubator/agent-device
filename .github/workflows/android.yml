@@ -43,7 +43,7 @@ jobs:
           arch: x86_64
           profile: pixel_7
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: node --test test/integration/android.test.ts
+          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android
 
       - name: Upload Android artifacts
         if: always()

@@ -101,7 +101,7 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
 
       - name: Run iOS integration test
-        run: node --test test/integration/ios.test.ts
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator
 
       - name: Upload iOS artifacts
         if: always()
