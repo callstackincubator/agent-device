@@ -422,7 +422,7 @@ extension RunnerTests {
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
-      let delaySeconds = max(command.delayMs ?? 0, 0) / 1000.0
+      let delaySeconds = Double(max(command.delayMs ?? 0, 0)) / 1000.0
       let target = focusedTextInput(app: activeApp)
       func typeIntoTarget(_ value: String) {
         if let focused = target {

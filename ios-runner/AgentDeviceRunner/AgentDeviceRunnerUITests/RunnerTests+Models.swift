@@ -37,7 +37,7 @@ struct Command: Codable {
   let command: CommandType
   let appBundleId: String?
   let text: String?
-  let delayMs: Double?
+  let delayMs: Int?
   let clearFirst: Bool?
   let action: String?
   let x: Double?

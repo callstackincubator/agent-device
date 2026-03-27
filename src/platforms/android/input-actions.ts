@@ -118,6 +118,7 @@ export async function fillAndroid(
     attempts.push({ strategy: 'clipboard_paste', clearPadding: 12, minClear: 8, maxClear: 48 });
   }
   if (!requiresClipboardInjection || delayMs > 0) {
+    // Delayed typing must keep chunked input available, even for text that otherwise requires clipboard injection.
     attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
   }
 
