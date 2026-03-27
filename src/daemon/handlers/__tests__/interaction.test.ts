@@ -73,6 +73,7 @@ function makeMacOsMenubarSession(name: string): SessionState {
 const contextFromFlags = (flags: CommandFlags | undefined) => ({
   count: flags?.count,
   intervalMs: flags?.intervalMs,
+  delayMs: flags?.delayMs,
   holdMs: flags?.holdMs,
   jitterPx: flags?.jitterPx,
   doubleTap: flags?.doubleTap,
@@ -741,18 +742,30 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
   };
   sessionStore.set(sessionName, session);
 
+  const dispatchCalls: Array<{
+    command: string;
+    positionals: string[];
+    context: Record<string, unknown> | undefined;
+  }> = [];
   const response = await handleInteractionCommands({
     req: {
       token: 't',
       session: sessionName,
       command: 'fill',
       positionals: ['@e1', 'hello@example.com'],
-      flags: {},
+      flags: { delayMs: 55 },
     },
     sessionName,
     sessionStore,
     contextFromFlags,
-    dispatch: async () => ({ filled: true }),
+    dispatch: async (_device, command, positionals, _out, context) => {
+      dispatchCalls.push({
+        command,
+        positionals,
+        context: context as Record<string, unknown> | undefined,
+      });
+      return { filled: true };
+    },
   });
 
   assert.ok(response);
@@ -764,6 +777,9 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
 
   const stored = sessionStore.get(sessionName);
   assert.ok(stored);
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'fill');
+  assert.equal(dispatchCalls[0]?.context?.delayMs, 55);
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   assert.equal(result.ref, 'e1');
   assert.equal(result.x, 60);
@@ -1124,7 +1140,11 @@ test('fill @ref refreshes snapshot when stored ref bounds are invalid', async ()
   };
   sessionStore.set(sessionName, session);
 
-  const fillCalls: Array<{ command: string; positionals: string[] }> = [];
+  const fillCalls: Array<{
+    command: string;
+    positionals: string[];
+    context: Record<string, unknown> | undefined;
+  }> = [];
   let snapshotCalls = 0;
   const response = await handleInteractionCommands({
     req: {
@@ -1132,12 +1152,12 @@ test('fill @ref refreshes snapshot when stored ref bounds are invalid', async ()
       session: sessionName,
       command: 'fill',
       positionals: ['@e1', 'hello@example.com'],
-      flags: {},
+      flags: { delayMs: 25 },
     },
     sessionName,
     sessionStore,
     contextFromFlags,
-    dispatch: async (_device, command, positionals) => {
+    dispatch: async (_device, command, positionals, _out, context) => {
       if (command === 'snapshot') {
         snapshotCalls += 1;
         return {
@@ -1154,7 +1174,11 @@ test('fill @ref refreshes snapshot when stored ref bounds are invalid', async ()
           backend: 'android',
         };
       }
-      fillCalls.push({ command, positionals });
+      fillCalls.push({
+        command,
+        positionals,
+        context: context as Record<string, unknown> | undefined,
+      });
       return { filled: true };
     },
   });
@@ -1165,6 +1189,7 @@ test('fill @ref refreshes snapshot when stored ref bounds are invalid', async ()
   assert.equal(fillCalls.length, 1);
   assert.equal(fillCalls[0]?.command, 'fill');
   assert.deepEqual(fillCalls[0]?.positionals, ['70', '60', 'hello@example.com']);
+  assert.equal(fillCalls[0]?.context?.delayMs, 25);
 
   const stored = sessionStore.get(sessionName);
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;

@@ -62,8 +62,13 @@ type Interactor = {
   ): Promise<Record<string, unknown> | void>;
   longPress(x: number, y: number, durationMs?: number): Promise<Record<string, unknown> | void>;
   focus(x: number, y: number): Promise<Record<string, unknown> | void>;
-  type(text: string): Promise<void>;
-  fill(x: number, y: number, text: string): Promise<Record<string, unknown> | void>;
+  type(text: string, delayMs?: number): Promise<void>;
+  fill(
+    x: number,
+    y: number,
+    text: string,
+    delayMs?: number,
+  ): Promise<Record<string, unknown> | void>;
   scroll(direction: string, amount?: number): Promise<Record<string, unknown> | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
@@ -95,8 +100,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         swipe: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
         longPress: (x, y, durationMs) => longPressAndroid(device, x, y, durationMs),
         focus: (x, y) => focusAndroid(device, x, y),
-        type: (text) => typeAndroid(device, text),
-        fill: (x, y, text) => fillAndroid(device, x, y, text),
+        type: (text, delayMs) => typeAndroid(device, text, delayMs),
+        fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
         scroll: (direction, amount) => scrollAndroid(device, direction, amount),
         scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
         screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
@@ -239,14 +244,14 @@ function iosRunnerOverrides(
           runnerOpts,
         );
       },
-      type: async (text) => {
+      type: async (text, delayMs) => {
         await runIosRunnerCommand(
           device,
-          { command: 'type', text, appBundleId: ctx.appBundleId },
+          { command: 'type', text, delayMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
       },
-      fill: async (x, y, text) => {
+      fill: async (x, y, text, delayMs) => {
         const tapResult = await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
@@ -254,7 +259,7 @@ function iosRunnerOverrides(
         );
         await runIosRunnerCommand(
           device,
-          { command: 'type', text, clearFirst: true, appBundleId: ctx.appBundleId },
+          { command: 'type', text, clearFirst: true, delayMs, appBundleId: ctx.appBundleId },
           runnerOpts,
         );
         return tapResult;

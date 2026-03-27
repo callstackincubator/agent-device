@@ -1097,6 +1097,28 @@ test('typeAndroid preserves percent signs while encoding spaces', async () => {
   );
 });
 
+test('typeAndroid sends one character at a time when delay is requested', async () => {
+  await withMockedAdb(
+    'agent-device-android-type-delayed-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await typeAndroid(device, 'hey', 1);
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      const shellInputTextCount = (logged.match(/shell\ninput\ntext\n/g) ?? []).length;
+      assert.equal(shellInputTextCount, 3);
+      assert.match(logged, /shell\ninput\ntext\nh/);
+      assert.match(logged, /shell\ninput\ntext\ne/);
+      assert.match(logged, /shell\ninput\ntext\ny/);
+    },
+  );
+});
+
 test('fillAndroid falls back to clipboard paste when adb input text truncates', async () => {
   await withMockedAdb(
     'agent-device-android-fill-fallback-',
@@ -1161,6 +1183,52 @@ test('fillAndroid falls back to clipboard paste when adb input text truncates', 
       assert.match(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
       const shellInputTextCount = (logged.match(/shell\ninput\ntext\n/g) ?? []).length;
       assert.equal(shellInputTextCount, 1);
+    },
+  );
+});
+
+test('fillAndroid keeps delayed typing in typed-input mode', async () => {
+  await withMockedAdb(
+    'agent-device-android-fill-delayed-',
+    [
+      '#!/bin/sh',
+      'STATE_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/fill_state.txt"',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_MOVE_END" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_DEL" ]; then',
+      '  : > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      '  printf "%s" "$4" >> "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "exec-out" ] && [ "$2" = "uiautomator" ] && [ "$3" = "dump" ] && [ "$4" = "/dev/tty" ]; then',
+      '  text="$(cat "$STATE_FILE" 2>/dev/null)"',
+      '  printf "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><hierarchy><node class=\\"android.widget.EditText\\" text=\\"%s\\" focused=\\"true\\" bounds=\\"[0,0][200,100]\\"/></hierarchy>" "$text"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await fillAndroid(device, 10, 10, 'go', 1);
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      const shellInputTextCount = (logged.match(/shell\ninput\ntext\n/g) ?? []).length;
+      assert.equal(shellInputTextCount, 2);
+      assert.doesNotMatch(logged, /shell\ncmd\nclipboard\nset\ntext/);
+      assert.doesNotMatch(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
     },
   );
 });

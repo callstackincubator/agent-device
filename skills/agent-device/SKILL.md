@@ -49,6 +49,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Use `fill` to replace text.
 - Use `type` to append text.
 - When a task asks to "go back", use plain `back` for predictable app-owned navigation and reserve `back --system` for platform back gestures or button semantics.
+- Use `type --delay-ms` or `fill --delay-ms` for debounced search fields that drop characters when typed too quickly.
 - If there is no simulator, no app install, or no open app session yet, switch to `bootstrap-install.md` instead of improvising setup steps.
 - Use the smallest unblock action first when transient UI blocks inspection, but do not navigate, search, or enter new text just to make the UI reveal data unless the user asked for that interaction.
 - Do not use external lookups to compensate for missing on-screen data unless the user asked for them.

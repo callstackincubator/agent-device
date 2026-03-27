@@ -52,6 +52,7 @@ export type RunnerCommand = {
     | 'shutdown';
   appBundleId?: string;
   text?: string;
+  delayMs?: number;
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;

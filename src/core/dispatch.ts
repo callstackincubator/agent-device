@@ -64,6 +64,7 @@ export async function dispatchCommand(
     snapshotRaw?: boolean;
     count?: number;
     intervalMs?: number;
+    delayMs?: number;
     holdMs?: number;
     jitterPx?: number;
     doubleTap?: boolean;
@@ -364,8 +365,9 @@ export async function dispatchCommand(
         case 'type': {
           const text = positionals.join(' ');
           if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
-          await interactor.type(text);
-          return { text, ...successText(formatTextLengthMessage('Typed', text)) };
+          const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
+          await interactor.type(text, delayMs);
+          return { text, delayMs, ...successText(formatTextLengthMessage('Typed', text)) };
         }
         case 'fill': {
           const x = Number(positionals[0]);
@@ -374,8 +376,9 @@ export async function dispatchCommand(
           if (Number.isNaN(x) || Number.isNaN(y) || !text) {
             throw new AppError('INVALID_ARGS', 'fill requires x y text');
           }
-          await interactor.fill(x, y, text);
-          return { x, y, text, ...successText(formatTextLengthMessage('Filled', text)) };
+          const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
+          await interactor.fill(x, y, text, delayMs);
+          return { x, y, text, delayMs, ...successText(formatTextLengthMessage('Filled', text)) };
         }
         case 'scroll': {
           const direction = positionals[0];

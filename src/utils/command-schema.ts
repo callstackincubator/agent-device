@@ -59,6 +59,7 @@ export type CliFlags = {
   fps?: number;
   hideTouches?: boolean;
   intervalMs?: number;
+  delayMs?: number;
   holdMs?: number;
   jitterPx?: number;
   doubleTap?: boolean;
@@ -540,6 +541,15 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 10_000,
     usageLabel: '--interval-ms <ms>',
     usageDescription: 'Delay between press iterations',
+  },
+  {
+    key: 'delayMs',
+    names: ['--delay-ms'],
+    type: 'int',
+    min: 0,
+    max: 10_000,
+    usageLabel: '--delay-ms <ms>',
+    usageDescription: 'Delay between typed characters',
   },
   {
     key: 'holdMs',
@@ -1110,14 +1120,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     helpDescription: 'Type text in focused field',
     positionalArgs: ['text'],
     allowsExtraPositionals: true,
-    allowedFlags: [],
+    allowedFlags: ['delayMs'],
   },
   fill: {
     usageOverride: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
     helpDescription: 'Tap then type',
     positionalArgs: ['targetOrX', 'yOrText', 'text?'],
     allowsExtraPositionals: true,
-    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS, 'delayMs'],
   },
   scroll: {
     helpDescription: 'Scroll in direction (0-1 amount)',
