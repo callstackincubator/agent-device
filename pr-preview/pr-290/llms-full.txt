@@ -506,6 +506,7 @@ Some Android images cannot enter non-ASCII text over shell input; in that case u
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`).
 Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
+When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
 Ref mode re-snapshots after each swipe and stops early when the target enters the safe viewport band or scrolling stops making progress.
 `longpress` is supported on iOS and Android.
 `pinch` is iOS simulator-only.
