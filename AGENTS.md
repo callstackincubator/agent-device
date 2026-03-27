@@ -147,6 +147,8 @@ Minimal operating guide for AI coding agents in this repo.
 
 ## Pull Requests
 - Before opening PR: ensure no conflict markers/unmerged paths.
+- Commit messages and PR titles should use conventional prefixes such as `feat:`, `fix:`, `chore:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, or `ci:` as appropriate.
+- Do not use bracketed automation prefixes such as `[codex]` or similar bot tags in commit messages or PR titles.
 - Run required checks for touched scope from **Testing Matrix**.
 - PR body must be short and include:
   - `## Summary`
