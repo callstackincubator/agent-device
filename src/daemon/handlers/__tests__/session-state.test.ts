@@ -14,10 +14,6 @@ test('boot rejects --headless outside Android directly', async () => {
     },
     sessionName: 'default',
     sessionStore: makeSessionStore('agent-device-session-state-'),
-    ensureReady: async () => {},
-    resolveDevice: async () => {
-      throw new Error('resolveDevice should not run for invalid headless iOS boot');
-    },
     ensureAndroidEmulatorBoot: async () => {
       throw new Error('ensureAndroidEmulatorBoot should not run for invalid headless iOS boot');
     },
@@ -42,10 +38,6 @@ test('appstate returns missing-session error for explicit session flag', async (
     },
     sessionName: 'named',
     sessionStore: makeSessionStore('agent-device-session-state-'),
-    ensureReady: async () => {},
-    resolveDevice: async () => {
-      throw new Error('resolveDevice should not run when explicit session is missing');
-    },
     ensureAndroidEmulatorBoot: async () => {
       throw new Error('ensureAndroidEmulatorBoot should not run for appstate');
     },

@@ -1,12 +1,20 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+vi.mock('../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})) };
+});
+
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+
+const mockDispatch = vi.mocked(dispatchCommand);
 
 function makeStore(): SessionStore {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-lock-'));
@@ -30,10 +38,14 @@ function makeIosSession(name: string): SessionState {
   };
 }
 
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockResolvedValue({});
+});
+
 test('direct daemon requests cannot bypass reject lock policy for existing sessions', async () => {
   const sessionStore = makeStore();
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
-  let dispatchCalls = 0;
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -41,10 +53,6 @@ test('direct daemon requests cannot bypass reject lock policy for existing sessi
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async () => {
-      dispatchCalls += 1;
-      return {};
-    },
   });
 
   const response = await handler({
@@ -60,18 +68,17 @@ test('direct daemon requests cannot bypass reject lock policy for existing sessi
     },
   });
 
-  assert.equal(dispatchCalls, 0);
-  assert.equal(response.ok, false);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  expect(response.ok).toBe(false);
   if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /--udid=SIM-999/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/--udid=SIM-999/i);
   }
 });
 
 test('batch steps cannot bypass reject lock policy on nested direct requests', async () => {
   const sessionStore = makeStore();
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
-  let dispatchCalls = 0;
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -79,10 +86,6 @@ test('batch steps cannot bypass reject lock policy on nested direct requests', a
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async () => {
-      dispatchCalls += 1;
-      return {};
-    },
   });
 
   const response = await handler({
@@ -105,12 +108,12 @@ test('batch steps cannot bypass reject lock policy on nested direct requests', a
     },
   });
 
-  assert.equal(dispatchCalls, 0);
-  assert.equal(response.ok, false);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  expect(response.ok).toBe(false);
   if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /Batch failed at step 1/i);
-    assert.match(response.error.message, /--serial=emulator-5554/i);
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toMatch(/Batch failed at step 1/i);
+    expect(response.error.message).toMatch(/--serial=emulator-5554/i);
   }
 });
 
@@ -118,6 +121,10 @@ test('direct daemon requests apply strip lock policy for existing sessions befor
   const sessionStore = makeStore();
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
   let dispatchCalls = 0;
+  mockDispatch.mockImplementation(async () => {
+    dispatchCalls += 1;
+    return {};
+  });
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -125,10 +132,6 @@ test('direct daemon requests apply strip lock policy for existing sessions befor
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async () => {
-      dispatchCalls += 1;
-      return {};
-    },
   });
 
   const response = await handler({
@@ -146,13 +149,13 @@ test('direct daemon requests apply strip lock policy for existing sessions befor
     },
   });
 
-  assert.equal(dispatchCalls, 1);
-  assert.equal(response.ok, true);
+  expect(dispatchCalls).toBe(1);
+  expect(response.ok).toBe(true);
   const action = sessionStore.get('qa-ios')?.actions.at(-1);
-  assert.equal(action?.flags.platform, 'ios');
-  assert.equal(action?.flags.udid, undefined);
-  assert.equal(action?.flags.target, undefined);
-  assert.equal(action?.flags.device, 'iPhone 16');
+  expect(action?.flags.platform).toBe('ios');
+  expect(action?.flags.udid).toBe(undefined);
+  expect(action?.flags.target).toBe(undefined);
+  expect(action?.flags.device).toBe('iPhone 16');
 });
 
 test('batch preserves tenant-scoped session names across nested requests', async () => {
@@ -164,6 +167,10 @@ test('batch preserves tenant-scoped session names across nested requests', async
     runId: 'run-1',
   });
   let dispatchCalls = 0;
+  mockDispatch.mockImplementation(async () => {
+    dispatchCalls += 1;
+    return {};
+  });
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -171,10 +178,6 @@ test('batch preserves tenant-scoped session names across nested requests', async
     sessionStore,
     leaseRegistry,
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async () => {
-      dispatchCalls += 1;
-      return {};
-    },
   });
 
   const response = await handler({
@@ -193,7 +196,7 @@ test('batch preserves tenant-scoped session names across nested requests', async
     },
   });
 
-  assert.equal(response.ok, true);
-  assert.equal(dispatchCalls, 1);
-  assert.equal(sessionStore.get('tenant-a:default')?.actions.at(-1)?.command, 'home');
+  expect(response.ok).toBe(true);
+  expect(dispatchCalls).toBe(1);
+  expect(sessionStore.get('tenant-a:default')?.actions.at(-1)?.command).toBe('home');
 });

@@ -1,17 +1,30 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+vi.mock('../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})) };
+});
+
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 
+const mockDispatch = vi.mocked(dispatchCommand);
+
 function makeStore(): SessionStore {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-recording-health-'));
   return new SessionStore(path.join(tempRoot, 'sessions'));
 }
+
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockResolvedValue({});
+});
 
 test('router blocks non-record commands when recording was invalidated', async () => {
   const sessionStore = makeStore();
@@ -41,17 +54,12 @@ test('router blocks non-record commands when recording was invalidated', async (
   };
   sessionStore.set('default', session);
 
-  let dispatched = false;
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async () => {
-      dispatched = true;
-      return {};
-    },
   });
 
   const response = await handler({
@@ -62,11 +70,11 @@ test('router blocks non-record commands when recording was invalidated', async (
     meta: { requestId: 'req-invalidated-recording' },
   });
 
-  assert.equal(response.ok, false);
+  expect(response.ok).toBe(false);
   if (response.ok) {
     return;
   }
-  assert.equal(response.error.code, 'COMMAND_FAILED');
-  assert.equal(response.error.message, 'iOS runner session restarted during recording');
-  assert.equal(dispatched, false);
+  expect(response.error.code).toBe('COMMAND_FAILED');
+  expect(response.error.message).toBe('iOS runner session restarted during recording');
+  expect(mockDispatch).not.toHaveBeenCalled();
 });

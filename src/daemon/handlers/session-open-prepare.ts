@@ -11,7 +11,10 @@ import {
   maybeClearRemovedRuntimeTransportHints,
   tryResolveOpenRuntimeHints,
 } from './session-runtime.ts';
-import { resolveSessionAppBundleIdForTarget } from './session-open-target.ts';
+import {
+  resolveAndroidPackageForOpen,
+  resolveSessionAppBundleIdForTarget,
+} from './session-open-target.ts';
 import { AppError } from '../../utils/errors.ts';
 import {
   resolveMacOsSurfaceAppState,
@@ -19,11 +22,6 @@ import {
 } from './session-open-surface.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
 import { clearRuntimeHintsFromApp } from '../runtime-hints.ts';
-
-type ResolveAndroidPackageForOpen = (
-  device: DeviceInfo,
-  openTarget: string | undefined,
-) => Promise<string | undefined>;
 
 type OpenCommandDetails = {
   appBundleId?: string;
@@ -116,12 +114,6 @@ export async function prepareOpenCommandDetails(params: {
   device: DeviceInfo;
   surface: SessionSurface;
   openTarget: string | undefined;
-  ensureReady: typeof ensureDeviceReady;
-  resolveAndroidPackageForOpen: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>;
-  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   existingSession?: SessionState;
 }): Promise<PreparedOpenCommandDetailsResult> {
   const {
@@ -131,18 +123,14 @@ export async function prepareOpenCommandDetails(params: {
     device,
     surface,
     openTarget,
-    ensureReady,
-    resolveAndroidPackageForOpen,
     existingSession,
-    clearRuntimeHints,
   } = params;
-  await ensureReady(device);
+  await ensureDeviceReady(device);
   const { appBundleId, appName } = await resolvePreparedOpenIdentity({
     device,
     surface,
     openTarget,
     existingAppBundleId: existingSession?.appBundleId,
-    resolveAndroidPackageForOpen,
   });
   const runtimeResult = tryResolveOpenRuntimeHints({
     req,
@@ -157,14 +145,13 @@ export async function prepareOpenCommandDetails(params: {
     };
   }
 
-  if (existingSession && clearRuntimeHints) {
+  if (existingSession) {
     const { runtime, previousRuntime, replacedStoredRuntime } = runtimeResult.data;
     await maybeClearRemovedRuntimeTransportHints({
       replacedStoredRuntime,
       previousRuntime,
       runtime,
       session: existingSession,
-      clearRuntimeHints,
     });
   }
 
@@ -183,9 +170,8 @@ async function resolvePreparedOpenIdentity(params: {
   surface: SessionSurface;
   openTarget: string | undefined;
   existingAppBundleId?: string;
-  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
 }): Promise<{ appBundleId?: string; appName?: string }> {
-  const { device, surface, openTarget, existingAppBundleId, resolveAndroidPackageForOpen } = params;
+  const { device, surface, openTarget, existingAppBundleId } = params;
   const macOsSurfaceState = await resolveMacOsSurfaceAppState(surface);
   return {
     appBundleId:

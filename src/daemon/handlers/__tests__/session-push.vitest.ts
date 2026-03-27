@@ -1,12 +1,28 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
+  return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
+});
+vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+
 import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
+import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
+
+const mockDispatch = vi.mocked(dispatchCommand);
+const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
+
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockResolvedValue({});
+  mockResolveTargetDevice.mockReset();
+});
 
 function makeStore(): SessionStore {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-'));
@@ -45,12 +61,12 @@ test('push requires active session or explicit device selector', async () => {
     sessionStore,
     invoke,
   });
-  assert.ok(response);
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /active session or an explicit device selector/i);
-  }
+  expect(response).toBeTruthy();
+  if (!response) return;
+  expect(response.ok).toBe(false);
+  if (response.ok) return;
+  expect(response.error.code).toBe('INVALID_ARGS');
+  expect(response.error.message).toMatch(/active session or an explicit device selector/i);
 });
 
 test('push uses session device and records action', async () => {
@@ -63,8 +79,14 @@ test('push uses session device and records action', async () => {
     booted: true,
   });
   sessionStore.set('default', session);
+  mockResolveTargetDevice.mockResolvedValue(session.device!);
+  mockDispatch.mockImplementation(async (device, command, positionals) => {
+    expect(device.id).toBe('emulator-5554');
+    expect(command).toBe('push');
+    expect(positionals).toEqual(['com.example.app', '{"action":"com.example.PUSH"}']);
+    return { platform: 'android', package: 'com.example.app', action: 'com.example.PUSH' };
+  });
 
-  let dispatchCalled = false;
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -77,24 +99,16 @@ test('push uses session device and records action', async () => {
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    dispatch: async (device, command, positionals) => {
-      dispatchCalled = true;
-      assert.equal(device.id, 'emulator-5554');
-      assert.equal(command, 'push');
-      assert.deepEqual(positionals, ['com.example.app', '{"action":"com.example.PUSH"}']);
-      return { platform: 'android', package: 'com.example.app', action: 'com.example.PUSH' };
-    },
-    ensureReady: async () => {},
   });
 
-  assert.equal(dispatchCalled, true);
-  assert.ok(response);
-  assert.equal(response.ok, true);
-  if (response.ok) {
-    assert.equal(response.data?.platform, 'android');
-  }
-  assert.equal(session.actions.length, 1);
-  assert.equal(session.actions[0]?.command, 'push');
+  expect(mockDispatch).toHaveBeenCalled();
+  expect(response).toBeTruthy();
+  if (!response) return;
+  expect(response.ok).toBe(true);
+  if (!response.ok) return;
+  expect(response.data?.platform).toBe('android');
+  expect(session.actions.length).toBe(1);
+  expect(session.actions[0]?.command).toBe('push');
 });
 
 test('push expands payload file path from request cwd', async () => {
@@ -107,11 +121,18 @@ test('push expands payload file path from request cwd', async () => {
     booted: true,
   });
   sessionStore.set('default', session);
+  mockResolveTargetDevice.mockResolvedValue(session.device!);
+
+  let pushedPath = '';
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-payload-'));
   const payloadPath = path.join(tempRoot, 'payload.json');
   fs.writeFileSync(payloadPath, '{"action":"com.example.PUSH"}\n', 'utf8');
 
-  let pushedPath = '';
+  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
+    pushedPath = positionals[1] ?? '';
+    return {};
+  });
+
   await handleSessionCommands({
     req: {
       token: 't',
@@ -125,14 +146,9 @@ test('push expands payload file path from request cwd', async () => {
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    dispatch: async (_device, _command, positionals) => {
-      pushedPath = positionals[1] ?? '';
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.equal(pushedPath, payloadPath);
+  expect(pushedPath).toBe(payloadPath);
 });
 
 test('push treats brace-prefixed existing payload path as file', async () => {
@@ -145,11 +161,18 @@ test('push treats brace-prefixed existing payload path as file', async () => {
     booted: true,
   });
   sessionStore.set('default', session);
+  mockResolveTargetDevice.mockResolvedValue(session.device!);
+
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-brace-file-'));
   const payloadPath = path.join(tempRoot, '{payload}.json');
   fs.writeFileSync(payloadPath, '{"action":"com.example.PUSH"}\n', 'utf8');
 
   let pushedPath = '';
+  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
+    pushedPath = positionals[1] ?? '';
+    return {};
+  });
+
   await handleSessionCommands({
     req: {
       token: 't',
@@ -163,12 +186,7 @@ test('push treats brace-prefixed existing payload path as file', async () => {
     logPath: '/tmp/daemon.log',
     sessionStore,
     invoke,
-    dispatch: async (_device, _command, positionals) => {
-      pushedPath = positionals[1] ?? '';
-      return {};
-    },
-    ensureReady: async () => {},
   });
 
-  assert.equal(pushedPath, payloadPath);
+  expect(pushedPath).toBe(payloadPath);
 });

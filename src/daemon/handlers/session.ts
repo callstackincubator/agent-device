@@ -1,4 +1,4 @@
-import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -6,11 +6,6 @@ import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
-import { ensureDeviceReady } from '../device-ready.ts';
-import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
-import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
-import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
-import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 import { startAppLog, stopAppLog } from '../app-log.ts';
 import {
   handleInstallFromSourceCommand,
@@ -19,7 +14,6 @@ import {
 import {
   requireSessionOrExplicitSelector,
   resolveCommandDevice,
-  settleIosSimulator,
 } from './session-device-utils.ts';
 import { handleRuntimeCommand } from './session-runtime-command.ts';
 import { handleOpenCommand } from './session-open.ts';
@@ -27,7 +21,7 @@ import {
   resolveAndroidPackageForOpen,
   resolveSessionAppBundleIdForTarget,
 } from './session-open-target.ts';
-import { handleCloseCommand, type ShutdownAndroidEmulatorFn } from './session-close.ts';
+import { handleCloseCommand } from './session-close.ts';
 import {
   defaultInstallOps,
   defaultReinstallOps,
@@ -63,8 +57,6 @@ async function runSessionOrSelectorDispatch(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
   dispatch: typeof dispatchCommand;
   command: string;
   positionals: string[];
@@ -80,8 +72,6 @@ async function runSessionOrSelectorDispatch(params: {
     sessionName,
     logPath,
     sessionStore,
-    ensureReady,
-    resolveDevice,
     dispatch,
     command,
     positionals,
@@ -96,8 +86,6 @@ async function runSessionOrSelectorDispatch(params: {
   const device = await resolveCommandDevice({
     session,
     flags,
-    ensureReadyFn: ensureReady,
-    resolveTargetDeviceFn: resolveDevice,
     ensureReady: true,
   });
   if (!isCommandSupportedOnDevice(command, device)) {
@@ -135,11 +123,9 @@ async function handleClipboardCommand(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
   dispatch: typeof dispatchCommand;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore, ensureReady, resolveDevice, dispatch } = params;
+  const { req, sessionName, logPath, sessionStore, dispatch } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
   const guard = requireSessionOrExplicitSelector('clipboard', session, flags);
@@ -159,8 +145,6 @@ async function handleClipboardCommand(params: {
   const device = await resolveCommandDevice({
     session,
     flags,
-    ensureReadyFn: ensureReady,
-    resolveTargetDeviceFn: resolveDevice,
     ensureReady: true,
   });
   if (!isCommandSupportedOnDevice('clipboard', device)) {
@@ -194,26 +178,13 @@ export async function handleSessionCommands(params: {
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   dispatch?: typeof dispatchCommand;
-  ensureReady?: typeof ensureDeviceReady;
-  resolveTargetDevice?: typeof resolveTargetDevice;
   installOps?: InstallOps;
   reinstallOps?: ReinstallOps;
-  stopIosRunner?: typeof stopIosRunnerSession;
-  dismissMacOsAlert?: typeof runMacOsAlertAction;
   appLogOps?: {
     start: typeof startAppLog;
     stop: typeof stopAppLog;
   };
   ensureAndroidEmulatorBoot?: EnsureAndroidEmulatorBoot;
-  resolveAndroidPackageForOpen?: (
-    device: DeviceInfo,
-    openTarget: string | undefined,
-  ) => Promise<string | undefined>;
-  applyRuntimeHints?: typeof applyRuntimeHintsToApp;
-  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
-  settleSimulator?: typeof settleIosSimulator;
-  shutdownSimulator?: typeof shutdownSimulator;
-  shutdownAndroidEmulator?: ShutdownAndroidEmulatorFn;
   listAndroidDevices?: ListAndroidDevices;
   listAppleDevices?: ListAppleDevices;
   listAppleApps?: (
@@ -228,45 +199,25 @@ export async function handleSessionCommands(params: {
     sessionStore,
     invoke,
     dispatch: dispatchOverride,
-    ensureReady: ensureReadyOverride,
-    resolveTargetDevice: resolveTargetDeviceOverride,
     installOps = defaultInstallOps,
     reinstallOps = defaultReinstallOps,
-    stopIosRunner: stopIosRunnerOverride,
-    dismissMacOsAlert = runMacOsAlertAction,
     appLogOps = {
       start: startAppLog,
       stop: stopAppLog,
     },
     ensureAndroidEmulatorBoot = defaultEnsureAndroidEmulatorBoot,
-    resolveAndroidPackageForOpen:
-      resolveAndroidPackageForOpenOverride = resolveAndroidPackageForOpen,
-    applyRuntimeHints: applyRuntimeHintsOverride = applyRuntimeHintsToApp,
-    clearRuntimeHints: clearRuntimeHintsOverride = clearRuntimeHintsFromApp,
-    settleSimulator: settleSimulatorOverride,
-    shutdownSimulator: shutdownSimulatorOverride,
-    shutdownAndroidEmulator: shutdownAndroidEmulatorOverride,
     listAndroidDevices,
     listAppleDevices,
     listAppleApps,
   } = params;
 
   const dispatch = dispatchOverride ?? dispatchCommand;
-  const ensureReady = ensureReadyOverride ?? ensureDeviceReady;
-  const resolveDevice = resolveTargetDeviceOverride ?? resolveTargetDevice;
-  const stopIosRunner = stopIosRunnerOverride ?? stopIosRunnerSession;
-  const settleSimulator = settleSimulatorOverride ?? settleIosSimulator;
-  const applyRuntimeHints = applyRuntimeHintsOverride;
-  const clearRuntimeHints = clearRuntimeHintsOverride;
-  const doShutdownSimulator = shutdownSimulatorOverride ?? shutdownSimulator;
 
   if (INVENTORY_COMMANDS.has(req.command)) {
     return await handleSessionInventoryCommands({
       req,
       sessionName,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       listAndroidDevices,
       listAppleDevices,
       listAppleApps,
@@ -278,7 +229,6 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
-      clearRuntimeHints,
     });
   }
 
@@ -287,8 +237,6 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       ensureAndroidEmulatorBoot,
     });
   }
@@ -299,8 +247,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       dispatch,
     });
   }
@@ -327,8 +273,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       dispatch,
       command: 'keyboard',
       positionals: req.positionals ?? [],
@@ -350,8 +294,6 @@ export async function handleSessionCommands(params: {
       command: req.command,
       sessionName,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       deployOps: req.command === 'install' ? installOps : reinstallOps,
     });
   }
@@ -386,8 +328,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       dispatch,
       command: 'push',
       positionals: [appId, maybeResolvePushPayloadPath(payloadArg, req.meta?.cwd)],
@@ -401,8 +341,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      ensureReady,
-      resolveDevice,
       dispatch,
       command: 'trigger-app-event',
       positionals: req.positionals ?? [],
@@ -413,7 +351,7 @@ export async function handleSessionCommands(params: {
               session.device,
               eventUrl,
               session.appBundleId,
-              resolveAndroidPackageForOpenOverride,
+              resolveAndroidPackageForOpen,
             )) ?? session.appBundleId)
           : session.appBundleId;
         return {
@@ -430,14 +368,6 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      dispatch,
-      ensureReady,
-      resolveDevice,
-      applyRuntimeHints,
-      clearRuntimeHints,
-      stopIosRunner,
-      settleSimulator,
-      resolveAndroidPackageForOpen: resolveAndroidPackageForOpenOverride,
     });
   }
 
@@ -449,10 +379,6 @@ export async function handleSessionCommands(params: {
       sessionStore,
       invoke,
       dispatch,
-      stopIosRunner,
-      dismissMacOsAlert,
-      clearRuntimeHints,
-      settleSimulator,
       appLogOps: { stop: appLogOps.stop },
     });
   }
@@ -468,12 +394,6 @@ export async function handleSessionCommands(params: {
       logPath,
       sessionStore,
       dispatch,
-      stopIosRunner,
-      dismissMacOsAlert,
-      clearRuntimeHints,
-      settleSimulator,
-      shutdownSimulator: doShutdownSimulator,
-      shutdownAndroidEmulator: shutdownAndroidEmulatorOverride,
       appLogOps: {
         stop: appLogOps.stop,
       },

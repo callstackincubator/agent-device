@@ -62,25 +62,20 @@ export async function settleIosSimulator(device: DeviceInfo, delayMs: number): P
 export async function resolveCommandDevice(params: {
   session: SessionState | undefined;
   flags: DaemonRequest['flags'] | undefined;
-  ensureReadyFn: typeof ensureDeviceReady;
-  resolveTargetDeviceFn: typeof resolveTargetDevice;
   ensureReady?: boolean;
 }): Promise<DeviceInfo> {
   const shouldUseExplicitSelector = hasExplicitDeviceSelector(params.flags);
   const device =
     shouldUseExplicitSelector || !params.session
-      ? await params.resolveTargetDeviceFn(params.flags ?? {})
-      : await refreshSessionDeviceIfNeeded(params.session.device, params.resolveTargetDeviceFn);
+      ? await resolveTargetDevice(params.flags ?? {})
+      : await refreshSessionDeviceIfNeeded(params.session.device);
   if (params.ensureReady !== false) {
-    await params.ensureReadyFn(device);
+    await ensureDeviceReady(device);
   }
   return device;
 }
 
-export async function refreshSessionDeviceIfNeeded(
-  device: DeviceInfo,
-  resolveTargetDeviceFn: typeof resolveTargetDevice,
-): Promise<DeviceInfo> {
+export async function refreshSessionDeviceIfNeeded(device: DeviceInfo): Promise<DeviceInfo> {
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     return device;
   }
@@ -95,14 +90,14 @@ export async function refreshSessionDeviceIfNeeded(
     ...(device.simulatorSetPath ? { iosSimulatorDeviceSet: device.simulatorSetPath } : {}),
   };
   try {
-    return await resolveTargetDeviceFn(exactSelector);
+    return await resolveTargetDevice(exactSelector);
   } catch (error) {
     if (!(error instanceof AppError) || error.code !== 'DEVICE_NOT_FOUND') {
       throw error;
     }
   }
 
-  return await resolveTargetDeviceFn({
+  return await resolveTargetDevice({
     platform: 'ios',
     target: device.target,
     device: device.name,

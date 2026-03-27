@@ -55,7 +55,7 @@ export type RecordingBase = {
   gestureEvents: RecordingGestureEvent[];
 };
 
-export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): RecordTraceDeps {
+export function buildRecordTraceDeps(): RecordTraceDeps {
   return {
     runCmd,
     runCmdBackground,
@@ -64,7 +64,6 @@ export function buildRecordTraceDeps(overrides?: Partial<RecordTraceDeps>): Reco
     isPlayableVideo,
     trimRecordingStart,
     overlayRecordingTouches,
-    ...overrides,
   };
 }
 
@@ -409,10 +408,9 @@ export async function handleRecordCommand(params: {
   sessionName: string;
   sessionStore: SessionStore;
   logPath?: string;
-  deps?: Partial<RecordTraceDeps>;
 }): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, logPath } = params;
-  const deps = buildRecordTraceDeps(params.deps);
+  const deps = buildRecordTraceDeps();
   const session = sessionStore.get(sessionName);
   const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
   if (!session) {

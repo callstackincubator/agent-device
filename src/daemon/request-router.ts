@@ -244,14 +244,13 @@ export type RequestRouterDeps = {
     tenantId?: string;
     fileName?: string;
   }) => string;
-  dispatchCommand?: typeof dispatchCommand;
 };
 
 export function createRequestHandler(
   deps: RequestRouterDeps,
 ): (req: DaemonRequest) => Promise<DaemonResponse> {
   const { logPath, token, sessionStore, leaseRegistry, trackDownloadableArtifact } = deps;
-  const dispatch = deps.dispatchCommand ?? dispatchCommand;
+  const dispatch = dispatchCommand;
 
   async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     const normalizedReq = normalizeAliasedCommands(req);

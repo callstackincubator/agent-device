@@ -1,13 +1,26 @@
-import { test, expect, vi } from 'vitest';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+let snapshotCalls = 0;
+const dispatchCalls: string[][] = [];
+
+vi.mock('../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
+  return {
+    ...actual,
+    dispatchCommand: vi.fn(async (_device: unknown, command: string, positionals: string[]) => {
+      dispatchCalls.push([command, ...positionals]);
+      return {};
+    }),
+  };
+});
+
 import { createRequestHandler } from '../request-router.ts';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
-
-let snapshotCalls = 0;
 
 vi.mock('../../platforms/android/index.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/android/index.ts')>();
@@ -83,10 +96,10 @@ function makeAndroidSession(name: string): SessionState {
 test('generic Android gesture commands dismiss blocking system dialogs during recording', async () => {
   snapshotCalls = 0;
   execCalls.length = 0;
+  dispatchCalls.length = 0;
 
   const sessionStore = makeStore();
   sessionStore.set('default', makeAndroidSession('default'));
-  const dispatchCalls: string[][] = [];
 
   const { openAndroidApp } = await import('../../platforms/android/index.ts');
 
@@ -96,10 +109,6 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact: () => 'artifact-id',
-    dispatchCommand: async (_device, command, positionals) => {
-      dispatchCalls.push([command, ...positionals]);
-      return {};
-    },
   });
 
   const response = await handler({

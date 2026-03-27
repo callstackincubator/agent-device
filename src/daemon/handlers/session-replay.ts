@@ -1,10 +1,6 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
-import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
-import { clearRuntimeHintsFromApp } from '../runtime-hints.ts';
-import { settleIosSimulator } from './session-device-utils.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
 import { stopAppLog } from '../app-log.ts';
@@ -17,10 +13,6 @@ export async function handleSessionReplayCommands(params: {
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   dispatch: typeof dispatchCommand;
-  stopIosRunner?: typeof stopIosRunnerSession;
-  dismissMacOsAlert?: typeof runMacOsAlertAction;
-  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
-  settleSimulator?: typeof settleIosSimulator;
   appLogOps?: {
     stop: typeof stopAppLog;
   };
@@ -32,10 +24,6 @@ export async function handleSessionReplayCommands(params: {
     sessionStore,
     invoke,
     dispatch,
-    stopIosRunner = stopIosRunnerSession,
-    dismissMacOsAlert = runMacOsAlertAction,
-    clearRuntimeHints = clearRuntimeHintsFromApp,
-    settleSimulator = settleIosSimulator,
     appLogOps = {
       stop: stopAppLog,
     },
@@ -100,10 +88,6 @@ export async function handleSessionReplayCommands(params: {
           logPath,
           sessionStore,
           dispatch,
-          stopIosRunner,
-          dismissMacOsAlert,
-          clearRuntimeHints,
-          settleSimulator,
           appLogOps,
         });
       },

@@ -1,4 +1,3 @@
-import { resolveTargetDevice } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { asAppError } from '../../utils/errors.ts';
 import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
@@ -28,10 +27,8 @@ async function handleAppStateCommand(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, ensureReady, resolveDevice } = params;
+  const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
   const normalizedPlatform = normalizePlatformSelector(flags.platform);
@@ -127,8 +124,6 @@ async function handleAppStateCommand(params: {
   const device = await resolveCommandDevice({
     session,
     flags,
-    ensureReadyFn: ensureReady,
-    resolveTargetDeviceFn: resolveDevice,
     ensureReady: true,
   });
   if (device.platform === 'ios') {
@@ -166,12 +161,9 @@ export async function handleSessionStateCommands(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
   ensureAndroidEmulatorBoot: EnsureAndroidEmulatorBoot;
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, sessionStore, ensureReady, resolveDevice, ensureAndroidEmulatorBoot } =
-    params;
+  const { req, sessionName, sessionStore, ensureAndroidEmulatorBoot } = params;
 
   if (req.command === 'boot') {
     const session = sessionStore.get(sessionName);
@@ -205,8 +197,6 @@ export async function handleSessionStateCommands(params: {
       device = await resolveCommandDevice({
         session,
         flags,
-        ensureReadyFn: ensureReady,
-        resolveTargetDeviceFn: resolveDevice,
         ensureReady: false,
       });
     } catch (error) {
@@ -283,11 +273,11 @@ export async function handleSessionStateCommands(params: {
           headless: true,
         });
       }
-      await ensureReady(device);
+      await ensureDeviceReady(device);
     } else {
       const shouldEnsureReady = device.platform !== 'android' || device.booted !== true;
       if (shouldEnsureReady) {
-        await ensureReady(device);
+        await ensureDeviceReady(device);
       }
     }
 
@@ -316,8 +306,6 @@ export async function handleSessionStateCommands(params: {
       req,
       sessionName,
       sessionStore,
-      ensureReady,
-      resolveDevice,
     });
   }
 

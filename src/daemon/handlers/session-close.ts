@@ -38,8 +38,6 @@ async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   };
 }
 
-export type ShutdownAndroidEmulatorFn = typeof shutdownAndroidEmulator;
-
 type SessionShutdownResult = {
   success: boolean;
   exitCode: number;
@@ -51,10 +49,8 @@ type SessionShutdownResult = {
 async function maybeShutdownSessionTarget(params: {
   device: DeviceInfo;
   shutdownRequested: boolean | undefined;
-  shutdownSimulator: typeof shutdownSimulator;
-  shutdownAndroidEmulator: typeof shutdownAndroidEmulator;
 }): Promise<SessionShutdownResult | undefined> {
-  const { device, shutdownRequested, shutdownSimulator, shutdownAndroidEmulator } = params;
+  const { device, shutdownRequested } = params;
   if (!shutdownRequested) return undefined;
   if (!isIosSimulator(device) && !isAndroidEmulator(device)) return undefined;
   try {
@@ -73,13 +69,8 @@ async function maybeShutdownSessionTarget(params: {
   }
 }
 
-async function stopAppleRunnerForClose(params: {
-  session: SessionState;
-  stopIosRunner: typeof stopIosRunnerSession;
-  dismissMacOsAlert: typeof runMacOsAlertAction;
-}): Promise<void> {
-  const { session, stopIosRunner, dismissMacOsAlert } = params;
-  await stopIosRunner(session.device.id);
+async function stopAppleRunnerForClose(session: SessionState): Promise<void> {
+  await stopIosRunnerSession(session.device.id);
   if (session.device.platform !== 'macos') {
     return;
   }
@@ -90,7 +81,7 @@ async function stopAppleRunnerForClose(params: {
       : session.appBundleId
         ? { bundleId: session.appBundleId }
         : {};
-  await dismissMacOsAlert('dismiss', dismissOptions).catch((error) => {
+  await runMacOsAlertAction('dismiss', dismissOptions).catch((error) => {
     emitDiagnostic({
       level: 'debug',
       phase: 'macos_close_alert_dismiss_failed',
@@ -114,12 +105,6 @@ export async function handleCloseCommand(params: {
     out?: string,
     context?: Record<string, unknown>,
   ) => Promise<Record<string, unknown> | void>;
-  stopIosRunner?: typeof stopIosRunnerSession;
-  dismissMacOsAlert?: typeof runMacOsAlertAction;
-  clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
-  settleSimulator?: typeof settleIosSimulator;
-  shutdownSimulator?: typeof shutdownSimulator;
-  shutdownAndroidEmulator?: ShutdownAndroidEmulatorFn;
   appLogOps: {
     stop: (stream: AppLogStream) => Promise<void>;
   };
@@ -130,12 +115,6 @@ export async function handleCloseCommand(params: {
     logPath,
     sessionStore,
     dispatch,
-    stopIosRunner = stopIosRunnerSession,
-    dismissMacOsAlert = runMacOsAlertAction,
-    clearRuntimeHints = clearRuntimeHintsFromApp,
-    settleSimulator = settleIosSimulator,
-    shutdownSimulator: shutdownSimulatorFn = shutdownSimulator,
-    shutdownAndroidEmulator: shutdownAndroidEmulatorFn = shutdownAndroidEmulator,
     appLogOps,
   } = params;
   const session = sessionStore.get(sessionName);
@@ -147,22 +126,22 @@ export async function handleCloseCommand(params: {
   }
   if (req.positionals && req.positionals.length > 0) {
     if (session.device.platform === 'ios' || session.device.platform === 'macos') {
-      await stopAppleRunnerForClose({ session, stopIosRunner, dismissMacOsAlert });
+      await stopAppleRunnerForClose(session);
     }
     await dispatch(session.device, 'close', req.positionals, req.flags?.out, {
       ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
     });
-    await settleSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
+    await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
   }
   if (session.device.platform === 'ios' || session.device.platform === 'macos') {
     // The targeted close path stops before dispatch to avoid runner/app races.
     // Stop again here so both plain and targeted closes end with the runner down.
     // macOS may no-op the second alert dismiss, but it keeps teardown symmetric with runner stop.
-    await stopAppleRunnerForClose({ session, stopIosRunner, dismissMacOsAlert });
+    await stopAppleRunnerForClose(session);
   }
   const runtime = sessionStore.getRuntimeHints(sessionName);
   if (hasRuntimeTransportHints(runtime) && session.appBundleId) {
-    await clearRuntimeHints({
+    await clearRuntimeHintsFromApp({
       device: session.device,
       appId: session.appBundleId,
     }).catch(() => {});
@@ -182,8 +161,6 @@ export async function handleCloseCommand(params: {
   const shutdownResult = await maybeShutdownSessionTarget({
     device: session.device,
     shutdownRequested: req.flags?.shutdown,
-    shutdownSimulator: shutdownSimulatorFn,
-    shutdownAndroidEmulator: shutdownAndroidEmulatorFn,
   });
   if (shutdownResult) {
     return {

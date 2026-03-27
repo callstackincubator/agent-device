@@ -29,10 +29,6 @@ test('session inventory lists iOS session metadata directly', async () => {
     },
     sessionName: 'ios-sim',
     sessionStore,
-    ensureReady: async () => {},
-    resolveDevice: async () => {
-      throw new Error('resolveDevice should not run for session_list');
-    },
   });
 
   assert.ok(response);
