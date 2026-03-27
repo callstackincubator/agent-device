@@ -1,4 +1,3 @@
-import { resolveTargetDevice } from '../../core/dispatch.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -8,7 +7,6 @@ import {
   classifyAndroidAppTarget,
   formatAndroidInstalledPackageRequiredMessage,
 } from '../../platforms/android/open-target.ts';
-import { refreshSessionDeviceIfNeeded } from './session-device-utils.ts';
 import {
   maybeClearRemovedRuntimeTransportHints,
   tryResolveOpenRuntimeHints,
@@ -27,24 +25,13 @@ type ResolveAndroidPackageForOpen = (
   openTarget: string | undefined,
 ) => Promise<string | undefined>;
 
-type ResolvedOpenDetails = {
+type OpenCommandDetails = {
   appBundleId?: string;
   appName?: string;
   runtime: SessionRuntimeHints | undefined;
 };
 
-type CompleteOpenCommand = (params: {
-  device: DeviceInfo;
-  surface: SessionSurface;
-  openTarget?: string;
-  openPositionals: string[];
-  appBundleId?: string;
-  appName?: string;
-  runtime: SessionRuntimeHints | undefined;
-  existingSession?: SessionState;
-}) => Promise<DaemonResponse>;
-
-function invalidArgs(message: string): DaemonResponse {
+export function invalidOpenArgs(message: string): DaemonResponse {
   return {
     ok: false,
     error: {
@@ -54,7 +41,7 @@ function invalidArgs(message: string): DaemonResponse {
   };
 }
 
-function toSurfaceResponse(
+export function resolveOpenSurfaceResponse(
   device: DeviceInfo,
   surfaceFlag: string | undefined,
   openTarget: string | undefined,
@@ -78,7 +65,7 @@ function toSurfaceResponse(
   }
 }
 
-function validatePreparedOpenRequest(params: {
+export function validateResolvedOpenRequest(params: {
   shouldRelaunch: boolean;
   openTarget: string | undefined;
   surface: SessionSurface;
@@ -87,22 +74,22 @@ function validatePreparedOpenRequest(params: {
   const { shouldRelaunch, openTarget, surface, device } = params;
   if (!shouldRelaunch) return null;
   if (openTarget && isDeepLinkTarget(openTarget)) {
-    return invalidArgs('open --relaunch does not support URL targets.');
+    return invalidOpenArgs('open --relaunch does not support URL targets.');
   }
   if (surface !== 'app') {
-    return invalidArgs('open --relaunch is supported only for app surfaces.');
+    return invalidOpenArgs('open --relaunch is supported only for app surfaces.');
   }
   if (
     device.platform === 'android' &&
     openTarget &&
     classifyAndroidAppTarget(openTarget) === 'binary'
   ) {
-    return invalidArgs(formatAndroidInstalledPackageRequiredMessage(openTarget));
+    return invalidOpenArgs(formatAndroidInstalledPackageRequiredMessage(openTarget));
   }
   return null;
 }
 
-function validatePreResolvedOpenRequest(params: {
+export function validatePreResolvedOpenRequest(params: {
   shouldRelaunch: boolean;
   openTarget: string | undefined;
   platform: DeviceInfo['platform'] | undefined;
@@ -110,15 +97,15 @@ function validatePreResolvedOpenRequest(params: {
   const { shouldRelaunch, openTarget, platform } = params;
   if (!shouldRelaunch) return null;
   if (openTarget && isDeepLinkTarget(openTarget)) {
-    return invalidArgs('open --relaunch does not support URL targets.');
+    return invalidOpenArgs('open --relaunch does not support URL targets.');
   }
   if (platform === 'android' && openTarget && classifyAndroidAppTarget(openTarget) === 'binary') {
-    return invalidArgs(formatAndroidInstalledPackageRequiredMessage(openTarget));
+    return invalidOpenArgs(formatAndroidInstalledPackageRequiredMessage(openTarget));
   }
   return null;
 }
 
-async function resolveOpenCommandDetails(params: {
+export async function prepareOpenCommandDetails(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
@@ -132,7 +119,7 @@ async function resolveOpenCommandDetails(params: {
   ) => Promise<string | undefined>;
   clearRuntimeHints?: typeof clearRuntimeHintsFromApp;
   existingSession?: SessionState;
-}): Promise<DaemonResponse | ResolvedOpenDetails> {
+}): Promise<DaemonResponse | OpenCommandDetails> {
   const {
     req,
     sessionName,
@@ -145,16 +132,6 @@ async function resolveOpenCommandDetails(params: {
     existingSession,
     clearRuntimeHints,
   } = params;
-  const validation = validatePreparedOpenRequest({
-    shouldRelaunch: req.flags?.relaunch === true,
-    openTarget,
-    surface,
-    device,
-  });
-  if (validation) {
-    return validation;
-  }
-
   await ensureReady(device);
   const { appBundleId, appName } = await resolvePreparedOpenIdentity({
     device,
@@ -211,159 +188,4 @@ async function resolvePreparedOpenIdentity(params: {
       )),
     appName: macOsSurfaceState.appName ?? openTarget,
   };
-}
-
-export async function prepareExistingOpenCommand(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  sessionStore: SessionStore;
-  session: SessionState;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
-  clearRuntimeHints: typeof clearRuntimeHintsFromApp;
-  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
-  completeOpen: CompleteOpenCommand;
-}): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-    session,
-    ensureReady,
-    resolveDevice,
-    clearRuntimeHints,
-    resolveAndroidPackageForOpen,
-    completeOpen,
-  } = params;
-  const shouldRelaunch = req.flags?.relaunch === true;
-  const requestedOpenTarget = req.positionals?.[0];
-  const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session.appName : undefined);
-  const surfaceResult = toSurfaceResponse(
-    session.device,
-    req.flags?.surface,
-    openTarget,
-    session.surface,
-  );
-  if (typeof surfaceResult !== 'string') {
-    return surfaceResult;
-  }
-
-  if (!openTarget && surfaceResult === 'app') {
-    return shouldRelaunch
-      ? invalidArgs('open --relaunch requires an app name or an active session app.')
-      : invalidArgs('Session already active. Close it first or pass a new --session name.');
-  }
-
-  const validation = validatePreparedOpenRequest({
-    shouldRelaunch,
-    openTarget,
-    surface: surfaceResult,
-    device: session.device,
-  });
-  if (validation) {
-    return validation;
-  }
-
-  const device = await refreshSessionDeviceIfNeeded(session.device, resolveDevice);
-  const details = await resolveOpenCommandDetails({
-    req,
-    sessionName,
-    sessionStore,
-    device,
-    surface: surfaceResult,
-    openTarget,
-    ensureReady,
-    resolveAndroidPackageForOpen,
-    clearRuntimeHints,
-    existingSession: session,
-  });
-  if ('ok' in details) {
-    return details;
-  }
-  return await completeOpen({
-    device,
-    surface: surfaceResult,
-    openTarget,
-    openPositionals: requestedOpenTarget ? (req.positionals ?? []) : openTarget ? [openTarget] : [],
-    appBundleId: details.appBundleId,
-    appName: details.appName,
-    runtime: details.runtime,
-    existingSession: session,
-  });
-}
-
-export async function prepareNewOpenCommand(params: {
-  req: DaemonRequest;
-  sessionStore: SessionStore;
-  sessionName: string;
-  ensureReady: typeof ensureDeviceReady;
-  resolveDevice: typeof resolveTargetDevice;
-  resolveAndroidPackageForOpen: ResolveAndroidPackageForOpen;
-  completeOpen: CompleteOpenCommand;
-}): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionStore,
-    sessionName,
-    ensureReady,
-    resolveDevice,
-    resolveAndroidPackageForOpen,
-    completeOpen,
-  } = params;
-  const shouldRelaunch = req.flags?.relaunch === true;
-  const openTarget = req.positionals?.[0];
-  if (shouldRelaunch && !openTarget) {
-    return invalidArgs('open --relaunch requires an app argument.');
-  }
-
-  const preResolvedValidation = validatePreResolvedOpenRequest({
-    shouldRelaunch,
-    openTarget,
-    platform: req.flags?.platform === 'android' ? 'android' : undefined,
-  });
-  if (preResolvedValidation) {
-    return preResolvedValidation;
-  }
-
-  const device = await resolveDevice(req.flags ?? {});
-  const surfaceResult = toSurfaceResponse(device, req.flags?.surface, openTarget);
-  if (typeof surfaceResult !== 'string') {
-    return surfaceResult;
-  }
-
-  const inUse = sessionStore.toArray().find((session) => session.device.id === device.id);
-  if (inUse) {
-    return {
-      ok: false,
-      error: {
-        code: 'DEVICE_IN_USE',
-        message: `Device is already in use by session "${inUse.name}".`,
-        details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
-      },
-    };
-  }
-
-  const details = await resolveOpenCommandDetails({
-    req,
-    sessionName,
-    sessionStore,
-    device,
-    surface: surfaceResult,
-    openTarget,
-    ensureReady,
-    resolveAndroidPackageForOpen,
-  });
-  if ('ok' in details) {
-    return details;
-  }
-
-  return await completeOpen({
-    device,
-    surface: surfaceResult,
-    openTarget,
-    openPositionals: req.positionals ?? [],
-    appBundleId: details.appBundleId,
-    appName: details.appName,
-    runtime: details.runtime,
-  });
 }

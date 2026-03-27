@@ -11,13 +11,20 @@ import { SessionStore } from '../session-store.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  refreshSessionDeviceIfNeeded,
   settleIosSimulator,
 } from './session-device-utils.ts';
 import { countConfiguredRuntimeHints, setSessionRuntimeHintsForOpen } from './session-runtime.ts';
 import { resolveAndroidPackageForOpen } from './session-open-target.ts';
 import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
 import { buildNextOpenSession, buildOpenResult } from './session-open-surface.ts';
-import { prepareExistingOpenCommand, prepareNewOpenCommand } from './session-open-prepare.ts';
+import {
+  invalidOpenArgs,
+  prepareOpenCommandDetails,
+  resolveOpenSurfaceResponse,
+  validatePreResolvedOpenRequest,
+  validateResolvedOpenRequest,
+} from './session-open-prepare.ts';
 
 async function relaunchCloseApp(params: {
   device: DeviceInfo;
@@ -222,28 +229,6 @@ export async function handleOpenCommand(params: {
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn = resolveAndroidPackageForOpen,
   } = params;
 
-  const completeOpen = (openParams: {
-    device: DeviceInfo;
-    surface: SessionSurface;
-    openTarget?: string;
-    openPositionals: string[];
-    appBundleId?: string;
-    appName?: string;
-    runtime: SessionRuntimeHints | undefined;
-    existingSession?: SessionState;
-  }) =>
-    completeOpenCommand({
-      req,
-      sessionName,
-      sessionStore,
-      logPath,
-      dispatch,
-      applyRuntimeHints,
-      stopIosRunner,
-      settleSimulator,
-      ...openParams,
-    });
-
   if (sessionStore.has(sessionName)) {
     const session = sessionStore.get(sessionName);
     if (!session) {
@@ -255,27 +240,149 @@ export async function handleOpenCommand(params: {
         },
       };
     }
-    const preparation = await prepareExistingOpenCommand({
+    const shouldRelaunch = req.flags?.relaunch === true;
+    const requestedOpenTarget = req.positionals?.[0];
+    const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session.appName : undefined);
+    const surfaceResult = resolveOpenSurfaceResponse(
+      session.device,
+      req.flags?.surface,
+      openTarget,
+      session.surface,
+    );
+    if (typeof surfaceResult !== 'string') {
+      return surfaceResult;
+    }
+    if (!openTarget && surfaceResult === 'app') {
+      return shouldRelaunch
+        ? invalidOpenArgs('open --relaunch requires an app name or an active session app.')
+        : invalidOpenArgs('Session already active. Close it first or pass a new --session name.');
+    }
+
+    const validation = validateResolvedOpenRequest({
+      shouldRelaunch,
+      openTarget,
+      surface: surfaceResult,
+      device: session.device,
+    });
+    if (validation) {
+      return validation;
+    }
+
+    const device = await refreshSessionDeviceIfNeeded(session.device, resolveDevice);
+    const details = await prepareOpenCommandDetails({
       req,
       sessionName,
       sessionStore,
-      session,
+      device,
+      surface: surfaceResult,
+      openTarget,
       ensureReady,
-      resolveDevice,
-      clearRuntimeHints,
       resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn,
-      completeOpen,
+      clearRuntimeHints,
+      existingSession: session,
     });
-    return preparation;
+    if ('ok' in details) {
+      return details;
+    }
+
+    return await completeOpenCommand({
+      req,
+      sessionName,
+      sessionStore,
+      logPath,
+      device,
+      dispatch,
+      applyRuntimeHints,
+      stopIosRunner,
+      settleSimulator,
+      openTarget,
+      openPositionals: requestedOpenTarget
+        ? (req.positionals ?? [])
+        : openTarget
+          ? [openTarget]
+          : [],
+      appBundleId: details.appBundleId,
+      appName: details.appName,
+      runtime: details.runtime,
+      surface: surfaceResult,
+      existingSession: session,
+    });
   }
 
-  return await prepareNewOpenCommand({
+  const shouldRelaunch = req.flags?.relaunch === true;
+  const openTarget = req.positionals?.[0];
+  if (shouldRelaunch && !openTarget) {
+    return invalidOpenArgs('open --relaunch requires an app argument.');
+  }
+
+  const preResolvedValidation = validatePreResolvedOpenRequest({
+    shouldRelaunch,
+    openTarget,
+    platform: req.flags?.platform === 'android' ? 'android' : undefined,
+  });
+  if (preResolvedValidation) {
+    return preResolvedValidation;
+  }
+
+  const device = await resolveDevice(req.flags ?? {});
+  const surfaceResult = resolveOpenSurfaceResponse(device, req.flags?.surface, openTarget);
+  if (typeof surfaceResult !== 'string') {
+    return surfaceResult;
+  }
+
+  const validation = validateResolvedOpenRequest({
+    shouldRelaunch,
+    openTarget,
+    surface: surfaceResult,
+    device,
+  });
+  if (validation) {
+    return validation;
+  }
+
+  const inUse = sessionStore
+    .toArray()
+    .find((activeSession) => activeSession.device.id === device.id);
+  if (inUse) {
+    return {
+      ok: false,
+      error: {
+        code: 'DEVICE_IN_USE',
+        message: `Device is already in use by session "${inUse.name}".`,
+        details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
+      },
+    };
+  }
+
+  const details = await prepareOpenCommandDetails({
     req,
-    sessionStore,
     sessionName,
+    sessionStore,
+    device,
+    surface: surfaceResult,
+    openTarget,
     ensureReady,
-    resolveDevice,
     resolveAndroidPackageForOpen: resolveAndroidPackageForOpenFn,
-    completeOpen,
+  });
+  if ('ok' in details) {
+    return details;
+  }
+
+  return await completeOpenCommand({
+    req,
+    sessionName,
+    sessionStore,
+    logPath,
+    device,
+    dispatch,
+    applyRuntimeHints,
+    stopIosRunner,
+    settleSimulator,
+    openTarget,
+    openPositionals: req.positionals ?? [],
+    appBundleId: details.appBundleId,
+    appName: details.appName,
+    runtime: details.runtime,
+    surface: surfaceResult,
   });
 }
