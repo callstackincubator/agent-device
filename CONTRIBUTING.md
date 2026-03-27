@@ -23,6 +23,10 @@ Build all CLIs and Xcode projects:
 pnpm build:all
 ```
 
+For faster local macOS runner iteration, `pnpm build:xcuitest:macos` reuses the existing
+DerivedData by default. Set `AGENT_DEVICE_IOS_CLEAN_DERIVED=1` when you need a clean macOS
+runner rebuild.
+
 Run tests:
 
 ```bash
