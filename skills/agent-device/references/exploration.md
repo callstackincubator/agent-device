@@ -20,6 +20,7 @@ Open this file when the app or screen is already running and you need to discove
 - User asks what is visible on screen: `snapshot`
 - User asks for exact text from a known target: `get text`
 - User asks you to tap, type, or choose an element: `snapshot -i`, then act
+- The on-screen keyboard is blocking the next step: `keyboard dismiss`; on iOS do this only while an app session is active, and use `keyboard status|get` only on Android
 - UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked
 
 ## Read-only commands
@@ -28,6 +29,7 @@ Open this file when the app or screen is already running and you need to discove
 - `get`
 - `is`
 - `find`
+- `keyboard status|get` on Android when keyboard visibility or input type matters
 
 ## Interaction commands
 
@@ -36,6 +38,7 @@ Open this file when the app or screen is already running and you need to discove
 - `fill`
 - `type`
 - `wait`
+- `keyboard dismiss` when the keyboard obscures the next target
 
 ## Most common mistake to avoid
 
@@ -110,6 +113,8 @@ agent-device is visible 'id="camera_settings_anchor"'
 
 - Use `fill` to replace text in an editable field.
 - Use `type` to append text to the current insertion point.
+- If the keyboard blocks the next control after text entry, prefer `keyboard dismiss` instead of backing out of the screen.
+- On iOS, `keyboard dismiss` depends on the active app session to keep the target app foregrounded, so do not rely on selector-only dismiss calls after closing or without `open`.
 - Do not use `fill` or `type` just to make the app reveal information that is not currently visible unless the user asked for that interaction.
 
 ## Query and sync rules
