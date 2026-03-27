@@ -31,14 +31,29 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
   `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
 - Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
 
-## Usage Docs
+## Command Flow
 
-The README stays intentionally high-level. Command syntax, workflows, and troubleshooting live in the website docs and agent skills:
+The canonical loop is:
 
-- [Website](https://agent-device.dev/)
-- [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
-- [agent-device skill](skills/agent-device/SKILL.md)
-- [dogfood skill](skills/dogfood/SKILL.md)
+```bash
+agent-device open SampleApp --platform ios
+agent-device snapshot -i
+agent-device press @e3
+agent-device diff snapshot -i
+agent-device fill @e5 "test"
+agent-device fill @e5 "search" --delay-ms 80
+agent-device close
+```
+
+In practice, most work follows the same pattern:
+
+1. `open` a target app or URL.
+2. `snapshot -i` to inspect the current screen.
+3. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
+4. `diff snapshot` or re-snapshot after UI changes.
+5. `close` when the session is finished.
+
+In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
 
 ## Where To Go Next
 
