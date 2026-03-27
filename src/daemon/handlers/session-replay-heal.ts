@@ -1,6 +1,6 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
-import { extractNodeText, normalizeType, pruneGroupNodes } from '../snapshot-processing.ts';
+import { pruneGroupNodes } from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
   resolveSelectorChain,
@@ -72,75 +72,13 @@ export function collectReplaySelectorCandidates(action: SessionAction): string[]
     }
   }
 
-  const refLabel = typeof action.result?.refLabel === 'string' ? action.result.refLabel.trim() : '';
-  if (refLabel.length > 0) {
-    const quoted = JSON.stringify(refLabel);
-    if (action.command === 'fill') {
-      result.push(`id=${quoted} editable=true`);
-      result.push(`label=${quoted} editable=true`);
-      result.push(`text=${quoted} editable=true`);
-      result.push(`value=${quoted} editable=true`);
-    } else {
-      result.push(`id=${quoted}`);
-      result.push(`label=${quoted}`);
-      result.push(`text=${quoted}`);
-      result.push(`value=${quoted}`);
-    }
-  }
-
   return uniqueStrings(result).filter((entry) => entry.trim().length > 0);
 }
 
-export function healNumericGetTextDrift(
-  action: SessionAction,
-  snapshot: SnapshotState,
-  session: SessionState,
-): SessionAction | null {
-  if (action.command !== 'get') return null;
-  if (action.positionals?.[0] !== 'text') return null;
-  const selectorExpression = action.positionals?.[1];
-  if (!selectorExpression) return null;
-  const chain = tryParseSelectorChain(selectorExpression);
-  if (!chain) return null;
-
-  const roleFilters = new Set<string>();
-  let hasNumericTerm = false;
-  for (const selector of chain.selectors) {
-    for (const term of selector.terms) {
-      if (term.key === 'role' && typeof term.value === 'string') {
-        roleFilters.add(normalizeType(term.value));
-      }
-      if (
-        (term.key === 'text' || term.key === 'label' || term.key === 'value') &&
-        typeof term.value === 'string' &&
-        /^\d+$/.test(term.value.trim())
-      ) {
-        hasNumericTerm = true;
-      }
-    }
-  }
-  if (!hasNumericTerm) return null;
-
-  const numericNodes = snapshot.nodes.filter((node) => {
-    const text = extractNodeText(node).trim();
-    if (!/^\d+$/.test(text)) return false;
-    if (roleFilters.size === 0) return true;
-    return roleFilters.has(normalizeType(node.type ?? ''));
-  });
-  if (numericNodes.length === 0) return null;
-  const numericValues = uniqueStrings(numericNodes.map((node) => extractNodeText(node).trim()));
-  if (numericValues.length !== 1) return null;
-
-  const targetNode = numericNodes[0];
-  if (!targetNode) return null;
-  const selectorChain = buildSelectorChainForNode(targetNode, session.device.platform, {
-    action: 'get',
-  });
-  if (selectorChain.length === 0) return null;
-  return {
-    ...action,
-    positionals: ['text', selectorChain.join(' || ')],
-  };
+function collectReplaySelectorChains(action: SessionAction) {
+  return collectReplaySelectorCandidates(action)
+    .map((candidate) => tryParseSelectorChain(candidate))
+    .filter((chain) => chain !== null);
 }
 
 export async function healReplayAction(params: {
@@ -159,6 +97,8 @@ export async function healReplayAction(params: {
 
   const session = sessionStore.get(sessionName);
   if (!session) return null;
+  const selectorChains = collectReplaySelectorChains(action);
+  if (selectorChains.length === 0) return null;
 
   const requiresRect = isClickLikeCommand(action.command) || action.command === 'fill';
   const allowDisambiguation =
@@ -173,10 +113,7 @@ export async function healReplayAction(params: {
     dispatch,
     sessionStore,
   );
-  const selectorCandidates = collectReplaySelectorCandidates(action);
-  for (const candidate of selectorCandidates) {
-    const chain = tryParseSelectorChain(candidate);
-    if (!chain) continue;
+  for (const chain of selectorChains) {
     const resolved = resolveSelectorChain(snapshot.nodes, chain, {
       platform: session.device.platform,
       requireRect: requiresRect,
@@ -224,8 +161,7 @@ export async function healReplayAction(params: {
       return { ...action, positionals: nextPositionals };
     }
   }
-
-  return healNumericGetTextDrift(action, snapshot, session);
+  return null;
 }
 
 async function captureSnapshotForReplay(

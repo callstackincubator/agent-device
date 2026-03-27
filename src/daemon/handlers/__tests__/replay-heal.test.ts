@@ -345,7 +345,9 @@ test('replay --update skips malformed selector candidates and preserves replay e
     result: {},
   });
 
+  let snapshotDispatchCalls = 0;
   const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    snapshotDispatchCalls += 1;
     return {
       nodes: [
         {
@@ -389,6 +391,8 @@ test('replay --update skips malformed selector candidates and preserves replay e
     assert.equal(response.error.details?.step, 1);
     assert.equal(response.error.details?.action, 'click');
   }
+  assert.equal(snapshotDispatchCalls, 0);
+  assert.equal(fs.readFileSync(replayPath, 'utf8'), 'click "id=\\"old_continue\\" ||"\n');
 });
 
 test('replay --update heals selector in is command', async () => {
@@ -466,7 +470,78 @@ test('replay --update heals selector in is command', async () => {
   assert.ok(rewrittenSelector.includes('auth_continue'));
 });
 
-test('replay --update heals numeric get text drift when numeric candidate value is unique', async () => {
+test('replay --update does not heal clicks from stored ref labels alone', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-ref-label-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const replayPath = path.join(tempRoot, 'replay.ad');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-ref-label-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  fs.writeFileSync(replayPath, 'click @e1 "Continue"\n');
+  const originalPayload = fs.readFileSync(replayPath, 'utf8');
+
+  let snapshotDispatchCalls = 0;
+  const invokeCalls: string[] = [];
+  const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
+    if (request.command !== 'click') {
+      return {
+        ok: false,
+        error: { code: 'INVALID_ARGS', message: `unexpected command ${request.command}` },
+      };
+    }
+    const target = request.positionals?.[0] ?? '';
+    invokeCalls.push(target);
+    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'missing ref target' } };
+  };
+
+  const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    snapshotDispatchCalls += 1;
+    return {
+      nodes: [
+        {
+          index: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Continue',
+          identifier: 'auth_continue',
+          rect: { x: 10, y: 10, width: 100, height: 44 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      backend: 'xctest',
+    };
+  };
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'replay',
+      positionals: [replayPath],
+      flags: { replayUpdate: true },
+    },
+    sessionName,
+    logPath: path.join(tempRoot, 'daemon.log'),
+    sessionStore,
+    invoke,
+    dispatch,
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.equal(response.error.details?.step, 1);
+    assert.equal(response.error.details?.action, 'click');
+  }
+  assert.equal(snapshotDispatchCalls, 0);
+  assert.deepEqual(invokeCalls, ['@e1']);
+  assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
+});
+
+test('replay --update does not heal numeric get text drift from snapshot text alone', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-get-numeric-'));
   const sessionsDir = path.join(tempRoot, 'sessions');
   const replayPath = path.join(tempRoot, 'replay.ad');
@@ -481,7 +556,9 @@ test('replay --update heals numeric get text drift when numeric candidate value 
     flags: {},
     result: {},
   });
+  const originalPayload = fs.readFileSync(replayPath, 'utf8');
 
+  let snapshotDispatchCalls = 0;
   const invokeCalls: string[] = [];
   const invoke = async (request: DaemonRequest): Promise<DaemonResponse> => {
     if (request.command !== 'get') {
@@ -492,16 +569,11 @@ test('replay --update heals numeric get text drift when numeric candidate value 
     }
     const selector = request.positionals?.[1] ?? '';
     invokeCalls.push(selector);
-    if (selector.includes('label="2"')) {
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } };
-    }
-    if (selector.includes('label="20"')) {
-      return { ok: true, data: { text: '20' } };
-    }
-    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'unexpected selector' } };
+    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'selector stale' } };
   };
 
   const dispatch = async (): Promise<Record<string, unknown> | void> => {
+    snapshotDispatchCalls += 1;
     return {
       nodes: [
         {
@@ -542,12 +614,15 @@ test('replay --update heals numeric get text drift when numeric candidate value 
   });
 
   assert.ok(response);
-  assert.equal(response.ok, true, JSON.stringify(response));
-  if (response.ok) {
-    assert.equal(response.data?.healed, 1);
-    assert.equal(response.data?.replayed, 1);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.equal(response.error.details?.step, 1);
+    assert.equal(response.error.details?.action, 'get');
   }
-  assert.equal(invokeCalls.length, 2);
+  assert.equal(snapshotDispatchCalls, 1);
+  assert.equal(invokeCalls.length, 1);
+  assert.equal(fs.readFileSync(replayPath, 'utf8'), originalPayload);
 });
 
 test('replay --update heals selector in press command and preserves press series flags', async () => {
