@@ -12,7 +12,7 @@ import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
 
 export async function handleIsCommand(params: InteractionHandlerParams): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, contextFromFlags, dispatch } = params;
+  const { req, sessionName, sessionStore, contextFromFlags } = params;
   const predicate = (req.positionals?.[0] ?? '').toLowerCase();
   if (!isSupportedPredicate(predicate)) {
     return {
@@ -73,7 +73,6 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
       sessionStore,
       contextFromFlags,
       { interactiveOnly: false },
-      dispatch,
     );
     const matched = findSelectorChainMatch(snapshot.nodes, chain, {
       platform: session.device.platform,
@@ -116,7 +115,6 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     requireRect: false,
     requireUnique: true,
     disambiguateAmbiguous: false,
-    dispatch,
   });
   if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget.response;
   const { resolved } = resolvedSelectorTarget;

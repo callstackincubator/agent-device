@@ -12,7 +12,6 @@ import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 
 type CaptureSnapshotParams = {
-  dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   session: SessionState | undefined;
   flags: CommandFlags | undefined;
@@ -35,8 +34,7 @@ export async function captureSnapshot(
 }
 
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
-  const { dispatchSnapshotCommand, device, session, flags, outPath, logPath, snapshotScope } =
-    params;
+  const { device, session, flags, outPath, logPath, snapshotScope } = params;
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
     const helperSnapshot = await runMacOsSnapshotAction(session.surface);
     return shapeMacOsSurfaceSnapshot(helperSnapshot, {
@@ -45,7 +43,7 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
       snapshotScope,
     });
   }
-  return (await dispatchSnapshotCommand(device, 'snapshot', [], outPath, {
+  return (await dispatchCommand(device, 'snapshot', [], outPath, {
     ...contextFromFlags(
       logPath,
       { ...flags, snapshotScope },

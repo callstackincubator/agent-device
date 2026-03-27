@@ -62,7 +62,6 @@ export async function handleFindCommands(params: {
       return { nodes: lastNodes };
     }
     const { snapshot } = await captureSnapshot({
-      dispatchSnapshotCommand: dispatchCommand,
       device,
       session,
       flags: {
@@ -167,7 +166,6 @@ export async function handleFindCommands(params: {
       surface: session?.surface,
       contextFromFlags: (flags, appBundleId, traceLogPath) =>
         contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-      dispatch: dispatchCommand,
     });
     if (session) {
       sessionStore.recordAction(session, {

@@ -1,5 +1,4 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { dispatchCommand } from '../../core/dispatch.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { snapshotAndroid } from '../../platforms/android/index.ts';
 import { isApplePlatform } from '../../utils/device.ts';
@@ -72,8 +71,6 @@ type HandleWaitCommandParams = {
   sessionStore: SessionStore;
   session: SessionState | undefined;
   device: SessionState['device'];
-  dispatchSnapshotCommand?: typeof dispatchCommand;
-  runnerCommand?: typeof runIosRunnerCommand;
 };
 
 export function waitNeedsRunnerCleanup(parsed: WaitParsed): boolean {
@@ -82,8 +79,6 @@ export function waitNeedsRunnerCleanup(parsed: WaitParsed): boolean {
 
 export async function handleWaitCommand(params: HandleWaitCommandParams): Promise<DaemonResponse> {
   const { parsed, req, sessionName, logPath, sessionStore, session, device } = params;
-  const dispatchSnapshotCommand = params.dispatchSnapshotCommand ?? dispatchCommand;
-  const runnerCommand = params.runnerCommand ?? runIosRunnerCommand;
   if (parsed.kind === 'sleep') {
     await new Promise((resolve) => setTimeout(resolve, parsed.durationMs));
     recordIfSession(sessionStore, session, req, { waitedMs: parsed.durationMs });
@@ -98,7 +93,6 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
 
   if (parsed.kind === 'selector') {
     return await waitForSelector({
-      dispatchSnapshotCommand,
       device,
       logPath,
       parsed,
@@ -112,11 +106,9 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
   const textResult = resolveWaitText(parsed, session);
   if (!textResult.ok) return textResult.response;
   return await waitForText({
-    dispatchSnapshotCommand,
     device,
     logPath,
     req,
-    runnerCommand,
     session,
     sessionStore,
     text: textResult.text,
@@ -125,7 +117,6 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
 }
 
 async function waitForSelector(params: {
-  dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   logPath: string;
   parsed: Extract<WaitParsed, { kind: 'selector' }>;
@@ -135,7 +126,6 @@ async function waitForSelector(params: {
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
   const {
-    dispatchSnapshotCommand,
     device,
     logPath,
     parsed,
@@ -148,7 +138,6 @@ async function waitForSelector(params: {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     const snapshot = await captureWaitSnapshot({
-      dispatchSnapshotCommand,
       device,
       logPath,
       req,
@@ -230,23 +219,20 @@ function resolveWaitText(
 }
 
 async function waitForText(params: {
-  dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   logPath: string;
   req: DaemonRequest;
-  runnerCommand: typeof runIosRunnerCommand;
   session: SessionState | undefined;
   sessionStore: SessionStore;
   text: string;
   timeoutMs: number | null;
 }): Promise<DaemonResponse> {
-  const { device, logPath, req, runnerCommand, session, sessionStore, text, timeoutMs } = params;
+  const { device, logPath, req, session, sessionStore, text, timeoutMs } = params;
   const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   while (Date.now() - start < timeout) {
     if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
       const snapshot = await captureWaitSnapshot({
-        dispatchSnapshotCommand: params.dispatchSnapshotCommand,
         device,
         logPath,
         req,
@@ -261,7 +247,7 @@ async function waitForText(params: {
         });
       }
     } else if (isApplePlatform(device.platform)) {
-      const result = (await runnerCommand(
+      const result = (await runIosRunnerCommand(
         device,
         { command: 'findText', text, appBundleId: session?.appBundleId },
         {
@@ -291,7 +277,6 @@ async function waitForText(params: {
 }
 
 async function captureWaitSnapshot(params: {
-  dispatchSnapshotCommand: typeof dispatchCommand;
   device: SessionState['device'];
   logPath: string;
   req: DaemonRequest;
@@ -299,10 +284,8 @@ async function captureWaitSnapshot(params: {
   sessionName: string;
   sessionStore: SessionStore;
 }): Promise<import('../../utils/snapshot.ts').SnapshotState> {
-  const { dispatchSnapshotCommand, device, logPath, req, session, sessionName, sessionStore } =
-    params;
+  const { device, logPath, req, session, sessionName, sessionStore } = params;
   const { snapshot } = await captureSnapshot({
-    dispatchSnapshotCommand,
     device,
     session,
     flags: {

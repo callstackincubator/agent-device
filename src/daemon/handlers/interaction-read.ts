@@ -14,10 +14,8 @@ export async function readTextForNode(params: {
   traceOutPath?: string;
   surface?: SessionState['surface'];
   contextFromFlags: ContextFromFlags;
-  dispatch: typeof dispatchCommand;
 }): Promise<string> {
-  const { device, node, flags, appBundleId, traceOutPath, surface, contextFromFlags, dispatch } =
-    params;
+  const { device, node, flags, appBundleId, traceOutPath, surface, contextFromFlags } = params;
   const fallbackText = extractNodeReadText(node);
   const center = resolveRectCenter(node.rect);
   if (!center) {
@@ -25,7 +23,7 @@ export async function readTextForNode(params: {
   }
 
   try {
-    const rawData = await dispatch(
+    const rawData = await dispatchCommand(
       device,
       'read',
       [String(center.x), String(center.y)],

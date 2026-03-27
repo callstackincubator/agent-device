@@ -1,6 +1,4 @@
-import { dispatchCommand } from '../../core/dispatch.ts';
 import type { DaemonResponse } from '../types.ts';
-import { getAndroidScreenSize } from '../../platforms/android/index.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { handleTouchInteractionCommands } from './interaction-touch.ts';
 import { handleGetCommand } from './interaction-get.ts';
@@ -13,18 +11,10 @@ import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 export { unsupportedRefSnapshotFlags } from './interaction-flags.ts';
 
 export async function handleInteractionCommands(
-  params: Omit<InteractionHandlerParams, 'dispatch'> & {
-    dispatch?: typeof dispatchCommand;
-    readAndroidScreenSize?: typeof getAndroidScreenSize;
-  },
+  params: InteractionHandlerParams,
 ): Promise<DaemonResponse | null> {
-  const dispatch = params.dispatch ?? dispatchCommand;
-  const readAndroidScreenSize = params.readAndroidScreenSize ?? getAndroidScreenSize;
-  const handlerParams: InteractionHandlerParams = { ...params, dispatch };
-
   const touchResponse = await handleTouchInteractionCommands({
-    ...handlerParams,
-    readAndroidScreenSize,
+    ...params,
     captureSnapshotForSession,
     resolveRefTarget,
     refSnapshotFlagGuardResponse,
@@ -35,11 +25,11 @@ export async function handleInteractionCommands(
 
   switch (params.req.command) {
     case 'get':
-      return await handleGetCommand(handlerParams);
+      return await handleGetCommand(params);
     case 'is':
-      return await handleIsCommand(handlerParams);
+      return await handleIsCommand(params);
     case 'scrollintoview':
-      return await handleScrollIntoViewCommand(handlerParams);
+      return await handleScrollIntoViewCommand(params);
     default:
       return null;
   }
