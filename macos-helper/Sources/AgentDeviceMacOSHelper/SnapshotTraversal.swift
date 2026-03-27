@@ -449,6 +449,8 @@ private func menuBarWindowFallbackCandidate(
     )
   }
 
+  // CGWindowList can surface multiple MiniSim-owned utility windows. Prefer the small
+  // top-band window that matches typical menu bar extra geometry before ranking by area.
   let menuBarBandCandidates = allCandidates.filter { candidate in
     candidate.rect.y <= 64 && candidate.rect.height <= 64
   }
