@@ -126,6 +126,7 @@ Notes:
 
 - `positionals` is optional (defaults to `[]`).
 - `flags` is optional (defaults to `{}`).
+- Unknown top-level step fields are rejected. Supported keys are `command`, `positionals`, `flags`, and `runtime`.
 - nested `batch` and `replay` steps are rejected.
 - `--on-error stop` is the supported behavior.
 
@@ -149,6 +150,8 @@ Success:
   }
 }
 ```
+
+In non-JSON mode, `batch` also prints a short per-step summary after the overall completion line.
 
 Failure:
 
@@ -301,6 +304,8 @@ agent-device open --platform macos --surface frontmost-app
 agent-device open --platform macos --surface desktop
 agent-device close [app]
 agent-device back
+agent-device back --in-app
+agent-device back --system
 agent-device home
 agent-device app-switcher
 ```
@@ -316,6 +321,9 @@ agent-device app-switcher
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
 - `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.
+- `back` now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.
+- `back --in-app` is an explicit alias for the default app-owned behavior.
+- `back --system` asks for system back input explicitly. On Android this is the normal back keyevent. On iOS and tvOS it uses the platform back gesture or Siri Remote menu action. On macOS, where there is no generic system back input, `back --system` reports unavailable instead of falling back to app-owned navigation.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
 - A configured `AGENT_DEVICE_SESSION` implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
@@ -334,6 +342,8 @@ agent-device app-switcher
 ```bash
 agent-device open "https://example.com" --platform ios           # open link in web browser
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
+agent-device back --platform ios                                 # tap visible app back UI only
+agent-device back --system --platform ios                        # use edge-swipe or remote back action
 agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
 agent-device open com.example.myapp --platform android --serial emulator-5554 --session my-session --relaunch
@@ -532,6 +542,9 @@ agent-device is text 'id="greeting"' "Welcome back"
 
 - `is` evaluates UI predicates against a selector expression and exits non-zero on failure.
 - Supported predicates are `visible`, `hidden`, `exists`, `editable`, `selected`, and `text`.
+- `is visible` checks whether the resolved element is present in the current visible snapshot viewport. A node without its own rect still passes when a visible ancestor within the viewport provides the on-screen geometry.
+- `is exists` only checks whether the selector matches in the current snapshot.
+- `wait text` is a text-presence wait, not a hittability assertion.
 - `is text <selector> <value>` compares the resolved element text against the expected value.
 - `is` does not accept snapshot refs like `@e3`; use a selector expression instead.
 - `is` accepts the same selector-oriented snapshot flags as `click`, `fill`, `get`, and `wait`.
@@ -565,10 +578,12 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- Each step has `command`, optional `positionals`, and optional `flags`.
+- Each step has `command`, optional `positionals`, optional `flags`, and optional `runtime`.
+- Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.
 - Batch requests inherit the same daemon lock policy and session binding metadata as the parent command.
+- In non-JSON mode, successful batches print a short per-step summary.
 
 See [Batching](/agent-device/pr-preview/pr-292/docs/batching.md) for payload format, response shape, and usage guidelines.
 
