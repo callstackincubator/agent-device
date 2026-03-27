@@ -30,7 +30,8 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to 15 FPS and supports `--fps` caps.
-- Android supports the same core interaction set, plus `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss` via adb shell commands.
+- Android supports the same core interaction set, plus `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss`.
+- iOS supports `keyboard dismiss` through the XCTest runner when the on-screen keyboard is visible.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)
@@ -739,7 +740,7 @@ agent-device clipboard write ""   # clear clipboard
 - Supported on macOS, Android emulator/device, and iOS simulator.
 - iOS physical devices currently return `UNSUPPORTED_OPERATION` for clipboard commands.
 
-## Keyboard (Android)
+## Keyboard
 
 ```bash
 agent-device keyboard status
@@ -747,10 +748,12 @@ agent-device keyboard get
 agent-device keyboard dismiss
 ```
 
-- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification.
-- `keyboard dismiss` dismisses keyboard with Android back keyevent only when the keyboard is visible, then confirms hidden state.
+- `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification on Android.
+- `keyboard dismiss` attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.
+- If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit `UNSUPPORTED_OPERATION` error instead of falling back to back navigation.
 - Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
-- Supported on Android emulator/device.
+- `keyboard status|get` is supported on Android emulator/device.
+- `keyboard dismiss` is supported on Android emulator/device and iOS simulator/device.
 
 ## Performance metrics
 
