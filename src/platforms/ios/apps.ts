@@ -9,7 +9,6 @@ import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
 import {
   getUnsupportedMacOsSettingMessage,
-  SETTINGS_MACOS_SUPPORTED_MESSAGE,
 } from '../../core/settings-contract.ts';
 import {
   parsePermissionAction,
@@ -383,7 +382,7 @@ export async function setIosSetting(
       if (action === 'deny') {
         throw new AppError(
           'INVALID_ARGS',
-          `Unsupported macOS permission action: deny. ${SETTINGS_MACOS_SUPPORTED_MESSAGE}`,
+          getUnsupportedMacOsSettingMessage('permission'),
         );
       }
       const permissionTarget = parseMacOsPermissionTarget(options?.permissionTarget);

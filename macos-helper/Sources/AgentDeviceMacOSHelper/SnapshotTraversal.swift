@@ -7,6 +7,9 @@ private enum SnapshotTraversalLimits {
   static let maxDesktopApps = 24
   static let maxNodes = 1500
   static let maxDepth = 12
+  static let maxMenuBarBandY = 64.0
+  static let maxMenuBarBandHeight = 64.0
+  static let maxMenuBarExtraWidth = 256.0
 }
 
 struct RectResponse: Encodable {
@@ -449,13 +452,14 @@ private func menuBarWindowFallbackCandidate(
     )
   }
 
-  // CGWindowList can surface multiple MiniSim-owned utility windows. Prefer the small
+  // CGWindowList can surface multiple app-owned utility windows. Prefer the small
   // top-band window that matches typical menu bar extra geometry before ranking by area.
   let menuBarBandCandidates = allCandidates.filter { candidate in
-    candidate.rect.y <= 64 && candidate.rect.height <= 64
+    candidate.rect.y <= SnapshotTraversalLimits.maxMenuBarBandY
+      && candidate.rect.height <= SnapshotTraversalLimits.maxMenuBarBandHeight
   }
   let narrowCandidates = menuBarBandCandidates.filter { candidate in
-    candidate.rect.width <= 256
+    candidate.rect.width <= SnapshotTraversalLimits.maxMenuBarExtraWidth
   }
   let rankedCandidates = (narrowCandidates.isEmpty ? menuBarBandCandidates : narrowCandidates)
     .sorted { left, right in
