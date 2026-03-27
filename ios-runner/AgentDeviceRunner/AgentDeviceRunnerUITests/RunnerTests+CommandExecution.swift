@@ -453,21 +453,19 @@ extension RunnerTests {
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
       }
-      let dragFrame = resolvedScrollFrame(
-        app: activeApp,
-        direction: direction,
-        amount: command.amount,
-        pixels: command.pixels
-      )
+      var executedFrame: DragVisualizationFrame?
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          _ = swipe(
+          executedFrame = swipe(
             app: activeApp,
             direction: direction,
             amount: command.amount,
             pixels: command.pixels
           )
         }
+      }
+      guard let dragFrame = executedFrame else {
+        return Response(ok: false, error: ErrorPayload(message: "swipe did not produce a gesture frame"))
       }
       return Response(
         ok: true,

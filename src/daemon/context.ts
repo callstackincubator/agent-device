@@ -20,6 +20,7 @@ export type DaemonCommandContext = {
   delayMs?: number;
   holdMs?: number;
   jitterPx?: number;
+  pixels?: number;
   doubleTap?: boolean;
   clickButton?: 'primary' | 'secondary' | 'middle';
   backMode?: 'in-app' | 'system';
@@ -53,6 +54,7 @@ export function contextFromFlags(
     delayMs: flags?.delayMs,
     holdMs: flags?.holdMs,
     jitterPx: flags?.jitterPx,
+    pixels: flags?.pixels,
     doubleTap: flags?.doubleTap,
     clickButton: resolveClickButton(flags),
     backMode: flags?.backMode,
