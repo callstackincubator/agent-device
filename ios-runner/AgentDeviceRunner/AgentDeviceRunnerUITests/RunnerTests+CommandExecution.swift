@@ -423,7 +423,12 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
       }
       let delaySeconds = Double(max(command.delayMs ?? 0, 0)) / 1000.0
-      let target = focusedTextInput(app: activeApp)
+      let target: XCUIElement?
+      if let x = command.x, let y = command.y {
+        target = textInputAt(app: activeApp, x: x, y: y) ?? focusedTextInput(app: activeApp)
+      } else {
+        target = focusedTextInput(app: activeApp)
+      }
       func typeIntoTarget(_ value: String) {
         if let focused = target {
           focused.typeText(value)

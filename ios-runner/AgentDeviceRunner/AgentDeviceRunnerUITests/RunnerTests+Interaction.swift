@@ -168,19 +168,71 @@ extension RunnerTests {
     element.typeText(deletes)
   }
 
-  func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
-    let focused = app
-      .descendants(matching: .any)
-      .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
-      .firstMatch
-    guard focused.exists else { return nil }
-
-    switch focused.elementType {
-    case .textField, .secureTextField, .searchField, .textView:
-      return focused
-    default:
+  func textInputAt(app: XCUIApplication, x: Double, y: Double) -> XCUIElement? {
+    let point = CGPoint(x: x, y: y)
+    var matched: XCUIElement?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      let candidates = app.descendants(matching: .any).allElementsBoundByIndex
+        .filter { element in
+          guard element.exists else { return false }
+          switch element.elementType {
+          case .textField, .secureTextField, .searchField, .textView:
+            let frame = element.frame
+            return !frame.isEmpty && frame.contains(point)
+          default:
+            return false
+          }
+        }
+        .sorted { left, right in
+          let leftArea = max(1, left.frame.width * left.frame.height)
+          let rightArea = max(1, right.frame.width * right.frame.height)
+          if leftArea != rightArea {
+            return leftArea < rightArea
+          }
+          if left.frame.minY != right.frame.minY {
+            return left.frame.minY < right.frame.minY
+          }
+          if left.frame.minX != right.frame.minX {
+            return left.frame.minX < right.frame.minX
+          }
+          return left.elementType.rawValue < right.elementType.rawValue
+        }
+      matched = candidates.first
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_TEXT_INPUT_AT_POINT_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
       return nil
     }
+    return matched
+  }
+
+  func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
+    var focused: XCUIElement?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      let candidate = app
+        .descendants(matching: .any)
+        .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
+        .firstMatch
+      guard candidate.exists else { return }
+
+      switch candidate.elementType {
+      case .textField, .secureTextField, .searchField, .textView:
+        focused = candidate
+      default:
+        return
+      }
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_FOCUSED_INPUT_QUERY_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return nil
+    }
+    return focused
   }
 
   func isKeyboardVisible(app: XCUIApplication) -> Bool {

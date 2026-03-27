@@ -339,7 +339,15 @@ function iosRunnerOverrides(
         );
         await runRunnerCommand(
           device,
-          { command: 'type', text, clearFirst: true, delayMs, appBundleId: ctx.appBundleId },
+          {
+            command: 'type',
+            x,
+            y,
+            text,
+            clearFirst: true,
+            delayMs,
+            appBundleId: ctx.appBundleId,
+          },
           runnerOpts,
         );
         return tapResult;

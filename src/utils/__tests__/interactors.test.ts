@@ -107,6 +107,35 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
   assert.equal(pixels, 120);
 });
 
+test('ios fill preserves target coordinates for the follow-up type command', async () => {
+  const commands: RunnerCommand[] = [];
+  const interactor = getInteractor(
+    iosSimulator,
+    { appBundleId: 'com.example.app' },
+    {
+      runIosRunnerCommand: async (_device, command) => {
+        commands.push(command);
+        return {};
+      },
+    },
+  );
+
+  await interactor.fill(120, 240, 'hunter2');
+
+  assert.deepEqual(commands, [
+    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.app' },
+    {
+      command: 'type',
+      x: 120,
+      y: 240,
+      text: 'hunter2',
+      clearFirst: true,
+      delayMs: undefined,
+      appBundleId: 'com.example.app',
+    },
+  ]);
+});
+
 test('scrollIntoViewIosRunnerText stops when post-swipe snapshots stall', async (t) => {
   t.mock.method(globalThis, 'setTimeout', (cb: () => void, _ms: number) => {
     cb();
