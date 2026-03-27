@@ -1,5 +1,6 @@
 import { AppError } from './errors.ts';
 import type { DeviceInfo } from './device.ts';
+import type { ScrollDirection } from '../core/scroll-gesture.ts';
 import {
   appSwitcherAndroid,
   backAndroid,
@@ -69,7 +70,10 @@ type Interactor = {
     text: string,
     delayMs?: number,
   ): Promise<Record<string, unknown> | void>;
-  scroll(direction: string, amount?: number): Promise<Record<string, unknown> | void>;
+  scroll(
+    direction: ScrollDirection,
+    options?: { amount?: number; pixels?: number },
+  ): Promise<Record<string, unknown> | void>;
   scrollIntoView(text: string): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, appBundleId?: string): Promise<void>;
   back(mode?: BackMode): Promise<void>;
@@ -102,7 +106,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         focus: (x, y) => focusAndroid(device, x, y),
         type: (text, delayMs) => typeAndroid(device, text, delayMs),
         fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
-        scroll: (direction, amount) => scrollAndroid(device, direction, amount),
+        scroll: (direction, options) => scrollAndroid(device, direction, options),
         scrollIntoView: (text) => scrollIntoViewAndroid(device, text),
         screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
@@ -264,16 +268,20 @@ function iosRunnerOverrides(
         );
         return tapResult;
       },
-      scroll: async (direction, _amount) => {
-        if (!['up', 'down', 'left', 'right'].includes(direction)) {
-          throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
-        }
-        const inverted = invertScrollDirection(direction as 'up' | 'down' | 'left' | 'right');
-        return (await runIosRunnerCommand(
+      scroll: async (direction, options) => {
+        const inverted = invertScrollDirection(direction);
+        const runnerResult = await runIosRunnerCommand(
           device,
-          { command: 'swipe', direction: inverted, appBundleId: ctx.appBundleId },
+          {
+            command: 'swipe',
+            direction: inverted,
+            amount: options?.amount,
+            pixels: options?.pixels,
+            appBundleId: ctx.appBundleId,
+          },
           runnerOpts,
-        )) as Record<string, unknown>;
+        );
+        return normalizeIosScrollResult(runnerResult, options);
       },
       scrollIntoView: async (text) => {
         // Check once, then scroll in bursts to avoid slow find->swipe->find cadence on heavy screens.
@@ -311,9 +319,7 @@ function iosRunnerOverrides(
   };
 }
 
-function invertScrollDirection(
-  direction: 'up' | 'down' | 'left' | 'right',
-): 'up' | 'down' | 'left' | 'right' {
+function invertScrollDirection(direction: ScrollDirection): ScrollDirection {
   switch (direction) {
     case 'up':
       return 'down';
@@ -323,5 +329,55 @@ function invertScrollDirection(
       return 'right';
     case 'right':
       return 'left';
+    default:
+      throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
   }
+}
+
+function readFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeIosScrollResult(
+  runnerResult: Record<string, unknown>,
+  options?: { amount?: number; pixels?: number },
+): Record<string, unknown> {
+  const { x1, y1, x2, y2 } = remapRunnerCoordinates(runnerResult);
+  const referenceWidth = readFiniteNumber(runnerResult.referenceWidth);
+  const referenceHeight = readFiniteNumber(runnerResult.referenceHeight);
+  const horizontalTravel =
+    x1 !== undefined && x2 !== undefined ? Math.round(Math.abs(x2 - x1)) : undefined;
+  const verticalTravel =
+    y1 !== undefined && y2 !== undefined ? Math.round(Math.abs(y2 - y1)) : undefined;
+  const travelPixels =
+    horizontalTravel && horizontalTravel > 0
+      ? horizontalTravel
+      : verticalTravel && verticalTravel > 0
+        ? verticalTravel
+        : undefined;
+
+  return {
+    ...(x1 !== undefined ? { x1 } : {}),
+    ...(y1 !== undefined ? { y1 } : {}),
+    ...(x2 !== undefined ? { x2 } : {}),
+    ...(y2 !== undefined ? { y2 } : {}),
+    ...(referenceWidth !== undefined ? { referenceWidth } : {}),
+    ...(referenceHeight !== undefined ? { referenceHeight } : {}),
+    ...(options?.amount !== undefined ? { amount: options.amount } : {}),
+    ...(travelPixels !== undefined ? { pixels: travelPixels } : {}),
+  };
+}
+
+function remapRunnerCoordinates(runnerResult: Record<string, unknown>): {
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+} {
+  return {
+    x1: readFiniteNumber(runnerResult.x),
+    y1: readFiniteNumber(runnerResult.y),
+    x2: readFiniteNumber(runnerResult.x2),
+    y2: readFiniteNumber(runnerResult.y2),
+  };
 }

@@ -453,10 +453,20 @@ extension RunnerTests {
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
       }
-      let referenceFrame = resolvedGestureReferenceFrame(app: activeApp)
+      let dragFrame = resolvedScrollFrame(
+        app: activeApp,
+        direction: direction,
+        amount: command.amount,
+        pixels: command.pixels
+      )
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          swipe(app: activeApp, direction: direction)
+          _ = swipe(
+            app: activeApp,
+            direction: direction,
+            amount: command.amount,
+            pixels: command.pixels
+          )
         }
       }
       return Response(
@@ -465,8 +475,12 @@ extension RunnerTests {
           message: "swiped",
           gestureStartUptimeMs: timing.gestureStartUptimeMs,
           gestureEndUptimeMs: timing.gestureEndUptimeMs,
-          referenceWidth: referenceFrame.referenceWidth,
-          referenceHeight: referenceFrame.referenceHeight
+          x: dragFrame.x,
+          y: dragFrame.y,
+          x2: dragFrame.x2,
+          y2: dragFrame.y2,
+          referenceWidth: dragFrame.referenceWidth,
+          referenceHeight: dragFrame.referenceHeight
         )
       )
     case .findText:

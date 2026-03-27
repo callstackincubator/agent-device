@@ -62,6 +62,7 @@ export type CliFlags = {
   delayMs?: number;
   holdMs?: number;
   jitterPx?: number;
+  pixels?: number;
   doubleTap?: boolean;
   clickButton?: 'primary' | 'secondary' | 'middle';
   backMode?: 'in-app' | 'system';
@@ -568,6 +569,15 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 100,
     usageLabel: '--jitter-px <n>',
     usageDescription: 'Deterministic coordinate jitter radius for press',
+  },
+  {
+    key: 'pixels',
+    names: ['--pixels'],
+    type: 'int',
+    min: 1,
+    max: 100_000,
+    usageLabel: '--pixels <n>',
+    usageDescription: 'Scroll: explicit gesture distance in pixels',
   },
   {
     key: 'doubleTap',
@@ -1130,10 +1140,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS, 'delayMs'],
   },
   scroll: {
-    helpDescription: 'Scroll in direction (0-1 amount)',
+    usageOverride: 'scroll <direction> [amount] [--pixels <n>]',
+    helpDescription: 'Scroll in direction (relative amount or explicit pixels)',
     summary: 'Scroll in a direction',
     positionalArgs: ['direction', 'amount?'],
-    allowedFlags: [],
+    allowedFlags: ['pixels'],
   },
   scrollintoview: {
     usageOverride: 'scrollintoview <text|@ref>',

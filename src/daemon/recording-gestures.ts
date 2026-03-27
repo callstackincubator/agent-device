@@ -6,6 +6,7 @@ import {
   resolveTapVisualizationOffsetMs,
 } from './recording-timing.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
+import { buildScrollGesturePlan } from '../core/scroll-gesture.ts';
 import {
   getSnapshotReferenceFrame,
   type TouchReferenceFrame as ReferenceFrame,
@@ -14,9 +15,6 @@ import {
 const DEFAULT_TAP_GAP_MS = 90;
 const DEFAULT_SWIPE_DURATION_MS = 250;
 const DEFAULT_PINCH_DURATION_MS = 280;
-const DEFAULT_SCROLL_FRACTION = 0.4;
-const MIN_SCROLL_FRACTION = 0.2;
-const MAX_SCROLL_FRACTION = 0.7;
 const DEFAULT_SCROLL_REFERENCE_FRAME: ReferenceFrame = {
   referenceWidth: 1000,
   referenceHeight: 1000,
@@ -102,7 +100,8 @@ export function augmentScrollVisualizationResult(
   if (!contentDirection) return result;
 
   const amountValue = readNumber(merged.amount) ?? readNumber(positionals[1]);
-  const travelFraction = resolveScrollTravelFraction(amountValue);
+  const pixelValue = readNumber(merged.pixels);
+  const explicitTravel = readTravelCoordinates(merged, []);
   const explicitReferenceWidth = readNumber(merged.referenceWidth);
   const explicitReferenceHeight = readNumber(merged.referenceHeight);
   const fallbackReferenceFrame =
@@ -115,16 +114,43 @@ export function augmentScrollVisualizationResult(
           referenceHeight: explicitReferenceHeight,
         }
       : (referenceFrame ?? DEFAULT_SCROLL_REFERENCE_FRAME);
-  const { start, end } = scrollPoints(contentDirection, fallbackReferenceFrame, travelFraction);
+
+  if (
+    explicitTravel &&
+    (explicitTravel.x1 !== explicitTravel.x2 || explicitTravel.y1 !== explicitTravel.y2)
+  ) {
+    return {
+      ...merged,
+      x1: explicitTravel.x1,
+      y1: explicitTravel.y1,
+      x2: explicitTravel.x2,
+      y2: explicitTravel.y2,
+      contentDirection,
+      ...(amountValue !== undefined ? { amount: amountValue } : {}),
+      ...(pixelValue !== undefined ? { pixels: pixelValue } : {}),
+      referenceWidth: fallbackReferenceFrame.referenceWidth,
+      referenceHeight: fallbackReferenceFrame.referenceHeight,
+      durationMs: DEFAULT_SWIPE_DURATION_MS,
+    };
+  }
+
+  const plan = buildScrollGesturePlan({
+    direction: contentDirection,
+    amount: amountValue,
+    pixels: pixelValue,
+    referenceWidth: fallbackReferenceFrame.referenceWidth,
+    referenceHeight: fallbackReferenceFrame.referenceHeight,
+  });
 
   return {
     ...merged,
-    x1: start.x,
-    y1: start.y,
-    x2: end.x,
-    y2: end.y,
+    x1: plan.x1,
+    y1: plan.y1,
+    x2: plan.x2,
+    y2: plan.y2,
     contentDirection,
-    amount: amountValue,
+    ...(amountValue !== undefined ? { amount: amountValue } : {}),
+    ...(plan.pixels !== undefined ? { pixels: plan.pixels } : {}),
     referenceWidth: fallbackReferenceFrame.referenceWidth,
     referenceHeight: fallbackReferenceFrame.referenceHeight,
     durationMs: DEFAULT_SWIPE_DURATION_MS,
@@ -318,6 +344,7 @@ function buildScrollEvents(
 
   const durationMs = resolveDurationMs(gestureDurationMs, [], DEFAULT_SWIPE_DURATION_MS);
   const amount = readNumber(result.amount) ?? readNumber(positionals[1]);
+  const pixels = readNumber(result.pixels);
   return [
     {
       kind: 'scroll',
@@ -330,6 +357,7 @@ function buildScrollEvents(
       durationMs,
       contentDirection,
       ...(amount !== undefined ? { amount } : {}),
+      ...(pixels !== undefined ? { pixels } : {}),
     },
   ];
 }
@@ -440,49 +468,6 @@ function readDirection(value: unknown): 'up' | 'down' | 'left' | 'right' | undef
   }
 }
 
-function resolveScrollTravelFraction(amount: number | undefined): number {
-  if (amount === undefined) return DEFAULT_SCROLL_FRACTION;
-  if (!Number.isFinite(amount) || amount <= 0) return DEFAULT_SCROLL_FRACTION;
-  if (amount <= 1) {
-    return clampNumber(amount, MIN_SCROLL_FRACTION, MAX_SCROLL_FRACTION);
-  }
-  return clampNumber(amount / 100, MIN_SCROLL_FRACTION, MAX_SCROLL_FRACTION);
-}
-
-function scrollPoints(
-  contentDirection: 'up' | 'down' | 'left' | 'right',
-  referenceFrame: ReferenceFrame,
-  travelFraction: number,
-): { start: { x: number; y: number }; end: { x: number; y: number } } {
-  const midX = Math.round(referenceFrame.referenceWidth / 2);
-  const midY = Math.round(referenceFrame.referenceHeight / 2);
-  const travelX = Math.round((referenceFrame.referenceWidth * travelFraction) / 2);
-  const travelY = Math.round((referenceFrame.referenceHeight * travelFraction) / 2);
-
-  switch (contentDirection) {
-    case 'up':
-      return {
-        start: { x: midX, y: midY - travelY },
-        end: { x: midX, y: midY + travelY },
-      };
-    case 'down':
-      return {
-        start: { x: midX, y: midY + travelY },
-        end: { x: midX, y: midY - travelY },
-      };
-    case 'left':
-      return {
-        start: { x: midX - travelX, y: midY },
-        end: { x: midX + travelX, y: midY },
-      };
-    case 'right':
-      return {
-        start: { x: midX + travelX, y: midY },
-        end: { x: midX - travelX, y: midY },
-      };
-  }
-}
-
 function readNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'string' || value.trim().length === 0) return undefined;
@@ -494,10 +479,6 @@ function clampInt(value: number | undefined, min: number): number | undefined {
   if (value === undefined) return undefined;
   const normalized = Math.floor(value);
   return normalized >= min ? normalized : undefined;
-}
-
-function clampNumber(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 
 function readCoordinates(

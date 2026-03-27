@@ -17,11 +17,6 @@ extension RunnerTests {
     let referenceHeight: Double
   }
 
-  struct GestureReferenceFrame {
-    let referenceWidth: Double
-    let referenceHeight: Double
-  }
-
   // MARK: - Navigation Gestures
 
   func tapInAppBackControl(app: XCUIApplication) -> Bool {
@@ -388,14 +383,6 @@ extension RunnerTests {
     return CGRect(x: 0, y: 0, width: 0, height: 0)
   }
 
-  func resolvedGestureReferenceFrame(app: XCUIApplication) -> GestureReferenceFrame {
-    let frame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
-    return GestureReferenceFrame(
-      referenceWidth: frame.width,
-      referenceHeight: frame.height
-    )
-  }
-
   func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {
     let total = max(count, 1)
     let pause = max(pauseMs, 0)
@@ -407,26 +394,35 @@ extension RunnerTests {
     }
   }
 
-  func swipe(app: XCUIApplication, direction: SwipeDirection) {
+  func swipe(
+    app: XCUIApplication,
+    direction: SwipeDirection,
+    amount: Double?,
+    pixels: Double?
+  ) -> DragVisualizationFrame {
     if performTvRemoteSwipeIfAvailable(direction: direction) {
-      return
+      let frame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
+      let midX = frame.midX
+      let midY = frame.midY
+      return DragVisualizationFrame(
+        x: midX,
+        y: midY,
+        x2: midX,
+        y2: midY,
+        referenceWidth: frame.width,
+        referenceHeight: frame.height
+      )
     }
-    let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
-    let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
-    let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
-    let left = target.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
-    let right = target.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
-
-    switch direction {
-    case .up:
-      end.press(forDuration: 0.1, thenDragTo: start)
-    case .down:
-      start.press(forDuration: 0.1, thenDragTo: end)
-    case .left:
-      right.press(forDuration: 0.1, thenDragTo: left)
-    case .right:
-      left.press(forDuration: 0.1, thenDragTo: right)
-    }
+    let frame = resolvedScrollFrame(app: app, direction: direction, amount: amount, pixels: pixels)
+    dragAt(
+      app: app,
+      x: frame.x,
+      y: frame.y,
+      x2: frame.x2,
+      y2: frame.y2,
+      holdDuration: 0.1
+    )
+    return frame
   }
 
   private func performTvRemoteSwipeIfAvailable(direction: SwipeDirection) -> Bool {
@@ -514,6 +510,66 @@ extension RunnerTests {
     )
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  func resolvedScrollFrame(
+    app: XCUIApplication,
+    direction: SwipeDirection,
+    amount: Double?,
+    pixels: Double?
+  ) -> DragVisualizationFrame {
+    let referenceFrame = resolvedTouchReferenceFrame(app: app, appFrame: app.frame)
+    let axisLength =
+      direction == .up || direction == .down ? referenceFrame.height : referenceFrame.width
+    let resolvedAmount = amount != nil && amount! > 0 ? amount! : 0.6
+    let requestedPixels = pixels != nil && pixels! > 0
+      ? pixels!
+      : round(axisLength * resolvedAmount)
+    let edgePadding = max(1.0, round(axisLength * 0.05))
+    let maxTravelPixels = max(1.0, axisLength - (edgePadding * 2))
+    let travelPixels = min(max(1.0, requestedPixels), maxTravelPixels)
+    let halfTravel = round(travelPixels / 2)
+    let midX = referenceFrame.midX
+    let midY = referenceFrame.midY
+
+    switch direction {
+    case .up:
+      return DragVisualizationFrame(
+        x: midX,
+        y: midY - halfTravel,
+        x2: midX,
+        y2: midY + halfTravel,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height
+      )
+    case .down:
+      return DragVisualizationFrame(
+        x: midX,
+        y: midY + halfTravel,
+        x2: midX,
+        y2: midY - halfTravel,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height
+      )
+    case .left:
+      return DragVisualizationFrame(
+        x: midX - halfTravel,
+        y: midY,
+        x2: midX + halfTravel,
+        y2: midY,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height
+      )
+    case .right:
+      return DragVisualizationFrame(
+        x: midX + halfTravel,
+        y: midY,
+        x2: midX - halfTravel,
+        y2: midY,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height
+      )
+    }
   }
 
 }

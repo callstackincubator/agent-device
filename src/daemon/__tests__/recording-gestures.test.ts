@@ -59,9 +59,9 @@ test('scroll records a semantic scroll gesture for visualization telemetry', () 
   assert.equal(event.referenceWidth, 402);
   assert.equal(event.referenceHeight, 874);
   assert.equal(event.x, 201);
-  assert.equal(event.y, 612);
+  assert.equal(event.y, 699);
   assert.equal(event.x2, 201);
-  assert.equal(event.y2, 262);
+  assert.equal(event.y2, 175);
   assert.equal(event.durationMs, 250);
   assert.equal(event.contentDirection, 'down');
 });
@@ -115,6 +115,28 @@ test('scroll augmentation preserves explicit reference frame from platform resul
   assert.equal(augmented.y1, 634);
   assert.equal(augmented.x2, 201);
   assert.equal(augmented.y2, 240);
+});
+
+test('scroll augmentation preserves explicit pixel travel coordinates', () => {
+  const session = makeSession();
+  session.snapshot = undefined;
+
+  const augmented = augmentScrollVisualizationResult(session, 'scroll', ['down'], {
+    direction: 'down',
+    pixels: 240,
+    x1: 201,
+    y1: 557,
+    x2: 201,
+    y2: 317,
+    referenceWidth: 402,
+    referenceHeight: 874,
+  }) as Record<string, unknown>;
+
+  assert.equal(augmented.x1, 201);
+  assert.equal(augmented.y1, 557);
+  assert.equal(augmented.x2, 201);
+  assert.equal(augmented.y2, 317);
+  assert.equal(augmented.pixels, 240);
 });
 
 test('gesture recording prefers native runner timing when available', () => {

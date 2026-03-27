@@ -96,6 +96,7 @@ Navigate content that extends beyond the viewport:
 ```bash
 agent-device scroll down 0.5            # Scroll down half screen
 agent-device scroll up 0.3              # Scroll up 30%
+agent-device scroll down --pixels 320   # Scroll down by a fixed distance
 ```
 
 ## Settings helpers

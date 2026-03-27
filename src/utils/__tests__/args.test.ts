@@ -265,6 +265,13 @@ test('parseArgs accepts keyboard subcommands', () => {
   assert.deepEqual(dismiss.positionals, ['dismiss']);
 });
 
+test('parseArgs accepts scroll pixel distance flag', () => {
+  const parsed = parseArgs(['scroll', 'down', '--pixels', '240'], { strictFlags: true });
+  assert.equal(parsed.command, 'scroll');
+  assert.deepEqual(parsed.positionals, ['down']);
+  assert.equal(parsed.flags.pixels, 240);
+});
+
 test('parseArgs recognizes --debug alias for verbose mode', () => {
   const parsed = parseArgs(['open', 'settings', '--debug']);
   assert.equal(parsed.command, 'open');

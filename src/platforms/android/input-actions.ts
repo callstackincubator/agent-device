@@ -1,6 +1,7 @@
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { buildScrollGesturePlan } from '../../core/scroll-gesture.ts';
 import { findBounds, parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
@@ -155,45 +156,16 @@ export async function fillAndroid(
 export async function scrollAndroid(
   device: DeviceInfo,
   direction: string,
-  amount = 0.6,
-): Promise<void> {
+  options?: { amount?: number; pixels?: number },
+): Promise<Record<string, unknown>> {
   const size = await getAndroidScreenSize(device);
-  const { width, height } = size;
-  const distanceX = Math.floor(width * amount);
-  const distanceY = Math.floor(height * amount);
-
-  const centerX = Math.floor(width / 2);
-  const centerY = Math.floor(height / 2);
-
-  let x1 = centerX;
-  let y1 = centerY;
-  let x2 = centerX;
-  let y2 = centerY;
-
-  switch (direction) {
-    case 'up':
-      // Content moves up -> swipe down.
-      y1 = centerY - Math.floor(distanceY / 2);
-      y2 = centerY + Math.floor(distanceY / 2);
-      break;
-    case 'down':
-      // Content moves down -> swipe up.
-      y1 = centerY + Math.floor(distanceY / 2);
-      y2 = centerY - Math.floor(distanceY / 2);
-      break;
-    case 'left':
-      // Content moves left -> swipe right.
-      x1 = centerX - Math.floor(distanceX / 2);
-      x2 = centerX + Math.floor(distanceX / 2);
-      break;
-    case 'right':
-      // Content moves right -> swipe left.
-      x1 = centerX + Math.floor(distanceX / 2);
-      x2 = centerX - Math.floor(distanceX / 2);
-      break;
-    default:
-      throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
-  }
+  const plan = buildScrollGesturePlan({
+    direction,
+    amount: options?.amount,
+    pixels: options?.pixels,
+    referenceWidth: size.width,
+    referenceHeight: size.height,
+  });
 
   await runCmd(
     'adb',
@@ -201,13 +173,15 @@ export async function scrollAndroid(
       'shell',
       'input',
       'swipe',
-      String(x1),
-      String(y1),
-      String(x2),
-      String(y2),
+      String(plan.x1),
+      String(plan.y1),
+      String(plan.x2),
+      String(plan.y2),
       '300',
     ]),
   );
+
+  return plan;
 }
 
 export async function scrollIntoViewAndroid(device: DeviceInfo, text: string): Promise<void> {
@@ -221,7 +195,7 @@ export async function scrollIntoViewAndroid(device: DeviceInfo, text: string): P
       throw new AppError('UNSUPPORTED_OPERATION', `uiautomator dump failed: ${message}`);
     }
     if (findBounds(xml, text)) return;
-    await scrollAndroid(device, 'down', 0.5);
+    await scrollAndroid(device, 'down', { amount: 0.5 });
   }
   throw new AppError(
     'COMMAND_FAILED',

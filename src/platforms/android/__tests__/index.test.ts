@@ -17,6 +17,7 @@ import {
   pushAndroidNotification,
   readAndroidClipboardText,
   setAndroidSetting,
+  scrollAndroid,
   swipeAndroid,
   typeAndroid,
   writeAndroidClipboardText,
@@ -131,6 +132,35 @@ test('findBounds ignores bounds-like fragments inside other attribute values', (
   ].join('');
 
   assert.deepEqual(findBounds(xml, 'target'), { x: 200, y: 350 });
+});
+
+test('scrollAndroid supports explicit pixel travel distance', async () => {
+  await withMockedAdb(
+    'agent-device-android-scroll-pixels-',
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "wm" ] && [ "$3" = "size" ]; then',
+      '  echo "Physical size: 1080x1920"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      const result = await scrollAndroid(device, 'down', { pixels: 240 });
+      const args = await fs.readFile(argsLogPath, 'utf8');
+
+      assert.match(args, /shell\ninput\nswipe\n540\n1080\n540\n840\n300\n/);
+      assert.equal(result.pixels, 240);
+      assert.equal(result.referenceWidth, 1080);
+      assert.equal(result.referenceHeight, 1920);
+    },
+  );
 });
 
 test('parseAndroidLaunchComponent extracts final resolved component', () => {

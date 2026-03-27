@@ -53,6 +53,8 @@ struct Command: Codable {
   let y2: Double?
   let durationMs: Double?
   let direction: SwipeDirection?
+  let amount: Double?
+  let pixels: Double?
   let scale: Double?
   let outPath: String?
   let fps: Int?

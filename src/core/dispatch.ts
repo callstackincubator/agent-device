@@ -21,6 +21,7 @@ import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
+import { parseScrollDirection } from './scroll-gesture.ts';
 import {
   requireIntInRange,
   clampIosSwipeDuration,
@@ -67,6 +68,7 @@ export async function dispatchCommand(
     delayMs?: number;
     holdMs?: number;
     jitterPx?: number;
+    pixels?: number;
     doubleTap?: boolean;
     clickButton?: 'primary' | 'secondary' | 'middle';
     backMode?: 'in-app' | 'system';
@@ -381,13 +383,33 @@ export async function dispatchCommand(
           return { x, y, text, delayMs, ...successText(formatTextLengthMessage('Filled', text)) };
         }
         case 'scroll': {
-          const direction = positionals[0];
+          const directionInput = positionals[0];
           const amount = positionals[1] ? Number(positionals[1]) : undefined;
-          if (!direction) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-          const interactionResult = await interactor.scroll(direction, amount);
+          const pixels = context?.pixels;
+          if (!directionInput) throw new AppError('INVALID_ARGS', 'scroll requires direction');
+          if (amount !== undefined && !Number.isFinite(amount)) {
+            throw new AppError('INVALID_ARGS', 'scroll amount must be a number');
+          }
+          if (amount !== undefined && pixels !== undefined) {
+            throw new AppError(
+              'INVALID_ARGS',
+              'scroll accepts either a relative amount or --pixels, not both',
+            );
+          }
+          const direction = parseScrollDirection(directionInput);
+          const interactionResult = await interactor.scroll(direction, { amount, pixels });
           return withSuccessText(
-            { direction, amount, ...interactionResult },
-            amount !== undefined ? `Scrolled ${direction} by ${amount}` : `Scrolled ${direction}`,
+            {
+              direction,
+              ...(amount !== undefined ? { amount } : {}),
+              ...(pixels !== undefined ? { pixels } : {}),
+              ...interactionResult,
+            },
+            pixels !== undefined
+              ? `Scrolled ${direction} by ${pixels}px`
+              : amount !== undefined
+                ? `Scrolled ${direction} by ${amount}`
+                : `Scrolled ${direction}`,
           );
         }
         case 'scrollintoview': {

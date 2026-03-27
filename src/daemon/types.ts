@@ -151,6 +151,7 @@ export type RecordingGestureEvent =
       kind: 'scroll';
       contentDirection: 'up' | 'down' | 'left' | 'right';
       amount?: number;
+      pixels?: number;
     })
   | (RecordingTelemetryTravel & {
       kind: 'back-swipe';

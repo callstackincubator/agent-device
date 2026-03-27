@@ -50,6 +50,7 @@ In practice, most work follows the same pattern:
 1. `open` a target app or URL.
 2. `snapshot -i` to inspect the current screen.
 3. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
+   For scrolling, use either a relative amount like `scroll down 0.5` or a fixed gesture distance like `scroll down --pixels 320`.
 4. `diff snapshot` or re-snapshot after UI changes.
 5. `close` when the session is finished.
 
