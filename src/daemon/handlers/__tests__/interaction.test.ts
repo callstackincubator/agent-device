@@ -647,6 +647,70 @@ test('press @ref resolves snapshot node and records press action', async () => {
   assert.ok(Array.isArray(result.selectorChain));
 });
 
+test('press @ref promotes a non-hittable node to its hittable ancestor before tapping', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeCell',
+        label: 'Settings row',
+        rect: { x: 20, y: 100, width: 320, height: 72 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Settings',
+        rect: { x: 44, y: 124, width: 84, height: 20 },
+        enabled: false,
+        hittable: false,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return { pressed: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.equal(response.data?.ref, 'e2');
+    assert.equal(response.data?.x, 180);
+    assert.equal(response.data?.y, 136);
+  }
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'press');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['180', '136']);
+
+  const stored = sessionStore.get(sessionName);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  assert.equal(result.ref, 'e2');
+  assert.ok(Array.isArray(result.selectorChain));
+});
+
 test('fill @ref preserves fallback coordinates for recording when platform result is sparse', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -710,6 +774,65 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
   assert.equal(event?.kind, 'tap');
   assert.equal(event?.x, 60);
   assert.equal(event?.y, 40);
+});
+
+test('fill @ref keeps the original editable node when its parent is the hittable ancestor', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeCell',
+        label: 'Email row',
+        rect: { x: 20, y: 100, width: 320, height: 72 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeTextField',
+        label: 'Email',
+        identifier: 'auth_email',
+        rect: { x: 44, y: 120, width: 200, height: 32 },
+        enabled: true,
+        hittable: false,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const dispatchCalls: Array<{ command: string; positionals: string[] }> = [];
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e2', 'hello@example.com'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+    dispatch: async (_device, command, positionals) => {
+      dispatchCalls.push({ command, positionals });
+      return { filled: true };
+    },
+  });
+
+  assert.ok(response);
+  assert.equal(response.ok, true);
+  assert.equal(dispatchCalls.length, 1);
+  assert.equal(dispatchCalls[0]?.command, 'fill');
+  assert.deepEqual(dispatchCalls[0]?.positionals, ['144', '136', 'hello@example.com']);
+
+  const stored = sessionStore.get(sessionName);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  assert.equal(result.ref, 'e2');
 });
 
 test('click --button secondary on @ref dispatches a secondary press on macOS and records click', async () => {

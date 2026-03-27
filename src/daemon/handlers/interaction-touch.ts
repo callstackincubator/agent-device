@@ -8,7 +8,12 @@ import {
 import { centerOfRect, findNodeByRef, type Rect, type SnapshotNode } from '../../utils/snapshot.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { findNodeByLabel, isFillableType, resolveRefLabel } from '../snapshot-processing.ts';
+import {
+  findNearestHittableAncestor,
+  findNodeByLabel,
+  isFillableType,
+  resolveRefLabel,
+} from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
   formatSelectorFailure,
@@ -176,6 +181,7 @@ export async function handleTouchInteractionCommands(params: {
         session,
         refInput,
         fallbackLabel,
+        promoteToHittableAncestor: true,
         invalidRefMessage: `${commandLabel} requires a ref like @e2`,
         missingBoundsMessage: `Ref ${refInput} not found or has no bounds`,
         invalidBoundsMessage: `Ref ${refInput} not found or has invalid bounds`,
@@ -261,7 +267,8 @@ export async function handleTouchInteractionCommands(params: {
         },
       };
     }
-    const pressPoint = resolveRectCenter(resolved.node.rect);
+    const actionableNode = resolveActionableTouchNode(snapshot.nodes, resolved.node);
+    const pressPoint = resolveRectCenter(actionableNode.rect);
     if (!pressPoint) {
       return {
         ok: false,
@@ -272,10 +279,10 @@ export async function handleTouchInteractionCommands(params: {
       };
     }
     const { x, y } = pressPoint;
-    const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
+    const selectorChain = buildSelectorChainForNode(actionableNode, session.device.platform, {
       action: selectorAction,
     });
-    const refLabel = resolveRefLabel(resolved.node, snapshot.nodes);
+    const refLabel = resolveRefLabel(actionableNode, snapshot.nodes);
     return dispatchRecordedTouchInteraction({
       session,
       sessionStore,
@@ -346,6 +353,7 @@ export async function handleTouchInteractionCommands(params: {
         session,
         refInput: req.positionals[0],
         fallbackLabel: labelCandidate,
+        promoteToHittableAncestor: false,
         invalidRefMessage: 'fill requires a ref like @e2',
         missingBoundsMessage: `Ref ${req.positionals[0]} not found or has no bounds`,
         invalidBoundsMessage: `Ref ${req.positionals[0]} not found or has invalid bounds`,
@@ -626,6 +634,7 @@ async function resolveRefTargetWithRectRefresh(params: {
   session: SessionState;
   refInput: string;
   fallbackLabel: string;
+  promoteToHittableAncestor: boolean;
   invalidRefMessage: string;
   missingBoundsMessage: string;
   invalidBoundsMessage: string;
@@ -651,6 +660,7 @@ async function resolveRefTargetWithRectRefresh(params: {
     session,
     refInput,
     fallbackLabel,
+    promoteToHittableAncestor,
     invalidRefMessage,
     missingBoundsMessage,
     invalidBoundsMessage,
@@ -672,7 +682,12 @@ async function resolveRefTargetWithRectRefresh(params: {
   if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
 
   const { ref } = resolvedRefTarget.target;
-  let node = resolvedRefTarget.target.node;
+  let node = promoteToHittableAncestor
+    ? resolveActionableTouchNode(
+        resolvedRefTarget.target.snapshotNodes,
+        resolvedRefTarget.target.node,
+      )
+    : resolvedRefTarget.target.node;
   let snapshotNodes = resolvedRefTarget.target.snapshotNodes;
   let point = resolveRectCenter(node.rect);
 
@@ -688,13 +703,21 @@ async function resolveRefTargetWithRectRefresh(params: {
     const refNode = findNodeByRef(refreshed.nodes, ref);
     const fallbackNode =
       fallbackLabel.length > 0 ? findNodeByLabel(refreshed.nodes, fallbackLabel) : null;
-    const fallbackNodePoint = resolveRectCenter(fallbackNode?.rect);
-    const refNodePoint = resolveRectCenter(refNode?.rect);
+    const resolvedRefNode =
+      refNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, refNode)
+        : refNode;
+    const resolvedFallbackNode =
+      fallbackNode && promoteToHittableAncestor
+        ? resolveActionableTouchNode(refreshed.nodes, fallbackNode)
+        : fallbackNode;
+    const fallbackNodePoint = resolveRectCenter(resolvedFallbackNode?.rect);
+    const refNodePoint = resolveRectCenter(resolvedRefNode?.rect);
     const refreshedNode = refNodePoint
-      ? refNode
+      ? resolvedRefNode
       : fallbackNodePoint
-        ? fallbackNode
-        : (refNode ?? fallbackNode);
+        ? resolvedFallbackNode
+        : (resolvedRefNode ?? resolvedFallbackNode);
     const refreshedPoint = resolveRectCenter(refreshedNode?.rect);
     if (refreshedNode && refreshedPoint) {
       node = refreshedNode;
@@ -717,6 +740,14 @@ async function resolveRefTargetWithRectRefresh(params: {
   }
 
   return { ok: true, target: { ref, node, snapshotNodes, point } };
+}
+
+function resolveActionableTouchNode(nodes: SnapshotNode[], node: SnapshotNode): SnapshotNode {
+  const ancestor = findNearestHittableAncestor(nodes, node);
+  if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
+    return ancestor;
+  }
+  return node;
 }
 
 function readSnapshotNodesReferenceFrame(
