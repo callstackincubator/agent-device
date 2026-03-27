@@ -853,7 +853,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--overlay-refs'],
     type: 'boolean',
     usageLabel: '--overlay-refs',
-    usageDescription: 'Screenshot: draw current snapshot refs onto the saved PNG',
+    usageDescription:
+      'Screenshot: draw current snapshot refs and target rectangles onto the saved PNG',
   },
   {
     key: 'baseline',
