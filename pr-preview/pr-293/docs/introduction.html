@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-293/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-293/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-293/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-293/static/js/index.d57d65b4e1.js"></script>
+<script defer src="/agent-device/pr-preview/pr-293/static/js/index.22f5074943.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -50,7 +50,8 @@ For exploratory QA and bug-hunting workflows, see <code>skills/dogfood/SKILL.md<
 <li>Physical-device recording defaults to 15 FPS and supports <code>--fps</code> caps.</li>
 </ul>
 </li>
-<li>Android supports the same core interaction set, plus <code>push</code> notification simulation, <code>clipboard read/write</code>, and <code>keyboard status|get|dismiss</code> via adb shell commands.</li>
+<li>Android supports the same core interaction set, plus <code>push</code> notification simulation, <code>clipboard read/write</code>, and <code>keyboard status|get|dismiss</code>.</li>
+<li>iOS supports <code>keyboard dismiss</code> through the XCTest runner when the on-screen keyboard is visible.</li>
 <li>App-event triggers are available on iOS and Android through app-defined deep-link hooks (<code>trigger-app-event</code>), using active session context or explicit device selectors.</li>
 </ul>
 <h2 class="rp-toc-include" id="architecture-high-level"><a href="#architecture-high-level" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Architecture (high level)</h2>
