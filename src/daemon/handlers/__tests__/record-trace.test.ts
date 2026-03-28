@@ -292,7 +292,9 @@ test('record start/stop uses iOS runner on physical iOS devices', async () => {
     'outPath',
     'telemetryPath',
   ]);
-  expect((responseStop as any).data?.artifacts?.[1]?.path).toBe(deriveRecordingTelemetryPath(finalOut));
+  expect((responseStop as any).data?.artifacts?.[1]?.path).toBe(
+    deriveRecordingTelemetryPath(finalOut),
+  );
   expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });
 
@@ -449,7 +451,9 @@ test('record start rejects invalid fps value', async () => {
 
   expect(response?.ok).toBe(false);
   expect((response as any).error?.code).toBe('INVALID_ARGS');
-  expect((response as any).error?.message ?? '').toMatch(/fps must be an integer between 1 and 120/);
+  expect((response as any).error?.message ?? '').toMatch(
+    /fps must be an integer between 1 and 120/,
+  );
 });
 
 test('record start on iOS device requires active app session context', async () => {
@@ -496,7 +500,9 @@ test('record start returns structured error when iOS runner start fails', async 
 
   expect(response?.ok).toBe(false);
   expect((response as any).error?.code).toBe('COMMAND_FAILED');
-  expect((response as any).error?.message ?? '').toMatch(/failed to start recording: runner disconnected/);
+  expect((response as any).error?.message ?? '').toMatch(
+    /failed to start recording: runner disconnected/,
+  );
   expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });
 
@@ -897,9 +903,7 @@ test('record stop keeps Android video when overlay export fails', async () => {
       return { stdout: '4321\n', stderr: '', exitCode: 0 };
     }
     if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        command,
-      )
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
     ) {
       return { stdout: '1024\n', stderr: '', exitCode: 0 };
     }
@@ -921,9 +925,7 @@ test('record stop keeps Android video when overlay export fails', async () => {
       return { stdout: '', stderr: '', exitCode: 1 };
     }
     if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        command,
-      )
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
     ) {
       return { stdout: '2048\n', stderr: '', exitCode: 0 };
     }
@@ -969,9 +971,7 @@ test('record stop force-kills Android screenrecord when SIGINT fails but process
       return { stdout: '4321\n', stderr: '', exitCode: 0 };
     }
     if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        command,
-      )
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
     ) {
       return { stdout: '1024\n', stderr: '', exitCode: 0 };
     }
@@ -999,9 +999,7 @@ test('record stop force-kills Android screenrecord when SIGINT fails but process
       };
     }
     if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        command,
-      )
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
     ) {
       return { stdout: '2048\n', stderr: '', exitCode: 0 };
     }
@@ -1129,9 +1127,7 @@ test('record start accepts Android screenrecord before the remote file begins gr
       return { stdout: '5555\n', stderr: '', exitCode: 0 };
     }
     if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        command,
-      )
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
     ) {
       return { stdout: '0\n', stderr: '', exitCode: 0 };
     }

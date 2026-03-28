@@ -65,16 +65,15 @@ export async function resolveMacOsApp(app: string): Promise<string> {
 
   const alias = MACOS_ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
+  if (isMacOsBundleId(trimmed)) {
+    return trimmed;
+  }
 
   const apps = await listMacApps('all');
   const matches = apps.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
   if (matches.length === 1) return matches[0].bundleId;
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
-  }
-
-  if (isMacOsBundleId(trimmed)) {
-    return trimmed;
   }
 
   throw new AppError('APP_NOT_INSTALLED', `No app found matching "${app}"`);

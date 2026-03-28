@@ -7,7 +7,11 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
 vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
 vi.mock('../session-deploy.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../session-deploy.ts')>();
-  return { ...actual, defaultInstallOps: { ios: vi.fn(), android: vi.fn() }, defaultReinstallOps: { ios: vi.fn(), android: vi.fn() } };
+  return {
+    ...actual,
+    defaultInstallOps: { ios: vi.fn(), android: vi.fn() },
+    defaultReinstallOps: { ios: vi.fn(), android: vi.fn() },
+  };
 });
 
 import fs from 'node:fs';

@@ -2,6 +2,9 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import ImageIO
+import ScreenCaptureKit
+import UniformTypeIdentifiers
 
 enum HelperError: Error {
   case invalidArgs(String)
@@ -57,6 +60,19 @@ struct ReadResponse: Encodable {
   let text: String
 }
 
+struct PressResponse: Encodable {
+  let x: Double
+  let y: Double
+  let bundleId: String?
+  let surface: String?
+}
+
+struct ScreenshotResponse: Encodable {
+  let path: String
+  let surface: String?
+  let fullscreen: Bool
+}
+
 struct AgentDeviceMacOSHelper {
   static func main() {
     do {
@@ -100,6 +116,10 @@ struct AgentDeviceMacOSHelper {
       return try handleSnapshot(arguments: Array(arguments.dropFirst()))
     case "read":
       return try handleRead(arguments: Array(arguments.dropFirst()))
+    case "press":
+      return try handlePress(arguments: Array(arguments.dropFirst()))
+    case "screenshot":
+      return try handleScreenshot(arguments: Array(arguments.dropFirst()))
     default:
       throw HelperError.invalidArgs("unknown command: \(command)")
     }
@@ -341,6 +361,35 @@ struct AgentDeviceMacOSHelper {
     let text = try readTextAtPosition(bundleId: bundleId, surface: surface, x: x, y: y)
     return SuccessEnvelope(data: ReadResponse(text: text))
   }
+
+  static func handlePress(arguments: [String]) throws -> any Encodable {
+    guard let rawX = optionValue(arguments: arguments, name: "--x"),
+          let rawY = optionValue(arguments: arguments, name: "--y"),
+          let x = Double(rawX),
+          let y = Double(rawY)
+    else {
+      throw HelperError.invalidArgs("press requires --x <number> --y <number>")
+    }
+
+    let bundleId = try optionValue(arguments: arguments, name: "--bundle-id").map(validatedBundleId)
+    let surface = optionValue(arguments: arguments, name: "--surface")
+    try pressAtPosition(bundleId: bundleId, surface: surface, x: x, y: y)
+    return SuccessEnvelope(data: PressResponse(x: x, y: y, bundleId: bundleId, surface: surface))
+  }
+
+  static func handleScreenshot(arguments: [String]) throws -> any Encodable {
+    guard let outPath = optionValue(arguments: arguments, name: "--out")?
+      .trimmingCharacters(in: .whitespacesAndNewlines),
+      !outPath.isEmpty
+    else {
+      throw HelperError.invalidArgs("screenshot requires --out <path>")
+    }
+
+    let surface = optionValue(arguments: arguments, name: "--surface")
+    let fullscreen = arguments.contains("--fullscreen")
+    try captureSurfaceScreenshot(surface: surface, outPath: outPath, fullscreen: fullscreen)
+    return SuccessEnvelope(data: ScreenshotResponse(path: outPath, surface: surface, fullscreen: fullscreen))
+  }
 }
 
 private func optionValue(arguments: [String], name: String) -> String? {
@@ -395,6 +444,74 @@ private func readTextAtPosition(bundleId: String?, surface: String?, x: Double, 
   }
 
   throw HelperError.commandFailed("read did not resolve text")
+}
+
+private func pressAtPosition(bundleId: String?, surface: String?, x: Double, y: Double) throws {
+  _ = bundleId
+  _ = surface
+  let point = CGPoint(x: x, y: y)
+  guard let move = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left),
+        let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
+        let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)
+  else {
+    throw HelperError.commandFailed("press action failed", details: ["reason": "event_creation_failed"])
+  }
+  move.post(tap: .cghidEventTap)
+  down.post(tap: .cghidEventTap)
+  up.post(tap: .cghidEventTap)
+}
+
+private func captureSurfaceScreenshot(surface: String?, outPath: String, fullscreen: Bool) throws {
+  _ = fullscreen
+  guard #available(macOS 15.2, *) else {
+    throw HelperError.commandFailed(
+      "screenshot on macOS desktop and menubar surfaces requires macOS 15.2 or newer"
+    )
+  }
+  guard let screenFrame = NSScreen.main?.frame, screenFrame.width > 0, screenFrame.height > 0 else {
+    throw HelperError.commandFailed("screenshot could not resolve main screen bounds")
+  }
+
+  let rect = CGRect(origin: screenFrame.origin, size: screenFrame.size)
+  let semaphore = DispatchSemaphore(value: 0)
+  var capturedImage: CGImage?
+  var capturedError: Error?
+  SCScreenshotManager.captureImage(in: rect) { image, error in
+    capturedImage = image
+    capturedError = error
+    semaphore.signal()
+  }
+  semaphore.wait()
+
+  if let error = capturedError as NSError? {
+    if error.domain == "com.apple.ScreenCaptureKit.SCStreamErrorDomain", error.code == -3801 {
+      throw HelperError.commandFailed(
+        "screenshot requires Screen Recording permission on macOS desktop and menubar surfaces",
+        details: ["surface": surface ?? "", "permission": "screen-recording"]
+      )
+    }
+    throw HelperError.commandFailed("screenshot failed", details: ["error": error.localizedDescription])
+  }
+  guard let capturedImage else {
+    throw HelperError.commandFailed("screenshot failed")
+  }
+
+  let outputURL = URL(fileURLWithPath: outPath)
+  if let parent = outputURL.deletingLastPathComponent().path.removingPercentEncoding, !parent.isEmpty {
+    try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+  }
+  guard let destination = CGImageDestinationCreateWithURL(
+    outputURL as CFURL,
+    UTType.png.identifier as CFString,
+    1,
+    nil
+  ) else {
+    throw HelperError.commandFailed("screenshot could not create PNG destination")
+  }
+  CGImageDestinationAddImage(destination, capturedImage, nil)
+  guard CGImageDestinationFinalize(destination) else {
+    throw HelperError.commandFailed("screenshot could not write PNG file")
+  }
 }
 
 private func readableText(for element: AXUIElement) -> String? {

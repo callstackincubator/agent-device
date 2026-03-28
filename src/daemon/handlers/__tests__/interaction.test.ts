@@ -351,6 +351,90 @@ test('click rejects macOS desktop surface interactions until helper routing exis
   }
 });
 
+test('click on macOS menubar sessions dispatches press through the helper-backed path', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-menubar-click';
+  sessionStore.set(sessionName, makeMacOsMenubarSession(sessionName));
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['100', '200'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['100', '200']);
+});
+
+test('click on a macOS menubar wrapper ref promotes to the same-rect menu bar item', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'macos-menubar-wrapper-ref-click';
+  const session = makeMacOsMenubarSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'MenuBarSurface',
+        label: 'Menu Bar',
+        surface: 'menubar',
+        rect: { x: 0, y: 0, width: 1512, height: 982 },
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'MenuBar',
+        rect: { x: 989, y: 4.5, width: 29, height: 24 },
+        hittable: true,
+        surface: 'menubar',
+      },
+      {
+        index: 2,
+        depth: 2,
+        parentIndex: 1,
+        type: 'MenuBarItem',
+        rect: { x: 989, y: 4.5, width: 29, height: 24 },
+        hittable: true,
+        surface: 'menubar',
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'macos-helper',
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['1004', '17']);
+  if (response?.ok) {
+    expect(response.data?.selectorChain).toEqual(['role="menubaritem"']);
+  }
+});
+
 test('fill rejects macOS menubar surface interactions until helper routing exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-menubar-fill';

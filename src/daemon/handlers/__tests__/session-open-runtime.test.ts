@@ -115,9 +115,7 @@ test('open applies stored runtime launchUrl and reports runtime hints', async ()
 
   expect(response?.ok).toBe(true);
   expect(callOrder).toEqual(['runtime', 'dispatch:open', 'dispatch:open']);
-  expect(runtimeApplyCalls).toEqual([
-    { appId: 'com.example.demo', host: '10.0.0.10', port: 8081 },
-  ]);
+  expect(runtimeApplyCalls).toEqual([{ appId: 'com.example.demo', host: '10.0.0.10', port: 8081 }]);
   expect(dispatchCalls).toEqual([
     { command: 'open', positionals: ['Demo'] },
     { command: 'open', positionals: ['myapp://dev-client'] },
@@ -206,9 +204,7 @@ test('open runtime payload replaces stored session runtime atomically', async ()
     bundleUrl: undefined,
     launchUrl: undefined,
   });
-  expect(
-    sessionStore.get(sessionName)?.actions.map((action) => action.command),
-  ).toEqual(['open']);
+  expect(sessionStore.get(sessionName)?.actions.map((action) => action.command)).toEqual(['open']);
   expect(sessionStore.get(sessionName)?.actions[0]?.runtime).toEqual({
     platform: 'android',
     metroHost: '10.0.0.10',

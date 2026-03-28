@@ -159,8 +159,8 @@ beforeEach(() => {
     if (normalizedApp === 'settings') {
       return device.platform === 'macos' ? 'com.apple.systempreferences' : 'com.apple.Preferences';
     }
-    if (normalizedApp === 'minisim') {
-      return 'com.oskarkwasniewski.MiniSim';
+    if (normalizedApp === 'menubarapp') {
+      return 'com.example.menubarapp';
     }
     return app.includes('.') ? app : `com.example.${normalizedApp}`;
   });
@@ -2433,14 +2433,14 @@ test('open on macOS menubar surface can keep targeted app context', async () => 
     target: 'desktop',
     booted: true,
   });
-  mockResolveIosApp.mockResolvedValue('com.oskarkwasniewski.MiniSim');
+  mockResolveIosApp.mockResolvedValue('com.example.menubarapp');
 
   const response = await handleSessionCommands({
     req: {
       token: 't',
       session: sessionName,
       command: 'open',
-      positionals: ['Minisim'],
+      positionals: ['MenuBarApp'],
       flags: {
         platform: 'macos',
         surface: 'menubar',
@@ -2456,17 +2456,17 @@ test('open on macOS menubar surface can keep targeted app context', async () => 
   expect(mockDispatch).toHaveBeenCalledWith(
     expect.objectContaining({ platform: 'macos' }),
     'open',
-    ['Minisim'],
+    ['MenuBarApp'],
     undefined,
-    expect.objectContaining({ appBundleId: 'com.oskarkwasniewski.MiniSim' }),
+    expect.objectContaining({ appBundleId: 'com.example.menubarapp' }),
   );
   const session = sessionStore.get(sessionName);
   expect(session?.surface).toBe('menubar');
-  expect(session?.appBundleId).toBe('com.oskarkwasniewski.MiniSim');
-  expect(session?.appName).toBe('Minisim');
+  expect(session?.appBundleId).toBe('com.example.menubarapp');
+  expect(session?.appName).toBe('MenuBarApp');
   if (response && response.ok) {
     expect(response.data?.surface).toBe('menubar');
-    expect(response.data?.appBundleId).toBe('com.oskarkwasniewski.MiniSim');
+    expect(response.data?.appBundleId).toBe('com.example.menubarapp');
   }
 });
 

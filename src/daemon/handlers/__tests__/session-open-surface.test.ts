@@ -50,7 +50,7 @@ test('resolveRequestedOpenSurface allows an app target for macOS menubar session
       target: 'desktop',
     },
     surfaceFlag: 'menubar',
-    openTarget: 'Minisim',
+    openTarget: 'MenuBarApp',
   });
 
   assert.equal(surface, 'menubar');

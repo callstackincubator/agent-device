@@ -140,33 +140,35 @@ test('replay --update heals selector and rewrites replay file', async () => {
   };
 
   let snapshotDispatchCalls = 0;
-  mockDispatchCommand.mockImplementation(async (
-    _device: DeviceInfo,
-    command: string,
-    _positionals: string[],
-    _out?: string,
-    _context?: CommandFlags,
-  ): Promise<Record<string, unknown> | void> => {
-    if (command !== 'snapshot') {
-      throw new Error(`unexpected dispatch command: ${command}`);
-    }
-    snapshotDispatchCalls += 1;
-    return {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeButton',
-          label: 'Continue',
-          identifier: 'auth_continue',
-          rect: { x: 10, y: 10, width: 100, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-      backend: 'xctest',
-    };
-  });
+  mockDispatchCommand.mockImplementation(
+    async (
+      _device: DeviceInfo,
+      command: string,
+      _positionals: string[],
+      _out?: string,
+      _context?: CommandFlags,
+    ): Promise<Record<string, unknown> | void> => {
+      if (command !== 'snapshot') {
+        throw new Error(`unexpected dispatch command: ${command}`);
+      }
+      snapshotDispatchCalls += 1;
+      return {
+        nodes: [
+          {
+            index: 0,
+            type: 'XCUIElementTypeButton',
+            label: 'Continue',
+            identifier: 'auth_continue',
+            rect: { x: 10, y: 10, width: 100, height: 44 },
+            enabled: true,
+            hittable: true,
+          },
+        ],
+        truncated: false,
+        backend: 'xctest',
+      };
+    },
+  );
 
   const response = await handleSessionCommands({
     req: {

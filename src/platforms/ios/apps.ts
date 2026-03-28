@@ -7,9 +7,7 @@ import { runCmd } from '../../utils/exec.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
-import {
-  getUnsupportedMacOsSettingMessage,
-} from '../../core/settings-contract.ts';
+import { getUnsupportedMacOsSettingMessage } from '../../core/settings-contract.ts';
 import {
   parsePermissionAction,
   parsePermissionTarget,
@@ -380,10 +378,7 @@ export async function setIosSetting(
     if (normalizedSetting === 'permission') {
       const action = parsePermissionAction(state);
       if (action === 'deny') {
-        throw new AppError(
-          'INVALID_ARGS',
-          getUnsupportedMacOsSettingMessage('permission'),
-        );
+        throw new AppError('INVALID_ARGS', getUnsupportedMacOsSettingMessage('permission'));
       }
       const permissionTarget = parseMacOsPermissionTarget(options?.permissionTarget);
       return await runMacOsPermissionAction(action, permissionTarget);

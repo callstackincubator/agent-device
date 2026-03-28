@@ -10,6 +10,9 @@ export function unsupportedMacOsDesktopSurfaceInteraction(
   if (session.surface !== 'desktop' && session.surface !== 'menubar') {
     return null;
   }
+  if (session.surface === 'menubar' && (command === 'click' || command === 'press')) {
+    return null;
+  }
   return {
     ok: false,
     error: {

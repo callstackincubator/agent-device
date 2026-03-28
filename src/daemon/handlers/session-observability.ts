@@ -42,11 +42,7 @@ export async function handleSessionObservabilityCommands(params: {
   sessionName: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse | null> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-  } = params;
+  const { req, sessionName, sessionStore } = params;
 
   if (req.command === 'perf') {
     const session = sessionStore.get(sessionName);

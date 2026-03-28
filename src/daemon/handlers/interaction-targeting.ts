@@ -202,9 +202,50 @@ export function resolveActionableTouchNode(
   nodes: SnapshotNode[],
   node: SnapshotNode,
 ): SnapshotNode {
+  const descendant = findPreferredActionableDescendant(nodes, node);
+  if (descendant?.rect && resolveRectCenter(descendant.rect)) {
+    return descendant;
+  }
   const ancestor = findNearestHittableAncestor(nodes, node);
   if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
     return ancestor;
   }
   return node;
+}
+
+function findPreferredActionableDescendant(
+  nodes: SnapshotNode[],
+  node: SnapshotNode,
+): SnapshotNode | null {
+  const targetRect = normalizeRect(node.rect);
+  if (!targetRect) return null;
+
+  let current = node;
+  const visited = new Set<string>();
+  while (!visited.has(current.ref)) {
+    visited.add(current.ref);
+    const sameRectChildren = nodes.filter((candidate) => {
+      if (candidate.parentIndex !== current.index || !candidate.hittable) {
+        return false;
+      }
+      const candidateRect = normalizeRect(candidate.rect);
+      return candidateRect ? areRectsApproximatelyEqual(candidateRect, targetRect) : false;
+    });
+    if (sameRectChildren.length !== 1) {
+      break;
+    }
+    current = sameRectChildren[0];
+  }
+
+  return current === node ? null : current;
+}
+
+function areRectsApproximatelyEqual(left: Rect, right: Rect): boolean {
+  const tolerance = 0.5;
+  return (
+    Math.abs(left.x - right.x) <= tolerance &&
+    Math.abs(left.y - right.y) <= tolerance &&
+    Math.abs(left.width - right.width) <= tolerance &&
+    Math.abs(left.height - right.height) <= tolerance
+  );
 }

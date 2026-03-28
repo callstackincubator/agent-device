@@ -395,7 +395,7 @@ test('snapshot on targeted macOS menubar surface passes bundle id to helper', as
       '#!/bin/sh',
       'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
       "cat <<'JSON'",
-      '{"ok":true,"data":{"surface":"menubar","nodes":[{"index":0,"depth":0,"type":"MenuBarSurface","label":"Menu Bar","surface":"menubar"},{"index":1,"depth":1,"parentIndex":0,"type":"MenuBarItem","label":"MiniSim","surface":"menubar","bundleId":"com.oskarkwasniewski.MiniSim","appName":"MiniSim"}],"truncated":false,"backend":"macos-helper"}}',
+      '{"ok":true,"data":{"surface":"menubar","nodes":[{"index":0,"depth":0,"type":"MenuBarSurface","label":"Menu Bar","surface":"menubar"},{"index":1,"depth":1,"parentIndex":0,"type":"MenuBarItem","label":"MenuBarApp","surface":"menubar","bundleId":"com.example.menubarapp","appName":"MenuBarApp"}],"truncated":false,"backend":"macos-helper"}}',
       'JSON',
       '',
     ].join('\n'),
@@ -409,8 +409,8 @@ test('snapshot on targeted macOS menubar surface passes bundle id to helper', as
       sessionStore.set(sessionName, {
         ...makeSession(sessionName, macOsDevice),
         surface: 'menubar',
-        appBundleId: 'com.oskarkwasniewski.MiniSim',
-        appName: 'MiniSim',
+        appBundleId: 'com.example.menubarapp',
+        appName: 'MenuBarApp',
       });
 
       try {
@@ -429,10 +429,8 @@ test('snapshot on targeted macOS menubar surface passes bundle id to helper', as
 
         expect(response?.ok).toBe(true);
         const logged = await fs.promises.readFile(argsLogPath, 'utf8');
-        expect(logged).toBe(
-          'snapshot\n--surface\nmenubar\n--bundle-id\ncom.oskarkwasniewski.MiniSim\n',
-        );
-        expect(sessionStore.get(sessionName)?.snapshot?.nodes[1]?.label).toBe('MiniSim');
+        expect(logged).toBe('snapshot\n--surface\nmenubar\n--bundle-id\ncom.example.menubarapp\n');
+        expect(sessionStore.get(sessionName)?.snapshot?.nodes[1]?.label).toBe('MenuBarApp');
       } finally {
         if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
         else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;

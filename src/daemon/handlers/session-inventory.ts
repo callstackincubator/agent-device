@@ -21,11 +21,7 @@ export async function handleSessionInventoryCommands(params: {
   sessionName: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse | null> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-  } = params;
+  const { req, sessionName, sessionStore } = params;
 
   if (req.command === 'session_list') {
     return {

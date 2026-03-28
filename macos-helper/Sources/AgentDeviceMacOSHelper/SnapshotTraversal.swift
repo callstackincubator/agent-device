@@ -216,6 +216,7 @@ private func appendApplicationSnapshot(
 
 private func snapshotMenuBar(bundleId: String?) throws -> SnapshotBuildResult {
   var state = SnapshotTraversalState()
+  let screenRect = mainScreenRectResponse()
   guard
     let rootIndex = appendSyntheticSnapshotNode(
       into: &state,
@@ -223,7 +224,8 @@ private func snapshotMenuBar(bundleId: String?) throws -> SnapshotBuildResult {
       label: "Menu Bar",
       depth: 0,
       parentIndex: nil,
-      surface: "menubar"
+      surface: "menubar",
+      rect: screenRect
     )
   else {
     return SnapshotBuildResult(nodes: state.nodes, truncated: true)
@@ -407,6 +409,18 @@ private func appendSyntheticSnapshotNode(
     )
   )
   return index
+}
+
+private func mainScreenRectResponse() -> RectResponse? {
+  guard let screenFrame = NSScreen.main?.frame, screenFrame.width > 0, screenFrame.height > 0 else {
+    return nil
+  }
+  return RectResponse(
+    x: Double(screenFrame.origin.x),
+    y: Double(screenFrame.origin.y),
+    width: Double(screenFrame.width),
+    height: Double(screenFrame.height)
+  )
 }
 
 private func menuBarWindowFallbackCandidate(

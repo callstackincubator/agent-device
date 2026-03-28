@@ -116,15 +116,7 @@ export async function prepareOpenCommandDetails(params: {
   openTarget: string | undefined;
   existingSession?: SessionState;
 }): Promise<PreparedOpenCommandDetailsResult> {
-  const {
-    req,
-    sessionName,
-    sessionStore,
-    device,
-    surface,
-    openTarget,
-    existingSession,
-  } = params;
+  const { req, sessionName, sessionStore, device, surface, openTarget, existingSession } = params;
   await ensureDeviceReady(device);
   const { appBundleId, appName } = await resolvePreparedOpenIdentity({
     device,

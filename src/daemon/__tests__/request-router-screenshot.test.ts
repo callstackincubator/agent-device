@@ -41,6 +41,24 @@ function makeSession(name: string): SessionState {
   };
 }
 
+function makeMacOsMenubarSession(name: string): SessionState {
+  return {
+    name,
+    device: {
+      platform: 'macos',
+      id: 'host-macos-local',
+      name: 'Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    actions: [],
+    surface: 'menubar',
+    appBundleId: 'com.example.menubarapp',
+  };
+}
+
 beforeEach(() => {
   mockDispatch.mockReset();
   mockDispatch.mockResolvedValue({});
@@ -91,6 +109,63 @@ test('screenshot resolves relative positional path against request cwd', async (
   expect(path.isAbsolute(capturedPath!)).toBe(true);
   const recordedAction = sessionStore.get('default')?.actions.at(-1);
   expect(recordedAction?.positionals).toEqual([path.join(callerCwd, 'evidence/test.png')]);
+});
+
+test('screenshot forwards macOS session surface to dispatch', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set('default', makeMacOsMenubarSession('default'));
+
+  mockDispatch.mockImplementation(async () => ({}));
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  await handler({
+    token: 'test-token',
+    session: 'default',
+    command: 'screenshot',
+    positionals: ['/tmp/menubar.png'],
+    meta: { requestId: 'req-surface-screenshot' },
+  });
+
+  expect(mockDispatch.mock.calls[0]?.[4]).toMatchObject({
+    surface: 'menubar',
+    appBundleId: 'com.example.menubarapp',
+  });
+});
+
+test('click forwards macOS menubar session surface to dispatch', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set('default', makeMacOsMenubarSession('default'));
+
+  mockDispatch.mockImplementation(async () => ({}));
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  await handler({
+    token: 'test-token',
+    session: 'default',
+    command: 'click',
+    positionals: ['100', '200'],
+    meta: { requestId: 'req-surface-click' },
+  });
+
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
+  expect(mockDispatch.mock.calls[0]?.[4]).toMatchObject({
+    surface: 'menubar',
+    appBundleId: 'com.example.menubarapp',
+  });
 });
 
 test('screenshot keeps absolute positional path unchanged', async () => {

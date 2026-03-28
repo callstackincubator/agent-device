@@ -206,16 +206,16 @@ test('open forwards macOS surface to the client apps API', async () => {
       observed = options;
       return {
         session: 'default',
-        appName: 'Minisim',
-        appBundleId: 'com.oskarkwasniewski.MiniSim',
-        identifiers: { session: 'default', appBundleId: 'com.oskarkwasniewski.MiniSim' },
+        appName: 'MenuBarApp',
+        appBundleId: 'com.example.menubarapp',
+        identifiers: { session: 'default', appBundleId: 'com.example.menubarapp' },
       };
     },
   });
 
   const handled = await tryRunClientBackedCommand({
     command: 'open',
-    positionals: ['Minisim'],
+    positionals: ['MenuBarApp'],
     flags: {
       json: false,
       help: false,

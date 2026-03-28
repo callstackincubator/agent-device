@@ -10,10 +10,7 @@ import {
   handleInstallFromSourceCommand,
   handleReleaseMaterializedPathsCommand,
 } from './install-source.ts';
-import {
-  requireSessionOrExplicitSelector,
-  resolveCommandDevice,
-} from './session-device-utils.ts';
+import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { handleRuntimeCommand } from './session-runtime-command.ts';
 import { handleOpenCommand } from './session-open.ts';
 import {
@@ -160,13 +157,7 @@ export async function handleSessionCommands(params: {
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
 }): Promise<DaemonResponse | null> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke,
-  } = params;
+  const { req, sessionName, logPath, sessionStore, invoke } = params;
 
   if (INVENTORY_COMMANDS.has(req.command)) {
     return await handleSessionInventoryCommands({

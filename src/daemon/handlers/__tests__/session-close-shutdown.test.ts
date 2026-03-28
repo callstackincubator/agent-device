@@ -342,9 +342,7 @@ test('close --shutdown returns success and failure payload when shutdownSimulato
     }),
   );
 
-  mockShutdownSimulator.mockRejectedValue(
-    new AppError('COMMAND_FAILED', 'simctl shutdown failed'),
-  );
+  mockShutdownSimulator.mockRejectedValue(new AppError('COMMAND_FAILED', 'simctl shutdown failed'));
 
   const response = await handleSessionCommands({
     req: {

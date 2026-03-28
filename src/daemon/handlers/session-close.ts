@@ -99,12 +99,7 @@ export async function handleCloseCommand(params: {
   logPath: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-  } = params;
+  const { req, sessionName, logPath, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };

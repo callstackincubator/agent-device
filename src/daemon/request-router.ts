@@ -371,7 +371,10 @@ export function createRequestHandler(
             sessionName,
             sessionStore,
             contextFromFlags: (flags, appBundleId, traceLogPath) =>
-              contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+              ({
+                ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+                surface: sessionStore.get(sessionName)?.surface,
+              }) satisfies DaemonCommandContext,
           });
           if (interactionResponse) return finalize(interactionResponse);
 
@@ -434,6 +437,7 @@ export function createRequestHandler(
               session.appBundleId,
               session.trace?.outPath,
             ),
+            surface: session.surface,
           };
           const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
             ...dispatchContext,

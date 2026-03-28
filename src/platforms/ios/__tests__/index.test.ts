@@ -2036,7 +2036,7 @@ test('setIosSetting rejects unsupported macOS permission deny action', async () 
     (error: unknown) => {
       assert.equal(error instanceof AppError, true);
       assert.equal((error as AppError).code, 'INVALID_ARGS');
-      assert.match((error as AppError).message, /Unsupported macOS permission action/i);
+      assert.match((error as AppError).message, /Unsupported macOS setting: permission/i);
       return true;
     },
   );

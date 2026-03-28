@@ -183,12 +183,7 @@ export async function handleOpenCommand(params: {
   logPath: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-  } = params;
+  const { req, sessionName, logPath, sessionStore } = params;
 
   if (sessionStore.has(sessionName)) {
     const session = sessionStore.get(sessionName);

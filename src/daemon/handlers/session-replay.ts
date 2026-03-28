@@ -11,13 +11,7 @@ export async function handleSessionReplayCommands(params: {
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
 }): Promise<DaemonResponse | null> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke,
-  } = params;
+  const { req, sessionName, logPath, sessionStore, invoke } = params;
 
   if (req.command === 'replay') {
     return await runReplayScriptFile({
@@ -26,7 +20,6 @@ export async function handleSessionReplayCommands(params: {
       logPath,
       sessionStore,
       invoke,
-
     });
   }
 
@@ -60,7 +53,6 @@ export async function handleSessionReplayCommands(params: {
           logPath,
           sessionStore,
           invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
-    
         });
       },
       cleanupSession: async (testSessionName) => {
