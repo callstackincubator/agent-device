@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-317/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-317/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-317/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-317/static/js/index.2e1f913146.js"></script>
+<script defer src="/agent-device/pr-preview/pr-317/static/js/index.21cbab549e.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -40,7 +40,8 @@ For exploratory QA and bug-hunting workflows, see <code>skills/dogfood/SKILL.md<
 <ul>
 <li>iOS core runner commands: <code>snapshot</code>, <code>diff snapshot</code>, <code>wait</code>, <code>click</code>, <code>fill</code>, <code>get</code>, <code>is</code>, <code>find</code>, <code>press</code>, <code>long-press</code>, <code>focus</code>, <code>type</code>, <code>scroll</code>, <code>scrollintoview</code>, <code>back</code>, <code>home</code>, <code>app-switcher</code>, <code>open</code> (app), <code>close</code>, <code>screenshot</code>, <code>apps</code>, <code>appstate</code>, <code>install</code>, <code>install-from-source</code>, <code>reinstall</code>, <code>trigger-app-event</code>.</li>
 <li>iOS <code>appstate</code> is session-scoped on the selected target device.</li>
-<li>iOS simulator-only: <code>alert</code>, <code>pinch</code>, <code>settings</code>, <code>push</code>, <code>clipboard</code>.</li>
+<li>iOS/tvOS simulator-only: <code>settings</code>, <code>push</code>, <code>clipboard</code>.</li>
+<li>Apple simulators and macOS desktop app sessions: <code>alert</code>, <code>pinch</code>.</li>
 <li>Session performance metrics: <code>perf</code>/<code>metrics</code> is available on iOS and Android and currently reports startup timing sampled from <code>open</code> command round-trip duration.</li>
 <li>iOS <code>record</code> supports simulators and physical devices.
 <ul>

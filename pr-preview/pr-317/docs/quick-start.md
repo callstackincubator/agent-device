@@ -108,7 +108,7 @@ agent-device settings location off
 agent-device settings permission grant camera
 ```
 
-Note: iOS `settings` commands are simulator-only.
+Note: iOS `settings` commands are simulator-only. On macOS, only `settings appearance ...` and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>` are supported.
 
 ## JSON output
 
