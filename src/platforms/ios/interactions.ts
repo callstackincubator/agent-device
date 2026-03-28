@@ -9,7 +9,6 @@ import type { BackMode, Interactor, RunnerContext } from '../../core/interactors
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
-
 type RunnerOpts = {
   verbose?: boolean;
   logPath?: string;

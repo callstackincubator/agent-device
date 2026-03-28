@@ -14,7 +14,6 @@ import {
   getFreePort,
   logChunk,
   cleanupTempFile,
-  RUNNER_COMMAND_TIMEOUT_MS,
   RUNNER_STARTUP_TIMEOUT_MS,
   RUNNER_DESTINATION_TIMEOUT_SECONDS,
 } from './runner-transport.ts';

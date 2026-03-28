@@ -35,7 +35,7 @@ import {
   getSimulatorState,
 } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-import { prepareIosInstallArtifact, readIosBundleInfo } from './install-artifact.ts';
+import { prepareIosInstallArtifact } from './install-artifact.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import {
   closeMacOsApp,

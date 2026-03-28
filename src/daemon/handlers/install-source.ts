@@ -9,7 +9,7 @@ import {
 import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
-import type { MaterializeInstallSource } from '../../platforms/install-source.ts';
+
 import { resolveInstallFromSourceResultTarget } from '../../client-shared.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import { withSuccessText } from '../../utils/success-text.ts';

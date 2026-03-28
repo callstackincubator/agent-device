@@ -17,7 +17,6 @@ import {
 import {
   type RunnerSession,
   ensureRunnerSession,
-  getRunnerSessionSnapshot,
   stopRunnerSession,
   stopIosRunnerSession,
   validateRunnerDevice,

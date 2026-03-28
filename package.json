@@ -30,6 +30,7 @@
     "build:macos-helper": "swift build -c release --package-path macos-helper",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
+    "lint": "eslint src/",
     "format": "prettier --write src test skills",
     "prepack": "pnpm build:all",
     "typecheck": "tsc -p tsconfig.json",
@@ -76,12 +77,15 @@
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@microsoft/api-extractor": "^7.52.10",
     "@rslib/core": "0.19.4",
     "@types/node": "^22.0.0",
     "@types/pngjs": "^6.0.5",
+    "eslint": "^10.1.0",
     "prettier": "^3.3.3",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^4.1.2"
   }
 }

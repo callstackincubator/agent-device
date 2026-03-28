@@ -10,6 +10,7 @@ import { extractNodeText, findNearestHittableAncestor } from '../snapshot-proces
 import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
+import { errorResponse } from './response.ts';
 
 type FindContext = {
   req: DaemonRequest;
@@ -45,23 +46,17 @@ export async function handleFindCommands(params: {
 
   const args = req.positionals ?? [];
   if (args.length === 0) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'find requires a locator or text' },
-    };
+    return errorResponse('INVALID_ARGS', 'find requires a locator or text');
   }
   const { locator, query, action, value, timeoutMs } = parseFindArgs(args);
   if (!query) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find requires a value' } };
+    return errorResponse('INVALID_ARGS', 'find requires a value');
   }
   const session = sessionStore.get(sessionName);
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
   if (!session && !isReadOnly) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
   if (!session) {
@@ -132,10 +127,7 @@ export async function handleFindCommands(params: {
 
   const node = bestMatches.matches[0] ?? null;
   if (!node) {
-    return {
-      ok: false,
-      error: { code: 'COMMAND_FAILED', message: 'find did not match any element' },
-    };
+    return errorResponse('COMMAND_FAILED', 'find did not match any element');
   }
 
   const resolvedNode =

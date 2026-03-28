@@ -62,7 +62,7 @@ export function buildScrollIntoViewPlan(
   const dragUpEndY = Math.round(viewportTop + viewportHeight * 0.14);
   const dragDownStartY = dragUpEndY;
   const dragDownEndY = dragUpStartY;
-  const swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY));
+  const _swipeStepPx = Math.max(1, Math.abs(dragUpStartY - dragUpEndY));
 
   if (targetCenterY > safeBottom) {
     return {

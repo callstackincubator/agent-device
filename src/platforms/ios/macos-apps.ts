@@ -17,7 +17,7 @@ const MACOS_ALIASES: Record<string, string> = {
 
 const MACOS_BUNDLE_ID_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
 
-function escapeAppleScriptString(value: string): string {
+function _escapeAppleScriptString(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
     .replace(/\r/g, '\\r')
