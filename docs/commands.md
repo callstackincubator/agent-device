@@ -138,9 +138,12 @@ agent-device snapshot -i --platform apple --target desktop
 - `open --platform macos --surface frontmost-app` inspects the currently focused app without naming it first.
 - `open --platform macos --surface desktop` inspects visible windows across the desktop.
 - `open --platform macos --surface menubar` inspects the active app menu bar and system menu extras.
+- `open <app> --platform macos --surface menubar` targets one menu bar app's extras bar, which is useful for status-item apps.
+- Status-item apps often expose little or no useful UI through the default macOS `app` surface. Prefer `--surface menubar` for discovery when the app lives in the top menu bar.
 - Use `frontmost-app`, `desktop`, and `menubar` mainly for `snapshot`, `get`, `is`, and `wait`.
 - If you inspect with `desktop` or `menubar` and then need to click or fill inside one app, open that app in a normal `app` session.
-- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `pinch` in app sessions, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+- In macOS app sessions, `screenshot` captures the target app window bounds rather than the full desktop.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
 - Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
@@ -152,12 +155,25 @@ Recommended loops:
 agent-device open TextEdit --platform macos
 agent-device snapshot -i
 agent-device fill @e3 "hello"
+agent-device screenshot textedit.png
 agent-device close
 
 # Desktop-global inspection first
 agent-device open --platform macos --surface desktop
 agent-device snapshot -i
 agent-device is visible 'role="window" label="Notes"'
+agent-device screenshot desktop.png --fullscreen
+agent-device close
+
+# Menubar / menu-extra inspection
+agent-device open --platform macos --surface menubar
+agent-device snapshot -i
+agent-device wait 'label~="Wi-Fi|Control Center|Battery"'
+agent-device close
+
+# Targeted menu bar app inspection
+agent-device open MenuBarApp --platform macos --surface menubar
+agent-device snapshot -i
 agent-device close
 ```
 
@@ -218,8 +234,8 @@ agent-device scroll down --pixels 320
 agent-device scrollintoview "Sign in"
 agent-device scrollintoview "Sign in" --max-scrolls 6
 agent-device scrollintoview @e42
-agent-device pinch 2.0          # zoom in 2x (iOS simulator)
-agent-device pinch 0.5 200 400 # zoom out at coordinates (iOS simulator)
+agent-device pinch 2.0          # zoom in 2x (Apple simulator or macOS app session)
+agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or macOS app session)
 ```
 
 `fill` clears then types. `type` does not clear.
@@ -237,7 +253,7 @@ Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
 When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
 Ref mode re-snapshots after each swipe and stops early when the target enters the safe viewport band or scrolling stops making progress.
 `longpress` is supported on iOS and Android.
-`pinch` is iOS simulator-only.
+`pinch` is supported on Apple simulators and macOS app sessions.
 
 ## Find (semantic)
 
@@ -415,6 +431,8 @@ agent-device settings permission reset screen-recording --platform macos
 ```
 
 - iOS `settings` support is simulator-only except for `settings appearance` and the macOS permission subset on macOS.
+- macOS supports only `settings appearance <light|dark|toggle>` and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+- `settings wifi|airplane|location` remain intentionally unsupported on macOS.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
@@ -494,6 +512,9 @@ agent-device metrics --json
 agent-device screenshot                 # Auto filename
 agent-device screenshot page.png        # Explicit screenshot path
 agent-device screenshot page.png --overlay-refs  # Draw current @eN refs and target rectangles onto the PNG
+agent-device screenshot textedit.png    # App-session window capture on macOS
+agent-device screenshot --fullscreen    # Force full-screen capture on macOS app sessions
+agent-device open --platform macos --surface desktop && agent-device screenshot desktop.png
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
