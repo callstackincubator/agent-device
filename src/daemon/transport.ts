@@ -42,11 +42,17 @@ export function createSocketServer(
         },
       });
       void (async () => {
-        const deadline = Date.now() + disconnectAbortMaxWindowMs;
-        while (inFlightRequests > 0 && Date.now() < deadline) {
-          await abortAllIosRunnerSessions();
-          if (inFlightRequests <= 0) break;
-          await sleep(disconnectAbortPollIntervalMs);
+        try {
+          const deadline = Date.now() + disconnectAbortMaxWindowMs;
+          while (inFlightRequests > 0 && Date.now() < deadline) {
+            await abortAllIosRunnerSessions();
+            if (inFlightRequests <= 0) break;
+            await sleep(disconnectAbortPollIntervalMs);
+          }
+        } catch (err) {
+          process.stderr.write(
+            `Disconnect abort failed: ${err instanceof Error ? err.message : String(err)}\n`,
+          );
         }
       })();
     };

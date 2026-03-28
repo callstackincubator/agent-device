@@ -25,8 +25,32 @@ export function resolveRequestTrackingId(
   return `req:${normalizedSeed}:${process.pid}:${Date.now()}:${nonce}`;
 }
 
+const COLLECTION_HIGH_WATERMARK = 50_000;
+const COLLECTION_EVICT_COUNT = 10_000;
+
+function evictOldestEntries<K, V>(map: Map<K, V>): void {
+  if (map.size <= COLLECTION_HIGH_WATERMARK) return;
+  let removed = 0;
+  for (const key of map.keys()) {
+    if (removed >= COLLECTION_EVICT_COUNT) break;
+    map.delete(key);
+    removed++;
+  }
+}
+
+function evictOldestSetEntries<V>(set: Set<V>): void {
+  if (set.size <= COLLECTION_HIGH_WATERMARK) return;
+  let removed = 0;
+  for (const value of set) {
+    if (removed >= COLLECTION_EVICT_COUNT) break;
+    set.delete(value);
+    removed++;
+  }
+}
+
 export function registerRequestAbort(requestId: string | undefined): void {
   if (!requestId) return;
+  evictOldestEntries(requestAbortControllers);
   const controller = new AbortController();
   requestAbortControllers.set(requestId, controller);
   if (canceledRequestIds.has(requestId)) {
@@ -36,6 +60,7 @@ export function registerRequestAbort(requestId: string | undefined): void {
 
 export function markRequestCanceled(requestId: string | undefined): void {
   if (!requestId) return;
+  evictOldestSetEntries(canceledRequestIds);
   canceledRequestIds.add(requestId);
   requestAbortControllers.get(requestId)?.abort();
 }

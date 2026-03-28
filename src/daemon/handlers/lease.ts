@@ -1,6 +1,5 @@
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
-import type { LeaseRegistry } from '../lease-registry.ts';
-import { resolveLeaseScope } from '../lease-context.ts';
+import { resolveLeaseScope, type LeaseRegistry } from '../lease-registry.ts';
 
 type LeaseHandlerArgs = {
   req: DaemonRequest;
