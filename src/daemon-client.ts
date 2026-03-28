@@ -820,7 +820,7 @@ function handleRequestTimeout(
       timedOutRunnerCleanupError: cleanup.error,
       daemonPidReset: remote ? undefined : info.pid,
       daemonPidForceKilled: remote ? undefined : daemonReset.forcedKill,
-      ...(remote ? { daemonBaseUrl: info.baseUrl } : {}),
+      daemonBaseUrl: info.baseUrl,
     },
   });
   return new AppError('COMMAND_FAILED', 'Daemon request timed out', {
