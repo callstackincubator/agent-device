@@ -1,0 +1,38 @@
+# Deep multi-level navigation with assertions at each level.
+# Tests: open, appstate, snapshot (-i and plain), screenshot, click, wait, is (exists/visible),
+#        find (text exists), back.
+# Note: Uses broad || selectors for Android version resilience (API 33-35).
+context platform=android timeout=60000 retries=2
+
+open settings --relaunch
+appstate
+snapshot -i
+screenshot "./test/screenshots/replays/android-deep-nav-root.png"
+
+# --- Level 0: Settings root ---
+is exists "label=System || label=\"About phone\" || label=\"About emulated device\" || label=Display || label=Battery || label=Apps"
+
+# --- Level 1: Navigate to System ---
+click "label=System"
+wait "label=Languages || label=\"Languages & input\" || label=Gestures || label=\"Date & time\" || label=\"System update\" || label=\"Reset options\"" 5000
+snapshot -i
+is exists "label=Languages || label=\"Languages & input\" || label=Gestures || label=\"Date & time\""
+find text "Languages" exists
+
+# --- Level 2: Navigate to About ---
+click "label=\"About phone\" || label=\"About emulated device\" || label=\"About device\""
+wait "label=\"Device name\" || label=\"Phone number\" || label=\"Android version\" || label=\"Model\"" 5000
+snapshot -i
+screenshot "./test/screenshots/replays/android-deep-nav-about.png"
+is exists "label=\"Device name\" || label=\"Android version\" || label=\"Model\" || label=\"Model name\""
+
+# --- Back to Level 1 ---
+back
+wait "label=Languages || label=\"Languages & input\" || label=\"Date & time\"" 3000
+snapshot
+is exists "label=Languages || label=\"Languages & input\" || label=\"Date & time\""
+
+# --- Back to Level 0 ---
+back
+wait "label=System || label=Display || label=Battery" 3000
+is exists "label=System || label=Display || label=Battery"

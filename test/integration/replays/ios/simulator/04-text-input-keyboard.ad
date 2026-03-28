@@ -1,0 +1,37 @@
+# Text entry into the Settings search field and keyboard management.
+# Tests: open, snapshot -i, click, type, fill, keyboard dismiss, wait, is exists,
+#        find, back, snapshot.
+context platform=ios timeout=60000 retries=2
+
+open com.apple.Preferences
+snapshot -i
+
+# Tap the search field at the top of Settings
+click "role=searchField || label=Search || label=\"Search\""
+wait 1000
+snapshot -i
+
+# Type a search query
+type "General"
+wait "label=General" 3000
+snapshot -i
+
+# Verify search results appeared
+is exists "label=General"
+find text "General" exists
+
+# Dismiss the keyboard
+keyboard dismiss
+snapshot -i
+
+# Clear and try a different query using fill (replaces text)
+click "role=searchField || label=Search || label=\"Search\""
+fill "role=searchField || label=Search || label=\"Search\"" "About"
+wait "label=About" 3000
+is exists "label=About"
+screenshot "./test/screenshots/replays/ios-search-results.png"
+
+# Navigate back out of search
+back
+wait "role=cell label=General" 5000
+is exists "role=cell label=General"

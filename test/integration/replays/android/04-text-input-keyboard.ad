@@ -1,0 +1,37 @@
+# Text entry into the Settings search and keyboard management.
+# Tests: open, snapshot -i, click, type, keyboard (status, dismiss), wait, is exists,
+#        find, back, screenshot.
+# Note: keyboard status and keyboard get are Android-only features.
+context platform=android timeout=60000 retries=2
+
+open settings --relaunch
+snapshot -i
+
+# Tap the search field / search icon at the top of Settings
+click "label=\"Search settings\" || label=Search"
+wait 1000
+snapshot -i
+
+# Check keyboard appeared
+keyboard status
+
+# Type a search query
+type "Display"
+wait "label=Display" 3000
+snapshot -i
+
+# Verify search results
+is exists "label=Display"
+find text "Display" exists
+screenshot "./test/screenshots/replays/android-search-results.png"
+
+# Dismiss the keyboard
+keyboard dismiss
+keyboard status
+snapshot -i
+
+# Navigate back out of search
+back
+wait "label=Display || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\"" 5000
+snapshot -i
+is exists "label=Display || label=Battery || label=Apps"

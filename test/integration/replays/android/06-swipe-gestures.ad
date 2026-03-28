@@ -1,0 +1,50 @@
+# Swipe and gesture-based interactions.
+# Tests: open, snapshot -i, swipe (with duration, count, pattern), scroll (direction + amount),
+#        back, wait, is exists, click, screenshot.
+# Note: Coordinates target Pixel 7 emulator (~411x914 logical dp).
+context platform=android timeout=60000 retries=2
+
+open settings --relaunch
+snapshot -i
+is exists "label=Display || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\""
+
+# --- Swipe-scroll down through the Settings list ---
+# Swipe from lower-center to upper-center to scroll down
+swipe 206 700 206 250 300
+wait 500
+snapshot -i
+
+# Swipe with repeat count
+swipe 206 650 206 300 300 --count 2 --pause-ms 200 --pattern one-way
+wait 500
+snapshot -i
+
+# --- Scroll back to top using scroll command ---
+scroll up 5
+wait 500
+snapshot -i
+is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=Apps || label=Notifications || label=\"Connected devices\""
+
+# --- Navigate into Display for gesture-based back ---
+click "label=Display"
+wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\"" 5000
+is exists "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\""
+screenshot "./test/screenshots/replays/android-swipe-before-back.png"
+
+# --- Swipe from left edge for back gesture ---
+swipe 10 450 300 450 300
+wait "label=Display || label=Battery || label=Apps" 3000
+snapshot -i
+is exists "label=Display || label=Battery || label=Apps"
+
+# --- Navigate in again and scroll within sub-screen ---
+click "label=Display"
+wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\"" 5000
+
+# Scroll down inside Display settings
+scroll down 2
+snapshot -i
+screenshot "./test/screenshots/replays/android-swipe-scroll.png"
+
+back
+wait "label=Display || label=Battery || label=Apps" 3000
