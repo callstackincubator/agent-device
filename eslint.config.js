@@ -21,8 +21,7 @@ export default tseslint.config(
       'no-useless-assignment': 'warn',
       'no-useless-escape': 'warn',
       'prefer-const': 'warn',
-      'no-throw-literal': 'off',
-      'preserve-caught-error': 'warn',
+      '@typescript-eslint/only-throw-error': 'off',
     },
   },
   {
