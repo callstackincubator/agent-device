@@ -13,6 +13,8 @@ import { handleWaitCommand, parseWaitArgs, waitNeedsRunnerCleanup } from './snap
 import { handleAlertCommand } from './snapshot-alert.ts';
 import { handleSettingsCommand, parseSettingsArgs } from './snapshot-settings.ts';
 
+const SNAPSHOT_COMMANDS = new Set(['snapshot', 'diff', 'wait', 'alert', 'settings']);
+
 export { parseWaitArgs };
 
 export async function handleSnapshotCommands(params: {
@@ -23,6 +25,10 @@ export async function handleSnapshotCommands(params: {
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore } = params;
   const command = req.command;
+
+  if (!SNAPSHOT_COMMANDS.has(command)) {
+    return null;
+  }
 
   if (command === 'snapshot') {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);

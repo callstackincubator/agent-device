@@ -1,3 +1,4 @@
+// --- iOS simulator & device automation ---
 export {
   closeIosApp,
   installIosApp,
@@ -19,3 +20,10 @@ export {
 export { ensureBootedSimulator } from './simulator.ts';
 
 export { parseIosDeviceAppsPayload, type IosAppInfo } from './devicectl.ts';
+
+// --- macOS desktop automation ---
+// These exports handle macOS native app automation (not iOS simulators).
+// They live in the ios/ directory because they share the XCTest runner infrastructure.
+// Consumed directly via ./macos-apps.ts and ./macos-helper.ts rather than through
+// this barrel — see those modules for macOS-specific app management, permissions,
+// snapshot actions, and helper process coordination.

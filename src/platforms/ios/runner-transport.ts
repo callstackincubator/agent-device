@@ -14,8 +14,8 @@ import {
   shouldRetryRunnerConnectError,
   buildRunnerConnectError,
   buildRunnerEarlyExitError,
-} from './runner-errors.ts';
-import type { RunnerCommand } from './runner-client.ts';
+  type RunnerCommand,
+} from './runner-client.ts';
 import type { RunnerSession } from './runner-session.ts';
 
 export const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
