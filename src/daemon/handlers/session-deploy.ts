@@ -4,6 +4,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import { recordSessionAction } from './handler-utils.ts';
 import { resolveDeployResultTarget } from '../../client-shared.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
@@ -167,14 +168,7 @@ export async function handleAppDeployCommand(params: {
     }
 
     const data = withSuccessText(result, buildDeployMessage(result));
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: data,
-      });
-    }
+    recordSessionAction(sessionStore, session, req, command, data);
     return { ok: true, data };
   } finally {
     if (uploadedArtifactId) {

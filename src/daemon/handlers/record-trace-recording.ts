@@ -13,7 +13,7 @@ import type {
 } from '../types.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
-import { deriveRecordingTelemetryPath, persistRecordingTelemetry } from '../recording-telemetry.ts';
+import { deriveRecordingTelemetryPath, persistRecordingTelemetry } from '../recording-gestures.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import {
   getRecordingOverlaySupportWarning,
