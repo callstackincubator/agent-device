@@ -1,9 +1,6 @@
-# App lifecycle: open, navigate, home, reopen, verify state preservation.
-# Tests: open (--relaunch and plain), appstate, snapshot (-i and plain), home,
-#        is exists, screenshot, back, wait.
+# App lifecycle.
 context platform=android timeout=60000 retries=2
 
-# --- Open and navigate into a sub-screen ---
 open settings --relaunch
 appstate
 snapshot -i
@@ -14,20 +11,16 @@ wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || 
 snapshot -i
 is exists "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\" || label=\"Font size\""
 
-# --- Go home ---
 home
 wait 2000
 
-# --- Reopen the app (without --relaunch to preserve state) ---
 open settings
 wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=Display || label=Battery || label=Apps" 5000
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-lifecycle-reopen.png"
 
-# State should be preserved or we land at root -- either is acceptable
 is exists "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=Display || label=Battery || label=Apps"
 
-# Navigate back to root
 back
 wait "label=Display || label=Battery || label=Apps" 3000

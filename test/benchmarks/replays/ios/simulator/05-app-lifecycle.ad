@@ -1,9 +1,6 @@
-# App lifecycle: open, navigate, home, reopen, verify state preservation.
-# Tests: open, appstate, snapshot (-i and plain), home, is exists, screenshot,
-#        back, wait, find.
+# App lifecycle.
 context platform=ios timeout=60000 retries=2
 
-# --- Open and navigate into a sub-screen ---
 open com.apple.Preferences --relaunch
 appstate
 snapshot -i
@@ -13,21 +10,16 @@ wait "label=About || label=\"Software Update\"" 5000
 snapshot -i
 is exists "label=About"
 
-# --- Go home ---
 home
 wait 2000
 
-# --- Reopen the app and check state ---
 open com.apple.Preferences
 wait "label=About || label=\"Software Update\" || role=cell label=General" 5000
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/ios-lifecycle-reopen.png"
 
-# State should be preserved -- we should still be in General (or at root).
-# On iOS, backgrounded apps typically preserve navigation state.
 is exists "label=About || label=\"Software Update\" || role=cell label=General"
 
-# Navigate back to root to leave clean state
 back
 wait "role=cell label=General" 3000

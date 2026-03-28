@@ -1,32 +1,24 @@
-# Scroll through Settings to discover items below the fold.
-# Tests: open, snapshot -i, scroll (direction + amount), scrollintoview, find (text exists),
-#        is exists, screenshot.
-# Note: Android Settings item order varies by API level; selectors use broad || fallbacks.
+# Scroll discovery.
 context platform=android timeout=60000 retries=2
 
 open settings --relaunch
 snapshot -i
 screenshot "./test/screenshots/replays/android-scroll-top.png"
 
-# Verify items visible at top
 is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=\"Connected devices\" || label=Apps || label=Notifications"
 
-# Scroll down to find items further in the list
 scroll down 3
 snapshot -i
 
-# Use scrollintoview to find System (typically near the bottom)
 scrollintoview "System" --max-scrolls 10
 snapshot -i
 is exists "label=System"
 find text "System" exists
 
-# Scroll back up to the top
 scroll up 8
 snapshot -i
 is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=Apps || label=Notifications"
 
-# Use scrollintoview for another target below the fold
 scrollintoview "Accessibility" --max-scrolls 10
 is exists "label=Accessibility"
 screenshot "./test/screenshots/replays/android-scroll-found.png"

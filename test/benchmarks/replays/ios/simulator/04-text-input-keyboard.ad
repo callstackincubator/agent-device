@@ -1,23 +1,18 @@
-# Text entry into the Settings search field.
-# Tests: open, snapshot -i, click, type, wait, is exists, find, screenshot.
+# Text input.
 context platform=ios timeout=60000 retries=2
 
 open com.apple.Preferences --relaunch
 snapshot -i
 
-# Tap the search field at the top of Settings
 click "role=searchField || label=Search || label=\"Search\""
 wait 1000
 snapshot -i
 
-# Type a search query
 type "General"
 wait "label=General" 3000
 snapshot -i
 
-# Verify search results appeared
 is exists "label=General"
 find text "General" exists
 
-# Capture the populated search results
 screenshot "./test/screenshots/replays/ios-search-results.png"
