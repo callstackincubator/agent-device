@@ -5,7 +5,7 @@ import type { RunnerCommand } from './runner-client.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS } from '../../utils/scroll-into-view.ts';
-import type { RunnerContext, BackMode } from '../../core/interactors.ts';
+import type { BackMode, Interactor, RunnerContext } from '../../core/interactors.ts';
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
@@ -31,6 +31,18 @@ type NormalizedScrollOptions = {
 };
 
 type RunnerCommandExecutor = (command: RunnerCommand) => Promise<Record<string, unknown>>;
+type IosRunnerOverrides = Pick<
+  Interactor,
+  | 'tap'
+  | 'doubleTap'
+  | 'swipe'
+  | 'longPress'
+  | 'focus'
+  | 'type'
+  | 'fill'
+  | 'scroll'
+  | 'scrollIntoView'
+>;
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
   if (mode === 'system') return 'backSystem';
@@ -82,34 +94,7 @@ export function iosRunnerOverrides(
   device: DeviceInfo,
   ctx: RunnerContext,
 ): {
-  overrides: {
-    tap(x: number, y: number): Promise<Record<string, unknown> | void>;
-    doubleTap(x: number, y: number): Promise<Record<string, unknown> | void>;
-    swipe(
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-      durationMs?: number,
-    ): Promise<Record<string, unknown> | void>;
-    longPress(x: number, y: number, durationMs?: number): Promise<Record<string, unknown> | void>;
-    focus(x: number, y: number): Promise<Record<string, unknown> | void>;
-    type(text: string, delayMs?: number): Promise<void>;
-    fill(
-      x: number,
-      y: number,
-      text: string,
-      delayMs?: number,
-    ): Promise<Record<string, unknown> | void>;
-    scroll(
-      direction: ScrollDirection,
-      options?: { amount?: number; pixels?: number },
-    ): Promise<Record<string, unknown> | void>;
-    scrollIntoView(
-      text: string,
-      options?: { maxScrolls?: number },
-    ): Promise<{ attempts?: number } | void>;
-  };
+  overrides: IosRunnerOverrides;
   runnerOpts: RunnerOpts;
 } {
   const runnerOpts = {

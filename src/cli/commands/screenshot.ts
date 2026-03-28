@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { formatScreenshotDiffText, printJson } from '../../utils/output.ts';
+import { formatScreenshotDiffText } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from '../../utils/screenshot-diff.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -16,12 +17,11 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
     path: result.path,
     ...(result.overlayRefs ? { overlayRefs: result.overlayRefs } : {}),
   };
-  if (flags.json) printJson({ success: true, data });
-  else if (result.overlayRefs) {
-    process.stdout.write(`Annotated ${result.overlayRefs.length} refs onto ${result.path}\n`);
-  } else {
-    process.stdout.write(`${result.path}\n`);
-  }
+  writeCommandOutput(flags, data, () =>
+    result.overlayRefs
+      ? `Annotated ${result.overlayRefs.length} refs onto ${result.path}`
+      : result.path,
+  );
   return true;
 };
 
@@ -64,10 +64,6 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     } catch {}
   }
 
-  if (flags.json) {
-    printJson({ success: true, data: result });
-  } else {
-    process.stdout.write(formatScreenshotDiffText(result));
-  }
+  writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));
   return true;
 };

@@ -1,6 +1,5 @@
-import { printJson } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const metroCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -28,14 +27,6 @@ export const metroCommand: ClientCommandHandler = async ({ positionals, flags, c
     runtimeFilePath: flags.metroRuntimeFile,
   });
 
-  writeMetroPrepareResult(result, flags);
+  writeCommandOutput(flags, result, () => JSON.stringify(result, null, 2));
   return true;
 };
-
-function writeMetroPrepareResult(result: unknown, flags: CliFlags): void {
-  if (flags.json) {
-    printJson({ success: true, data: result });
-  } else {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  }
-}

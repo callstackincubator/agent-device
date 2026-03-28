@@ -1,14 +1,12 @@
-import { printJson } from '../../utils/output.ts';
-import { serializeDevice } from '../../cli-serializers.ts';
+import { serializeDevice } from '../../client-shared.ts';
 import type { AgentDeviceDevice } from '../../client.ts';
-import { buildSelectionOptions } from './shared.ts';
+import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const devicesCommand: ClientCommandHandler = async ({ flags, client }) => {
   const devices = await client.devices.list(buildSelectionOptions(flags));
   const data = { devices: devices.map(serializeDevice) };
-  if (flags.json) printJson({ success: true, data });
-  else process.stdout.write(`${devices.map(formatDeviceLine).join('\n')}\n`);
+  writeCommandOutput(flags, data, () => devices.map(formatDeviceLine).join('\n'));
   return true;
 };
 

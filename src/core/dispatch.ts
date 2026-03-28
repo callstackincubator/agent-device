@@ -14,7 +14,6 @@ import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import {
   runMacOsPressAction,
   runMacOsReadTextAction,
-  runMacOsScreenshotAction,
 } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
 import type { SessionSurface } from './session-surface.ts';
@@ -493,18 +492,11 @@ export async function dispatchCommand(
           const positionalPath = positionals[0];
           const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
           await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
-          if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
-            await runMacOsScreenshotAction(screenshotPath, {
-              surface: context.surface,
-              fullscreen: context.screenshotFullscreen,
-            });
-          } else {
-            await interactor.screenshot(
-              screenshotPath,
-              context?.appBundleId,
-              context?.screenshotFullscreen,
-            );
-          }
+          await interactor.screenshot(screenshotPath, {
+            appBundleId: context?.appBundleId,
+            fullscreen: context?.screenshotFullscreen,
+            surface: context?.surface,
+          });
           return { path: screenshotPath, ...successText(`Saved screenshot: ${screenshotPath}`) };
         }
         case 'back': {

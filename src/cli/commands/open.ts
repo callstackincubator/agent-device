@@ -1,8 +1,6 @@
-import { printJson } from '../../utils/output.ts';
-import { serializeCloseResult, serializeOpenResult } from '../../cli-serializers.ts';
+import { serializeCloseResult, serializeOpenResult } from '../../client-shared.ts';
 import { resolveRemoteOpenRuntime } from '../../core/remote-open.ts';
-import { readCommandMessage } from '../../utils/success-text.ts';
-import { buildSelectionOptions } from './shared.ts';
+import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const openCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -13,6 +11,7 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
   const result = await client.apps.open({
     app: positionals[0],
     url: positionals[1],
+    surface: flags.surface,
     activity: flags.activity,
     relaunch: flags.relaunch,
     saveScript: flags.saveScript,
@@ -21,11 +20,7 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
     ...buildSelectionOptions(flags),
   });
   const data = serializeOpenResult(result);
-  if (flags.json) printJson({ success: true, data });
-  else {
-    const successText = readCommandMessage(data);
-    if (successText) process.stdout.write(`${successText}\n`);
-  }
+  writeCommandMessage(flags, data);
   return true;
 };
 
@@ -34,11 +29,6 @@ export const closeCommand: ClientCommandHandler = async ({ positionals, flags, c
     ? await client.apps.close({ app: positionals[0], shutdown: flags.shutdown })
     : await client.sessions.close({ shutdown: flags.shutdown });
   const data = serializeCloseResult(result);
-  if (flags.json) {
-    printJson({ success: true, data });
-  } else {
-    const successText = readCommandMessage(data);
-    if (successText) process.stdout.write(`${successText}\n`);
-  }
+  writeCommandMessage(flags, data);
   return true;
 };

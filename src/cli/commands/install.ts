@@ -1,28 +1,21 @@
-import { printJson } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
-import {
-  serializeDeployResult,
-  serializeInstallFromSourceResult,
-} from '../../cli-serializers.ts';
-import { readCommandMessage } from '../../utils/success-text.ts';
+import { serializeDeployResult, serializeInstallFromSourceResult } from '../../client-shared.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient, AppDeployResult } from '../../client.ts';
-import { buildSelectionOptions } from './shared.ts';
+import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const installCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await runDeployCommand('install', positionals, flags, client);
   const data = serializeDeployResult(result);
-  if (flags.json) printJson({ success: true, data });
-  else writeHumanMessage(data);
+  writeCommandMessage(flags, data);
   return true;
 };
 
 export const reinstallCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await runDeployCommand('reinstall', positionals, flags, client);
   const data = serializeDeployResult(result);
-  if (flags.json) printJson({ success: true, data });
-  else writeHumanMessage(data);
+  writeCommandMessage(flags, data);
   return true;
 };
 
@@ -33,15 +26,9 @@ export const installFromSourceCommand: ClientCommandHandler = async ({
 }) => {
   const result = await runInstallFromSourceCommand(positionals, flags, client);
   const data = serializeInstallFromSourceResult(result);
-  if (flags.json) printJson({ success: true, data });
-  else writeHumanMessage(data);
+  writeCommandMessage(flags, data);
   return true;
 };
-
-function writeHumanMessage(data: Record<string, unknown>): void {
-  const message = readCommandMessage(data);
-  if (message) process.stdout.write(`${message}\n`);
-}
 
 async function runDeployCommand(
   command: 'install' | 'reinstall',

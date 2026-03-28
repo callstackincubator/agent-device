@@ -1,6 +1,6 @@
-import { printJson } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
-import { serializeEnsureSimulatorResult } from '../../cli-serializers.ts';
+import { serializeEnsureSimulatorResult } from '../../client-shared.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const ensureSimulatorCommand: ClientCommandHandler = async ({ flags, client }) => {
@@ -15,13 +15,12 @@ export const ensureSimulatorCommand: ClientCommandHandler = async ({ flags, clie
     iosSimulatorDeviceSet: flags.iosSimulatorDeviceSet,
   });
   const data = serializeEnsureSimulatorResult(result);
-  if (flags.json) {
-    printJson({ success: true, data });
-  } else {
+  writeCommandOutput(flags, data, () => {
     const action = result.created ? 'Created' : 'Reused';
     const bootedSuffix = result.booted ? ' (booted)' : '';
-    process.stdout.write(`${action}: ${result.device} ${result.udid}${bootedSuffix}\n`);
-    if (result.runtime) process.stdout.write(`Runtime: ${result.runtime}\n`);
-  }
+    return result.runtime
+      ? `${action}: ${result.device} ${result.udid}${bootedSuffix}\nRuntime: ${result.runtime}`
+      : `${action}: ${result.device} ${result.udid}${bootedSuffix}`;
+  });
   return true;
 };

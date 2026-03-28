@@ -1,6 +1,6 @@
-import { formatSnapshotText, printJson } from '../../utils/output.ts';
-import { serializeSnapshotResult } from '../../cli-serializers.ts';
-import { buildSelectionOptions } from './shared.ts';
+import { formatSnapshotText } from '../../utils/output.ts';
+import { serializeSnapshotResult } from '../../client-shared.ts';
+import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const snapshotCommand: ClientCommandHandler = async ({ flags, client }) => {
@@ -13,15 +13,11 @@ export const snapshotCommand: ClientCommandHandler = async ({ flags, client }) =
     raw: flags.snapshotRaw,
   });
   const data = serializeSnapshotResult(result);
-  if (flags.json) {
-    printJson({ success: true, data });
-  } else {
-    process.stdout.write(
-      formatSnapshotText(data, {
-        raw: flags.snapshotRaw,
-        flatten: flags.snapshotInteractiveOnly,
-      }),
-    );
-  }
+  writeCommandOutput(flags, data, () =>
+    formatSnapshotText(data, {
+      raw: flags.snapshotRaw,
+      flatten: flags.snapshotInteractiveOnly,
+    }),
+  );
   return true;
 };

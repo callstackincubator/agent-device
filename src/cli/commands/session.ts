@@ -1,6 +1,6 @@
-import { printJson } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
-import { serializeSessionListEntry } from '../../cli-serializers.ts';
+import { serializeSessionListEntry } from '../../client-shared.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const sessionCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -10,7 +10,6 @@ export const sessionCommand: ClientCommandHandler = async ({ positionals, flags,
   }
   const sessions = await client.sessions.list();
   const data = { sessions: sessions.map(serializeSessionListEntry) };
-  if (flags.json) printJson({ success: true, data });
-  else process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+  writeCommandOutput(flags, data, () => JSON.stringify(data, null, 2));
   return true;
 };

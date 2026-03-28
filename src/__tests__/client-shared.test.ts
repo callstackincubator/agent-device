@@ -4,7 +4,7 @@ import {
   serializeInstallFromSourceResult,
   serializeOpenResult,
   serializeSessionListEntry,
-} from '../cli-serializers.ts';
+} from '../client-shared.ts';
 
 test('serializeSessionListEntry preserves legacy android session payload shape', () => {
   const data = serializeSessionListEntry({

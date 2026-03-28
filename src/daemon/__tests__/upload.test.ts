@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import type { IncomingMessage } from 'node:http';
-import { receiveUpload } from '../artifact-download.ts';
+import { receiveUpload } from '../upload.ts';
 import { runCmdSync } from '../../utils/exec.ts';
 
 function makeUploadRequest(body: Buffer, headers: Record<string, string>): IncomingMessage {

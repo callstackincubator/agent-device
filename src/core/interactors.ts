@@ -30,12 +30,14 @@ import {
   setIosSetting,
   writeIosClipboardText,
 } from '../platforms/ios/index.ts';
+import { runMacOsScreenshotAction } from '../platforms/ios/macos-helper.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import {
   iosRunnerOverrides,
   resolveAppleBackRunnerCommand,
 } from '../platforms/ios/interactions.ts';
 import type { PermissionSettingOptions } from '../platforms/permission-utils.ts';
+import type { SessionSurface } from './session-surface.ts';
 
 export type RunnerContext = {
   requestId?: string;
@@ -47,7 +49,13 @@ export type RunnerContext = {
 
 export type BackMode = 'in-app' | 'system';
 
-type Interactor = {
+export type ScreenshotOptions = {
+  appBundleId?: string;
+  fullscreen?: boolean;
+  surface?: SessionSurface;
+};
+
+export type Interactor = {
   open(
     app: string,
     options?: { activity?: string; appBundleId?: string; url?: string },
@@ -80,7 +88,7 @@ type Interactor = {
     text: string,
     options?: { maxScrolls?: number },
   ): Promise<{ attempts?: number } | void>;
-  screenshot(outPath: string, appBundleId?: string): Promise<void>;
+  screenshot(outPath: string, options?: ScreenshotOptions): Promise<void>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   appSwitcher(): Promise<void>;
@@ -113,7 +121,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
         scroll: (direction, options) => scrollAndroid(device, direction, options),
         scrollIntoView: (text, options) => scrollIntoViewAndroid(device, text, options),
-        screenshot: (outPath, _appBundleId) => screenshotAndroid(device, outPath),
+        screenshot: (outPath) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
         appSwitcher: () => appSwitcherAndroid(device),
@@ -130,7 +138,16 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
         openDevice: () => openIosDevice(device),
         close: (app) => closeIosApp(device, app),
-        screenshot: (outPath, appBundleId) => screenshotIos(device, outPath, appBundleId),
+        screenshot: async (outPath, options) => {
+          if (device.platform === 'macos' && options?.surface && options.surface !== 'app') {
+            await runMacOsScreenshotAction(outPath, {
+              surface: options.surface,
+              fullscreen: options.fullscreen,
+            });
+            return;
+          }
+          await screenshotIos(device, outPath, options?.appBundleId, options?.fullscreen);
+        },
         back: async (mode) => {
           await runIosRunnerCommand(
             device,

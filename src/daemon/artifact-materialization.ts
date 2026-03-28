@@ -4,7 +4,7 @@ import {
   extractTarInstallableArtifact,
   readZipEntries,
   resolveTarArchiveRootName,
-} from './artifact-download.ts';
+} from './artifact-archive.ts';
 import { createArtifactTempDir, downloadArtifactToTempDir } from './artifact-download.ts';
 import { readInfoPlistString } from '../platforms/ios/plist.ts';
 import { AppError } from '../utils/errors.ts';
