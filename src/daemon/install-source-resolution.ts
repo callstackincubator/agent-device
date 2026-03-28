@@ -1,5 +1,5 @@
 import { AppError } from '../utils/errors.ts';
-import { cleanupUploadedArtifact, prepareUploadedArtifact } from './upload-registry.ts';
+import { cleanupUploadedArtifact, prepareUploadedArtifact } from './artifact-tracking.ts';
 import type { DaemonInstallSource, DaemonRequest } from './types.ts';
 
 function requireInstallSource(req: DaemonRequest): DaemonInstallSource {

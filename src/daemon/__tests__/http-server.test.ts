@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createDaemonHttpServer } from '../http-server.ts';
-import { trackDownloadableArtifact } from '../artifact-registry.ts';
+import { trackDownloadableArtifact } from '../artifact-tracking.ts';
 import { isRequestCanceled } from '../request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 

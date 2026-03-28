@@ -11,9 +11,8 @@ import {
 } from './request-cancel.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { cleanupDownloadableArtifact, prepareDownloadableArtifact } from './artifact-registry.ts';
-import { trackUploadedArtifact } from './upload-registry.ts';
-import { receiveUpload } from './upload.ts';
+import { cleanupDownloadableArtifact, prepareDownloadableArtifact, trackUploadedArtifact } from './artifact-tracking.ts';
+import { receiveUpload } from './artifact-download.ts';
 
 type JsonRpcRequest = {
   jsonrpc?: string;

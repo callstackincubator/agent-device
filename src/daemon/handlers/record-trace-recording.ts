@@ -101,6 +101,73 @@ async function waitForLocalRecordingSettleWindow(outPath: string): Promise<numbe
   return Date.now();
 }
 
+// --- Per-platform start helpers ---
+
+async function startIosSimulatorRecording(params: {
+  req: DaemonRequest;
+  activeSession: SessionState;
+  device: SessionState['device'];
+  logPath?: string;
+  deps: RecordTraceDeps;
+  recordingBase: RecordingBase;
+  resolvedOut: string;
+}): Promise<DaemonResponse | NonNullable<SessionState['recording']>> {
+  const { req, activeSession, device, logPath, deps, recordingBase, resolvedOut } = params;
+
+  await warmIosSimulatorRunner({
+    req,
+    activeSession,
+    device,
+    logPath,
+    deps,
+  });
+  const { child, wait } = deps.runCmdBackground(
+    'xcrun',
+    buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]),
+    {
+      allowFailure: true,
+    },
+  );
+  const readyAt = await waitForLocalRecordingSettleWindow(resolvedOut);
+  let gestureClockOriginAtMs: number | undefined;
+  let gestureClockOriginUptimeMs: number | undefined;
+  try {
+    const uptimeRequestStartedAtMs = Date.now();
+    const uptimeResult = await deps.runIosRunnerCommand(
+      device,
+      {
+        command: 'uptime',
+        appBundleId: normalizeAppBundleId(activeSession),
+      },
+      {
+        verbose: req.flags?.verbose,
+        logPath,
+        traceLogPath: activeSession.trace?.outPath,
+      },
+    );
+    const uptimeRequestFinishedAtMs = Date.now();
+    gestureClockOriginAtMs = Math.round(
+      (uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2,
+    );
+    gestureClockOriginUptimeMs =
+      typeof uptimeResult.currentUptimeMs === 'number' ? uptimeResult.currentUptimeMs : undefined;
+  } catch {
+    // Best effort only; wall-clock fallback remains available.
+  }
+  return {
+    platform: 'ios',
+    child,
+    wait,
+    ...recordingBase,
+    startedAt: readyAt,
+    gestureClockOriginAtMs:
+      gestureClockOriginUptimeMs === undefined ? undefined : gestureClockOriginAtMs,
+    gestureClockOriginUptimeMs,
+  };
+}
+
+// --- Start recording orchestrator ---
+
 async function startRecording(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -197,56 +264,15 @@ async function startRecording(params: {
       appBundleId,
     });
   } else if (device.platform === 'ios') {
-    await warmIosSimulatorRunner({
+    recording = await startIosSimulatorRecording({
       req,
       activeSession,
       device,
       logPath,
       deps,
+      recordingBase,
+      resolvedOut,
     });
-    const { child, wait } = deps.runCmdBackground(
-      'xcrun',
-      buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]),
-      {
-        allowFailure: true,
-      },
-    );
-    const readyAt = await waitForLocalRecordingSettleWindow(resolvedOut);
-    let gestureClockOriginAtMs: number | undefined;
-    let gestureClockOriginUptimeMs: number | undefined;
-    try {
-      const uptimeRequestStartedAtMs = Date.now();
-      const uptimeResult = await deps.runIosRunnerCommand(
-        device,
-        {
-          command: 'uptime',
-          appBundleId: normalizeAppBundleId(activeSession),
-        },
-        {
-          verbose: req.flags?.verbose,
-          logPath,
-          traceLogPath: activeSession.trace?.outPath,
-        },
-      );
-      const uptimeRequestFinishedAtMs = Date.now();
-      gestureClockOriginAtMs = Math.round(
-        (uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2,
-      );
-      gestureClockOriginUptimeMs =
-        typeof uptimeResult.currentUptimeMs === 'number' ? uptimeResult.currentUptimeMs : undefined;
-    } catch {
-      // Best effort only; wall-clock fallback remains available.
-    }
-    recording = {
-      platform: 'ios',
-      child,
-      wait,
-      ...recordingBase,
-      startedAt: readyAt,
-      gestureClockOriginAtMs:
-        gestureClockOriginUptimeMs === undefined ? undefined : gestureClockOriginAtMs,
-      gestureClockOriginUptimeMs,
-    };
   } else {
     recording = await startAndroidRecording({ deps, device, recordingBase });
   }
@@ -273,6 +299,8 @@ async function startRecording(params: {
     },
   };
 }
+
+// --- Stop recording helpers ---
 
 async function stopNonRunnerRecording(params: {
   deps: RecordTraceDeps;
@@ -402,6 +430,8 @@ function deriveClientTelemetryPath(
   }
   return deriveRecordingTelemetryPath(recording.clientOutPath);
 }
+
+// --- Main command handler ---
 
 export async function handleRecordCommand(params: {
   req: DaemonRequest;

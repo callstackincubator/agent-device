@@ -5,7 +5,7 @@ import { SessionStore } from './daemon/session-store.ts';
 import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
 import { resolveDaemonPaths, resolveDaemonServerMode } from './daemon/config.ts';
 import { createDaemonHttpServer } from './daemon/http-server.ts';
-import { trackDownloadableArtifact } from './daemon/artifact-registry.ts';
+import { trackDownloadableArtifact } from './daemon/artifact-tracking.ts';
 import { LeaseRegistry } from './daemon/lease-registry.ts';
 import { createRequestHandler } from './daemon/request-router.ts';
 import {

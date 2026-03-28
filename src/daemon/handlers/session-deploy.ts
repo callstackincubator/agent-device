@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../upload-registry.ts';
+import { cleanupUploadedArtifact, prepareUploadedArtifact } from '../artifact-tracking.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';

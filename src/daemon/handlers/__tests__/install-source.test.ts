@@ -5,7 +5,7 @@ import path from 'node:path';
 import { handleInstallFromSourceCommand } from '../install-source.ts';
 import { resolveInstallSource } from '../../install-source-resolution.ts';
 import { SessionStore } from '../../session-store.ts';
-import { trackUploadedArtifact } from '../../upload-registry.ts';
+import { trackUploadedArtifact } from '../../artifact-tracking.ts';
 import type { DaemonRequest, SessionState } from '../../types.ts';
 
 vi.mock('../../device-ready.ts', () => ({

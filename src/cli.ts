@@ -15,7 +15,7 @@ import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
 import type { ReplaySuiteResult } from './daemon/types.ts';
-import { tryRunClientBackedCommand } from './cli-client-commands.ts';
+import { tryRunClientBackedCommand } from './cli/commands/router.ts';
 import { announceReplayTestRun, renderReplayTestResponse } from './cli-test.ts';
 import {
   createRequestId,

@@ -11,6 +11,27 @@ import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 
+type FindContext = {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  session: ReturnType<SessionStore['get']>;
+  device: NonNullable<ReturnType<SessionStore['get']>>['device'];
+  command: string;
+  locator: FindLocator;
+  query: string;
+};
+
+type ResolvedMatch = {
+  node: SnapshotState['nodes'][number];
+  resolvedNode: SnapshotState['nodes'][number];
+  ref: string;
+  nodes: SnapshotState['nodes'];
+  actionFlags: Record<string, unknown>;
+};
+
 export async function handleFindCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -82,56 +103,33 @@ export async function handleFindCommands(params: {
     }
     return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };
   };
+
+  const ctx: FindContext = {
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    invoke,
+    session,
+    device,
+    command,
+    locator,
+    query,
+  };
+
   if (action === 'wait') {
-    const timeout = timeoutMs ?? 10000;
-    const start = Date.now();
-    while (Date.now() - start < timeout) {
-      const { nodes } = await fetchNodes();
-      const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false })
-        .matches[0];
-      if (match) {
-        if (session) {
-          sessionStore.recordAction(session, {
-            command,
-            positionals: req.positionals ?? [],
-            flags: req.flags ?? {},
-            result: { found: true, waitedMs: Date.now() - start },
-          });
-        }
-        return { ok: true, data: { found: true, waitedMs: Date.now() - start } };
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
+    return handleFindWait(ctx, fetchNodes, locator, query, timeoutMs);
   }
+
   const { nodes } = await fetchNodes();
   const bestMatches = findBestMatchesByLocator(nodes, locator, query, {
     requireRect: requiresRect,
   });
+
   if (requiresRect && bestMatches.matches.length > 1) {
-    const candidates = bestMatches.matches.slice(0, 8).map((candidate) => {
-      const label =
-        extractNodeText(candidate) ||
-        candidate.label ||
-        candidate.identifier ||
-        candidate.type ||
-        '';
-      return `@${candidate.ref}${label ? `(${label})` : ''}`;
-    });
-    return {
-      ok: false,
-      error: {
-        code: 'AMBIGUOUS_MATCH',
-        message: `find matched ${bestMatches.matches.length} elements for ${locator} "${query}". Use a more specific locator or selector.`,
-        details: {
-          locator,
-          query,
-          matches: bestMatches.matches.length,
-          candidates,
-        },
-      },
-    };
+    return buildAmbiguousMatchError(bestMatches.matches, locator, query);
   }
+
   const node = bestMatches.matches[0] ?? null;
   if (!node) {
     return {
@@ -139,158 +137,271 @@ export async function handleFindCommands(params: {
       error: { code: 'COMMAND_FAILED', message: 'find did not match any element' },
     };
   }
+
   const resolvedNode =
     action === 'click' || action === 'focus' || action === 'fill' || action === 'type'
       ? (findNearestHittableAncestor(nodes, node) ?? node)
       : node;
   const ref = `@${resolvedNode.ref}`;
   const actionFlags = { ...(req.flags ?? {}), noRecord: true };
-  if (action === 'exists') {
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { found: true },
-      });
-    }
-    return { ok: true, data: { found: true } };
-  }
-  if (action === 'get_text') {
-    const text = await readTextForNode({
-      device,
-      node,
-      flags: req.flags,
-      appBundleId: session?.appBundleId,
-      traceOutPath: session?.trace?.outPath,
-      surface: session?.surface,
-      contextFromFlags: (flags, appBundleId, traceLogPath) =>
-        contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-    });
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'get text', text },
-      });
-    }
-    return { ok: true, data: { ref, text, node } };
-  }
-  if (action === 'get_attrs') {
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'get attrs' },
-      });
-    }
-    return { ok: true, data: { ref, node } };
-  }
-  if (action === 'click') {
-    const response = await invoke({
-      token: req.token,
-      session: sessionName,
-      command: 'click',
-      positionals: [ref],
-      flags: actionFlags,
-    });
-    if (!response.ok) return response;
-    const matchCoords = resolvedNode.rect ? centerOfRect(resolvedNode.rect) : null;
-    const matchData: Record<string, unknown> = { ref, locator, query };
-    if (matchCoords) {
-      matchData.x = matchCoords.x;
-      matchData.y = matchCoords.y;
-    }
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'click', locator, query },
-      });
-    }
-    return { ok: true, data: matchData };
-  }
-  if (action === 'fill') {
-    if (!value) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'find fill requires text' } };
-    }
-    const response = await invoke({
-      token: req.token,
-      session: sessionName,
-      command: 'fill',
-      positionals: [ref, value],
-      flags: actionFlags,
-    });
-    if (!response.ok) return response;
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'fill' },
-      });
-    }
-    return response;
-  }
-  if (action === 'focus') {
-    const coords = node.rect ? centerOfRect(node.rect) : null;
-    if (!coords) {
-      return {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
-      };
-    }
-    const response = await dispatchCommand(
-      device,
-      'focus',
-      [String(coords.x), String(coords.y)],
-      req.flags?.out,
-      {
-        ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
-      },
-    );
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'focus' },
-      });
-    }
-    return { ok: true, data: response ?? { ref } };
-  }
-  if (action === 'type') {
-    if (!value) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'find type requires text' } };
-    }
-    const coords = node.rect ? centerOfRect(node.rect) : null;
-    if (!coords) {
-      return {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
-      };
-    }
-    await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
-      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
-    });
-    const response = await dispatchCommand(device, 'type', [value], req.flags?.out, {
-      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
-    });
-    if (session) {
-      sessionStore.recordAction(session, {
-        command,
-        positionals: req.positionals ?? [],
-        flags: req.flags ?? {},
-        result: { ref, action: 'type' },
-      });
-    }
-    return { ok: true, data: response ?? { ref } };
-  }
+  const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags };
 
-  return null;
+  const actionHandlers: Record<string, () => Promise<DaemonResponse | null>> = {
+    exists: () => handleFindExists(ctx, match),
+    get_text: () => handleFindGetText(ctx, match),
+    get_attrs: () => handleFindGetAttrs(ctx, match),
+    click: () => handleFindClick(ctx, match),
+    fill: () => handleFindFill(ctx, match, value),
+    focus: () => handleFindFocus(ctx, match),
+    type: () => handleFindType(ctx, match, value),
+  };
+
+  const handler = actionHandlers[action];
+  return handler ? handler() : null;
+}
+
+// --- Per-action handlers ---
+
+async function handleFindWait(
+  ctx: FindContext,
+  fetchNodes: () => Promise<{ nodes: SnapshotState['nodes'] }>,
+  locator: FindLocator,
+  query: string,
+  timeoutMs: number | undefined,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, command } = ctx;
+  const timeout = timeoutMs ?? 10000;
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const { nodes } = await fetchNodes();
+    const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false })
+      .matches[0];
+    if (match) {
+      if (session) {
+        sessionStore.recordAction(session, {
+          command,
+          positionals: req.positionals ?? [],
+          flags: req.flags ?? {},
+          result: { found: true, waitedMs: Date.now() - start },
+        });
+      }
+      return { ok: true, data: { found: true, waitedMs: Date.now() - start } };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
+}
+
+async function handleFindExists(
+  ctx: FindContext,
+  match: ResolvedMatch,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, command } = ctx;
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { found: true },
+    });
+  }
+  return { ok: true, data: { found: true } };
+}
+
+async function handleFindGetText(
+  ctx: FindContext,
+  match: ResolvedMatch,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, command, device, logPath } = ctx;
+  const text = await readTextForNode({
+    device,
+    node: match.node,
+    flags: req.flags,
+    appBundleId: session?.appBundleId,
+    traceOutPath: session?.trace?.outPath,
+    surface: session?.surface,
+    contextFromFlags: (flags, appBundleId, traceLogPath) =>
+      contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+  });
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'get text', text },
+    });
+  }
+  return { ok: true, data: { ref: match.ref, text, node: match.node } };
+}
+
+async function handleFindGetAttrs(
+  ctx: FindContext,
+  match: ResolvedMatch,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, command } = ctx;
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'get attrs' },
+    });
+  }
+  return { ok: true, data: { ref: match.ref, node: match.node } };
+}
+
+async function handleFindClick(
+  ctx: FindContext,
+  match: ResolvedMatch,
+): Promise<DaemonResponse> {
+  const { req, sessionName, sessionStore, session, invoke, command, locator, query } = ctx;
+  const response = await invoke({
+    token: req.token,
+    session: sessionName,
+    command: 'click',
+    positionals: [match.ref],
+    flags: match.actionFlags,
+  });
+  if (!response.ok) return response;
+  const matchCoords = match.resolvedNode.rect ? centerOfRect(match.resolvedNode.rect) : null;
+  const matchData: Record<string, unknown> = { ref: match.ref, locator, query };
+  if (matchCoords) {
+    matchData.x = matchCoords.x;
+    matchData.y = matchCoords.y;
+  }
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'click', locator, query },
+    });
+  }
+  return { ok: true, data: matchData };
+}
+
+async function handleFindFill(
+  ctx: FindContext,
+  match: ResolvedMatch,
+  value: string | undefined,
+): Promise<DaemonResponse> {
+  const { req, sessionName, sessionStore, session, invoke, command } = ctx;
+  if (!value) {
+    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find fill requires text' } };
+  }
+  const response = await invoke({
+    token: req.token,
+    session: sessionName,
+    command: 'fill',
+    positionals: [match.ref, value],
+    flags: match.actionFlags,
+  });
+  if (!response.ok) return response;
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'fill' },
+    });
+  }
+  return response;
+}
+
+async function handleFindFocus(
+  ctx: FindContext,
+  match: ResolvedMatch,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, device, command, logPath } = ctx;
+  const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
+  if (!coords) {
+    return {
+      ok: false,
+      error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
+    };
+  }
+  const response = await dispatchCommand(
+    device,
+    'focus',
+    [String(coords.x), String(coords.y)],
+    req.flags?.out,
+    {
+      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+    },
+  );
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'focus' },
+    });
+  }
+  return { ok: true, data: response ?? { ref: match.ref } };
+}
+
+async function handleFindType(
+  ctx: FindContext,
+  match: ResolvedMatch,
+  value: string | undefined,
+): Promise<DaemonResponse> {
+  const { req, sessionStore, session, device, command, logPath } = ctx;
+  if (!value) {
+    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find type requires text' } };
+  }
+  const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
+  if (!coords) {
+    return {
+      ok: false,
+      error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
+    };
+  }
+  await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+  });
+  const response = await dispatchCommand(device, 'type', [value], req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+  });
+  if (session) {
+    sessionStore.recordAction(session, {
+      command,
+      positionals: req.positionals ?? [],
+      flags: req.flags ?? {},
+      result: { ref: match.ref, action: 'type' },
+    });
+  }
+  return { ok: true, data: response ?? { ref: match.ref } };
+}
+
+// --- Helpers ---
+
+function buildAmbiguousMatchError(
+  matches: SnapshotState['nodes'],
+  locator: FindLocator,
+  query: string,
+): DaemonResponse {
+  const candidates = matches.slice(0, 8).map((candidate) => {
+    const label =
+      extractNodeText(candidate) ||
+      candidate.label ||
+      candidate.identifier ||
+      candidate.type ||
+      '';
+    return `@${candidate.ref}${label ? `(${label})` : ''}`;
+  });
+  return {
+    ok: false,
+    error: {
+      code: 'AMBIGUOUS_MATCH',
+      message: `find matched ${matches.length} elements for ${locator} "${query}". Use a more specific locator or selector.`,
+      details: {
+        locator,
+        query,
+        matches: matches.length,
+        candidates,
+      },
+    },
+  };
 }
 
 type FindAction =
