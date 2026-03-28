@@ -528,8 +528,9 @@ extension RunnerTests {
       needsPostSnapshotInteractionDelay = true
       return Response(ok: true, data: snapshotFast(app: activeApp, options: options))
     case .screenshot:
-      // If a target app bundle ID is provided, activate it first so the screenshot
-      // captures the target app rather than the AgentDeviceRunner itself.
+      let screenshot: XCUIScreenshot
+#if os(macOS)
+      // macOS keeps the app-targeted capture behavior for window-level screenshots.
       if let bundleId = command.appBundleId, !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         let targetApp = XCUIApplication(bundleIdentifier: bundleId)
         targetApp.activate()
@@ -537,8 +538,6 @@ extension RunnerTests {
         // Brief wait for the app transition animation to complete
         Thread.sleep(forTimeInterval: 0.5)
       }
-      let screenshot: XCUIScreenshot
-#if os(macOS)
       if command.fullscreen == true {
         screenshot = XCUIScreen.main.screenshot()
       } else if let bundleId = command.appBundleId, !bundleId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

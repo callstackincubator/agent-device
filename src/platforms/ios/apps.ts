@@ -32,7 +32,6 @@ import {
 import {
   ensureBootedSimulator,
   ensureSimulator,
-  focusIosSimulatorWindow,
   getSimulatorState,
 } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
@@ -119,7 +118,6 @@ export async function openIosApp(
     }
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
-      await focusIosSimulatorWindow();
       await runSimctl(device, ['openurl', device.id, explicitUrl]);
       return;
     }
@@ -139,7 +137,6 @@ export async function openIosApp(
   if (isDeepLinkTarget(deepLinkTarget)) {
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
-      await focusIosSimulatorWindow();
       await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
       return;
     }
@@ -172,7 +169,6 @@ export async function openIosDevice(device: DeviceInfo): Promise<void> {
   if (state === 'Booted') return;
 
   await ensureBootedSimulator(device);
-  await focusIosSimulatorWindow();
 }
 
 export async function closeIosApp(device: DeviceInfo, app: string): Promise<void> {
@@ -857,7 +853,6 @@ function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolea
 
 async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Promise<void> {
   await ensureBootedSimulator(device);
-  await focusIosSimulatorWindow();
 
   let consecutiveFBSFailures = 0;
   const MAX_CONSECUTIVE_FBS_FAILURES = 3;
