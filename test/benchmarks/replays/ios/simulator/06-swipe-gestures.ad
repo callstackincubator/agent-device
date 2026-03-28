@@ -1,0 +1,29 @@
+# Swipe and gesture-based interactions.
+# Tests: open, snapshot -i, swipe (with duration, count, pattern), wait, is exists, longpress,
+#        screenshot.
+# Note: Coordinates target iPhone 17 Pro simulator (393x852 logical points).
+context platform=ios timeout=60000 retries=2
+
+open com.apple.Preferences --relaunch
+snapshot -i
+is exists "role=cell label=General"
+
+# --- Swipe-scroll down through the Settings list ---
+# Swipe from lower-center to upper-center to scroll down
+swipe 197 650 197 300 300
+wait 500
+snapshot -i
+
+# Swipe again with repeat count and ping-pong pattern
+swipe 197 600 197 350 300 --count 2 --pause-ms 200 --pattern one-way
+wait 500
+snapshot -i
+
+# Verify a lower section entered view after the gesture sequence.
+is exists "label=Accessibility || label=Apps"
+screenshot "./test/screenshots/replays/ios-swipe-before-back.png"
+
+# Longpress on a list item (center of screen area)
+longpress 197 400 800
+snapshot -i
+screenshot "./test/screenshots/replays/ios-swipe-longpress.png"

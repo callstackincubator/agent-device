@@ -3,7 +3,7 @@
 #        find (text exists), get (text), back -- all combined in a single flow.
 context platform=ios timeout=60000 retries=2
 
-open com.apple.Preferences
+open com.apple.Preferences --relaunch
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/ios-deep-nav-root.png"

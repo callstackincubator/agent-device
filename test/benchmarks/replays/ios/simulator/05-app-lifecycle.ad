@@ -4,7 +4,7 @@
 context platform=ios timeout=60000 retries=2
 
 # --- Open and navigate into a sub-screen ---
-open com.apple.Preferences
+open com.apple.Preferences --relaunch
 appstate
 snapshot -i
 is exists "role=cell label=General"

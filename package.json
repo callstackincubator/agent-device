@@ -45,7 +45,9 @@
     "test:replay:ios": "node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator",
     "test:replay:ios-device": "node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device",
     "test:replay:android": "node --experimental-strip-types src/bin.ts test test/integration/replays/android",
-    "test:replay:macos": "node --experimental-strip-types src/bin.ts test test/integration/replays/macos"
+    "test:replay:android:benchmarks": "AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/benchmarks/replays/android",
+    "test:replay:macos": "node --experimental-strip-types src/bin.ts test test/integration/replays/macos",
+    "test:replay:ios:benchmarks": "AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/benchmarks/replays/ios/simulator"
   },
   "files": [
     "bin",

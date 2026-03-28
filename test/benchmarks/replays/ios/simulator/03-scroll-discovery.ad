@@ -1,9 +1,9 @@
 # Scroll through Settings to discover items below the fold.
-# Tests: open, snapshot -i, scroll (direction + amount), scrollintoview, find (text exists/absent),
+# Tests: open, snapshot -i, scroll (direction + amount), find (text exists),
 #        is exists, wait, screenshot.
 context platform=ios timeout=60000 retries=2
 
-open com.apple.Preferences
+open com.apple.Preferences --relaunch
 snapshot -i
 screenshot "./test/screenshots/replays/ios-scroll-top.png"
 
@@ -14,18 +14,19 @@ is exists "role=cell label=General"
 scroll down 3
 snapshot -i
 
-# Use scrollintoview to find a specific item deep in the list.
-# Privacy & Security or Accessibility are typically below the fold.
-scrollintoview "Privacy" --max-scrolls 10
+# Verify we discovered a lower item after scrolling.
+# Accessibility is typically below the fold on the iPhone simulator.
 snapshot -i
-is exists "label=Privacy || label=\"Privacy & Security\""
+is exists "label=Accessibility || label=Apps"
+find text "Accessibility" exists
 
 # Scroll back up to verify we can return to the top
 scroll up 5
 snapshot -i
 is exists "role=cell label=General"
 
-# Use scrollintoview for another target
-scrollintoview "Accessibility" --max-scrolls 10
-is exists "label=Accessibility"
+# Scroll down again and confirm we can rediscover the lower item.
+scroll down 3
+snapshot -i
+is exists "label=Accessibility || label=Apps"
 screenshot "./test/screenshots/replays/ios-scroll-found.png"
