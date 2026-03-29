@@ -4,23 +4,20 @@ context platform=android timeout=60000 retries=2
 open settings --relaunch
 appstate
 snapshot -i
-is exists "label=Display || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\""
+is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""
 
-click "label=Notifications"
-wait "label=\"App notifications\" || label=\"Notification history\" || label=Bubbles || label=\"Notifications on lock screen\"" 5000
+click @e16
+wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 5000
 snapshot -i
-is exists "label=\"App notifications\" || label=\"Notification history\" || label=Bubbles || label=\"Notifications on lock screen\""
+is exists "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\""
 
 home
 wait 2000
 
 open settings --relaunch
-wait "label=Display || label=\"Display & touch\" || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\"" 5000
+wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 5000
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-lifecycle-reopen.png"
 
-is exists "label=Display || label=\"Display & touch\" || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\""
-
-back
-wait "label=Display || label=\"Display & touch\" || label=Battery || label=Apps || label=Notifications" 3000
+is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""

@@ -101,6 +101,7 @@ import { listAppleDevices } from '../../../platforms/ios/devices.ts';
 import { listIosApps, resolveIosApp } from '../../../platforms/ios/index.ts';
 import { startAppLog, stopAppLog } from '../../app-log.ts';
 import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
+import { clearRequestCanceled, markRequestCanceled } from '../../request-cancel.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
@@ -4503,6 +4504,46 @@ test('test applies per-script timeout and writes attempt artifacts', async () =>
     const resultText = fs.readFileSync(path.join(attemptDir, 'result.txt'), 'utf8');
     expect(resultText).toMatch(/status: failed/);
     expect(resultText).toMatch(/timeoutMode: cooperative/);
+  }
+});
+
+test('open does not retain a session when the request was canceled before completion', async () => {
+  const sessionStore = makeSessionStore();
+  const requestId = 'open-canceled-before-store';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    target: 'mobile',
+    booted: true,
+  } as any);
+
+  markRequestCanceled(requestId);
+  try {
+    const response = await handleSessionCommands({
+      req: {
+        token: 't',
+        session: 'default',
+        command: 'open',
+        positionals: ['com.apple.Preferences'],
+        flags: { platform: 'ios' },
+        meta: { requestId },
+      },
+      sessionName: 'default',
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: noopInvoke,
+    });
+
+    expect(response?.ok).toBe(false);
+    if (response && !response.ok) {
+      expect(response.error.code).toBe('COMMAND_FAILED');
+      expect(response.error.message).toBe('request canceled');
+    }
+    expect(sessionStore.has('default')).toBe(false);
+  } finally {
+    clearRequestCanceled(requestId);
   }
 });
 

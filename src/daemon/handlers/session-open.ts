@@ -2,6 +2,7 @@ import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
 import { contextFromFlags } from '../context.ts';
+import { createRequestCanceledError, isRequestCanceled } from '../request-cancel.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { applyRuntimeHintsToApp } from '../runtime-hints.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -143,6 +144,17 @@ async function completeOpenCommand(params: {
     ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId)
     : undefined;
   await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
+  if (isRequestCanceled(req.meta?.requestId)) {
+    const canceled = createRequestCanceledError();
+    return {
+      ok: false,
+      error: {
+        code: canceled.code,
+        message: canceled.message,
+        details: canceled.details,
+      },
+    };
+  }
 
   const nextSession = buildNextOpenSession({
     existingSession,

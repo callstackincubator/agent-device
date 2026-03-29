@@ -6,25 +6,25 @@ appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-deep-nav-root.png"
 
-is exists "label=System || label=\"About phone\" || label=\"About emulated device\" || label=Display || label=Battery || label=Apps"
+is exists "text=\"Search Settings\" || text=Apps || text=Notifications || text=Battery || text=\"Connected devices\""
 
-click "label=System"
-wait "label=Languages || label=\"Languages & input\" || label=Gestures || label=\"Date & time\" || label=\"System update\" || label=\"Reset options\"" 5000
+click @e16
+wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 5000
 snapshot -i
-is exists "label=Languages || label=\"Languages & input\" || label=Gestures || label=\"Date & time\""
-find text "Languages" exists
+is exists "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\""
+find text "Notification history" exists
 
-click "label=\"About phone\" || label=\"About emulated device\" || label=\"About device\""
-wait "label=\"Device name\" || label=\"Phone number\" || label=\"Android version\" || label=\"Model\"" 5000
+click @e7
+wait "text=\"Use notification history\" || text=\"No recent notifications\" || text=\"Recently dismissed\"" 5000
 snapshot -i
-screenshot "./test/screenshots/replays/android-deep-nav-about.png"
-is exists "label=\"Device name\" || label=\"Android version\" || label=\"Model\" || label=\"Model name\""
+screenshot "./test/screenshots/replays/android-deep-nav-detail.png"
+is exists "text=\"Use notification history\" || text=\"No recent notifications\" || text=\"Recently dismissed\""
 
 back
-wait "label=Languages || label=\"Languages & input\" || label=\"Date & time\"" 3000
+wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 3000
 snapshot
-is exists "label=Languages || label=\"Languages & input\" || label=\"Date & time\""
+is exists "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\""
 
 back
-wait "label=System || label=Display || label=Battery" 3000
-is exists "label=System || label=Display || label=Battery"
+wait "text=\"Search Settings\" || text=Apps || text=Notifications || text=Battery || text=\"Connected devices\"" 3000
+is exists "text=\"Search Settings\" || text=Apps || text=Notifications || text=Battery || text=\"Connected devices\""

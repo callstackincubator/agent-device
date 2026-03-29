@@ -4,25 +4,24 @@ context platform=android timeout=60000 retries=2
 open settings --relaunch
 snapshot -i
 
-click "label=\"Search settings\" || label=Search"
+click @e2
 wait 1000
 snapshot -i
 
 keyboard status
 
 type "Display"
-wait "label=Display" 3000
+wait "text=\"Display & touch\" || text=\"Display size\" || text=\"Display size and text\"" 3000
 snapshot -i
 
-is exists "label=Display"
+is exists "text=\"Display & touch\" || text=\"Display size\" || text=\"Display size and text\""
 find text "Display" exists
 screenshot "./test/screenshots/replays/android-search-results.png"
 
-keyboard dismiss
 keyboard status
-snapshot -i
 
 back
-wait "label=Display || label=Battery || label=Apps || label=\"Network & internet\" || label=\"Network and internet\"" 5000
+wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 5000
+keyboard status
 snapshot -i
-is exists "label=Display || label=Battery || label=Apps"
+is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications"

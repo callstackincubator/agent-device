@@ -40,10 +40,17 @@ export async function runReplayTestAttempt(params: {
     platform,
     requestId,
     artifactPaths,
-  }).catch((error) => {
-    const appErr = asAppError(error);
-    return { ok: false, error: { code: appErr.code, message: appErr.message } } as DaemonResponse;
-  });
+  })
+    .catch((error) => {
+      const appErr = asAppError(error);
+      return {
+        ok: false,
+        error: { code: appErr.code, message: appErr.message },
+      } as DaemonResponse;
+    })
+    .finally(() => {
+      clearRequestCanceled(requestId);
+    });
 
   try {
     const response =
@@ -76,7 +83,6 @@ export async function runReplayTestAttempt(params: {
         });
       }
     }
-    clearRequestCanceled(requestId);
     try {
       await cleanupSession(sessionName);
     } catch (error) {

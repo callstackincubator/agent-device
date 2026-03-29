@@ -5,20 +5,17 @@ open settings --relaunch
 snapshot -i
 screenshot "./test/screenshots/replays/android-scroll-top.png"
 
-is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=\"Connected devices\" || label=Apps || label=Notifications"
+is exists "text=\"Search Settings\" || text=\"Network & internet\" || text=\"Connected devices\" || text=Apps || text=Notifications"
 
 scroll down 3
 snapshot -i
 
-scrollintoview "System" --max-scrolls 10
+scrollintoview "Accessibility" --max-scrolls 10
 snapshot -i
-is exists "label=System"
-find text "System" exists
+is exists "text=Accessibility"
+find text "Accessibility" exists
 
 scroll up 8
 snapshot -i
-is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=Apps || label=Notifications"
-
-scrollintoview "Accessibility" --max-scrolls 10
-is exists "label=Accessibility"
+is exists "text=\"Search Settings\" || text=\"Network & internet\" || text=Apps || text=Notifications"
 screenshot "./test/screenshots/replays/android-scroll-found.png"
