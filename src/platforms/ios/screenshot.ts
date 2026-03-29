@@ -16,7 +16,7 @@ import {
 import { runIosDevicectl } from './devicectl.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-client.ts';
 import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
-import { ensureBootedSimulator, focusIosSimulatorWindow } from './simulator.ts';
+import { ensureBootedSimulator } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 
 function simctlArgs(device: DeviceInfo, args: string[]): string[] {
@@ -126,12 +126,8 @@ async function captureSimulatorScreenshotWithRetry(
   outPath: string,
 ): Promise<void> {
   const deadline = Deadline.fromTimeoutMs(IOS_SIMULATOR_SCREENSHOT_TIMEOUT_MS);
-  await focusIosSimulatorWindow();
   await retryWithPolicy(
-    async ({ attempt, deadline: attemptDeadline }) => {
-      if (attempt > 1) {
-        await focusIosSimulatorWindow();
-      }
+    async ({ deadline: attemptDeadline }) => {
       await runSimctl(device, ['io', device.id, 'screenshot', outPath], {
         timeoutMs: Math.max(
           1_000,

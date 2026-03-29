@@ -635,14 +635,14 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
 
     const logLines = (await fs.readFile(commandLogPath, 'utf8')).trim().split('\n').filter(Boolean);
     assert.equal(
-      logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
-      3,
-      'should focus Simulator before first screenshot and between retries',
-    );
-    assert.equal(
       logLines.filter((line) => line === '__XCRUN__ simctl io sim-1 screenshot ' + outPath).length,
       3,
       'should retry screenshot command until success',
+    );
+    assert.equal(
+      logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
+      0,
+      'should not focus Simulator while retrying screenshots',
     );
   } finally {
     process.env.PATH = previousPath;
