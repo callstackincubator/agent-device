@@ -13,14 +13,14 @@ swipe 206 650 206 300 300 --count 2 --pause-ms 200 --pattern one-way
 wait 500
 snapshot -i
 
-scroll up 5
+scroll up 0.6
 wait 500
 snapshot -i
 is exists "label=\"Network & internet\" || label=\"Network and internet\" || label=Apps || label=Notifications || label=\"Connected devices\""
 
-click "label=Display"
-wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\"" 5000
-is exists "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\""
+click "label=Notifications"
+wait "label=\"App notifications\" || label=\"Notification history\" || label=Bubbles || label=\"Notifications on lock screen\"" 5000
+is exists "label=\"App notifications\" || label=\"Notification history\" || label=Bubbles || label=\"Notifications on lock screen\""
 screenshot "./test/screenshots/replays/android-swipe-before-back.png"
 
 swipe 10 450 300 450 300
@@ -28,8 +28,8 @@ wait "label=Display || label=Battery || label=Apps" 3000
 snapshot -i
 is exists "label=Display || label=Battery || label=Apps"
 
-click "label=Display"
-wait "label=Brightness || label=\"Brightness level\" || label=\"Dark theme\" || label=\"Screen timeout\"" 5000
+click "label=Notifications"
+wait "label=\"App notifications\" || label=\"Notification history\" || label=Bubbles || label=\"Notifications on lock screen\"" 5000
 
 scroll down 2
 snapshot -i

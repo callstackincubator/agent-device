@@ -1,6 +1,6 @@
 # Dogfood macOS System Settings flow through the replay suite runner.
 context platform=macos
-open "System Settings"
+open "System Settings" --relaunch
 screenshot "./test/screenshots/replays/macos-system-settings.png"
 appstate
 snapshot -i

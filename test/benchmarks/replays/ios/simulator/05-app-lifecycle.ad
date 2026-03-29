@@ -13,13 +13,13 @@ is exists "label=About"
 home
 wait 2000
 
-open com.apple.Preferences
-wait "label=About || label=\"Software Update\" || role=cell label=General" 5000
+open com.apple.Preferences --relaunch
+wait "role=cell label=General" 5000
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/ios-lifecycle-reopen.png"
 
-is exists "label=About || label=\"Software Update\" || role=cell label=General"
+is exists "role=cell label=General"
 
 back
 wait "role=cell label=General" 3000
