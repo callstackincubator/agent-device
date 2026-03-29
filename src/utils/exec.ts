@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type StdioOptions } from 'node:child_process';
 import { AppError } from './errors.ts';
 
 export type ExecResult = {
@@ -27,6 +27,10 @@ type ExecStreamOptions = ExecOptions & {
 export type ExecBackgroundResult = {
   child: ReturnType<typeof spawn>;
   wait: Promise<ExecResult>;
+};
+
+type ExecDetachedOptions = ExecOptions & {
+  stdio?: StdioOptions;
 };
 
 export async function runCmd(
@@ -189,14 +193,19 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
   return { stdout, stderr, exitCode, stdoutBuffer };
 }
 
-export function runCmdDetached(cmd: string, args: string[], options: ExecOptions = {}): void {
+export function runCmdDetached(
+  cmd: string,
+  args: string[],
+  options: ExecDetachedOptions = {},
+): number {
   const child = spawn(cmd, args, {
     cwd: options.cwd,
     env: options.env,
-    stdio: 'ignore',
+    stdio: options.stdio ?? 'ignore',
     detached: true,
   });
   child.unref();
+  return child.pid ?? 0;
 }
 
 export async function runCmdStreaming(
