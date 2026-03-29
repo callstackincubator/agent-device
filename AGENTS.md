@@ -7,6 +7,12 @@ Minimal operating guide for AI coding agents in this repo.
   - Info-only (triage/review/questions/docs guidance): no code edits and no test runs unless explicitly requested.
   - Code change: make minimal scoped edits and run only required checks from **Testing Matrix**.
 - State assumptions explicitly. If uncertain, ask.
+- If the task touches tooling/builds/linting, read `package.json` and `tsconfig*.json` before source files.
+- Prefer repo scripts over reconstructing command bundles by hand:
+  - `pnpm check:quick`: lint + typecheck
+  - `pnpm check:tooling`: lint + typecheck + build
+  - `pnpm check:unit`: unit + smoke
+  - `pnpm check`: full non-integration validation
 - Read at most 3 files first:
   - owning handler/module
   - one shared helper used by that handler
@@ -43,12 +49,40 @@ Minimal operating guide for AI coding agents in this repo.
   - record/trace: `src/daemon/handlers/record-trace.ts`
 - Generic passthrough (press/scroll/type) is daemon fallback only after handlers return null.
 
+## Toolchain Snapshot
+- Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
+- Lint/format stack is OXC:
+  - config: `.oxlintrc.json`, `.oxfmtrc.json`
+- TypeScript is strict enough to surface dead code early: `strict`, `isolatedModules`, `noUnusedLocals`, and `noUnusedParameters` are enabled.
+- The repo emits with `rslib`, not `tsc`. If declaration generation fails, inspect `tsconfig.lib.json` first.
+- `tsconfig.lib.json` needs an explicit `rootDir: "./src"` for declaration layout.
+- Use the aggregate scripts in `package.json` when possible; they encode the expected validation bundles better than ad hoc command lists.
+
+## Cheap Exploration
+- Prefer these first-pass commands over broader reads:
+  - `rg -n "<symbol|command|flag>" src test`
+  - `rg --files src/daemon/handlers src/platforms/ios src/platforms/android`
+  - `git diff -- <path>` for active-branch context
+  - read `.oxlintrc.json` before treating lint output as source-level bugs
+- If build/type errors mention declaration generation, inspect `tsconfig.lib.json` before reading platform code.
+- If lint failures appear after toolchain edits, check whether the rule is from `eslint/*`, `typescript/*`, `import/*`, or `node/*` in `.oxlintrc.json` before assuming source bugs.
+
 ## Command Family Lookup
 - `logs`: `src/daemon/handlers/session.ts` -> `src/daemon/app-log.ts` -> `src/daemon/handlers/__tests__/session.test.ts`
 - `open/close/replay/apps/appstate`: `src/daemon/handlers/session.ts` -> `src/daemon/session-store.ts` -> `src/daemon/handlers/__tests__/session.test.ts`
 - `click/fill/get/is`: `src/daemon/handlers/interaction.ts` -> `src/daemon/selectors.ts` -> `src/daemon/handlers/__tests__/interaction.test.ts`
 - `snapshot/wait/settings/alert`: `src/daemon/handlers/snapshot.ts` -> `src/daemon/snapshot-processing.ts` -> `src/daemon/handlers/__tests__/snapshot-handler.test.ts`
 - `record/trace`: `src/daemon/handlers/record-trace.ts` -> `src/platforms/ios/runner-client.ts` -> `src/daemon/handlers/__tests__/record-trace.test.ts`
+
+## iOS Runner Seams
+- Keep dependency direction clean:
+  - `runner-client.ts`: command execution + retry behavior
+  - `runner-transport.ts`: connection/probing/HTTP transport
+  - `runner-contract.ts`: shared `RunnerCommand` type and runner connect/error helpers
+  - `runner-session.ts`: session lifecycle and request/response execution
+  - `runner-xctestrun.ts`: xctestrun preparation/build/cache logic
+- `runner-transport.ts` must not import back from `runner-client.ts`.
+- If changing runner connect errors, retry policy, or command typing, start in `src/platforms/ios/runner-contract.ts` before touching client/transport files.
 
 ## Hard Rules
 - Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution.
@@ -90,8 +124,9 @@ Minimal operating guide for AI coding agents in this repo.
 ## Testing Matrix
 - Docs/skills only: no tests required.
 - Non-TS, no behavior impact: no tests unless requested.
-- Any TS change: `pnpm typecheck`.
-- Daemon handler/shared module change: `pnpm test:unit` and `pnpm test:smoke`.
+- Any TS change: `pnpm typecheck` or `pnpm check:quick`.
+- Tooling/config change (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `.oxfmtrc.json`): `pnpm check:tooling`.
+- Daemon handler/shared module change: `pnpm check:unit`.
 - iOS runner/Swift change: `pnpm build:xcuitest`.
 - Cross-platform behavior change: run `pnpm test:integration`.
 - Any change in: `src/`, `test/`, `skills/`: `pnpm format`.
@@ -111,6 +146,8 @@ Minimal operating guide for AI coding agents in this repo.
 - Returning non-normalized user-facing errors.
 - Duplicating logs backend logic in handlers instead of `src/daemon/app-log.ts`.
 - Growing `src/daemon/handlers/session.ts` or `src/platforms/ios/apps.ts` further without extracting Apple-family/macOS-specific helpers first.
+- Reintroducing an npm lockfile or assuming ESLint/Prettier still exist in this repo.
+- Changing `tsconfig.lib.json`/build tooling without running `pnpm check:tooling`; declaration generation is stricter than `tsc --noEmit`.
 
 ## Docs & Skills
 - For behavior/CLI surface changes, evaluate docs/skills updates.

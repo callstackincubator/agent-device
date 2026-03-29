@@ -51,12 +51,16 @@ import { handleRecordTraceCommands } from '../record-trace.ts';
 import { deriveRecordingTelemetryPath } from '../../recording-telemetry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
-import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../../platforms/ios/runner-client.ts';
-import { getRecordingOverlaySupportWarning } from '../../../recording/overlay.ts';
-import { runCmd } from '../../../utils/exec.ts';
-import { runCmdBackground } from '../../../utils/exec.ts';
-import { runIosRunnerCommand } from '../../../platforms/ios/runner-client.ts';
-import { trimRecordingStart, overlayRecordingTouches } from '../../../recording/overlay.ts';
+import {
+  IOS_RUNNER_CONTAINER_BUNDLE_IDS,
+  runIosRunnerCommand,
+} from '../../../platforms/ios/runner-client.ts';
+import {
+  getRecordingOverlaySupportWarning,
+  trimRecordingStart,
+  overlayRecordingTouches,
+} from '../../../recording/overlay.ts';
+import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
 
 type RunnerCall = {
   command: string;
@@ -175,32 +179,6 @@ function setupRunnerRecordingMocks(
   mockRunCmdBackground.mockImplementation(() => {
     throw new Error('runCmdBackground should not be used for runner-backed recording');
   });
-}
-
-function setupDefaultMocks(
-  overrides: {
-    runCmd?: typeof runCmd;
-    runCmdBackground?: typeof runCmdBackground;
-    runIosRunnerCommand?: typeof runIosRunnerCommand;
-    trimRecordingStart?: typeof trimRecordingStart;
-    overlayRecordingTouches?: typeof overlayRecordingTouches;
-  } = {},
-): void {
-  if (overrides.runCmd) {
-    mockRunCmd.mockImplementation(overrides.runCmd as any);
-  }
-  if (overrides.runCmdBackground) {
-    mockRunCmdBackground.mockImplementation(overrides.runCmdBackground as any);
-  }
-  if (overrides.runIosRunnerCommand) {
-    mockRunIosRunnerCommand.mockImplementation(overrides.runIosRunnerCommand as any);
-  }
-  if (overrides.trimRecordingStart) {
-    mockTrimRecordingStart.mockImplementation(overrides.trimRecordingStart as any);
-  }
-  if (overrides.overlayRecordingTouches) {
-    mockOverlayRecordingTouches.mockImplementation(overrides.overlayRecordingTouches as any);
-  }
 }
 
 beforeEach(() => {

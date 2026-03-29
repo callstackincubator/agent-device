@@ -11,11 +11,11 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { classifyBootFailure, bootFailureHint } from '../boot-diagnostics.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import {
-  shouldRetryRunnerConnectError,
   buildRunnerConnectError,
   buildRunnerEarlyExitError,
-} from './runner-errors.ts';
-import type { RunnerCommand } from './runner-client.ts';
+  shouldRetryRunnerConnectError,
+  type RunnerCommand,
+} from './runner-contract.ts';
 import type { RunnerSession } from './runner-session.ts';
 
 export const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(

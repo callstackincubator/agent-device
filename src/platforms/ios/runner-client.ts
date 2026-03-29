@@ -1,14 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import type { ClickButton } from '../../core/click-button.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
-import {
-  isRetryableRunnerError,
-  shouldRetryRunnerConnectError,
-  isReadOnlyRunnerCommand,
-  assertRunnerRequestActive,
-} from './runner-errors.ts';
 import {
   waitForRunner,
   RUNNER_COMMAND_TIMEOUT_MS,
@@ -17,68 +10,31 @@ import {
 import {
   type RunnerSession,
   ensureRunnerSession,
-  getRunnerSessionSnapshot,
   stopRunnerSession,
   stopIosRunnerSession,
   validateRunnerDevice,
   executeRunnerCommandWithSession,
   parseRunnerResponse,
 } from './runner-session.ts';
+import {
+  assertRunnerRequestActive,
+  isReadOnlyRunnerCommand,
+  isRetryableRunnerError,
+  shouldRetryRunnerConnectError,
+  type RunnerCommand,
+} from './runner-contract.ts';
+export {
+  buildRunnerConnectError,
+  buildRunnerEarlyExitError,
+  isReadOnlyRunnerCommand,
+  isRetryableRunnerError,
+  resolveRunnerEarlyExitHint,
+  resolveSigningFailureHint,
+  shouldRetryRunnerConnectError,
+  type RunnerCommand,
+} from './runner-contract.ts';
 
-export type RunnerCommand = {
-  command:
-    | 'tap'
-    | 'mouseClick'
-    | 'tapSeries'
-    | 'longPress'
-    | 'interactionFrame'
-    | 'drag'
-    | 'dragSeries'
-    | 'type'
-    | 'swipe'
-    | 'findText'
-    | 'readText'
-    | 'snapshot'
-    | 'screenshot'
-    | 'back'
-    | 'backInApp'
-    | 'backSystem'
-    | 'home'
-    | 'appSwitcher'
-    | 'keyboardDismiss'
-    | 'alert'
-    | 'pinch'
-    | 'recordStart'
-    | 'recordStop'
-    | 'uptime'
-    | 'shutdown';
-  appBundleId?: string;
-  text?: string;
-  delayMs?: number;
-  action?: 'get' | 'accept' | 'dismiss';
-  x?: number;
-  y?: number;
-  button?: ClickButton;
-  count?: number;
-  intervalMs?: number;
-  doubleTap?: boolean;
-  pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
-  x2?: number;
-  y2?: number;
-  durationMs?: number;
-  direction?: 'up' | 'down' | 'left' | 'right';
-  scale?: number;
-  outPath?: string;
-  fps?: number;
-  interactiveOnly?: boolean;
-  compact?: boolean;
-  depth?: number;
-  scope?: string;
-  raw?: boolean;
-  fullscreen?: boolean;
-  clearFirst?: boolean;
-};
+// --- Runner command execution ---
 
 export async function runIosRunnerCommand(
   device: DeviceInfo,
@@ -155,12 +111,6 @@ async function executeRunnerCommand(
 }
 
 // Re-export public API from submodules
-export {
-  isRetryableRunnerError,
-  shouldRetryRunnerConnectError,
-  resolveRunnerEarlyExitHint,
-} from './runner-errors.ts';
-
 export {
   resolveRunnerDestination,
   resolveRunnerBuildDestination,

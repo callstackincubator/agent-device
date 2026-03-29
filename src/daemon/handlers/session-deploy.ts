@@ -7,6 +7,7 @@ import { SessionStore } from '../session-store.ts';
 import { resolveDeployResultTarget } from '../../client-shared.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
+import { errorResponse } from './response.ts';
 
 export type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -97,13 +98,10 @@ export async function handleAppDeployCommand(params: {
   const app = req.positionals?.[0]?.trim();
   const appPathInput = req.positionals?.[1]?.trim();
   if (!app || !appPathInput) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `${command} requires: ${command} <app> <path-to-app-binary>`,
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      `${command} requires: ${command} <app> <path-to-app-binary>`,
+    );
   }
   const uploadedArtifactId = req.meta?.uploadedArtifactId;
 
@@ -112,10 +110,7 @@ export async function handleAppDeployCommand(params: {
       ? prepareUploadedArtifact(uploadedArtifactId, req.meta?.tenantId)
       : SessionStore.expandHome(appPathInput);
     if (!fs.existsSync(appPath)) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: `App binary not found: ${appPath}` },
-      };
+      return errorResponse('INVALID_ARGS', `App binary not found: ${appPath}`);
     }
     const device = await resolveCommandDevice({
       session,
@@ -123,13 +118,7 @@ export async function handleAppDeployCommand(params: {
       ensureReady: false,
     });
     if (!isCommandSupportedOnDevice(command, device)) {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: `${command} is not supported on this device`,
-        },
-      };
+      return errorResponse('UNSUPPORTED_OPERATION', `${command} is not supported on this device`);
     }
 
     let result: DeployCommandResult;

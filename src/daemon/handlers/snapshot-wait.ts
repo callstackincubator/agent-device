@@ -15,6 +15,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
+import { errorResponse } from './response.ts';
 
 export type WaitParsed =
   | { kind: 'sleep'; durationMs: number }
@@ -85,10 +86,7 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
     return { ok: true, data: { waitedMs: parsed.durationMs } };
   }
   if (!isCommandSupportedOnDevice('wait', device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: 'wait is not supported on this device' },
-    };
+    return errorResponse('UNSUPPORTED_OPERATION', 'wait is not supported on this device');
   }
 
   if (parsed.kind === 'selector') {
@@ -148,13 +146,10 @@ async function waitForSelector(params: {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  return {
-    ok: false,
-    error: {
-      code: 'COMMAND_FAILED',
-      message: `wait timed out for selector: ${parsed.selectorExpression}`,
-    },
-  };
+  return errorResponse(
+    'COMMAND_FAILED',
+    `wait timed out for selector: ${parsed.selectorExpression}`,
+  );
 }
 
 function resolveWaitText(
@@ -262,10 +257,7 @@ async function waitForText(params: {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  return {
-    ok: false,
-    error: { code: 'COMMAND_FAILED', message: `wait timed out for text: ${text}` },
-  };
+  return errorResponse('COMMAND_FAILED', `wait timed out for text: ${text}`);
 }
 
 async function captureWaitSnapshot(params: {

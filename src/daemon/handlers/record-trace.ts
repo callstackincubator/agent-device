@@ -4,6 +4,7 @@ import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { handleRecordCommand } from './record-trace-recording.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;
@@ -21,15 +22,15 @@ export async function handleRecordTraceCommands(params: {
   if (command === 'trace') {
     const action = (req.positionals?.[0] ?? '').toLowerCase();
     if (!['start', 'stop'].includes(action)) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'trace requires start|stop' } };
+      return errorResponse('INVALID_ARGS', 'trace requires start|stop');
     }
     const session = sessionStore.get(sessionName);
     if (!session) {
-      return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
+      return errorResponse('SESSION_NOT_FOUND', 'No active session');
     }
     if (action === 'start') {
       if (session.trace) {
-        return { ok: false, error: { code: 'INVALID_ARGS', message: 'trace already in progress' } };
+        return errorResponse('INVALID_ARGS', 'trace already in progress');
       }
       const outPath = req.positionals?.[1] ?? sessionStore.defaultTracePath(session);
       const resolvedOut = SessionStore.expandHome(outPath);
@@ -45,7 +46,7 @@ export async function handleRecordTraceCommands(params: {
       return { ok: true, data: { trace: 'started', outPath: resolvedOut } };
     }
     if (!session.trace) {
-      return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active trace' } };
+      return errorResponse('INVALID_ARGS', 'no active trace');
     }
     let outPath = session.trace.outPath;
     if (req.positionals?.[1]) {

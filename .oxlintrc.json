@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "node"],
+  "env": {
+    "node": true,
+    "es6": true
+  },
+  "rules": {
+    "eslint/no-unused-vars": "error",
+    "eslint/prefer-const": "error",
+    "eslint/no-useless-escape": "error",
+    "eslint/no-empty": ["error", { "allowEmptyCatch": true }],
+    "typescript/no-explicit-any": "off",
+    "typescript/only-throw-error": "off",
+    "typescript/no-var-requires": "error",
+    "import/no-duplicates": "error"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**"]
+}

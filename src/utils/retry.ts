@@ -208,20 +208,21 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       return;
     }
     let settled = false;
-    let onAbort: (() => void) | undefined;
     const finish = () => {
       if (settled) return;
       settled = true;
-      if (signal && onAbort) {
+      if (signal) {
         signal.removeEventListener('abort', onAbort);
       }
       resolve();
     };
     const timer = setTimeout(finish, ms);
-    onAbort = () => {
+
+    function onAbort(): void {
       clearTimeout(timer);
       finish();
-    };
+    }
+
     if (signal) {
       signal.addEventListener('abort', onAbort, { once: true });
     }

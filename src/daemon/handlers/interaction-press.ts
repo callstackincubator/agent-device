@@ -33,6 +33,7 @@ import {
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
+import { errorResponse } from './response.ts';
 
 export async function handlePressCommand(params: {
   req: DaemonRequest;
@@ -56,10 +57,7 @@ export async function handlePressCommand(params: {
   const command = req.command;
   const commandLabel = command === 'click' ? 'click' : 'press';
   if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
 
   const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
@@ -70,10 +68,7 @@ export async function handlePressCommand(params: {
     return unsupportedSurfaceResponse;
   }
   if (!isCommandSupportedOnDevice('press', session.device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: 'press is not supported on this device' },
-    };
+    return errorResponse('UNSUPPORTED_OPERATION', 'press is not supported on this device');
   }
 
   const clickButton = resolveClickButton(req.flags);
@@ -90,14 +85,7 @@ export async function handlePressCommand(params: {
       doubleTap: req.flags?.doubleTap,
     });
     if (validationError) {
-      return {
-        ok: false,
-        error: {
-          code: validationError.code,
-          message: validationError.message,
-          details: validationError.details,
-        },
-      };
+      return errorResponse(validationError.code, validationError.message, validationError.details);
     }
   }
 

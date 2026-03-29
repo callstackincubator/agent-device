@@ -14,7 +14,6 @@ import {
   getFreePort,
   logChunk,
   cleanupTempFile,
-  RUNNER_COMMAND_TIMEOUT_MS,
   RUNNER_STARTUP_TIMEOUT_MS,
   RUNNER_DESTINATION_TIMEOUT_SECONDS,
 } from './runner-transport.ts';
@@ -26,7 +25,7 @@ import {
   resolveRunnerMaxConcurrentDestinationsFlag,
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
-import type { RunnerCommand } from './runner-client.ts';
+import type { RunnerCommand } from './runner-contract.ts';
 
 export type RunnerSession = {
   sessionId: string;

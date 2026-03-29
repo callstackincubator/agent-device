@@ -1,8 +1,63 @@
 import { AppError } from '../../utils/errors.ts';
-import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
+import type { ClickButton } from '../../core/click-button.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
-import type { RunnerCommand } from './runner-client.ts';
+import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session.ts';
+
+export type RunnerCommand = {
+  command:
+    | 'tap'
+    | 'mouseClick'
+    | 'tapSeries'
+    | 'longPress'
+    | 'interactionFrame'
+    | 'drag'
+    | 'dragSeries'
+    | 'type'
+    | 'swipe'
+    | 'findText'
+    | 'readText'
+    | 'snapshot'
+    | 'screenshot'
+    | 'back'
+    | 'backInApp'
+    | 'backSystem'
+    | 'home'
+    | 'appSwitcher'
+    | 'keyboardDismiss'
+    | 'alert'
+    | 'pinch'
+    | 'recordStart'
+    | 'recordStop'
+    | 'uptime'
+    | 'shutdown';
+  appBundleId?: string;
+  text?: string;
+  delayMs?: number;
+  action?: 'get' | 'accept' | 'dismiss';
+  x?: number;
+  y?: number;
+  button?: ClickButton;
+  count?: number;
+  intervalMs?: number;
+  doubleTap?: boolean;
+  pauseMs?: number;
+  pattern?: 'one-way' | 'ping-pong';
+  x2?: number;
+  y2?: number;
+  durationMs?: number;
+  direction?: 'up' | 'down' | 'left' | 'right';
+  scale?: number;
+  outPath?: string;
+  fps?: number;
+  interactiveOnly?: boolean;
+  compact?: boolean;
+  depth?: number;
+  scope?: string;
+  raw?: boolean;
+  fullscreen?: boolean;
+  clearFirst?: boolean;
+};
 
 export function isRetryableRunnerError(err: unknown): boolean {
   if (!(err instanceof AppError)) return false;

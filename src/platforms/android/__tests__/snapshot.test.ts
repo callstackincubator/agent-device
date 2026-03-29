@@ -18,7 +18,6 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { sleep } from '../adb.ts';
 
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const VALID_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
   'base64',

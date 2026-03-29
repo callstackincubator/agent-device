@@ -42,8 +42,8 @@ import {
   resolveRunnerMaxConcurrentDestinationsFlag,
   resolveRunnerSigningBuildSettings,
   shouldRetryRunnerConnectError,
+  isReadOnlyRunnerCommand,
 } from '../runner-client.ts';
-import { isReadOnlyRunnerCommand } from '../runner-errors.ts';
 import {
   ensureXctestrun,
   resolveRunnerPerformanceBuildSettings,

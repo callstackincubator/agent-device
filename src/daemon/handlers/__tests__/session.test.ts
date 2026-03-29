@@ -4477,7 +4477,7 @@ test('test applies per-script timeout and writes attempt artifacts', async () =>
     sessionName: 'default',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
-    invoke: async (req) => {
+    invoke: async (_req) => {
       invocationCount += 1;
       if (invocationCount === 1) {
         return { ok: true, data: { path: screenshotPath } };

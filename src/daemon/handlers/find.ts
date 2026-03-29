@@ -10,6 +10,7 @@ import { extractNodeText, findNearestHittableAncestor } from '../snapshot-proces
 import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
+import { errorResponse } from './response.ts';
 
 type FindContext = {
   req: DaemonRequest;
@@ -45,23 +46,17 @@ export async function handleFindCommands(params: {
 
   const args = req.positionals ?? [];
   if (args.length === 0) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'find requires a locator or text' },
-    };
+    return errorResponse('INVALID_ARGS', 'find requires a locator or text');
   }
   const { locator, query, action, value, timeoutMs } = parseFindArgs(args);
   if (!query) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find requires a value' } };
+    return errorResponse('INVALID_ARGS', 'find requires a value');
   }
   const session = sessionStore.get(sessionName);
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
   if (!session && !isReadOnly) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
   if (!session) {
@@ -132,10 +127,7 @@ export async function handleFindCommands(params: {
 
   const node = bestMatches.matches[0] ?? null;
   if (!node) {
-    return {
-      ok: false,
-      error: { code: 'COMMAND_FAILED', message: 'find did not match any element' },
-    };
+    return errorResponse('COMMAND_FAILED', 'find did not match any element');
   }
 
   const resolvedNode =
@@ -147,7 +139,7 @@ export async function handleFindCommands(params: {
   const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags };
 
   const actionHandlers: Record<string, () => Promise<DaemonResponse | null>> = {
-    exists: () => handleFindExists(ctx, match),
+    exists: () => handleFindExists(ctx),
     get_text: () => handleFindGetText(ctx, match),
     get_attrs: () => handleFindGetAttrs(ctx, match),
     click: () => handleFindClick(ctx, match),
@@ -192,10 +184,7 @@ async function handleFindWait(
   return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
 }
 
-async function handleFindExists(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
   const { req, sessionStore, session, command } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
@@ -208,10 +197,7 @@ async function handleFindExists(
   return { ok: true, data: { found: true } };
 }
 
-async function handleFindGetText(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, command, device, logPath } = ctx;
   const text = await readTextForNode({
     device,
@@ -234,10 +220,7 @@ async function handleFindGetText(
   return { ok: true, data: { ref: match.ref, text, node: match.node } };
 }
 
-async function handleFindGetAttrs(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindGetAttrs(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, command } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
@@ -250,10 +233,7 @@ async function handleFindGetAttrs(
   return { ok: true, data: { ref: match.ref, node: match.node } };
 }
 
-async function handleFindClick(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, session, invoke, command, locator, query } = ctx;
   const response = await invoke({
     token: req.token,
@@ -308,10 +288,7 @@ async function handleFindFill(
   return response;
 }
 
-async function handleFindFocus(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindFocus(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, device, command, logPath } = ctx;
   const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
   if (!coords) {
@@ -382,11 +359,7 @@ function buildAmbiguousMatchError(
 ): DaemonResponse {
   const candidates = matches.slice(0, 8).map((candidate) => {
     const label =
-      extractNodeText(candidate) ||
-      candidate.label ||
-      candidate.identifier ||
-      candidate.type ||
-      '';
+      extractNodeText(candidate) || candidate.label || candidate.identifier || candidate.type || '';
     return `@${candidate.ref}${label ? `(${label})` : ''}`;
   });
   return {

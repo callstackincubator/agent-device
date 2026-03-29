@@ -21,7 +21,6 @@ import {
   resolveRequestedOpenSurface,
 } from './session-open-surface.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
-import { clearRuntimeHintsFromApp } from '../runtime-hints.ts';
 
 type OpenCommandDetails = {
   appBundleId?: string;

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
-import { runCmdSync } from './utils/exec.ts';
+import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
 
 export type MetroPrepareKind = 'auto' | 'react-native' | 'expo';
@@ -240,10 +240,6 @@ function normalizeProxyRuntimeHints(
   };
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
-}
-
 function installDependenciesIfNeeded(
   projectRoot: string,
   env: EnvSource,
@@ -324,18 +320,20 @@ function startMetroProcess(
 ): MetroProcessResult {
   const metro = buildMetroCommand(kind, port, listenHost);
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  const command = [shellQuote(metro.command), ...metro.installArgs.map(shellQuote)].join(' ');
-  const launchScript = `nohup ${command} >> ${shellQuote(logPath)} 2>&1 < /dev/null & echo $!`;
-  const result = runCmdSync('/bin/sh', ['-c', launchScript], {
-    cwd: projectRoot,
-    env: env as NodeJS.ProcessEnv,
-  });
-  const pid = Number.parseInt(result.stdout.trim(), 10);
+  const logFd = fs.openSync(logPath, 'a');
+  let pid = 0;
+  try {
+    pid = runCmdDetached(metro.command, metro.installArgs, {
+      cwd: projectRoot,
+      env: env as NodeJS.ProcessEnv,
+      stdio: ['ignore', logFd, logFd],
+    });
+  } finally {
+    fs.closeSync(logFd);
+  }
 
   if (!Number.isInteger(pid) || pid <= 0) {
-    throw new Error(
-      `Failed to start Metro. Expected a child PID in stdout, got "${result.stdout.trim()}".`,
-    );
+    throw new Error('Failed to start Metro. Expected a detached child PID.');
   }
 
   return {

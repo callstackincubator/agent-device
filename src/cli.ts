@@ -179,7 +179,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           if (positionals.length > 0) {
             throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
           }
-          const batchSteps = readBatchSteps(flags).map((step, index) => ({
+          const batchSteps = readBatchSteps(flags).map((step, _index) => ({
             ...step,
             flags:
               binding.lockPolicy && flags.platform === undefined
