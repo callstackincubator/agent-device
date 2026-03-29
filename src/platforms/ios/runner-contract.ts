@@ -55,6 +55,7 @@ export type RunnerCommand = {
   depth?: number;
   scope?: string;
   raw?: boolean;
+  fullscreen?: boolean;
   clearFirst?: boolean;
 };
 

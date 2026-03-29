@@ -29,11 +29,7 @@ import {
   classifyLaunchFailure,
   launchFailureHint,
 } from './launch-diagnostics.ts';
-import {
-  ensureBootedSimulator,
-  ensureSimulator,
-  getSimulatorState,
-} from './simulator.ts';
+import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { prepareIosInstallArtifact } from './install-artifact.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';

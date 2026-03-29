@@ -1,8 +1,7 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { shouldUseIosDragSeries, shouldUseIosTapSeries } from '../dispatch.ts';
+import { dispatchCommand, shouldUseIosDragSeries, shouldUseIosTapSeries } from '../dispatch.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { dispatchCommand } from '../dispatch.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/macos-helper.ts')>();

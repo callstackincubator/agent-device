@@ -146,9 +146,7 @@ async function startIosSimulatorRecording(params: {
       },
     );
     const uptimeRequestFinishedAtMs = Date.now();
-    gestureClockOriginAtMs = Math.round(
-      (uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2,
-    );
+    gestureClockOriginAtMs = Math.round((uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2);
     gestureClockOriginUptimeMs =
       typeof uptimeResult.currentUptimeMs === 'number' ? uptimeResult.currentUptimeMs : undefined;
   } catch {

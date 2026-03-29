@@ -139,7 +139,7 @@ export async function handleFindCommands(params: {
   const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags };
 
   const actionHandlers: Record<string, () => Promise<DaemonResponse | null>> = {
-    exists: () => handleFindExists(ctx, match),
+    exists: () => handleFindExists(ctx),
     get_text: () => handleFindGetText(ctx, match),
     get_attrs: () => handleFindGetAttrs(ctx, match),
     click: () => handleFindClick(ctx, match),
@@ -184,10 +184,7 @@ async function handleFindWait(
   return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
 }
 
-async function handleFindExists(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
   const { req, sessionStore, session, command } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
@@ -200,10 +197,7 @@ async function handleFindExists(
   return { ok: true, data: { found: true } };
 }
 
-async function handleFindGetText(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, command, device, logPath } = ctx;
   const text = await readTextForNode({
     device,
@@ -226,10 +220,7 @@ async function handleFindGetText(
   return { ok: true, data: { ref: match.ref, text, node: match.node } };
 }
 
-async function handleFindGetAttrs(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindGetAttrs(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, command } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
@@ -242,10 +233,7 @@ async function handleFindGetAttrs(
   return { ok: true, data: { ref: match.ref, node: match.node } };
 }
 
-async function handleFindClick(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, session, invoke, command, locator, query } = ctx;
   const response = await invoke({
     token: req.token,
@@ -300,10 +288,7 @@ async function handleFindFill(
   return response;
 }
 
-async function handleFindFocus(
-  ctx: FindContext,
-  match: ResolvedMatch,
-): Promise<DaemonResponse> {
+async function handleFindFocus(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
   const { req, sessionStore, session, device, command, logPath } = ctx;
   const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
   if (!coords) {
@@ -374,11 +359,7 @@ function buildAmbiguousMatchError(
 ): DaemonResponse {
   const candidates = matches.slice(0, 8).map((candidate) => {
     const label =
-      extractNodeText(candidate) ||
-      candidate.label ||
-      candidate.identifier ||
-      candidate.type ||
-      '';
+      extractNodeText(candidate) || candidate.label || candidate.identifier || candidate.type || '';
     return `@${candidate.ref}${label ? `(${label})` : ''}`;
   });
   return {

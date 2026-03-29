@@ -11,10 +11,7 @@ import {
 } from '../platforms/android/index.ts';
 import { getInteractor, type RunnerContext } from './interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import {
-  runMacOsPressAction,
-  runMacOsReadTextAction,
-} from '../platforms/ios/macos-helper.ts';
+import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
 import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';
