@@ -244,6 +244,91 @@ test('openIosApp custom scheme deep links on iOS devices require app bundle cont
   );
 });
 
+test('openIosApp opens Simulator app after cold boot on iOS simulators', async () => {
+  let listCallCount = 0;
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      listCallCount += 1;
+      const state = listCallCount === 1 ? 'Shutdown' : 'Booted';
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-18-6': [{ udid: 'sim-1', state }],
+          },
+        }),
+        stderr: '',
+      };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl boot sim-1') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl bootstatus sim-1 -b') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (cmd === 'open' && args.join(' ') === '-a Simulator') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl launch sim-1 com.example.app') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  await openIosApp(IOS_TEST_SIMULATOR, 'com.example.app');
+
+  assert.deepEqual(
+    mockRunCmd.mock.calls.map(([cmd, args]) => [cmd, args]),
+    [
+      ['xcrun', ['simctl', 'list', 'devices', '-j']],
+      ['xcrun', ['simctl', 'boot', 'sim-1']],
+      ['xcrun', ['simctl', 'bootstatus', 'sim-1', '-b']],
+      ['xcrun', ['simctl', 'list', 'devices', '-j']],
+      ['open', ['-a', 'Simulator']],
+      ['xcrun', ['simctl', 'launch', 'sim-1', 'com.example.app']],
+    ],
+  );
+});
+
+test('openIosApp does not open Simulator app when already booted', async () => {
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-18-6': [{ udid: 'sim-1', state: 'Booted' }],
+          },
+        }),
+        stderr: '',
+      };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl launch sim-1 com.example.app') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  await openIosApp(IOS_TEST_SIMULATOR, 'com.example.app');
+
+  assert.equal(mockRunCmd.mock.calls.length, 2);
+  assert.deepEqual(mockRunCmd.mock.calls[0], [
+    'xcrun',
+    ['simctl', 'list', 'devices', '-j'],
+    {
+      allowFailure: true,
+      timeoutMs: 20000,
+    },
+  ]);
+  assert.deepEqual(mockRunCmd.mock.calls[1], [
+    'xcrun',
+    ['simctl', 'launch', 'sim-1', 'com.example.app'],
+    {
+      allowFailure: true,
+    },
+  ]);
+});
+
 test('shouldFallbackToRunnerForIosScreenshot detects removed devicectl subcommand output', () => {
   const error = new AppError('COMMAND_FAILED', 'Failed to capture iOS screenshot', {
     stderr: "error: Unknown option '--device'",

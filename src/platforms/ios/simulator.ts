@@ -151,6 +151,8 @@ export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
       bootstatus: bootStatusResult,
     });
   }
+
+  await focusIosSimulatorWindow();
 }
 
 export async function shutdownSimulator(device: DeviceInfo): Promise<{
