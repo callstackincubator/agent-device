@@ -25,7 +25,7 @@ import {
   resolveRunnerMaxConcurrentDestinationsFlag,
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
-import type { RunnerCommand } from './runner-client.ts';
+import type { RunnerCommand } from './runner-contract.ts';
 
 export type RunnerSession = {
   sessionId: string;

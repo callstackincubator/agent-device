@@ -13,7 +13,7 @@ import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { resolveSigningFailureHint } from './runner-client.ts';
+import { resolveSigningFailureHint } from './runner-contract.ts';
 import { logChunk } from './runner-transport.ts';
 import {
   repairMacOsRunnerProductsIfNeeded,
