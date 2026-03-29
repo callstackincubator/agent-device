@@ -48,7 +48,7 @@ vi.mock('../../device-ready.ts', () => ({
 }));
 
 import { handleRecordTraceCommands } from '../record-trace.ts';
-import { deriveRecordingTelemetryPath } from '../../recording-gestures.ts';
+import { deriveRecordingTelemetryPath } from '../../recording-telemetry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import {

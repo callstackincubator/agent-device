@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { SessionStore } from '../session-store.ts';
-import { resolveEffectiveSessionName } from '../request-router.ts';
+import { resolveEffectiveSessionName } from '../session-routing.ts';
 import type { SessionState } from '../types.ts';
 
 function makeSession(name: string): SessionState {

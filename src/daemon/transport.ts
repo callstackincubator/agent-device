@@ -50,9 +50,14 @@ export function createSocketServer(
             await sleep(disconnectAbortPollIntervalMs);
           }
         } catch (err) {
-          process.stderr.write(
-            `Disconnect abort failed: ${err instanceof Error ? err.message : String(err)}\n`,
-          );
+          emitDiagnostic({
+            level: 'error',
+            phase: 'request_client_disconnect_abort_failed',
+            data: {
+              message: err instanceof Error ? err.message : String(err),
+              inFlightRequests,
+            },
+          });
         }
       })();
     };

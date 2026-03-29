@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
-import { persistRecordingTelemetry } from '../recording-gestures.ts';
+import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-recording.ts';
 

@@ -24,6 +24,7 @@ import { handleLeaseCommands } from './handlers/lease.ts';
 import { buildSnapshotState, captureSnapshotData } from './handlers/snapshot-capture.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
 import { applyRequestLockPolicy } from './request-lock-policy.ts';
+import { resolveEffectiveSessionName } from './session-routing.ts';
 import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
 import {
   emitDiagnostic,
@@ -31,7 +32,8 @@ import {
   getDiagnosticsMeta,
   withDiagnosticsScope,
 } from '../utils/diagnostics.ts';
-import { resolveLeaseScope, type LeaseRegistry } from './lease-registry.ts';
+import type { LeaseRegistry } from './lease-registry.ts';
+import { resolveLeaseScope } from './lease-context.ts';
 import {
   augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
@@ -232,25 +234,6 @@ function refreshRecordingHealth(session: SessionState): void {
 
 function shouldBlockForInvalidRecording(command: string): boolean {
   return command !== 'record' && command !== 'close';
-}
-
-export function resolveEffectiveSessionName(
-  req: DaemonRequest,
-  sessionStore: SessionStore,
-): string {
-  const requested = req.session || 'default';
-  if (hasExplicitSessionFlag(req)) return requested;
-  if (requested !== 'default') return requested;
-  if (sessionStore.has(requested)) return requested;
-
-  const sessions = sessionStore.toArray();
-  if (sessions.length === 1) return sessions[0].name;
-  return requested;
-}
-
-function hasExplicitSessionFlag(req: DaemonRequest): boolean {
-  const value = (req.flags as CommandFlags | undefined)?.session;
-  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export type RequestRouterDeps = {

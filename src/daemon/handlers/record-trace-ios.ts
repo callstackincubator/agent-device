@@ -1,7 +1,7 @@
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { persistRecordingTelemetry } from '../recording-gestures.ts';
+import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
 import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';

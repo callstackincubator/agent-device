@@ -295,4 +295,3 @@ export function resolveSessionName(
 ): string {
   return session ?? defaultSession ?? DEFAULT_SESSION_NAME;
 }
-
