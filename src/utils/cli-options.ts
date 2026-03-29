@@ -1,4 +1,5 @@
 import type { CliFlags } from './command-schema.ts';
+import { mergeDefinedFlags } from './merge-flags.ts';
 import { finalizeParsedArgs, parseRawArgs } from './args.ts';
 import { resolveConfigBackedFlagDefaults } from './cli-config.ts';
 import { pickRemoteOpenDefaults, resolveRemoteConfigDefaults } from './remote-config.ts';
@@ -38,15 +39,6 @@ export function resolveCliOptions(
     mergeMissingFlags(finalized.flags, pickRemoteOpenDefaults(defaultFlags));
   }
   return finalized;
-}
-
-function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-  for (const [key, value] of Object.entries(source)) {
-    if (value !== undefined) {
-      target[key as keyof T] = value as T[keyof T];
-    }
-  }
-  return target;
 }
 
 function mergeMissingFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {

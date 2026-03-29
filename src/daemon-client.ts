@@ -22,7 +22,6 @@ import {
   type DaemonTransportPreference,
 } from './daemon/config.ts';
 import { uploadArtifact } from './upload-client.ts';
-
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
 
@@ -801,6 +800,64 @@ function requireDaemonTransport(
   );
 }
 
+function handleRequestTimeout(
+  info: DaemonInfo,
+  statePaths: DaemonPaths,
+  requestId: string | undefined,
+  command: string | undefined,
+  remote: boolean,
+): AppError {
+  const cleanup = remote ? { terminated: 0 } : cleanupTimedOutIosRunnerBuilds();
+  const daemonReset = remote ? { forcedKill: false } : resetDaemonAfterTimeout(info, statePaths);
+  emitDiagnostic({
+    level: 'error',
+    phase: 'daemon_request_timeout',
+    data: {
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      requestId,
+      command,
+      timedOutRunnerPidsTerminated: cleanup.terminated,
+      timedOutRunnerCleanupError: cleanup.error,
+      daemonPidReset: remote ? undefined : info.pid,
+      daemonPidForceKilled: remote ? undefined : daemonReset.forcedKill,
+      daemonBaseUrl: info.baseUrl,
+    },
+  });
+  return new AppError('COMMAND_FAILED', 'Daemon request timed out', {
+    timeoutMs: REQUEST_TIMEOUT_MS,
+    requestId,
+    hint: remote
+      ? 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.'
+      : 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
+  });
+}
+
+function handleTransportError(
+  err: unknown,
+  requestId: string | undefined,
+  remote: boolean,
+): AppError {
+  emitDiagnostic({
+    level: 'error',
+    phase: 'daemon_request_socket_error',
+    data: {
+      requestId,
+      message: err instanceof Error ? (err as Error).message : String(err),
+    },
+  });
+  return new AppError(
+    'COMMAND_FAILED',
+    'Failed to communicate with daemon',
+    {
+      requestId,
+      hint: remote
+        ? 'Retry command. If this persists, verify the remote daemon URL, auth token, and remote host reachability.'
+        : 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
+    },
+    err instanceof Error ? err : undefined,
+  );
+}
+
 async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
   const port = info.port;
   if (!port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
@@ -808,33 +865,12 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
     const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
       socket.write(`${JSON.stringify(req)}\n`);
     });
+    const statePaths = resolveDaemonPaths(
+      req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
+    );
     const timeout = setTimeout(() => {
       socket.destroy();
-      const cleanup = cleanupTimedOutIosRunnerBuilds();
-      const daemonReset = resetDaemonAfterTimeout(
-        info,
-        resolveDaemonPaths(req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR),
-      );
-      emitDiagnostic({
-        level: 'error',
-        phase: 'daemon_request_timeout',
-        data: {
-          timeoutMs: REQUEST_TIMEOUT_MS,
-          requestId: req.meta?.requestId,
-          command: req.command,
-          timedOutRunnerPidsTerminated: cleanup.terminated,
-          timedOutRunnerCleanupError: cleanup.error,
-          daemonPidReset: info.pid,
-          daemonPidForceKilled: daemonReset.forcedKill,
-        },
-      });
-      reject(
-        new AppError('COMMAND_FAILED', 'Daemon request timed out', {
-          timeoutMs: REQUEST_TIMEOUT_MS,
-          requestId: req.meta?.requestId,
-          hint: 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
-        }),
-      );
+      reject(handleRequestTimeout(info, statePaths, req.meta?.requestId, req.command, false));
     }, REQUEST_TIMEOUT_MS);
 
     let buffer = '';
@@ -868,25 +904,7 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
 
     socket.on('error', (err) => {
       clearTimeout(timeout);
-      emitDiagnostic({
-        level: 'error',
-        phase: 'daemon_request_socket_error',
-        data: {
-          requestId: req.meta?.requestId,
-          message: err instanceof Error ? err.message : String(err),
-        },
-      });
-      reject(
-        new AppError(
-          'COMMAND_FAILED',
-          'Failed to communicate with daemon',
-          {
-            requestId: req.meta?.requestId,
-            hint: 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
-          },
-          err,
-        ),
-      );
+      reject(handleTransportError(err, req.meta?.requestId, false));
     });
   });
 }
@@ -992,60 +1010,15 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
       },
     );
 
+    const remote = isRemoteDaemon(info);
     const timeout = setTimeout(() => {
       request.destroy();
-      const cleanup = isRemoteDaemon(info) ? { terminated: 0 } : cleanupTimedOutIosRunnerBuilds();
-      const daemonReset = isRemoteDaemon(info)
-        ? { forcedKill: false }
-        : resetDaemonAfterTimeout(info, statePaths);
-      emitDiagnostic({
-        level: 'error',
-        phase: 'daemon_request_timeout',
-        data: {
-          timeoutMs: REQUEST_TIMEOUT_MS,
-          requestId: req.meta?.requestId,
-          command: req.command,
-          timedOutRunnerPidsTerminated: cleanup.terminated,
-          timedOutRunnerCleanupError: cleanup.error,
-          daemonPidReset: isRemoteDaemon(info) ? undefined : info.pid,
-          daemonPidForceKilled: isRemoteDaemon(info) ? undefined : daemonReset.forcedKill,
-          daemonBaseUrl: info.baseUrl,
-        },
-      });
-      reject(
-        new AppError('COMMAND_FAILED', 'Daemon request timed out', {
-          timeoutMs: REQUEST_TIMEOUT_MS,
-          requestId: req.meta?.requestId,
-          hint: isRemoteDaemon(info)
-            ? 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.'
-            : 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
-        }),
-      );
+      reject(handleRequestTimeout(info, statePaths, req.meta?.requestId, req.command, remote));
     }, REQUEST_TIMEOUT_MS);
 
     request.on('error', (err) => {
       clearTimeout(timeout);
-      emitDiagnostic({
-        level: 'error',
-        phase: 'daemon_request_socket_error',
-        data: {
-          requestId: req.meta?.requestId,
-          message: err instanceof Error ? err.message : String(err),
-        },
-      });
-      reject(
-        new AppError(
-          'COMMAND_FAILED',
-          'Failed to communicate with daemon',
-          {
-            requestId: req.meta?.requestId,
-            hint: isRemoteDaemon(info)
-              ? 'Retry command. If this persists, verify the remote daemon URL, auth token, and remote host reachability.'
-              : 'Retry command. If this persists, clean stale daemon metadata and start a fresh session.',
-          },
-          err,
-        ),
-      );
+      reject(handleTransportError(err, req.meta?.requestId, remote));
     });
 
     request.write(rpcPayload);

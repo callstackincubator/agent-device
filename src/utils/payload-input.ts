@@ -1,6 +1,13 @@
 import fs from 'node:fs';
 import { AppError } from './errors.ts';
-import { looksLikeInlineJson } from './json-input.ts';
+
+function looksLikeInlineJson(value: string): boolean {
+  const trimmed = value.trim();
+  return (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  );
+}
 
 export type ResolvedPayloadInput =
   | { kind: 'file'; path: string }

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppError } from './errors.ts';
+import { mergeDefinedFlags } from './merge-flags.ts';
 import type { CliFlags } from './command-schema.ts';
 import { getOptionSpec, parseOptionValueFromSource } from './cli-option-schema.ts';
 import { resolveUserPath } from './path-resolution.ts';
@@ -169,13 +170,4 @@ export function pickRemoteOpenDefaults(defaultFlags: Partial<CliFlags>): Partial
     }
   }
   return retained;
-}
-
-function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-  for (const [key, value] of Object.entries(source)) {
-    if (value !== undefined) {
-      target[key as keyof T] = value as T[keyof T];
-    }
-  }
-  return target;
 }

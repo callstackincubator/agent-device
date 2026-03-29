@@ -1,4 +1,5 @@
 import { AppError } from './errors.ts';
+import { mergeDefinedFlags } from './merge-flags.ts';
 import {
   buildCommandUsageText,
   buildUsageText,
@@ -320,13 +321,4 @@ function normalizeCommandAlias(command: string): string {
   if (command === 'long-press') return 'longpress';
   if (command === 'metrics') return 'perf';
   return command;
-}
-
-function mergeDefinedFlags<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-  for (const [key, value] of Object.entries(source)) {
-    if (value !== undefined) {
-      target[key as keyof T] = value as T[keyof T];
-    }
-  }
-  return target;
 }

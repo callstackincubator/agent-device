@@ -32,8 +32,8 @@ import {
   getDiagnosticsMeta,
   withDiagnosticsScope,
 } from '../utils/diagnostics.ts';
-import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
+import { resolveLeaseScope } from './lease-context.ts';
 import {
   augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
