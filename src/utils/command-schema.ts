@@ -87,6 +87,7 @@ export type CliFlags = {
   timeoutMs?: number;
   retries?: number;
   artifactsDir?: string;
+  reportJunit?: string;
   steps?: string;
   stepsFile?: string;
   batchOnError?: 'stop';
@@ -760,6 +761,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Test: root directory for suite artifacts',
   },
   {
+    key: 'reportJunit',
+    names: ['--report-junit'],
+    type: 'string',
+    usageLabel: '--report-junit <path>',
+    usageDescription: 'Test: write a JUnit XML report for the replay suite',
+  },
+  {
     key: 'steps',
     names: ['--steps'],
     type: 'string',
@@ -1108,7 +1116,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Run .ad test suites',
     positionalArgs: ['pathOrGlob'],
     allowsExtraPositionals: true,
-    allowedFlags: ['replayUpdate', 'failFast', 'timeoutMs', 'retries', 'artifactsDir'],
+    allowedFlags: [
+      'replayUpdate',
+      'failFast',
+      'timeoutMs',
+      'retries',
+      'artifactsDir',
+      'reportJunit',
+    ],
     skipCapabilityCheck: true,
   },
   batch: {

@@ -100,13 +100,13 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
 
       - name: Run iOS simulator replay suite
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 3
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 3 --report-junit test/artifacts/replays-ios-simulator.junit.xml
 
       - name: Run iOS physical device replay suite
         if: env.IOS_UDID != ''
         env:
           IOS_UDID: ${{ vars.IOS_UDID }}
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 3
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 3 --report-junit test/artifacts/replays-ios-device.junit.xml
 
       - name: Upload iOS artifacts
         if: always()
@@ -116,6 +116,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             ${{ steps.ios-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.ios-agent-home.outputs.dir }}/logs/**
             ${{ steps.ios-agent-home.outputs.dir }}/sessions/**
             test/artifacts/**
             test/screenshots/**

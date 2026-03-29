@@ -1,5 +1,8 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
 
@@ -246,4 +249,94 @@ test('test command reports flaky passed-on-retry cases in the default summary', 
   assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.match(result.stdout, /FLAKY \/tmp\/01-flaky\.ad after 2 attempts \(10ms\)/);
   assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 25ms/);
+});
+
+test('test command writes JUnit report with failure metadata', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-junit-test-'));
+  const reportPath = path.join(tmpDir, 'replays.junit.xml');
+
+  try {
+    const result = await runCliCapture(
+      ['test', './suite', '--report-junit', reportPath],
+      async () => ({
+        ok: true,
+        data: {
+          total: 3,
+          executed: 3,
+          passed: 1,
+          failed: 1,
+          skipped: 1,
+          notRun: 0,
+          durationMs: 25,
+          failures: [
+            {
+              file: '/tmp/02-fail.ad',
+              session: 'default:test:suite:2',
+              status: 'failed',
+              durationMs: 5,
+              attempts: 2,
+              artifactsDir: '/tmp/test-artifacts/02-fail',
+              error: {
+                message: 'Replay failed at step 1 (open Demo): boom',
+                hint: 'retry me',
+                diagnosticId: 'diag-123',
+                logPath: '/tmp/diag.ndjson',
+              },
+            },
+          ],
+          tests: [
+            {
+              file: '/tmp/01-flaky.ad',
+              session: 'default:test:suite:1',
+              status: 'passed',
+              durationMs: 10,
+              attempts: 2,
+              replayed: 1,
+              healed: 0,
+            },
+            {
+              file: '/tmp/02-fail.ad',
+              session: 'default:test:suite:2',
+              status: 'failed',
+              durationMs: 5,
+              attempts: 2,
+              artifactsDir: '/tmp/test-artifacts/02-fail',
+              error: {
+                message: 'Replay failed at step 1 (open Demo): boom',
+                hint: 'retry me',
+                diagnosticId: 'diag-123',
+                logPath: '/tmp/diag.ndjson',
+              },
+            },
+            {
+              file: '/tmp/03-skip.ad',
+              status: 'skipped',
+              durationMs: 0,
+              message: 'not runnable',
+              reason: 'skipped-by-filter',
+            },
+          ],
+        },
+      }),
+    );
+
+    assert.equal(result.code, 1);
+    const xml = await fs.readFile(reportPath, 'utf8');
+    assert.match(
+      xml,
+      /<testsuite name="agent-device replay suite" tests="3" failures="1" skipped="1" time="0\.025">/,
+    );
+    assert.match(
+      xml,
+      /<testcase classname="\/tmp" name="02-fail\.ad" file="\/tmp\/02-fail\.ad" time="0\.005">/,
+    );
+    assert.match(xml, /<failure message="Replay failed at step 1 \(open Demo\): boom">/);
+    assert.match(xml, /diagnosticId: diag-123/);
+    assert.match(xml, /logPath: \/tmp\/diag\.ndjson/);
+    assert.match(xml, /artifactsDir: \/tmp\/test-artifacts\/02-fail/);
+    assert.match(xml, /flaky: true/);
+    assert.match(xml, /<skipped message="not runnable" \/>/);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });

@@ -245,6 +245,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               const testExitCode = renderReplayTestResponse({
                 suite: (response.data ?? {}) as ReplaySuiteResult,
                 json: true,
+                reportJunit: flags.reportJunit,
               });
               if (logTailStopper) logTailStopper();
               if (testExitCode !== 0) {
@@ -270,6 +271,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             const testExitCode = renderReplayTestResponse({
               suite: (response.data ?? {}) as ReplaySuiteResult,
               verbose: flags.verbose,
+              reportJunit: flags.reportJunit,
             });
             if (logTailStopper) logTailStopper();
             if (testExitCode !== 0) {

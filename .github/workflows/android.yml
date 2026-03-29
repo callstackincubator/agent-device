@@ -44,7 +44,7 @@ jobs:
           profile: pixel_9_pro_xl
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3
+          script: AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3 --report-junit test/artifacts/replays-android.junit.xml
 
       - name: Upload Android artifacts
         if: always()
@@ -54,6 +54,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             ${{ steps.android-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.android-agent-home.outputs.dir }}/logs/**
             ${{ steps.android-agent-home.outputs.dir }}/sessions/**
             test/artifacts/**
             test/screenshots/**

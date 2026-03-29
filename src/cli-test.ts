@@ -1,4 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { ReplaySuiteResult, ReplaySuiteTestResult } from './daemon/types.ts';
+import { AppError } from './utils/errors.ts';
 import { printJson } from './utils/output.ts';
 
 export function announceReplayTestRun(options: { json?: boolean }): void {
@@ -11,8 +14,12 @@ export function renderReplayTestResponse(options: {
   suite: ReplaySuiteResult;
   json?: boolean;
   verbose?: boolean;
+  reportJunit?: string;
 }): number {
-  const { suite, json, verbose } = options;
+  const { suite, json, verbose, reportJunit } = options;
+  if (reportJunit) {
+    writeReplayJunitReport(reportJunit, suite);
+  }
   if (json) {
     printJson({ success: true, data: suite });
     return getReplayTestExitCode(suite);
@@ -97,4 +104,97 @@ function isFlakyReplayTestResult(
 
 export function getReplayTestExitCode(data: ReplaySuiteResult): number {
   return data.failed > 0 ? 1 : 0;
+}
+
+function writeReplayJunitReport(reportPath: string, suite: ReplaySuiteResult): void {
+  const directory = path.dirname(reportPath);
+  try {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(reportPath, buildReplayJunitXml(suite), 'utf8');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Failed to write JUnit report to ${reportPath}: ${message}`,
+    );
+  }
+}
+
+function buildReplayJunitXml(suite: ReplaySuiteResult): string {
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<testsuites>`,
+    `  <testsuite name="agent-device replay suite" tests="${suite.total}" failures="${suite.failed}" skipped="${suite.skipped}" time="${formatJUnitSeconds(suite.durationMs)}">`,
+  ];
+
+  for (const test of suite.tests) {
+    lines.push(...renderJUnitTestCase(test));
+  }
+
+  lines.push('  </testsuite>');
+  lines.push('</testsuites>');
+  return `${lines.join('\n')}\n`;
+}
+
+function renderJUnitTestCase(test: ReplaySuiteTestResult): string[] {
+  const name = xmlEscape(path.basename(test.file));
+  const className = xmlEscape(
+    path.dirname(test.file) === '.' ? test.file : path.dirname(test.file),
+  );
+  const file = xmlEscape(test.file);
+  const time = formatJUnitSeconds(test.durationMs);
+  const lines = [
+    `    <testcase classname="${className}" name="${name}" file="${file}" time="${time}">`,
+  ];
+
+  if (test.status === 'failed') {
+    lines.push(
+      `      <failure message="${xmlEscape(test.error.message)}">${xmlEscape(buildFailureDetails(test))}</failure>`,
+    );
+  } else if (test.status === 'skipped') {
+    lines.push(`      <skipped message="${xmlEscape(test.message)}" />`);
+  }
+
+  const systemOut = buildSystemOut(test);
+  if (systemOut) {
+    lines.push(`      <system-out>${xmlEscape(systemOut)}</system-out>`);
+  }
+
+  lines.push('    </testcase>');
+  return lines;
+}
+
+function buildFailureDetails(test: Extract<ReplaySuiteTestResult, { status: 'failed' }>): string {
+  const lines = [test.error.message];
+  if (test.error.hint) lines.push(`hint: ${test.error.hint}`);
+  if (test.error.diagnosticId) lines.push(`diagnosticId: ${test.error.diagnosticId}`);
+  if (test.error.logPath) lines.push(`logPath: ${test.error.logPath}`);
+  if (test.artifactsDir) lines.push(`artifactsDir: ${test.artifactsDir}`);
+  const details = test.error.details ? JSON.stringify(test.error.details, null, 2) : undefined;
+  if (details) lines.push(`details: ${details}`);
+  return lines.join('\n');
+}
+
+function buildSystemOut(test: ReplaySuiteTestResult): string {
+  const lines = [`status: ${test.status}`, `durationMs: ${test.durationMs}`];
+  if ('attempts' in test) lines.push(`attempts: ${test.attempts}`);
+  if ('session' in test) lines.push(`session: ${test.session}`);
+  if ('replayed' in test) lines.push(`replayed: ${test.replayed}`);
+  if ('healed' in test) lines.push(`healed: ${test.healed}`);
+  if ('artifactsDir' in test && test.artifactsDir) lines.push(`artifactsDir: ${test.artifactsDir}`);
+  if (test.status === 'passed' && test.attempts > 1) lines.push('flaky: true');
+  return lines.join('\n');
+}
+
+function formatJUnitSeconds(durationMs: number): string {
+  return (Math.max(0, durationMs) / 1000).toFixed(3);
+}
+
+function xmlEscape(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
 }

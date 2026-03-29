@@ -63,7 +63,7 @@ jobs:
         run: pnpm build:macos-helper
 
       - name: Run macOS integration test
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/macos --retries 3
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/macos --retries 3 --report-junit test/artifacts/replays-macos.junit.xml
 
       - name: Upload macOS artifacts
         if: always()
@@ -73,6 +73,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             ${{ steps.macos-agent-home.outputs.dir }}/daemon.log
+            ${{ steps.macos-agent-home.outputs.dir }}/logs/**
             ${{ steps.macos-agent-home.outputs.dir }}/sessions/**
             test/artifacts/**
             test/screenshots/**
