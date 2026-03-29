@@ -41,7 +41,7 @@ jobs:
         with:
           api-level: 36
           arch: x86_64
-          profile: pixel_9_pro_xl
+          profile: pixel_7
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3 --report-junit test/artifacts/replays-android.junit.xml
