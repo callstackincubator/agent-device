@@ -2,7 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { unsupportedRefSnapshotFlags } from '../interaction.ts';
+import { handleInteractionCommands, unsupportedRefSnapshotFlags } from '../interaction.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
@@ -40,8 +40,6 @@ vi.mock('../interaction-snapshot.ts', async (importOriginal) => {
 import { dispatchCommand } from '../../../core/dispatch.ts';
 import { getAndroidScreenSize } from '../../../platforms/android/index.ts';
 import { captureSnapshotForSession } from '../interaction-snapshot.ts';
-import { handleInteractionCommands } from '../interaction.ts';
-
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockGetAndroidScreenSize = vi.mocked(getAndroidScreenSize);
 const mockCaptureSnapshotForSession = vi.mocked(captureSnapshotForSession);

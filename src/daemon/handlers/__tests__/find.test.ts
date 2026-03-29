@@ -4,8 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseFindArgs, handleFindCommands } from '../find.ts';
 import { SessionStore } from '../../session-store.ts';
-import type { SessionState } from '../../types.ts';
-import type { DaemonRequest, DaemonResponse } from '../../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {

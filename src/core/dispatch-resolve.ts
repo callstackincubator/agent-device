@@ -4,6 +4,7 @@ import {
   resolveDevice,
   resolveAppleSimulatorSetPathForSelector,
   type DeviceInfo,
+  type DeviceTarget,
   type PlatformSelector,
 } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
@@ -15,8 +16,6 @@ import {
   resolveIosSimulatorDeviceSetPath,
 } from '../utils/device-isolation.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
-import type { DeviceTarget } from '../utils/device.ts';
-
 type ResolveDeviceFlags = Pick<
   CliFlags,
   | 'platform'

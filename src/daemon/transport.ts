@@ -1,7 +1,6 @@
 import net from 'node:net';
 import type { Server as HttpServer } from 'node:http';
-import { normalizeError } from '../utils/errors.ts';
-import { AppError } from '../utils/errors.ts';
+import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { abortAllIosRunnerSessions } from '../platforms/ios/runner-client.ts';
 import {

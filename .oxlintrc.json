@@ -1,13 +1,19 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [],
+  "plugins": ["typescript", "import", "node"],
+  "env": {
+    "node": true,
+    "es6": true
+  },
   "rules": {
-    "no-unused-vars": "error",
-    "prefer-const": "error",
-    "no-useless-escape": "error",
-    "no-empty": ["error", { "allowEmptyCatch": true }],
-    "no-explicit-any": "off",
-    "only-throw-error": "off"
+    "eslint/no-unused-vars": "error",
+    "eslint/prefer-const": "error",
+    "eslint/no-useless-escape": "error",
+    "eslint/no-empty": ["error", { "allowEmptyCatch": true }],
+    "typescript/no-explicit-any": "off",
+    "typescript/only-throw-error": "off",
+    "typescript/no-var-requires": "error",
+    "import/no-duplicates": "error"
   },
   "ignorePatterns": ["dist/**", "node_modules/**"]
 }
