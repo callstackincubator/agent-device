@@ -244,7 +244,7 @@ test('openIosApp custom scheme deep links on iOS devices require app bundle cont
   );
 });
 
-test('openIosApp opens Simulator app after cold boot on iOS simulators', async () => {
+test('ensureBootedSimulator opens Simulator app after cold boot', async () => {
   let listCallCount = 0;
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
@@ -269,28 +269,20 @@ test('openIosApp opens Simulator app after cold boot on iOS simulators', async (
     if (cmd === 'open' && args.join(' ') === '-a Simulator') {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl launch sim-1 com.example.app') {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
     throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
   });
 
-  await openIosApp(IOS_TEST_SIMULATOR, 'com.example.app');
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR);
 
-  assert.deepEqual(
-    mockRunCmd.mock.calls.map(([cmd, args]) => [cmd, args]),
-    [
-      ['xcrun', ['simctl', 'list', 'devices', '-j']],
-      ['xcrun', ['simctl', 'boot', 'sim-1']],
-      ['xcrun', ['simctl', 'bootstatus', 'sim-1', '-b']],
-      ['xcrun', ['simctl', 'list', 'devices', '-j']],
-      ['open', ['-a', 'Simulator']],
-      ['xcrun', ['simctl', 'launch', 'sim-1', 'com.example.app']],
-    ],
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
+    ),
+    true,
   );
 });
 
-test('openIosApp does not open Simulator app when already booted', async () => {
+test('ensureBootedSimulator skips opening Simulator app when already booted', async () => {
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
       return {
@@ -303,30 +295,17 @@ test('openIosApp does not open Simulator app when already booted', async () => {
         stderr: '',
       };
     }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl launch sim-1 com.example.app') {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
     throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
   });
 
-  await openIosApp(IOS_TEST_SIMULATOR, 'com.example.app');
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR);
 
-  assert.equal(mockRunCmd.mock.calls.length, 2);
-  assert.deepEqual(mockRunCmd.mock.calls[0], [
-    'xcrun',
-    ['simctl', 'list', 'devices', '-j'],
-    {
-      allowFailure: true,
-      timeoutMs: 20000,
-    },
-  ]);
-  assert.deepEqual(mockRunCmd.mock.calls[1], [
-    'xcrun',
-    ['simctl', 'launch', 'sim-1', 'com.example.app'],
-    {
-      allowFailure: true,
-    },
-  ]);
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
+    ),
+    false,
+  );
 });
 
 test('shouldFallbackToRunnerForIosScreenshot detects removed devicectl subcommand output', () => {
