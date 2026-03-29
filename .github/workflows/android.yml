@@ -39,9 +39,10 @@ jobs:
       - name: Run Android integration test
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
-          api-level: 35
+          api-level: 36
           arch: x86_64
-          profile: pixel_7
+          profile: pixel_9_pro_xl
+          target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: AGENT_DEVICE_DAEMON_TIMEOUT_MS=600000 node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3
 
