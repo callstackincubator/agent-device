@@ -177,32 +177,6 @@ function setupRunnerRecordingMocks(
   });
 }
 
-function setupDefaultMocks(
-  overrides: {
-    runCmd?: typeof runCmd;
-    runCmdBackground?: typeof runCmdBackground;
-    runIosRunnerCommand?: typeof runIosRunnerCommand;
-    trimRecordingStart?: typeof trimRecordingStart;
-    overlayRecordingTouches?: typeof overlayRecordingTouches;
-  } = {},
-): void {
-  if (overrides.runCmd) {
-    mockRunCmd.mockImplementation(overrides.runCmd as any);
-  }
-  if (overrides.runCmdBackground) {
-    mockRunCmdBackground.mockImplementation(overrides.runCmdBackground as any);
-  }
-  if (overrides.runIosRunnerCommand) {
-    mockRunIosRunnerCommand.mockImplementation(overrides.runIosRunnerCommand as any);
-  }
-  if (overrides.trimRecordingStart) {
-    mockTrimRecordingStart.mockImplementation(overrides.trimRecordingStart as any);
-  }
-  if (overrides.overlayRecordingTouches) {
-    mockOverlayRecordingTouches.mockImplementation(overrides.overlayRecordingTouches as any);
-  }
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   // Restore default implementations

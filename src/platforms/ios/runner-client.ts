@@ -2,7 +2,11 @@ import { AppError } from '../../utils/errors.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { ClickButton } from '../../core/click-button.ts';
-import { getRequestSignal, createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
+import {
+  getRequestSignal,
+  createRequestCanceledError,
+  isRequestCanceled,
+} from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import {
   waitForRunner,

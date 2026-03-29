@@ -146,7 +146,10 @@ async function waitForSelector(params: {
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-  return errorResponse('COMMAND_FAILED', `wait timed out for selector: ${parsed.selectorExpression}`);
+  return errorResponse(
+    'COMMAND_FAILED',
+    `wait timed out for selector: ${parsed.selectorExpression}`,
+  );
 }
 
 function resolveWaitText(

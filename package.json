@@ -30,8 +30,8 @@
     "build:macos-helper": "swift build -c release --package-path macos-helper",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
-    "lint": "eslint src/",
-    "format": "prettier --write src test skills",
+    "lint": "oxlint . --deny-warnings",
+    "format": "oxfmt --write src test skills package.json tsconfig.json .oxlintrc.json .oxfmtrc.json",
     "prepack": "pnpm build:all",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -67,25 +67,17 @@
     "ios",
     "android"
   ],
-  "prettier": {
-    "singleQuote": true,
-    "semi": true,
-    "trailingComma": "all",
-    "printWidth": 100
-  },
   "dependencies": {
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@microsoft/api-extractor": "^7.52.10",
     "@rslib/core": "0.19.4",
     "@types/node": "^22.0.0",
     "@types/pngjs": "^6.0.5",
-    "eslint": "^10.1.0",
-    "prettier": "^3.3.3",
+    "oxfmt": "^0.42.0",
+    "oxlint": "^1.57.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.2",
     "vitest": "^4.1.2"
   }
 }

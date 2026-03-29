@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd, runCmdSync, runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
+import {
+  runCmd,
+  runCmdSync,
+  runCmdStreaming,
+  type ExecBackgroundResult,
+} from '../../utils/exec.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';

@@ -284,9 +284,11 @@ test('materializeArtifact truncates large HTTP error bodies', async () => {
           assert.ok(error instanceof AppError);
           assert.equal(error.message, 'Failed to download artifact');
           assert.equal(error.details?.statusCode, 502);
-          assert.equal(typeof error.details?.body, 'string');
-          assert.ok((error.details?.body as string).endsWith('...<truncated>'));
-          assert.ok((error.details?.body as string).length <= 4096 + '...<truncated>'.length);
+          const body = error.details?.body;
+          assert.equal(typeof body, 'string');
+          assert.ok(typeof body === 'string');
+          assert.ok(body.endsWith('...<truncated>'));
+          assert.ok(body.length <= 4096 + '...<truncated>'.length);
           return true;
         },
       );

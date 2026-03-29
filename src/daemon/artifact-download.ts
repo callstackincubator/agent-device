@@ -161,11 +161,10 @@ async function requestArtifact(
   const transport = url.protocol === 'https:' ? https : http;
   return await new Promise((resolve, reject) => {
     let settled = false;
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const settle = (error?: Error, response?: IncomingMessage, finalUrl?: URL) => {
       if (settled) return;
       settled = true;
-      if (timeoutHandle) clearTimeout(timeoutHandle);
+      clearTimeout(timeoutHandle);
       if (error) {
         reject(error);
         return;
@@ -242,7 +241,7 @@ async function requestArtifact(
       },
     );
 
-    timeoutHandle = setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       request.destroy(
         new AppError('COMMAND_FAILED', 'Artifact request timed out waiting for response', {
           requestId,

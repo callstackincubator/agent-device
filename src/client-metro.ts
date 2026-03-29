@@ -241,7 +241,7 @@ function normalizeProxyRuntimeHints(
 }
 
 function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
 function installDependenciesIfNeeded(

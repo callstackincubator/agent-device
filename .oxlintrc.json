@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [],
+  "rules": {
+    "no-unused-vars": "error",
+    "prefer-const": "error",
+    "no-useless-escape": "error",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-explicit-any": "off",
+    "only-throw-error": "off"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**"]
+}

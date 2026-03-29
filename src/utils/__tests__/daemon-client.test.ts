@@ -827,12 +827,6 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
         setEncoding: (_encoding: string) => void;
       },
     ) => void;
-    private activeResponse?: PassThrough & {
-      statusCode?: number;
-      resume?: () => void;
-      setEncoding: (_encoding: string) => void;
-    };
-
     constructor(
       options: Record<string, unknown>,
       callbackFn: (
@@ -876,7 +870,6 @@ test('sendToDaemon downloads remote artifacts and rewrites local paths', async (
           resume?: () => void;
           setEncoding: (_encoding: string) => void;
         };
-        this.activeResponse = res;
         res.statusCode = 200;
         process.nextTick(() => {
           this.callbackFn(res);

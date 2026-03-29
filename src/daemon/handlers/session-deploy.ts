@@ -98,7 +98,10 @@ export async function handleAppDeployCommand(params: {
   const app = req.positionals?.[0]?.trim();
   const appPathInput = req.positionals?.[1]?.trim();
   if (!app || !appPathInput) {
-    return errorResponse('INVALID_ARGS', `${command} requires: ${command} <app> <path-to-app-binary>`);
+    return errorResponse(
+      'INVALID_ARGS',
+      `${command} requires: ${command} <app> <path-to-app-binary>`,
+    );
   }
   const uploadedArtifactId = req.meta?.uploadedArtifactId;
 
