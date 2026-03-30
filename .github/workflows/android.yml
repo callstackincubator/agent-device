@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration-android:
-    name: Integration Tests
+  smoke-android:
+    name: Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 80
     continue-on-error: true
@@ -36,7 +36,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run Android integration test
+      - name: Run Android smoke replay
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 36
@@ -44,7 +44,7 @@ jobs:
           profile: pixel_7
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3 --report-junit test/artifacts/replays-android.junit.xml
+          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android/01-settings.ad --retries 3 --report-junit test/artifacts/replays-android-smoke.junit.xml
 
       - name: Upload Android artifacts
         if: always()

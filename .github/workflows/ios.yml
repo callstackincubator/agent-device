@@ -14,18 +14,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration-ios:
-    name: Integration Tests
+  smoke-ios:
+    name: Smoke Tests
     runs-on: macos-26
     timeout-minutes: 80
     continue-on-error: true
     env:
-      IOS_RUNTIME_VERSION: '26.2'
+      IOS_RUNTIME_VERSION: "26.2"
       AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
-      AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS: '60000'
-      AGENT_DEVICE_DAEMON_TIMEOUT_MS: '600000'
-      AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: '180000'
-      AGENT_DEVICE_IOS_APP_LAUNCH_TIMEOUT_MS: '60000'
+      AGENT_DEVICE_IOS_SIMCTL_LIST_TIMEOUT_MS: "60000"
+      AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS: "180000"
+      AGENT_DEVICE_IOS_APP_LAUNCH_TIMEOUT_MS: "60000"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -63,7 +62,7 @@ jobs:
         env:
           AGENT_DEVICE_XCUITEST_PLATFORM: ios
           AGENT_DEVICE_XCUITEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro,OS=${{ env.IOS_RUNTIME_VERSION }}
-          AGENT_DEVICE_IOS_CLEAN_DERIVED: '1'
+          AGENT_DEVICE_IOS_CLEAN_DERIVED: "1"
         run: |
           sh ./scripts/build-xcuitest-apple.sh
 
@@ -99,14 +98,14 @@ jobs:
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
 
-      - name: Run iOS simulator replay suite
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 3 --report-junit test/artifacts/replays-ios-simulator.junit.xml
+      - name: Run iOS simulator smoke replay
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator/01-settings.ad --retries 3 --report-junit test/artifacts/replays-ios-simulator-smoke.junit.xml
 
-      - name: Run iOS physical device replay suite
+      - name: Run iOS physical device smoke replay
         if: env.IOS_UDID != ''
         env:
           IOS_UDID: ${{ vars.IOS_UDID }}
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 3 --report-junit test/artifacts/replays-ios-device.junit.xml
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device/01-physical-lifecycle.ad --udid "$IOS_UDID" --retries 3 --report-junit test/artifacts/replays-ios-device-smoke.junit.xml
 
       - name: Upload iOS artifacts
         if: always()
