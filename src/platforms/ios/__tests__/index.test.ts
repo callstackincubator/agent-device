@@ -21,7 +21,7 @@ vi.mock('../simulator.ts', async (importOriginal) => {
   return {
     ...actual,
     ensureBootedSimulator: vi.fn(actual.ensureBootedSimulator),
-    focusIosSimulatorWindow: vi.fn(actual.focusIosSimulatorWindow),
+    openIosSimulatorApp: vi.fn(actual.openIosSimulatorApp),
   };
 });
 vi.mock('../screenshot-status-bar.ts', async (importOriginal) => {
@@ -68,7 +68,7 @@ import {
   prepareSimulatorStatusBarForScreenshot,
   resolveSimulatorRunnerScreenshotCandidatePaths,
 } from '../screenshot.ts';
-import { ensureBootedSimulator, focusIosSimulatorWindow } from '../simulator.ts';
+import { ensureBootedSimulator, openIosSimulatorApp } from '../simulator.ts';
 import { prepareSimulatorStatusBarForScreenshot as prepareStatusBarForScreenshot } from '../screenshot-status-bar.ts';
 import { runIosRunnerCommand } from '../runner-client.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
@@ -106,7 +106,7 @@ const mockRunCmd = vi.mocked(runCmd);
 const mockRetryWithPolicy = vi.mocked(retryWithPolicy);
 const mockRunIosRunnerCommand = vi.mocked(runIosRunnerCommand);
 const mockEnsureBootedSimulator = vi.mocked(ensureBootedSimulator);
-const mockFocusIosSimulatorWindow = vi.mocked(focusIosSimulatorWindow);
+const mockOpenIosSimulatorApp = vi.mocked(openIosSimulatorApp);
 const mockPrepareStatusBarForScreenshot = vi.mocked(prepareStatusBarForScreenshot);
 
 beforeEach(() => {
@@ -115,7 +115,7 @@ beforeEach(() => {
   mockRetryWithPolicy.mockImplementation(retryActual.retryWithPolicy);
   mockRunIosRunnerCommand.mockImplementation(runnerActual.runIosRunnerCommand);
   mockEnsureBootedSimulator.mockImplementation(simulatorActual.ensureBootedSimulator);
-  mockFocusIosSimulatorWindow.mockImplementation(simulatorActual.focusIosSimulatorWindow);
+  mockOpenIosSimulatorApp.mockImplementation(simulatorActual.openIosSimulatorApp);
   mockPrepareStatusBarForScreenshot.mockImplementation(
     screenshotStatusBarActual.prepareSimulatorStatusBarForScreenshot,
   );
@@ -356,7 +356,7 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after retry ex
   mockEnsureBootedSimulator.mockImplementation(async () => {
     ensureBootedCalls += 1;
   });
-  mockFocusIosSimulatorWindow.mockResolvedValue(undefined);
+  mockOpenIosSimulatorApp.mockResolvedValue(undefined);
   mockPrepareStatusBarForScreenshot.mockResolvedValue(async () => {});
   mockRetryWithPolicy.mockRejectedValue(
     new AppError('COMMAND_FAILED', 'Detected file type from extension: PNG', {
@@ -391,7 +391,7 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after simctl s
   await fs.mkdir(path.dirname(runnerImage), { recursive: true });
   await fs.writeFile(runnerImage, 'runner-timeout', 'utf8');
   mockEnsureBootedSimulator.mockResolvedValue(undefined);
-  mockFocusIosSimulatorWindow.mockResolvedValue(undefined);
+  mockOpenIosSimulatorApp.mockResolvedValue(undefined);
   mockPrepareStatusBarForScreenshot.mockResolvedValue(async () => {});
   mockRetryWithPolicy.mockRejectedValue(
     new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
@@ -422,7 +422,7 @@ test('captureSimulatorScreenshotWithFallback continues when status bar preparati
     new AppError('COMMAND_FAILED', 'status_bar override failed'),
   );
   mockEnsureBootedSimulator.mockResolvedValue(undefined);
-  mockFocusIosSimulatorWindow.mockResolvedValue(undefined);
+  mockOpenIosSimulatorApp.mockResolvedValue(undefined);
   mockRetryWithPolicy.mockResolvedValue(undefined);
   await captureSimulatorScreenshotWithFallback(
     IOS_TEST_SIMULATOR,
@@ -438,7 +438,7 @@ test('captureSimulatorScreenshotWithFallback ignores status bar restore failures
     throw new AppError('COMMAND_FAILED', 'status_bar clear failed');
   });
   mockEnsureBootedSimulator.mockResolvedValue(undefined);
-  mockFocusIosSimulatorWindow.mockResolvedValue(undefined);
+  mockOpenIosSimulatorApp.mockResolvedValue(undefined);
   mockRetryWithPolicy.mockResolvedValue(undefined);
   await captureSimulatorScreenshotWithFallback(
     IOS_TEST_SIMULATOR,
@@ -467,7 +467,7 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
         await fs.mkdir(path.dirname(runnerImage), { recursive: true });
         await fs.writeFile(runnerImage, 'diag-fallback', 'utf8');
         mockEnsureBootedSimulator.mockResolvedValue(undefined);
-        mockFocusIosSimulatorWindow.mockResolvedValue(undefined);
+        mockOpenIosSimulatorApp.mockResolvedValue(undefined);
         mockPrepareStatusBarForScreenshot.mockResolvedValue(async () => {});
         mockRetryWithPolicy.mockRejectedValue(
           new AppError('COMMAND_FAILED', 'xcrun timed out after 20000ms', {
@@ -503,7 +503,7 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
 });
 
 test(
-  'focusIosSimulatorWindow times out instead of hanging indefinitely',
+  'openIosSimulatorApp times out instead of hanging indefinitely',
   { timeout: 15_000 },
   async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-focus-timeout-test-'));
@@ -516,7 +516,7 @@ test(
 
     try {
       await assert.rejects(
-        () => focusIosSimulatorWindow(),
+        () => openIosSimulatorApp(),
         (error: unknown) => {
           assert.equal(error instanceof AppError, true);
           assert.equal((error as AppError).code, 'COMMAND_FAILED');
