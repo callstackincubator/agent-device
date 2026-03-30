@@ -11,6 +11,7 @@ import {
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
   openApp,
+  resolveDaemonRequestTimeoutForCommand,
   resolveDaemonRequestTimeoutMs,
   resolveDaemonStartupAttempts,
   resolveDaemonStartupHint,
@@ -83,6 +84,12 @@ test('daemon timeout and retry helpers normalize configured values', () => {
       assert.equal(scenario.resolve(testCase.value), testCase.expected);
     }
   }
+});
+
+test('test command opts out of the daemon request timeout', () => {
+  assert.equal(resolveDaemonRequestTimeoutForCommand('open', '2500'), 2500);
+  assert.equal(resolveDaemonRequestTimeoutForCommand('test', '2500'), undefined);
+  assert.equal(resolveDaemonRequestTimeoutForCommand(undefined, '2500'), 2500);
 });
 
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {

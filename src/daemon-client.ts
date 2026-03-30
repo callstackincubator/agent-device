@@ -94,6 +94,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   const requestId = req.meta?.requestId ?? createRequestId();
   const debug = Boolean(req.meta?.debug || req.flags?.verbose);
   const settings = resolveClientSettings(req);
+  const requestTimeoutMs = resolveDaemonRequestTimeoutForCommand(req.command);
   const info = await withDiagnosticTimer(
     'daemon_startup',
     async () => await ensureDaemon(settings),
@@ -139,7 +140,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   });
   return await withDiagnosticTimer(
     'daemon_request',
-    async () => await sendRequest(info, request, settings.transportPreference),
+    async () => await sendRequest(info, request, settings.transportPreference, requestTimeoutMs),
     { requestId, command: req.command },
   );
 }
@@ -750,12 +751,13 @@ async function sendRequest(
   info: DaemonInfo,
   req: DaemonRequest,
   preference: DaemonTransportPreference,
+  timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
   const transport = chooseTransport(info, preference);
   if (transport === 'http') {
-    return await sendHttpRequest(info, req);
+    return await sendHttpRequest(info, req, timeoutMs);
   }
-  return await sendSocketRequest(info, req);
+  return await sendSocketRequest(info, req, timeoutMs);
 }
 
 function chooseTransport(
@@ -806,6 +808,7 @@ function handleRequestTimeout(
   requestId: string | undefined,
   command: string | undefined,
   remote: boolean,
+  timeoutMs: number,
 ): AppError {
   const cleanup = remote ? { terminated: 0 } : cleanupTimedOutIosRunnerBuilds();
   const daemonReset = remote ? { forcedKill: false } : resetDaemonAfterTimeout(info, statePaths);
@@ -813,7 +816,7 @@ function handleRequestTimeout(
     level: 'error',
     phase: 'daemon_request_timeout',
     data: {
-      timeoutMs: REQUEST_TIMEOUT_MS,
+      timeoutMs,
       requestId,
       command,
       timedOutRunnerPidsTerminated: cleanup.terminated,
@@ -824,7 +827,7 @@ function handleRequestTimeout(
     },
   });
   return new AppError('COMMAND_FAILED', 'Daemon request timed out', {
-    timeoutMs: REQUEST_TIMEOUT_MS,
+    timeoutMs,
     requestId,
     hint: remote
       ? 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.'
@@ -858,7 +861,11 @@ function handleTransportError(
   );
 }
 
-async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
+async function sendSocketRequest(
+  info: DaemonInfo,
+  req: DaemonRequest,
+  timeoutMs: number | undefined,
+): Promise<DaemonResponse> {
   const port = info.port;
   if (!port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
   return new Promise((resolve, reject) => {
@@ -868,10 +875,22 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
     const statePaths = resolveDaemonPaths(
       req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
     );
-    const timeout = setTimeout(() => {
-      socket.destroy();
-      reject(handleRequestTimeout(info, statePaths, req.meta?.requestId, req.command, false));
-    }, REQUEST_TIMEOUT_MS);
+    const timeoutHandle =
+      typeof timeoutMs === 'number'
+        ? setTimeout(() => {
+            socket.destroy();
+            reject(
+              handleRequestTimeout(
+                info,
+                statePaths,
+                req.meta?.requestId,
+                req.command,
+                false,
+                timeoutMs,
+              ),
+            );
+          }, timeoutMs)
+        : undefined;
 
     let buffer = '';
     socket.setEncoding('utf8');
@@ -884,10 +903,10 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
       try {
         const response = JSON.parse(line) as DaemonResponse;
         socket.end();
-        clearTimeout(timeout);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
         resolve(response);
       } catch (err) {
-        clearTimeout(timeout);
+        if (timeoutHandle) clearTimeout(timeoutHandle);
         reject(
           new AppError(
             'COMMAND_FAILED',
@@ -903,13 +922,17 @@ async function sendSocketRequest(info: DaemonInfo, req: DaemonRequest): Promise<
     });
 
     socket.on('error', (err) => {
-      clearTimeout(timeout);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       reject(handleTransportError(err, req.meta?.requestId, false));
     });
   });
 }
 
-async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<DaemonResponse> {
+async function sendHttpRequest(
+  info: DaemonInfo,
+  req: DaemonRequest,
+  timeoutMs: number | undefined,
+): Promise<DaemonResponse> {
   const rpcUrl = info.baseUrl
     ? new URL(buildDaemonHttpUrl(info.baseUrl, 'rpc'))
     : info.httpPort
@@ -952,7 +975,7 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
           body += chunk;
         });
         res.on('end', () => {
-          clearTimeout(timeout);
+          if (timeoutHandle) clearTimeout(timeoutHandle);
           try {
             const parsed = JSON.parse(body) as {
               result?: DaemonResponse;
@@ -993,7 +1016,7 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
             }
             resolve(parsed.result);
           } catch (err) {
-            clearTimeout(timeout);
+            if (timeoutHandle) clearTimeout(timeoutHandle);
             reject(
               new AppError(
                 'COMMAND_FAILED',
@@ -1011,13 +1034,25 @@ async function sendHttpRequest(info: DaemonInfo, req: DaemonRequest): Promise<Da
     );
 
     const remote = isRemoteDaemon(info);
-    const timeout = setTimeout(() => {
-      request.destroy();
-      reject(handleRequestTimeout(info, statePaths, req.meta?.requestId, req.command, remote));
-    }, REQUEST_TIMEOUT_MS);
+    const timeoutHandle =
+      typeof timeoutMs === 'number'
+        ? setTimeout(() => {
+            request.destroy();
+            reject(
+              handleRequestTimeout(
+                info,
+                statePaths,
+                req.meta?.requestId,
+                req.command,
+                remote,
+                timeoutMs,
+              ),
+            );
+          }, timeoutMs)
+        : undefined;
 
     request.on('error', (err) => {
-      clearTimeout(timeout);
+      if (timeoutHandle) clearTimeout(timeoutHandle);
       reject(handleTransportError(err, req.meta?.requestId, remote));
     });
 
@@ -1256,6 +1291,14 @@ export function resolveDaemonRequestTimeoutMs(
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return 90000;
   return Math.max(1000, Math.floor(parsed));
+}
+
+export function resolveDaemonRequestTimeoutForCommand(
+  command: string | undefined,
+  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS,
+): number | undefined {
+  if (command === 'test') return undefined;
+  return resolveDaemonRequestTimeoutMs(raw);
 }
 
 export function resolveDaemonStartupTimeoutMs(
