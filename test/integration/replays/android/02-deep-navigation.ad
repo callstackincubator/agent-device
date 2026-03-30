@@ -2,7 +2,6 @@
 context platform=android
 
 open settings --relaunch
-open settings --relaunch
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-deep-nav-root.png"

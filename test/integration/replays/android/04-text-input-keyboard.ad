@@ -2,7 +2,6 @@
 context platform=android
 
 open settings --relaunch
-open settings --relaunch
 snapshot -i
 
 click @e2
