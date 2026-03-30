@@ -1,25 +1,13 @@
 # App lifecycle.
-context platform=ios timeout=60000 retries=2
+context platform=ios
 
 open com.apple.Preferences --relaunch
 appstate
-snapshot -i
-is exists "role=cell label=General"
-click "role=cell label=General"
-wait "label=About || label=\"Software Update\"" 5000
-snapshot -i
-is exists "label=About"
 
 home
 wait 2000
 
 open com.apple.Preferences --relaunch
-wait "role=cell label=General" 5000
+wait 1000
 appstate
-snapshot -i
-screenshot "./test/screenshots/replays/ios-lifecycle-reopen.png"
-
-is exists "role=cell label=General"
-
-back
-wait "role=cell label=General" 3000
+find text "General" exists

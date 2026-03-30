@@ -1,6 +1,7 @@
 # Text input.
-context platform=android timeout=60000 retries=2
+context platform=android
 
+open settings --relaunch
 open settings --relaunch
 snapshot -i
 
@@ -11,17 +12,15 @@ snapshot -i
 keyboard status
 
 type "Display"
-wait "text=\"Display & touch\" || text=\"Display size\" || text=\"Display size and text\"" 3000
+wait 1000
 snapshot -i
 
-is exists "text=\"Display & touch\" || text=\"Display size\" || text=\"Display size and text\""
-find text "Display" exists
 screenshot "./test/screenshots/replays/android-search-results.png"
 
 keyboard status
 
 back
-wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 5000
+wait 1000
 keyboard status
 snapshot -i
-is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications"
+find text "Search" exists

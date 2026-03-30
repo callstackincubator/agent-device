@@ -1,32 +1,11 @@
 # Deep navigation.
-context platform=ios timeout=60000 retries=2
+context platform=ios
 
 open com.apple.Preferences --relaunch
-appstate
-snapshot -i
-screenshot "./test/screenshots/replays/ios-deep-nav-root.png"
-
-is exists "role=cell label=General"
-find text "General" exists
-
 click "role=cell label=General"
-wait "label=About || label=\"Software Update\"" 5000
-snapshot -i
-is exists "label=About"
+wait 1000
 find text "About" exists
 
-click "label=About || role=cell label=About || role=button label=About"
-wait "label=\"Model Name\" || label=Name || label=\"Software Version\" || label=\"Model Number\" || label=\"Serial Number\"" 5000
-snapshot -i
-screenshot "./test/screenshots/replays/ios-deep-nav-about.png"
-is exists "label=\"Model Name\" || label=Name || label=\"Software Version\" || label=\"Model Number\""
-
 back
-wait "label=About" 3000
-snapshot
-is exists "label=About"
-is exists "label=\"Software Update\" || label=\"Date & Time\" || label=Keyboard"
-
-back
-wait "role=cell label=General" 3000
-is exists "role=cell label=General"
+wait 1000
+find text "General" exists

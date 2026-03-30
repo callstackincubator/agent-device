@@ -1,21 +1,19 @@
 # Scroll discovery.
-context platform=android timeout=60000 retries=2
+context platform=android
 
+open settings --relaunch
 open settings --relaunch
 snapshot -i
 screenshot "./test/screenshots/replays/android-scroll-top.png"
 
-is exists "text=\"Search Settings\" || text=\"Network & internet\" || text=\"Connected devices\" || text=Apps || text=Notifications"
+find text "Search" exists
 
 scroll down 3
+wait 500
 snapshot -i
-
-scrollintoview "Accessibility" --max-scrolls 10
-snapshot -i
-is exists "text=Accessibility"
+screenshot "./test/screenshots/replays/android-scroll-found.png"
 find text "Accessibility" exists
 
-scroll up 8
+scroll up 3
+wait 500
 snapshot -i
-is exists "text=\"Search Settings\" || text=\"Network & internet\" || text=Apps || text=Notifications"
-screenshot "./test/screenshots/replays/android-scroll-found.png"

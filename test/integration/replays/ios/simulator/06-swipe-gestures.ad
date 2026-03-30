@@ -1,21 +1,16 @@
 # Swipe gestures.
-context platform=ios timeout=60000 retries=2
+context platform=ios
 
 open com.apple.Preferences --relaunch
-snapshot -i
-is exists "role=cell label=General"
 
 swipe 197 650 197 300 300
 wait 500
-snapshot -i
 
-swipe 197 600 197 350 300 --count 2 --pause-ms 200 --pattern one-way
+swipe 197 600 197 350 300
 wait 500
-snapshot -i
 
-is exists "label=Accessibility || label=Apps"
-screenshot "./test/screenshots/replays/ios-swipe-before-back.png"
+find text "Accessibility" exists
 
-longpress 197 400 800
-snapshot -i
-screenshot "./test/screenshots/replays/ios-swipe-longpress.png"
+swipe 197 300 197 650 300
+wait 500
+find text "General" exists

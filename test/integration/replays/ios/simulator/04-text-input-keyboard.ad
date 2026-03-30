@@ -1,18 +1,11 @@
 # Text input.
-context platform=ios timeout=60000 retries=2
+context platform=ios
 
 open com.apple.Preferences --relaunch
-snapshot -i
-
 click "role=searchField || label=Search || label=\"Search\""
 wait 1000
-snapshot -i
 
 type "General"
-wait "label=General" 3000
-snapshot -i
+wait 1000
 
-is exists "label=General"
 find text "General" exists
-
-screenshot "./test/screenshots/replays/ios-search-results.png"

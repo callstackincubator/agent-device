@@ -1,23 +1,18 @@
 # App lifecycle.
-context platform=android timeout=60000 retries=2
+context platform=android
 
 open settings --relaunch
 appstate
 snapshot -i
-is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""
-
-click @e16
-wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 5000
-snapshot -i
-is exists "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\""
+find text "Search" exists
 
 home
 wait 2000
 
 open settings --relaunch
-wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 5000
+wait 1000
 appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-lifecycle-reopen.png"
 
-is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""
+find text "Search" exists

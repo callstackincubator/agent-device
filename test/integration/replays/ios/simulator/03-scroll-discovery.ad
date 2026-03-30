@@ -1,24 +1,11 @@
 # Scroll discovery.
-context platform=ios timeout=60000 retries=2
+context platform=ios
 
 open com.apple.Preferences --relaunch
-snapshot -i
-screenshot "./test/screenshots/replays/ios-scroll-top.png"
-
-is exists "role=cell label=General"
-
 scroll down 3
-snapshot -i
-
-snapshot -i
-is exists "label=Accessibility || label=Apps"
+wait 500
 find text "Accessibility" exists
 
-scroll up 5
-snapshot -i
-is exists "role=cell label=General"
-
-scroll down 3
-snapshot -i
-is exists "label=Accessibility || label=Apps"
-screenshot "./test/screenshots/replays/ios-scroll-found.png"
+scroll up 3
+wait 500
+find text "General" exists

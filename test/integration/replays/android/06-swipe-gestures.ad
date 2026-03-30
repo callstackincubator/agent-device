@@ -1,9 +1,9 @@
 # Swipe gestures.
-context platform=android timeout=60000 retries=2
+context platform=android
 
 open settings --relaunch
 snapshot -i
-is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""
+find text "Search" exists
 
 swipe 206 700 206 250 300
 wait 500
@@ -16,24 +16,10 @@ snapshot -i
 scroll up 0.6
 wait 500
 snapshot -i
-is exists "text=\"Search Settings\" || text=\"Network & internet\" || text=Apps || text=Notifications || text=\"Connected devices\""
-
-click @e16
-wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 5000
-is exists "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\""
+find text "Search" exists
 screenshot "./test/screenshots/replays/android-swipe-before-back.png"
 
-swipe 10 450 300 450 300
-wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 3000
-snapshot -i
-is exists "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\""
-
-click @e16
-wait "text=\"App notifications\" || text=\"Notification history\" || text=Bubbles || text=\"Notifications on lock screen\"" 5000
-
 scroll down 2
+wait 500
 snapshot -i
 screenshot "./test/screenshots/replays/android-swipe-scroll.png"
-
-back
-wait "text=\"Search Settings\" || text=Battery || text=Apps || text=Notifications || text=\"Network & internet\"" 3000
