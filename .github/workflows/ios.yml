@@ -32,71 +32,23 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Resolve Xcode cache key
-        id: xcode
-        run: |
-          set -euo pipefail
-          XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/[[:space:]]$//')"
-          XCODE_KEY="$(echo "$XCODE_VERSION" | tr ' ' '-' | tr -cd '[:alnum:]._-')"
-          echo "key=$XCODE_KEY" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve prebuild source hash
-        id: source-hash
-        run: |
-          set -euo pipefail
-          echo "value=${{ hashFiles('ios-runner/**', 'package.json', 'pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
-
-      - name: Cache iOS runner prebuilt
-        id: restore-prebuilt
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.3
+      - name: Setup Apple replay
+        id: apple-replay
+        uses: ./.github/actions/setup-apple-replay
         with:
-          path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
-          key: ios-runner-prebuilt-${{ steps.xcode.outputs.key }}-ios-${{ env.IOS_RUNTIME_VERSION }}-${{ steps.source-hash.outputs.value }}
+          derived-path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
+          cache-key-prefix: ios-runner-prebuilt
+          cache-key-suffix: -ios-${{ env.IOS_RUNTIME_VERSION }}
+          build-command: sh ./scripts/build-xcuitest-apple.sh
+          xcuitest-platform: ios
+          xcuitest-destination: platform=iOS Simulator,name=iPhone 17 Pro,OS=${{ env.IOS_RUNTIME_VERSION }}
+          clean-derived: "1"
 
-      - name: Resolve agent-device home
-        id: ios-agent-home
-        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
-
-      - name: Build iOS integration artifacts
-        if: steps.restore-prebuilt.outputs.cache-hit != 'true'
-        env:
-          AGENT_DEVICE_XCUITEST_PLATFORM: ios
-          AGENT_DEVICE_XCUITEST_DESTINATION: platform=iOS Simulator,name=iPhone 17 Pro,OS=${{ env.IOS_RUNTIME_VERSION }}
-          AGENT_DEVICE_IOS_CLEAN_DERIVED: "1"
-        run: |
-          sh ./scripts/build-xcuitest-apple.sh
-
-      - name: Resolve and boot iOS test simulator
-        run: |
-          set -euo pipefail
-          RUNTIME_TOKEN="SimRuntime.iOS-${IOS_RUNTIME_VERSION//./-}"
-          export RUNTIME_TOKEN
-          UDID="$(
-            xcrun simctl list devices -j | node -e '
-              const fs = require("node:fs");
-              const runtimeToken = process.env.RUNTIME_TOKEN;
-              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
-              const entries = Object.entries(payload.devices ?? {});
-              const iosRuntimes = entries.filter(([runtime]) => runtime.includes("SimRuntime.iOS-"));
-              const runtimeMatches = iosRuntimes.filter(([runtime]) => runtime.includes(runtimeToken));
-              const pool = runtimeMatches.length > 0 ? runtimeMatches : iosRuntimes;
-              const available = pool.flatMap(([runtime, devices]) =>
-                (devices ?? [])
-                  .filter((device) => device.isAvailable)
-                  .map((device) => ({ ...device, runtime })),
-              );
-              const preferred =
-                available.find((device) => device.state === "Booted" && device.name === "iPhone 17 Pro") ??
-                available.find((device) => device.name === "iPhone 17 Pro") ??
-                available.find((device) => device.state === "Booted") ??
-                available[0];
-              if (!preferred?.udid) process.exit(1);
-              process.stdout.write(preferred.udid);
-            '
-          )"
-          xcrun simctl shutdown all || true
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
+      - name: Boot iOS test simulator
+        uses: ./.github/actions/boot-ios-test-simulator
+        with:
+          runtime-version: ${{ env.IOS_RUNTIME_VERSION }}
+          preferred-device-name: iPhone 17 Pro
 
       - name: Run iOS simulator smoke replay
         run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator/01-settings.ad --retries 3 --report-junit test/artifacts/replays-ios-simulator-smoke.junit.xml
@@ -109,13 +61,7 @@ jobs:
 
       - name: Upload iOS artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: ./.github/actions/upload-agent-device-artifacts
         with:
-          name: ios-artifacts
-          if-no-files-found: ignore
-          path: |
-            ${{ steps.ios-agent-home.outputs.dir }}/daemon.log
-            ${{ steps.ios-agent-home.outputs.dir }}/logs/**
-            ${{ steps.ios-agent-home.outputs.dir }}/sessions/**
-            test/artifacts/**
-            test/screenshots/**
+          artifact-name: ios-artifacts
+          agent-home-dir: ${{ steps.apple-replay.outputs.agent-home-dir }}

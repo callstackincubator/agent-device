@@ -1,0 +1,49 @@
+name: "Boot iOS Test Simulator"
+description: "Resolve and boot the preferred iOS simulator for replay tests"
+
+inputs:
+  runtime-version:
+    description: "Preferred iOS runtime version"
+    required: true
+  preferred-device-name:
+    description: "Preferred simulator device name"
+    required: false
+    default: "iPhone 17 Pro"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve and boot iOS test simulator
+      run: |
+        set -euo pipefail
+        RUNTIME_TOKEN="SimRuntime.iOS-${{ inputs.runtime-version }}"
+        export RUNTIME_TOKEN
+        export PREFERRED_DEVICE_NAME="${{ inputs.preferred-device-name }}"
+        UDID="$(
+          xcrun simctl list devices -j | node -e '
+            const fs = require("node:fs");
+            const runtimeToken = process.env.RUNTIME_TOKEN;
+            const preferredDeviceName = process.env.PREFERRED_DEVICE_NAME;
+            const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+            const entries = Object.entries(payload.devices ?? {});
+            const iosRuntimes = entries.filter(([runtime]) => runtime.includes("SimRuntime.iOS-"));
+            const runtimeMatches = iosRuntimes.filter(([runtime]) => runtime.includes(runtimeToken));
+            const pool = runtimeMatches.length > 0 ? runtimeMatches : iosRuntimes;
+            const available = pool.flatMap(([runtime, devices]) =>
+              (devices ?? [])
+                .filter((device) => device.isAvailable)
+                .map((device) => ({ ...device, runtime })),
+            );
+            const preferred =
+              available.find((device) => device.state === "Booted" && device.name === preferredDeviceName) ??
+              available.find((device) => device.name === preferredDeviceName) ??
+              available.find((device) => device.state === "Booted") ??
+              available[0];
+            if (!preferred?.udid) process.exit(1);
+            process.stdout.write(preferred.udid);
+          '
+        )"
+        xcrun simctl shutdown all || true
+        xcrun simctl boot "$UDID" || true
+        xcrun simctl bootstatus "$UDID" -b
+      shell: bash

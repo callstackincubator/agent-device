@@ -26,15 +26,9 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Resolve agent-device home
-        id: android-agent-home
-        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
-
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+      - name: Setup Android replay host
+        id: android-replay-host
+        uses: ./.github/actions/setup-android-replay-host
 
       - name: Run Android smoke replay
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
@@ -48,13 +42,7 @@ jobs:
 
       - name: Upload Android artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: ./.github/actions/upload-agent-device-artifacts
         with:
-          name: android-artifacts
-          if-no-files-found: ignore
-          path: |
-            ${{ steps.android-agent-home.outputs.dir }}/daemon.log
-            ${{ steps.android-agent-home.outputs.dir }}/logs/**
-            ${{ steps.android-agent-home.outputs.dir }}/sessions/**
-            test/artifacts/**
-            test/screenshots/**
+          artifact-name: android-artifacts
+          agent-home-dir: ${{ steps.android-replay-host.outputs.agent-home-dir }}

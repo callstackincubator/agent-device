@@ -1,0 +1,22 @@
+name: "Setup Android Replay Host"
+description: "Prepare the Android CI host for replay tests and expose the agent-device home path"
+
+outputs:
+  agent-home-dir:
+    description: "Resolved agent-device home directory"
+    value: ${{ steps.agent-home.outputs.dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve agent-device home
+      id: agent-home
+      run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+      shell: bash

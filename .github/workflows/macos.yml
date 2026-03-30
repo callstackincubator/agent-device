@@ -29,34 +29,13 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Resolve Xcode cache key
-        id: xcode
-        run: |
-          set -euo pipefail
-          XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g; s/[[:space:]]$//')"
-          XCODE_KEY="$(echo "$XCODE_VERSION" | tr ' ' '-' | tr -cd '[:alnum:]._-')"
-          echo "key=$XCODE_KEY" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve prebuild source hash
-        id: source-hash
-        run: |
-          set -euo pipefail
-          echo "value=${{ hashFiles('ios-runner/**', 'package.json', 'pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
-
-      - name: Cache macOS runner prebuilt
-        id: restore-prebuilt
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.2.3
+      - name: Setup Apple replay
+        id: apple-replay
+        uses: ./.github/actions/setup-apple-replay
         with:
-          path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
-          key: macos-runner-prebuilt-${{ steps.xcode.outputs.key }}-${{ steps.source-hash.outputs.value }}
-
-      - name: Resolve agent-device home
-        id: macos-agent-home
-        run: echo "dir=$HOME/.agent-device" >> "$GITHUB_OUTPUT"
-
-      - name: Build macOS XCTest runner
-        if: steps.restore-prebuilt.outputs.cache-hit != 'true'
-        run: pnpm build:xcuitest:macos
+          derived-path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
+          cache-key-prefix: macos-runner-prebuilt
+          build-command: pnpm build:xcuitest:macos
 
       - name: Build macOS helper
         run: pnpm build:macos-helper
@@ -66,13 +45,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: ./.github/actions/upload-agent-device-artifacts
         with:
-          name: macos-artifacts
-          if-no-files-found: ignore
-          path: |
-            ${{ steps.macos-agent-home.outputs.dir }}/daemon.log
-            ${{ steps.macos-agent-home.outputs.dir }}/logs/**
-            ${{ steps.macos-agent-home.outputs.dir }}/sessions/**
-            test/artifacts/**
-            test/screenshots/**
+          artifact-name: macos-artifacts
+          agent-home-dir: ${{ steps.apple-replay.outputs.agent-home-dir }}
