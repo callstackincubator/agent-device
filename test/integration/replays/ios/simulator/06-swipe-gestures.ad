@@ -9,7 +9,7 @@ wait 500
 swipe 197 600 197 350 300
 wait 500
 
-find text "Accessibility" exists
+snapshot -i
 
 swipe 197 300 197 650 300
 wait 500
