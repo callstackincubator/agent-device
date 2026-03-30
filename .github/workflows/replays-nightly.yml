@@ -17,7 +17,6 @@ jobs:
     name: Android Replay Suite
     runs-on: ubuntu-latest
     timeout-minutes: 80
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -50,7 +49,6 @@ jobs:
     name: iOS Replay Suite
     runs-on: macos-26
     timeout-minutes: 80
-    continue-on-error: true
     env:
       IOS_RUNTIME_VERSION: "26.2"
       AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
@@ -102,7 +100,6 @@ jobs:
     name: macOS Replay Suite
     runs-on: macos-26
     timeout-minutes: 80
-    continue-on-error: true
     env:
       AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/macos-runner-derived
       AGENT_DEVICE_IOS_APP_LAUNCH_TIMEOUT_MS: "60000"
