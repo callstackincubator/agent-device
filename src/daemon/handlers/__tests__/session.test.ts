@@ -4118,6 +4118,53 @@ test('network dump returns recent parsed HTTP entries', async () => {
   }
 });
 
+test('network dump adds a targeted note when the session app log stream is inactive', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-network-inactive';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'failed',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    expect(response.data?.active).toBe(true);
+    expect(response.data?.state).toBe('failed');
+    expect(response.data?.notes).toContain(
+      'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
+    );
+  }
+});
+
 test('network dump supports macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-network';
