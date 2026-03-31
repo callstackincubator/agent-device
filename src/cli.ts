@@ -131,7 +131,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir);
       const sessionName = flags.session ?? 'default';
-      await maybeRunUpgradeNotifier({
+      maybeRunUpgradeNotifier({
         command,
         currentVersion: version,
         stateDir: daemonPaths.baseDir,

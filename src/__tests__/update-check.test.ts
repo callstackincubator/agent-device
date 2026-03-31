@@ -1,8 +1,14 @@
-import { afterEach, test } from 'vitest';
+import { afterEach, beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+vi.mock('../utils/exec.ts', () => ({
+  runCmdDetached: vi.fn(),
+}));
+
+import { runCmdDetached } from '../utils/exec.ts';
 import { maybeRunUpgradeNotifier, runUpdateCheckWorker } from '../utils/update-check.ts';
 
 function makeTempStateDir(): string {
@@ -23,33 +29,29 @@ function readCache(stateDir: string): Record<string, unknown> {
   >;
 }
 
-async function runNotifier(
-  options: Parameters<typeof maybeRunUpgradeNotifier>[0],
-  deps: Parameters<typeof maybeRunUpgradeNotifier>[1],
-): Promise<void> {
-  const previousNodeEnv = process.env.NODE_ENV;
-  const previousCi = process.env.CI;
-  const previousOptOut = process.env.AGENT_DEVICE_NO_UPDATE_NOTIFIER;
-
-  delete process.env.NODE_ENV;
-  delete process.env.CI;
-  delete process.env.AGENT_DEVICE_NO_UPDATE_NOTIFIER;
-
-  try {
-    await maybeRunUpgradeNotifier(options, deps);
-  } finally {
-    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = previousNodeEnv;
-    if (previousCi === undefined) delete process.env.CI;
-    else process.env.CI = previousCi;
-    if (previousOptOut === undefined) delete process.env.AGENT_DEVICE_NO_UPDATE_NOTIFIER;
-    else process.env.AGENT_DEVICE_NO_UPDATE_NOTIFIER = previousOptOut;
-  }
-}
-
 const cleanupPaths: string[] = [];
+const originalStderrIsTTY = process.stderr.isTTY;
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-03-31T10:00:00.000Z'));
+  vi.stubEnv('NODE_ENV', '');
+  vi.stubEnv('CI', '');
+  vi.stubEnv('AGENT_DEVICE_NO_UPDATE_NOTIFIER', '');
+  Object.defineProperty(process.stderr, 'isTTY', {
+    configurable: true,
+    value: true,
+  });
+});
 
 afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+  Object.defineProperty(process.stderr, 'isTTY', {
+    configurable: true,
+    value: originalStderrIsTTY,
+  });
   while (cleanupPaths.length > 0) {
     const next = cleanupPaths.pop();
     if (next) {
@@ -58,129 +60,106 @@ afterEach(() => {
   }
 });
 
-test('notifier prints cached upgrade notice once for a newly discovered version', async () => {
+test('notifier prints cached upgrade notice once for a newly discovered version', () => {
   const stateDir = makeTempStateDir();
   cleanupPaths.push(stateDir);
-  const now = Date.parse('2026-03-31T10:00:00.000Z');
   writeCache(stateDir, {
     latestVersion: '0.12.0',
     checkedAt: '2026-03-25T10:00:00.000Z',
   });
 
   let stderr = '';
-  let spawnCalls = 0;
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write);
 
-  await runNotifier(
-    {
-      command: 'devices',
-      currentVersion: '0.11.3',
-      stateDir,
-      flags: {},
-    },
-    {
-      now: () => now,
-      isTTY: () => true,
-      writeStderr: (message) => {
-        stderr += message;
-      },
-      spawnBackgroundCheck: () => {
-        spawnCalls += 1;
-      },
-    },
-  );
+  maybeRunUpgradeNotifier({
+    command: 'devices',
+    currentVersion: '0.11.3',
+    stateDir,
+    flags: {},
+  });
 
   assert.match(stderr, /Update available: agent-device 0\.11\.3 -> 0\.12\.0/);
-  assert.equal(spawnCalls, 0);
+  assert.equal(vi.mocked(runCmdDetached).mock.calls.length, 0);
   const cache = readCache(stateDir);
-  assert.equal(cache.promptVersion, '0.12.0');
-  assert.equal(cache.promptAt, '2026-03-31T10:00:00.000Z');
+  assert.equal(cache.prompted, true);
 });
 
-test('notifier skips repeat prompts inside the cooldown window for the same version', async () => {
+test('notifier skips repeat prompts after the cached version was already shown', () => {
   const stateDir = makeTempStateDir();
   cleanupPaths.push(stateDir);
   writeCache(stateDir, {
     latestVersion: '0.12.0',
     checkedAt: '2026-03-25T10:00:00.000Z',
-    promptAt: '2026-03-29T10:00:00.000Z',
-    promptVersion: '0.12.0',
+    prompted: true,
   });
 
   let stderr = '';
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write);
 
-  await runNotifier(
-    {
-      command: 'devices',
-      currentVersion: '0.11.3',
-      stateDir,
-      flags: {},
-    },
-    {
-      now: () => Date.parse('2026-03-31T10:00:00.000Z'),
-      isTTY: () => true,
-      writeStderr: (message) => {
-        stderr += message;
-      },
-      spawnBackgroundCheck: () => {
-        assert.fail('background check should not run for a fresh cache');
-      },
-    },
-  );
+  maybeRunUpgradeNotifier({
+    command: 'devices',
+    currentVersion: '0.11.3',
+    stateDir,
+    flags: {},
+  });
 
   assert.equal(stderr, '');
 });
 
-test('notifier starts a background check when the cache is stale', async () => {
+test('notifier starts a background check when the cache is stale', () => {
   const stateDir = makeTempStateDir();
   cleanupPaths.push(stateDir);
   writeCache(stateDir, {
     checkedAt: '2026-03-01T10:00:00.000Z',
   });
 
-  let spawnPayload: { cachePath: string; currentVersion: string } | undefined;
-
-  await runNotifier(
-    {
-      command: 'devices',
-      currentVersion: '0.11.3',
-      stateDir,
-      flags: {},
-    },
-    {
-      now: () => Date.parse('2026-03-31T10:00:00.000Z'),
-      isTTY: () => true,
-      spawnBackgroundCheck: (cachePath, currentVersion) => {
-        spawnPayload = { cachePath, currentVersion };
-      },
-    },
-  );
-
-  assert.deepEqual(spawnPayload, {
-    cachePath: path.join(stateDir, 'update-check.json'),
+  maybeRunUpgradeNotifier({
+    command: 'devices',
     currentVersion: '0.11.3',
+    stateDir,
+    flags: {},
   });
+
+  const spawnCall = vi.mocked(runCmdDetached).mock.calls[0];
+  assert.ok(spawnCall);
+  assert.equal(spawnCall[0], process.execPath);
+  assert.equal(spawnCall[1][0], '--experimental-strip-types');
+  assert.match(spawnCall[1][1] ?? '', /\/src\/utils\/update-check\.ts$/);
+  assert.equal(spawnCall[1][2], '--agent-device-run-update-check');
+  assert.equal(spawnCall[1][3], path.join(stateDir, 'update-check.json'));
+  assert.equal(spawnCall[1][4], '0.11.3');
 });
 
-test('worker resets prompt state when it discovers a newer version', async () => {
+test('worker resets prompted state when it discovers a newer version', async () => {
   const stateDir = makeTempStateDir();
   cleanupPaths.push(stateDir);
   const cachePath = path.join(stateDir, 'update-check.json');
   writeCache(stateDir, {
     latestVersion: '0.12.0',
     checkedAt: '2026-03-15T10:00:00.000Z',
-    promptAt: '2026-03-20T10:00:00.000Z',
-    promptVersion: '0.12.0',
+    prompted: true,
   });
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: '0.13.0' }),
+    }),
+  );
 
   await runUpdateCheckWorker({
     cachePath,
     currentVersion: '0.11.3',
-    now: () => Date.parse('2026-03-31T10:00:00.000Z'),
-    fetchLatestVersion: async () => '0.13.0',
   });
 
   const cache = readCache(stateDir);
   assert.equal(cache.latestVersion, '0.13.0');
-  assert.equal(cache.promptVersion, undefined);
-  assert.equal(cache.promptAt, undefined);
+  assert.equal(cache.prompted, false);
 });

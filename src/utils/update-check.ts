@@ -12,8 +12,7 @@ const UPDATE_CHECK_CACHE_FILE = 'update-check.json';
 type UpdateCheckCache = {
   checkedAt?: string;
   latestVersion?: string;
-  promptAt?: string;
-  promptVersion?: string;
+  prompted?: boolean;
 };
 
 export type UpgradeNotifierOptions = {
@@ -27,56 +26,40 @@ export type UpgradeNotifierOptions = {
   };
 };
 
-type UpgradeNotifierDeps = {
-  now?: () => number;
-  isTTY?: () => boolean;
-  spawnBackgroundCheck?: (cachePath: string, currentVersion: string) => void;
-  writeStderr?: (message: string) => void;
-};
-
 type UpdateCheckWorkerOptions = {
   cachePath: string;
   currentVersion: string;
-  now?: () => number;
-  fetchLatestVersion?: () => Promise<string | undefined>;
 };
 
-export async function maybeRunUpgradeNotifier(
-  options: UpgradeNotifierOptions,
-  deps: UpgradeNotifierDeps = {},
-): Promise<void> {
-  if (!shouldEnableUpgradeNotifier(options, deps)) return;
+export function maybeRunUpgradeNotifier(options: UpgradeNotifierOptions): void {
+  if (!shouldEnableUpgradeNotifier(options)) return;
 
-  const now = deps.now?.() ?? Date.now();
+  const now = Date.now();
   const cachePath = path.join(options.stateDir, UPDATE_CHECK_CACHE_FILE);
   const cache = readUpdateCheckCache(cachePath);
 
-  if (shouldShowUpgradeNotice(cache, options.currentVersion, now)) {
-    const writeStderr = deps.writeStderr ?? process.stderr.write.bind(process.stderr);
-    writeStderr(
+  if (shouldShowUpgradeNotice(cache, options.currentVersion)) {
+    process.stderr.write(
       `Update available: ${PACKAGE_NAME} ${options.currentVersion} -> ${cache.latestVersion}. ` +
         `Run \`npm install -g ${PACKAGE_NAME}@latest\` to upgrade the CLI and bundled skills.\n`,
     );
     writeUpdateCheckCache(cachePath, {
       ...cache,
-      promptAt: new Date(now).toISOString(),
-      promptVersion: cache.latestVersion,
+      prompted: true,
     });
   }
 
   if (shouldStartBackgroundCheck(cache, now)) {
-    const spawnBackgroundCheck = deps.spawnBackgroundCheck ?? spawnBackgroundUpdateCheck;
-    spawnBackgroundCheck(cachePath, options.currentVersion);
+    spawnBackgroundUpdateCheck(cachePath, options.currentVersion);
   }
 }
 
 export async function runUpdateCheckWorker(options: UpdateCheckWorkerOptions): Promise<void> {
-  const now = options.now?.() ?? Date.now();
+  const now = Date.now();
   const cache = readUpdateCheckCache(options.cachePath);
 
   try {
-    const latestVersion =
-      (await (options.fetchLatestVersion ?? fetchLatestPackageVersion)()) ?? undefined;
+    const latestVersion = (await fetchLatestPackageVersion()) ?? undefined;
     if (!latestVersion || compareVersions(latestVersion, options.currentVersion) <= 0) {
       writeUpdateCheckCache(options.cachePath, { checkedAt: new Date(now).toISOString() });
       return;
@@ -85,8 +68,7 @@ export async function runUpdateCheckWorker(options: UpdateCheckWorkerOptions): P
     writeUpdateCheckCache(options.cachePath, {
       checkedAt: new Date(now).toISOString(),
       latestVersion,
-      promptAt: cache.latestVersion === latestVersion ? cache.promptAt : undefined,
-      promptVersion: cache.latestVersion === latestVersion ? cache.promptVersion : undefined,
+      prompted: cache.latestVersion === latestVersion ? cache.prompted === true : false,
     });
   } catch {
     writeUpdateCheckCache(options.cachePath, {
@@ -96,31 +78,20 @@ export async function runUpdateCheckWorker(options: UpdateCheckWorkerOptions): P
   }
 }
 
-function shouldEnableUpgradeNotifier(
-  options: UpgradeNotifierOptions,
-  deps: Pick<UpgradeNotifierDeps, 'isTTY'>,
-): boolean {
+function shouldEnableUpgradeNotifier(options: UpgradeNotifierOptions): boolean {
   if (!options.command) return false;
   if (options.command === 'help' || options.command === 'test') return false;
   if (options.flags.help || options.flags.version || options.flags.json) return false;
   if (process.env.CI?.trim()) return false;
   if (process.env.NODE_ENV === 'test') return false;
   if (process.env.AGENT_DEVICE_NO_UPDATE_NOTIFIER?.trim()) return false;
-  const isTTY = deps.isTTY ? deps.isTTY() : Boolean(process.stderr.isTTY);
-  return isTTY;
+  return Boolean(process.stderr.isTTY);
 }
 
-function shouldShowUpgradeNotice(
-  cache: UpdateCheckCache,
-  currentVersion: string,
-  now: number,
-): boolean {
+function shouldShowUpgradeNotice(cache: UpdateCheckCache, currentVersion: string): boolean {
   if (!cache.latestVersion) return false;
   if (compareVersions(cache.latestVersion, currentVersion) <= 0) return false;
-  if (cache.promptVersion !== cache.latestVersion) return true;
-
-  const promptAt = parseTimestamp(cache.promptAt);
-  return promptAt === undefined || now - promptAt >= UPDATE_CHECK_INTERVAL_MS;
+  return cache.prompted !== true;
 }
 
 function shouldStartBackgroundCheck(cache: UpdateCheckCache, now: number): boolean {
@@ -134,8 +105,7 @@ function readUpdateCheckCache(cachePath: string): UpdateCheckCache {
     return {
       checkedAt: typeof raw.checkedAt === 'string' ? raw.checkedAt : undefined,
       latestVersion: typeof raw.latestVersion === 'string' ? raw.latestVersion : undefined,
-      promptAt: typeof raw.promptAt === 'string' ? raw.promptAt : undefined,
-      promptVersion: typeof raw.promptVersion === 'string' ? raw.promptVersion : undefined,
+      prompted: raw.prompted === true,
     };
   } catch {
     return {};
