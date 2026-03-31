@@ -6,7 +6,7 @@ import {
   printHumanError,
   printJson,
 } from './utils/output.ts';
-import { readVersion } from './utils/version.ts';
+import { readPackageMetadata } from './utils/version.ts';
 import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
@@ -27,6 +27,7 @@ import {
 import { resolveDaemonPaths } from './daemon/config.ts';
 import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
 import { resolveCliOptions } from './utils/cli-options.ts';
+import { maybeRunUpgradeNotifier } from './utils/update-check.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -38,6 +39,7 @@ const DEFAULT_CLI_DEPS: CliDeps = {
 
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
+  const packageMetadata = readPackageMetadata();
   const debugEnabled =
     argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
   const jsonRequested = argv.includes('--json');
@@ -82,7 +84,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       if (parsed.flags.version) {
-        process.stdout.write(`${readVersion()}\n`);
+        process.stdout.write(`${packageMetadata.version}\n`);
         process.exit(0);
       }
 
@@ -129,6 +131,14 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir);
       const sessionName = flags.session ?? 'default';
+      await maybeRunUpgradeNotifier({
+        command,
+        packageName: packageMetadata.name,
+        currentVersion: packageMetadata.version,
+        stateDir: daemonPaths.baseDir,
+        flags,
+        env: process.env,
+      });
       const remoteDaemonBaseUrl = flags.daemonBaseUrl;
       const logTailStopper =
         flags.verbose && !flags.json && !remoteDaemonBaseUrl

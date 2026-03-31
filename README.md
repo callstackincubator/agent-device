@@ -74,6 +74,10 @@ For agents:
 npm install -g agent-device
 ```
 
+`agent-device` now performs a lightweight background upgrade check for interactive CLI runs and, when a newer package is available, suggests a global reinstall command. Updating the package also refreshes the bundled `skills/` shipped with the CLI.
+
+Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
+
 On macOS, `agent-device` includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and helper-backed desktop snapshot surfaces. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build.
 
 ## Contributing
