@@ -81,3 +81,13 @@ test('asAppError wraps unknown errors', () => {
   assert.equal(err.code, 'UNKNOWN');
   assert.equal(err.message, 'unexpected');
 });
+
+test('normalizeError provides app discovery guidance for app-not-installed errors', () => {
+  const normalized = normalizeError(
+    new AppError('APP_NOT_INSTALLED', 'No package found matching "chat"'),
+  );
+  assert.match(
+    normalized.hint ?? '',
+    /Run apps to discover the exact installed package or bundle id/i,
+  );
+});
