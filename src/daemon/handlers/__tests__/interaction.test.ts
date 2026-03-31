@@ -22,6 +22,7 @@ vi.mock('../../../platforms/android/index.ts', async (importOriginal) => {
   return {
     ...actual,
     getAndroidScreenSize: vi.fn(async () => ({ width: 1344, height: 2992 })),
+    getAndroidAppState: vi.fn(async () => ({})),
   };
 });
 
@@ -38,9 +39,10 @@ vi.mock('../interaction-snapshot.ts', async (importOriginal) => {
 });
 
 import { dispatchCommand } from '../../../core/dispatch.ts';
-import { getAndroidScreenSize } from '../../../platforms/android/index.ts';
+import { getAndroidAppState, getAndroidScreenSize } from '../../../platforms/android/index.ts';
 import { captureSnapshotForSession } from '../interaction-snapshot.ts';
 const mockDispatch = vi.mocked(dispatchCommand);
+const mockGetAndroidAppState = vi.mocked(getAndroidAppState);
 const mockGetAndroidScreenSize = vi.mocked(getAndroidScreenSize);
 const mockCaptureSnapshotForSession = vi.mocked(captureSnapshotForSession);
 
@@ -165,6 +167,8 @@ const contextFromFlags = (flags: CommandFlags | undefined) => ({
 beforeEach(() => {
   mockDispatch.mockReset();
   mockDispatch.mockResolvedValue({});
+  mockGetAndroidAppState.mockReset();
+  mockGetAndroidAppState.mockResolvedValue({});
   mockGetAndroidScreenSize.mockReset();
   mockGetAndroidScreenSize.mockResolvedValue({ width: 1344, height: 2992 });
   mockCaptureSnapshotForSession.mockReset();
@@ -794,6 +798,97 @@ test('press @ref resolves snapshot node and records press action', async () => {
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   expect(result.ref).toBe('e1');
   expect(Array.isArray(result.selectorChain)).toBe(true);
+});
+
+test('press @ref fails when Android tap escapes to launcher', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-escape';
+  const session = makeAndroidSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.Button',
+        label: 'Pay',
+        rect: { x: 16, y: 40, width: 120, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({ pressed: true });
+  mockGetAndroidAppState.mockResolvedValue({
+    package: 'com.google.android.apps.nexuslauncher',
+    activity: 'Launcher',
+  });
+
+  await expect(
+    handleInteractionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'press',
+        positionals: ['@e1'],
+        flags: {},
+      },
+      sessionName,
+      sessionStore,
+      contextFromFlags,
+    }),
+  ).rejects.toMatchObject({
+    code: 'COMMAND_FAILED',
+    message: expect.stringContaining('tap likely escaped the app'),
+  });
+});
+
+test('press @ref fails when Android tap escapes to Settings', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-settings-escape';
+  const session = makeAndroidSession(sessionName);
+  session.appBundleId = 'com.expensify.chat.dev';
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.Button',
+        label: 'Open Adam',
+        rect: { x: 16, y: 40, width: 120, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({ pressed: true });
+  mockGetAndroidAppState.mockResolvedValue({
+    package: 'com.android.settings',
+    activity: 'Settings',
+  });
+
+  await expect(
+    handleInteractionCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'press',
+        positionals: ['@e1'],
+        flags: {},
+      },
+      sessionName,
+      sessionStore,
+      contextFromFlags,
+    }),
+  ).rejects.toMatchObject({
+    code: 'COMMAND_FAILED',
+    message: expect.stringContaining('foregrounded com.android.settings'),
+  });
 });
 
 test('press @ref promotes a non-hittable node to its hittable ancestor before tapping', async () => {

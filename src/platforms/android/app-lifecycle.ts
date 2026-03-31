@@ -16,6 +16,10 @@ const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
 const ANDROID_LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER';
 const ANDROID_LEANBACK_CATEGORY = 'android.intent.category.LEANBACK_LAUNCHER';
 const ANDROID_DEFAULT_CATEGORY = 'android.intent.category.DEFAULT';
+const ANDROID_APPS_DISCOVERY_HINT =
+  'Run agent-device apps --platform android to discover the installed package name, then retry open with that exact package.';
+const ANDROID_AMBIGUOUS_APP_HINT =
+  'Run agent-device apps --platform android to see the exact installed package names before retrying open.';
 
 export async function resolveAndroidApp(
   device: DeviceInfo,
@@ -41,10 +45,15 @@ export async function resolveAndroidApp(
   }
 
   if (matches.length > 1) {
-    throw new AppError('INVALID_ARGS', `Multiple packages matched "${app}"`, { matches });
+    throw new AppError('INVALID_ARGS', `Multiple packages matched "${app}"`, {
+      matches,
+      hint: ANDROID_AMBIGUOUS_APP_HINT,
+    });
   }
 
-  throw new AppError('APP_NOT_INSTALLED', `No package found matching "${app}"`);
+  throw new AppError('APP_NOT_INSTALLED', `No package found matching "${app}"`, {
+    hint: ANDROID_APPS_DISCOVERY_HINT,
+  });
 }
 
 export async function listAndroidApps(
@@ -249,23 +258,28 @@ export async function openAndroidApp(
     const component = activity.includes('/')
       ? activity
       : `${resolved.value}/${activity.startsWith('.') ? activity : `.${activity}`}`;
-    await runCmd(
-      'adb',
-      adbArgs(device, [
-        'shell',
-        'am',
-        'start',
-        '-W',
-        '-a',
-        'android.intent.action.MAIN',
-        '-c',
-        ANDROID_DEFAULT_CATEGORY,
-        '-c',
-        launchCategory,
-        '-n',
-        component,
-      ]),
-    );
+    try {
+      await runCmd(
+        'adb',
+        adbArgs(device, [
+          'shell',
+          'am',
+          'start',
+          '-W',
+          '-a',
+          'android.intent.action.MAIN',
+          '-c',
+          ANDROID_DEFAULT_CATEGORY,
+          '-c',
+          launchCategory,
+          '-n',
+          component,
+        ]),
+      );
+    } catch (error) {
+      await maybeRethrowAndroidMissingPackageError(device, resolved.value, error);
+      throw error;
+    }
     return;
   }
   const primaryResult = await runCmd(
@@ -291,6 +305,9 @@ export async function openAndroidApp(
   }
   const component = await resolveAndroidLaunchComponent(device, resolved.value);
   if (!component) {
+    if (!(await isAndroidPackageInstalled(device, resolved.value))) {
+      throw buildAndroidPackageNotInstalledError(resolved.value);
+    }
     throw new AppError('COMMAND_FAILED', `Failed to launch ${resolved.value}`, {
       stdout: primaryResult.stdout,
       stderr: primaryResult.stderr,
@@ -312,6 +329,56 @@ export async function openAndroidApp(
       '-n',
       component,
     ]),
+  );
+}
+
+function buildAndroidPackageNotInstalledError(packageName: string): AppError {
+  return new AppError('APP_NOT_INSTALLED', `No package found matching "${packageName}"`, {
+    package: packageName,
+    hint: ANDROID_APPS_DISCOVERY_HINT,
+  });
+}
+
+async function isAndroidPackageInstalled(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<boolean> {
+  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'path', packageName]), {
+    allowFailure: true,
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  if (result.exitCode === 0 && /\bpackage:/i.test(output)) {
+    return true;
+  }
+  if (looksLikeMissingAndroidPackageOutput(output)) {
+    return false;
+  }
+  return false;
+}
+
+async function maybeRethrowAndroidMissingPackageError(
+  device: DeviceInfo,
+  packageName: string,
+  error: unknown,
+): Promise<void> {
+  const output =
+    error instanceof AppError
+      ? `${String(error.details?.stdout ?? '')}\n${String(error.details?.stderr ?? '')}`
+      : '';
+  if (looksLikeMissingAndroidPackageOutput(output)) {
+    throw buildAndroidPackageNotInstalledError(packageName);
+  }
+  if (!(await isAndroidPackageInstalled(device, packageName))) {
+    throw buildAndroidPackageNotInstalledError(packageName);
+  }
+}
+
+function looksLikeMissingAndroidPackageOutput(output: string): boolean {
+  return (
+    /\bunknown package\b/i.test(output) ||
+    /\bpackage .* (?:was|is) not found\b/i.test(output) ||
+    /\bpackage .* does not exist\b/i.test(output) ||
+    /\bcould not find package\b/i.test(output)
   );
 }
 

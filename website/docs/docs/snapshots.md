@@ -32,6 +32,8 @@ It does not automatically switch to AX.
 - Default to `snapshot -i` for agent loops.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
 - Add `-d <depth>` when you only need upper hierarchy layers.
+- If `snapshot -i` returns 0 nodes on Android but the screen is visibly populated, trust `screenshot` as visual truth, wait briefly, then take one fresh `snapshot -i`.
+- If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry once without `-d` before taking more shallow snapshots.
 - Re-snapshot after any UI mutation before reusing refs.
 - On Android after navigation or submit, if `snapshot -i` disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.

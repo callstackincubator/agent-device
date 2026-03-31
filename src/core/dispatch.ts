@@ -387,7 +387,7 @@ export async function dispatchCommand(
               'INVALID_ARGS',
               `type does not accept a target ref like "${mistargetedRef}"`,
               {
-                hint: `Use fill ${mistargetedRef} "text" to replace text, or press ${mistargetedRef} then type "text" to append.`,
+                hint: `Use fill ${mistargetedRef} "text" to target that field, or press ${mistargetedRef} then type "text" to append.`,
               },
             );
           }
@@ -721,6 +721,7 @@ export async function dispatchCommand(
             nodes: androidResult.nodes ?? [],
             truncated: androidResult.truncated ?? false,
             backend: 'android',
+            analysis: androidResult.analysis,
           };
         }
         case 'read': {
@@ -774,6 +775,18 @@ export async function dispatchCommand(
   );
 }
 
+function findMistargetedTypeRef(positionals: string[]): string | null {
+  const first = positionals[0]?.trim();
+  if (!first || !first.startsWith('@') || first.length < 3) {
+    return null;
+  }
+  const body = first.slice(1);
+  if (/^[A-Za-z_-]*\d[\w-]*$/i.test(body) || /^(?:ref|node|element|el)[\w-]*$/i.test(body)) {
+    return first;
+  }
+  return null;
+}
+
 function formatPressMessage(params: {
   x: number;
   y: number;
@@ -792,12 +805,6 @@ function formatSwipeMessage(count: number, pattern: 'one-way' | 'ping-pong'): st
 
 function formatTextLengthMessage(action: 'Typed' | 'Filled', text: string): string {
   return `${action} ${Array.from(text).length} chars`;
-}
-
-function findMistargetedTypeRef(positionals: string[]): string | null {
-  const first = positionals[0]?.trim();
-  if (!first || !/^@e\d+$/i.test(first)) return null;
-  return first;
 }
 
 function readResultMessage(result: Record<string, unknown>): string | undefined {

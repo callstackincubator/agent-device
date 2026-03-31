@@ -87,6 +87,8 @@ agent-device close
 - Use `snapshot -i` when you need refs such as `@e3` for interactive exploration or for an intended interaction.
 - Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
+- If `snapshot -i` returns 0 nodes but the screen is visibly populated, treat `screenshot` as visual truth, wait briefly, then re-run `snapshot -i` once before escalating.
+- If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry without `-d` instead of taking more shallow snapshots.
 
 Example:
 
@@ -209,6 +211,7 @@ Avoid this escalation path for visible-text questions:
 
 - Do not jump from `snapshot -i` to `get text @ref`, then to web search, then to typing into a search box just to force the app to reveal the answer.
 - Start with `snapshot`. If the text is not visible or exposed, report that directly.
+- After Android submit or navigation-heavy actions, prefer this recovery order when the UI looks wrong: `screenshot`, short `wait`, one fresh `snapshot -i`.
 
 Canonical QA loop:
 
@@ -291,6 +294,20 @@ Response handling:
 - Human-mode `batch` runs also print a short per-step success summary.
 - Failed runs include `details.step`, `details.command`, `details.executed`, and `details.partialResults`.
 - Replan from the first failing step instead of rerunning the whole flow blindly.
+
+Canonical batch recipe: open app -> open action menu -> choose option -> verify
+
+```json
+[
+  { "command": "open", "positionals": ["com.example.app"], "flags": { "platform": "android" } },
+  { "command": "wait", "positionals": ["text", "Home", "3000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"More actions\" role=button"], "flags": {} },
+  { "command": "wait", "positionals": ["text", "Camera scan", "2000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Camera scan\""], "flags": {} },
+  { "command": "wait", "positionals": ["text", "Expense created", "15000"], "flags": {} },
+  { "command": "is", "positionals": ["visible", "label=\"Expense created\""], "flags": {} }
+]
+```
 
 Common batch error categories:
 

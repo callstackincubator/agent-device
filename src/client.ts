@@ -220,6 +220,9 @@ export function createAgentDeviceClient(
           truncated: data.truncated === true,
           appName: readOptionalString(data, 'appName'),
           appBundleId,
+          warnings: Array.isArray(data.warnings)
+            ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
+            : undefined,
           identifiers: {
             session,
             appId: appBundleId,

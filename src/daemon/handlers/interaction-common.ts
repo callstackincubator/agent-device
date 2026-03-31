@@ -68,6 +68,7 @@ export async function dispatchRecordedTouchInteraction(params: {
   interactionCommand: string;
   interactionPositionals: string[];
   outPath: string | undefined;
+  afterDispatch?: (data: Record<string, unknown> | undefined) => void | Promise<void>;
   buildPayloads: (data: Record<string, unknown> | undefined) =>
     | {
         result: Record<string, unknown>;
@@ -88,6 +89,7 @@ export async function dispatchRecordedTouchInteraction(params: {
     interactionCommand,
     interactionPositionals,
     outPath,
+    afterDispatch,
     buildPayloads,
   } = params;
   const interaction = await dispatchInteractionCommand({
@@ -98,6 +100,7 @@ export async function dispatchRecordedTouchInteraction(params: {
     positionals: interactionPositionals,
     outPath,
   });
+  await afterDispatch?.(interaction.data);
   const { result, responseData = result } = await buildPayloads(interaction.data);
   return finalizeTouchInteraction({
     session,

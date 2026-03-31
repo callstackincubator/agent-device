@@ -144,14 +144,62 @@ export async function fillAndroid(
     } else {
       await typeAndroidChunked(device, text, 1, delayMs > 0 ? delayMs : 15);
     }
-    lastActual = await readAndroidTextAtPoint(device, x, y);
-    if (lastActual === text) return;
+    const verification = await verifyAndroidFilledText(device, x, y, text);
+    lastActual = verification.actual;
+    if (verification.ok) return;
   }
 
   throw new AppError('COMMAND_FAILED', 'Android fill verification failed', {
     expected: text,
     actual: lastActual ?? null,
   });
+}
+
+async function verifyAndroidFilledText(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  expected: string,
+): Promise<{ ok: boolean; actual: string | null }> {
+  const verificationDelaysMs = [0, 150, 350];
+  let lastActual: string | null = null;
+
+  for (const delayMs of verificationDelaysMs) {
+    if (delayMs > 0) {
+      await sleep(delayMs);
+    }
+    lastActual = await readAndroidTextAtPoint(device, x, y);
+    if (isAcceptableAndroidFillMatch(lastActual, expected)) {
+      return { ok: true, actual: lastActual };
+    }
+  }
+
+  return { ok: false, actual: lastActual };
+}
+
+function isAcceptableAndroidFillMatch(actual: string | null, expected: string): boolean {
+  if (actual === expected) {
+    return true;
+  }
+  const normalizedActual = normalizeFillVerificationText(actual);
+  const normalizedExpected = normalizeFillVerificationText(expected);
+  if (!normalizedActual || !normalizedExpected) {
+    return false;
+  }
+  if (normalizedActual === normalizedExpected) {
+    return true;
+  }
+  if (normalizedActual.includes(normalizedExpected)) {
+    return true;
+  }
+  return (
+    normalizedExpected.includes(normalizedActual) &&
+    normalizedActual.length >= Math.max(4, Math.floor(normalizedExpected.length * 0.8))
+  );
+}
+
+function normalizeFillVerificationText(value: string | null): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 export async function scrollAndroid(

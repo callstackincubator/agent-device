@@ -1,5 +1,10 @@
 import type { RawSnapshotNode, Rect, SnapshotOptions } from '../../utils/snapshot.ts';
 
+export type AndroidSnapshotAnalysis = {
+  rawNodeCount: number;
+  maxDepth: number;
+};
+
 export function findBounds(xml: string, query: string): { x: number; y: number } | null {
   const q = query.toLowerCase();
   const nodeRegex = /<node[^>]+>/g;
@@ -28,8 +33,9 @@ export function parseUiHierarchy(
   xml: string,
   maxNodes: number,
   options: SnapshotOptions,
-): { nodes: RawSnapshotNode[]; truncated?: boolean } {
+): { nodes: RawSnapshotNode[]; truncated?: boolean; analysis: AndroidSnapshotAnalysis } {
   const tree = parseUiHierarchyTree(xml);
+  const analysis = analyzeAndroidTree(tree);
   const nodes: RawSnapshotNode[] = [];
   let truncated = false;
   const maxDepth = options.depth ?? Number.POSITIVE_INFINITY;
@@ -101,7 +107,7 @@ export function parseUiHierarchy(
     if (truncated) break;
   }
 
-  return truncated ? { nodes, truncated } : { nodes };
+  return truncated ? { nodes, truncated, analysis } : { nodes, analysis };
 }
 
 export function readNodeAttributes(node: string): {
@@ -309,4 +315,17 @@ function findScopeNode(root: AndroidNode, scope: string): AndroidNode | null {
     stack.push(...node.children);
   }
   return null;
+}
+
+function analyzeAndroidTree(root: AndroidNode): AndroidSnapshotAnalysis {
+  let rawNodeCount = 0;
+  let maxDepth = 0;
+  const stack = [...root.children];
+  while (stack.length > 0) {
+    const node = stack.pop() as AndroidNode;
+    rawNodeCount += 1;
+    maxDepth = Math.max(maxDepth, node.depth);
+    stack.push(...node.children);
+  }
+  return { rawNodeCount, maxDepth };
 }
