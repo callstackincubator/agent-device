@@ -110,7 +110,7 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
   assert.equal(pixels, 120);
 });
 
-test('ios fill preserves target coordinates for the follow-up type command', async () => {
+test('ios fill clears the focused field after tapping the target coordinates', async () => {
   const commands: RunnerCommand[] = [];
   mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
     commands.push(command);
@@ -124,8 +124,6 @@ test('ios fill preserves target coordinates for the follow-up type command', asy
     { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.app' },
     {
       command: 'type',
-      x: 120,
-      y: 240,
       text: 'hunter2',
       clearFirst: true,
       delayMs: undefined,
