@@ -180,7 +180,7 @@ agent-device close
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
+agent-device snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device diff snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
@@ -188,6 +188,7 @@ agent-device get attrs @e1
 
 - iOS snapshots use XCTest on simulators and physical devices.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
+- `snapshot --diff` is an alias for `diff snapshot`.
 
 ## Wait and alerts
 
@@ -538,15 +539,17 @@ agent-device logs clear --restart       # Stop stream, clear log files, and star
 agent-device logs doctor                # Show logs backend/tool checks and readiness hints
 agent-device logs mark "before submit"  # Insert timeline marker into app.log
 agent-device network dump 25            # Parse recent HTTP(s) requests (method/url/status) from session app log
-agent-device network dump 25 all        # Include parsed headers/body when available (truncated)
+agent-device network dump 25 --include all # Include parsed headers/body when available (truncated)
 ```
 
 - Supported on iOS simulator, iOS physical device, and Android.
 - Preferred debug entrypoint: `logs clear --restart` for clean-window repro loops.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from `app.log`; `network log ...` is an alias.
+- Prefer `--include headers|body|all` when you want explicit detail level without relying on positional ordering.
 - On macOS, `logs` and `network dump` are app-scoped and parse Unified Logging output associated with the active session app.
 - Network dump limits: scans up to 4000 recent log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
+- Android `network dump` also surfaces logcat timestamps and can backfill status and duration from adjacent GIBSDK packet lines when the URL is logged separately.
 - Android log streaming automatically rebinds to the app PID after process restarts.
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.

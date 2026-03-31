@@ -21,7 +21,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
+- iOS core runner commands: `snapshot`, `snapshot --diff`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
@@ -470,7 +470,7 @@ agent-device close
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
+agent-device snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device diff snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
@@ -478,6 +478,7 @@ agent-device get attrs @e1
 
 - iOS snapshots use XCTest on simulators and physical devices.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
+- `snapshot --diff` is an alias for `diff snapshot`.
 
 ## Wait and alerts
 
@@ -828,15 +829,17 @@ agent-device logs clear --restart       # Stop stream, clear log files, and star
 agent-device logs doctor                # Show logs backend/tool checks and readiness hints
 agent-device logs mark "before submit"  # Insert timeline marker into app.log
 agent-device network dump 25            # Parse recent HTTP(s) requests (method/url/status) from session app log
-agent-device network dump 25 all        # Include parsed headers/body when available (truncated)
+agent-device network dump 25 --include all # Include parsed headers/body when available (truncated)
 ```
 
 - Supported on iOS simulator, iOS physical device, and Android.
 - Preferred debug entrypoint: `logs clear --restart` for clean-window repro loops.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from `app.log`; `network log ...` is an alias.
+- Prefer `--include headers|body|all` when you want explicit detail level without relying on positional ordering.
 - On macOS, `logs` and `network dump` are app-scoped and parse Unified Logging output associated with the active session app.
 - Network dump limits: scans up to 4000 recent log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
+- Android `network dump` also surfaces logcat timestamps and can backfill status and duration from adjacent GIBSDK packet lines when the URL is logged separately.
 - Android log streaming automatically rebinds to the app PID after process restarts.
 - iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
@@ -1163,6 +1166,8 @@ agent-device snapshot -i
 
 # 5. Optional: see structural changes since last baseline
 agent-device diff snapshot
+# or, from snapshot-focused help/examples:
+agent-device snapshot --diff
 ```
 
 Boot target if there is no ready device/simulator:
@@ -1180,7 +1185,7 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ```bash
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
-agent-device diff snapshot               # First run initializes baseline; next runs show structural deltas
+agent-device diff snapshot               # Preferred exploration form for structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
 agent-device fill @e3 "search" --delay-ms 80 # Pace typing for debounced search fields
@@ -1494,7 +1499,8 @@ agent-device snapshot -c                 # Compact (remove empty elements)
 agent-device snapshot -d 3               # Limit depth to 3 levels
 agent-device snapshot -s "Contacts"      # Scope to label/identifier
 agent-device snapshot -i -c -d 5         # Combine options
-agent-device diff snapshot               # Structural diff vs previous session baseline
+agent-device diff snapshot               # Preferred structural diff vs previous session baseline
+agent-device snapshot --diff             # Alias for the same diff operation
 ```
 
 | Option       | Description               |
@@ -1514,9 +1520,10 @@ It does not automatically switch to AX.
 - Add `-d <depth>` when you only need upper hierarchy layers.
 - Re-snapshot after any UI mutation before reusing refs.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
+- Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only.
 
-`diff snapshot` behavior:
+`diff snapshot` and `snapshot --diff` behavior:
 
 - First run initializes baseline (`baselineInitialized: true` in JSON).
 - Later runs return unified-style lines (`+` added, `-` removed, unchanged context) and update baseline after each call.

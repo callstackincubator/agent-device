@@ -9,7 +9,8 @@ agent-device snapshot -c                 # Compact (remove empty elements)
 agent-device snapshot -d 3               # Limit depth to 3 levels
 agent-device snapshot -s "Contacts"      # Scope to label/identifier
 agent-device snapshot -i -c -d 5         # Combine options
-agent-device diff snapshot               # Structural diff vs previous session baseline
+agent-device diff snapshot               # Preferred structural diff vs previous session baseline
+agent-device snapshot --diff             # Alias for the same diff operation
 ```
 
 | Option       | Description               |
@@ -29,9 +30,10 @@ It does not automatically switch to AX.
 - Add `-d <depth>` when you only need upper hierarchy layers.
 - Re-snapshot after any UI mutation before reusing refs.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
+- Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only.
 
-`diff snapshot` behavior:
+`diff snapshot` and `snapshot --diff` behavior:
 
 - First run initializes baseline (`baselineInitialized: true` in JSON).
 - Later runs return unified-style lines (`+` added, `-` removed, unchanged context) and update baseline after each call.
