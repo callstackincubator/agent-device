@@ -27,6 +27,7 @@ import {
 import { resolveDaemonPaths } from './daemon/config.ts';
 import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
 import { resolveCliOptions } from './utils/cli-options.ts';
+import { findXctestrun, resolveRunnerDerivedRoot } from './platforms/ios/runner-xctestrun.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -35,6 +36,31 @@ type CliDeps = {
 const DEFAULT_CLI_DEPS: CliDeps = {
   sendToDaemon,
 };
+
+const APPLE_RUNNER_BACKED_COMMANDS = new Set([
+  'alert',
+  'back',
+  'click',
+  'fill',
+  'find',
+  'get',
+  'home',
+  'is',
+  'keyboard',
+  'longpress',
+  'press',
+  'record',
+  'scroll',
+  'scrollintoview',
+  'snapshot',
+  'trace',
+  'type',
+  'wait',
+]);
+const APPLE_RUNNER_BUILD_NOTICE =
+  'Preparing iOS automation runner (XCTest build). This can take 10-30s on first run...';
+const APPLE_RUNNER_RESTART_NOTICE =
+  'Restarting iOS automation runner (XCTest). This can take 10-30s while the runner reconnects...';
 
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
@@ -223,6 +249,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             'runtime command was removed. Use open --remote-config <path> --relaunch for remote Metro launches, or metro prepare --remote-config <path> for inspection.',
           );
         }
+
+        await maybeAnnounceAppleRunnerStartup({
+          command,
+          flags,
+          daemonFlags,
+          sessionName,
+          requestId,
+          debug: Boolean(flags.verbose),
+          remoteDaemonBaseUrl,
+          sendToDaemon: deps.sendToDaemon,
+        });
 
         if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
           if (logTailStopper) logTailStopper();
@@ -632,6 +669,82 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
     },
   );
+}
+
+async function maybeAnnounceAppleRunnerStartup(params: {
+  command: string;
+  flags: ReturnType<typeof resolveCliOptions>['flags'];
+  daemonFlags: Record<string, unknown>;
+  sessionName: string;
+  requestId: string;
+  debug: boolean;
+  remoteDaemonBaseUrl?: string;
+  sendToDaemon: typeof sendToDaemon;
+}): Promise<void> {
+  const { command, flags, daemonFlags, sessionName, requestId, debug, remoteDaemonBaseUrl } =
+    params;
+  if (flags.json || remoteDaemonBaseUrl || !APPLE_RUNNER_BACKED_COMMANDS.has(command)) {
+    return;
+  }
+
+  const platform = await resolveAppleRunnerNoticePlatform({
+    flags,
+    daemonFlags,
+    sessionName,
+    requestId,
+    debug,
+    sendToDaemon: params.sendToDaemon,
+  });
+  if (platform !== 'ios' && platform !== 'macos') {
+    return;
+  }
+
+  const notice =
+    findXctestrun(resolveRunnerDerivedRoot()) === null
+      ? APPLE_RUNNER_BUILD_NOTICE
+      : APPLE_RUNNER_RESTART_NOTICE;
+  process.stdout.write(`${notice}\n`);
+}
+
+async function resolveAppleRunnerNoticePlatform(params: {
+  flags: ReturnType<typeof resolveCliOptions>['flags'];
+  daemonFlags: Record<string, unknown>;
+  sessionName: string;
+  requestId: string;
+  debug: boolean;
+  sendToDaemon: typeof sendToDaemon;
+}): Promise<string | null> {
+  const explicitPlatform = params.flags.platform;
+  if (typeof explicitPlatform === 'string' && explicitPlatform.length > 0) {
+    return explicitPlatform;
+  }
+
+  try {
+    const response = await params.sendToDaemon({
+      session: params.sessionName,
+      command: 'session_list',
+      positionals: [],
+      flags: params.daemonFlags as any,
+      meta: {
+        requestId: `${params.requestId}:runner-preflight`,
+        debug: params.debug,
+        cwd: process.cwd(),
+      },
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const sessions = Array.isArray((response.data as Record<string, unknown> | undefined)?.sessions)
+      ? (((response.data as Record<string, unknown>).sessions as unknown[]) ?? [])
+      : [];
+    const matchingSession = sessions.find((entry) => {
+      if (!entry || typeof entry !== 'object') return false;
+      return (entry as { name?: unknown }).name === params.sessionName;
+    }) as { platform?: unknown } | undefined;
+    return typeof matchingSession?.platform === 'string' ? matchingSession.platform : null;
+  } catch {
+    return null;
+  }
 }
 
 function renderBatchSummary(data: Record<string, unknown>): void {
