@@ -8,6 +8,7 @@ Open this file when the task needs evidence, regression checks, replay maintenan
 
 - `screenshot`
 - `diff snapshot`
+- `snapshot --diff`
 - `record`
 - `replay -u`
 - `perf`
@@ -39,6 +40,7 @@ agent-device diff snapshot -i
 - Initialize the baseline at a stable point.
 - Perform the mutation.
 - Run `diff snapshot` to confirm the expected structural change.
+- `snapshot --diff` is the same diff operation and is useful when you start from `snapshot --help`, but keep `diff snapshot` as the default mental model for exploration.
 - Re-run full `snapshot` only when you need fresh refs.
 
 ## Visual artifacts

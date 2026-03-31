@@ -24,6 +24,8 @@ agent-device snapshot -i
 
 # 5. Optional: see structural changes since last baseline
 agent-device diff snapshot
+# or, from snapshot-focused help/examples:
+agent-device snapshot --diff
 ```
 
 Boot target if there is no ready device/simulator:
@@ -41,7 +43,8 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ```bash
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
-agent-device diff snapshot               # First run initializes baseline; next runs show structural deltas
+agent-device diff snapshot               # Preferred exploration form for structural deltas
+agent-device snapshot --diff             # Alias for the same diff operation
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
 agent-device fill @e3 "search" --delay-ms 80 # Pace typing for debounced search fields

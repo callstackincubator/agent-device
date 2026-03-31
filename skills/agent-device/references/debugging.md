@@ -22,7 +22,7 @@ Do not leave logging on for normal flows or dump full log files into context. Ke
 ```bash
 agent-device open MyApp --platform ios
 agent-device logs clear --restart
-agent-device network dump 25
+agent-device network dump 25 --include summary
 agent-device logs path
 agent-device close
 ```
@@ -34,8 +34,10 @@ Logging is off by default. Enable it only when you need a debugging window.
 - Default app logs live under `~/.agent-device/sessions/<session>/app.log`.
 - `logs clear --restart` is the fastest clean repro loop.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from the same session app log.
+- Prefer the explicit flag form `network dump 25 --include headers|body|all` when you need more than the default summary view.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
 - `logs mark "before tap"` inserts a timestamped marker into the app log.
+- Android `network dump` surfaces timestamps from logcat-style prefixes and can backfill status and request/response duration from adjacent GIBSDK packet lines, so check it before dumping raw log windows.
 - Session app logs can contain runtime data, headers, or payload fragments. Review them before sharing.
 - `logs start` requires an active app session and appends to `app.log`.
 - `logs stop` stops streaming. `close` also stops logging.

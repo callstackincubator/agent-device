@@ -464,7 +464,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
                 const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
                 const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
                 const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
-                process.stdout.write(`${timestamp}${method} ${url}${status}\n`);
+                const durationMs =
+                  typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
+                process.stdout.write(`${timestamp}${method} ${url}${status}${durationMs}\n`);
                 if (typeof entry.headers === 'string') {
                   process.stdout.write(`  headers: ${entry.headers}\n`);
                 }

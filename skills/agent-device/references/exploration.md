@@ -165,6 +165,7 @@ Preferred mapping:
 Notes:
 
 - `wait text` is useful for synchronizing on text presence, but it is not the same as `is visible`.
+- `snapshot --diff` is an alias for `diff snapshot`, but prefer `diff snapshot` in exploration notes and stored procedures because it makes the baseline transition more explicit.
 
 Anti-hallucination rules:
 

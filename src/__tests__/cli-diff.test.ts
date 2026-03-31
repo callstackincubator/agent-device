@@ -155,6 +155,39 @@ describe('cli diff commands', () => {
     assert.equal(result.stderr, '');
   });
 
+  test('snapshot --diff renders human-readable unified diff text', async () => {
+    const result = await runCliCapture(['snapshot', '--diff']);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    const request = result.calls[0];
+    assert.ok(request);
+    assert.equal(request.command, 'diff');
+    assert.deepEqual(request.positionals, ['snapshot']);
+    assert.equal(request.flags?.snapshotDiff, undefined);
+    assert.match(result.stdout, /^@e2 \[window\]/m);
+    assert.match(result.stdout, /^-  @e3 \[text\] "67"$/m);
+    assert.match(result.stdout, /^\+  @e3 \[text\] "134"$/m);
+    assert.match(result.stdout, /1 additions, 1 removals, 1 unchanged/);
+    assert.equal(result.stderr, '');
+  });
+
+  test('snapshot --diff --json passes daemon payload through unchanged', async () => {
+    const result = await runCliCapture(['snapshot', '--diff', '--json']);
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    const request = result.calls[0];
+    assert.ok(request);
+    assert.equal(request.command, 'diff');
+    assert.deepEqual(request.positionals, ['snapshot']);
+    assert.equal(request.flags?.snapshotDiff, undefined);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.success, true);
+    assert.equal(payload.data.mode, 'snapshot');
+    assert.equal(payload.data.baselineInitialized, false);
+    assert.equal(Array.isArray(payload.data.lines), true);
+    assert.equal(result.stderr, '');
+  });
+
   test('diff screenshot renders human-readable mismatch output', async () => {
     // Create a real baseline PNG (black) so compareScreenshots can run against it.
     // The mock sendToDaemon writes a white PNG as the "current" screenshot.

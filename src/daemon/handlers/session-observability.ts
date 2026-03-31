@@ -282,15 +282,29 @@ export async function handleSessionObservabilityCommands(params: {
       };
     }
 
-    const requestedInclude = (req.positionals?.[2] ?? 'summary').toLowerCase();
+    const positionalInclude = req.positionals?.[2]?.toLowerCase();
+    const flagInclude = req.flags?.networkInclude;
+    if (positionalInclude && flagInclude && positionalInclude !== flagInclude) {
+      return {
+        ok: false,
+        error: {
+          code: 'INVALID_ARGS',
+          message:
+            'network include mode was provided both positionally and via --include with different values',
+        },
+      };
+    }
+    const requestedInclude = (flagInclude ?? positionalInclude ?? 'summary').toLowerCase();
     if (
       !NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])
     ) {
       return { ok: false, error: { code: 'INVALID_ARGS', message: NETWORK_INCLUDE_MESSAGE } };
     }
     const include = requestedInclude as NetworkIncludeMode;
+    const backend = resolveSessionLogBackendLabel(session);
 
     const dump = readRecentNetworkTraffic(sessionStore.resolveAppLogPath(sessionName), {
+      backend,
       maxEntries,
       include,
       maxPayloadChars: 2048,

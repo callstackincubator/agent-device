@@ -48,10 +48,12 @@ export type CliFlags = {
   reuseExisting?: boolean;
   verbose?: boolean;
   snapshotInteractiveOnly?: boolean;
+  snapshotDiff?: boolean;
   snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
   baseline?: string;
@@ -673,11 +675,26 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Print version and exit',
   },
   {
+    key: 'snapshotDiff',
+    names: ['--diff'],
+    type: 'boolean',
+    usageLabel: '--diff',
+    usageDescription: 'Snapshot: show structural diff against the previous session baseline',
+  },
+  {
     key: 'saveScript',
     names: ['--save-script'],
     type: 'booleanOrString',
     usageLabel: '--save-script [path]',
     usageDescription: 'Save session script (.ad) on close; optional custom output path',
+  },
+  {
+    key: 'networkInclude',
+    names: ['--include'],
+    type: 'enum',
+    enumValues: ['summary', 'headers', 'body', 'all'],
+    usageLabel: '--include summary|headers|body|all',
+    usageDescription: 'Network: include headers, bodies, or both in output',
   },
   {
     key: 'shutdown',
@@ -963,9 +980,10 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   snapshot: {
-    helpDescription: 'Capture accessibility tree',
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
+    helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
     positionalArgs: [],
-    allowedFlags: [...SNAPSHOT_FLAGS],
+    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],
   },
   diff: {
     usageOverride:
@@ -1242,11 +1260,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   network: {
     usageOverride:
-      'network dump [limit] [summary|headers|body|all] | network log [limit] [summary|headers|body|all]',
+      'network dump [limit] [summary|headers|body|all] [--include summary|headers|body|all] | network log [limit] [summary|headers|body|all] [--include summary|headers|body|all]',
     helpDescription: 'Dump recent HTTP(s) traffic parsed from the session app log',
     summary: 'Show recent HTTP traffic',
     positionalArgs: ['dump|log', 'limit?', 'include?'],
-    allowedFlags: [],
+    allowedFlags: ['networkInclude'],
   },
   find: {
     usageOverride: 'find <locator|text> <action> [value]',

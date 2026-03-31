@@ -149,7 +149,12 @@ export function finalizeParsedArgs(
       );
     }
   }
-  return { command: parsed.command, positionals: parsed.positionals, flags, warnings };
+  return normalizeParsedCommandAliases({
+    command: parsed.command,
+    positionals: parsed.positionals,
+    flags,
+    warnings,
+  });
 }
 
 function assertNoConflictingBackModeFlags(parsed: RawParsedArgs): void {
@@ -279,6 +284,22 @@ function shouldTreatUnknownDashTokenAsPositional(
 
 function isNegativeNumericToken(value: string): boolean {
   return /^-\d+(\.\d+)?$/.test(value);
+}
+
+function normalizeParsedCommandAliases(parsed: ParsedArgs): ParsedArgs {
+  if (parsed.flags.help) {
+    return parsed;
+  }
+  if (parsed.command === 'snapshot' && parsed.flags.snapshotDiff) {
+    const { snapshotDiff: _snapshotDiff, ...remainingFlags } = parsed.flags;
+    return {
+      command: 'diff',
+      positionals: ['snapshot', ...parsed.positionals],
+      flags: remainingFlags as CliFlags,
+      warnings: parsed.warnings,
+    };
+  }
+  return parsed;
 }
 
 function formatUnsupportedFlagMessage(command: string | null, unsupported: string[]): string {

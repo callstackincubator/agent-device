@@ -21,7 +21,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
+- iOS core runner commands: `snapshot`, `snapshot --diff`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
@@ -68,3 +68,5 @@ agent-device diff snapshot
 agent-device fill @e5 "Doe 2"
 agent-device close
 ```
+
+`snapshot --diff` is an alias for `diff snapshot` when you discover the flow from `snapshot --help`.

@@ -10,12 +10,15 @@ const STATUS_PATTERNS = [
 ];
 
 type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
+type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
 
 export type NetworkEntry = {
   method?: string;
   url: string;
   status?: number;
   timestamp?: string;
+  durationMs?: number;
+  packetId?: string;
   headers?: string;
   requestBody?: string;
   responseBody?: string;
@@ -40,6 +43,7 @@ export type NetworkDump = {
 export function readRecentNetworkTraffic(
   logPath: string,
   options?: {
+    backend?: NetworkLogBackend;
     maxEntries?: number;
     include?: NetworkIncludeMode;
     maxPayloadChars?: number;
@@ -47,6 +51,7 @@ export function readRecentNetworkTraffic(
   },
 ): NetworkDump {
   const maxEntries = clampInt(options?.maxEntries, 25, 1, 200);
+  const backend = options?.backend;
   const include = options?.include ?? 'summary';
   const maxPayloadChars = clampInt(options?.maxPayloadChars, 2048, 64, 16_384);
   const maxScanLines = clampInt(options?.maxScanLines, 4000, 100, 20_000);
@@ -69,9 +74,17 @@ export function readRecentNetworkTraffic(
   const entries: NetworkEntry[] = [];
 
   for (let i = lines.length - 1; i >= 0 && entries.length < maxEntries; i -= 1) {
-    const rawLine = lines[i]?.trim();
-    if (!rawLine) continue;
-    const parsed = parseNetworkLine(rawLine, startIndex + i + 1, include, maxPayloadChars);
+    const rawLine = lines[i];
+    const trimmedLine = rawLine?.trim();
+    if (!trimmedLine) continue;
+    const parsed = parseNetworkLine(
+      lines,
+      i,
+      startIndex + i + 1,
+      backend,
+      include,
+      maxPayloadChars,
+    );
     if (!parsed) continue;
     entries.push(parsed);
   }
@@ -88,11 +101,15 @@ export function readRecentNetworkTraffic(
 }
 
 function parseNetworkLine(
-  line: string,
+  lines: string[],
+  lineIndex: number,
   lineNumber: number,
+  backend: NetworkLogBackend | undefined,
   include: NetworkIncludeMode,
   maxPayloadChars: number,
 ): NetworkEntry | null {
+  const line = lines[lineIndex]?.trim();
+  if (!line) return null;
   const maybeJson = parseEmbeddedJson(line);
   const jsonMethod = readJsonString(maybeJson, ['method', 'httpMethod']);
   const jsonUrl = readJsonString(maybeJson, ['url', 'requestUrl']);
@@ -106,17 +123,20 @@ function parseNetworkLine(
   const url = jsonUrl ?? urlMatch?.[0];
   if (!url) return null;
 
-  const status = jsonStatus ?? parseStatusCode(line) ?? undefined;
-  const timestamp = parseTimestamp(line);
-
   const result: NetworkEntry = {
     method,
     url,
-    status,
-    timestamp,
+    status: jsonStatus ?? parseStatusCode(line) ?? undefined,
+    timestamp: parseTimestamp(line),
+    packetId: parseAndroidPacketId(line) ?? undefined,
+    durationMs: parseAndroidDurationMs(line) ?? undefined,
     raw: truncate(line, maxPayloadChars),
     line: lineNumber,
   };
+
+  if (backend === 'android') {
+    enrichFromAndroidAdjacentLines(result, lines, lineIndex);
+  }
 
   if (include === 'headers' || include === 'all') {
     const headers = readHeaders(line, maybeJson);
@@ -135,6 +155,53 @@ function parseNetworkLine(
   return result;
 }
 
+function enrichFromAndroidAdjacentLines(
+  result: NetworkEntry,
+  lines: string[],
+  lineIndex: number,
+): void {
+  const nearbyLines = collectNearbyLines(lines, lineIndex, 3);
+  const packetId =
+    result.packetId ??
+    nearbyLines
+      .map((line) => parseAndroidPacketId(line))
+      .find((value): value is string => typeof value === 'string' && value.length > 0);
+  if (packetId) {
+    result.packetId = packetId;
+  }
+
+  const relatedLines = packetId
+    ? nearbyLines.filter((line) => parseAndroidPacketId(line) === packetId)
+    : nearbyLines;
+  if (!result.timestamp) {
+    result.timestamp = relatedLines
+      .map((line) => parseTimestamp(line))
+      .find((value): value is string => typeof value === 'string' && value.length > 0);
+  }
+  if (result.status === undefined) {
+    result.status = relatedLines
+      .map((line) => parseStatusCode(line))
+      .find((value): value is number => typeof value === 'number');
+  }
+  if (result.durationMs === undefined) {
+    result.durationMs = relatedLines
+      .map((line) => parseAndroidDurationMs(line))
+      .find((value): value is number => typeof value === 'number');
+  }
+}
+
+function collectNearbyLines(lines: string[], lineIndex: number, radius: number): string[] {
+  const collected: string[] = [];
+  const start = Math.max(0, lineIndex - radius);
+  const end = Math.min(lines.length - 1, lineIndex + radius);
+  for (let i = start; i <= end; i += 1) {
+    const line = lines[i]?.trim();
+    if (!line) continue;
+    collected.push(line);
+  }
+  return collected;
+}
+
 function parseStatusCode(line: string): number | null {
   for (const pattern of STATUS_PATTERNS) {
     const match = pattern.exec(line);
@@ -146,8 +213,22 @@ function parseStatusCode(line: string): number | null {
 }
 
 function parseTimestamp(line: string): string | undefined {
-  const match = /\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?\b/.exec(line);
-  return match?.[0];
+  const isoMatch = /\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z)?\b/.exec(line);
+  if (isoMatch) return isoMatch[0];
+  const androidMatch = /\b\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+\b/.exec(line);
+  return androidMatch?.[0];
+}
+
+function parseAndroidPacketId(line: string): string | null {
+  const match = /\bpacket id (\d+)\b/i.exec(line);
+  return match?.[1] ?? null;
+}
+
+function parseAndroidDurationMs(line: string): number | null {
+  const match = /\b(?:duration|elapsed request\/response time, ms)[:= ]+(\d+)\b/i.exec(line);
+  if (!match) return null;
+  const value = Number.parseInt(match[1] ?? '', 10);
+  return Number.isInteger(value) ? value : null;
 }
 
 function parseEmbeddedJson(line: string): Record<string, unknown> | null {

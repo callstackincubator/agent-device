@@ -167,6 +167,15 @@ test('parseArgs recognizes network dump arguments', () => {
   assert.deepEqual(parsed.positionals, ['dump', '20', 'headers']);
 });
 
+test('parseArgs recognizes network include flag', () => {
+  const parsed = parseArgs(['network', 'dump', '20', '--include', 'headers'], {
+    strictFlags: true,
+  });
+  assert.equal(parsed.command, 'network');
+  assert.deepEqual(parsed.positionals, ['dump', '20']);
+  assert.equal(parsed.flags.networkInclude, 'headers');
+});
+
 test('parseArgs accepts push with payload file', () => {
   const parsed = parseArgs(['push', 'com.example.app', './payload.json'], { strictFlags: true });
   assert.equal(parsed.command, 'push');
@@ -733,6 +742,25 @@ test('snapshot command accepts command-specific flags', () => {
   assert.equal(parsed.flags.snapshotScope, 'Login');
 });
 
+test('snapshot command accepts diff alias flag', () => {
+  const parsed = parseArgs(['snapshot', '--diff', '-i', '--depth', '4', '--scope', 'Counter'], {
+    strictFlags: true,
+  });
+  assert.equal(parsed.command, 'diff');
+  assert.deepEqual(parsed.positionals, ['snapshot']);
+  assert.equal(parsed.flags.snapshotDiff, undefined);
+  assert.equal(parsed.flags.snapshotInteractiveOnly, true);
+  assert.equal(parsed.flags.snapshotDepth, 4);
+  assert.equal(parsed.flags.snapshotScope, 'Counter');
+});
+
+test('snapshot --diff --help stays on snapshot command help', () => {
+  const parsed = parseArgs(['snapshot', '--diff', '--help'], { strictFlags: true });
+  assert.equal(parsed.command, 'snapshot');
+  assert.equal(parsed.flags.snapshotDiff, true);
+  assert.equal(parsed.flags.help, true);
+});
+
 test('diff snapshot command accepts snapshot flags', () => {
   const parsed = parseArgs(
     ['diff', 'snapshot', '-i', '--depth', '4', '--scope', 'Counter', '--raw'],
@@ -855,6 +883,19 @@ test('command usage describes delayed typing flags', () => {
   }
   assert.match(typeHelp, /--delay-ms <ms>/);
   assert.match(fillHelp, /--delay-ms <ms>/);
+});
+
+test('snapshot command usage documents diff alias', () => {
+  const help = usageForCommand('snapshot');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /agent-device snapshot \[--diff\]/);
+  assert.match(help, /Capture accessibility tree or diff against the previous session baseline/);
+});
+
+test('network command usage documents include flag', () => {
+  const help = usageForCommand('network');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /--include summary\|headers\|body\|all/);
 });
 
 test('command usage shows command and global flags separately', () => {

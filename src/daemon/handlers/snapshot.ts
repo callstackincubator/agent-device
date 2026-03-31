@@ -89,87 +89,7 @@ export async function handleSnapshotCommands(params: {
         },
       };
     }
-    const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
-    if (!isCommandSupportedOnDevice('diff', device)) {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'diff is not supported on this device',
-        },
-      };
-    }
-    const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
-    if (!resolvedScope.ok) return resolvedScope.response;
-    const flattenForDiff = req.flags?.snapshotInteractiveOnly === true;
-
-    return await withSessionlessRunnerCleanup(session, device, async () => {
-      const capture = await captureSnapshot({
-        device,
-        session,
-        flags: req.flags,
-        outPath: req.flags?.out,
-        logPath,
-        snapshotScope: resolvedScope.scope,
-      });
-      const currentSnapshot = capture.snapshot;
-
-      if (!session?.snapshot) {
-        const unchanged = countSnapshotComparableLines(currentSnapshot.nodes, {
-          flatten: flattenForDiff,
-        });
-        const nextSession = buildSnapshotSession({
-          session,
-          sessionName,
-          device,
-          snapshot: currentSnapshot,
-          appBundleId: session?.appBundleId,
-        });
-        recordIfSession(sessionStore, nextSession, req, {
-          mode: 'snapshot',
-          baselineInitialized: true,
-          summary: {
-            additions: 0,
-            removals: 0,
-            unchanged,
-          },
-        });
-        sessionStore.set(sessionName, nextSession);
-        return {
-          ok: true,
-          data: {
-            mode: 'snapshot',
-            baselineInitialized: true,
-            summary: {
-              additions: 0,
-              removals: 0,
-              unchanged,
-            },
-            lines: [],
-          },
-        };
-      }
-
-      const diff = buildSnapshotDiff(session.snapshot.nodes, currentSnapshot.nodes, {
-        flatten: flattenForDiff,
-      });
-      const nextSession: SessionState = { ...session, snapshot: currentSnapshot };
-      recordIfSession(sessionStore, nextSession, req, {
-        mode: 'snapshot',
-        baselineInitialized: false,
-        summary: diff.summary,
-      });
-      sessionStore.set(sessionName, nextSession);
-      return {
-        ok: true,
-        data: {
-          mode: 'snapshot',
-          baselineInitialized: false,
-          summary: diff.summary,
-          lines: diff.lines,
-        },
-      };
-    });
+    return await handleSnapshotDiffRequest({ req, sessionName, logPath, sessionStore });
   }
 
   if (command === 'wait') {
@@ -227,4 +147,94 @@ export async function handleSnapshotCommands(params: {
   }
 
   return null;
+}
+
+async function handleSnapshotDiffRequest(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+}): Promise<DaemonResponse> {
+  const { req, sessionName, logPath, sessionStore } = params;
+  const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
+  if (!isCommandSupportedOnDevice('diff', device)) {
+    return {
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_OPERATION',
+        message: 'diff is not supported on this device',
+      },
+    };
+  }
+  const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
+  if (!resolvedScope.ok) return resolvedScope.response;
+  const flattenForDiff = req.flags?.snapshotInteractiveOnly === true;
+
+  return await withSessionlessRunnerCleanup(session, device, async () => {
+    const capture = await captureSnapshot({
+      device,
+      session,
+      flags: req.flags,
+      outPath: req.flags?.out,
+      logPath,
+      snapshotScope: resolvedScope.scope,
+    });
+    const currentSnapshot = capture.snapshot;
+
+    if (!session?.snapshot) {
+      const unchanged = countSnapshotComparableLines(currentSnapshot.nodes, {
+        flatten: flattenForDiff,
+      });
+      const nextSession = buildSnapshotSession({
+        session,
+        sessionName,
+        device,
+        snapshot: currentSnapshot,
+        appBundleId: session?.appBundleId,
+      });
+      recordIfSession(sessionStore, nextSession, req, {
+        mode: 'snapshot',
+        baselineInitialized: true,
+        summary: {
+          additions: 0,
+          removals: 0,
+          unchanged,
+        },
+      });
+      sessionStore.set(sessionName, nextSession);
+      return {
+        ok: true,
+        data: {
+          mode: 'snapshot',
+          baselineInitialized: true,
+          summary: {
+            additions: 0,
+            removals: 0,
+            unchanged,
+          },
+          lines: [],
+        },
+      };
+    }
+
+    const diff = buildSnapshotDiff(session.snapshot.nodes, currentSnapshot.nodes, {
+      flatten: flattenForDiff,
+    });
+    const nextSession: SessionState = { ...session, snapshot: currentSnapshot };
+    recordIfSession(sessionStore, nextSession, req, {
+      mode: 'snapshot',
+      baselineInitialized: false,
+      summary: diff.summary,
+    });
+    sessionStore.set(sessionName, nextSession);
+    return {
+      ok: true,
+      data: {
+        mode: 'snapshot',
+        baselineInitialized: false,
+        summary: diff.summary,
+        lines: diff.lines,
+      },
+    };
+  });
 }

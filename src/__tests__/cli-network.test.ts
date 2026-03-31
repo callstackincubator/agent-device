@@ -67,7 +67,7 @@ async function runCliCapture(
 }
 
 test('network dump prints parsed entries and metadata', async () => {
-  const result = await runCliCapture(['network', 'dump', '10', 'all'], async () => ({
+  const result = await runCliCapture(['network', 'dump', '10', '--include', 'all'], async () => ({
     ok: true,
     data: {
       path: '/tmp/app.log',
@@ -83,6 +83,7 @@ test('network dump prints parsed entries and metadata', async () => {
           method: 'POST',
           url: 'https://api.example.com/v1/login',
           status: 401,
+          durationMs: 377,
           headers: '{"x-id":"abc"}',
           requestBody: '{"email":"u@example.com"}',
           responseBody: '{"error":"denied"}',
@@ -94,9 +95,15 @@ test('network dump prints parsed entries and metadata', async () => {
 
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
-  assert.deepEqual(result.calls[0]?.positionals, ['dump', '10', 'all']);
+  const request = result.calls[0];
+  assert.ok(request);
+  assert.deepEqual(request.positionals, ['dump', '10']);
+  assert.equal(request.flags?.networkInclude, 'all');
   assert.match(result.stdout, /\/tmp\/app\.log/);
-  assert.match(result.stdout, /POST https:\/\/api\.example\.com\/v1\/login status=401/);
+  assert.match(
+    result.stdout,
+    /2026-02-24T10:00:01Z POST https:\/\/api\.example\.com\/v1\/login status=401 durationMs=377/,
+  );
   assert.match(result.stdout, /headers:/);
   assert.match(result.stdout, /request:/);
   assert.match(result.stdout, /response:/);
