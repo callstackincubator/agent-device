@@ -297,6 +297,11 @@ async function handleSnapshotDiffRequest(params: {
       snapshotScope: resolvedScope.scope,
     });
     const currentSnapshot = capture.snapshot;
+    const warnings = buildSnapshotWarnings({
+      capture,
+      flags: req.flags,
+      session,
+    });
 
     if (!session?.snapshot) {
       const unchanged = countSnapshotComparableLines(currentSnapshot.nodes, {
@@ -330,6 +335,7 @@ async function handleSnapshotDiffRequest(params: {
             unchanged,
           },
           lines: [],
+          ...(warnings.length > 0 ? { warnings } : {}),
         },
       };
     }
@@ -351,6 +357,7 @@ async function handleSnapshotDiffRequest(params: {
         baselineInitialized: false,
         summary: diff.summary,
         lines: diff.lines,
+        ...(warnings.length > 0 ? { warnings } : {}),
       },
     };
   });

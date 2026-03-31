@@ -90,8 +90,10 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const removals = toNumber(summaryRaw.removals);
   const unchanged = toNumber(summaryRaw.unchanged);
   const useColor = supportsColor();
+  const notices = readSnapshotWarnings(data);
+  const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
   if (baselineInitialized) {
-    return `Baseline initialized (${unchanged} lines).\n`;
+    return `${noticesBlock}Baseline initialized (${unchanged} lines).\n`;
   }
   const rawLines = Array.isArray(data.lines) ? (data.lines as SnapshotDiffLine[]) : [];
   const contextLines = applyContextWindow(rawLines, 1);
@@ -109,14 +111,14 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   });
   const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
   if (!useColor) {
-    return `${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+    return `${noticesBlock}${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
   }
   const summary = [
     `${colorize(String(additions), 'green')} additions`,
     `${colorize(String(removals), 'red')} removals`,
     `${colorize(String(unchanged), 'dim')} unchanged`,
   ].join(', ');
-  return `${body}${summary}\n`;
+  return `${noticesBlock}${body}${summary}\n`;
 }
 
 export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {

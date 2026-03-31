@@ -253,6 +253,62 @@ test('snapshot warns when a recent Android press is followed by a nearly identic
   }
 });
 
+test('diff snapshot carries stale-tree warnings for recent Android presses', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-diff-stale-after-press';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      ref: `e${index + 1}`,
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.actions.push({
+    ts: Date.now(),
+    command: 'press',
+    positionals: ['@e4'],
+    flags: {},
+  });
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 24, maxDepth: 2 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'diff',
+      positionals: ['snapshot'],
+      flags: { snapshotInteractiveOnly: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toEqual([
+      expect.stringContaining('Recent press was followed by a nearly identical snapshot'),
+    ]);
+  }
+});
+
 test('settings rejects unsupported iOS physical devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device';

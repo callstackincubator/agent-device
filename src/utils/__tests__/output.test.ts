@@ -57,6 +57,18 @@ test('formatSnapshotDiffText renders ANSI colors when forced', () => {
   }
 });
 
+test('formatSnapshotDiffText prints warnings before the diff body', () => {
+  const text = withNoColor(() =>
+    formatSnapshotDiffText({
+      ...DIFF_DATA,
+      warnings: ['Recent press was followed by a nearly identical snapshot.'],
+    }),
+  );
+  assert.match(text, /^Recent press was followed by a nearly identical snapshot\.$/m);
+  assert.match(text, /^@e2 \[window\]$/m);
+  assert.match(text, /1 additions, 1 removals, 1 unchanged/);
+});
+
 test('formatSnapshotText summarizes large text surfaces with preview metadata', () => {
   const text = withNoColor(() =>
     formatSnapshotText({
