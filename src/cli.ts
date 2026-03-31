@@ -11,6 +11,8 @@ import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
@@ -27,7 +29,7 @@ import {
 import { resolveDaemonPaths } from './daemon/config.ts';
 import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
 import { resolveCliOptions } from './utils/cli-options.ts';
-import { findXctestrun, resolveRunnerDerivedRoot } from './platforms/ios/runner-xctestrun.ts';
+import { findXctestrun } from './platforms/ios/runner-xctestrun.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -687,64 +689,50 @@ async function maybeAnnounceAppleRunnerStartup(params: {
     return;
   }
 
-  const platform = await resolveAppleRunnerNoticePlatform({
-    flags,
-    daemonFlags,
-    sessionName,
-    requestId,
-    debug,
-    sendToDaemon: params.sendToDaemon,
-  });
+  let platform: string | undefined =
+    typeof flags.platform === 'string' ? flags.platform : undefined;
+  if (platform !== 'ios' && platform !== 'macos') {
+    try {
+      const response = await params.sendToDaemon({
+        session: sessionName,
+        command: 'session_list',
+        positionals: [],
+        flags: daemonFlags as any,
+        meta: {
+          requestId: `${requestId}:runner-preflight`,
+          debug,
+          cwd: process.cwd(),
+        },
+      });
+      if (!response.ok) {
+        return;
+      }
+      const sessions = Array.isArray(
+        (response.data as Record<string, unknown> | undefined)?.sessions,
+      )
+        ? (((response.data as Record<string, unknown>).sessions as unknown[]) ?? [])
+        : [];
+      const session = sessions.find((entry) => {
+        if (!entry || typeof entry !== 'object') return false;
+        return (entry as { name?: unknown }).name === sessionName;
+      }) as { platform?: unknown } | undefined;
+      if (typeof session?.platform === 'string') {
+        platform = session.platform;
+      }
+    } catch {
+      // Ignore preflight failures. The command itself will surface the real error.
+    }
+  }
   if (platform !== 'ios' && platform !== 'macos') {
     return;
   }
 
+  const runnerDerivedRoot = path.join(os.homedir(), '.agent-device', 'ios-runner');
   const notice =
-    findXctestrun(resolveRunnerDerivedRoot()) === null
+    findXctestrun(runnerDerivedRoot) === null
       ? APPLE_RUNNER_BUILD_NOTICE
       : APPLE_RUNNER_RESTART_NOTICE;
   process.stdout.write(`${notice}\n`);
-}
-
-async function resolveAppleRunnerNoticePlatform(params: {
-  flags: ReturnType<typeof resolveCliOptions>['flags'];
-  daemonFlags: Record<string, unknown>;
-  sessionName: string;
-  requestId: string;
-  debug: boolean;
-  sendToDaemon: typeof sendToDaemon;
-}): Promise<string | null> {
-  const explicitPlatform = params.flags.platform;
-  if (typeof explicitPlatform === 'string' && explicitPlatform.length > 0) {
-    return explicitPlatform;
-  }
-
-  try {
-    const response = await params.sendToDaemon({
-      session: params.sessionName,
-      command: 'session_list',
-      positionals: [],
-      flags: params.daemonFlags as any,
-      meta: {
-        requestId: `${params.requestId}:runner-preflight`,
-        debug: params.debug,
-        cwd: process.cwd(),
-      },
-    });
-    if (!response.ok) {
-      return null;
-    }
-    const sessions = Array.isArray((response.data as Record<string, unknown> | undefined)?.sessions)
-      ? (((response.data as Record<string, unknown>).sessions as unknown[]) ?? [])
-      : [];
-    const matchingSession = sessions.find((entry) => {
-      if (!entry || typeof entry !== 'object') return false;
-      return (entry as { name?: unknown }).name === params.sessionName;
-    }) as { platform?: unknown } | undefined;
-    return typeof matchingSession?.platform === 'string' ? matchingSession.platform : null;
-  } catch {
-    return null;
-  }
 }
 
 function renderBatchSummary(data: Record<string, unknown>): void {

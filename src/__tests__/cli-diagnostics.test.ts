@@ -1,8 +1,20 @@
-import { test } from 'vitest';
+import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+const { mockFindXctestrun } = vi.hoisted(() => ({
+  mockFindXctestrun: vi.fn(),
+}));
+
+vi.mock('../platforms/ios/runner-xctestrun.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../platforms/ios/runner-xctestrun.ts')>();
+  return {
+    ...actual,
+    findXctestrun: mockFindXctestrun,
+  };
+});
+
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
 import { resolveDaemonPaths } from '../daemon/config.ts';
@@ -66,6 +78,11 @@ async function runCliCapture(
 
   return { code, stdout, stderr, calls };
 }
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockFindXctestrun.mockReturnValue(null);
+});
 
 test('cli forwards --debug as verbose/debug metadata', async () => {
   const result = await runCliCapture(['open', 'settings', '--debug', '--json'], async () => ({
@@ -232,6 +249,66 @@ test('cli prints success acknowledgment for client-backed open in human mode', a
   }));
   assert.equal(result.code, null);
   assert.match(result.stdout, /Opened: Settings/);
+});
+
+test('cli prints build notice before human iOS runner-backed commands when no cached xctestrun exists', async () => {
+  const result = await runCliCapture(['snapshot', '--platform', 'ios'], async (_req) => ({
+    ok: true,
+    data: { nodes: [] },
+  }));
+
+  assert.equal(result.code, null);
+  assert.match(
+    result.stdout,
+    /Preparing iOS automation runner \(XCTest build\)\. This can take 10-30s on first run\.\.\./,
+  );
+  assert.match(result.stdout, /Snapshot: 0 nodes/);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.command, 'snapshot');
+});
+
+test('cli prints restart notice when the session is already bound to iOS and cached artifacts exist', async () => {
+  mockFindXctestrun.mockReturnValue('/tmp/agent-device-ios-runner/Build/Products/test.xctestrun');
+
+  const result = await runCliCapture(['snapshot'], async (req) => {
+    if (req.command === 'session_list') {
+      return {
+        ok: true,
+        data: {
+          sessions: [{ name: 'default', platform: 'ios' }],
+        },
+      };
+    }
+    return {
+      ok: true,
+      data: { nodes: [] },
+    };
+  });
+
+  assert.equal(result.code, null);
+  assert.match(
+    result.stdout,
+    /Restarting iOS automation runner \(XCTest\)\. This can take 10-30s while the runner reconnects\.\.\./,
+  );
+  assert.match(result.stdout, /Snapshot: 0 nodes/);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'session_list');
+  assert.equal(result.calls[1]?.command, 'snapshot');
+});
+
+test('cli does not print Apple runner notices in json mode', async () => {
+  const result = await runCliCapture(['snapshot', '--platform', 'ios', '--json'], async () => ({
+    ok: true,
+    data: { nodes: [] },
+  }));
+
+  assert.equal(result.code, null);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.success, true);
+  assert.doesNotMatch(
+    result.stdout,
+    /Preparing iOS automation runner|Restarting iOS automation runner/,
+  );
 });
 
 test('cli prints success acknowledgment for client-backed close in human mode', async () => {

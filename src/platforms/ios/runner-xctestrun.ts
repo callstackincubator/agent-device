@@ -64,10 +64,6 @@ export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerB
   process.env,
 );
 
-export function resolveRunnerDerivedRoot(): string {
-  return RUNNER_DERIVED_ROOT;
-}
-
 export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
