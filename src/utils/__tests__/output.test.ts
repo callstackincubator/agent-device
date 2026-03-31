@@ -102,6 +102,84 @@ test('formatSnapshotText summarizes large Android TextView surfaces with preview
   assert.match(text, /\[truncated\]/);
 });
 
+test('formatSnapshotText omits unlabeled group wrappers while preserving labeled groups', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        { ref: 'e1', index: 0, depth: 0, type: 'android.widget.FrameLayout' },
+        { ref: 'e2', index: 1, depth: 1, parentIndex: 0, type: 'android.widget.LinearLayout' },
+        { ref: 'e3', index: 2, depth: 2, parentIndex: 1, type: 'android.view.ViewGroup' },
+        {
+          ref: 'e14',
+          index: 3,
+          depth: 3,
+          parentIndex: 2,
+          type: 'android.widget.ScrollView',
+        },
+        {
+          ref: 'e17',
+          index: 4,
+          depth: 4,
+          parentIndex: 3,
+          type: 'android.view.ViewGroup',
+          label: 'HomePage',
+        },
+        {
+          ref: 'e21',
+          index: 5,
+          depth: 5,
+          parentIndex: 4,
+          type: 'android.view.ViewGroup',
+          label: 'Home',
+        },
+        {
+          ref: 'e22',
+          index: 6,
+          depth: 5,
+          parentIndex: 4,
+          type: 'android.widget.Button',
+          label: 'Search',
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.doesNotMatch(text, /@e1 \[group\]/);
+  assert.doesNotMatch(text, /@e2 \[group\]/);
+  assert.doesNotMatch(text, /@e3 \[group\]/);
+  assert.match(text, /@e14 \[scroll-area\] \[scrollable\]/);
+  assert.match(text, /  @e17 \[group\] "HomePage"/);
+  assert.match(text, /    @e21 \[group\] "Home"/);
+  assert.match(text, /    @e22 \[button\] "Search"/);
+});
+
+test('formatSnapshotText compresses visible indentation after hidden wrapper chains', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        { ref: 'e1', index: 0, depth: 0, type: 'android.widget.FrameLayout' },
+        { ref: 'e2', index: 1, depth: 1, parentIndex: 0, type: 'android.widget.ScrollView' },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'Back',
+        },
+        { ref: 'e4', index: 3, depth: 3, parentIndex: 2, type: 'android.view.ViewGroup' },
+        { ref: 'e5', index: 4, depth: 4, parentIndex: 3, type: 'android.widget.ImageView' },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^@e2 \[scroll-area\] \[scrollable\]$/m);
+  assert.match(text, /^  @e3 \[button\] "Back"$/m);
+  assert.match(text, /^    @e5 \[image\]$/m);
+});
+
 test('formatSnapshotLine keeps snapshot-only metadata off the default formatter path', () => {
   const line = formatSnapshotLine(
     {

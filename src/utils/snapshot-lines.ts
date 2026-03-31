@@ -17,6 +17,7 @@ export function buildSnapshotDisplayLines(
   options: SnapshotLineFormatOptions = {},
 ): SnapshotDisplayLine[] {
   const hiddenGroupDepths: number[] = [];
+  const visibleDepths: number[] = [];
   const lines: SnapshotDisplayLine[] = [];
   for (const node of nodes) {
     const depth = node.depth ?? 0;
@@ -32,7 +33,14 @@ export function buildSnapshotDisplayLines(
     if (isHiddenGroup) {
       hiddenGroupDepths.push(depth);
     }
-    const adjustedDepth = isHiddenGroup ? depth : Math.max(0, depth - hiddenGroupDepths.length);
+    if (isHiddenGroup) {
+      continue;
+    }
+    while (visibleDepths.length > 0 && depth <= visibleDepths[visibleDepths.length - 1]!) {
+      visibleDepths.pop();
+    }
+    const adjustedDepth = visibleDepths.length;
+    visibleDepths.push(depth);
     lines.push({
       node,
       depth: adjustedDepth,
