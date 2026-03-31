@@ -8,6 +8,8 @@ const STATUS_PATTERNS = [
   /\bresponse(?:\s+code)?["'=: ]+([1-5]\d{2})\b/i,
   /\bHTTP\/[0-9.]+\s+([1-5]\d{2})\b/i,
 ];
+const ANDROID_NEARBY_LINE_RADIUS = 5;
+const ANDROID_PACKET_SCAN_RADIUS = 12;
 
 type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
 type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
@@ -160,7 +162,7 @@ function enrichFromAndroidAdjacentLines(
   lines: string[],
   lineIndex: number,
 ): void {
-  const nearbyLines = collectNearbyLines(lines, lineIndex, 3);
+  const nearbyLines = collectNearbyLines(lines, lineIndex, ANDROID_NEARBY_LINE_RADIUS);
   const packetId =
     result.packetId ??
     nearbyLines
@@ -171,7 +173,9 @@ function enrichFromAndroidAdjacentLines(
   }
 
   const relatedLines = packetId
-    ? nearbyLines.filter((line) => parseAndroidPacketId(line) === packetId)
+    ? collectNearbyLines(lines, lineIndex, ANDROID_PACKET_SCAN_RADIUS).filter(
+        (line) => parseAndroidPacketId(line) === packetId,
+      )
     : nearbyLines;
   if (!result.timestamp) {
     result.timestamp = relatedLines

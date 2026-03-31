@@ -50,7 +50,7 @@ In practice, most work follows the same pattern:
 1. `open` a target app or URL.
 2. `snapshot -i` to inspect the current screen.
 3. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
-4. `diff snapshot` after UI changes, or `snapshot --diff` if you got there from snapshot help.
+4. `diff snapshot` after UI changes.
 5. `close` when the session is finished.
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.

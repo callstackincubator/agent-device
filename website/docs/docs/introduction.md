@@ -68,5 +68,3 @@ agent-device diff snapshot
 agent-device fill @e5 "Doe 2"
 agent-device close
 ```
-
-`snapshot --diff` is an alias for `diff snapshot` when you discover the flow from `snapshot --help`.

@@ -12,7 +12,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Start conservative. Prefer read-only inspection before mutating the UI.
 - Use plain `snapshot` when the task is to verify what text or structure is currently visible on screen.
 - Use `snapshot -i` only when you need interactive refs such as `@e3` for a requested action or targeted query.
-- Prefer `diff snapshot` after a nearby mutation when you only need to know what changed. `snapshot --diff` is the same operation when you are already in a snapshot flow.
+- Prefer `diff snapshot` after a nearby mutation when you only need to know what changed.
 - Avoid speculative mutations. You may take the smallest reversible UI action needed to unblock inspection or complete the requested task, such as dismissing a popup, closing an alert, or clearing an unintended surface.
 - Do not browse the web or use external sources unless the user explicitly asks.
 - Re-snapshot after meaningful UI changes instead of reusing stale refs.

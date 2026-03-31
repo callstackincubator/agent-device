@@ -71,6 +71,37 @@ test('readRecentNetworkTraffic enriches Android GIBSDK URL lines with timing met
   assert.equal(dump.entries[0]?.packetId, '23911610');
 });
 
+test('readRecentNetworkTraffic tolerates interleaved Android lines within the packet scan window', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-network-log-'));
+  const logPath = path.join(tempDir, 'app.log');
+  fs.writeFileSync(
+    logPath,
+    [
+      '03-31 17:43:32.564 V/GIBSDK  (17434): [NetworkAgent]: packet id 23911610 added, queue size: 1',
+      '03-31 17:43:32.700 V/OtherTag (17434): unrelated line 1',
+      '03-31 17:43:32.800 V/OtherTag (17434): unrelated line 2',
+      '03-31 17:43:32.900 V/OtherTag (17434): unrelated line 3',
+      '03-31 17:43:33.000 V/OtherTag (17434): unrelated line 4',
+      '03-31 17:43:33.031 D/GIBSDK  (17434): [NetworkAgent] packet id 23911610 total elapsed request/response time, ms: 377; response code: 200;',
+      '03-31 17:43:33.032 D/GIBSDK  (17434): URL: https://www.expensify.com/api/fl?as=2.0.2816300925',
+    ].join('\n'),
+    'utf8',
+  );
+
+  const dump = readRecentNetworkTraffic(logPath, {
+    backend: 'android',
+    maxEntries: 5,
+    include: 'summary',
+    maxPayloadChars: 2048,
+    maxScanLines: 100,
+  });
+
+  assert.equal(dump.entries.length, 1);
+  assert.equal(dump.entries[0]?.status, 200);
+  assert.equal(dump.entries[0]?.durationMs, 377);
+  assert.equal(dump.entries[0]?.packetId, '23911610');
+});
+
 test('readRecentNetworkTraffic keeps Android packet enrichment disabled for Apple backends', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-network-log-'));
   const logPath = path.join(tempDir, 'app.log');
