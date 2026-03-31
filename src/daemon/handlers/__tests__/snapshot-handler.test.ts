@@ -308,7 +308,6 @@ test('diff snapshot carries stale-tree warnings for recent Android presses', asy
     ]);
   }
 });
-
 test('settings rejects unsupported iOS physical devices', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device';
