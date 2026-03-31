@@ -14,7 +14,9 @@ vi.mock('../adb.ts', async (importOriginal) => {
 });
 
 import { screenshotAndroid } from '../screenshot.ts';
+import { dumpUiHierarchy } from '../snapshot.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { sleep } from '../adb.ts';
 
@@ -163,4 +165,106 @@ test('screenshotAndroid throws when PNG payload is truncated', async () => {
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', async () => {
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="streamed"/></hierarchy>';
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 1, stdout: xml, stderr: 'theme warning' };
+    }
+    throw new Error('fallback should not run');
+  });
+
+  const result = await dumpUiHierarchy(device);
+
+  assert.equal(result, xml);
+  assert.equal(mockRunCmd.mock.calls.length, 1);
+});
+
+test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => {
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="fallback"/></hierarchy>';
+
+  mockRunCmd.mockImplementation(async (_cmd, args, options) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 1, stdout: '', stderr: 'stream unavailable' };
+    }
+    if (
+      args.includes('uiautomator') &&
+      args.includes('dump') &&
+      args.includes('/sdcard/window_dump.xml')
+    ) {
+      if (options?.allowFailure !== true) {
+        throw new AppError('COMMAND_FAILED', 'adb exited with code 1', {
+          stderr: 'theme engine error',
+        });
+      }
+      return {
+        exitCode: 1,
+        stdout: 'UI hierarchy dumped to: /sdcard/window_dump.xml',
+        stderr: 'theme engine error',
+      };
+    }
+    if (args.includes('cat') && args.includes('/sdcard/window_dump.xml')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await dumpUiHierarchy(device);
+  const dumpCall = mockRunCmd.mock.calls.find(([, args]) => args.includes('/sdcard/window_dump.xml'));
+  const catCall = mockRunCmd.mock.calls.find(
+    ([, args]) => args.includes('cat') && args.includes('/sdcard/window_dump.xml'),
+  );
+
+  assert.equal(result, xml);
+  assert.deepEqual(dumpCall?.[2], { allowFailure: true });
+  assert.equal(catCall?.[2], undefined);
+});
+
+test('dumpUiHierarchy retries when fallback dump file is temporarily missing', async () => {
+  const xml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="retried"/></hierarchy>';
+  let catAttempts = 0;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 1, stdout: '', stderr: 'stream unavailable' };
+    }
+    if (
+      args.includes('uiautomator') &&
+      args.includes('dump') &&
+      args.includes('/sdcard/window_dump.xml')
+    ) {
+      return {
+        exitCode: 0,
+        stdout: 'UI hierarchy dumped to: /sdcard/window_dump.xml',
+        stderr: '',
+      };
+    }
+    if (args.includes('cat') && args.includes('/sdcard/window_dump.xml')) {
+      catAttempts += 1;
+      if (catAttempts === 1) {
+        throw new AppError('COMMAND_FAILED', 'adb exited with code 1', {
+          stderr: 'cat: /sdcard/window_dump.xml: No such file or directory',
+        });
+      }
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await dumpUiHierarchy(device);
+
+  assert.equal(result, xml);
+  assert.equal(catAttempts, 2);
+  assert.equal(
+    mockRunCmd.mock.calls.filter(
+      ([, args]) => args.includes('uiautomator') && args.includes('/sdcard/window_dump.xml'),
+    ).length,
+    2,
+  );
 });

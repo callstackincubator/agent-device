@@ -30,10 +30,8 @@ async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
     adbArgs(device, ['exec-out', 'uiautomator', 'dump', '/dev/tty']),
     { allowFailure: true },
   );
-  if (streamed.exitCode === 0) {
-    const fromStream = extractUiDumpXml(streamed.stdout, streamed.stderr);
-    if (fromStream) return fromStream;
-  }
+  const fromStream = extractUiDumpXml(streamed.stdout, streamed.stderr);
+  if (fromStream) return fromStream;
 
   // Fallback: dump to file and read back.
   // If `cat` fails with "no such file", the outer withRetry (via isRetryableAdbError) handles it.
@@ -41,6 +39,7 @@ async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
   const dumpResult = await runCmd(
     'adb',
     adbArgs(device, ['shell', 'uiautomator', 'dump', dumpPath]),
+    { allowFailure: true },
   );
   const actualPath = resolveDumpPath(dumpPath, dumpResult.stdout, dumpResult.stderr);
 
