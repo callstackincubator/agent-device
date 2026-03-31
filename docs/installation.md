@@ -6,6 +6,10 @@
 npm install -g agent-device
 ```
 
+Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally; that also refreshes the bundled `skills/` directory shipped with the release.
+
+Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
+
 ## Without installing
 
 ```bash
