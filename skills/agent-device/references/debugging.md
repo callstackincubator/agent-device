@@ -17,6 +17,8 @@ Open this file when the task turns into failure triage, logs, network inspection
 
 Do not leave logging on for normal flows or dump full log files into context. Keep debug windows short and inspect logs with `grep` or `tail`.
 
+In React Native dev or debug builds, do not dismiss visible warning or error overlays without remembering to report them later. If you close one to keep the flow moving, keep at least a screenshot or a short marked log window so the summary can name it.
+
 ## Canonical loop
 
 ```bash
@@ -39,6 +41,7 @@ Logging is off by default. Enable it only when you need a debugging window.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
 - `logs mark "before tap"` inserts a timestamped marker into the app log.
 - Android `network dump` surfaces timestamps from logcat-style prefixes and can backfill status and request/response duration from adjacent GIBSDK packet lines, so check it before dumping raw log windows.
+- Marker lines are emitted with the `[agent-device][mark][...]` prefix. When you grep later, prefer a narrow pattern such as `grep -n -E "agent-device.*mark|before tap" <path>`.
 - Session app logs can contain runtime data, headers, or payload fragments. Review them before sharing.
 - `logs start` requires an active app session and appends to `app.log`.
 - `logs stop` stops streaming. `close` also stops logging.
@@ -60,8 +63,15 @@ Useful shell follow-up after `logs path`:
 
 ```bash
 grep -n -E "Error|Exception|Fatal|crash" <path>
+grep -n -E "agent-device.*mark|before tap" <path>
 tail -50 <path>
 ```
+
+If the app showed a visible warning or error overlay during the flow:
+
+- Prefer a narrow grep window around your `logs mark` lines instead of loading the whole file.
+- Mention the surfaced warning or error in the final summary even if it did not block completion.
+- If the overlay kept returning, call that out as a stability issue instead of treating it as operator noise.
 
 ## Alerts and permissions
 
@@ -95,6 +105,8 @@ agent-device alert accept
 - `snapshot` returns 0 nodes: the app may no longer be foregrounded or the UI is not stable yet. Re-open the app or retry when state settles.
 - Logs are empty: confirm you opened an app session before `logs clear --restart`.
 - Android logs look stale after relaunch: retry the repro window after the process rebinds.
+- Android accessibility snapshots can lag behind visible screen transitions. If the tree looks stale after navigation, capture a `screenshot`, wait briefly, then re-run `snapshot -i`.
+- React Native dev warnings or errors keep reappearing: treat them as part of the app state, not as disposable chrome. Capture one clean repro and include them in the summary.
 - Permission prompts block the flow: wait for the alert and handle it explicitly.
 - If snapshots keep returning 0 nodes on an iOS simulator, restart Simulator and re-open the app.
 - If a macOS snapshot looks incomplete, compare with `snapshot --raw --platform macos` to separate collector filtering from missing AX content.

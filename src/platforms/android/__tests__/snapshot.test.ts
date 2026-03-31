@@ -215,7 +215,9 @@ test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => 
   });
 
   const result = await dumpUiHierarchy(device);
-  const dumpCall = mockRunCmd.mock.calls.find(([, args]) => args.includes('/sdcard/window_dump.xml'));
+  const dumpCall = mockRunCmd.mock.calls.find(([, args]) =>
+    args.includes('/sdcard/window_dump.xml'),
+  );
   const catCall = mockRunCmd.mock.calls.find(
     ([, args]) => args.includes('cat') && args.includes('/sdcard/window_dump.xml'),
   );
@@ -226,8 +228,7 @@ test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => 
 });
 
 test('dumpUiHierarchy retries when fallback dump file is temporarily missing', async () => {
-  const xml =
-    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="retried"/></hierarchy>';
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="retried"/></hierarchy>';
   let catAttempts = 0;
 
   mockRunCmd.mockImplementation(async (_cmd, args) => {

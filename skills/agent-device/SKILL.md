@@ -10,10 +10,12 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 ## Default operating rules
 
 - Start conservative. Prefer read-only inspection before mutating the UI.
+- Start deterministic. If the app name, package, device, or session is uncertain, load bootstrap and discover them before interacting.
 - Use plain `snapshot` when the task is to verify what text or structure is currently visible on screen.
 - Use `snapshot -i` only when you need interactive refs such as `@e3` for a requested action or targeted query.
 - Prefer `diff snapshot` after a nearby mutation when you only need to know what changed.
 - Avoid speculative mutations. You may take the smallest reversible UI action needed to unblock inspection or complete the requested task, such as dismissing a popup, closing an alert, or clearing an unintended surface.
+- In React Native dev or debug builds, check early for visible warning or error overlays, tooltips, and toasts that can steal focus or intercept taps. If they are not part of the requested behavior, dismiss them and continue. If you saw them, report them in the final summary.
 - Do not browse the web or use external sources unless the user explicitly asks.
 - Re-snapshot after meaningful UI changes instead of reusing stale refs.
 - Prefer `@ref` or selector targeting over raw coordinates.
@@ -50,11 +52,13 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Use `get`, `is`, or `find` when they can answer the question without changing UI state.
 - Use `fill` to replace text.
 - Use `type` to append text.
+- Do not write `type @eN "text"`. Use `fill @eN "text"` to target a field directly, or `press @eN` then `type "text"` when the field already has focus and you want append semantics.
 - If the on-screen keyboard blocks the next step, prefer `keyboard dismiss` over navigation. On iOS, keep an app session open first; `keyboard status|get` remains Android-only.
 - When a task asks to "go back", use plain `back` for predictable app-owned navigation and reserve `back --system` for platform back gestures or button semantics.
 - Use `type --delay-ms` or `fill --delay-ms` for debounced search fields that drop characters when typed too quickly.
 - If there is no simulator, no app install, or no open app session yet, switch to `bootstrap-install.md` instead of improvising setup steps.
 - Use the smallest unblock action first when transient UI blocks inspection, but do not navigate, search, or enter new text just to make the UI reveal data unless the user asked for that interaction.
+- In React Native dev or debug apps, treat visible warning or error overlays as transient blockers unless the user is explicitly asking you to diagnose them. Dismiss them when safe, then continue the requested flow.
 - Do not use external lookups to compensate for missing on-screen data unless the user asked for them.
 - If the needed information is not exposed on screen, say that plainly instead of compensating with extra navigation, text entry, or web search.
 - Prefer `@ref` or selector targeting over raw coordinates.

@@ -381,6 +381,16 @@ export async function dispatchCommand(
           return { x, y, ...successText(`Focused (${x}, ${y})`) };
         }
         case 'type': {
+          const mistargetedRef = findMistargetedTypeRef(positionals);
+          if (mistargetedRef) {
+            throw new AppError(
+              'INVALID_ARGS',
+              `type does not accept a target ref like "${mistargetedRef}"`,
+              {
+                hint: `Use fill ${mistargetedRef} "text" to replace text, or press ${mistargetedRef} then type "text" to append.`,
+              },
+            );
+          }
           const text = positionals.join(' ');
           if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
           const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
@@ -782,6 +792,12 @@ function formatSwipeMessage(count: number, pattern: 'one-way' | 'ping-pong'): st
 
 function formatTextLengthMessage(action: 'Typed' | 'Filled', text: string): string {
   return `${action} ${Array.from(text).length} chars`;
+}
+
+function findMistargetedTypeRef(positionals: string[]): string | null {
+  const first = positionals[0]?.trim();
+  if (!first || !/^@e\d+$/i.test(first)) return null;
+  return first;
 }
 
 function readResultMessage(result: Record<string, unknown>): string | undefined {

@@ -20,6 +20,7 @@ Open this file when the app or screen is already running and you need to discove
 - User asks what is visible on screen: `snapshot`
 - User asks for exact text from a known target: `get text`
 - User asks you to tap, type, or choose an element: `snapshot -i`, then act
+- React Native dev or debug build shows warning/error UI: capture enough evidence to identify it, dismiss it if it is not the requested behavior, then continue the flow and report it in the summary
 - The on-screen keyboard is blocking the next step: `keyboard dismiss`; on iOS do this only while an app session is active, and use `keyboard status|get` only on Android
 - UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked
 
@@ -44,6 +45,16 @@ Open this file when the app or screen is already running and you need to discove
 ## Most common mistake to avoid
 
 Do not treat `@ref` values as durable after navigation or dynamic updates. Re-snapshot after the UI changes, and switch to selectors when the flow must stay stable.
+
+On Android after submits, route changes, or composer transitions, the accessibility tree can lag behind the visible UI for a short window. If `snapshot -i` and `screenshot` disagree, trust the screenshot as the visual source of truth, wait briefly, then take one fresh snapshot instead of looping snapshots immediately.
+
+In React Native dev or debug builds, do not ignore visible warning or error overlays. They can block taps, change the focused element, or hide the real UI state. Check for them near app open and after major transitions.
+
+Default rule:
+
+- If the overlay is not part of the requested behavior, dismiss it and continue.
+- If it is blocking, recurring, or likely related to the task, switch to [debugging.md](debugging.md) and collect a short evidence window.
+- If you saw a visible warning or error at any point, mention it in the final summary even if you dismissed it.
 
 ## Common example loops
 
@@ -129,9 +140,30 @@ When `press @ref` fails:
 
 - Use `fill` to replace text in an editable field.
 - Use `type` to append text to the current insertion point.
+- Use `fill @ref "text"` when you need to target a field directly by ref.
+- Use `press @ref`, then `type "text"` when the field is already focused and you need append semantics.
+- Do not write `type @ref "text"`; `type` only accepts text and will not target that ref for you.
 - If the keyboard blocks the next control after text entry, prefer `keyboard dismiss` instead of backing out of the screen.
 - On iOS, `keyboard dismiss` depends on the active app session to keep the target app foregrounded, so do not rely on selector-only dismiss calls after closing or without `open`.
 - Do not use `fill` or `type` just to make the app reveal information that is not currently visible unless the user asked for that interaction.
+
+## React Native dev or debug overlays
+
+Use this loop for React Native dev clients, Metro-backed builds, and local debug sessions where warnings or errors may appear as tooltips, banners, toasts, or modal overlays.
+
+1. After `open`, inspect the visible UI for warning or error surfaces before relying on the next tap.
+2. If a warning or error is visible, capture enough evidence to identify it:
+   - preferred: `screenshot`
+   - optional: `logs mark "warning visible"` or `logs mark "error visible"` if you are already in a debug window
+3. If the overlay is not the thing the user asked you to investigate, dismiss or close it with the smallest reversible action.
+4. Re-check the intended screen before continuing the task.
+5. Report any visible warnings or errors in the final summary, even if the flow succeeded after dismissal.
+
+Use this rule of thumb:
+
+- Warning overlay that does not block the task: dismiss and keep going.
+- Error overlay that does not block the task: dismiss, keep going, and report it.
+- Error overlay that blocks the task or keeps returning: stop treating it as noise and switch to [debugging.md](debugging.md).
 
 ## Query and sync rules
 
@@ -165,6 +197,7 @@ Preferred mapping:
 Notes:
 
 - `wait text` is useful for synchronizing on text presence, but it is not the same as `is visible`.
+- After a nearby navigation or submit on Android, prefer `screenshot`, then `wait 500` or `wait 1000`, then one fresh `snapshot -i` if the accessibility tree seems stale.
 
 Anti-hallucination rules:
 
@@ -222,6 +255,18 @@ agent-device batch --session sim --platform ios --steps-file /tmp/batch-steps.js
 - Keep batch size moderate, roughly 5 to 20 steps.
 - Add `wait` or `is exists` guards after mutating steps.
 - Do not use `batch` for highly dynamic flows that need replanning after each step.
+
+Example: known chat-send flow
+
+```json
+[
+  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
+  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
+  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
+  { "command": "fill", "positionals": ["label=\"Message\"", "Filed the expense"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+]
+```
 
 Step payload contract:
 

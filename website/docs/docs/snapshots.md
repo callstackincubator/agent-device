@@ -33,6 +33,7 @@ It does not automatically switch to AX.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
 - Add `-d <depth>` when you only need upper hierarchy layers.
 - Re-snapshot after any UI mutation before reusing refs.
+- On Android after navigation or submit, if `snapshot -i` disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
 - Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only.
