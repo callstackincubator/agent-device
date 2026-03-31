@@ -170,8 +170,6 @@ export function iosRunnerOverrides(
           device,
           {
             command: 'type',
-            x,
-            y,
             text,
             clearFirst: true,
             delayMs,
