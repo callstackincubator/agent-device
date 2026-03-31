@@ -6,7 +6,7 @@ import {
   printHumanError,
   printJson,
 } from './utils/output.ts';
-import { readPackageMetadata } from './utils/version.ts';
+import { readVersion } from './utils/version.ts';
 import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
@@ -39,7 +39,7 @@ const DEFAULT_CLI_DEPS: CliDeps = {
 
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
-  const packageMetadata = readPackageMetadata();
+  const version = readVersion();
   const debugEnabled =
     argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
   const jsonRequested = argv.includes('--json');
@@ -84,7 +84,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       if (parsed.flags.version) {
-        process.stdout.write(`${packageMetadata.version}\n`);
+        process.stdout.write(`${version}\n`);
         process.exit(0);
       }
 
@@ -133,11 +133,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       const sessionName = flags.session ?? 'default';
       await maybeRunUpgradeNotifier({
         command,
-        packageName: packageMetadata.name,
-        currentVersion: packageMetadata.version,
+        currentVersion: version,
         stateDir: daemonPaths.baseDir,
         flags,
-        env: process.env,
       });
       const remoteDaemonBaseUrl = flags.daemonBaseUrl;
       const logTailStopper =
