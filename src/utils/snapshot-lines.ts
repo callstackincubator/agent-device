@@ -1,3 +1,4 @@
+import { isSystemScrollIndicatorLabel } from './scroll-indicator.ts';
 import type { SnapshotNode } from './snapshot.ts';
 import { buildTextPreview, describeTextSurface, trimText } from './text-surface.ts';
 
@@ -183,11 +184,7 @@ function shouldSuppressScrollContainerLabel(type: string, label: string): boolea
   if (type !== 'scroll-area' && type !== 'list' && type !== 'collection' && type !== 'table') {
     return false;
   }
-  const normalized = label.trim().toLowerCase();
-  if (/^(vertical|horizontal)\s+scroll\s+bar(?:,?\s*\d+\s+pages?)?$/.test(normalized)) {
-    return true;
-  }
-  return normalized === 'new message line indicator';
+  return isSystemScrollIndicatorLabel(label);
 }
 
 function isGenericResourceId(value: string): boolean {

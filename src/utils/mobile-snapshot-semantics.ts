@@ -1,4 +1,5 @@
 import { isRectVisibleInViewport, resolveViewportRect } from './rect-visibility.ts';
+import { inferVerticalScrollIndicatorDirections } from './scroll-indicator.ts';
 import type { Rect, SnapshotNode } from './snapshot.ts';
 import { buildSnapshotNodeMap } from './snapshot-tree.ts';
 import { isScrollableNodeLike } from './scrollable.ts';
@@ -281,36 +282,18 @@ function mergeScrollIndicatorDirections(
 }
 
 function inferDirectionsFromScrollIndicator(node: SnapshotNode): Set<Direction> | null {
-  const label = `${node.label ?? ''}`.toLowerCase();
-  if (!label.includes('vertical scroll bar')) {
+  const inferred = inferVerticalScrollIndicatorDirections(node.label, node.value);
+  if (!inferred) {
     return null;
   }
-  const scrollPercent = parseScrollPercent(node.value);
-  if (scrollPercent === null) {
-    return null;
+  const directions = new Set<Direction>();
+  if (inferred.above) {
+    directions.add('above');
   }
-  if (scrollPercent <= 1) {
-    return new Set<Direction>(['below']);
+  if (inferred.below) {
+    directions.add('below');
   }
-  if (scrollPercent >= 99) {
-    return new Set<Direction>(['above']);
-  }
-  return new Set<Direction>(['above', 'below']);
-}
-
-function parseScrollPercent(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-  const match = /^(\d{1,3})%$/.exec(value.trim());
-  if (!match) {
-    return null;
-  }
-  const parsed = Number(match[1]);
-  if (!Number.isFinite(parsed)) {
-    return null;
-  }
-  return Math.max(0, Math.min(100, parsed));
+  return directions.size > 0 ? directions : null;
 }
 
 function findNearestScrollableAncestorRect(

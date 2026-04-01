@@ -49,12 +49,6 @@ type SnapshotDiffLine = {
   text?: string;
 };
 
-type VisibleSnapshotPresentation = {
-  nodes: SnapshotNode[];
-  hiddenCount: number;
-  summaryLines: string[];
-};
-
 export function formatSnapshotText(
   data: Record<string, unknown>,
   options: { raw?: boolean; flatten?: boolean } = {},
@@ -63,7 +57,7 @@ export function formatSnapshotText(
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
   const backend = typeof data.backend === 'string' ? data.backend : undefined;
   const visiblePresentation =
-    options.raw || backend === 'macos-helper' ? null : buildVisibleSnapshotPresentation(nodes);
+    options.raw || backend === 'macos-helper' ? null : buildMobileSnapshotPresentation(nodes);
   const truncated = Boolean(data.truncated);
   const appName = typeof data.appName === 'string' ? data.appName : undefined;
   const appBundleId = typeof data.appBundleId === 'string' ? data.appBundleId : undefined;
@@ -279,15 +273,6 @@ function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
 
 function displayNodeLabel(node: SnapshotNode): string {
   return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
-}
-
-function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): VisibleSnapshotPresentation {
-  const presentation = buildMobileSnapshotPresentation(nodes);
-  return {
-    nodes: presentation.nodes,
-    hiddenCount: presentation.hiddenCount,
-    summaryLines: presentation.summaryLines,
-  };
 }
 
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
