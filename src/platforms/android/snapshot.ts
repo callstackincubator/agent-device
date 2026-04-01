@@ -6,7 +6,6 @@ import { attachRefs, type RawSnapshotNode, type SnapshotOptions } from '../../ut
 import { isScrollableType } from '../../utils/scrollable.ts';
 import { buildMobileSnapshotPresentation } from '../../utils/mobile-snapshot-semantics.ts';
 import {
-  type AndroidUiHierarchy,
   buildUiHierarchySnapshot,
   parseUiHierarchy,
   parseUiHierarchyTree,
@@ -31,17 +30,16 @@ export async function snapshotAndroid(
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const sourceNodes: AndroidUiHierarchy[] = [];
-  const parsed = buildUiHierarchySnapshot(
-    tree,
-    800,
-    { ...options, interactiveOnly: false },
-    sourceNodes,
-  );
+  const parsed = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
   await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
   applyDerivedPresentationHiddenContentHints(parsed.nodes);
-  applyHiddenContentHintsToSourceNodes(parsed.nodes, sourceNodes);
-  return buildUiHierarchySnapshot(tree, 800, options);
+  applyHiddenContentHintsToSourceNodes(parsed);
+  const { sourceNodes: _sourceNodes, ...interactiveSnapshot } = buildUiHierarchySnapshot(
+    tree,
+    800,
+    options,
+  );
+  return interactiveSnapshot;
 }
 
 async function annotateScrollableContentHintsIfNeeded(
@@ -139,11 +137,12 @@ async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
 }
 
 function applyHiddenContentHintsToSourceNodes(
-  snapshotNodes: RawSnapshotNode[],
-  sourceNodes: AndroidUiHierarchy[],
+  parsed: ReturnType<typeof buildUiHierarchySnapshot>,
 ): void {
-  for (const [index, sourceNode] of sourceNodes.entries()) {
-    const snapshotNode = snapshotNodes[index];
+  // `tree` is parsed fresh for each snapshot call, so mutating the paired source nodes here
+  // is scoped to this invocation and feeds the interactive rebuild below.
+  for (const [index, sourceNode] of parsed.sourceNodes.entries()) {
+    const snapshotNode = parsed.nodes[index];
     if (!snapshotNode) {
       continue;
     }
