@@ -42,19 +42,21 @@ Open this file when the app or screen is already running and you need to discove
 - `wait`
 - `keyboard dismiss` when the keyboard obscures the next target
 
-## Most common mistake to avoid
+## Common mistakes to avoid
 
-Do not treat `@ref` values as durable after navigation or dynamic updates. Re-snapshot after the UI changes, and switch to selectors when the flow must stay stable.
+**Stale refs.** Do not treat `@ref` values as durable after navigation or dynamic updates. Re-snapshot after the UI changes, and switch to selectors when the flow must stay stable.
 
-On Android after submits, route changes, or composer transitions, the accessibility tree can lag behind the visible UI for a short window. If `snapshot -i` and `screenshot` disagree, trust the screenshot as the visual source of truth, wait briefly, then take one fresh snapshot instead of looping snapshots immediately. Use `snapshot -i --wait-stable 2000` to let the command itself poll until the tree stabilizes, which avoids manual wait-then-retry loops.
+**Android AX tree lag.** After submits, route changes, or composer transitions, the accessibility tree can lag behind the visible UI. If `snapshot -i` and `screenshot` disagree:
 
-In React Native dev or debug builds, do not ignore visible warning or error overlays. They can block taps, change the focused element, or hide the real UI state. Check for them near app open and after major transitions.
+1. Trust the screenshot as visual truth.
+2. Use `snapshot -i --wait-stable 2000` to let the command poll until the tree settles.
+3. If you cannot use `--wait-stable`, wait briefly, then take one fresh snapshot. Do not loop snapshots immediately.
 
-Default rule:
+**React Native dev overlays.** In dev or debug builds, warning or error overlays can block taps, change focus, or hide the real UI. Check for them near app open and after major transitions.
 
-- If the overlay is not part of the requested behavior, dismiss it and continue.
-- If it is blocking, recurring, or likely related to the task, switch to [debugging.md](debugging.md) and collect a short evidence window.
-- If you saw a visible warning or error at any point, mention it in the final summary even if you dismissed it.
+- Not blocking the task: dismiss and continue.
+- Blocking or recurring: switch to [debugging.md](debugging.md) and collect evidence.
+- Seen at any point: mention in the final summary even if dismissed.
 
 ## Common example loops
 
@@ -212,7 +214,7 @@ Avoid this escalation path for visible-text questions:
 
 - Do not jump from `snapshot -i` to `get text @ref`, then to web search, then to typing into a search box just to force the app to reveal the answer.
 - Start with `snapshot`. If the text is not visible or exposed, report that directly.
-- After Android submit or navigation-heavy actions, prefer this recovery order when the UI looks wrong: `screenshot`, then `snapshot -i --wait-stable 2000` to let the tree settle, or short `wait` then one fresh `snapshot -i`.
+- After Android submit or navigation-heavy actions when the UI looks wrong: `screenshot` first, then `snapshot -i --wait-stable 2000`.
 
 Canonical QA loop:
 

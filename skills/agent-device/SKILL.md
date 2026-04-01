@@ -17,7 +17,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Avoid speculative mutations. You may take the smallest reversible UI action needed to unblock inspection or complete the requested task, such as dismissing a popup, closing an alert, or clearing an unintended surface.
 - In React Native dev or debug builds, check early for visible warning or error overlays, tooltips, and toasts that can steal focus or intercept taps. If they are not part of the requested behavior, dismiss them and continue. If you saw them, report them in the final summary.
 - Do not browse the web or use external sources unless the user explicitly asks.
-- Re-snapshot after meaningful UI changes instead of reusing stale refs.
+- Re-snapshot after navigation, taps, or form submits instead of reusing stale refs.
 - Prefer `@ref` or selector targeting over raw coordinates.
 - Ensure the correct target is pinned and an app session is open before interacting.
 - Keep the loop short: `open` -> inspect/act -> verify if needed -> `close`.
