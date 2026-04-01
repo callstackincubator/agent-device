@@ -187,6 +187,40 @@ Failure:
 - Keep batches moderate (about 5-20 steps).
 - Replan from the failing step using `details.step` and `details.partialResults`.
 
+## Canonical recipes
+
+Open app -> open thread -> type -> send
+
+```json
+[
+  { "command": "open", "positionals": ["com.example.chat"], "flags": { "platform": "android" } },
+  { "command": "wait", "positionals": ["text", "Inbox", "3000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Inbox\" role=button"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Adam Horodyski\""], "flags": {} },
+  {
+    "command": "fill",
+    "positionals": ["label=\"Message\" role=text-field", "filed the expense"],
+    "flags": {}
+  },
+  { "command": "press", "positionals": ["label=\"Send\" role=button"], "flags": {} },
+  { "command": "wait", "positionals": ["text", "filed the expense", "3000"], "flags": {} }
+]
+```
+
+Open app -> open action menu -> choose option -> verify
+
+```json
+[
+  { "command": "open", "positionals": ["com.example.app"], "flags": { "platform": "android" } },
+  { "command": "wait", "positionals": ["text", "Home", "3000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"More actions\" role=button"], "flags": {} },
+  { "command": "wait", "positionals": ["text", "Camera scan", "2000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Camera scan\""], "flags": {} },
+  { "command": "wait", "positionals": ["text", "Expense created", "15000"], "flags": {} },
+  { "command": "is", "positionals": ["visible", "label=\"Expense created\""], "flags": {} }
+]
+```
+
 ## Stale accessibility tree risk
 
 Rapid UI changes can outpace accessibility tree updates. Mitigate by inserting explicit waits and splitting long workflows into phases:
@@ -530,6 +564,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or mac
 ```
 
 `fill` clears then types. `type` does not clear.
+`type` accepts text only. Do not pass `@ref` to `type`; use `fill @ref "text"` to target a field directly, or `press @ref` then `type "text"` to append in the focused field.
 Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
 Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
@@ -854,6 +889,7 @@ agent-device logs path
 # Then grep the path; -n adds line numbers for reference
 grep -n "Error\|Exception\|Fatal" ~/.agent-device/sessions/default/app.log
 grep -n -E "Error|Exception|Fatal|crash" ~/.agent-device/sessions/default/app.log
+grep -n -E "agent-device.*mark|before submit" ~/.agent-device/sessions/default/app.log
 
 # Last 50 lines only (bounded context)
 tail -50 ~/.agent-device/sessions/default/app.log
@@ -862,6 +898,8 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Use `-n` to include line numbers. Use `-E` for extended regex and `|` without escaping in the pattern.
 
 - Prefer targeted patterns (e.g. `Error`, `Exception`, your log tags) over reading the whole file.
+
+- `logs mark "before submit"` lines are prefixed with `[agent-device][mark][...]`, so grep for `agent-device.*mark` when you need timing markers back quickly.
 
 - iOS `record` works on simulators and physical devices.
 
@@ -1149,26 +1187,31 @@ url: /agent-device/docs/quick-start.md
 Every device automation follows this pattern:
 
 ```bash
-# 1. Navigate
+# 1. Discover the installed app identifier when needed
+agent-device apps --platform ios # or android
+
+# 2. Navigate
 agent-device open SampleApp --platform ios # or android
 
-# 2. Snapshot to get element refs
+# 3. Snapshot to get element refs
 agent-device snapshot -i
 # Output:
 # @e1 [heading] "Sample App"
 # @e2 [button] "Settings"
 
-# 3. Interact using refs
+# 4. Interact using refs
 agent-device click @e2
 
-# 4. Re-snapshot before next interactions
+# 5. Re-snapshot before next interactions
 agent-device snapshot -i
 
-# 5. Optional: see structural changes since last baseline
+# 6. Optional: see structural changes since last baseline
 agent-device diff snapshot
 # or, from snapshot-focused help/examples:
 agent-device snapshot --diff
 ```
+
+React Native dev or debug builds often show warning or error overlays that can intercept taps or hide the real UI state. Check for them near app open and after major transitions. If they are not the requested behavior, dismiss them and continue, but mention them in your summary if you saw them.
 
 Boot target if there is no ready device/simulator:
 
@@ -1183,12 +1226,14 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ## Common commands
 
 ```bash
+agent-device apps --platform android    # Discover the exact package name when unsure
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
 agent-device diff snapshot               # Preferred exploration form for structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
-agent-device fill @e3 "search" --delay-ms 80 # Pace typing for debounced search fields
+agent-device press @e3
+agent-device type " more" --delay-ms 80  # Append into the already focused field
 agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
@@ -1206,6 +1251,7 @@ agent-device close
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
+If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.
 
 ## Fast batching
 
@@ -1216,6 +1262,18 @@ agent-device batch \
   --platform ios \
   --steps-file /tmp/batch-steps.json \
   --json
+```
+
+Example batch payload for a known chat flow:
+
+```json
+[
+  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
+  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
+  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
+  { "command": "fill", "positionals": ["label=\"Message\"", "Filed the expense"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+]
 ```
 
 See [Batching](/agent-device/docs/batching.md) for payload format, failure handling, and best practices.
@@ -1409,7 +1467,8 @@ Use `find` to locate elements by semantic attributes instead of raw refs.
 agent-device find "Settings" click
 agent-device find text "Sign In" click
 agent-device find label "Email" fill "user@example.com"
-agent-device find value "Search" type "query"
+agent-device find value "Search" click
+agent-device type "query"
 agent-device find role button click
 agent-device find id "com.example:id/login" click
 ```
@@ -1419,6 +1478,7 @@ Tips:
 - Use `find ... wait <timeoutMs>` to wait for UI to appear.
 - Combine with scoped snapshots using `snapshot -s "<label>"` for speed.
 - \[Android] If a matched node is not hittable, agent-device will click/focus the nearest hittable ancestor.
+- Use `fill` when you want find-plus-targeted text replacement in one step. Use `click` or `press` plus `type` when you need append semantics in the focused field.
 
 ## Response shape (click)
 
@@ -1518,7 +1578,10 @@ It does not automatically switch to AX.
 - Default to `snapshot -i` for agent loops.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
 - Add `-d <depth>` when you only need upper hierarchy layers.
+- If `snapshot -i` returns 0 nodes on Android but the screen is visibly populated, trust `screenshot` as visual truth, wait briefly, then take one fresh `snapshot -i`.
+- If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry once without `-d` before taking more shallow snapshots.
 - Re-snapshot after any UI mutation before reusing refs.
+- On Android after navigation or submit, if `snapshot -i` disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
 - Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only.

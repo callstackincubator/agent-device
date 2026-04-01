@@ -240,6 +240,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or mac
 ```
 
 `fill` clears then types. `type` does not clear.
+`type` accepts text only. Do not pass `@ref` to `type`; use `fill @ref "text"` to target a field directly, or `press @ref` then `type "text"` to append in the focused field.
 Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
 Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
@@ -564,6 +565,7 @@ agent-device logs path
 # Then grep the path; -n adds line numbers for reference
 grep -n "Error\|Exception\|Fatal" ~/.agent-device/sessions/default/app.log
 grep -n -E "Error|Exception|Fatal|crash" ~/.agent-device/sessions/default/app.log
+grep -n -E "agent-device.*mark|before submit" ~/.agent-device/sessions/default/app.log
 
 # Last 50 lines only (bounded context)
 tail -50 ~/.agent-device/sessions/default/app.log
@@ -572,6 +574,8 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Use `-n` to include line numbers. Use `-E` for extended regex and `|` without escaping in the pattern.
 
 - Prefer targeted patterns (e.g. `Error`, `Exception`, your log tags) over reading the whole file.
+
+- `logs mark "before submit"` lines are prefixed with `[agent-device][mark][...]`, so grep for `agent-device.*mark` when you need timing markers back quickly.
 
 - iOS `record` works on simulators and physical devices.
 

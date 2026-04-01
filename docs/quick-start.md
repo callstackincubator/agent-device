@@ -3,26 +3,31 @@
 Every device automation follows this pattern:
 
 ```bash
-# 1. Navigate
+# 1. Discover the installed app identifier when needed
+agent-device apps --platform ios # or android
+
+# 2. Navigate
 agent-device open SampleApp --platform ios # or android
 
-# 2. Snapshot to get element refs
+# 3. Snapshot to get element refs
 agent-device snapshot -i
 # Output:
 # @e1 [heading] "Sample App"
 # @e2 [button] "Settings"
 
-# 3. Interact using refs
+# 4. Interact using refs
 agent-device click @e2
 
-# 4. Re-snapshot before next interactions
+# 5. Re-snapshot before next interactions
 agent-device snapshot -i
 
-# 5. Optional: see structural changes since last baseline
+# 6. Optional: see structural changes since last baseline
 agent-device diff snapshot
 # or, from snapshot-focused help/examples:
 agent-device snapshot --diff
 ```
+
+React Native dev or debug builds often show warning or error overlays that can intercept taps or hide the real UI state. Check for them near app open and after major transitions. If they are not the requested behavior, dismiss them and continue, but mention them in your summary if you saw them.
 
 Boot target if there is no ready device/simulator:
 
@@ -37,12 +42,14 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ## Common commands
 
 ```bash
+agent-device apps --platform android    # Discover the exact package name when unsure
 agent-device open SampleApp
 agent-device snapshot -i                 # Get interactive elements with refs
 agent-device diff snapshot               # Preferred exploration form for structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)
-agent-device fill @e3 "search" --delay-ms 80 # Pace typing for debounced search fields
+agent-device press @e3
+agent-device type " more" --delay-ms 80  # Append into the already focused field
 agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
@@ -60,6 +67,7 @@ agent-device close
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
+If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.
 
 ## Fast batching
 
@@ -70,6 +78,18 @@ agent-device batch \
   --platform ios \
   --steps-file /tmp/batch-steps.json \
   --json
+```
+
+Example batch payload for a known chat flow:
+
+```json
+[
+  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
+  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
+  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
+  { "command": "fill", "positionals": ["label=\"Message\"", "Filed the expense"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+]
 ```
 
 See [Batching](/agent-device/docs/batching.md) for payload format, failure handling, and best practices.
