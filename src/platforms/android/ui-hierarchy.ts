@@ -43,6 +43,7 @@ export function buildUiHierarchySnapshot(
   tree: AndroidUiHierarchy,
   maxNodes: number,
   options: SnapshotOptions,
+  sourceNodesOut?: AndroidUiHierarchy[],
 ): { nodes: RawSnapshotNode[]; truncated?: boolean; analysis: AndroidSnapshotAnalysis } {
   const analysis = analyzeAndroidTree(tree);
   const nodes: RawSnapshotNode[] = [];
@@ -90,6 +91,7 @@ export function buildUiHierarchySnapshot(
     let currentIndex = parentIndex;
     if (include) {
       currentIndex = nodes.length;
+      sourceNodesOut?.push(node);
       nodes.push({
         index: currentIndex,
         type: node.type ?? undefined,
@@ -101,6 +103,8 @@ export function buildUiHierarchySnapshot(
         hittable: node.hittable,
         depth,
         parentIndex,
+        hiddenContentAbove: node.hiddenContentAbove,
+        hiddenContentBelow: node.hiddenContentBelow,
       });
     }
     const nextAncestorHittable = ancestorHittable || Boolean(node.hittable);
@@ -203,6 +207,8 @@ export type AndroidUiHierarchy = {
   hittable?: boolean;
   depth: number;
   parentIndex?: number;
+  hiddenContentAbove?: boolean;
+  hiddenContentBelow?: boolean;
   children: AndroidNode[];
 };
 

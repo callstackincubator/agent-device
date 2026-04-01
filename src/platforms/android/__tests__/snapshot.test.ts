@@ -15,6 +15,7 @@ vi.mock('../adb.ts', async (importOriginal) => {
 
 import { screenshotAndroid } from '../screenshot.ts';
 import { dumpUiHierarchy, snapshotAndroid } from '../snapshot.ts';
+import { buildUiHierarchySnapshot, parseUiHierarchyTree } from '../ui-hierarchy.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
@@ -432,4 +433,31 @@ test('snapshotAndroid preserves bottomed-out hidden-above hints in interactive s
   assert.ok(scrollArea);
   assert.equal(scrollArea?.hiddenContentAbove, true);
   assert.equal(scrollArea?.hiddenContentBelow, undefined);
+});
+
+test('buildUiHierarchySnapshot preserves hidden content hints from Android tree nodes', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" content-desc="Messages" bounds="[0,100][390,500]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,500]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="Visible message" bounds="[0,120][390,180]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const tree = parseUiHierarchyTree(xml);
+  const scrollNode = tree.children[0]?.children[0];
+  assert.ok(scrollNode);
+  scrollNode.hiddenContentAbove = true;
+  scrollNode.hiddenContentBelow = true;
+
+  const result = buildUiHierarchySnapshot(tree, 800, { interactiveOnly: true });
+  const scrollArea = result.nodes.find((node) => node.label === 'Messages');
+
+  assert.ok(scrollArea);
+  assert.equal(result.sourceNodes[result.nodes.indexOf(scrollArea)], scrollNode);
+  assert.equal(scrollArea.hiddenContentAbove, true);
+  assert.equal(scrollArea.hiddenContentBelow, true);
 });
