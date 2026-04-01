@@ -30,14 +30,13 @@ export async function sampleAndroidCpuPerf(
   device: DeviceInfo,
   packageName: string,
 ): Promise<AndroidCpuPerfSample> {
-  const measuredAt = new Date().toISOString();
   try {
     const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'cpuinfo']), {
       timeoutMs: ANDROID_PERF_TIMEOUT_MS,
     });
-    return parseAndroidCpuInfoSample(result.stdout, packageName, measuredAt);
+    return parseAndroidCpuInfoSample(result.stdout, packageName, new Date().toISOString());
   } catch (error) {
-    throw wrapAndroidPerfSamplingError('cpu', packageName, error);
+    throw annotateAndroidPerfSamplingError('cpu', packageName, error);
   }
 }
 
@@ -45,16 +44,15 @@ export async function sampleAndroidMemoryPerf(
   device: DeviceInfo,
   packageName: string,
 ): Promise<AndroidMemoryPerfSample> {
-  const measuredAt = new Date().toISOString();
   try {
     const result = await runCmd(
       'adb',
       adbArgs(device, ['shell', 'dumpsys', 'meminfo', packageName]),
       { timeoutMs: ANDROID_PERF_TIMEOUT_MS },
     );
-    return parseAndroidMemInfoSample(result.stdout, packageName, measuredAt);
+    return parseAndroidMemInfoSample(result.stdout, packageName, new Date().toISOString());
   } catch (error) {
-    throw wrapAndroidPerfSamplingError('memory', packageName, error);
+    throw annotateAndroidPerfSamplingError('memory', packageName, error);
   }
 }
 
@@ -63,7 +61,7 @@ export function parseAndroidCpuInfoSample(
   packageName: string,
   measuredAt: string,
 ): AndroidCpuPerfSample {
-  const matchedProcesses: string[] = [];
+  const matchedProcesses = new Set<string>();
   let usagePercent = 0;
 
   for (const rawLine of stdout.split('\n')) {
@@ -79,16 +77,14 @@ export function parseAndroidCpuInfoSample(
     }
 
     usagePercent += percent;
-    if (!matchedProcesses.includes(processName)) {
-      matchedProcesses.push(processName);
-    }
+    matchedProcesses.add(processName);
   }
 
   return {
     usagePercent: roundPercent(usagePercent),
     measuredAt,
     method: ANDROID_CPU_SAMPLE_METHOD,
-    matchedProcesses,
+    matchedProcesses: [...matchedProcesses],
   };
 }
 
@@ -130,7 +126,7 @@ export function parseAndroidMemInfoSample(
   };
 }
 
-function wrapAndroidPerfSamplingError(
+function annotateAndroidPerfSamplingError(
   metric: 'cpu' | 'memory',
   packageName: string,
   error: unknown,
@@ -141,7 +137,7 @@ function wrapAndroidPerfSamplingError(
   ) {
     return new AppError(
       error.code,
-      `Failed to sample Android ${metric} for ${packageName}`,
+      error.message,
       {
         ...(error.details ?? {}),
         metric,
@@ -167,11 +163,7 @@ function wrapAndroidPerfSamplingError(
 }
 
 function matchesAndroidPackageProcess(processName: string, packageName: string): boolean {
-  return (
-    processName === packageName ||
-    processName.startsWith(`${packageName}:`) ||
-    processName.startsWith(`${packageName}.`)
-  );
+  return processName === packageName || processName.startsWith(`${packageName}:`);
 }
 
 function roundPercent(value: number): number {
@@ -188,6 +180,7 @@ function matchLabeledNumber(text: string, label: string): number | undefined {
 function matchTotalRowPss(text: string): number | undefined {
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim();
+    // Skip the "TOTAL PSS:" summary line and only match the tabular TOTAL row.
     if (!/^TOTAL\b(?!\s+PSS:)/.test(line)) continue;
     const firstValue = line
       .split(/\s+/)

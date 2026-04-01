@@ -1960,7 +1960,7 @@ test('perf samples Android cpu and memory metrics when app package context is av
   }
 });
 
-test('perf returns normalized errors when Android metric sampling fails', async () => {
+test('perf preserves successful metrics and normalizes per-metric Android sampling failures', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'perf-session-android-error';
   sessionStore.set(sessionName, {
@@ -2003,13 +2003,20 @@ test('perf returns normalized errors when Android metric sampling fails', async 
   });
 
   expect(response).toBeTruthy();
-  expect(response?.ok).toBe(false);
-  if (response && !response.ok) {
-    expect(response.error.code).toBe('COMMAND_FAILED');
-    expect(response.error.message).toBe('error: device offline');
-    expect(response.error.hint).toMatch(/retry with --debug/i);
-    expect(response.error.details?.metric).toBe('memory');
-    expect(response.error.details?.package).toBe('com.example.app');
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    const startup = (response.data?.metrics as any)?.startup;
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    expect(startup?.available).toBe(false);
+    expect(memory?.available).toBe(false);
+    expect(memory?.reason).toBe('error: device offline');
+    expect(memory?.error?.code).toBe('COMMAND_FAILED');
+    expect(memory?.error?.hint).toMatch(/retry with --debug/i);
+    expect(memory?.error?.details?.metric).toBe('memory');
+    expect(memory?.error?.details?.package).toBe('com.example.app');
+    expect(cpu?.available).toBe(true);
+    expect(cpu?.usagePercent).toBe(0);
   }
 });
 

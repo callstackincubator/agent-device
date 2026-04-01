@@ -1,4 +1,5 @@
 import type { SessionAction, SessionState } from '../types.ts';
+import { normalizeError } from '../../utils/errors.ts';
 import {
   ANDROID_CPU_SAMPLE_DESCRIPTION,
   ANDROID_CPU_SAMPLE_METHOD,
@@ -67,21 +68,7 @@ export async function buildPerfResponseData(
         reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
         method: STARTUP_SAMPLE_METHOD,
       };
-  const androidSampling =
-    session.device.platform === 'android'
-      ? {
-          memory: {
-            method: ANDROID_MEMORY_SAMPLE_METHOD,
-            description: ANDROID_MEMORY_SAMPLE_DESCRIPTION,
-            unit: 'kB',
-          },
-          cpu: {
-            method: ANDROID_CPU_SAMPLE_METHOD,
-            description: ANDROID_CPU_SAMPLE_DESCRIPTION,
-            unit: 'percent',
-          },
-        }
-      : {};
+  const androidSampling = buildAndroidSamplingMetadata(session);
 
   const defaultUnavailableMetrics = {
     fps: { available: false, reason: PERF_UNAVAILABLE_REASON },
@@ -89,71 +76,21 @@ export async function buildPerfResponseData(
     cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
   };
 
-  if (session.device.platform !== 'android') {
-    return {
-      session: session.name,
-      platform: session.device.platform,
-      device: session.device.name,
-      deviceId: session.device.id,
-      metrics: {
-        startup: startupMetric,
-        ...defaultUnavailableMetrics,
-      },
-      sampling: {
-        startup: {
-          method: STARTUP_SAMPLE_METHOD,
-          description: STARTUP_SAMPLE_DESCRIPTION,
-          unit: 'ms',
-        },
-        ...androidSampling,
-      },
-    };
-  }
-
-  if (!session.appBundleId) {
-    return {
-      session: session.name,
-      platform: session.device.platform,
-      device: session.device.name,
-      deviceId: session.device.id,
-      metrics: {
-        startup: startupMetric,
-        fps: defaultUnavailableMetrics.fps,
-        memory: {
-          available: false,
-          reason: 'No Android app package is associated with this session. Run open <app> first.',
-        },
-        cpu: {
-          available: false,
-          reason: 'No Android app package is associated with this session. Run open <app> first.',
-        },
-      },
-      sampling: {
-        startup: {
-          method: STARTUP_SAMPLE_METHOD,
-          description: STARTUP_SAMPLE_DESCRIPTION,
-          unit: 'ms',
-        },
-        ...androidSampling,
-      },
-    };
-  }
-
-  const [memorySample, cpuSample] = await Promise.all([
-    sampleAndroidMemoryPerf(session.device, session.appBundleId),
-    sampleAndroidCpuPerf(session.device, session.appBundleId),
-  ]);
-
-  return {
+  const response: {
+    session: string;
+    platform: string;
+    device: string;
+    deviceId: string;
+    metrics: Record<string, unknown>;
+    sampling: Record<string, unknown>;
+  } = {
     session: session.name,
     platform: session.device.platform,
     device: session.device.name,
     deviceId: session.device.id,
     metrics: {
       startup: startupMetric,
-      fps: defaultUnavailableMetrics.fps,
-      memory: { available: true, ...memorySample },
-      cpu: { available: true, ...cpuSample },
+      ...defaultUnavailableMetrics,
     },
     sampling: {
       startup: {
@@ -163,5 +100,61 @@ export async function buildPerfResponseData(
       },
       ...androidSampling,
     },
+  };
+
+  if (session.device.platform !== 'android') {
+    return response;
+  }
+
+  if (!session.appBundleId) {
+    response.metrics.memory = {
+      available: false,
+      reason: 'No Android app package is associated with this session. Run open <app> first.',
+    };
+    response.metrics.cpu = {
+      available: false,
+      reason: 'No Android app package is associated with this session. Run open <app> first.',
+    };
+    return response;
+  }
+
+  const [memoryResult, cpuResult] = await Promise.allSettled([
+    sampleAndroidMemoryPerf(session.device, session.appBundleId),
+    sampleAndroidCpuPerf(session.device, session.appBundleId),
+  ]);
+  response.metrics.memory = buildAndroidMetricResult(memoryResult);
+  response.metrics.cpu = buildAndroidMetricResult(cpuResult);
+  return response;
+}
+
+function buildAndroidSamplingMetadata(session: SessionState): Record<string, unknown> {
+  if (session.device.platform !== 'android') return {};
+  return {
+    memory: {
+      method: ANDROID_MEMORY_SAMPLE_METHOD,
+      description: ANDROID_MEMORY_SAMPLE_DESCRIPTION,
+      unit: 'kB',
+    },
+    cpu: {
+      method: ANDROID_CPU_SAMPLE_METHOD,
+      description: ANDROID_CPU_SAMPLE_DESCRIPTION,
+      unit: 'percent',
+    },
+  };
+}
+
+function buildAndroidMetricResult<T extends Record<string, unknown>>(
+  result: PromiseSettledResult<T>,
+):
+  | ({ available: true } & T)
+  | { available: false; reason: string; error: ReturnType<typeof normalizeError> } {
+  if (result.status === 'fulfilled') {
+    return { available: true, ...result.value };
+  }
+  const error = normalizeError(result.reason);
+  return {
+    available: false,
+    reason: error.message,
+    error,
   };
 }
