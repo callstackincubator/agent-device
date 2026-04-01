@@ -65,7 +65,7 @@ export async function handleSessionObservabilityCommands(
 // perf
 // ---------------------------------------------------------------------------
 
-function handlePerfCommand(params: ObservabilityParams): DaemonResponse | null {
+async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonResponse> {
   const { sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
@@ -77,7 +77,12 @@ function handlePerfCommand(params: ObservabilityParams): DaemonResponse | null {
       },
     };
   }
-  return { ok: true, data: buildPerfResponseData(session) };
+
+  try {
+    return { ok: true, data: await buildPerfResponseData(session) };
+  } catch (error) {
+    return { ok: false, error: normalizeError(error) };
+  }
 }
 
 // ---------------------------------------------------------------------------

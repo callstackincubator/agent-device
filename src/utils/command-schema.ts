@@ -1075,8 +1075,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   perf: {
-    helpDescription: 'Show session performance metrics (startup timing)',
-    summary: 'Show startup metrics',
+    helpDescription: 'Show session performance metrics',
+    summary: 'Show performance metrics',
     positionalArgs: [],
     allowedFlags: [],
   },

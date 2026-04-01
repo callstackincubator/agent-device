@@ -25,7 +25,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
-- Session performance metrics: `perf`/`metrics` is available on iOS and Android and currently reports startup timing sampled from `open` command round-trip duration.
+- Session performance metrics: `perf`/`metrics` is available on iOS and Android. Startup timing comes from `open` command round-trip duration, and Android app sessions also expose CPU and memory snapshots when an app package is available in the session.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).

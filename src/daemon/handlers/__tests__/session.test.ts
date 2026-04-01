@@ -1869,8 +1869,147 @@ test('perf reports startup metric as unavailable when no sample exists', async (
   expect(response?.ok).toBe(true);
   if (response && response.ok) {
     const startup = (response.data?.metrics as any)?.startup;
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
     expect(startup?.available).toBe(false);
     expect(String(startup?.reason ?? '')).toMatch(/no startup sample captured yet/i);
+    expect(memory?.available).toBe(false);
+    expect(String(memory?.reason ?? '')).toMatch(/run open <app> first/i);
+    expect(cpu?.available).toBe(false);
+    expect(String(cpu?.reason ?? '')).toMatch(/run open <app> first/i);
+  }
+});
+
+test('perf samples Android cpu and memory metrics when app package context is available', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-android';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appName: 'Example App',
+  });
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('cpuinfo')) {
+      return {
+        stdout: [
+          'Load: 1.0 / 0.5 / 0.25',
+          '7.5% 1234/com.example.app: 5.0% user + 2.5% kernel',
+          '1.5% 2345/com.example.app:sync: 1.0% user + 0.5% kernel',
+          '0.3% 999/system_server: 0.2% user + 0.1% kernel',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (args.includes('meminfo')) {
+      return {
+        stdout: [
+          '** MEMINFO in pid 18227 [com.example.app] **',
+          '                   Pss  Private  Private  Swapped     Heap     Heap     Heap',
+          '                 Total    Dirty    Clean    Dirty     Size    Alloc     Free',
+          '                ------   ------   ------   ------   ------   ------   ------',
+          '          TOTAL   216524   208232     4384        0    82916    68345    14570',
+          'App Summary',
+          '  TOTAL PSS:   216,524            TOTAL RSS:   340,112       TOTAL SWAP PSS:        0',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    const sampling = response.data?.sampling as Record<string, any> | undefined;
+    expect(memory?.available).toBe(true);
+    expect(memory?.totalPssKb).toBe(216524);
+    expect(memory?.totalRssKb).toBe(340112);
+    expect(memory?.method).toBe('adb-shell-dumpsys-meminfo');
+    expect(typeof memory?.measuredAt).toBe('string');
+    expect(cpu?.available).toBe(true);
+    expect(cpu?.usagePercent).toBe(9);
+    expect(cpu?.matchedProcesses).toEqual(['com.example.app', 'com.example.app:sync']);
+    expect(cpu?.method).toBe('adb-shell-dumpsys-cpuinfo');
+    expect(typeof cpu?.measuredAt).toBe('string');
+    expect(sampling?.memory?.unit).toBe('kB');
+    expect(sampling?.cpu?.unit).toBe('percent');
+  }
+});
+
+test('perf returns normalized errors when Android metric sampling fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-android-error';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('meminfo')) {
+      throw new AppError('COMMAND_FAILED', 'adb exited with code 1', {
+        stderr: 'error: device offline',
+        exitCode: 1,
+        processExitError: true,
+      });
+    }
+    return {
+      stdout: '0.0% 1234/com.example.app: 0% user + 0% kernel',
+      stderr: '',
+      exitCode: 0,
+    };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toBe('error: device offline');
+    expect(response.error.hint).toMatch(/retry with --debug/i);
+    expect(response.error.details?.metric).toBe('memory');
+    expect(response.error.details?.package).toBe('com.example.app');
   }
 });
 

@@ -510,13 +510,18 @@ agent-device metrics --json
 ```
 
 - `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
-- Current metric: `startup` from `open-command-roundtrip` sampling.
-- Sampling method: elapsed wall-clock time around each `open` command dispatch for the active session app target.
-- Unit: milliseconds (`ms`).
-- Platform support for current startup sampling: iOS simulator, iOS physical device, Android emulator/device.
-- `fps`, `memory`, and `cpu` are surfaced as unavailable placeholders in this release.
+- `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
+- Android app sessions with an active package also sample:
+  - `memory` from `adb shell dumpsys meminfo <package>` with values reported in kilobytes (`kB`)
+  - `cpu` from `adb shell dumpsys cpuinfo`, aggregated across matching package processes and reported as a recent percentage snapshot
+- Platform support:
+  - `startup`: iOS simulator, iOS physical device, Android emulator/device
+  - `memory` and `cpu`: Android emulator/device with an active app session (`open <app>` first)
+- iOS still reports `fps`, `memory`, and `cpu` as unavailable placeholders in this release.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
+- If the Android session has no app package yet, `memory` and `cpu` remain unavailable until you `open <app>`.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
+- Android CPU data is a lightweight `dumpsys` snapshot, so an idle app may legitimately read as `0`.
 
 ## Media and logs
 

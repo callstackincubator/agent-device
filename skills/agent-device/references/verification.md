@@ -2,7 +2,7 @@
 
 ## When to open this file
 
-Open this file when the task needs evidence, regression checks, replay maintenance, or startup performance measurements after the main interaction flow is already working.
+Open this file when the task needs evidence, regression checks, replay maintenance, or session performance measurements after the main interaction flow is already working.
 
 ## Main commands to reach for first
 
@@ -97,13 +97,14 @@ agent-device test ./smoke --platform android
 
 ## Performance checks
 
-Use `perf --json` or `metrics --json` when you need startup timing for the active session.
+Use `perf --json` or `metrics --json` when you need session performance data for the active session.
 
 ```bash
 agent-device open Settings --platform ios
 agent-device perf --json
 ```
 
-- Current startup data is command round-trip timing around `open`.
+- `startup` is command round-trip timing around `open`.
 - It is not true first-frame or first-interactive telemetry.
-- `fps`, `memory`, and `cpu` are currently placeholders.
+- Android app sessions also expose `memory` (`dumpsys meminfo`) and `cpu` (`dumpsys cpuinfo`) snapshots when the session has an app package context.
+- iOS still reports `fps`, `memory`, and `cpu` as unavailable placeholders.
