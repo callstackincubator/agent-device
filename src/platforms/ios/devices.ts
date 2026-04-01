@@ -14,6 +14,7 @@ const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   500,
 );
 const APPLE_PRODUCT_TYPE_PATTERN = /^(iphone|ipad|ipod|appletv)/i;
+const APPLE_MOBILE_LABEL_PATTERN = /\b(iphone|ipad|ipod)\b/i;
 const APPLE_TV_PRODUCT_TYPE_PATTERN = /^appletv/i;
 const APPLE_TV_LABEL_HINTS = ['apple tv', 'appletv', 'tvos'] as const;
 
@@ -47,6 +48,8 @@ type IosDeviceDiscoveryOptions = {
 };
 
 const HOST_MAC_DEVICE_ID = 'host-macos-local';
+const XCTRACE_SECTION_HEADER_PATTERN = /^==\s*(.+?)\s*==$/;
+const XCTRACE_DEVICE_LINE_PATTERN = /^(?<name>.+?)\s+\[(?<id>[^[\]]+)\]\s*$/;
 
 function normalizeAppleDescriptor(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -76,6 +79,16 @@ function isSupportedAppleRuntime(runtime: string): boolean {
 function isAppleTvLabel(value: string): boolean {
   const normalized = normalizeAppleDescriptor(value);
   return APPLE_TV_LABEL_HINTS.some((hint) => normalized.includes(hint));
+}
+
+function isAppleMobileLabel(value: string): boolean {
+  return APPLE_MOBILE_LABEL_PATTERN.test(value.trim());
+}
+
+function resolveAppleTargetFromLabel(value: string): DeviceTarget | null {
+  if (isAppleTvLabel(value)) return 'tv';
+  if (isAppleMobileLabel(value)) return 'mobile';
+  return null;
 }
 
 export function isAppleProductType(productType: string): boolean {
@@ -149,34 +162,20 @@ export async function findBootableIosSimulator(
     return null;
   }
 
+  const simulators = parseSimctlAppleDevices(payload, simulatorSetPath);
   let bestBooted: DeviceInfo | null = null;
   let bestMobile: DeviceInfo | null = null;
   let bestAny: DeviceInfo | null = null;
 
-  for (const [runtime, runtimes] of Object.entries(payload.devices)) {
-    if (!isSupportedAppleRuntime(runtime)) continue;
-    const target = resolveAppleTargetFromRuntime(runtime);
-    if (targetFilter && target !== targetFilter) continue;
-    for (const device of runtimes) {
-      if (!device.isAvailable) continue;
-      const info: DeviceInfo = {
-        platform: 'ios',
-        id: device.udid,
-        name: device.name,
-        kind: 'simulator',
-        target,
-        booted: device.state === 'Booted',
-        ...(simulatorSetPath ? { simulatorSetPath } : {}),
-      };
-
-      if (info.booted) {
-        bestBooted = bestBooted ?? info;
-      }
-      if (target === 'mobile') {
-        bestMobile = bestMobile ?? info;
-      }
-      bestAny = bestAny ?? info;
+  for (const simulator of simulators) {
+    if (targetFilter && simulator.target !== targetFilter) continue;
+    if (simulator.booted) {
+      bestBooted = bestBooted ?? simulator;
     }
+    if (simulator.target === 'mobile') {
+      bestMobile = bestMobile ?? simulator;
+    }
+    bestAny = bestAny ?? simulator;
   }
 
   return bestBooted ?? bestMobile ?? bestAny;
@@ -193,55 +192,98 @@ function buildHostMacDevice(): DeviceInfo {
   };
 }
 
-export async function listAppleDevices(
-  options: IosDeviceDiscoveryOptions = {},
-): Promise<DeviceInfo[]> {
-  if (process.platform !== 'darwin') {
-    throw new AppError('UNSUPPORTED_PLATFORM', 'Apple tools are only available on macOS');
-  }
-
-  const simctlAvailable = await whichCmd('xcrun');
-  if (!simctlAvailable) {
-    throw new AppError('TOOL_MISSING', 'xcrun not found in PATH');
-  }
-
+function parseSimctlAppleDevices(
+  payload: SimctlListDevicesPayload,
+  simulatorSetPath: string | undefined,
+): DeviceInfo[] {
   const devices: DeviceInfo[] = [];
-  const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
-
-  const simResult = await runCmd(
-    'xcrun',
-    buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
-  );
-  try {
-    const payload = JSON.parse(simResult.stdout as string) as SimctlListDevicesPayload;
-    for (const [runtime, runtimes] of Object.entries(payload.devices)) {
-      if (!isSupportedAppleRuntime(runtime)) continue;
-      for (const device of runtimes) {
-        if (!device.isAvailable) continue;
-        devices.push({
-          platform: 'ios',
-          id: device.udid,
-          name: device.name,
-          kind: 'simulator',
-          target: resolveAppleTargetFromRuntime(runtime),
-          booted: device.state === 'Booted',
-          ...(simulatorSetPath ? { simulatorSetPath } : {}),
-        });
-      }
+  for (const [runtime, runtimes] of Object.entries(payload.devices)) {
+    if (!isSupportedAppleRuntime(runtime)) continue;
+    for (const device of runtimes) {
+      if (!device.isAvailable) continue;
+      devices.push({
+        platform: 'ios',
+        id: device.udid,
+        name: device.name,
+        kind: 'simulator',
+        target: resolveAppleTargetFromRuntime(runtime),
+        booted: device.state === 'Booted',
+        ...(simulatorSetPath ? { simulatorSetPath } : {}),
+      });
     }
-  } catch (err) {
-    throw new AppError('COMMAND_FAILED', 'Failed to parse simctl devices JSON', undefined, err);
+  }
+  return devices;
+}
+
+function mapDevicectlAppleDevices(payload: DevicectlListDevicesPayload): DeviceInfo[] {
+  const devices: DeviceInfo[] = [];
+  for (const device of payload.result?.devices ?? []) {
+    if (!isSupportedAppleDevicectlDevice(device)) continue;
+    const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
+    const name = device.name ?? device.deviceProperties?.name ?? id;
+    if (!id) continue;
+    devices.push({
+      platform: 'ios',
+      id,
+      name,
+      kind: 'device',
+      target: resolveAppleTargetFromDevicectlDevice(device),
+      booted: true,
+    });
+  }
+  return devices;
+}
+
+export function parseXctracePhysicalAppleDevices(output: string): DeviceInfo[] {
+  const devices: DeviceInfo[] = [];
+  let section: string | null = null;
+
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const sectionMatch = XCTRACE_SECTION_HEADER_PATTERN.exec(line);
+    if (sectionMatch) {
+      section = sectionMatch[1]?.trim() ?? null;
+      continue;
+    }
+
+    if (section !== 'Devices') continue;
+
+    const deviceMatch = XCTRACE_DEVICE_LINE_PATTERN.exec(line);
+    const id = deviceMatch?.groups?.id?.trim() ?? '';
+    const name = deviceMatch?.groups?.name?.trim() ?? '';
+    if (!id || !name) continue;
+    const target = resolveAppleTargetFromLabel(name);
+    if (!target) continue;
+
+    devices.push({
+      platform: 'ios',
+      id,
+      name,
+      kind: 'device',
+      target,
+      booted: true,
+    });
   }
 
-  devices.push(buildHostMacDevice());
+  return devices;
+}
 
-  // When a simulator set is configured, keep iOS discovery strictly scoped to that set.
-  // Do not enumerate host-global physical devices, but keep the local Mac available
-  // because desktop targeting is independent of simulator sets.
-  if (simulatorSetPath) {
-    return devices;
+function mergeAppleDevices(primary: DeviceInfo[], supplemental: DeviceInfo[]): DeviceInfo[] {
+  const ids = new Set(primary.map((device) => device.id));
+  const merged = [...primary];
+
+  for (const device of supplemental) {
+    if (ids.has(device.id)) continue;
+    ids.add(device.id);
+    merged.push(device);
   }
 
+  return merged;
+}
+
+async function listApplePhysicalDevicesFromDevicectl(): Promise<DeviceInfo[]> {
   let jsonPath: string | null = null;
   try {
     jsonPath = path.join(
@@ -257,34 +299,66 @@ export async function listAppleDevices(
       },
     );
     if (devicectlResult.exitCode !== 0) {
-      return devices;
+      return [];
     }
     const jsonText = await fs.readFile(jsonPath, 'utf8');
-    const payload = JSON.parse(jsonText) as DevicectlListDevicesPayload;
-    for (const device of payload.result?.devices ?? []) {
-      if (isSupportedAppleDevicectlDevice(device)) {
-        const id = device.hardwareProperties?.udid ?? device.identifier ?? '';
-        const name = device.name ?? device.deviceProperties?.name ?? id;
-        if (!id) continue;
-        devices.push({
-          platform: 'ios',
-          id,
-          name,
-          kind: 'device',
-          target: resolveAppleTargetFromDevicectlDevice(device),
-          booted: true,
-        });
-      }
-    }
+    return mapDevicectlAppleDevices(JSON.parse(jsonText) as DevicectlListDevicesPayload);
   } catch {
-    // Ignore devicectl failures; simulators are still supported.
+    return [];
   } finally {
     if (jsonPath) {
       await fs.rm(jsonPath, { force: true }).catch(() => {});
     }
   }
+}
 
-  return devices;
+async function listApplePhysicalDevicesFromXctrace(): Promise<DeviceInfo[]> {
+  try {
+    const result = await runCmd('xcrun', ['xctrace', 'list', 'devices'], { allowFailure: true });
+    if (result.exitCode !== 0) return [];
+    return parseXctracePhysicalAppleDevices(result.stdout);
+  } catch {
+    return [];
+  }
+}
+
+export async function listAppleDevices(
+  options: IosDeviceDiscoveryOptions = {},
+): Promise<DeviceInfo[]> {
+  if (process.platform !== 'darwin') {
+    throw new AppError('UNSUPPORTED_PLATFORM', 'Apple tools are only available on macOS');
+  }
+
+  const simctlAvailable = await whichCmd('xcrun');
+  if (!simctlAvailable) {
+    throw new AppError('TOOL_MISSING', 'xcrun not found in PATH');
+  }
+
+  const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
+
+  const simResult = await runCmd(
+    'xcrun',
+    buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
+  );
+  let devices: DeviceInfo[] = [];
+  try {
+    const payload = JSON.parse(simResult.stdout as string) as SimctlListDevicesPayload;
+    devices = parseSimctlAppleDevices(payload, simulatorSetPath);
+  } catch (err) {
+    throw new AppError('COMMAND_FAILED', 'Failed to parse simctl devices JSON', undefined, err);
+  }
+
+  devices.push(buildHostMacDevice());
+
+  // When a simulator set is configured, keep iOS discovery strictly scoped to that set.
+  // Do not enumerate host-global physical devices, but keep the local Mac available
+  // because desktop targeting is independent of simulator sets.
+  if (simulatorSetPath) {
+    return devices;
+  }
+
+  devices = mergeAppleDevices(devices, await listApplePhysicalDevicesFromDevicectl());
+  return mergeAppleDevices(devices, await listApplePhysicalDevicesFromXctrace());
 }
 
 export const listIosDevices = listAppleDevices;
