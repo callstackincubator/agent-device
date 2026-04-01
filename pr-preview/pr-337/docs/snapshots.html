@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-337/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-337/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-337/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-337/static/js/index.47261027c5.js"></script>
+<script defer src="/agent-device/pr-preview/pr-337/static/js/index.52a5e1173a.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -63,6 +63,7 @@ It does not automatically switch to AX.</p>
 <ul>
 <li>Default to <code>snapshot -i</code> for agent loops.</li>
 <li>Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as <code>[off-screen below] 3 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;, &quot;About&quot;</code>.</li>
+<li>Those summaries intentionally show only a few labels for token efficiency. Use <code>snapshot --raw</code> when you need the full off-screen tree instead of the compact summary.</li>
 <li>Add <code>-s &quot;&lt;label&gt;&quot;</code> (or <code>-s @ref</code>) to keep results screen-local.</li>
 <li>Add <code>-d &lt;depth&gt;</code> when you only need upper hierarchy layers.</li>
 <li>If <code>snapshot -i</code> returns 0 nodes on Android but the screen is visibly populated, trust <code>screenshot</code> as visual truth, wait briefly, then take one fresh <code>snapshot -i</code>.</li>

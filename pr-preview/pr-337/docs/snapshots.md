@@ -27,6 +27,7 @@ It does not automatically switch to AX.
 
 - Default to `snapshot -i` for agent loops.
 - Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as `[off-screen below] 3 interactive items: "Privacy", "Battery", "About"`.
+- Those summaries intentionally show only a few labels for token efficiency. Use `snapshot --raw` when you need the full off-screen tree instead of the compact summary.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
 - Add `-d <depth>` when you only need upper hierarchy layers.
 - If `snapshot -i` returns 0 nodes on Android but the screen is visibly populated, trust `screenshot` as visual truth, wait briefly, then take one fresh `snapshot -i`.
