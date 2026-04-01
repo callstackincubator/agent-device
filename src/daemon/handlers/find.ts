@@ -123,7 +123,7 @@ export async function handleFindCommands(params: {
 
   if (requiresRect && bestMatches.matches.length > 1) {
     if (req.flags?.findFirst) {
-      bestMatches.matches.length = 1;
+      bestMatches.matches = [bestMatches.matches[0]];
     } else if (req.flags?.findLast) {
       bestMatches.matches = [bestMatches.matches[bestMatches.matches.length - 1]];
     } else {

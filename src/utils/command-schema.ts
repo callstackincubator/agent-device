@@ -150,7 +150,6 @@ const SELECTOR_SNAPSHOT_FLAGS = [
 ] as const satisfies readonly FlagKey[];
 
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
-const FIND_DISAMBIGUATE_FLAGS = ['findFirst', 'findLast'] as const satisfies readonly FlagKey[];
 
 const AGENT_SKILLS = [
   { label: 'agent-device', description: 'Canonical mobile automation flows' },
@@ -879,8 +878,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     min: 0,
     max: 10000,
     usageLabel: '--wait-stable <ms>',
-    usageDescription:
-      'Snapshot: poll until AX tree stabilizes (Android). Retries until two consecutive dumps match or timeout.',
+    usageDescription: 'Snapshot: wait for AX tree to stabilize (Android)',
   },
   {
     key: 'findFirst',
@@ -1301,7 +1299,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Find an element and act',
     positionalArgs: ['query', 'action', 'value?'],
     allowsExtraPositionals: true,
-    allowedFlags: [...FIND_SNAPSHOT_FLAGS, ...FIND_DISAMBIGUATE_FLAGS],
+    allowedFlags: [...FIND_SNAPSHOT_FLAGS, 'findFirst', 'findLast'],
   },
   is: {
     helpDescription: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
