@@ -341,3 +341,27 @@ test('snapshotAndroid keeps generic-id scroll containers in interactive snapshot
 
   assert.ok(scrollArea);
 });
+
+test('snapshotAndroid skips activity dump when snapshot has no scrollable nodes', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.Button" text="Continue" bounds="[20,120][200,180]" clickable="true" focusable="true" />
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      throw new Error('dumpsys activity top should not run without scrollable nodes');
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device, { interactiveOnly: true });
+
+  assert.equal(result.nodes.length, 1);
+  assert.equal(result.nodes[0]?.label, 'Continue');
+});

@@ -3,7 +3,13 @@ import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
-import { parseUiHierarchy, type AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
+import { isScrollableType } from '../../utils/scrollable.ts';
+import {
+  buildUiHierarchySnapshot,
+  parseUiHierarchy,
+  parseUiHierarchyTree,
+  type AndroidSnapshotAnalysis,
+} from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
 import { annotateAndroidScrollableContentHints } from './scroll-hints.ts';
 
@@ -16,20 +22,31 @@ export async function snapshotAndroid(
   analysis: AndroidSnapshotAnalysis;
 }> {
   const xml = await dumpUiHierarchy(device);
-  const parsed = options.interactiveOnly
-    ? parseUiHierarchy(xml, 800, { ...options, interactiveOnly: false })
-    : parseUiHierarchy(xml, 800, options);
-  const activityTopDump = await dumpActivityTop(device);
-  if (activityTopDump) {
-    annotateAndroidScrollableContentHints(parsed.nodes, activityTopDump);
-  }
   if (!options.interactiveOnly) {
+    const parsed = parseUiHierarchy(xml, 800, options);
+    await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
     return parsed;
   }
 
-  const interactiveParsed = parseUiHierarchy(xml, 800, options);
+  const tree = parseUiHierarchyTree(xml);
+  const parsed = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
+  await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
+  const interactiveParsed = buildUiHierarchySnapshot(tree, 800, options);
   copyHiddenContentHints(parsed.nodes, interactiveParsed.nodes);
   return interactiveParsed;
+}
+
+async function annotateScrollableContentHintsIfNeeded(
+  device: DeviceInfo,
+  nodes: RawSnapshotNode[],
+): Promise<void> {
+  if (!nodes.some((node) => isScrollableType(node.type))) {
+    return;
+  }
+  const activityTopDump = await dumpActivityTop(device);
+  if (activityTopDump) {
+    annotateAndroidScrollableContentHints(nodes, activityTopDump);
+  }
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
@@ -165,5 +182,5 @@ function buildLooseHintSignature(node: RawSnapshotNode): string | null {
   if (!node.type) {
     return null;
   }
-  return [node.type ?? '', node.label ?? '', node.identifier ?? ''].join('|');
+  return [node.type, node.label ?? '', node.identifier ?? ''].join('|');
 }

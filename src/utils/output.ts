@@ -5,6 +5,7 @@ import type { SnapshotNode } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
 import { isRectVisibleInViewport, resolveViewportRect } from '../daemon/scroll-planner.ts';
+import { isScrollableNodeLike } from './scrollable.ts';
 
 type JsonResult =
   | { success: true; data?: unknown }
@@ -610,14 +611,5 @@ function classifyRectDirection(
 }
 
 function isScrollableContainer(node: SnapshotNode): boolean {
-  const type = (node.type ?? '').toLowerCase();
-  const role = `${node.role ?? ''} ${node.subrole ?? ''}`.toLowerCase();
-  return (
-    type.includes('scroll') ||
-    type.includes('listview') ||
-    type.includes('recyclerview') ||
-    type.includes('collectionview') ||
-    type === 'table' ||
-    role.includes('scroll')
-  );
+  return isScrollableNodeLike(node);
 }

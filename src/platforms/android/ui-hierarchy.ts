@@ -1,4 +1,5 @@
 import type { RawSnapshotNode, Rect, SnapshotOptions } from '../../utils/snapshot.ts';
+import { isScrollableType } from '../../utils/scrollable.ts';
 
 export type AndroidSnapshotAnalysis = {
   rawNodeCount: number;
@@ -35,6 +36,14 @@ export function parseUiHierarchy(
   options: SnapshotOptions,
 ): { nodes: RawSnapshotNode[]; truncated?: boolean; analysis: AndroidSnapshotAnalysis } {
   const tree = parseUiHierarchyTree(xml);
+  return buildUiHierarchySnapshot(tree, maxNodes, options);
+}
+
+export function buildUiHierarchySnapshot(
+  tree: AndroidUiHierarchy,
+  maxNodes: number,
+  options: SnapshotOptions,
+): { nodes: RawSnapshotNode[]; truncated?: boolean; analysis: AndroidSnapshotAnalysis } {
   const analysis = analyzeAndroidTree(tree);
   const nodes: RawSnapshotNode[] = [];
   let truncated = false;
@@ -184,7 +193,7 @@ export function parseBounds(bounds: string | null): Rect | undefined {
   return { x: x1, y: y1, width: Math.max(0, x2 - x1), height: Math.max(0, y2 - y1) };
 }
 
-type AndroidNode = {
+export type AndroidUiHierarchy = {
   type: string | null;
   label: string | null;
   value: string | null;
@@ -197,8 +206,10 @@ type AndroidNode = {
   children: AndroidNode[];
 };
 
-function parseUiHierarchyTree(xml: string): AndroidNode {
-  const root: AndroidNode = {
+type AndroidNode = AndroidUiHierarchy;
+
+export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
+  const root: AndroidUiHierarchy = {
     type: null,
     label: null,
     value: null,
@@ -219,7 +230,7 @@ function parseUiHierarchyTree(xml: string): AndroidNode {
     const attrs = readNodeAttributes(token);
     const rect = parseBounds(attrs.bounds);
     const parent = stack[stack.length - 1];
-    const node: AndroidNode = {
+    const node: AndroidUiHierarchy = {
       type: attrs.className,
       label: attrs.text || attrs.desc,
       value: attrs.text,
@@ -289,12 +300,7 @@ function isCollectionContainerType(type: string | null): boolean {
 }
 
 function isScrollableContainerType(type: string): boolean {
-  return (
-    type.includes('scrollview') ||
-    type.includes('recyclerview') ||
-    type.includes('listview') ||
-    type.includes('gridview')
-  );
+  return isScrollableType(type);
 }
 
 function normalizeAndroidType(type: string | null): string {
