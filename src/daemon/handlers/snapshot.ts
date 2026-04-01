@@ -13,11 +13,7 @@ import { handleWaitCommand, parseWaitArgs, waitNeedsRunnerCleanup } from './snap
 import { handleAlertCommand } from './snapshot-alert.ts';
 import { handleSettingsCommand, parseSettingsArgs } from './snapshot-settings.ts';
 import { uniqueStrings } from '../action-utils.ts';
-import {
-  buildSnapshotSignatures,
-  isLikelySnapshotStuckOnPreviousRoute,
-  isLikelyStaleSnapshotDrop,
-} from '../android-snapshot-freshness.ts';
+import { isLikelyStaleSnapshotDrop } from '../android-snapshot-freshness.ts';
 
 const SNAPSHOT_COMMANDS = new Set(['snapshot', 'diff', 'wait', 'alert', 'settings']);
 
@@ -200,18 +196,16 @@ function buildSnapshotWarnings(params: {
     );
   }
 
-  if (
-    capture.freshness?.staleAfterRetries &&
-    capture.snapshot.backend === 'android' &&
-    previousSnapshot &&
-    isLikelySnapshotStuckOnPreviousRoute(
-      buildSnapshotSignatures(previousSnapshot.nodes),
-      capture.snapshot.nodes,
-    )
-  ) {
-    warnings.push(
-      `Recent ${capture.freshness.action} was followed by a nearly identical snapshot after ${capture.freshness.retryCount} automatic retr${capture.freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
-    );
+  if (capture.freshness?.staleAfterRetries && capture.snapshot.backend === 'android') {
+    if (capture.freshness.reason === 'stuck-route') {
+      warnings.push(
+        `Recent ${capture.freshness.action} was followed by a nearly identical snapshot after ${capture.freshness.retryCount} automatic retr${capture.freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
+      );
+    } else if (capture.freshness.reason === 'sharp-drop') {
+      warnings.push(
+        'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.',
+      );
+    }
   }
 
   return uniqueStrings(warnings);

@@ -78,6 +78,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
+import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 import {
   retainMaterializedPaths,
   cleanupRetainedMaterializedPathsForSession,
@@ -2622,6 +2623,63 @@ test('open intent target on existing Android session clears stale package contex
   expect(updated?.appBundleId).toBe(undefined);
   expect(updated?.appName).toBe('settings');
   expect(dispatchedContext?.appBundleId).toBe(undefined);
+});
+
+test('open on existing Android session preserves a comparable freshness baseline', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-open-freshness';
+  const baselineNodes = Array.from({ length: 14 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel Emulator',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.old',
+    appName: 'Old App',
+    snapshot: {
+      nodes: baselineNodes,
+      createdAt: Date.now(),
+      backend: 'android',
+      comparisonSafe: true,
+    },
+  });
+
+  mockDispatch.mockResolvedValue({});
+  mockResolveAndroidPackage.mockResolvedValue('com.android.settings');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['settings'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  const updated = sessionStore.get(sessionName);
+  expect(updated?.snapshot).toBeUndefined();
+  expect(updated?.androidSnapshotFreshness).toEqual({
+    action: 'open',
+    markedAt: expect.any(Number),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
+  });
 });
 
 test('open --relaunch closes and reopens active session app', async () => {

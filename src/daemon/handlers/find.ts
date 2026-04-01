@@ -11,10 +11,7 @@ import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { errorResponse } from './response.ts';
-import {
-  getActiveAndroidSnapshotFreshness,
-  markAndroidSnapshotFreshness,
-} from '../android-snapshot-freshness.ts';
+import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 
 type FindContext = {
   req: DaemonRequest;
@@ -263,7 +260,6 @@ async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<
     matchData.y = matchCoords.y;
   }
   if (session) {
-    markAndroidSnapshotFreshness(session, 'click');
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],

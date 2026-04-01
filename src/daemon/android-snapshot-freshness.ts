@@ -9,22 +9,32 @@ export type AndroidSnapshotFreshness = {
   action: string;
   markedAt: number;
   baselineCount: number;
-  baselineSignatures: string[];
+  baselineSignatures?: string[];
+  routeComparable: boolean;
 };
 
 export type AndroidFreshnessCaptureMeta = {
   action: string;
   retryCount: number;
   staleAfterRetries: boolean;
+  reason?: 'empty-interactive' | 'sharp-drop' | 'stuck-route';
 };
 
-export function markAndroidSnapshotFreshness(session: SessionState, action: string): void {
+export function markAndroidSnapshotFreshness(
+  session: SessionState,
+  action: string,
+  baseline = session.snapshot,
+): void {
   if (session.device.platform !== 'android') return;
+  const routeComparable = baseline?.comparisonSafe === true;
   session.androidSnapshotFreshness = {
     action,
     markedAt: Date.now(),
-    baselineCount: session.snapshot?.nodes.length ?? 0,
-    baselineSignatures: buildSnapshotSignatures(session.snapshot?.nodes ?? []),
+    baselineCount: baseline?.nodes.length ?? 0,
+    baselineSignatures: routeComparable
+      ? buildSnapshotSignatures(baseline?.nodes ?? [])
+      : undefined,
+    routeComparable,
   };
 }
 
@@ -74,9 +84,12 @@ export function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: n
 }
 
 export function isLikelySnapshotStuckOnPreviousRoute(
-  previousSignatures: string[],
+  previousSignatures: string[] | undefined,
   currentNodes: SnapshotState['nodes'],
 ): boolean {
+  if (!previousSignatures || previousSignatures.length === 0) {
+    return false;
+  }
   const total = Math.max(previousSignatures.length, currentNodes.length);
   if (total < 12) {
     return false;

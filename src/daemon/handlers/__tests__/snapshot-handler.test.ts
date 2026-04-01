@@ -213,12 +213,14 @@ test('snapshot automatically retries stale Android trees after recent navigation
     nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
+    comparisonSafe: true,
   };
   session.androidSnapshotFreshness = {
     action: 'press',
     markedAt: Date.now(),
     baselineCount: baselineNodes.length,
     baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
   };
   sessionStore.set(sessionName, session);
 
@@ -283,12 +285,14 @@ test('snapshot warns when Android freshness retries still return the previous ro
     nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
+    comparisonSafe: true,
   };
   session.androidSnapshotFreshness = {
     action: 'press',
     markedAt: Date.now(),
     baselineCount: baselineNodes.length,
     baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
   };
   sessionStore.set(sessionName, session);
 
@@ -343,12 +347,14 @@ test('diff snapshot carries stale-tree warnings for recent Android presses', asy
     nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
+    comparisonSafe: true,
   };
   session.androidSnapshotFreshness = {
     action: 'press',
     markedAt: Date.now(),
     baselineCount: baselineNodes.length,
     baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
   };
   sessionStore.set(sessionName, session);
 
@@ -403,12 +409,14 @@ test('wait text on Android uses freshness-aware capture instead of one-shot snap
     nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
+    comparisonSafe: true,
   };
   session.androidSnapshotFreshness = {
     action: 'press',
     markedAt: Date.now(),
     baselineCount: baselineNodes.length,
     baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
   };
   sessionStore.set(sessionName, session);
 

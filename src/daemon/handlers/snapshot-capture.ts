@@ -37,6 +37,8 @@ type SnapshotData = {
   analysis?: AndroidSnapshotAnalysis;
 };
 
+type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
+
 export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
@@ -49,7 +51,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   const data = await captureSnapshotData(params);
   clearAndroidSnapshotFreshness(params.session);
   return {
-    snapshot: buildSnapshotState(data, params.flags?.snapshotRaw),
+    snapshot: buildSnapshotState(data, params.flags),
     analysis: data.analysis,
   };
 }
@@ -85,18 +87,18 @@ async function captureAndroidFreshnessAwareSnapshot(
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
   let latest = await captureSnapshotAttempt(params);
-  let suspicious = isSuspiciousAndroidFreshnessCapture(latest, freshness, params.flags);
+  let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);
   let retryCount = 0;
 
   for (const delayMs of ANDROID_FRESHNESS_RETRY_DELAYS_MS) {
-    if (!suspicious) break;
+    if (!suspiciousReason) break;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
     latest = await captureSnapshotAttempt(params);
     retryCount += 1;
-    suspicious = isSuspiciousAndroidFreshnessCapture(latest, freshness, params.flags);
+    suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);
   }
 
-  if (!suspicious) {
+  if (!suspiciousReason) {
     clearAndroidSnapshotFreshness(params.session);
   }
 
@@ -104,11 +106,12 @@ async function captureAndroidFreshnessAwareSnapshot(
     snapshot: latest.snapshot,
     analysis: latest.data.analysis,
     freshness:
-      retryCount > 0 || suspicious
+      retryCount > 0 || Boolean(suspiciousReason)
         ? {
             action: freshness.action,
             retryCount,
-            staleAfterRetries: suspicious,
+            staleAfterRetries: Boolean(suspiciousReason),
+            reason: suspiciousReason ?? undefined,
           }
         : undefined,
   };
@@ -120,15 +123,15 @@ async function captureSnapshotAttempt(
   const data = await captureSnapshotData(params);
   return {
     data,
-    snapshot: buildSnapshotState(data, params.flags?.snapshotRaw),
+    snapshot: buildSnapshotState(data, params.flags),
   };
 }
 
-function isSuspiciousAndroidFreshnessCapture(
+function getAndroidFreshnessReason(
   attempt: { data: SnapshotData; snapshot: SnapshotState },
   freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
   flags: CommandFlags | undefined,
-): boolean {
+): AndroidFreshnessReason | null {
   const interactiveOnly = flags?.snapshotInteractiveOnly === true;
   const analysis = attempt.data.analysis;
 
@@ -138,17 +141,18 @@ function isSuspiciousAndroidFreshnessCapture(
     analysis &&
     analysis.rawNodeCount >= 12
   ) {
-    return true;
+    return 'empty-interactive';
   }
 
   if (isLikelyStaleSnapshotDrop(freshness.baselineCount, attempt.snapshot.nodes.length)) {
-    return !hasMeaningfulSnapshotContent(attempt.snapshot);
+    return !hasMeaningfulSnapshotContent(attempt.snapshot) ? 'sharp-drop' : null;
   }
 
-  return (
+  return freshness.routeComparable &&
     isNavigationSensitiveAction(freshness.action) &&
     isLikelySnapshotStuckOnPreviousRoute(freshness.baselineSignatures, attempt.snapshot.nodes)
-  );
+    ? 'stuck-route'
+    : null;
 }
 
 function hasMeaningfulSnapshotContent(snapshot: SnapshotState): boolean {
@@ -167,15 +171,28 @@ export function buildSnapshotState(
     truncated?: boolean;
     backend?: 'xctest' | 'android' | 'macos-helper';
   },
-  snapshotRaw: boolean | undefined,
+  flags:
+    | (Pick<
+        CommandFlags,
+        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
+      > &
+        Partial<Pick<CommandFlags, 'snapshotScope'>>)
+    | undefined,
 ): SnapshotState {
   const rawNodes = data?.nodes ?? [];
+  const snapshotRaw = flags?.snapshotRaw;
   const nodes = attachRefs(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
   return {
     nodes,
     truncated: data?.truncated,
     createdAt: Date.now(),
     backend: data?.backend,
+    comparisonSafe:
+      data?.backend === 'android' &&
+      flags?.snapshotInteractiveOnly !== true &&
+      flags?.snapshotCompact !== true &&
+      typeof flags?.snapshotDepth !== 'number' &&
+      !flags?.snapshotScope,
   };
 }
 

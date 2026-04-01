@@ -458,7 +458,7 @@ export function createRequestHandler(
               logPath,
               snapshotScope: undefined,
             });
-            const overlaySnapshot = buildSnapshotState(overlaySnapshotData, false);
+            const overlaySnapshot = buildSnapshotState(overlaySnapshotData, undefined);
             session.snapshot = overlaySnapshot;
             const overlayRefs = await annotateScreenshotWithRefs({
               screenshotPath: data.path,

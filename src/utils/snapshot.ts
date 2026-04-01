@@ -48,6 +48,7 @@ export type SnapshotState = {
   createdAt: number;
   truncated?: boolean;
   backend?: 'xctest' | 'android' | 'macos-helper';
+  comparisonSafe?: boolean;
 };
 
 export type ScreenshotOverlayRef = {

@@ -319,12 +319,14 @@ test('handleFindCommands wait bypasses snapshot cache while Android freshness re
     nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
+    comparisonSafe: true,
   };
   session.androidSnapshotFreshness = {
     action: 'press',
     markedAt: Date.now(),
     baselineCount: baselineNodes.length,
     baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
   };
 
   mockDispatch

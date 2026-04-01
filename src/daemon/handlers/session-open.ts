@@ -157,6 +157,9 @@ async function completeOpenCommand(params: {
     };
   }
 
+  if (existingSession) {
+    markAndroidSnapshotFreshness(existingSession, 'open', existingSession.snapshot);
+  }
   const nextSession = buildNextOpenSession({
     existingSession,
     sessionName,
@@ -186,7 +189,6 @@ async function completeOpenCommand(params: {
     runtime: req.runtime !== undefined ? runtime : undefined,
     result: openResult,
   });
-  markAndroidSnapshotFreshness(nextSession, 'open');
   sessionStore.set(sessionName, nextSession);
   return { ok: true, data: openResult };
 }
