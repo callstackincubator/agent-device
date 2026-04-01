@@ -302,7 +302,7 @@ test('snapshotAndroid preserves hidden scroll content hints in interactive snaps
   });
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
-  const scrollArea = result.nodes.find((node) => node.label === 'Messages');
+  const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
 
   assert.ok(scrollArea);
   assert.equal(scrollArea?.hiddenContentAbove, true);
@@ -390,9 +390,46 @@ test('snapshotAndroid derives hidden content hints for interactive snapshots fro
   });
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
-  const scrollArea = result.nodes.find((node) => node.label === 'Messages');
+  const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
 
   assert.ok(scrollArea);
   assert.equal(scrollArea?.hiddenContentAbove, undefined);
   assert.equal(scrollArea?.hiddenContentBelow, true);
+});
+
+test('snapshotAndroid preserves bottomed-out hidden-above hints in interactive snapshots from a single aligned block', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" content-desc="Messages" bounds="[0,100][390,600]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,600]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="Last message" bounds="[0,432][390,600]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+  const dump = [
+    '    com.facebook.react.views.scroll.ReactScrollView{d32a800 VFED.V... ........ 0,0-390,500 #4b2}',
+    '      com.facebook.react.views.view.ReactViewGroup{77d31ae V.E...... ........ 0,0-390,804 #4b0}',
+    '        com.facebook.react.views.view.ReactViewGroup{c V.E...... ........ 0,636-390,804 #3}',
+  ].join('\n');
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      return { exitCode: 0, stdout: dump, stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device, { interactiveOnly: true });
+  const scrollArea = result.nodes.find(
+    (node) => node.hiddenContentAbove === true || node.hiddenContentBelow === true,
+  );
+
+  assert.ok(scrollArea);
+  assert.equal(scrollArea?.hiddenContentAbove, true);
+  assert.equal(scrollArea?.hiddenContentBelow, undefined);
 });

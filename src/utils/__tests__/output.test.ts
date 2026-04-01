@@ -332,9 +332,45 @@ test('formatSnapshotText renders explicit hidden scroll-area content hints', () 
     }),
   );
 
+  assert.match(text, /Snapshot: 3 visible nodes/);
   assert.match(text, /^  @e2 \[scroll-area\] "Messages" \[scrollable\]$/m);
   assert.match(text, /^    \[content above scroll-area hidden\]$/m);
   assert.match(text, /^    \[content below scroll-area hidden\]$/m);
+});
+
+test('formatSnapshotText prefers payload visibility metadata for partial snapshot headers', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'android.widget.Button',
+          label: 'Visible',
+          rect: { x: 20, y: 140, width: 160, height: 44 },
+          hittable: true,
+        },
+      ],
+      visibility: {
+        partial: true,
+        visibleNodeCount: 2,
+        totalNodeCount: 5,
+        reasons: ['offscreen-nodes'],
+      },
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /Snapshot: 2 visible nodes \(5 total\)/);
 });
 
 test('formatSnapshotText renders hidden scroll-area content hints in flattened output', () => {

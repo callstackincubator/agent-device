@@ -123,7 +123,7 @@ async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
   try {
     const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'activity', 'top']), {
       allowFailure: true,
-      timeoutMs: 2_000,
+      timeoutMs: 8_000,
     });
     const text = `${result.stdout}\n${result.stderr}`.trim();
     return text.length > 0 ? text : null;

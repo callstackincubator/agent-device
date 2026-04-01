@@ -6,7 +6,7 @@ import type {
   SessionRuntimeHints,
 } from './daemon/types.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
-import type { ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
+import type { ScreenshotOverlayRef, SnapshotNode, SnapshotVisibility } from './utils/snapshot.ts';
 import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
@@ -254,6 +254,7 @@ export type CaptureSnapshotResult = {
   truncated: boolean;
   appName?: string;
   appBundleId?: string;
+  visibility?: SnapshotVisibility;
   warnings?: string[];
   identifiers: AgentDeviceIdentifiers;
 };

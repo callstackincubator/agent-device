@@ -53,6 +53,18 @@ export type SnapshotState = {
   comparisonSafe?: boolean;
 };
 
+export type SnapshotVisibilityReason =
+  | 'offscreen-nodes'
+  | 'scroll-hidden-above'
+  | 'scroll-hidden-below';
+
+export type SnapshotVisibility = {
+  partial: boolean;
+  visibleNodeCount: number;
+  totalNodeCount: number;
+  reasons: SnapshotVisibilityReason[];
+};
+
 export type ScreenshotOverlayRef = {
   ref: string;
   label?: string;

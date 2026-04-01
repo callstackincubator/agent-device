@@ -2,7 +2,11 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
-import { captureSnapshot, resolveSnapshotScope } from './snapshot-capture.ts';
+import {
+  buildSnapshotVisibility,
+  captureSnapshot,
+  resolveSnapshotScope,
+} from './snapshot-capture.ts';
 import {
   buildSnapshotSession,
   recordIfSession,
@@ -60,6 +64,11 @@ export async function handleSnapshotCommands(params: {
         flags: req.flags,
         session,
       });
+      const visibility = buildSnapshotVisibility({
+        nodes: capture.snapshot.nodes,
+        backend: capture.snapshot.backend,
+        snapshotRaw: req.flags?.snapshotRaw,
+      });
       const nextSession = buildSnapshotSession({
         session,
         sessionName,
@@ -77,6 +86,7 @@ export async function handleSnapshotCommands(params: {
         data: {
           nodes: capture.snapshot.nodes,
           truncated: capture.snapshot.truncated ?? false,
+          visibility,
           ...(warnings.length > 0 ? { warnings } : {}),
           appName: nextSession.appBundleId
             ? (nextSession.appName ?? nextSession.appBundleId)

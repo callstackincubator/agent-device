@@ -29,6 +29,7 @@ import type {
   AppOpenOptions,
   CaptureScreenshotOptions,
   CaptureSnapshotOptions,
+  CaptureSnapshotResult,
   EnsureSimulatorOptions,
   InternalRequestOptions,
   MaterializationReleaseOptions,
@@ -215,11 +216,16 @@ export function createAgentDeviceClient(
         const session = resolveSessionName(config.session, options.session);
         const data = await execute('snapshot', [], options);
         const appBundleId = readOptionalString(data, 'appBundleId');
+        const visibility =
+          typeof data.visibility === 'object' && data.visibility !== null
+            ? (data.visibility as CaptureSnapshotResult['visibility'])
+            : undefined;
         return {
           nodes: readSnapshotNodes(data.nodes),
           truncated: data.truncated === true,
           appName: readOptionalString(data, 'appName'),
           appBundleId,
+          ...(visibility ? { visibility } : {}),
           warnings: Array.isArray(data.warnings)
             ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
             : undefined,

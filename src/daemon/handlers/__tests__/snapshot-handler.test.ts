@@ -332,6 +332,60 @@ test('snapshot warns when Android freshness retries still return the previous ro
   expect(mockDispatch).toHaveBeenCalledTimes(3);
 });
 
+test('snapshot response includes normalized visibility metadata', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-visibility';
+  sessionStore.set(sessionName, makeSession(sessionName, androidDevice));
+
+  mockDispatch.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'android.widget.ScrollView',
+        label: 'Messages',
+        rect: { x: 0, y: 100, width: 390, height: 500 },
+        hiddenContentBelow: true,
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'android.widget.Button',
+        label: 'Visible message',
+        rect: { x: 0, y: 140, width: 390, height: 48 },
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 2, maxDepth: 1 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotInteractiveOnly: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.visibility).toEqual({
+      partial: true,
+      visibleNodeCount: 2,
+      totalNodeCount: 2,
+      reasons: ['scroll-hidden-below'],
+    });
+  }
+});
+
 test('diff snapshot carries stale-tree warnings for recent Android presses', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-diff-stale-after-press';

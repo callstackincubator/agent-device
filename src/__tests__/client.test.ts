@@ -346,3 +346,30 @@ test('client throws AppError for daemon failures', async () => {
     },
   );
 });
+
+test('client capture.snapshot preserves visibility metadata from daemon responses', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      nodes: [],
+      truncated: false,
+      appBundleId: 'com.expensify.chat.dev',
+      visibility: {
+        partial: true,
+        visibleNodeCount: 64,
+        totalNodeCount: 67,
+        reasons: ['offscreen-nodes'],
+      },
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.capture.snapshot();
+
+  assert.deepEqual(result.visibility, {
+    partial: true,
+    visibleNodeCount: 64,
+    totalNodeCount: 67,
+    reasons: ['offscreen-nodes'],
+  });
+});

@@ -7,8 +7,10 @@ import {
   normalizeRef,
   type RawSnapshotNode,
   type SnapshotState,
+  type SnapshotVisibility,
 } from '../../utils/snapshot.ts';
 import { normalizeSnapshotTree } from '../../utils/snapshot-tree.ts';
+import { buildMobileSnapshotPresentation } from '../../utils/mobile-snapshot-semantics.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import {
   ANDROID_FRESHNESS_RETRY_DELAYS_MS,
@@ -199,6 +201,41 @@ export function buildSnapshotState(
       flags?.snapshotCompact !== true &&
       typeof flags?.snapshotDepth !== 'number' &&
       !flags?.snapshotScope,
+  };
+}
+
+export function buildSnapshotVisibility(params: {
+  nodes: SnapshotState['nodes'];
+  backend?: SnapshotState['backend'];
+  snapshotRaw?: boolean;
+}): SnapshotVisibility {
+  const { nodes, backend, snapshotRaw } = params;
+  if (snapshotRaw || backend === 'macos-helper') {
+    return {
+      partial: false,
+      visibleNodeCount: nodes.length,
+      totalNodeCount: nodes.length,
+      reasons: [],
+    };
+  }
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  const reasons = new Set<SnapshotVisibility['reasons'][number]>();
+  if (presentation.hiddenCount > 0) {
+    reasons.add('offscreen-nodes');
+  }
+  if (presentation.nodes.some((node) => node.hiddenContentAbove)) {
+    reasons.add('scroll-hidden-above');
+  }
+  if (presentation.nodes.some((node) => node.hiddenContentBelow)) {
+    reasons.add('scroll-hidden-below');
+  }
+
+  return {
+    partial: reasons.size > 0,
+    visibleNodeCount: presentation.nodes.length,
+    totalNodeCount: nodes.length,
+    reasons: [...reasons],
   };
 }
 
