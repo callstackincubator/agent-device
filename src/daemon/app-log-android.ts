@@ -78,12 +78,12 @@ export async function startAndroidAppLog(
         const child = spawn('adb', ['-s', deviceId, 'logcat', '-v', 'time', '--pid', pid], {
           stdio: ['ignore', 'pipe', 'pipe'],
         });
-        state = 'active';
         activeChild = child;
         const writer = createLineWriter(stream, { redactionPatterns });
         activeWait = attachChildToStream(child, stream, { endStreamOnClose: false, writer });
         if (typeof child.pid === 'number') {
           writePidFile(pidPath, child.pid);
+          state = 'active';
         }
         await activeWait;
         clearPidFile(pidPath);
