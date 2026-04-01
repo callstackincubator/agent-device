@@ -8,7 +8,13 @@ const STATUS_PATTERNS = [
   /\bresponse(?:\s+code)?["'=: ]+([1-5]\d{2})\b/i,
   /\bHTTP\/[0-9.]+\s+([1-5]\d{2})\b/i,
 ];
+// When enriching an Android network entry, scan ±5 lines around the match for
+// metadata like timestamps, status codes, and packet IDs that Android logcat
+// often splits across adjacent log lines.
 const ANDROID_NEARBY_LINE_RADIUS = 5;
+// For packet-ID correlation, scan a wider ±12-line window because Android's
+// OkHttp/Retrofit interceptor logs can spread request→response pairs across
+// many interleaved logcat lines.
 const ANDROID_PACKET_SCAN_RADIUS = 12;
 
 type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';

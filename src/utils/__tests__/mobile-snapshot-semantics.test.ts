@@ -143,6 +143,146 @@ test('visibility checks use nearest scroll container clipping viewport', () => {
   assert.equal(isNodeVisibleInEffectiveViewport(nodes[3], nodes), false);
 });
 
+test('mobile presentation handles zero-width viewport gracefully', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 0, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Action',
+      rect: { x: 20, y: 140, width: 160, height: 44 },
+      hittable: true,
+    },
+  ];
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  // With a degenerate viewport, nodes should still be included rather than dropped
+  assert.ok(presentation.nodes.length > 0);
+});
+
+test('mobile presentation handles zero-height viewport gracefully', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 390, height: 0 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Action',
+      rect: { x: 20, y: 140, width: 160, height: 44 },
+      hittable: true,
+    },
+  ];
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  assert.ok(presentation.nodes.length > 0);
+});
+
+test('mobile presentation handles nodes with negative coordinates', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Off left',
+      rect: { x: -200, y: 200, width: 160, height: 44 },
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Visible',
+      rect: { x: 20, y: 200, width: 160, height: 44 },
+      hittable: true,
+    },
+  ];
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  const visibleLabels = presentation.nodes
+    .filter((n) => n.label)
+    .map((n) => n.label);
+  assert.ok(visibleLabels.includes('Visible'));
+});
+
+test('visibility is true for node at exact viewport boundary', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Edge',
+      // Bottom edge of node touches top of viewport — 1 px overlap
+      rect: { x: 20, y: -43, width: 160, height: 44 },
+      hittable: true,
+    },
+  ];
+
+  // Node overlaps viewport by 1 px at the top edge — should be considered visible
+  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1], nodes), true);
+});
+
+test('visibility is false for node just outside viewport boundary', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Outside',
+      // Entirely above viewport — y + height = -1, which is above the viewport top
+      rect: { x: 20, y: -45, width: 160, height: 44 },
+      hittable: true,
+    },
+  ];
+
+  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1], nodes), false);
+});
+
 test('mobile presentation infers hidden content from vertical scroll indicator value at top', () => {
   const nodes: SnapshotNode[] = [
     {

@@ -138,6 +138,9 @@ function getAndroidFreshnessReason(
   const interactiveOnly = flags?.snapshotInteractiveOnly === true;
   const analysis = attempt.data.analysis;
 
+  // When interactive-only filtering produces zero visible nodes from ≥12 raw nodes,
+  // the dump likely captured a transitional frame.  The 12-node floor avoids
+  // false positives on deliberately minimal screens (splash, loading).
   if (
     interactiveOnly &&
     attempt.snapshot.nodes.length === 0 &&

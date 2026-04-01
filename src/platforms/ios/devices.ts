@@ -336,8 +336,7 @@ export async function listAppleDevices(
     throw new AppError('UNSUPPORTED_PLATFORM', 'Apple tools are only available on macOS');
   }
 
-  const simctlAvailable = await whichCmd('xcrun');
-  if (!simctlAvailable) {
+  if (!(await whichCmd('xcrun'))) {
     throw new AppError('TOOL_MISSING', 'xcrun not found in PATH');
   }
 

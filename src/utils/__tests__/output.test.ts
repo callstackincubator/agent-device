@@ -557,6 +557,42 @@ test('formatSnapshotText keeps flattened output and adds duplicate nav warning',
   assert.match(text, /@e2 \[button\] "Inbox"/);
 });
 
+test('detectPossibleRepeatedNavSubtree does not warn for small trees', () => {
+  // 19 nodes (below the 20-node floor) — even if all are duplicates, no warning
+  const nodes = Array.from({ length: 19 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: index === 0 ? 0 : 1,
+    type: 'android.widget.Button',
+    label: 'Inbox',
+    rect: { x: 20, y: 40 + index * 80, width: 300, height: 48 },
+    hittable: true,
+    enabled: true,
+  }));
+  const text = withNoColor(() =>
+    formatSnapshotText({ nodes, truncated: false }, { flatten: true }),
+  );
+  assert.doesNotMatch(text, /Warning: possible repeated nav subtree detected\./);
+});
+
+test('detectPossibleRepeatedNavSubtree does not warn when duplicates are below threshold', () => {
+  // 20 nodes but only 6 share a signature (below the 8 cumulative threshold)
+  const nodes = Array.from({ length: 20 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: index === 0 ? 0 : 1,
+    type: 'android.widget.Button',
+    label: index < 7 ? `Unique${index}` : index < 10 ? 'Shared' : `Other${index}`,
+    rect: { x: 20, y: 40 + index * 80, width: 300, height: 48 },
+    hittable: true,
+    enabled: true,
+  }));
+  const text = withNoColor(() =>
+    formatSnapshotText({ nodes, truncated: false }, { flatten: true }),
+  );
+  assert.doesNotMatch(text, /Warning: possible repeated nav subtree detected\./);
+});
+
 test('formatSnapshotLine keeps snapshot-only metadata off the default formatter path', () => {
   const line = formatSnapshotLine(
     {
