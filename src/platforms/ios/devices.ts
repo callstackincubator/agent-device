@@ -263,6 +263,9 @@ export function parseXctracePhysicalAppleDevices(output: string): DeviceInfo[] {
       name,
       kind: 'device',
       target,
+      // xctrace lists currently connected devices in the "Devices" section.
+      // The "Devices Offline" section is excluded above, so treating these as
+      // booted preserves the existing physical-device selection semantics.
       booted: true,
     });
   }
@@ -304,6 +307,8 @@ async function listApplePhysicalDevicesFromDevicectl(): Promise<DeviceInfo[]> {
     const jsonText = await fs.readFile(jsonPath, 'utf8');
     return mapDevicectlAppleDevices(JSON.parse(jsonText) as DevicectlListDevicesPayload);
   } catch {
+    // Ignore devicectl discovery failures so simulator and xctrace-based
+    // Apple discovery can still succeed.
     return [];
   } finally {
     if (jsonPath) {
@@ -318,6 +323,8 @@ async function listApplePhysicalDevicesFromXctrace(): Promise<DeviceInfo[]> {
     if (result.exitCode !== 0) return [];
     return parseXctracePhysicalAppleDevices(result.stdout);
   } catch {
+    // Ignore xctrace failures so modern CoreDevice discovery remains the
+    // source of truth when available.
     return [];
   }
 }
@@ -357,8 +364,13 @@ export async function listAppleDevices(
     return devices;
   }
 
-  devices = mergeAppleDevices(devices, await listApplePhysicalDevicesFromDevicectl());
-  return mergeAppleDevices(devices, await listApplePhysicalDevicesFromXctrace());
+  const [devicectlDevices, xctraceDevices] = await Promise.all([
+    listApplePhysicalDevicesFromDevicectl(),
+    listApplePhysicalDevicesFromXctrace(),
+  ]);
+
+  devices = mergeAppleDevices(devices, devicectlDevices);
+  return mergeAppleDevices(devices, xctraceDevices);
 }
 
 export const listIosDevices = listAppleDevices;

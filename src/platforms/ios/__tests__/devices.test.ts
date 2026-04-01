@@ -27,6 +27,8 @@ beforeEach(() => {
 
 async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promise<T>): Promise<T> {
   const original = process.platform;
+  // Some Apple discovery paths are gated on process.platform at runtime, so
+  // these unit tests temporarily override it and always restore it in finally.
   Object.defineProperty(process, 'platform', { value: platform, configurable: true });
   try {
     return await fn();
