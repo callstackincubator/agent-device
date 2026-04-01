@@ -12,7 +12,7 @@
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this project applies the same broad idea to mobile apps and devices.
 
-<video src="https://github.com/callstackincubator/agent-device/blob/6d20973bbc028c10905e2c70056eca7abe487516/website/docs/public/agent-device-contacts.mp4" controls muted playsinline></video>
+[Watch the demo video](./website/docs/public/agent-device-contacts.mp4)
 
 ## Project Goals
 
