@@ -87,6 +87,7 @@ agent-device close
 
 - Use plain `snapshot` when you only need to verify whether visible text or structure is on screen.
 - Use `snapshot -i` when you need refs such as `@e3` for interactive exploration or for an intended interaction.
+- Default snapshot output is visible-first. Off-screen interactive content is summarized as discovery hints, not shown as directly tappable refs.
 - Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
 - If `snapshot -i` returns 0 nodes but the screen is visibly populated, treat `screenshot` as visual truth, wait briefly, then re-run `snapshot -i` once before escalating.
@@ -107,12 +108,14 @@ App: com.apple.Preferences
 @e1 [ioscontentgroup]
   @e2 [button] "Camera"
   @e3 [button] "Privacy & Security"
+[off-screen below] 2 interactive items: "Location Services", "Battery"
 ```
 
 ## Refs vs selectors
 
 - Use refs for discovery, debugging, and short local loops.
 - Use `scrollintoview @ref` when the target is already known from the current snapshot and you want the command to re-snapshot after each swipe until the element reaches the viewport safe band.
+- If `scrollintoview @ref` succeeds, prefer the returned `currentRef` for the next action.
 - Cap long searches with `--max-scrolls <n>` when the list may be unbounded or the target may not exist.
 - Use selectors for deterministic scripts, assertions, and replay-friendly actions.
 - Prefer selector or `@ref` targeting over raw coordinates.
@@ -131,10 +134,11 @@ agent-device is visible 'id="camera_settings_anchor"'
 
 When `press @ref` fails:
 
-1. Re-snapshot if the UI may have changed.
-2. Retry `press @ref` or a selector-based `press`.
-3. If `screenshot --overlay-refs --json` returned a reliable `overlayRefs[].center`, use `agent-device press <x> <y>`.
-4. Use an external vision-based tap tool only after semantic and coordinate targeting fail.
+1. If the error says the ref is off-screen, run `scrollintoview @ref` and reuse the returned `currentRef` or take one fresh snapshot.
+2. Re-snapshot if the UI may have changed.
+3. Retry `press @ref` or a selector-based `press`.
+4. If `screenshot --overlay-refs --json` returned a reliable `overlayRefs[].center`, use `agent-device press <x> <y>`.
+5. Use an external vision-based tap tool only after semantic and coordinate targeting fail.
 
 - Prefer `@ref` over coordinates.
 - Do not guess coordinates from the image when structured `center` is available.

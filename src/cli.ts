@@ -525,6 +525,20 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               return;
             }
           }
+          if (command === 'scrollintoview') {
+            const data = response.data as Record<string, unknown> | undefined;
+            const successText = data ? readCommandMessage(data) : '';
+            const ref = typeof data?.ref === 'string' ? data.ref : '';
+            const currentRef = typeof data?.currentRef === 'string' ? data.currentRef : '';
+            if (successText) {
+              process.stdout.write(`${successText}\n`);
+              if (currentRef && currentRef !== ref) {
+                process.stdout.write(`Current ref: @${currentRef}\n`);
+              }
+              if (logTailStopper) logTailStopper();
+              return;
+            }
+          }
           if (response.data && typeof response.data === 'object') {
             const data = response.data as Record<string, unknown>;
             if (command === 'devices') {

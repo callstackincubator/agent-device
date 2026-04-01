@@ -11,6 +11,7 @@ import type { SessionStore } from '../session-store.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
+import { resolveViewportRect } from '../scroll-planner.ts';
 
 export type ResolveRefTarget = typeof resolveRefTarget;
 
@@ -93,6 +94,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
   session: SessionState;
   refInput: string;
   fallbackLabel: string;
+  commandLabel: string;
   promoteToHittableAncestor: boolean;
   invalidRefMessage: string;
   missingBoundsMessage: string;
@@ -118,6 +120,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
     session,
     refInput,
     fallbackLabel,
+    commandLabel,
     promoteToHittableAncestor,
     invalidRefMessage,
     missingBoundsMessage,
@@ -195,7 +198,37 @@ export async function resolveRefTargetWithRectRefresh(params: {
     };
   }
 
+  const viewport = node.rect ? resolveViewportRect(snapshotNodes, node.rect) : null;
+  if (node.rect && viewport && !rectsIntersect(node.rect, viewport)) {
+    return {
+      ok: false,
+      response: {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: `Ref ${refInput} is off-screen and not safe to ${commandLabel}`,
+          hint: `Run scrollintoview ${refInput}, then retry ${commandLabel} with the returned currentRef or a fresh snapshot.`,
+          details: {
+            reason: 'offscreen_ref',
+            ref,
+            rect: node.rect,
+            viewport,
+          },
+        },
+      },
+    };
+  }
+
   return { ok: true, target: { ref, node, snapshotNodes, point } };
+}
+
+function rectsIntersect(left: Rect, right: Rect): boolean {
+  return (
+    left.x < right.x + right.width &&
+    left.x + left.width > right.x &&
+    left.y < right.y + right.height &&
+    left.y + left.height > right.y
+  );
 }
 
 export function resolveActionableTouchNode(

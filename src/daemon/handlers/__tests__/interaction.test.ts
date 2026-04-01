@@ -1248,6 +1248,57 @@ test('press @ref refreshes snapshot when stored ref bounds are invalid', async (
   }
 });
 
+test('press @ref fails fast when the target is off-screen', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'press-offscreen-ref';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'Window',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Far item',
+        rect: { x: 20, y: 1200, width: 120, height: 44 },
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/off-screen/i);
+    expect(response.error.hint).toMatch(/scrollintoview @e2/i);
+    expect(response.error.details?.reason).toBe('offscreen_ref');
+  }
+});
+
 test('press @ref fallback label is used after refresh when ref bounds remain invalid', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -1323,6 +1374,56 @@ test('press @ref fallback label is used after refresh when ref bounds remain inv
   if (response?.ok) {
     expect(response.data?.x).toBe(140);
     expect(response.data?.y).toBe(220);
+  }
+});
+
+test('fill @ref fails fast when the target is off-screen', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'fill-offscreen-ref';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'Window',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeTextField',
+        label: 'Email',
+        rect: { x: 20, y: 1180, width: 180, height: 44 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['@e2', 'hello@example.com'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(mockDispatch).not.toHaveBeenCalled();
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toMatch(/off-screen/i);
+    expect(response.error.hint).toMatch(/scrollintoview @e2/i);
+    expect(response.error.details?.reason).toBe('offscreen_ref');
   }
 });
 
@@ -1507,6 +1608,68 @@ test('scrollintoview @ref dispatches geometry-based swipe series with verificati
   const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
   expect(result.ref).toBe('e2');
   expect(result.attempts).toBe(2);
+});
+
+test('scrollintoview @ref returns the refreshed visible ref after scrolling', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  makeScrollSession(sessionStore, sessionName, [
+    {
+      index: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      type: 'XCUIElementTypeStaticText',
+      label: 'Far item',
+      rect: { x: 20, y: 2600, width: 120, height: 40 },
+    },
+  ]);
+
+  mockCaptureSnapshotForSession.mockImplementation(async (activeSession) => {
+    activeSession.snapshot = makeScrollSnapshot([
+      { index: 0, type: 'Application', rect: { x: 0, y: 0, width: 390, height: 844 } },
+      {
+        index: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Sticky helper',
+        rect: { x: 20, y: 160, width: 140, height: 40 },
+      },
+      {
+        index: 2,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Far item',
+        rect: { x: 20, y: 320, width: 120, height: 40 },
+      },
+    ]);
+    return activeSession.snapshot;
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'scrollintoview',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.ref).toBe('e2');
+    expect(response.data?.currentRef).toBe('e3');
+  }
+
+  const stored = sessionStore.get(sessionName);
+  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
+  expect(result.ref).toBe('e2');
+  expect(result.currentRef).toBe('e3');
 });
 
 test('scrollintoview @ref returns immediately when target is already in viewport safe band', async () => {

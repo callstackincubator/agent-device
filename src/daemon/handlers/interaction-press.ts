@@ -140,6 +140,7 @@ export async function handlePressCommand(params: {
       session,
       refInput,
       fallbackLabel,
+      commandLabel,
       promoteToHittableAncestor: true,
       invalidRefMessage: `${commandLabel} requires a ref like @e2`,
       missingBoundsMessage: `Ref ${refInput} not found or has no bounds`,

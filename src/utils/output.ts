@@ -4,6 +4,7 @@ import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.
 import type { SnapshotNode } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
+import { resolveViewportRect } from '../daemon/scroll-planner.ts';
 
 type JsonResult =
   | { success: true; data?: unknown }
@@ -54,13 +55,19 @@ export function formatSnapshotText(
 ): string {
   const rawNodes = data.nodes;
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
+  const visiblePresentation = options.raw ? null : buildVisibleSnapshotPresentation(nodes);
   const truncated = Boolean(data.truncated);
   const appName = typeof data.appName === 'string' ? data.appName : undefined;
   const appBundleId = typeof data.appBundleId === 'string' ? data.appBundleId : undefined;
   const meta: string[] = [];
   if (appName) meta.push(`Page: ${appName}`);
   if (appBundleId) meta.push(`App: ${appBundleId}`);
-  const header = `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
+  const displayedNodes = visiblePresentation?.nodes ?? nodes;
+  const hiddenCount = visiblePresentation?.hiddenCount ?? 0;
+  const header =
+    hiddenCount > 0
+      ? `Snapshot: ${displayedNodes.length} visible nodes (${nodes.length} total)${truncated ? ' (truncated)' : ''}`
+      : `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
   const prefix = meta.length > 0 ? `${meta.join('\n')}\n` : '';
   const notices = buildSnapshotNotices(data, nodes, options);
   const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
@@ -72,15 +79,23 @@ export function formatSnapshotText(
     return `${prefix}${header}\n${noticesBlock}${rawLines.join('\n')}\n`;
   }
   if (options.flatten) {
-    const flatLines = nodes.map((node) =>
+    const flatLines = displayedNodes.map((node) =>
       formatSnapshotLine(node, 0, false, undefined, { summarizeTextSurfaces: true }),
     );
-    return `${prefix}${header}\n${noticesBlock}${flatLines.join('\n')}\n`;
+    const summaryBlock =
+      visiblePresentation && visiblePresentation.summaryLines.length > 0
+        ? `\n${visiblePresentation.summaryLines.join('\n')}`
+        : '';
+    return `${prefix}${header}\n${noticesBlock}${flatLines.join('\n')}${summaryBlock}\n`;
   }
-  const lines = buildSnapshotDisplayLines(nodes, { summarizeTextSurfaces: true }).map(
+  const lines = buildSnapshotDisplayLines(displayedNodes, { summarizeTextSurfaces: true }).map(
     (line) => line.text,
   );
-  return `${prefix}${header}\n${noticesBlock}${lines.join('\n')}\n`;
+  const summaryBlock =
+    visiblePresentation && visiblePresentation.summaryLines.length > 0
+      ? `\n${visiblePresentation.summaryLines.join('\n')}`
+      : '';
+  return `${prefix}${header}\n${noticesBlock}${lines.join('\n')}${summaryBlock}\n`;
 }
 
 export function formatSnapshotDiffText(data: Record<string, unknown>): string {
@@ -258,4 +273,166 @@ function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
 
 function displayNodeLabel(node: SnapshotNode): string {
   return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
+}
+
+function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): {
+  nodes: SnapshotNode[];
+  hiddenCount: number;
+  summaryLines: string[];
+} {
+  if (nodes.length === 0) {
+    return { nodes, hiddenCount: 0, summaryLines: [] };
+  }
+
+  const visibleNodeIndexes = new Set<number>();
+  const visibleDirectionCandidates: SnapshotNode[] = [];
+  const byIndex = new Map(nodes.map((node) => [node.index, node]));
+
+  for (const node of nodes) {
+    const visibility = classifyNodeVisibility(node, nodes);
+    if (visibility === 'visible') {
+      visibleNodeIndexes.add(node.index);
+      let current: SnapshotNode | undefined = node;
+      const visited = new Set<number>();
+      while (current && !visited.has(current.index)) {
+        visited.add(current.index);
+        visibleNodeIndexes.add(current.index);
+        current =
+          typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
+      }
+      continue;
+    }
+    if (visibility !== 'offscreen') {
+      continue;
+    }
+    if (isDiscoverableOffscreenNode(node)) {
+      visibleDirectionCandidates.push(node);
+    }
+  }
+
+  if (visibleNodeIndexes.size === 0) {
+    return {
+      nodes,
+      hiddenCount: 0,
+      summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes),
+    };
+  }
+
+  const visibleNodes = nodes.filter((node) => visibleNodeIndexes.has(node.index));
+  return {
+    nodes: visibleNodes,
+    hiddenCount: nodes.length - visibleNodes.length,
+    summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes),
+  };
+}
+
+function classifyNodeVisibility(
+  node: SnapshotNode,
+  nodes: SnapshotNode[],
+): 'visible' | 'offscreen' | 'unknown' {
+  if (!node.rect) {
+    return 'visible';
+  }
+  const viewport = resolveViewportRect(nodes, node.rect);
+  if (!viewport) {
+    return 'visible';
+  }
+  return rectsIntersect(node.rect, viewport) ? 'visible' : 'offscreen';
+}
+
+function buildOffscreenSummaryLines(
+  nodes: SnapshotNode[],
+  snapshotNodes: SnapshotNode[],
+): string[] {
+  const groups = new Map<'above' | 'below' | 'left' | 'right', SnapshotNode[]>();
+  for (const node of nodes) {
+    const direction = classifyOffscreenDirection(node, snapshotNodes);
+    if (!direction) {
+      continue;
+    }
+    const group = groups.get(direction) ?? [];
+    group.push(node);
+    groups.set(direction, group);
+  }
+
+  return ['above', 'below', 'left', 'right'].flatMap((direction) => {
+    const group = groups.get(direction as 'above' | 'below' | 'left' | 'right');
+    if (!group || group.length === 0) {
+      return [];
+    }
+    const labels = uniqueLabels(group)
+      .slice(0, 3)
+      .map((label) => `"${label}"`);
+    const noun = group.length === 1 ? 'interactive item' : 'interactive items';
+    const suffix = labels.length > 0 ? `: ${labels.join(', ')}` : '';
+    return [`[off-screen ${direction}] ${group.length} ${noun}${suffix}`];
+  });
+}
+
+function classifyOffscreenDirection(
+  node: SnapshotNode,
+  nodes: SnapshotNode[],
+): 'above' | 'below' | 'left' | 'right' | null {
+  if (!node.rect) {
+    return null;
+  }
+  const viewport = resolveViewportRect(nodes, node.rect);
+  if (!viewport) {
+    return null;
+  }
+  if (node.rect.y + node.rect.height <= viewport.y) {
+    return 'above';
+  }
+  if (node.rect.y >= viewport.y + viewport.height) {
+    return 'below';
+  }
+  if (node.rect.x + node.rect.width <= viewport.x) {
+    return 'left';
+  }
+  if (node.rect.x >= viewport.x + viewport.width) {
+    return 'right';
+  }
+  return null;
+}
+
+function isDiscoverableOffscreenNode(node: SnapshotNode): boolean {
+  if (node.hittable === true) {
+    return true;
+  }
+  const type = (node.type ?? '').toLowerCase();
+  return (
+    type.includes('button') ||
+    type.includes('link') ||
+    type.includes('textfield') ||
+    type.includes('edittext') ||
+    type.includes('searchfield') ||
+    type.includes('checkbox') ||
+    type.includes('radio') ||
+    type.includes('switch') ||
+    type.includes('menuitem')
+  );
+}
+
+function uniqueLabels(nodes: SnapshotNode[]): string[] {
+  const labels: string[] = [];
+  for (const node of nodes) {
+    const label = displayNodeLabel(node);
+    if (!label || labels.includes(label)) {
+      continue;
+    }
+    labels.push(label);
+  }
+  return labels;
+}
+
+function rectsIntersect(
+  left: NonNullable<SnapshotNode['rect']>,
+  right: NonNullable<SnapshotNode['rect']>,
+): boolean {
+  return (
+    left.x < right.x + right.width &&
+    left.x + left.width > right.x &&
+    left.y < right.y + right.height &&
+    left.y + left.height > right.y
+  );
 }

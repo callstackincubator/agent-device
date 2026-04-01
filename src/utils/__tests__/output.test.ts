@@ -192,6 +192,60 @@ test('formatSnapshotText compresses visible indentation after hidden wrapper cha
   assert.match(text, /^    @e5 \[image\]$/m);
 });
 
+test('formatSnapshotText hides off-screen refs and adds compact discovery summaries', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Settings',
+          rect: { x: 20, y: 120, width: 120, height: 44 },
+          hittable: true,
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Privacy',
+          rect: { x: 20, y: 1200, width: 120, height: 44 },
+          hittable: true,
+        },
+        {
+          ref: 'e4',
+          index: 3,
+          depth: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Battery',
+          rect: { x: 20, y: 1360, width: 120, height: 44 },
+          hittable: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /Snapshot: 2 visible nodes \(4 total\)/);
+  assert.match(text, /^@e1 \[window\]$/m);
+  assert.match(text, /^  @e2 \[button\] "Settings"$/m);
+  assert.doesNotMatch(text, /@e3 \[button\] "Privacy"/);
+  assert.doesNotMatch(text, /@e4 \[button\] "Battery"/);
+  assert.match(text, /\[off-screen below\] 2 interactive items: "Privacy", "Battery"/);
+});
+
 test('formatSnapshotText prints snapshot warnings ahead of empty output', () => {
   const text = withNoColor(() =>
     formatSnapshotText({

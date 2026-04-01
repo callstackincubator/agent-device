@@ -80,6 +80,7 @@ export async function handleFillCommand(params: {
       session,
       refInput: req.positionals[0],
       fallbackLabel: labelCandidate,
+      commandLabel: 'fill',
       promoteToHittableAncestor: false,
       invalidRefMessage: 'fill requires a ref like @e2',
       missingBoundsMessage: `Ref ${req.positionals[0]} not found or has no bounds`,

@@ -24,7 +24,7 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 ## Core Ideas
 
 - Sessions: open a target once, interact within that session, then close it cleanly.
-- Snapshots: inspect the current accessibility tree in a compact form and get stable refs for exploration.
+- Snapshots: inspect the current accessibility tree in a compact form and get current-screen refs for exploration.
 - Refs vs selectors: use refs for discovery, use selectors for durable replay and assertions.
 - Tests: run deterministic `.ad` scripts as a light e2e test suite.
 - Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
@@ -52,7 +52,7 @@ In practice, most work follows the same pattern:
 1. Discover the exact app id with `apps` if the package or bundle name is uncertain.
 2. `open` a target app or URL.
 3. `snapshot -i` to inspect the current screen.
-4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
+4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors. Default snapshot text is visible-first, with off-screen interactive content summarized instead of shown as tappable refs.
 5. `diff snapshot` or re-snapshot after UI changes.
 6. `close` when the session is finished.
 
