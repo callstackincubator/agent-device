@@ -509,12 +509,6 @@ function readHiddenContentHintLines(
   if (line.node.hiddenContentBelow) {
     hints.push(`[content below ${target} hidden]`);
   }
-  if (line.node.hiddenContentLeft) {
-    hints.push(`[content left of ${target} hidden]`);
-  }
-  if (line.node.hiddenContentRight) {
-    hints.push(`[content right of ${target} hidden]`);
-  }
   if (hints.length === 0) {
     return [];
   }

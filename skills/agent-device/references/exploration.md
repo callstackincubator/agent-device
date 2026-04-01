@@ -116,6 +116,7 @@ App: com.apple.Preferences
 - Use refs for discovery, debugging, and short local loops.
 - Use `scrollintoview @ref` when the target is already known from the current snapshot and you want the command to re-snapshot after each swipe until the element reaches the viewport safe band.
 - If `scrollintoview @ref` succeeds, prefer the returned `currentRef` for the next action.
+- Visible-first off-screen summaries are intentionally compact. If you need the full off-screen tree instead of a short summary, retry with `snapshot --raw`.
 - Cap long searches with `--max-scrolls <n>` when the list may be unbounded or the target may not exist.
 - Use selectors for deterministic scripts, assertions, and replay-friendly actions.
 - Prefer selector or `@ref` targeting over raw coordinates.

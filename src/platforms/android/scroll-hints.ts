@@ -1,7 +1,5 @@
 import type { RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
 
-type Axis = 'vertical' | 'horizontal';
-
 type ViewNode = {
   className: string;
   rect: Rect;
@@ -32,14 +30,12 @@ export function annotateAndroidScrollableContentHints(
     if (!node.rect || !isScrollableSnapshotType(node.type)) {
       continue;
     }
-    const axis = inferAxis(node.type);
-    const nativeScrollView = matchNativeScrollView(node.rect, axis, nativeScrollViews);
+    const nativeScrollView = matchNativeScrollView(node.rect, nativeScrollViews);
     if (!nativeScrollView) {
       continue;
     }
-    const visibleBlocks = collectVisibleFlowBlocks(nodes, node, axis);
+    const visibleBlocks = collectVisibleFlowBlocks(nodes, node);
     const hiddenContent = inferHiddenScrollableContent({
-      axis,
       viewportRect: node.rect,
       visibleBlocks,
       nativeScrollView,
@@ -53,29 +49,21 @@ export function annotateAndroidScrollableContentHints(
     if (hiddenContent.below) {
       node.hiddenContentBelow = true;
     }
-    if (hiddenContent.left) {
-      node.hiddenContentLeft = true;
-    }
-    if (hiddenContent.right) {
-      node.hiddenContentRight = true;
-    }
   }
 }
 
 type NativeScrollView = {
   rect: Rect;
-  axis: Axis;
   contentExtent: number;
   contentBlocks: FlowBlock[];
 };
 
 function inferHiddenScrollableContent(params: {
-  axis: Axis;
   viewportRect: Rect;
   visibleBlocks: FlowBlock[];
   nativeScrollView: NativeScrollView;
-}): { above?: boolean; below?: boolean; left?: boolean; right?: boolean } | null {
-  const { axis, viewportRect, visibleBlocks, nativeScrollView } = params;
+}): { above?: boolean; below?: boolean } | null {
+  const { viewportRect, visibleBlocks, nativeScrollView } = params;
   if (visibleBlocks.length === 0 || nativeScrollView.contentBlocks.length === 0) {
     return null;
   }
@@ -84,13 +72,11 @@ function inferHiddenScrollableContent(params: {
     return null;
   }
 
-  const viewportExtent = axis === 'vertical' ? viewportRect.height : viewportRect.width;
+  const viewportExtent = viewportRect.height;
   const hiddenBefore = offset > 16;
   const hiddenAfter = offset + viewportExtent < nativeScrollView.contentExtent - 16;
 
-  return axis === 'vertical'
-    ? { above: hiddenBefore, below: hiddenAfter }
-    : { left: hiddenBefore, right: hiddenAfter };
+  return { above: hiddenBefore, below: hiddenAfter };
 }
 
 function estimateScrollOffset(
@@ -142,16 +128,15 @@ function areFlowBlocksComparable(nativeBlock: FlowBlock, visibleBlock: FlowBlock
 function collectVisibleFlowBlocks(
   nodes: RawSnapshotNode[],
   scrollNode: RawSnapshotNode,
-  axis: Axis,
 ): FlowBlock[] {
   const contentRoot = unwrapScrollableContentRoot(nodes, scrollNode);
   const children = nodes
     .filter((node) => node.parentIndex === contentRoot.index && node.rect)
     .map((node) => node.rect as Rect)
-    .filter((rect) => hasPositiveFlowExtent(rect, axis))
-    .sort((left, right) => (axis === 'vertical' ? left.y - right.y : left.x - right.x));
+    .filter((rect) => hasPositiveVerticalExtent(rect))
+    .sort((left, right) => left.y - right.y);
 
-  return children.map((rect) => toFlowBlock(rect, scrollNode.rect as Rect, axis));
+  return children.map((rect) => toFlowBlock(rect, scrollNode.rect as Rect));
 }
 
 function unwrapScrollableContentRoot(
@@ -192,31 +177,23 @@ function collectNativeScrollViews(root: ViewNode): NativeScrollView[] {
 }
 
 function toNativeScrollView(node: ViewNode): NativeScrollView | null {
-  const axis = inferAxis(node.className);
   const contentRoot = node.children[0];
   if (!contentRoot) {
     return null;
   }
-  const contentExtent =
-    axis === 'vertical'
-      ? Math.max(
-          contentRoot.rect.height,
-          ...contentRoot.children.map((child) => child.rect.y + child.rect.height),
-        )
-      : Math.max(
-          contentRoot.rect.width,
-          ...contentRoot.children.map((child) => child.rect.x + child.rect.width),
-        );
+  const contentExtent = Math.max(
+    contentRoot.rect.height,
+    ...contentRoot.children.map((child) => child.rect.y + child.rect.height),
+  );
   const contentBlocks = contentRoot.children
-    .filter((child) => hasPositiveFlowExtent(child.rect, axis))
-    .map((child) => toFlowBlock(child.rect, node.rect, axis))
+    .filter((child) => hasPositiveVerticalExtent(child.rect))
+    .map((child) => toFlowBlock(child.rect, node.rect))
     .sort((left, right) => left.start - right.start);
   if (contentBlocks.length === 0) {
     return null;
   }
   return {
     rect: node.rect,
-    axis,
     contentExtent,
     contentBlocks,
   };
@@ -224,15 +201,11 @@ function toNativeScrollView(node: ViewNode): NativeScrollView | null {
 
 function matchNativeScrollView(
   rect: Rect,
-  axis: Axis,
   nativeScrollViews: NativeScrollView[],
 ): NativeScrollView | null {
   let best: NativeScrollView | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
   for (const nativeScrollView of nativeScrollViews) {
-    if (nativeScrollView.axis !== axis) {
-      continue;
-    }
     const sizeScore =
       Math.abs(nativeScrollView.rect.width - rect.width) +
       Math.abs(nativeScrollView.rect.height - rect.height);
@@ -286,22 +259,16 @@ function parseActivityTopViewTree(dump: string): ViewNode | null {
   return root.children.length > 0 ? root : null;
 }
 
-function toFlowBlock(rect: Rect, viewportRect: Rect, axis: Axis): FlowBlock {
-  return axis === 'vertical'
-    ? {
-        start: rect.y - viewportRect.y,
-        size: rect.height,
-        crossSize: rect.width,
-      }
-    : {
-        start: rect.x - viewportRect.x,
-        size: rect.width,
-        crossSize: rect.height,
-      };
+function toFlowBlock(rect: Rect, viewportRect: Rect): FlowBlock {
+  return {
+    start: rect.y - viewportRect.y,
+    size: rect.height,
+    crossSize: rect.width,
+  };
 }
 
-function hasPositiveFlowExtent(rect: Rect, axis: Axis): boolean {
-  return axis === 'vertical' ? rect.height > 0 : rect.width > 0;
+function hasPositiveVerticalExtent(rect: Rect): boolean {
+  return rect.height > 0;
 }
 
 function sameRect(left: Rect, right: Rect): boolean {
@@ -311,10 +278,6 @@ function sameRect(left: Rect, right: Rect): boolean {
     left.width === right.width &&
     left.height === right.height
   );
-}
-
-function inferAxis(type: string | undefined): Axis {
-  return `${type ?? ''}`.toLowerCase().includes('horizontal') ? 'horizontal' : 'vertical';
 }
 
 function isScrollableSnapshotType(type: string | undefined): boolean {

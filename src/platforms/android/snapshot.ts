@@ -132,12 +132,7 @@ function copyHiddenContentHints(
   const hintsBySignature = new Map<string, RawSnapshotNode>();
   const hintsByLooseSignature = new Map<string, RawSnapshotNode>();
   for (const node of sourceNodes) {
-    if (
-      !node.hiddenContentAbove &&
-      !node.hiddenContentBelow &&
-      !node.hiddenContentLeft &&
-      !node.hiddenContentRight
-    ) {
+    if (!node.hiddenContentAbove && !node.hiddenContentBelow) {
       continue;
     }
     const signature = buildHintSignature(node);
@@ -162,8 +157,6 @@ function copyHiddenContentHints(
     }
     node.hiddenContentAbove = source.hiddenContentAbove;
     node.hiddenContentBelow = source.hiddenContentBelow;
-    node.hiddenContentLeft = source.hiddenContentLeft;
-    node.hiddenContentRight = source.hiddenContentRight;
   }
 }
 
