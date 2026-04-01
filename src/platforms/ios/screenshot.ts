@@ -8,6 +8,7 @@ import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 
 import {
   IOS_RUNNER_SCREENSHOT_COPY_TIMEOUT_MS,
+  IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK_ENABLED,
   IOS_SIMULATOR_SCREENSHOT_RETRY_BASE_DELAY_MS,
   IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_ATTEMPTS,
   IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_DELAY_MS,
@@ -31,6 +32,7 @@ type SimulatorScreenshotFlowDeps = {
   ensureBooted: (device: DeviceInfo) => Promise<void>;
   prepareStatusBarForScreenshot: (device: DeviceInfo) => Promise<() => Promise<void>>;
   captureWithRetry: (device: DeviceInfo, outPath: string) => Promise<void>;
+  runnerFallbackEnabled: boolean;
   captureWithRunner: (
     device: DeviceInfo,
     outPath: string,
@@ -44,6 +46,7 @@ const defaultSimulatorScreenshotFlowDeps: SimulatorScreenshotFlowDeps = {
   ensureBooted: ensureBootedSimulator,
   prepareStatusBarForScreenshot: prepareSimulatorStatusBarForScreenshot,
   captureWithRetry: captureSimulatorScreenshotWithRetry,
+  runnerFallbackEnabled: IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK_ENABLED,
   captureWithRunner: captureScreenshotViaRunner,
   shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
 };
@@ -111,6 +114,10 @@ export async function captureSimulatorScreenshotWithFallback(
       if (!effectiveDeps.shouldFallbackToRunner(error)) {
         throw error;
       }
+      if (!effectiveDeps.runnerFallbackEnabled) {
+        emitScreenshotFallbackSkippedDiagnostic(device, error);
+        throw buildSimulatorScreenshotFallbackDisabledError(error);
+      }
       emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
     }
     await effectiveDeps.captureWithRunner(device, outPath, appBundleId, fullscreen);
@@ -121,7 +128,7 @@ export async function captureSimulatorScreenshotWithFallback(
   }
 }
 
-async function captureSimulatorScreenshotWithRetry(
+export async function captureSimulatorScreenshotWithRetry(
   device: DeviceInfo,
   outPath: string,
 ): Promise<void> {
@@ -146,7 +153,7 @@ async function captureSimulatorScreenshotWithRetry(
   );
 }
 
-async function captureScreenshotViaRunner(
+export async function captureScreenshotViaRunner(
   device: DeviceInfo,
   outPath: string,
   appBundleId?: string,
@@ -300,6 +307,48 @@ function emitScreenshotFallbackDiagnostic(
       ...errorMeta,
     },
   });
+}
+
+function emitScreenshotFallbackSkippedDiagnostic(device: DeviceInfo, error: unknown): void {
+  const errorMeta = extractScreenshotFallbackErrorMeta(error);
+  emitDiagnostic({
+    level: 'warn',
+    phase: 'ios_screenshot_fallback_skipped',
+    data: {
+      platform: device.platform,
+      deviceKind: device.kind,
+      deviceId: device.id,
+      from: 'simctl_screenshot',
+      to: 'runner',
+      reason:
+        'Simulator runner fallback is disabled to avoid XCTest automation instability during screenshot capture.',
+      ...errorMeta,
+    },
+  });
+}
+
+const SIMULATOR_SCREENSHOT_FALLBACK_HINT =
+  'Restart the simulator and retry. If simctl screenshots keep timing out and you accept the stability tradeoff, set AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK=1 to allow XCTest runner fallback.';
+
+function buildSimulatorScreenshotFallbackDisabledError(error: unknown): AppError {
+  const base =
+    error instanceof AppError
+      ? error
+      : new AppError(
+          'COMMAND_FAILED',
+          'Failed to capture iOS screenshot: simulator screenshot retries exhausted',
+          undefined,
+          error,
+        );
+  return new AppError(
+    base.code,
+    base.message,
+    {
+      ...(base.details ?? {}),
+      hint: SIMULATOR_SCREENSHOT_FALLBACK_HINT,
+    },
+    base,
+  );
 }
 
 function emitStatusBarDiagnostic(

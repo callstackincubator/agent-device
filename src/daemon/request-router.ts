@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
-import { dispatchCommand } from '../core/dispatch.ts';
+import { dispatchCommand, resolveTargetDevice } from '../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type {
@@ -45,6 +45,8 @@ import {
   isNavigationSensitiveAction,
   markAndroidSnapshotFreshness,
 } from './android-snapshot-freshness.ts';
+import { withKeyedLock } from '../utils/keyed-lock.ts';
+import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
 
 const selectorValidationExemptCommands = new Set([
   'session_list',
@@ -61,6 +63,8 @@ const leaseAdmissionExemptCommands = new Set([
   'lease_heartbeat',
   'lease_release',
 ]);
+const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
+const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 
 function contextFromFlags(
   logPath: string,
@@ -240,6 +244,26 @@ function shouldBlockForInvalidRecording(command: string): boolean {
   return command !== 'record' && command !== 'close';
 }
 
+async function resolveExecutionLockKey(
+  req: DaemonRequest,
+  sessionName: string,
+  sessionStore: SessionStore,
+): Promise<string> {
+  const existingSession = sessionStore.get(sessionName);
+  if (existingSession) {
+    return `device:${existingSession.device.id}`;
+  }
+  if (req.command === 'open' || hasExplicitDeviceSelector(req.flags)) {
+    try {
+      const device = await resolveTargetDevice(req.flags ?? {});
+      return `device:${device.id}`;
+    } catch {
+      // Fall back to session scoping when device resolution is not yet available.
+    }
+  }
+  return `session:${sessionName}`;
+}
+
 export type RequestRouterDeps = {
   logPath: string;
   token: string;
@@ -302,196 +326,215 @@ export function createRequestHandler(
             });
           }
           const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
-          const existingSession = sessionStore.get(sessionName);
-          if (existingSession) {
-            refreshRecordingHealth(existingSession);
-            sessionStore.set(sessionName, existingSession);
-          }
-          const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
-          const finalize = (response: DaemonResponse): DaemonResponse =>
-            finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
-          if (
-            existingSession?.recording?.invalidatedReason &&
-            shouldBlockForInvalidRecording(command)
-          ) {
-            return finalize({
-              ok: false,
-              error: {
-                code: 'COMMAND_FAILED',
-                message: existingSession.recording.invalidatedReason,
-              },
-            });
-          }
-          if (
-            existingSession &&
-            !lockedReq.meta?.lockPolicy &&
-            !selectorValidationExemptCommands.has(command)
-          ) {
-            assertSessionSelectorMatches(existingSession, lockedReq.flags);
-          }
-
-          const leaseResponse = await handleLeaseCommands({
-            req: lockedReq,
-            leaseRegistry,
-          });
-          if (leaseResponse) return finalize(leaseResponse);
-
-          const sessionResponse = await handleSessionCommands({
-            req: lockedReq,
-            sessionName,
-            logPath,
-            sessionStore,
-            invoke: handleRequest,
-          });
-          if (sessionResponse) return finalize(sessionResponse);
-
-          const snapshotResponse = await handleSnapshotCommands({
-            req: lockedReq,
-            sessionName,
-            logPath,
-            sessionStore,
-          });
-          if (snapshotResponse) return finalize(snapshotResponse);
-
-          const recordTraceResponse = await handleRecordTraceCommands({
-            req: lockedReq,
-            sessionName,
-            sessionStore,
-            logPath,
-          });
-          if (recordTraceResponse) return finalize(recordTraceResponse);
-
-          const findResponse = await handleFindCommands({
-            req: lockedReq,
-            sessionName,
-            logPath,
-            sessionStore,
-            invoke: handleRequest,
-          });
-          if (findResponse) return finalize(findResponse);
-
-          const interactionResponse = await handleInteractionCommands({
-            req: lockedReq,
-            sessionName,
-            sessionStore,
-            contextFromFlags: (flags, appBundleId, traceLogPath) =>
-              ({
-                ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-                surface: sessionStore.get(sessionName)?.surface,
-              }) satisfies DaemonCommandContext,
-          });
-          if (interactionResponse) return finalize(interactionResponse);
-
-          const session = sessionStore.get(sessionName);
-          if (!session) {
-            return finalize({
-              ok: false,
-              error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-            });
-          }
-
-          if (!isCommandSupportedOnDevice(command, session.device)) {
-            return finalize({
-              ok: false,
-              error: {
-                code: 'UNSUPPORTED_OPERATION',
-                message: `${command} is not supported on this device`,
-              },
-            });
-          }
-
-          if (session.device.platform === 'android' && session.recording && command !== 'record') {
-            const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({
-              session,
-            });
-            if (androidRecoveryResult === 'failed') {
+          const executionLockKey = sessionExecutionExemptCommands.has(command)
+            ? null
+            : await resolveExecutionLockKey(scopedReq, sessionName, sessionStore);
+          const executeSessionRequest = async (): Promise<DaemonResponse> => {
+            const existingSession = sessionStore.get(sessionName);
+            if (existingSession) {
+              refreshRecordingHealth(existingSession);
+              sessionStore.set(sessionName, existingSession);
+            }
+            const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
+            const finalize = (response: DaemonResponse): DaemonResponse =>
+              finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
+            if (
+              existingSession?.recording?.invalidatedReason &&
+              shouldBlockForInvalidRecording(command)
+            ) {
               return finalize({
                 ok: false,
                 error: {
                   code: 'COMMAND_FAILED',
-                  message: 'Android system dialog blocked the recording session',
+                  message: existingSession.recording.invalidatedReason,
                 },
               });
             }
-          }
+            if (
+              existingSession &&
+              !lockedReq.meta?.lockPolicy &&
+              !selectorValidationExemptCommands.has(command)
+            ) {
+              assertSessionSelectorMatches(existingSession, lockedReq.flags);
+            }
 
-          const positionals = lockedReq.positionals ?? [];
-          const outFlag = lockedReq.flags?.out;
-          const resolvedPositionals =
-            command === 'screenshot' && positionals[0]
-              ? [
-                  SessionStore.expandHome(positionals[0], lockedReq.meta?.cwd),
-                  ...positionals.slice(1),
-                ]
-              : positionals;
-          const resolvedOut =
-            command === 'screenshot' && outFlag
-              ? SessionStore.expandHome(outFlag, lockedReq.meta?.cwd)
-              : outFlag;
-          const recordedPositionals = command === 'screenshot' ? resolvedPositionals : positionals;
-          const recordedFlags =
-            command === 'screenshot' && resolvedOut
-              ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
-              : (lockedReq.flags ?? {});
-          const actionStartedAt = Date.now();
-          const dispatchContext = {
-            ...contextFromFlags(
+            const leaseResponse = await handleLeaseCommands({
+              req: lockedReq,
+              leaseRegistry,
+            });
+            if (leaseResponse) return finalize(leaseResponse);
+
+            const sessionResponse = await handleSessionCommands({
+              req: lockedReq,
+              sessionName,
               logPath,
-              lockedReq.flags,
-              session.appBundleId,
-              session.trace?.outPath,
-            ),
-            surface: session.surface,
-          };
-          const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
-            ...dispatchContext,
-          });
-          if (
-            command === 'screenshot' &&
-            lockedReq.flags?.overlayRefs &&
-            typeof data?.path === 'string'
-          ) {
-            const overlaySnapshotData = await captureSnapshotData({
-              device: session.device,
+              sessionStore,
+              invoke: handleRequest,
+            });
+            if (sessionResponse) return finalize(sessionResponse);
+
+            const snapshotResponse = await handleSnapshotCommands({
+              req: lockedReq,
+              sessionName,
+              logPath,
+              sessionStore,
+            });
+            if (snapshotResponse) return finalize(snapshotResponse);
+
+            const recordTraceResponse = await handleRecordTraceCommands({
+              req: lockedReq,
+              sessionName,
+              sessionStore,
+              logPath,
+            });
+            if (recordTraceResponse) return finalize(recordTraceResponse);
+
+            const findResponse = await handleFindCommands({
+              req: lockedReq,
+              sessionName,
+              logPath,
+              sessionStore,
+              invoke: handleRequest,
+            });
+            if (findResponse) return finalize(findResponse);
+
+            const interactionResponse = await handleInteractionCommands({
+              req: lockedReq,
+              sessionName,
+              sessionStore,
+              contextFromFlags: (flags, appBundleId, traceLogPath) =>
+                ({
+                  ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+                  surface: sessionStore.get(sessionName)?.surface,
+                }) satisfies DaemonCommandContext,
+            });
+            if (interactionResponse) return finalize(interactionResponse);
+
+            const session = sessionStore.get(sessionName);
+            if (!session) {
+              return finalize({
+                ok: false,
+                error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
+              });
+            }
+
+            if (!isCommandSupportedOnDevice(command, session.device)) {
+              return finalize({
+                ok: false,
+                error: {
+                  code: 'UNSUPPORTED_OPERATION',
+                  message: `${command} is not supported on this device`,
+                },
+              });
+            }
+
+            if (
+              session.device.platform === 'android' &&
+              session.recording &&
+              command !== 'record'
+            ) {
+              const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({
+                session,
+              });
+              if (androidRecoveryResult === 'failed') {
+                return finalize({
+                  ok: false,
+                  error: {
+                    code: 'COMMAND_FAILED',
+                    message: 'Android system dialog blocked the recording session',
+                  },
+                });
+              }
+            }
+
+            const positionals = lockedReq.positionals ?? [];
+            const outFlag = lockedReq.flags?.out;
+            const resolvedPositionals =
+              command === 'screenshot' && positionals[0]
+                ? [
+                    SessionStore.expandHome(positionals[0], lockedReq.meta?.cwd),
+                    ...positionals.slice(1),
+                  ]
+                : positionals;
+            const resolvedOut =
+              command === 'screenshot' && outFlag
+                ? SessionStore.expandHome(outFlag, lockedReq.meta?.cwd)
+                : outFlag;
+            const recordedPositionals =
+              command === 'screenshot' ? resolvedPositionals : positionals;
+            const recordedFlags =
+              command === 'screenshot' && resolvedOut
+                ? { ...(lockedReq.flags ?? {}), out: resolvedOut }
+                : (lockedReq.flags ?? {});
+            const actionStartedAt = Date.now();
+            const dispatchContext = {
+              ...contextFromFlags(
+                logPath,
+                lockedReq.flags,
+                session.appBundleId,
+                session.trace?.outPath,
+              ),
+              surface: session.surface,
+            };
+            const data = await dispatch(session.device, command, resolvedPositionals, resolvedOut, {
+              ...dispatchContext,
+            });
+            if (
+              command === 'screenshot' &&
+              lockedReq.flags?.overlayRefs &&
+              typeof data?.path === 'string'
+            ) {
+              const overlaySnapshotData = await captureSnapshotData({
+                device: session.device,
+                session,
+                flags: undefined,
+                logPath,
+                snapshotScope: undefined,
+              });
+              const overlaySnapshot = buildSnapshotState(overlaySnapshotData, undefined);
+              session.snapshot = overlaySnapshot;
+              const overlayRefs = await annotateScreenshotWithRefs({
+                screenshotPath: data.path,
+                snapshot: overlaySnapshot,
+              });
+              data.overlayRefs = overlayRefs;
+            }
+            const actionFinishedAt = Date.now();
+            const visualizationData = augmentScrollVisualizationResult(
               session,
-              flags: undefined,
-              logPath,
-              snapshotScope: undefined,
+              command,
+              resolvedPositionals,
+              data as Record<string, unknown> | void,
+            );
+            recordTouchVisualizationEvent(
+              session,
+              command,
+              resolvedPositionals,
+              visualizationData as Record<string, unknown> | void,
+              (lockedReq.flags ?? {}) as Record<string, unknown>,
+              actionStartedAt,
+              actionFinishedAt,
+            );
+            sessionStore.recordAction(session, {
+              command,
+              positionals: recordedPositionals,
+              flags: recordedFlags,
+              result: data ?? {},
             });
-            const overlaySnapshot = buildSnapshotState(overlaySnapshotData, undefined);
-            session.snapshot = overlaySnapshot;
-            const overlayRefs = await annotateScreenshotWithRefs({
-              screenshotPath: data.path,
-              snapshot: overlaySnapshot,
-            });
-            data.overlayRefs = overlayRefs;
+            if (isNavigationSensitiveAction(command)) {
+              markAndroidSnapshotFreshness(session, command);
+            }
+            return finalize({ ok: true, data: data ?? {} });
+          };
+
+          if (!executionLockKey) {
+            return await executeSessionRequest();
           }
-          const actionFinishedAt = Date.now();
-          const visualizationData = augmentScrollVisualizationResult(
-            session,
-            command,
-            resolvedPositionals,
-            data as Record<string, unknown> | void,
+          return await withKeyedLock(
+            sessionExecutionLocks,
+            executionLockKey,
+            executeSessionRequest,
           );
-          recordTouchVisualizationEvent(
-            session,
-            command,
-            resolvedPositionals,
-            visualizationData as Record<string, unknown> | void,
-            (lockedReq.flags ?? {}) as Record<string, unknown>,
-            actionStartedAt,
-            actionFinishedAt,
-          );
-          sessionStore.recordAction(session, {
-            command,
-            positionals: recordedPositionals,
-            flags: recordedFlags,
-            result: data ?? {},
-          });
-          if (isNavigationSensitiveAction(command)) {
-            markAndroidSnapshotFreshness(session, command);
-          }
-          return finalize({ ok: true, data: data ?? {} });
         } catch (error) {
           emitDiagnostic({
             level: 'error',
