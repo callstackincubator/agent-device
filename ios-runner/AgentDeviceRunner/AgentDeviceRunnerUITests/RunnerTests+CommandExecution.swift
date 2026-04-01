@@ -584,12 +584,6 @@ extension RunnerTests {
       else {
         return Response(ok: false, error: ErrorPayload(message: "rotate requires orientation"))
       }
-      guard supportsRotateOrientation(orientation) else {
-        return Response(
-          ok: false,
-          error: ErrorPayload(message: "unsupported rotate orientation: \(orientation)")
-        )
-      }
       if rotateDevice(to: orientation) {
         return Response(
           ok: true,
@@ -598,7 +592,7 @@ extension RunnerTests {
       }
       return Response(
         ok: false,
-        error: ErrorPayload(message: "rotate is not supported on this runner target")
+        error: ErrorPayload(message: "unsupported rotate orientation: \(orientation)")
       )
     case .appSwitcher:
       performAppSwitcherGesture(app: activeApp)

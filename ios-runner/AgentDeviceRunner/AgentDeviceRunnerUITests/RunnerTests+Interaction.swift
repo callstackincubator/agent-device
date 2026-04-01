@@ -100,21 +100,6 @@ extension RunnerTests {
 #endif
   }
 
-  func supportsRotateOrientation(_ orientationName: String) -> Bool {
-    switch orientationName {
-    case "portrait":
-      return true
-    case "portrait-upside-down":
-      return true
-    case "landscape-left":
-      return true
-    case "landscape-right":
-      return true
-    default:
-      return false
-    }
-  }
-
   private func pressTvRemoteMenuIfAvailable() -> Bool {
 #if os(tvOS)
     XCUIRemote.shared.press(.menu)

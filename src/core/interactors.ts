@@ -170,12 +170,6 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           );
         },
         rotate: async (orientation) => {
-          if (device.platform !== 'ios') {
-            throw new AppError(
-              'UNSUPPORTED_OPERATION',
-              'rotate is supported only on iOS and Android',
-            );
-          }
           await runIosRunnerCommand(
             device,
             { command: 'rotate', orientation, appBundleId: runnerContext.appBundleId },

@@ -7,6 +7,12 @@ export type DeviceRotation =
   | 'landscape-right';
 
 export function parseDeviceRotation(input: string | undefined): DeviceRotation {
+  if (input === undefined) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'rotate requires an orientation argument. Use portrait|portrait-upside-down|landscape-left|landscape-right.',
+    );
+  }
   const normalized = input?.trim().toLowerCase();
   switch (normalized) {
     case 'portrait':
@@ -23,7 +29,7 @@ export function parseDeviceRotation(input: string | undefined): DeviceRotation {
     default:
       throw new AppError(
         'INVALID_ARGS',
-        `Invalid rotation: ${input ?? ''}. Use portrait|portrait-upside-down|landscape-left|landscape-right.`,
+        `Invalid rotation: ${input}. Use portrait|portrait-upside-down|landscape-left|landscape-right.`,
       );
   }
 }
