@@ -3,10 +3,7 @@ export function isSystemScrollIndicatorLabel(label: string): boolean {
   if (!normalized) {
     return false;
   }
-  if (/^(vertical|horizontal)\s+scroll\s+bar(?:,?\s*\d+\s+pages?)?$/.test(normalized)) {
-    return true;
-  }
-  return normalized === 'new message line indicator';
+  return /^(vertical|horizontal)\s+scroll\s+bar(?:,?\s*\d+\s+pages?)?$/.test(normalized);
 }
 
 export function inferVerticalScrollIndicatorDirections(

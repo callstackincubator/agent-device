@@ -120,11 +120,16 @@ function isRetryableAdbError(err: unknown): boolean {
 }
 
 async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'activity', 'top']), {
-    allowFailure: true,
-  });
-  const text = `${result.stdout}\n${result.stderr}`.trim();
-  return text.length > 0 ? text : null;
+  try {
+    const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'activity', 'top']), {
+      allowFailure: true,
+      timeoutMs: 2_000,
+    });
+    const text = `${result.stdout}\n${result.stderr}`.trim();
+    return text.length > 0 ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 function copyHiddenContentHints(
@@ -163,7 +168,10 @@ function copyHiddenContentHints(
 }
 
 function applyDerivedHiddenContentHints(nodes: RawSnapshotNode[]): void {
-  if (nodes.length === 0) {
+  if (
+    nodes.length === 0 ||
+    nodes.some((node) => node.hiddenContentAbove || node.hiddenContentBelow)
+  ) {
     return;
   }
   const presentation = buildMobileSnapshotPresentation(attachRefs(nodes));

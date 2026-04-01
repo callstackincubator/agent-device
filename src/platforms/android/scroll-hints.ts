@@ -1,4 +1,5 @@
 import type { RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
+import { isScrollableType } from '../../utils/scrollable.ts';
 
 type ViewNode = {
   className: string;
@@ -27,7 +28,7 @@ export function annotateAndroidScrollableContentHints(
   }
 
   for (const node of nodes) {
-    if (!node.rect || !isScrollableSnapshotType(node.type)) {
+    if (!node.rect || !isScrollableType(node.type)) {
       continue;
     }
     const nativeScrollView = matchNativeScrollView(node.rect, nativeScrollViews);
@@ -165,7 +166,7 @@ function collectNativeScrollViews(root: ViewNode): NativeScrollView[] {
   const stack = [root];
   while (stack.length > 0) {
     const node = stack.pop() as ViewNode;
-    if (isScrollableViewClass(node.className)) {
+    if (isScrollableType(node.className)) {
       const nativeScrollView = toNativeScrollView(node);
       if (nativeScrollView) {
         results.push(nativeScrollView);
@@ -212,9 +213,12 @@ function matchNativeScrollView(
     if (sizeScore > 32) {
       continue;
     }
-    if (sizeScore < bestScore) {
+    const positionScore =
+      Math.abs(nativeScrollView.rect.x - rect.x) + Math.abs(nativeScrollView.rect.y - rect.y);
+    const score = sizeScore * 4 + positionScore;
+    if (score < bestScore) {
       best = nativeScrollView;
-      bestScore = sizeScore;
+      bestScore = score;
     }
   }
   return best;
@@ -277,26 +281,5 @@ function sameRect(left: Rect, right: Rect): boolean {
     left.y === right.y &&
     left.width === right.width &&
     left.height === right.height
-  );
-}
-
-function isScrollableSnapshotType(type: string | undefined): boolean {
-  const value = `${type ?? ''}`.toLowerCase();
-  return (
-    value.includes('scrollview') ||
-    value.includes('scrollarea') ||
-    value.includes('recyclerview') ||
-    value.includes('listview') ||
-    value.includes('collectionview')
-  );
-}
-
-function isScrollableViewClass(className: string): boolean {
-  const value = className.toLowerCase();
-  return (
-    value.includes('scrollview') ||
-    value.includes('recyclerview') ||
-    value.includes('listview') ||
-    value.includes('collectionview')
   );
 }
