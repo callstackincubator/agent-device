@@ -32,7 +32,7 @@ export async function snapshotAndroid(
   const tree = parseUiHierarchyTree(xml);
   const parsed = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
   await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
-  applyDerivedHiddenContentHints(parsed.nodes);
+  applyDerivedPresentationHiddenContentHints(parsed.nodes);
   const interactiveParsed = buildUiHierarchySnapshot(tree, 800, options);
   copyHiddenContentHints(parsed.nodes, interactiveParsed.nodes);
   return interactiveParsed;
@@ -167,7 +167,7 @@ function copyHiddenContentHints(
   }
 }
 
-function applyDerivedHiddenContentHints(nodes: RawSnapshotNode[]): void {
+function applyDerivedPresentationHiddenContentHints(nodes: RawSnapshotNode[]): void {
   if (
     nodes.length === 0 ||
     nodes.some((node) => node.hiddenContentAbove || node.hiddenContentBelow)

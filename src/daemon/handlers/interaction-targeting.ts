@@ -15,6 +15,7 @@ import {
   isNodeVisibleInEffectiveViewport,
   resolveEffectiveViewportRect,
 } from '../../utils/mobile-snapshot-semantics.ts';
+import { containsPoint, pickLargestRect } from '../../utils/rect-visibility.ts';
 
 export type ResolveRefTarget = typeof resolveRefTarget;
 
@@ -332,21 +333,4 @@ function intersectionArea(left: Rect, right: Rect): number {
     Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
   );
   return xOverlap * yOverlap;
-}
-
-function containsPoint(rect: Rect, x: number, y: number): boolean {
-  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
-}
-
-function pickLargestRect(rects: Rect[]): Rect | null {
-  let bestRect: Rect | null = null;
-  let bestArea = -1;
-  for (const rect of rects) {
-    const area = rect.width * rect.height;
-    if (area > bestArea) {
-      bestRect = rect;
-      bestArea = area;
-    }
-  }
-  return bestRect;
 }
