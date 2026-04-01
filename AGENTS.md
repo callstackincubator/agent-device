@@ -84,6 +84,20 @@ Minimal operating guide for AI coding agents in this repo.
 - `runner-transport.ts` must not import back from `runner-client.ts`.
 - If changing runner connect errors, retry policy, or command typing, start in `src/platforms/ios/runner-contract.ts` before touching client/transport files.
 
+## Adding a New CLI Flag
+
+A new snapshot/command flag touches up to 7 files in a fixed order. Follow this checklist:
+
+1. `src/utils/command-schema.ts`: add to `CliFlags` type, `FLAG_DEFINITIONS` array, and the relevant `*_FLAGS` constant (e.g. `SNAPSHOT_FLAGS`). Update the command's `usageOverride` string.
+2. `src/utils/snapshot.ts` (or the relevant options type): add to `SnapshotOptions` or equivalent.
+3. `src/client-types.ts`: add to `CaptureSnapshotOptions` (or equivalent public options type) **and** `InternalRequestOptions`.
+4. `src/client-normalizers.ts`: map the public option name to the internal flag name in `buildFlags`.
+5. `src/daemon/context.ts`: add to `DaemonCommandContext` type and `contextFromFlags` function.
+6. `src/core/dispatch.ts`: add to the inline context type on `dispatchCommand` and thread it to the platform call.
+7. `src/cli/commands/<command>.ts`: pass the flag from `flags.*` to the client call.
+
+Command-only flags (like `find --first`) that don't flow to the platform layer only need steps 1 and the handler file.
+
 ## Hard Rules
 - Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
