@@ -17,8 +17,8 @@ const ANDROID_NEARBY_LINE_RADIUS = 5;
 // many interleaved logcat lines.
 const ANDROID_PACKET_SCAN_RADIUS = 12;
 
-type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
-type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
+export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
+export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
 
 export type NetworkEntry = {
   method?: string;
@@ -47,6 +47,27 @@ export type NetworkDump = {
     maxScanLines: number;
   };
 };
+
+export function mergeNetworkDumps(
+  primary: NetworkDump,
+  secondary: NetworkDump,
+  maxEntries = primary.limits.maxEntries,
+): NetworkDump {
+  const entries = [...primary.entries];
+  const seen = new Set(entries.map((entry) => networkEntryKey(entry)));
+  for (const entry of secondary.entries) {
+    const key = networkEntryKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(entry);
+    if (entries.length >= maxEntries) break;
+  }
+  return {
+    ...primary,
+    matchedLines: entries.length,
+    entries,
+  };
+}
 
 export function readRecentNetworkTraffic(
   logPath: string,
@@ -182,6 +203,10 @@ function parseNetworkLine(
   }
 
   return result;
+}
+
+function networkEntryKey(entry: NetworkEntry): string {
+  return `${entry.timestamp ?? ''}|${entry.method ?? ''}|${entry.url}|${entry.status ?? ''}|${entry.raw}`;
 }
 
 function enrichFromAndroidAdjacentLines(

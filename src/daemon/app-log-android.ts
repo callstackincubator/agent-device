@@ -2,7 +2,12 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
-import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
+import {
+  clearPidFile,
+  writePidFile,
+  type AppLogResult,
+  type AppLogState,
+} from './app-log-process.ts';
 import {
   attachChildToStream,
   createLineWriter,
@@ -56,7 +61,7 @@ export async function startAndroidAppLog(
   redactionPatterns: RegExp[],
   pidPath?: string,
 ): Promise<AppLogResult> {
-  let state: 'active' | 'failed' = 'active';
+  let state: AppLogState = 'recovering';
   let stopped = false;
   let activeChild: ReturnType<typeof spawn> | undefined;
   let activeWait: ReturnType<typeof attachChildToStream> | undefined;
@@ -66,6 +71,7 @@ export async function startAndroidAppLog(
       while (!stopped) {
         const pid = await resolveAndroidPid(deviceId, appBundleId);
         if (!pid) {
+          state = 'recovering';
           await sleep(1_000);
           continue;
         }
@@ -79,14 +85,12 @@ export async function startAndroidAppLog(
         if (typeof child.pid === 'number') {
           writePidFile(pidPath, child.pid);
         }
-        const result = await activeWait;
+        await activeWait;
         clearPidFile(pidPath);
         activeChild = undefined;
         activeWait = undefined;
         if (stopped) return { stdout: '', stderr: '', exitCode: 0 };
-        if (result.exitCode !== 0) {
-          state = 'failed';
-        }
+        state = 'recovering';
         await sleep(500);
       }
       return { stdout: '', stderr: '', exitCode: 0 };

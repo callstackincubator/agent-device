@@ -5,6 +5,7 @@ import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts'
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import type { AndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
+import type { AppLogState } from './app-log-process.ts';
 
 export type DaemonInstallSource = MaterializeInstallSource;
 export type DaemonLockPolicy = 'reject' | 'strip';
@@ -226,7 +227,7 @@ export type SessionState = {
     backend: 'ios-simulator' | 'ios-device' | 'android' | 'macos';
     outPath: string;
     startedAt: number;
-    getState: () => 'active' | 'failed';
+    getState: () => AppLogState;
     stop: () => Promise<void>;
     wait: Promise<ExecResult>;
   };

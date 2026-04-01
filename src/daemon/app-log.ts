@@ -3,12 +3,25 @@ import path from 'node:path';
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
-import { assertAndroidPackageArgSafe, startAndroidAppLog } from './app-log-android.ts';
+import {
+  assertAndroidPackageArgSafe,
+  readRecentAndroidLogcatForPackage,
+  startAndroidAppLog,
+} from './app-log-android.ts';
 import { startIosDeviceAppLog, startIosSimulatorAppLog, startMacOsAppLog } from './app-log-ios.ts';
-import type { AppLogResult } from './app-log-process.ts';
+import type { AppLogResult, AppLogState } from './app-log-process.ts';
 import { waitForChildExit } from './app-log-stream.ts';
+import {
+  mergeNetworkDumps,
+  readRecentNetworkTraffic,
+  readRecentNetworkTrafficFromText,
+  type NetworkDump,
+  type NetworkIncludeMode,
+  type NetworkLogBackend,
+} from './network-log.ts';
 
 export type { AppLogResult } from './app-log-process.ts';
+export type { AppLogState } from './app-log-process.ts';
 export { APP_LOG_PID_FILENAME, cleanupStaleAppLogProcesses } from './app-log-process.ts';
 export {
   assertAndroidPackageArgSafe,
@@ -18,6 +31,12 @@ export { buildAppleLogPredicate, buildIosDeviceLogStreamArgs } from './app-log-i
 
 export type AppLogDoctorResult = {
   checks: Record<string, boolean>;
+  notes: string[];
+};
+
+export type SessionNetworkCapture = {
+  backend: NetworkLogBackend;
+  dump: NetworkDump;
   notes: string[];
 };
 
@@ -96,6 +115,86 @@ export function getAppLogPathMetadata(outPath: string): {
     sizeBytes: stats.size,
     modifiedAt: stats.mtime.toISOString(),
   };
+}
+
+function resolveNetworkLogBackend(device: DeviceInfo): NetworkLogBackend {
+  if (device.platform === 'macos') return 'macos';
+  if (device.platform === 'ios') {
+    return device.kind === 'device' ? 'ios-device' : 'ios-simulator';
+  }
+  return 'android';
+}
+
+export async function readSessionNetworkCapture(params: {
+  device: DeviceInfo;
+  appBundleId?: string;
+  appLogState?: AppLogState;
+  appLogPath: string;
+  maxEntries: number;
+  include: NetworkIncludeMode;
+  maxPayloadChars: number;
+  maxScanLines: number;
+}): Promise<SessionNetworkCapture> {
+  const {
+    device,
+    appBundleId,
+    appLogState,
+    appLogPath,
+    maxEntries,
+    include,
+    maxPayloadChars,
+    maxScanLines,
+  } = params;
+  const backend = resolveNetworkLogBackend(device);
+  let dump = readRecentNetworkTraffic(appLogPath, {
+    backend,
+    maxEntries,
+    include,
+    maxPayloadChars,
+    maxScanLines,
+  });
+  const notes: string[] = [];
+
+  const canRecoverAndroidLogcat =
+    device.platform === 'android' &&
+    appLogState !== undefined &&
+    appLogState !== 'active' &&
+    Boolean(appBundleId);
+  if (canRecoverAndroidLogcat) {
+    const recovered = await readRecentAndroidLogcatForPackage(device.id, appBundleId as string);
+    if (recovered) {
+      const recoveredDump = readRecentNetworkTrafficFromText(recovered.text, {
+        path: `${appLogPath} (adb logcat recovery)`,
+        backend: 'android',
+        maxEntries,
+        include,
+        maxPayloadChars,
+        maxScanLines,
+      });
+      if (recoveredDump.entries.length > 0) {
+        dump = mergeNetworkDumps(recoveredDump, dump, maxEntries);
+        notes.push(
+          `Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set ${recovered.recoveredPids.join(', ')}.`,
+        );
+      }
+    }
+  }
+
+  if (appLogState === undefined) {
+    notes.push(
+      'Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.',
+    );
+  } else if (appLogState !== 'active' && notes.length === 0) {
+    notes.push(
+      'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
+    );
+  }
+
+  if (dump.entries.length === 0) {
+    notes.push('No HTTP(s) entries were found in recent session app logs.');
+  }
+
+  return { backend, dump, notes };
 }
 
 export async function startAppLog(
