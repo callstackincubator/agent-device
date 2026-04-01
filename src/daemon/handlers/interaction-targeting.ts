@@ -235,6 +235,9 @@ export function resolveActionableTouchNode(
   }
   const ancestor = findNearestHittableAncestor(nodes, node);
   if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
+    if (isOverlyBroadAncestor(node, ancestor, nodes)) {
+      return node;
+    }
     return ancestor;
   }
   return node;
@@ -275,4 +278,75 @@ function areRectsApproximatelyEqual(left: Rect, right: Rect): boolean {
     Math.abs(left.width - right.width) <= tolerance &&
     Math.abs(left.height - right.height) <= tolerance
   );
+}
+
+function isOverlyBroadAncestor(
+  node: SnapshotNode,
+  ancestor: SnapshotNode,
+  nodes: SnapshotNode[],
+): boolean {
+  const nodeRect = normalizeRect(node.rect);
+  const ancestorRect = normalizeRect(ancestor.rect);
+  if (!nodeRect || !ancestorRect) return false;
+  const rootViewportRect = resolveRootViewportRect(nodes, nodeRect);
+  if (!rootViewportRect) return false;
+  if (!isRectViewportSized(ancestorRect, rootViewportRect)) return false;
+  return !areRectsApproximatelyEqual(nodeRect, ancestorRect);
+}
+
+function resolveRootViewportRect(nodes: SnapshotNode[], targetRect: Rect): Rect | null {
+  const targetCenter = centerOfRect(targetRect);
+  const viewportRects = nodes
+    .filter((node) => {
+      const type = (node.type ?? '').toLowerCase();
+      return type.includes('application') || type.includes('window');
+    })
+    .map((node) => normalizeRect(node.rect))
+    .filter((rect): rect is Rect => rect !== null);
+  if (viewportRects.length === 0) return null;
+
+  const containingRects = viewportRects.filter((rect) =>
+    containsPoint(rect, targetCenter.x, targetCenter.y),
+  );
+  return pickLargestRect(containingRects.length > 0 ? containingRects : viewportRects);
+}
+
+function isRectViewportSized(rect: Rect, viewportRect: Rect): boolean {
+  const overlapArea = intersectionArea(rect, viewportRect);
+  const rectArea = rect.width * rect.height;
+  const viewportArea = viewportRect.width * viewportRect.height;
+  if (overlapArea <= 0 || rectArea <= 0 || viewportArea <= 0) return false;
+
+  const viewportCoverage = overlapArea / viewportArea;
+  const rectCoverage = overlapArea / rectArea;
+  return viewportCoverage >= 0.9 && rectCoverage >= 0.8;
+}
+
+function intersectionArea(left: Rect, right: Rect): number {
+  const xOverlap = Math.max(
+    0,
+    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
+  );
+  return xOverlap * yOverlap;
+}
+
+function containsPoint(rect: Rect, x: number, y: number): boolean {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function pickLargestRect(rects: Rect[]): Rect | null {
+  let bestRect: Rect | null = null;
+  let bestArea = -1;
+  for (const rect of rects) {
+    const area = rect.width * rect.height;
+    if (area > bestArea) {
+      bestRect = rect;
+      bestArea = area;
+    }
+  }
+  return bestRect;
 }

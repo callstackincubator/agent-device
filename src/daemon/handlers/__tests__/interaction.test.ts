@@ -952,6 +952,59 @@ test('press @ref promotes a non-hittable node to its hittable ancestor before ta
   expect(Array.isArray(result.selectorChain)).toBe(true);
 });
 
+test('press @ref does not promote to a full-screen hittable ancestor', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeWindow',
+        rect: { x: 0, y: 0, width: 402, height: 874 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'XCUIElementTypeCell',
+        label: 'General',
+        rect: { x: 16, y: 293, width: 370, height: 52 },
+        enabled: true,
+        hittable: false,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({ pressed: true });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e2'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.x).toBe(201);
+    expect(response.data?.y).toBe(319);
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['201', '319']);
+});
+
 test('fill @ref preserves fallback coordinates for recording when platform result is sparse', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
