@@ -381,6 +381,16 @@ export async function dispatchCommand(
           return { x, y, ...successText(`Focused (${x}, ${y})`) };
         }
         case 'type': {
+          const mistargetedRef = findMistargetedTypeRef(positionals);
+          if (mistargetedRef) {
+            throw new AppError(
+              'INVALID_ARGS',
+              `type does not accept a target ref like "${mistargetedRef}"`,
+              {
+                hint: `Use fill ${mistargetedRef} "text" to target that field, or press ${mistargetedRef} then type "text" to append.`,
+              },
+            );
+          }
           const text = positionals.join(' ');
           if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
           const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
@@ -711,6 +721,7 @@ export async function dispatchCommand(
             nodes: androidResult.nodes ?? [],
             truncated: androidResult.truncated ?? false,
             backend: 'android',
+            analysis: androidResult.analysis,
           };
         }
         case 'read': {
@@ -762,6 +773,18 @@ export async function dispatchCommand(
       platform: device.platform,
     },
   );
+}
+
+function findMistargetedTypeRef(positionals: string[]): string | null {
+  const first = positionals[0]?.trim();
+  if (!first || !first.startsWith('@') || first.length < 3) {
+    return null;
+  }
+  const body = first.slice(1);
+  if (/^[A-Za-z_-]*\d[\w-]*$/i.test(body) || /^(?:ref|node|element|el)[\w-]*$/i.test(body)) {
+    return first;
+  }
+  return null;
 }
 
 function formatPressMessage(params: {

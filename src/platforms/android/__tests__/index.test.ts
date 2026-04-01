@@ -953,6 +953,40 @@ test('openAndroidApp default launch uses -p package flag', async () => {
   );
 });
 
+test('openAndroidApp normalizes missing package launch failures into APP_NOT_INSTALLED', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-missing-package-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+      '  echo "Error: Activity class does not exist." >&2',
+      '  exit 1',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "path" ]; then',
+      '  echo "Error: unknown package: com.example.missing" >&2',
+      '  exit 1',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await assert.rejects(
+        openAndroidApp(device, 'com.example.missing', '.MainActivity'),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.code, 'APP_NOT_INSTALLED');
+          assert.match(String(error.details?.hint ?? ''), /agent-device apps --platform android/);
+          return true;
+        },
+      );
+    },
+  );
+});
+
 test('openAndroidApp uses LEANBACK category for Android TV targets', async () => {
   await withMockedAdb(
     'agent-device-android-open-tv-',
@@ -1259,6 +1293,55 @@ test('fillAndroid keeps delayed typing in typed-input mode', async () => {
       assert.equal(shellInputTextCount, 2);
       assert.doesNotMatch(logged, /shell\ncmd\nclipboard\nset\ntext/);
       assert.doesNotMatch(logged, /shell\ninput\nkeyevent\nKEYCODE_PASTE/);
+    },
+  );
+});
+
+test('fillAndroid tolerates delayed React Native text verification', async () => {
+  await withMockedAdb(
+    'agent-device-android-fill-delayed-verify-',
+    [
+      '#!/bin/sh',
+      'STATE_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/fill_state.txt"',
+      'DUMP_COUNT_FILE="$(dirname "$AGENT_DEVICE_TEST_ARGS_FILE")/dump_count.txt"',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_MOVE_END" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "keyevent" ] && [ "$4" = "KEYCODE_DEL" ]; then',
+      '  : > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      '  printf "%s" "$4" > "$STATE_FILE"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "exec-out" ] && [ "$2" = "uiautomator" ] && [ "$3" = "dump" ] && [ "$4" = "/dev/tty" ]; then',
+      '  count="$(cat "$DUMP_COUNT_FILE" 2>/dev/null || echo 0)"',
+      '  count=$((count + 1))',
+      '  printf "%s" "$count" > "$DUMP_COUNT_FILE"',
+      '  if [ "$count" -eq 1 ]; then',
+      '    text="filed the expens"',
+      '  else',
+      '    text="$(cat "$STATE_FILE" 2>/dev/null)"',
+      '  fi',
+      '  printf "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><hierarchy><node class=\\"android.widget.EditText\\" text=\\"%s\\" focused=\\"true\\" bounds=\\"[0,0][200,100]\\"/></hierarchy>" "$text"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      await fillAndroid(device, 10, 10, 'filed the expense');
     },
   );
 });

@@ -1,5 +1,6 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
+import type { AndroidSnapshotAnalysis } from '../../platforms/android/ui-hierarchy.ts';
 import {
   attachRefs,
   findNodeByRef,
@@ -24,13 +25,17 @@ type SnapshotData = {
   nodes?: RawSnapshotNode[];
   truncated?: boolean;
   backend?: 'xctest' | 'android' | 'macos-helper';
+  analysis?: AndroidSnapshotAnalysis;
 };
 
 export async function captureSnapshot(
   params: CaptureSnapshotParams,
-): Promise<{ snapshot: SnapshotState }> {
+): Promise<{ snapshot: SnapshotState; analysis?: AndroidSnapshotAnalysis }> {
   const data = await captureSnapshotData(params);
-  return { snapshot: buildSnapshotState(data, params.flags?.snapshotRaw) };
+  return {
+    snapshot: buildSnapshotState(data, params.flags?.snapshotRaw),
+    analysis: data.analysis,
+  };
 }
 
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {

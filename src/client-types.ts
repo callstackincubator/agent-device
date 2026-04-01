@@ -254,6 +254,7 @@ export type CaptureSnapshotResult = {
   truncated: boolean;
   appName?: string;
   appBundleId?: string;
+  warnings?: string[];
   identifiers: AgentDeviceIdentifiers;
 };
 

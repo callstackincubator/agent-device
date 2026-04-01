@@ -3,7 +3,7 @@ import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
-import { parseUiHierarchy } from './ui-hierarchy.ts';
+import { parseUiHierarchy, type AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
 
 export async function snapshotAndroid(
@@ -12,6 +12,7 @@ export async function snapshotAndroid(
 ): Promise<{
   nodes: RawSnapshotNode[];
   truncated?: boolean;
+  analysis: AndroidSnapshotAnalysis;
 }> {
   const xml = await dumpUiHierarchy(device);
   return parseUiHierarchy(xml, 800, options);

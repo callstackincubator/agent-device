@@ -315,6 +315,10 @@ export async function handleSessionObservabilityCommands(params: {
       notes.push(
         'Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.',
       );
+    } else if (session.appLog.getState() !== 'active') {
+      notes.push(
+        'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
+      );
     }
     if (dump.entries.length === 0) {
       notes.push('No HTTP(s) entries were found in recent session app logs.');

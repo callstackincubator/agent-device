@@ -36,22 +36,25 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 The canonical loop is:
 
 ```bash
+agent-device apps --platform ios
 agent-device open SampleApp --platform ios
 agent-device snapshot -i
 agent-device press @e3
 agent-device diff snapshot -i
 agent-device fill @e5 "test"
-agent-device fill @e5 "search" --delay-ms 80
+agent-device press @e5
+agent-device type " more" --delay-ms 80
 agent-device close
 ```
 
 In practice, most work follows the same pattern:
 
-1. `open` a target app or URL.
-2. `snapshot -i` to inspect the current screen.
-3. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
-4. `diff snapshot` after UI changes.
-5. `close` when the session is finished.
+1. Discover the exact app id with `apps` if the package or bundle name is uncertain.
+2. `open` a target app or URL.
+3. `snapshot -i` to inspect the current screen.
+4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors.
+5. `diff snapshot` or re-snapshot after UI changes.
+6. `close` when the session is finished.
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
 

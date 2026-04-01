@@ -125,6 +125,8 @@ function defaultHintForCode(code: string): string | undefined {
       return 'Install required platform tooling and ensure it is available in PATH.';
     case 'DEVICE_NOT_FOUND':
       return 'Verify the target device is booted/connected and selectors match.';
+    case 'APP_NOT_INSTALLED':
+      return 'Run apps to discover the exact installed package or bundle id, or install the app before open.';
     case 'UNSUPPORTED_OPERATION':
       return 'This command is not available for the selected platform/device.';
     case 'COMMAND_FAILED':

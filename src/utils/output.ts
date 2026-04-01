@@ -62,23 +62,25 @@ export function formatSnapshotText(
   if (appBundleId) meta.push(`App: ${appBundleId}`);
   const header = `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
   const prefix = meta.length > 0 ? `${meta.join('\n')}\n` : '';
+  const notices = buildSnapshotNotices(data, nodes, options);
+  const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
   if (nodes.length === 0) {
-    return `${prefix}${header}\n`;
+    return `${prefix}${header}\n${noticesBlock}`;
   }
   if (options.raw) {
     const rawLines = nodes.map((node) => JSON.stringify(node));
-    return `${prefix}${header}\n${rawLines.join('\n')}\n`;
+    return `${prefix}${header}\n${noticesBlock}${rawLines.join('\n')}\n`;
   }
   if (options.flatten) {
     const flatLines = nodes.map((node) =>
       formatSnapshotLine(node, 0, false, undefined, { summarizeTextSurfaces: true }),
     );
-    return `${prefix}${header}\n${flatLines.join('\n')}\n`;
+    return `${prefix}${header}\n${noticesBlock}${flatLines.join('\n')}\n`;
   }
   const lines = buildSnapshotDisplayLines(nodes, { summarizeTextSurfaces: true }).map(
     (line) => line.text,
   );
-  return `${prefix}${header}\n${lines.join('\n')}\n`;
+  return `${prefix}${header}\n${noticesBlock}${lines.join('\n')}\n`;
 }
 
 export function formatSnapshotDiffText(data: Record<string, unknown>): string {
@@ -88,8 +90,10 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   const removals = toNumber(summaryRaw.removals);
   const unchanged = toNumber(summaryRaw.unchanged);
   const useColor = supportsColor();
+  const notices = readSnapshotWarnings(data);
+  const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
   if (baselineInitialized) {
-    return `Baseline initialized (${unchanged} lines).\n`;
+    return `${noticesBlock}Baseline initialized (${unchanged} lines).\n`;
   }
   const rawLines = Array.isArray(data.lines) ? (data.lines as SnapshotDiffLine[]) : [];
   const contextLines = applyContextWindow(rawLines, 1);
@@ -107,14 +111,14 @@ export function formatSnapshotDiffText(data: Record<string, unknown>): string {
   });
   const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
   if (!useColor) {
-    return `${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
+    return `${noticesBlock}${body}${additions} additions, ${removals} removals, ${unchanged} unchanged\n`;
   }
   const summary = [
     `${colorize(String(additions), 'green')} additions`,
     `${colorize(String(removals), 'red')} removals`,
     `${colorize(String(unchanged), 'dim')} unchanged`,
   ].join(', ');
-  return `${body}${summary}\n`;
+  return `${noticesBlock}${body}${summary}\n`;
 }
 
 export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
@@ -207,4 +211,51 @@ function supportsColor(): boolean {
 
 function colorize(text: string, format: Parameters<typeof styleText>[0]): string {
   return styleText(format, text);
+}
+
+function buildSnapshotNotices(
+  data: Record<string, unknown>,
+  nodes: SnapshotNode[],
+  options: { raw?: boolean; flatten?: boolean },
+): string[] {
+  const notices = readSnapshotWarnings(data);
+  if (!options.raw && detectPossibleRepeatedNavSubtree(nodes)) {
+    notices.push('Warning: possible repeated nav subtree detected.');
+  }
+  return notices;
+}
+
+function readSnapshotWarnings(data: Record<string, unknown>): string[] {
+  const rawWarnings = data.warnings;
+  if (!Array.isArray(rawWarnings)) {
+    return [];
+  }
+  return rawWarnings.filter(
+    (entry): entry is string => typeof entry === 'string' && entry.length > 0,
+  );
+}
+
+function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
+  if (nodes.length < 20) {
+    return false;
+  }
+  const counts = new Map<string, number>();
+  for (const node of nodes) {
+    const type = (node.type ?? '').toLowerCase();
+    const label = displayNodeLabel(node).trim().toLowerCase();
+    if (!label) continue;
+    const signature = `${type}|${label}`;
+    counts.set(signature, (counts.get(signature) ?? 0) + 1);
+  }
+  let duplicateCount = 0;
+  for (const count of counts.values()) {
+    if (count > 1) {
+      duplicateCount += count;
+    }
+  }
+  return duplicateCount >= 8;
+}
+
+function displayNodeLabel(node: SnapshotNode): string {
+  return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
 }

@@ -62,6 +62,15 @@ const macOsDevice: SessionState['device'] = {
   booted: true,
 };
 
+const androidDevice: SessionState['device'] = {
+  platform: 'android',
+  id: 'emulator-5554',
+  name: 'Pixel 9 Pro XL',
+  kind: 'emulator',
+  target: 'mobile',
+  booted: true,
+};
+
 beforeEach(() => {
   mockDispatch.mockReset();
   mockDispatch.mockResolvedValue({});
@@ -101,6 +110,202 @@ test('snapshot rejects @ref scope without existing session snapshot', async () =
   if (response && !response.ok) {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/requires an existing snapshot/i);
+  }
+});
+
+test('snapshot surfaces filtered-to-zero Android guidance for interactive snapshots', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-empty-interactive';
+  sessionStore.set(sessionName, makeSession(sessionName, androidDevice));
+
+  mockDispatch.mockResolvedValue({
+    nodes: [],
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 42, maxDepth: 8 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotInteractiveOnly: true, snapshotDepth: 3 },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toEqual([
+      expect.stringContaining('Interactive snapshot is empty after filtering 42 raw Android nodes'),
+      'Interactive output is empty at depth 3; retry without -d.',
+    ]);
+  }
+});
+
+test('snapshot warns when recent snapshot node count collapses sharply', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-stale-collapse';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    nodes: Array.from({ length: 50 }, (_, index) => ({
+      ref: `e${index + 1}`,
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Row ${index + 1}`,
+    })),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: Array.from({ length: 8 }, (_, index) => ({
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Next ${index + 1}`,
+    })),
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 8, maxDepth: 1 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toEqual([
+      expect.stringContaining('Recent snapshots dropped sharply in node count'),
+    ]);
+  }
+});
+
+test('snapshot warns when a recent Android press is followed by a nearly identical tree', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-stale-after-press';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      ref: `e${index + 1}`,
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.actions.push({
+    ts: Date.now(),
+    command: 'press',
+    positionals: ['@e4'],
+    flags: {},
+  });
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 24, maxDepth: 2 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotInteractiveOnly: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toEqual([
+      expect.stringContaining('Recent press was followed by a nearly identical snapshot'),
+    ]);
+  }
+});
+
+test('diff snapshot carries stale-tree warnings for recent Android presses', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-diff-stale-after-press';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      ref: `e${index + 1}`,
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.actions.push({
+    ts: Date.now(),
+    command: 'press',
+    positionals: ['@e4'],
+    flags: {},
+  });
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: Array.from({ length: 24 }, (_, index) => ({
+      index,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: `Inbox row ${index + 1}`,
+    })),
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 24, maxDepth: 2 },
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'diff',
+      positionals: ['snapshot'],
+      flags: { snapshotInteractiveOnly: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toEqual([
+      expect.stringContaining('Recent press was followed by a nearly identical snapshot'),
+    ]);
   }
 });
 

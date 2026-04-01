@@ -57,6 +57,18 @@ test('formatSnapshotDiffText renders ANSI colors when forced', () => {
   }
 });
 
+test('formatSnapshotDiffText prints warnings before the diff body', () => {
+  const text = withNoColor(() =>
+    formatSnapshotDiffText({
+      ...DIFF_DATA,
+      warnings: ['Recent press was followed by a nearly identical snapshot.'],
+    }),
+  );
+  assert.match(text, /^Recent press was followed by a nearly identical snapshot\.$/m);
+  assert.match(text, /^@e2 \[window\]$/m);
+  assert.match(text, /1 additions, 1 removals, 1 unchanged/);
+});
+
 test('formatSnapshotText summarizes large text surfaces with preview metadata', () => {
   const text = withNoColor(() =>
     formatSnapshotText({
@@ -178,6 +190,39 @@ test('formatSnapshotText compresses visible indentation after hidden wrapper cha
   assert.match(text, /^@e2 \[scroll-area\] \[scrollable\]$/m);
   assert.match(text, /^  @e3 \[button\] "Back"$/m);
   assert.match(text, /^    @e5 \[image\]$/m);
+});
+
+test('formatSnapshotText prints snapshot warnings ahead of empty output', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [],
+      truncated: false,
+      warnings: ['Interactive snapshot is empty after filtering 42 raw Android nodes.'],
+    }),
+  );
+  assert.match(text, /Snapshot: 0 nodes/);
+  assert.match(text, /Interactive snapshot is empty after filtering 42 raw Android nodes/);
+});
+
+test('formatSnapshotText keeps flattened output and adds duplicate nav warning', () => {
+  const nodes = Array.from({ length: 24 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: index === 0 ? 0 : 1,
+    type: index === 0 ? 'android.widget.FrameLayout' : 'android.widget.Button',
+    label: index === 0 ? 'Root' : 'Inbox',
+    rect:
+      index === 0
+        ? { x: 0, y: 0, width: 1080, height: 2400 }
+        : { x: 20, y: 40 + index * 80, width: 300, height: 48 },
+    hittable: index !== 0,
+    enabled: true,
+  }));
+  const text = withNoColor(() =>
+    formatSnapshotText({ nodes, truncated: false }, { flatten: true }),
+  );
+  assert.match(text, /Warning: possible repeated nav subtree detected\./);
+  assert.match(text, /@e2 \[button\] "Inbox"/);
 });
 
 test('formatSnapshotLine keeps snapshot-only metadata off the default formatter path', () => {

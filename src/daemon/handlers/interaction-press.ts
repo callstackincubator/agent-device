@@ -34,6 +34,8 @@ import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-p
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse } from './response.ts';
+import { AppError } from '../../utils/errors.ts';
+import { getAndroidAppState } from '../../platforms/android/index.ts';
 
 export async function handlePressCommand(params: {
   req: DaemonRequest;
@@ -104,6 +106,9 @@ export async function handlePressCommand(params: {
       interactionCommand: 'press',
       interactionPositionals: [String(directCoordinates.x), String(directCoordinates.y)],
       outPath: req.flags?.out,
+      afterDispatch: async () => {
+        await assertAndroidPressStayedInApp(session, 'coordinate tap');
+      },
       buildPayloads: async (data) => {
         const visualizationFrame = await resolveDirectTouchReferenceFrameSafely({
           session,
@@ -163,6 +168,9 @@ export async function handlePressCommand(params: {
       interactionCommand: 'press',
       interactionPositionals: [String(x), String(y)],
       outPath: req.flags?.out,
+      afterDispatch: async () => {
+        await assertAndroidPressStayedInApp(session, `@${ref}`);
+      },
       buildPayloads: (data) => {
         const result = buildTouchVisualizationResult({
           data,
@@ -248,6 +256,9 @@ export async function handlePressCommand(params: {
     interactionCommand: 'press',
     interactionPositionals: [String(x), String(y)],
     outPath: req.flags?.out,
+    afterDispatch: async () => {
+      await assertAndroidPressStayedInApp(session, resolved.selector.raw);
+    },
     buildPayloads: (data) => {
       const result = buildTouchVisualizationResult({
         data,
@@ -264,4 +275,42 @@ export async function handlePressCommand(params: {
       return { result, responseData: result };
     },
   });
+}
+
+async function assertAndroidPressStayedInApp(
+  session: Parameters<typeof dispatchRecordedTouchInteraction>[0]['session'],
+  targetLabel: string,
+): Promise<void> {
+  if (session.device.platform !== 'android' || !session.appBundleId) {
+    return;
+  }
+
+  const foreground = await getAndroidAppState(session.device);
+  const foregroundPackage = foreground.package?.trim();
+  if (!foregroundPackage || foregroundPackage === session.appBundleId) {
+    return;
+  }
+  if (!looksLikeAndroidEscapeSurface(foregroundPackage)) {
+    return;
+  }
+
+  throw new AppError(
+    'COMMAND_FAILED',
+    `press ${targetLabel} left ${session.appBundleId} and foregrounded ${foregroundPackage}. The tap likely escaped the app.`,
+    {
+      expectedPackage: session.appBundleId,
+      foregroundPackage,
+      activity: foreground.activity,
+      hint: 'Use screenshot as visual truth, then take a fresh snapshot -i before retrying.',
+    },
+  );
+}
+
+function looksLikeAndroidEscapeSurface(packageName: string): boolean {
+  return (
+    packageName === 'com.android.settings' ||
+    packageName === 'com.android.systemui' ||
+    packageName === 'com.google.android.permissioncontroller' ||
+    packageName.includes('launcher')
+  );
 }

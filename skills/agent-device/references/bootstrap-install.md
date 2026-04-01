@@ -12,6 +12,8 @@ Open this file when you still need to choose the right target, start the right s
 - `open`
 - `session list`
 
+Use this exact order when you are not sure about the installed app identifier. On Android dev builds in particular, `apps` is cheaper than guessing package suffixes and retrying failed `open` calls.
+
 ## Install path
 
 - `install` or `reinstall`
