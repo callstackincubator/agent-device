@@ -158,6 +158,9 @@ struct SnapshotNode: Codable {
   let enabled: Bool
   let hittable: Bool
   let depth: Int
+  let parentIndex: Int?
+  let hiddenContentAbove: Bool?
+  let hiddenContentBelow: Bool?
 }
 
 struct SnapshotOptions {

@@ -4,8 +4,7 @@ import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.
 import type { SnapshotNode } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
-import { isRectVisibleInViewport, resolveViewportRect } from '../daemon/scroll-planner.ts';
-import { isScrollableNodeLike } from './scrollable.ts';
+import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
 
 type JsonResult =
   | { success: true; data?: unknown }
@@ -50,16 +49,11 @@ type SnapshotDiffLine = {
   text?: string;
 };
 
-type Direction = 'above' | 'below' | 'left' | 'right';
-
 type VisibleSnapshotPresentation = {
   nodes: SnapshotNode[];
   hiddenCount: number;
   summaryLines: string[];
-  inlineHints: Map<number, string[]>;
 };
-
-const ORDERED_DIRECTIONS: Direction[] = ['above', 'below', 'left', 'right'];
 
 export function formatSnapshotText(
   data: Record<string, unknown>,
@@ -67,7 +61,9 @@ export function formatSnapshotText(
 ): string {
   const rawNodes = data.nodes;
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
-  const visiblePresentation = options.raw ? null : buildVisibleSnapshotPresentation(nodes);
+  const backend = typeof data.backend === 'string' ? data.backend : undefined;
+  const visiblePresentation =
+    options.raw || backend === 'macos-helper' ? null : buildVisibleSnapshotPresentation(nodes);
   const truncated = Boolean(data.truncated);
   const appName = typeof data.appName === 'string' ? data.appName : undefined;
   const appBundleId = typeof data.appBundleId === 'string' ? data.appBundleId : undefined;
@@ -100,7 +96,6 @@ export function formatSnapshotText(
   }
   const lines = renderSnapshotDisplayLines(
     buildSnapshotDisplayLines(displayedNodes, { summarizeTextSurfaces: true }),
-    visiblePresentation?.inlineHints,
   );
   const summaryBlock =
     visiblePresentation && visiblePresentation.summaryLines.length > 0
@@ -287,205 +282,16 @@ function displayNodeLabel(node: SnapshotNode): string {
 }
 
 function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): VisibleSnapshotPresentation {
-  if (nodes.length === 0) {
-    return { nodes, hiddenCount: 0, summaryLines: [], inlineHints: new Map() };
-  }
-
-  const visibleNodeIndexes = new Set<number>();
-  const byIndex = new Map(nodes.map((node) => [node.index, node]));
-  const offscreenNodes: SnapshotNode[] = [];
-
-  for (const node of nodes) {
-    const visibility = classifyNodeVisibility(node, nodes, byIndex);
-    if (visibility === 'visible') {
-      markVisibleNodeAndAncestors(node, visibleNodeIndexes, byIndex);
-      continue;
-    }
-    offscreenNodes.push(node);
-  }
-
-  const scrollAreaHints = buildScrollAreaHintPresentation(
-    offscreenNodes,
-    visibleNodeIndexes,
-    byIndex,
-  );
-  const visibleDirectionCandidates = offscreenNodes.filter(
-    (node) =>
-      !scrollAreaHints.coveredNodeIndexes.has(node.index) && isDiscoverableOffscreenNode(node),
-  );
-
-  if (visibleNodeIndexes.size === 0) {
-    return {
-      nodes,
-      hiddenCount: 0,
-      summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes, byIndex),
-      inlineHints: scrollAreaHints.inlineHints,
-    };
-  }
-
-  const visibleNodes = nodes.filter((node) => visibleNodeIndexes.has(node.index));
+  const presentation = buildMobileSnapshotPresentation(nodes);
   return {
-    nodes: visibleNodes,
-    hiddenCount: nodes.length - visibleNodes.length,
-    summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes, byIndex),
-    inlineHints: scrollAreaHints.inlineHints,
+    nodes: presentation.nodes,
+    hiddenCount: presentation.hiddenCount,
+    summaryLines: presentation.summaryLines,
   };
 }
 
-function classifyNodeVisibility(
-  node: SnapshotNode,
-  nodes: SnapshotNode[],
-  byIndex: Map<number, SnapshotNode>,
-): 'visible' | 'offscreen' {
-  if (!node.rect) {
-    return 'visible';
-  }
-  const viewport = resolveNodeViewportRect(node, nodes, byIndex);
-  if (!viewport) {
-    return 'visible';
-  }
-  return isRectVisibleInViewport(node.rect, viewport) ? 'visible' : 'offscreen';
-}
-
-function buildOffscreenSummaryLines(
-  nodes: SnapshotNode[],
-  snapshotNodes: SnapshotNode[],
-  byIndex: Map<number, SnapshotNode>,
-): string[] {
-  const groups = new Map<Direction, SnapshotNode[]>();
-  for (const node of nodes) {
-    const direction = classifyOffscreenDirection(node, snapshotNodes, byIndex);
-    if (!direction) {
-      continue;
-    }
-    const group = groups.get(direction) ?? [];
-    group.push(node);
-    groups.set(direction, group);
-  }
-
-  return ORDERED_DIRECTIONS.flatMap((direction) => {
-    const group = groups.get(direction);
-    if (!group || group.length === 0) {
-      return [];
-    }
-    const labels = uniqueLabels(group)
-      .slice(0, 3)
-      .map((label) => `"${label}"`);
-    const noun = group.length === 1 ? 'interactive item' : 'interactive items';
-    const suffix = labels.length > 0 ? `: ${labels.join(', ')}` : '';
-    return [`[off-screen ${direction}] ${group.length} ${noun}${suffix}`];
-  });
-}
-
-function buildScrollAreaHintPresentation(
-  offscreenNodes: SnapshotNode[],
-  visibleNodeIndexes: Set<number>,
-  byIndex: Map<number, SnapshotNode>,
-): { inlineHints: Map<number, string[]>; coveredNodeIndexes: Set<number> } {
-  const directionsByContainer = new Map<number, Set<Direction>>();
-  const coveredNodeIndexes = new Set<number>();
-
-  for (const node of offscreenNodes) {
-    if (!node.rect) {
-      continue;
-    }
-    const container = findNearestVisibleScrollableAncestor(node, visibleNodeIndexes, byIndex);
-    if (!container?.rect) {
-      continue;
-    }
-    const direction = classifyRectDirection(node.rect, container.rect);
-    if (!direction) {
-      continue;
-    }
-    const directions = directionsByContainer.get(container.index) ?? new Set();
-    directions.add(direction);
-    directionsByContainer.set(container.index, directions);
-    coveredNodeIndexes.add(node.index);
-  }
-
-  const inlineHints = new Map<number, string[]>();
-  for (const [index, directions] of directionsByContainer) {
-    const ordered = ORDERED_DIRECTIONS.filter((direction) => directions.has(direction));
-    inlineHints.set(
-      index,
-      ordered.map((direction) =>
-        direction === 'left' || direction === 'right'
-          ? `[content ${direction} of scroll-area hidden]`
-          : `[content ${direction} scroll-area hidden]`,
-      ),
-    );
-  }
-  return { inlineHints, coveredNodeIndexes };
-}
-
-function classifyOffscreenDirection(
-  node: SnapshotNode,
-  nodes: SnapshotNode[],
-  byIndex: Map<number, SnapshotNode>,
-): Direction | null {
-  if (!node.rect) {
-    return null;
-  }
-  const viewport = resolveNodeViewportRect(node, nodes, byIndex);
-  if (!viewport) {
-    return null;
-  }
-  return classifyRectDirection(node.rect, viewport);
-}
-
-function isDiscoverableOffscreenNode(node: SnapshotNode): boolean {
-  if (node.hittable === true) {
-    return true;
-  }
-  const type = (node.type ?? '').toLowerCase();
-  return (
-    type.includes('button') ||
-    type.includes('link') ||
-    type.includes('textfield') ||
-    type.includes('edittext') ||
-    type.includes('searchfield') ||
-    type.includes('checkbox') ||
-    type.includes('radio') ||
-    type.includes('switch') ||
-    type.includes('menuitem')
-  );
-}
-
-function uniqueLabels(nodes: SnapshotNode[]): string[] {
-  const seen = new Set<string>();
-  const labels: string[] = [];
-  for (const node of nodes) {
-    const label = displayNodeLabel(node);
-    if (!label || seen.has(label)) {
-      continue;
-    }
-    seen.add(label);
-    labels.push(label);
-  }
-  return labels;
-}
-
-function renderSnapshotDisplayLines(
-  lines: ReturnType<typeof buildSnapshotDisplayLines>,
-  inlineHints: Map<number, string[]> | undefined,
-): string[] {
-  if (!inlineHints || inlineHints.size === 0) {
-    return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
-  }
-  const rendered: string[] = [];
-  for (const line of lines) {
-    rendered.push(line.text);
-    rendered.push(...readHiddenContentHintLines(line));
-    const hints = inlineHints.get(line.node.index);
-    if (!hints || hints.length === 0) {
-      continue;
-    }
-    const indent = '  '.repeat(line.depth + 1);
-    for (const hint of hints) {
-      rendered.push(`${indent}${hint}`);
-    }
-  }
-  return rendered;
+function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
+  return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
 }
 
 function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
@@ -521,89 +327,4 @@ function hintTargetLabel(type: string): string | null {
     return type;
   }
   return null;
-}
-
-function findNearestVisibleScrollableAncestor(
-  node: SnapshotNode,
-  visibleNodeIndexes: Set<number>,
-  byIndex: Map<number, SnapshotNode>,
-): SnapshotNode | null {
-  let current = typeof node.parentIndex === 'number' ? byIndex.get(node.parentIndex) : undefined;
-  const visited = new Set<number>();
-  while (current && !visited.has(current.index)) {
-    visited.add(current.index);
-    if (visibleNodeIndexes.has(current.index) && isScrollableContainer(current)) {
-      return current;
-    }
-    current =
-      typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
-  }
-  return null;
-}
-
-function markVisibleNodeAndAncestors(
-  node: SnapshotNode,
-  visibleNodeIndexes: Set<number>,
-  byIndex: Map<number, SnapshotNode>,
-): void {
-  let current: SnapshotNode | undefined = node;
-  const visited = new Set<number>();
-  while (current && !visited.has(current.index)) {
-    visited.add(current.index);
-    visibleNodeIndexes.add(current.index);
-    current =
-      typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
-  }
-}
-
-function resolveNodeViewportRect(
-  node: SnapshotNode,
-  nodes: SnapshotNode[],
-  byIndex: Map<number, SnapshotNode>,
-): NonNullable<SnapshotNode['rect']> | null {
-  const scrollViewport = findNearestScrollableAncestorRect(node, byIndex);
-  if (scrollViewport) {
-    return scrollViewport;
-  }
-  return resolveViewportRect(nodes, node.rect ?? { x: 0, y: 0, width: 0, height: 0 });
-}
-
-function findNearestScrollableAncestorRect(
-  node: SnapshotNode,
-  byIndex: Map<number, SnapshotNode>,
-): NonNullable<SnapshotNode['rect']> | null {
-  let current = typeof node.parentIndex === 'number' ? byIndex.get(node.parentIndex) : undefined;
-  const visited = new Set<number>();
-  while (current && !visited.has(current.index)) {
-    visited.add(current.index);
-    if (current.rect && isScrollableContainer(current)) {
-      return current.rect;
-    }
-    current =
-      typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
-  }
-  return null;
-}
-
-function classifyRectDirection(
-  targetRect: NonNullable<SnapshotNode['rect']>,
-  viewportRect: NonNullable<SnapshotNode['rect']>,
-): Direction | null {
-  if (targetRect.y + targetRect.height <= viewportRect.y) {
-    return 'above';
-  }
-  if (targetRect.y >= viewportRect.y + viewportRect.height) {
-    return 'below';
-  }
-  if (targetRect.x + targetRect.width <= viewportRect.x) {
-    return 'left';
-  }
-  if (targetRect.x >= viewportRect.x + viewportRect.width) {
-    return 'right';
-  }
-  return null;
-}
-
-function isScrollableContainer(node: SnapshotNode): boolean {
-  return isScrollableNodeLike(node);
 }

@@ -1,7 +1,7 @@
 import type { Platform } from '../utils/device.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
+import { isNodeVisibleInEffectiveViewport } from '../utils/mobile-snapshot-semantics.ts';
 import { extractNodeText, normalizeType } from './snapshot-processing.ts';
-import { resolveViewportRect } from './scroll-planner.ts';
 import { isNodeEditable, isNodeVisible } from './selectors.ts';
 
 type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
@@ -56,22 +56,20 @@ function isAssertionVisible(
   nodes: SnapshotState['nodes'],
 ): boolean {
   if (node.hittable === true) return true;
-  if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node.rect, nodes);
+  if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node, nodes);
   if (node.rect) return false;
   const anchor = resolveVisibilityAnchor(node, nodes);
   if (!anchor) return false;
   if (anchor.hittable === true) return true;
   if (!hasPositiveRect(anchor.rect)) return false;
-  return isRectVisibleInViewport(anchor.rect, nodes);
+  return isRectVisibleInViewport(anchor, nodes);
 }
 
 function isRectVisibleInViewport(
-  rect: NonNullable<SnapshotState['nodes'][number]['rect']>,
+  node: SnapshotState['nodes'][number],
   nodes: SnapshotState['nodes'],
 ): boolean {
-  const viewport = resolveViewportRect(nodes, rect);
-  if (!viewport) return true;
-  return rectsIntersect(rect, viewport);
+  return isNodeVisibleInEffectiveViewport(node, nodes);
 }
 
 function resolveVisibilityAnchor(
@@ -121,11 +119,4 @@ function hasPositiveRect(
     rect.width > 0 &&
     rect.height > 0,
   );
-}
-
-function rectsIntersect(
-  a: NonNullable<SnapshotState['nodes'][number]['rect']>,
-  b: NonNullable<SnapshotState['nodes'][number]['rect']>,
-): boolean {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }

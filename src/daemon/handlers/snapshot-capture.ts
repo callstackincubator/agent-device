@@ -8,6 +8,7 @@ import {
   type RawSnapshotNode,
   type SnapshotState,
 } from '../../utils/snapshot.ts';
+import { normalizeSnapshotTree } from '../../utils/snapshot-tree.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import {
   ANDROID_FRESHNESS_RETRY_DELAYS_MS,
@@ -181,7 +182,9 @@ export function buildSnapshotState(
 ): SnapshotState {
   const rawNodes = data?.nodes ?? [];
   const snapshotRaw = flags?.snapshotRaw;
-  const nodes = attachRefs(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+  const nodes = attachRefs(
+    normalizeSnapshotTree(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes)),
+  );
   return {
     nodes,
     truncated: data?.truncated,

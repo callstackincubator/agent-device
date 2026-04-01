@@ -11,7 +11,10 @@ import type { SessionStore } from '../session-store.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
-import { isRectVisibleInViewport, resolveViewportRect } from '../scroll-planner.ts';
+import {
+  isNodeVisibleInEffectiveViewport,
+  resolveEffectiveViewportRect,
+} from '../../utils/mobile-snapshot-semantics.ts';
 
 export type ResolveRefTarget = typeof resolveRefTarget;
 
@@ -198,8 +201,8 @@ export async function resolveRefTargetWithRectRefresh(params: {
     };
   }
 
-  const viewport = node.rect ? resolveViewportRect(snapshotNodes, node.rect) : null;
-  if (node.rect && viewport && !isRectVisibleInViewport(node.rect, viewport)) {
+  const viewport = node.rect ? resolveEffectiveViewportRect(node, snapshotNodes) : null;
+  if (node.rect && viewport && !isNodeVisibleInEffectiveViewport(node, snapshotNodes)) {
     return {
       ok: false,
       response: {

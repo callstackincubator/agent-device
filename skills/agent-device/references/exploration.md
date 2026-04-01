@@ -87,7 +87,7 @@ agent-device close
 
 - Use plain `snapshot` when you only need to verify whether visible text or structure is on screen.
 - Use `snapshot -i` when you need refs such as `@e3` for interactive exploration or for an intended interaction.
-- Default snapshot output is visible-first. Off-screen interactive content is summarized as discovery hints, not shown as directly tappable refs.
+- On iOS and Android, default snapshot output is visible-first. Off-screen interactive content is surfaced as discovery hints (including inline scroll/list hidden-content hints when known), not shown as directly tappable refs.
 - Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
 - If `snapshot -i` returns 0 nodes but the screen is visibly populated, treat `screenshot` as visual truth, wait briefly, then re-run `snapshot -i` once before escalating.

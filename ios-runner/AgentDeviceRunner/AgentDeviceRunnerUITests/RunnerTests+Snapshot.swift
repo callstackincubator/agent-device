@@ -8,6 +8,11 @@ extension RunnerTests {
     .other,
     .staticText
   ]
+  private static let scrollContainerTypes: Set<XCUIElement.ElementType> = [
+    .collectionView,
+    .scrollView,
+    .table
+  ]
 
   private struct SnapshotTraversalContext {
     let queryRoot: XCUIElement
@@ -93,7 +98,13 @@ extension RunnerTests {
     var truncated = false
     let rootEvaluation = evaluateSnapshot(context.rootSnapshot, in: context)
     nodes.append(
-      makeSnapshotNode(snapshot: context.rootSnapshot, evaluation: rootEvaluation, depth: 0, index: 0)
+      makeSnapshotNode(
+        snapshot: context.rootSnapshot,
+        evaluation: rootEvaluation,
+        depth: 0,
+        index: 0,
+        parentIndex: nil
+      )
     )
     if context.maxDepth > 0 {
       let didTruncateFallback = appendCollapsedTabFallbackNodes(
@@ -101,15 +112,18 @@ extension RunnerTests {
         containerSnapshot: context.rootSnapshot,
         resolveElements: collapsedTabDescendants,
         depth: 1,
+        parentIndex: 0,
         nodeLimit: fastSnapshotLimit
       )
       truncated = truncated || didTruncateFallback
     }
 
     var seen = Set<String>()
-    var stack: [(XCUIElementSnapshot, Int, Int)] = context.rootSnapshot.children.map { ($0, 1, 1) }
+    var stack: [(XCUIElementSnapshot, Int, Int, Int?)] = context.rootSnapshot.children.map {
+      ($0, 1, 1, 0)
+    }
 
-    while let (snapshot, depth, visibleDepth) = stack.popLast() {
+    while let (snapshot, depth, visibleDepth, parentIndex) = stack.popLast() {
       if nodes.count >= fastSnapshotLimit {
         truncated = true
         break
@@ -133,21 +147,24 @@ extension RunnerTests {
         seen.insert(key)
       }
 
+      let currentIndex = include && !isDuplicate ? nodes.count : parentIndex
       if depth < context.maxDepth {
         let nextVisibleDepth = include && !isDuplicate ? visibleDepth + 1 : visibleDepth
         for child in snapshot.children.reversed() {
-          stack.append((child, depth + 1, nextVisibleDepth))
+          stack.append((child, depth + 1, nextVisibleDepth, currentIndex))
         }
       }
 
       if !include || isDuplicate { continue }
 
+      let index = nodes.count
       nodes.append(
         makeSnapshotNode(
           snapshot: snapshot,
           evaluation: evaluation,
           depth: min(context.maxDepth, visibleDepth),
-          index: nodes.count
+          index: index,
+          parentIndex: parentIndex
         )
       )
       if visibleDepth < context.maxDepth {
@@ -156,6 +173,7 @@ extension RunnerTests {
           containerSnapshot: snapshot,
           resolveElements: collapsedTabDescendants,
           depth: visibleDepth + 1,
+          parentIndex: index,
           nodeLimit: fastSnapshotLimit
         )
         truncated = truncated || didTruncateFallback
@@ -178,7 +196,7 @@ extension RunnerTests {
     var nodes: [SnapshotNode] = []
     var truncated = false
 
-    func walk(_ snapshot: XCUIElementSnapshot, depth: Int) {
+    func walk(_ snapshot: XCUIElementSnapshot, depth: Int, parentIndex: Int?) {
       if nodes.count >= maxSnapshotElements {
         truncated = true
         return
@@ -186,7 +204,7 @@ extension RunnerTests {
       if let limit = options.depth, depth > limit { return }
 
       let evaluation = evaluateSnapshot(snapshot, in: context)
-      if shouldInclude(
+      let include = shouldInclude(
         snapshot: snapshot,
         label: evaluation.label,
         identifier: evaluation.identifier,
@@ -194,20 +212,28 @@ extension RunnerTests {
         options: options,
         hittable: evaluation.hittable,
         visible: evaluation.visible
-      ) {
+      )
+      let currentIndex = include ? nodes.count : parentIndex
+      if include {
         nodes.append(
-          makeSnapshotNode(snapshot: snapshot, evaluation: evaluation, depth: depth, index: nodes.count)
+          makeSnapshotNode(
+            snapshot: snapshot,
+            evaluation: evaluation,
+            depth: depth,
+            index: nodes.count,
+            parentIndex: parentIndex
+          )
         )
       }
 
       let children = snapshot.children
       for child in children {
-        walk(child, depth: depth + 1)
+        walk(child, depth: depth + 1, parentIndex: currentIndex)
         if truncated { return }
       }
     }
 
-    walk(context.rootSnapshot, depth: 0)
+    walk(context.rootSnapshot, depth: 0, parentIndex: nil)
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
@@ -237,6 +263,7 @@ extension RunnerTests {
       if snapshot.children.count <= 1 { return false }
     }
     if options.interactiveOnly {
+      if isScrollableContainer(snapshot, visible: visible) { return true }
       #if os(macOS)
         if !visible && type != .application {
           return false
@@ -322,7 +349,8 @@ extension RunnerTests {
     snapshot: XCUIElementSnapshot,
     evaluation: SnapshotEvaluation,
     depth: Int,
-    index: Int
+    index: Int,
+    parentIndex: Int?
   ) -> SnapshotNode {
     return SnapshotNode(
       index: index,
@@ -333,7 +361,10 @@ extension RunnerTests {
       rect: snapshotRect(from: snapshot.frame),
       enabled: snapshot.isEnabled,
       hittable: evaluation.hittable,
-      depth: depth
+      depth: depth,
+      parentIndex: parentIndex,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
     )
   }
 
@@ -424,13 +455,15 @@ extension RunnerTests {
     containerSnapshot: XCUIElementSnapshot,
     resolveElements: () -> [XCUIElement],
     depth: Int,
+    parentIndex: Int,
     nodeLimit: Int
   ) -> Bool {
     let fallbackNodes = collapsedTabFallbackNodes(
       for: containerSnapshot,
       resolveElements: resolveElements,
       startingIndex: nodes.count,
-      depth: depth
+      depth: depth,
+      parentIndex: parentIndex
     )
     if fallbackNodes.isEmpty { return false }
     let remaining = max(0, nodeLimit - nodes.count)
@@ -443,7 +476,8 @@ extension RunnerTests {
     for containerSnapshot: XCUIElementSnapshot,
     resolveElements: () -> [XCUIElement],
     startingIndex: Int,
-    depth: Int
+    depth: Int,
+    parentIndex: Int
   ) -> [SnapshotNode] {
     if !containerSnapshot.children.isEmpty { return [] }
     guard shouldExpandCollapsedTabContainer(containerSnapshot) else { return [] }
@@ -492,7 +526,10 @@ extension RunnerTests {
         rect: node.rect,
         enabled: node.enabled,
         hittable: node.hittable,
-        depth: depth
+        depth: depth,
+        parentIndex: parentIndex,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
       )
     }
   }
@@ -539,7 +576,10 @@ extension RunnerTests {
         rect: snapshotRect(from: frame),
         enabled: element.isEnabled,
         hittable: element.isHittable,
-        depth: 0
+        depth: 0,
+        parentIndex: nil,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
       )
     })
     if let exceptionMessage {
@@ -596,5 +636,11 @@ extension RunnerTests {
       return []
     }
     return elements
+  }
+
+  private func isScrollableContainer(_ snapshot: XCUIElementSnapshot, visible: Bool) -> Bool {
+    if !visible { return false }
+    if !Self.scrollContainerTypes.contains(snapshot.elementType) { return false }
+    return !snapshot.children.isEmpty
   }
 }

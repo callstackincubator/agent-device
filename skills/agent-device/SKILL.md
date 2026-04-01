@@ -12,7 +12,7 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Start conservative. Prefer read-only inspection before mutating the UI.
 - Start deterministic. If the app name, package, device, or session is uncertain, load bootstrap and discover them before interacting.
 - Use plain `snapshot` when the task is to verify what text or structure is currently visible on screen.
-- Use `snapshot -i` only when you need interactive refs such as `@e3` for a requested action or targeted query. Default snapshot output is visible-first: off-screen interactive content is summarized instead of exposed as tappable refs.
+- Use `snapshot -i` only when you need interactive refs such as `@e3` for a requested action or targeted query. On iOS and Android, default snapshot output uses the same visible-first model: off-screen interactive content is exposed as discovery hints, not tappable refs.
 - Prefer `diff snapshot` after a nearby mutation when you only need to know what changed.
 - Avoid speculative mutations. You may take the smallest reversible UI action needed to unblock inspection or complete the requested task, such as dismissing a popup, closing an alert, or clearing an unintended surface.
 - In React Native dev or debug builds, check early for visible warning or error overlays, tooltips, and toasts that can steal focus or intercept taps. If they are not part of the requested behavior, dismiss them and continue. If you saw them, report them in the final summary.

@@ -52,7 +52,7 @@ In practice, most work follows the same pattern:
 1. Discover the exact app id with `apps` if the package or bundle name is uncertain.
 2. `open` a target app or URL.
 3. `snapshot -i` to inspect the current screen.
-4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors. Default snapshot text is visible-first, with off-screen interactive content summarized instead of shown as tappable refs.
+4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors. On iOS and Android, default snapshot text follows the same visible-first contract: refs shown in default output are actionable now, while hidden content is surfaced as scroll/list discovery hints instead of tappable off-screen refs.
 5. `diff snapshot` or re-snapshot after UI changes.
 6. `close` when the session is finished.
 

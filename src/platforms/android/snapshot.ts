@@ -2,8 +2,9 @@ import { runCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
+import { attachRefs, type RawSnapshotNode, type SnapshotOptions } from '../../utils/snapshot.ts';
 import { isScrollableType } from '../../utils/scrollable.ts';
+import { buildMobileSnapshotPresentation } from '../../utils/mobile-snapshot-semantics.ts';
 import {
   buildUiHierarchySnapshot,
   parseUiHierarchy,
@@ -31,6 +32,7 @@ export async function snapshotAndroid(
   const tree = parseUiHierarchyTree(xml);
   const parsed = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
   await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
+  applyDerivedHiddenContentHints(parsed.nodes);
   const interactiveParsed = buildUiHierarchySnapshot(tree, 800, options);
   copyHiddenContentHints(parsed.nodes, interactiveParsed.nodes);
   return interactiveParsed;
@@ -157,6 +159,30 @@ function copyHiddenContentHints(
     }
     node.hiddenContentAbove = source.hiddenContentAbove;
     node.hiddenContentBelow = source.hiddenContentBelow;
+  }
+}
+
+function applyDerivedHiddenContentHints(nodes: RawSnapshotNode[]): void {
+  if (nodes.length === 0) {
+    return;
+  }
+  const presentation = buildMobileSnapshotPresentation(attachRefs(nodes));
+  const hintsByIndex = new Map(
+    presentation.nodes
+      .filter((node) => node.hiddenContentAbove || node.hiddenContentBelow)
+      .map((node) => [node.index, node] as const),
+  );
+  for (const node of nodes) {
+    const hint = hintsByIndex.get(node.index);
+    if (!hint) {
+      continue;
+    }
+    if (hint.hiddenContentAbove) {
+      node.hiddenContentAbove = true;
+    }
+    if (hint.hiddenContentBelow) {
+      node.hiddenContentBelow = true;
+    }
   }
 }
 

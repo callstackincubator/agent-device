@@ -365,3 +365,34 @@ test('snapshotAndroid skips activity dump when snapshot has no scrollable nodes'
   assert.equal(result.nodes.length, 1);
   assert.equal(result.nodes[0]?.label, 'Continue');
 });
+
+test('snapshotAndroid derives hidden content hints for interactive snapshots from shared visibility semantics', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" content-desc="Messages" bounds="[0,100][390,500]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,500]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="Visible message" bounds="[0,120][390,180]" clickable="true" focusable="true" />
+        <node class="android.widget.TextView" text="Offscreen message" bounds="[0,560][390,620]" clickable="false" focusable="false" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device, { interactiveOnly: true });
+  const scrollArea = result.nodes.find((node) => node.label === 'Messages');
+
+  assert.ok(scrollArea);
+  assert.equal(scrollArea?.hiddenContentAbove, undefined);
+  assert.equal(scrollArea?.hiddenContentBelow, true);
+});
