@@ -321,16 +321,17 @@ function isGenericAndroidId(value: string): boolean {
 
 function findScopeNode(root: AndroidNode, scope: string): AndroidNode | null {
   const query = scope.toLowerCase();
-  const stack: AndroidNode[] = [...root.children];
-  while (stack.length > 0) {
-    const node = stack.shift() as AndroidNode;
+  const queue: AndroidNode[] = [...root.children];
+  let head = 0;
+  while (head < queue.length) {
+    const node = queue[head++] as AndroidNode;
     const label = node.label?.toLowerCase() ?? '';
     const value = node.value?.toLowerCase() ?? '';
     const identifier = node.identifier?.toLowerCase() ?? '';
     if (label.includes(query) || value.includes(query) || identifier.includes(query)) {
       return node;
     }
-    stack.push(...node.children);
+    queue.push(...node.children);
   }
   return null;
 }

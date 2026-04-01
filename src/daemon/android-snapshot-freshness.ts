@@ -1,8 +1,15 @@
 import type { SnapshotState } from '../utils/snapshot.ts';
 import type { SessionState } from './types.ts';
 
+// How long after a navigation-sensitive action (press, click, back, open) to consider
+// the Android UI hierarchy potentially stale.  Android's UIAutomator dump is async
+// and can lag behind real transitions by up to ~2 s; 2.5 s gives a comfortable margin
+// while avoiding unnecessary retries for steady-state interactions like typing.
 const ANDROID_FRESHNESS_WINDOW_MS = 2_500;
 
+// Progressive back-off delays between freshness retry attempts.  Two retries at
+// 250 ms + 400 ms cover the vast majority of Android transition latencies without
+// adding perceptible lag to the happy path.
 export const ANDROID_FRESHNESS_RETRY_DELAYS_MS = [250, 400] as const;
 
 export type AndroidSnapshotFreshness = {
@@ -82,6 +89,9 @@ export function buildSnapshotSignatures(nodes: SnapshotState['nodes']): string[]
   );
 }
 
+// A snapshot whose node count dropped to ≤20% of the previous capture is likely a
+// stale or mid-transition dump.  The 12-node floor prevents false positives on
+// already-tiny trees where fluctuation is normal.
 export function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
   if (previousCount < 12) {
     return false;
@@ -97,6 +107,8 @@ export function isLikelySnapshotStuckOnPreviousRoute(
     return false;
   }
   const total = Math.max(previousSignatures.length, currentNodes.length);
+  // Trees smaller than 12 nodes are too small for meaningful route comparison —
+  // minor UI updates can produce high overlap percentages by coincidence.
   if (total < 12) {
     return false;
   }
@@ -110,6 +122,9 @@ export function isLikelySnapshotStuckOnPreviousRoute(
   }
   const additions = Math.max(0, currentSignatures.length - previousSignatures.length);
   const removals = Math.max(0, previousSignatures.length - currentSignatures.length);
+  // Consider the snapshot "stuck" when ≥90% of nodes are identical and the number of
+  // additions/removals stays within 15% (or at least 3).  These thresholds accommodate
+  // minor dynamic content (clocks, counters) while still detecting genuine route changes.
   const toleratedDelta = Math.max(3, Math.floor(total * 0.15));
   return (
     unchanged >= Math.floor(total * 0.9) &&

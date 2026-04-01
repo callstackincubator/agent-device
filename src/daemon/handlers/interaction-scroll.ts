@@ -135,6 +135,10 @@ export async function handleScrollIntoViewCommand(
 
     const distance = distanceFromSafeViewportBand(node.rect, viewportRect);
     if (distance === 0) break;
+    // If the target didn't get closer after a scroll, count it as a stall.  Two
+    // consecutive stalls (no progress in either attempt) indicate the element is
+    // likely unreachable — e.g. inside a non-scrollable container or already at
+    // the scroll boundary.
     if (distance >= lastDistance) {
       stalledCount += 1;
       if (stalledCount >= 2) {

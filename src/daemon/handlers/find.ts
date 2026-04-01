@@ -78,6 +78,9 @@ export async function handleFindCommands(params: {
     backend?: SnapshotState['backend'];
   }> => {
     const now = Date.now();
+    // Re-use a snapshot captured within the last 750 ms to avoid redundant dumps during
+    // rapid find iterations.  Skipped when Android freshness tracking is active, because
+    // the cached tree may already be stale from a recent navigation action.
     if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
       return { nodes: lastNodes };
     }

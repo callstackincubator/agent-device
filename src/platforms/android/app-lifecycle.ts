@@ -477,6 +477,10 @@ type BundletoolInvocation =
   | { cmd: 'bundletool'; prefixArgs: readonly string[] }
   | { cmd: 'java'; prefixArgs: readonly string[] };
 
+// Module-level cache for bundletool resolution.  Safe for the single-threaded
+// Node.js event loop; concurrent async callers may race to populate it but will
+// resolve to the same value since the inputs (PATH, env var) are stable per
+// process lifetime.
 let cachedBundletoolInvocation: { key: string; invocation: BundletoolInvocation } | null = null;
 
 function bundletoolInvocationCacheKey(): string {

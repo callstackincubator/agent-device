@@ -18,6 +18,9 @@ export function inferVerticalScrollIndicatorDirections(
   if (scrollPercent === null) {
     return null;
   }
+  // Treat ≤1% as "at the top" and ≥99% as "at the bottom".  The 1% tolerance
+  // absorbs minor rounding that accessibility APIs report (e.g. iOS VoiceOver
+  // may report 1% instead of 0% when very close to an edge).
   if (scrollPercent <= 1) {
     return { above: false, below: true };
   }

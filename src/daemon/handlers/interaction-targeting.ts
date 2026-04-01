@@ -272,6 +272,8 @@ function findPreferredActionableDescendant(
 }
 
 function areRectsApproximatelyEqual(left: Rect, right: Rect): boolean {
+  // 0.5 px tolerance absorbs sub-pixel rounding differences that are common in
+  // accessibility tree coordinates across iOS and Android DPI scales.
   const tolerance = 0.5;
   return (
     Math.abs(left.x - right.x) <= tolerance &&
@@ -312,6 +314,10 @@ function resolveRootViewportRect(nodes: SnapshotNode[], targetRect: Rect): Rect 
   return pickLargestRect(containingRects.length > 0 ? containingRects : viewportRects);
 }
 
+// An ancestor is "viewport-sized" when it covers ≥90% of the viewport area and
+// at least 80% of its own area overlaps.  This catches full-screen containers
+// (navigation bars, root views) that are technically hittable but would produce
+// imprecise taps if used as the touch target.
 function isRectViewportSized(rect: Rect, viewportRect: Rect): boolean {
   const overlapArea = intersectionArea(rect, viewportRect);
   const rectArea = rect.width * rect.height;

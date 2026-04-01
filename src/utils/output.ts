@@ -303,6 +303,9 @@ function readSnapshotWarnings(data: Record<string, unknown>): string[] {
   );
 }
 
+// Detects likely duplicated navigation chrome (e.g. bottom tab bars rendered once
+// per tab).  Thresholds: ≥20 total nodes to avoid false positives on tiny trees,
+// and ≥8 cumulative duplicate-signature nodes to surface the warning.
 function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
   if (nodes.length < 20) {
     return false;

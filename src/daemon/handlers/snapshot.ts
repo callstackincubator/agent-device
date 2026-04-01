@@ -194,6 +194,9 @@ function buildSnapshotWarnings(params: {
     }
   }
 
+  // When a snapshot was captured very recently (within 2 s) and the node count dropped
+  // sharply, the new dump likely hit a mid-transition frame.  The 2 s window limits
+  // this check to rapid successive snapshots where the UI had no time to settle.
   const previousSnapshot = session?.snapshot;
   if (
     !capture.freshness &&
