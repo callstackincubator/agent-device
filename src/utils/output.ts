@@ -49,6 +49,17 @@ type SnapshotDiffLine = {
   text?: string;
 };
 
+type Direction = 'above' | 'below' | 'left' | 'right';
+
+type VisibleSnapshotPresentation = {
+  nodes: SnapshotNode[];
+  hiddenCount: number;
+  summaryLines: string[];
+  inlineHints: Map<number, string[]>;
+};
+
+const ORDERED_DIRECTIONS: Direction[] = ['above', 'below', 'left', 'right'];
+
 export function formatSnapshotText(
   data: Record<string, unknown>,
   options: { raw?: boolean; flatten?: boolean } = {},
@@ -276,12 +287,7 @@ function displayNodeLabel(node: SnapshotNode): string {
   return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
 }
 
-function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): {
-  nodes: SnapshotNode[];
-  hiddenCount: number;
-  summaryLines: string[];
-  inlineHints: Map<number, string[]>;
-} {
+function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): VisibleSnapshotPresentation {
   if (nodes.length === 0) {
     return { nodes, hiddenCount: 0, summaryLines: [], inlineHints: new Map() };
   }
@@ -293,18 +299,7 @@ function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): {
   for (const node of nodes) {
     const visibility = classifyNodeVisibility(node, nodes, byIndex);
     if (visibility === 'visible') {
-      visibleNodeIndexes.add(node.index);
-      let current: SnapshotNode | undefined = node;
-      const visited = new Set<number>();
-      while (current && !visited.has(current.index)) {
-        visited.add(current.index);
-        visibleNodeIndexes.add(current.index);
-        current =
-          typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
-      }
-      continue;
-    }
-    if (visibility !== 'offscreen') {
+      markVisibleNodeAndAncestors(node, visibleNodeIndexes, byIndex);
       continue;
     }
     offscreenNodes.push(node);
@@ -324,7 +319,7 @@ function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): {
     return {
       nodes,
       hiddenCount: 0,
-      summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes),
+      summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes, byIndex),
       inlineHints: scrollAreaHints.inlineHints,
     };
   }
@@ -333,7 +328,7 @@ function buildVisibleSnapshotPresentation(nodes: SnapshotNode[]): {
   return {
     nodes: visibleNodes,
     hiddenCount: nodes.length - visibleNodes.length,
-    summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes),
+    summaryLines: buildOffscreenSummaryLines(visibleDirectionCandidates, nodes, byIndex),
     inlineHints: scrollAreaHints.inlineHints,
   };
 }
@@ -342,7 +337,7 @@ function classifyNodeVisibility(
   node: SnapshotNode,
   nodes: SnapshotNode[],
   byIndex: Map<number, SnapshotNode>,
-): 'visible' | 'offscreen' | 'unknown' {
+): 'visible' | 'offscreen' {
   if (!node.rect) {
     return 'visible';
   }
@@ -356,10 +351,11 @@ function classifyNodeVisibility(
 function buildOffscreenSummaryLines(
   nodes: SnapshotNode[],
   snapshotNodes: SnapshotNode[],
+  byIndex: Map<number, SnapshotNode>,
 ): string[] {
-  const groups = new Map<'above' | 'below' | 'left' | 'right', SnapshotNode[]>();
+  const groups = new Map<Direction, SnapshotNode[]>();
   for (const node of nodes) {
-    const direction = classifyOffscreenDirection(node, snapshotNodes);
+    const direction = classifyOffscreenDirection(node, snapshotNodes, byIndex);
     if (!direction) {
       continue;
     }
@@ -368,8 +364,8 @@ function buildOffscreenSummaryLines(
     groups.set(direction, group);
   }
 
-  return ['above', 'below', 'left', 'right'].flatMap((direction) => {
-    const group = groups.get(direction as 'above' | 'below' | 'left' | 'right');
+  return ORDERED_DIRECTIONS.flatMap((direction) => {
+    const group = groups.get(direction);
     if (!group || group.length === 0) {
       return [];
     }
@@ -387,7 +383,7 @@ function buildScrollAreaHintPresentation(
   visibleNodeIndexes: Set<number>,
   byIndex: Map<number, SnapshotNode>,
 ): { inlineHints: Map<number, string[]>; coveredNodeIndexes: Set<number> } {
-  const directionsByContainer = new Map<number, Set<'above' | 'below' | 'left' | 'right'>>();
+  const directionsByContainer = new Map<number, Set<Direction>>();
   const coveredNodeIndexes = new Set<number>();
 
   for (const node of offscreenNodes) {
@@ -410,9 +406,7 @@ function buildScrollAreaHintPresentation(
 
   const inlineHints = new Map<number, string[]>();
   for (const [index, directions] of directionsByContainer) {
-    const ordered = ['above', 'below', 'left', 'right'].filter((direction) =>
-      directions.has(direction as 'above' | 'below' | 'left' | 'right'),
-    );
+    const ordered = ORDERED_DIRECTIONS.filter((direction) => directions.has(direction));
     inlineHints.set(
       index,
       ordered.map((direction) => `[content ${direction} hidden]`),
@@ -424,11 +418,11 @@ function buildScrollAreaHintPresentation(
 function classifyOffscreenDirection(
   node: SnapshotNode,
   nodes: SnapshotNode[],
-): 'above' | 'below' | 'left' | 'right' | null {
+  byIndex: Map<number, SnapshotNode>,
+): Direction | null {
   if (!node.rect) {
     return null;
   }
-  const byIndex = new Map(nodes.map((entry) => [entry.index, entry]));
   const viewport = resolveNodeViewportRect(node, nodes, byIndex);
   if (!viewport) {
     return null;
@@ -455,12 +449,14 @@ function isDiscoverableOffscreenNode(node: SnapshotNode): boolean {
 }
 
 function uniqueLabels(nodes: SnapshotNode[]): string[] {
+  const seen = new Set<string>();
   const labels: string[] = [];
   for (const node of nodes) {
     const label = displayNodeLabel(node);
-    if (!label || labels.includes(label)) {
+    if (!label || seen.has(label)) {
       continue;
     }
+    seen.add(label);
     labels.push(label);
   }
   return labels;
@@ -506,6 +502,21 @@ function findNearestVisibleScrollableAncestor(
   return null;
 }
 
+function markVisibleNodeAndAncestors(
+  node: SnapshotNode,
+  visibleNodeIndexes: Set<number>,
+  byIndex: Map<number, SnapshotNode>,
+): void {
+  let current: SnapshotNode | undefined = node;
+  const visited = new Set<number>();
+  while (current && !visited.has(current.index)) {
+    visited.add(current.index);
+    visibleNodeIndexes.add(current.index);
+    current =
+      typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
+  }
+}
+
 function resolveNodeViewportRect(
   node: SnapshotNode,
   nodes: SnapshotNode[],
@@ -538,7 +549,7 @@ function findNearestScrollableAncestorRect(
 function classifyRectDirection(
   targetRect: NonNullable<SnapshotNode['rect']>,
   viewportRect: NonNullable<SnapshotNode['rect']>,
-): 'above' | 'below' | 'left' | 'right' | null {
+): Direction | null {
   if (targetRect.y + targetRect.height <= viewportRect.y) {
     return 'above';
   }
