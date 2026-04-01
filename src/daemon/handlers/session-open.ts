@@ -158,6 +158,8 @@ async function completeOpenCommand(params: {
   }
 
   if (existingSession) {
+    // Mark freshness before buildNextOpenSession clears the stored snapshot. `open` is one of
+    // the few nav-sensitive commands that would otherwise lose its pre-action baseline.
     markAndroidSnapshotFreshness(existingSession, 'open', existingSession.snapshot);
   }
   const nextSession = buildNextOpenSession({

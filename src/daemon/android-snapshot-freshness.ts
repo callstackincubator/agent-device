@@ -26,6 +26,9 @@ export function markAndroidSnapshotFreshness(
   baseline = session.snapshot,
 ): void {
   if (session.device.platform !== 'android') return;
+  // Route-stuck recovery only makes sense against a baseline captured in a broad, comparable
+  // shape. Interactive/scoped/depth-limited snapshots are still useful for users, but they are
+  // too pruned to serve as a reliable "same route vs new route" baseline.
   const routeComparable = baseline?.comparisonSafe === true;
   session.androidSnapshotFreshness = {
     action,
@@ -57,6 +60,9 @@ export function clearAndroidSnapshotFreshness(session: SessionState | undefined)
 }
 
 export function isNavigationSensitiveAction(command: string): boolean {
+  // Keep this set intentionally narrow. `type`, `fill`, and generic `swipe` happen far more
+  // often than real route changes, so marking freshness for them would add retry latency to
+  // common steady-state loops. We only opt in commands that regularly move to a new screen.
   return command === 'press' || command === 'click' || command === 'back' || command === 'open';
 }
 

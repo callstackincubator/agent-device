@@ -187,6 +187,9 @@ export function buildSnapshotState(
     truncated: data?.truncated,
     createdAt: Date.now(),
     backend: data?.backend,
+    // Only broad Android snapshots become freshness baselines. If the user asked for a scoped
+    // or filtered view, preserve that output contract but avoid pretending it is safe for
+    // route-level comparisons on the next capture.
     comparisonSafe:
       data?.backend === 'android' &&
       flags?.snapshotInteractiveOnly !== true &&
