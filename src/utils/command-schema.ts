@@ -53,6 +53,7 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  snapshotWaitStableMs?: number;
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
@@ -92,6 +93,8 @@ export type CliFlags = {
   reportJunit?: string;
   steps?: string;
   stepsFile?: string;
+  findFirst?: boolean;
+  findLast?: boolean;
   batchOnError?: 'stop';
   batchMaxSteps?: number;
   batchSteps?: Array<{
@@ -137,6 +140,7 @@ const SNAPSHOT_FLAGS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
+  'snapshotWaitStableMs',
 ] as const satisfies readonly FlagKey[];
 
 const SELECTOR_SNAPSHOT_FLAGS = [
@@ -146,6 +150,7 @@ const SELECTOR_SNAPSHOT_FLAGS = [
 ] as const satisfies readonly FlagKey[];
 
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
+const FIND_DISAMBIGUATE_FLAGS = ['findFirst', 'findLast'] as const satisfies readonly FlagKey[];
 
 const AGENT_SKILLS = [
   { label: 'agent-device', description: 'Canonical mobile automation flows' },
@@ -868,6 +873,30 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Snapshot: raw node output',
   },
   {
+    key: 'snapshotWaitStableMs',
+    names: ['--wait-stable'],
+    type: 'int',
+    min: 0,
+    max: 10000,
+    usageLabel: '--wait-stable <ms>',
+    usageDescription:
+      'Snapshot: poll until AX tree stabilizes (Android). Retries until two consecutive dumps match or timeout.',
+  },
+  {
+    key: 'findFirst',
+    names: ['--first'],
+    type: 'boolean',
+    usageLabel: '--first',
+    usageDescription: 'Find: pick the first match when ambiguous',
+  },
+  {
+    key: 'findLast',
+    names: ['--last'],
+    type: 'boolean',
+    usageLabel: '--last',
+    usageDescription: 'Find: pick the last match when ambiguous',
+  },
+  {
     key: 'out',
     names: ['--out'],
     type: 'string',
@@ -980,7 +1009,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   snapshot: {
-    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--wait-stable <ms>]',
     helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
     positionalArgs: [],
     allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],
@@ -1267,12 +1296,12 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['networkInclude'],
   },
   find: {
-    usageOverride: 'find <locator|text> <action> [value]',
+    usageOverride: 'find <locator|text> <action> [value] [--first|--last]',
     helpDescription: 'Find by text/label/value/role/id and run action',
     summary: 'Find an element and act',
     positionalArgs: ['query', 'action', 'value?'],
     allowsExtraPositionals: true,
-    allowedFlags: [...FIND_SNAPSHOT_FLAGS],
+    allowedFlags: [...FIND_SNAPSHOT_FLAGS, ...FIND_DISAMBIGUATE_FLAGS],
   },
   is: {
     helpDescription: 'Assert UI state (visible|hidden|exists|editable|selected|text)',

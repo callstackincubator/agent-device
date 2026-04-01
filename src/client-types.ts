@@ -247,6 +247,7 @@ export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
     depth?: number;
     scope?: string;
     raw?: boolean;
+    waitStableMs?: number;
   };
 
 export type CaptureSnapshotResult = {
@@ -291,6 +292,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     depth?: number;
     scope?: string;
     raw?: boolean;
+    waitStableMs?: number;
     installSource?: DaemonInstallSource;
     retainMaterializedPaths?: boolean;
     materializedPathRetentionMs?: number;

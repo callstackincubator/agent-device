@@ -122,7 +122,13 @@ export async function handleFindCommands(params: {
   });
 
   if (requiresRect && bestMatches.matches.length > 1) {
-    return buildAmbiguousMatchError(bestMatches.matches, locator, query);
+    if (req.flags?.findFirst) {
+      bestMatches.matches.length = 1;
+    } else if (req.flags?.findLast) {
+      bestMatches.matches = [bestMatches.matches[bestMatches.matches.length - 1]];
+    } else {
+      return buildAmbiguousMatchError(bestMatches.matches, locator, query);
+    }
   }
 
   const node = bestMatches.matches[0] ?? null;

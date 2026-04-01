@@ -11,6 +11,7 @@ export const snapshotCommand: ClientCommandHandler = async ({ flags, client }) =
     depth: flags.snapshotDepth,
     scope: flags.snapshotScope,
     raw: flags.snapshotRaw,
+    waitStableMs: flags.snapshotWaitStableMs,
   });
   const data = serializeSnapshotResult(result);
   writeCommandOutput(flags, data, () =>
