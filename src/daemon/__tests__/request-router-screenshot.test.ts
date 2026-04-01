@@ -111,6 +111,80 @@ test('screenshot resolves relative positional path against request cwd', async (
   expect(recordedAction?.positionals).toEqual([path.join(callerCwd, 'evidence/test.png')]);
 });
 
+test('router serializes concurrent commands for the same device across sessions', async () => {
+  const sessionStore = makeStore();
+  sessionStore.set('session-a', makeSession('session-a'));
+  sessionStore.set('session-b', makeSession('session-b'));
+
+  const order: string[] = [];
+  let active = 0;
+  let maxActive = 0;
+  const gates: Array<() => void> = [];
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    order.push(`start-${command}`);
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise<void>((resolve) => {
+      gates.push(() => {
+        active -= 1;
+        order.push(`end-${command}`);
+        resolve();
+      });
+    });
+    return {};
+  });
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const screenshotRequest = handler({
+    token: 'test-token',
+    session: 'session-a',
+    command: 'screenshot',
+    positionals: ['/tmp/first.png'],
+    meta: { requestId: 'req-lock-1' },
+  });
+
+  await vi.waitFor(() => {
+    expect(order).toEqual(['start-screenshot']);
+  });
+
+  const scrollRequest = handler({
+    token: 'test-token',
+    session: 'session-b',
+    command: 'scroll',
+    positionals: ['down'],
+    meta: { requestId: 'req-lock-2' },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(order).toEqual(['start-screenshot']);
+
+  gates.shift()?.();
+
+  await vi.waitFor(() => {
+    expect(order).toEqual(['start-screenshot', 'end-screenshot', 'start-scroll']);
+  });
+
+  gates.shift()?.();
+
+  const [screenshotResponse, scrollResponse] = await Promise.all([
+    screenshotRequest,
+    scrollRequest,
+  ]);
+
+  expect(screenshotResponse.ok).toBe(true);
+  expect(scrollResponse.ok).toBe(true);
+  expect(maxActive).toBe(1);
+  expect(order).toEqual(['start-screenshot', 'end-screenshot', 'start-scroll', 'end-scroll']);
+});
+
 test('screenshot forwards macOS session surface to dispatch', async () => {
   const sessionStore = makeStore();
   sessionStore.set('default', makeMacOsMenubarSession('default'));

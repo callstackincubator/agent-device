@@ -1,4 +1,4 @@
-import { TIMEOUT_PROFILES } from '../../utils/retry.ts';
+import { TIMEOUT_PROFILES, isEnvTruthy } from '../../utils/retry.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 
 export const IOS_BOOT_TIMEOUT_MS = resolveTimeoutMs(
@@ -41,6 +41,10 @@ export const IOS_RUNNER_SCREENSHOT_COPY_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_RUNNER_SCREENSHOT_COPY_TIMEOUT_MS,
   20_000,
   1_000,
+);
+
+export const IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK_ENABLED = isEnvTruthy(
+  process.env.AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK,
 );
 
 export const IOS_SIMULATOR_SCREENSHOT_RETRY_MAX_ATTEMPTS = 5;
