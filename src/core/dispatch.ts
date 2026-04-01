@@ -31,6 +31,7 @@ import {
   runRepeatedSeries,
 } from './dispatch-series.ts';
 import { readNotificationPayload } from './dispatch-payload.ts';
+import { parseDeviceRotation } from './device-rotation.ts';
 
 export { resolveTargetDevice } from './dispatch-resolve.ts';
 export { shouldUseIosTapSeries, shouldUseIosDragSeries };
@@ -513,6 +514,15 @@ export async function dispatchCommand(
         case 'home': {
           await interactor.home();
           return { action: 'home', ...successText('Home') };
+        }
+        case 'rotate': {
+          const orientation = parseDeviceRotation(positionals[0]);
+          await interactor.rotate(orientation);
+          return {
+            action: 'rotate',
+            orientation,
+            ...successText(`Rotated to ${orientation}`),
+          };
         }
         case 'app-switcher': {
           await interactor.appSwitcher();

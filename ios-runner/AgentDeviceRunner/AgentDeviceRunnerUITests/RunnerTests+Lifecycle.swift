@@ -189,6 +189,7 @@ extension RunnerTests {
       .back,
       .backInApp,
       .backSystem,
+      .rotate,
       .appSwitcher,
       .keyboardDismiss,
       .pinch:

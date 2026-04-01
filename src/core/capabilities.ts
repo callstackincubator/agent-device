@@ -149,6 +149,12 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
   },
+  rotate: {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    supports: (device) =>
+      device.platform === 'android' || (device.platform === 'ios' && device.target !== 'tv'),
+  },
   screenshot: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },

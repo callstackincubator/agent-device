@@ -578,6 +578,28 @@ extension RunnerTests {
     case .home:
       pressHomeButton()
       return Response(ok: true, data: DataPayload(message: "home"))
+    case .rotate:
+      guard let orientation = command.orientation?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !orientation.isEmpty
+      else {
+        return Response(ok: false, error: ErrorPayload(message: "rotate requires orientation"))
+      }
+      guard supportsRotateOrientation(orientation) else {
+        return Response(
+          ok: false,
+          error: ErrorPayload(message: "unsupported rotate orientation: \(orientation)")
+        )
+      }
+      if rotateDevice(to: orientation) {
+        return Response(
+          ok: true,
+          data: DataPayload(message: "rotate", orientation: orientation)
+        )
+      }
+      return Response(
+        ok: false,
+        error: ErrorPayload(message: "rotate is not supported on this runner target")
+      )
     case .appSwitcher:
       performAppSwitcherGesture(app: activeApp)
       return Response(ok: true, data: DataPayload(message: "appSwitcher"))

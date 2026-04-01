@@ -18,6 +18,7 @@ enum CommandType: String, Codable {
   case backInApp
   case backSystem
   case home
+  case rotate
   case appSwitcher
   case keyboardDismiss
   case alert
@@ -47,6 +48,7 @@ struct Command: Codable {
   let y2: Double?
   let durationMs: Double?
   let direction: String?
+  let orientation: String?
   let scale: Double?
   let outPath: String?
   let fps: Int?
@@ -89,6 +91,7 @@ struct DataPayload: Codable {
   let visible: Bool?
   let wasVisible: Bool?
   let dismissed: Bool?
+  let orientation: String?
 
   init(
     message: String? = nil,
@@ -108,7 +111,8 @@ struct DataPayload: Codable {
     currentUptimeMs: Double? = nil,
     visible: Bool? = nil,
     wasVisible: Bool? = nil,
-    dismissed: Bool? = nil
+    dismissed: Bool? = nil,
+    orientation: String? = nil
   ) {
     self.message = message
     self.text = text
@@ -128,6 +132,7 @@ struct DataPayload: Codable {
     self.visible = visible
     self.wasVisible = wasVisible
     self.dismissed = dismissed
+    self.orientation = orientation
   }
 }
 

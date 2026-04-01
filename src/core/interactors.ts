@@ -1,5 +1,6 @@
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
+import type { DeviceRotation } from './device-rotation.ts';
 import type { ScrollDirection } from './scroll-gesture.ts';
 import {
   appSwitcherAndroid,
@@ -13,6 +14,7 @@ import {
   openAndroidDevice,
   pressAndroid,
   readAndroidClipboardText,
+  rotateAndroid,
   swipeAndroid,
   scrollAndroid,
   scrollIntoViewAndroid,
@@ -91,6 +93,7 @@ export type Interactor = {
   screenshot(outPath: string, options?: ScreenshotOptions): Promise<void>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
+  rotate(orientation: DeviceRotation): Promise<void>;
   appSwitcher(): Promise<void>;
   readClipboard(): Promise<string>;
   writeClipboard(text: string): Promise<void>;
@@ -124,6 +127,7 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         screenshot: (outPath) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
+        rotate: (orientation) => rotateAndroid(device, orientation),
         appSwitcher: () => appSwitcherAndroid(device),
         readClipboard: () => readAndroidClipboardText(device),
         writeClipboard: (text) => writeAndroidClipboardText(device, text),
@@ -162,6 +166,19 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           await runIosRunnerCommand(
             device,
             { command: 'home', appBundleId: runnerContext.appBundleId },
+            runnerOpts,
+          );
+        },
+        rotate: async (orientation) => {
+          if (device.platform !== 'ios') {
+            throw new AppError(
+              'UNSUPPORTED_OPERATION',
+              'rotate is supported only on iOS and Android',
+            );
+          }
+          await runIosRunnerCommand(
+            device,
+            { command: 'rotate', orientation, appBundleId: runnerContext.appBundleId },
             runnerOpts,
           );
         },

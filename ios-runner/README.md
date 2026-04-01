@@ -28,7 +28,7 @@ Protocol and maintenance references:
 - `RunnerTests+Transport.swift`: TCP request handling and HTTP parsing/encoding.
 - `RunnerTests+CommandExecution.swift`: command dispatch (`execute*`) and command switch.
 - `RunnerTests+Lifecycle.swift`: activation/retry/stabilization and recording lifecycle helpers.
-- `RunnerTests+Interaction.swift`: tap/drag/swipe/type/back/home/app-switcher helpers.
+- `RunnerTests+Interaction.swift`: tap/drag/swipe/type/back/home/rotate/app-switcher helpers.
 - `RunnerTests+Snapshot.swift`: fast/raw snapshot builders and include/filter helpers.
 - `RunnerTests+SystemModal.swift`: SpringBoard/system modal detection and modal snapshot shaping.
 - `RunnerTests+ScreenRecorder.swift`: nested `ScreenRecorder` implementation.

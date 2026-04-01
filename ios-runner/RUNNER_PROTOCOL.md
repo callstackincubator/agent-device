@@ -36,6 +36,10 @@ Examples:
 { "command": "recordStart", "outPath": "/tmp/demo.mp4", "fps": 30 }
 ```
 
+```json
+{ "command": "rotate", "orientation": "landscape-left" }
+```
+
 The current command names are defined in:
 
 - [`../src/platforms/ios/runner-client.ts`](../src/platforms/ios/runner-client.ts)

@@ -23,6 +23,8 @@ agent-device back
 agent-device back --in-app
 agent-device back --system
 agent-device home
+agent-device rotate portrait
+agent-device rotate landscape-left
 agent-device app-switcher
 ```
 
@@ -40,6 +42,8 @@ agent-device app-switcher
 - `back` now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.
 - `back --in-app` is an explicit alias for the default app-owned behavior.
 - `back --system` asks for system back input explicitly. On Android this is the normal back keyevent. On iOS and tvOS it uses the platform back gesture or Siri Remote menu action. On macOS, where there is no generic system back input, `back --system` reports unavailable instead of falling back to app-owned navigation.
+- `rotate <orientation>` forces a mobile device into `portrait`, `portrait-upside-down`, `landscape-left`, or `landscape-right`.
+- `rotate` is supported on iOS and Android mobile targets. macOS and tvOS do not expose it.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
 - A configured `AGENT_DEVICE_SESSION` implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
@@ -150,7 +154,7 @@ agent-device snapshot -i --platform apple --target desktop
 - In macOS app sessions, `screenshot` captures the target app window bounds rather than the full desktop.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
-- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `rotate`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
 
 Recommended loops:
 

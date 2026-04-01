@@ -1093,6 +1093,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [],
   },
+  rotate: {
+    usageOverride: 'rotate <portrait|portrait-upside-down|landscape-left|landscape-right>',
+    helpDescription: 'Rotate device orientation on iOS and Android',
+    summary: 'Rotate device orientation',
+    positionalArgs: ['orientation'],
+    allowedFlags: [],
+  },
   'app-switcher': {
     helpDescription: 'Open app switcher (where supported)',
     summary: 'Open app switcher',

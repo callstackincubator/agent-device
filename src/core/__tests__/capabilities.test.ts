@@ -150,6 +150,7 @@ test('core commands support iOS simulator, iOS device, and Android', () => {
       'perf',
       'press',
       'record',
+      'rotate',
       'screenshot',
       'scroll',
       'scrollintoview',
@@ -201,7 +202,16 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
     [{ device: macOsDevice, expected: true, label: 'on macOS' }],
   );
   assertCommandSupport(
-    ['app-switcher', 'boot', 'home', 'install', 'install-from-source', 'push', 'reinstall'],
+    [
+      'app-switcher',
+      'boot',
+      'home',
+      'install',
+      'install-from-source',
+      'push',
+      'reinstall',
+      'rotate',
+    ],
     [{ device: macOsDevice, expected: false, label: 'on macOS' }],
   );
 });
@@ -241,6 +251,11 @@ test('tvOS follows iOS capability matrix by device kind', () => {
     isCommandSupportedOnDevice('keyboard', tvOsSimulator),
     false,
     'keyboard on tvOS simulator',
+  );
+  assert.equal(
+    isCommandSupportedOnDevice('rotate', tvOsSimulator),
+    false,
+    'rotate on tvOS simulator',
   );
 });
 

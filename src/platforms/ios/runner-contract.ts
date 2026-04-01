@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
+import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session.ts';
@@ -23,6 +24,7 @@ export type RunnerCommand = {
     | 'backInApp'
     | 'backSystem'
     | 'home'
+    | 'rotate'
     | 'appSwitcher'
     | 'keyboardDismiss'
     | 'alert'
@@ -47,6 +49,7 @@ export type RunnerCommand = {
   y2?: number;
   durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
+  orientation?: DeviceRotation;
   scale?: number;
   outPath?: string;
   fps?: number;

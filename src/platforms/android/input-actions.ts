@@ -1,6 +1,7 @@
 import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { DEFAULT_ANDROID_SCROLL_INTO_VIEW_MAX_SCROLLS } from '../../utils/scroll-into-view.ts';
 import { findBounds, parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
@@ -40,6 +41,21 @@ export async function backAndroid(device: DeviceInfo): Promise<void> {
 
 export async function homeAndroid(device: DeviceInfo): Promise<void> {
   await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '3']));
+}
+
+export async function rotateAndroid(
+  device: DeviceInfo,
+  orientation: DeviceRotation,
+): Promise<void> {
+  const userRotation = resolveAndroidUserRotation(orientation);
+  await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0']),
+  );
+  await runCmd(
+    'adb',
+    adbArgs(device, ['shell', 'settings', 'put', 'system', 'user_rotation', userRotation]),
+  );
 }
 
 export async function appSwitcherAndroid(device: DeviceInfo): Promise<void> {
@@ -274,6 +290,21 @@ export async function scrollIntoViewAndroid(
     reason: 'not_found',
     attempts: maxScrolls,
   });
+}
+
+function resolveAndroidUserRotation(orientation: DeviceRotation): string {
+  switch (orientation) {
+    case 'portrait':
+      return '0';
+    case 'landscape-left':
+      return '1';
+    case 'portrait-upside-down':
+      return '2';
+    case 'landscape-right':
+      return '3';
+    default:
+      throw new AppError('INVALID_ARGS', `Unsupported Android rotation: ${orientation}`);
+  }
 }
 
 export async function getAndroidScreenSize(

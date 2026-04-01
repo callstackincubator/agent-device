@@ -21,6 +21,7 @@ export {
   swipeAndroid,
   backAndroid,
   homeAndroid,
+  rotateAndroid,
   appSwitcherAndroid,
   longPressAndroid,
   typeAndroid,

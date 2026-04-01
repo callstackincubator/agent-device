@@ -79,6 +79,42 @@ extension RunnerTests {
 #endif
   }
 
+  func rotateDevice(to orientationName: String) -> Bool {
+#if os(macOS)
+    return false
+#else
+    switch orientationName {
+    case "portrait":
+      XCUIDevice.shared.orientation = .portrait
+    case "portrait-upside-down":
+      XCUIDevice.shared.orientation = .portraitUpsideDown
+    case "landscape-left":
+      XCUIDevice.shared.orientation = .landscapeLeft
+    case "landscape-right":
+      XCUIDevice.shared.orientation = .landscapeRight
+    default:
+      return false
+    }
+    sleepFor(0.2)
+    return true
+#endif
+  }
+
+  func supportsRotateOrientation(_ orientationName: String) -> Bool {
+    switch orientationName {
+    case "portrait":
+      return true
+    case "portrait-upside-down":
+      return true
+    case "landscape-left":
+      return true
+    case "landscape-right":
+      return true
+    default:
+      return false
+    }
+  }
+
   private func pressTvRemoteMenuIfAvailable() -> Bool {
 #if os(tvOS)
     XCUIRemote.shared.press(.menu)

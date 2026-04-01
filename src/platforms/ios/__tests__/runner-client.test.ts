@@ -130,6 +130,7 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   backInApp: { command: 'backInApp' },
   backSystem: { command: 'backSystem' },
   home: { command: 'home' },
+  rotate: { command: 'rotate', orientation: 'landscape-left' },
   appSwitcher: { command: 'appSwitcher' },
   keyboardDismiss: { command: 'keyboardDismiss' },
   alert: { command: 'alert', action: 'accept' },
@@ -206,6 +207,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'readText',
     'recordStart',
     'recordStop',
+    'rotate',
     'screenshot',
     'shutdown',
     'snapshot',
@@ -224,6 +226,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
   assert.equal(roundTrip.mouseClick.button, 'secondary');
   assert.equal(roundTrip.snapshot.scope, 'app');
   assert.equal(roundTrip.screenshot.fullscreen, true);
+  assert.equal(roundTrip.rotate.orientation, 'landscape-left');
   assert.equal(roundTrip.recordStart.fps, 30);
 });
 

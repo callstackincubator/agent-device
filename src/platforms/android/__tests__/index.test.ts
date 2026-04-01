@@ -16,6 +16,7 @@ import {
   resolveAndroidApp,
   pushAndroidNotification,
   readAndroidClipboardText,
+  rotateAndroid,
   setAndroidSetting,
   scrollAndroid,
   swipeAndroid,
@@ -720,6 +721,20 @@ test('setAndroidSetting appearance toggle rejects unknown current mode output', 
           return true;
         },
       );
+    },
+  );
+});
+
+test('rotateAndroid locks auto-rotate and sets user rotation', async () => {
+  await withMockedAdb(
+    'agent-device-android-rotate-landscape-left-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await rotateAndroid(device, 'landscape-left');
+      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+      const logged = lines.join(' ');
+      assert.match(logged, /shell settings put system accelerometer_rotation 0/);
+      assert.match(logged, /shell settings put system user_rotation 1/);
     },
   );
 });

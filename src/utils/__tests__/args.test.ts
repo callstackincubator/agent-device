@@ -573,6 +573,12 @@ test('parseArgs supports trigger-app-event payload argument', () => {
   assert.deepEqual(parsed.positionals, ['screenshot_taken', '{"source":"qa"}']);
 });
 
+test('parseArgs accepts rotate orientation aliases', () => {
+  const parsed = parseArgs(['rotate', 'left'], { strictFlags: true });
+  assert.equal(parsed.command, 'rotate');
+  assert.deepEqual(parsed.positionals, ['left']);
+});
+
 test('usageForCommand resolves longpress help', () => {
   const help = usageForCommand('longpress');
   assert.equal(help === null, false);
@@ -620,6 +626,7 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
   assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
+  assert.match(usageText, /rotate <orientation>/);
   assert.match(usageText, /record start \[path\] \| record stop/);
   assert.match(usageText, /trace start \[path\] \| trace stop/);
 });
@@ -959,6 +966,13 @@ test('keyboard command usage is documented', () => {
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /keyboard \[status\|get\|dismiss\]/);
   assert.match(help, /Inspect Android keyboard visibility\/type or dismiss the device keyboard/);
+});
+
+test('rotate command usage is documented', () => {
+  const help = usageForCommand('rotate');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /rotate <portrait\|portrait-upside-down\|landscape-left\|landscape-right>/);
+  assert.match(help, /Rotate device orientation on iOS and Android/);
 });
 
 test('settings usage documents canonical faceid states', () => {
