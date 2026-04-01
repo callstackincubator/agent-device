@@ -4,6 +4,7 @@ import { type RawSnapshotNode } from '../../utils/snapshot.ts';
 import {
   buildScrollIntoViewPlan,
   distanceFromSafeViewportBand,
+  isRectVisibleInViewport,
   isRectWithinSafeViewportBand,
   resolveViewportRect,
 } from '../scroll-planner.ts';
@@ -67,5 +68,17 @@ test('distanceFromSafeViewportBand reports pixels outside the safe band', () => 
   assert.equal(
     distanceFromSafeViewportBand({ x: 20, y: -200, width: 120, height: 40 }, viewportRect) > 0,
     true,
+  );
+});
+
+test('isRectVisibleInViewport treats zero-height lines inside the viewport as visible', () => {
+  const viewportRect = { x: 0, y: 0, width: 390, height: 844 };
+  assert.equal(
+    isRectVisibleInViewport({ x: 20, y: 378, width: 120, height: 0 }, viewportRect),
+    true,
+  );
+  assert.equal(
+    isRectVisibleInViewport({ x: 20, y: 1200, width: 120, height: 0 }, viewportRect),
+    false,
   );
 });

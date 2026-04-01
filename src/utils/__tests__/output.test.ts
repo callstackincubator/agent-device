@@ -246,6 +246,55 @@ test('formatSnapshotText hides off-screen refs and adds compact discovery summar
   assert.match(text, /\[off-screen below\] 2 interactive items: "Privacy", "Battery"/);
 });
 
+test('formatSnapshotText keeps zero-height visible nodes out of off-screen summaries', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 1440, height: 800 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'android.widget.FrameLayout',
+          rect: { x: 0, y: 0, width: 1440, height: 3120 },
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'View',
+          rect: { x: 264, y: 378, width: 972, height: 0 },
+          hittable: true,
+        },
+        {
+          ref: 'e4',
+          index: 3,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'Later',
+          rect: { x: 264, y: 2200, width: 972, height: 120 },
+          hittable: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^  @e3 \[button\] "View"$/m);
+  assert.doesNotMatch(text, /\[off-screen above\].*"View"/);
+  assert.match(text, /\[off-screen below\] 1 interactive item: "Later"/);
+});
+
 test('formatSnapshotText prints snapshot warnings ahead of empty output', () => {
   const text = withNoColor(() =>
     formatSnapshotText({

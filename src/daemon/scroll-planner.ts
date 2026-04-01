@@ -84,6 +84,23 @@ export function isRectWithinSafeViewportBand(targetRect: Rect, viewportRect: Rec
   return distanceFromSafeViewportBand(targetRect, viewportRect) === 0;
 }
 
+export function isRectVisibleInViewport(targetRect: Rect, viewportRect: Rect): boolean {
+  return (
+    rangesOverlapInclusive(
+      targetRect.x,
+      targetRect.x + targetRect.width,
+      viewportRect.x,
+      viewportRect.x + viewportRect.width,
+    ) &&
+    rangesOverlapInclusive(
+      targetRect.y,
+      targetRect.y + targetRect.height,
+      viewportRect.y,
+      viewportRect.y + viewportRect.height,
+    )
+  );
+}
+
 export function distanceFromSafeViewportBand(targetRect: Rect, viewportRect: Rect): number {
   const viewportHeight = Math.max(1, viewportRect.height);
   const viewportTop = viewportRect.y;
@@ -125,4 +142,13 @@ function pickLargestRect(rects: Rect[]): Rect | null {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function rangesOverlapInclusive(
+  leftStart: number,
+  leftEnd: number,
+  rightStart: number,
+  rightEnd: number,
+): boolean {
+  return Math.max(leftStart, rightStart) <= Math.min(leftEnd, rightEnd);
 }

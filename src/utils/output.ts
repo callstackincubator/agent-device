@@ -4,7 +4,7 @@ import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.
 import type { SnapshotNode } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
-import { resolveViewportRect } from '../daemon/scroll-planner.ts';
+import { isRectVisibleInViewport, resolveViewportRect } from '../daemon/scroll-planner.ts';
 
 type JsonResult =
   | { success: true; data?: unknown }
@@ -337,7 +337,7 @@ function classifyNodeVisibility(
   if (!viewport) {
     return 'visible';
   }
-  return rectsIntersect(node.rect, viewport) ? 'visible' : 'offscreen';
+  return isRectVisibleInViewport(node.rect, viewport) ? 'visible' : 'offscreen';
 }
 
 function buildOffscreenSummaryLines(
@@ -423,16 +423,4 @@ function uniqueLabels(nodes: SnapshotNode[]): string[] {
     labels.push(label);
   }
   return labels;
-}
-
-function rectsIntersect(
-  left: NonNullable<SnapshotNode['rect']>,
-  right: NonNullable<SnapshotNode['rect']>,
-): boolean {
-  return (
-    left.x < right.x + right.width &&
-    left.x + left.width > right.x &&
-    left.y < right.y + right.height &&
-    left.y + left.height > right.y
-  );
 }
