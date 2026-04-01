@@ -197,6 +197,9 @@ function buildSnapshotWarnings(params: {
   }
 
   if (capture.freshness?.staleAfterRetries && capture.snapshot.backend === 'android') {
+    // `empty-interactive` intentionally relies on the generic empty-interactive warning above.
+    // Freshness recovery may resolve a transient filtered-zero tree, but if retries still end
+    // empty we want one final warning, not a second freshness-specific variant of the same issue.
     if (capture.freshness.reason === 'stuck-route') {
       warnings.push(
         `Recent ${capture.freshness.action} was followed by a nearly identical snapshot after ${capture.freshness.retryCount} automatic retr${capture.freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
