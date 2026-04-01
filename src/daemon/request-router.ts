@@ -63,7 +63,7 @@ const leaseAdmissionExemptCommands = new Set([
   'lease_heartbeat',
   'lease_release',
 ]);
-const sessionExecutionExemptCommands = leaseAdmissionExemptCommands;
+const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
 const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 
 function contextFromFlags(

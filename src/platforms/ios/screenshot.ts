@@ -327,25 +327,27 @@ function emitScreenshotFallbackSkippedDiagnostic(device: DeviceInfo, error: unkn
   });
 }
 
+const SIMULATOR_SCREENSHOT_FALLBACK_HINT =
+  'Restart the simulator and retry. If simctl screenshots keep timing out and you accept the stability tradeoff, set AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK=1 to allow XCTest runner fallback.';
+
 function buildSimulatorScreenshotFallbackDisabledError(error: unknown): AppError {
-  if (!(error instanceof AppError)) {
-    return new AppError(
-      'COMMAND_FAILED',
-      'Failed to capture iOS screenshot: simulator screenshot retries exhausted',
-      {
-        hint: 'Restart the simulator and retry. If simctl screenshots keep timing out and you accept the stability tradeoff, set AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK=1 to allow XCTest runner fallback.',
-      },
-      error,
-    );
-  }
+  const base =
+    error instanceof AppError
+      ? error
+      : new AppError(
+          'COMMAND_FAILED',
+          'Failed to capture iOS screenshot: simulator screenshot retries exhausted',
+          undefined,
+          error,
+        );
   return new AppError(
-    error.code,
-    error.message,
+    base.code,
+    base.message,
     {
-      ...(error.details ?? {}),
-      hint: 'Restart the simulator and retry. If simctl screenshots keep timing out and you accept the stability tradeoff, set AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK=1 to allow XCTest runner fallback.',
+      ...(base.details ?? {}),
+      hint: SIMULATOR_SCREENSHOT_FALLBACK_HINT,
     },
-    error,
+    base,
   );
 }
 
