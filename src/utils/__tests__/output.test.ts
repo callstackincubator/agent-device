@@ -457,6 +457,37 @@ test('formatSnapshotText marks visible scroll areas with hidden content above an
   assert.doesNotMatch(text, /\[off-screen below\].*"Later message"/);
 });
 
+test('formatSnapshotText suppresses noisy system scroll-container labels', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'ScrollView',
+          label: 'Vertical scroll bar, 2 pages',
+          rect: { x: 0, y: 100, width: 390, height: 600 },
+          hiddenContentBelow: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^  @e2 \[scroll-area\] \[scrollable\]$/m);
+  assert.match(text, /^    \[content below scroll-area hidden\]$/m);
+  assert.doesNotMatch(text, /Vertical scroll bar, 2 pages/);
+});
+
 test('formatSnapshotText prints snapshot warnings ahead of empty output', () => {
   const text = withNoColor(() =>
     formatSnapshotText({

@@ -63,6 +63,9 @@ export function formatSnapshotLine(
 
 export function displayLabel(node: SnapshotNode, type: string): string {
   const label = node.label?.trim();
+  if (label && shouldSuppressScrollContainerLabel(type, label)) {
+    return '';
+  }
   const value = node.value?.trim();
   if (isEditableRole(type)) {
     if (value) return value;
@@ -174,6 +177,17 @@ export function formatRole(type: string): string {
 
 function isEditableRole(type: string): boolean {
   return type === 'text-field' || type === 'text-view' || type === 'search';
+}
+
+function shouldSuppressScrollContainerLabel(type: string, label: string): boolean {
+  if (type !== 'scroll-area' && type !== 'list' && type !== 'collection' && type !== 'table') {
+    return false;
+  }
+  const normalized = label.trim().toLowerCase();
+  if (/^(vertical|horizontal)\s+scroll\s+bar(?:,?\s*\d+\s+pages?)?$/.test(normalized)) {
+    return true;
+  }
+  return normalized === 'new message line indicator';
 }
 
 function isGenericResourceId(value: string): boolean {
