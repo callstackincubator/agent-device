@@ -253,7 +253,9 @@ On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpres
 `scrollintoview` accepts plain text or a snapshot ref (`@eN`).
 Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
 When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
-Ref mode re-snapshots after each swipe and stops early when the target enters the safe viewport band or scrolling stops making progress.
+Ref mode re-snapshots after each swipe, returns a refreshed `currentRef` when it can track the target, and stops early when the target enters the safe viewport band or scrolling stops making progress.
+Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
+`press @ref` and `fill @ref` fail fast when the target is off-screen; use `scrollintoview @ref` first, then retry with the returned `currentRef` or a fresh snapshot.
 `longpress` is supported on iOS and Android.
 `pinch` is supported on Apple simulators and macOS app sessions.
 

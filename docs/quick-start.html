@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.44784f1fdf.js"></script>
+<script defer src="/agent-device/static/js/index.16519ecff5.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -34,11 +34,12 @@
 <span class="line"><span style="color:var(--shiki-token-comment)"># Output:</span></span>
 <span class="line"><span style="color:var(--shiki-token-comment)"># @e1 [heading] &quot;Sample App&quot;</span></span>
 <span class="line"><span style="color:var(--shiki-token-comment)"># @e2 [button] &quot;Settings&quot;</span></span>
+<span class="line"><span style="color:var(--shiki-token-comment)"># [off-screen below] 2 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:var(--shiki-token-comment)"># 4. Interact using refs</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> click</span><span style="color:var(--shiki-token-string)"> @e2</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:var(--shiki-token-comment)"># 5. Re-snapshot before next interactions</span></span>
+<span class="line"><span style="color:var(--shiki-token-comment)"># 5. Re-snapshot before next interactions, or use scrollintoview first if the target is off-screen</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-string)"> -i</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:var(--shiki-token-comment)"># 6. Optional: see structural changes since last baseline</span></span>
@@ -55,7 +56,7 @@
 <h2 class="rp-toc-include" id="common-commands"><a href="#common-commands" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Common commands</h2>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> apps</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span><span style="color:var(--shiki-token-comment)">    # Discover the exact package name when unsure</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-token-string)"> SampleApp</span></span>
-<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-string)"> -i</span><span style="color:var(--shiki-token-comment)">                 # Get interactive elements with refs</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-string)"> -i</span><span style="color:var(--shiki-token-comment)">                 # Get visible interactive elements with refs</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> diff</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-comment)">               # Preferred exploration form for structural deltas</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> click</span><span style="color:var(--shiki-token-string)"> @e2</span><span style="color:var(--shiki-token-comment)">                   # Click by ref</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> fill</span><span style="color:var(--shiki-token-string)"> @e3</span><span style="color:var(--shiki-token-string-expression)"> &quot;test@example.com&quot;</span><span style="color:var(--shiki-token-comment)"> # Clear then type (Android verifies and retries once if needed)</span></span>

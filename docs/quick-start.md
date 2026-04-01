@@ -14,11 +14,12 @@ agent-device snapshot -i
 # Output:
 # @e1 [heading] "Sample App"
 # @e2 [button] "Settings"
+# [off-screen below] 2 interactive items: "Privacy", "Battery"
 
 # 4. Interact using refs
 agent-device click @e2
 
-# 5. Re-snapshot before next interactions
+# 5. Re-snapshot before next interactions, or use scrollintoview first if the target is off-screen
 agent-device snapshot -i
 
 # 6. Optional: see structural changes since last baseline
@@ -44,7 +45,7 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --headless
 ```bash
 agent-device apps --platform android    # Discover the exact package name when unsure
 agent-device open SampleApp
-agent-device snapshot -i                 # Get interactive elements with refs
+agent-device snapshot -i                 # Get visible interactive elements with refs
 agent-device diff snapshot               # Preferred exploration form for structural deltas
 agent-device click @e2                   # Click by ref
 agent-device fill @e3 "test@example.com" # Clear then type (Android verifies and retries once if needed)

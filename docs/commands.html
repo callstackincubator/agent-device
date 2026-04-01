@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.44784f1fdf.js"></script>
+<script defer src="/agent-device/static/js/index.16519ecff5.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -241,7 +241,9 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <code>scrollintoview</code> accepts plain text or a snapshot ref (<code>@eN</code>).
 Use <code>--max-scrolls &lt;n&gt;</code> to cap the number of scroll gestures explicitly.
 When omitted, Apple text/ref paths default to <code>48</code> scrolls; Android text mode defaults to <code>8</code> because each attempt re-dumps the full UI hierarchy.
-Ref mode re-snapshots after each swipe and stops early when the target enters the safe viewport band or scrolling stops making progress.
+Ref mode re-snapshots after each swipe, returns a refreshed <code>currentRef</code> when it can track the target, and stops early when the target enters the safe viewport band or scrolling stops making progress.
+Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
+<code>press @ref</code> and <code>fill @ref</code> fail fast when the target is off-screen; use <code>scrollintoview @ref</code> first, then retry with the returned <code>currentRef</code> or a fresh snapshot.
 <code>longpress</code> is supported on iOS and Android.
 <code>pinch</code> is supported on Apple simulators and macOS app sessions.</p>
 <h2 class="rp-toc-include" id="find-semantic"><a href="#find-semantic" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Find (semantic)</h2>
