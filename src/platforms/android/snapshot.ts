@@ -14,30 +14,8 @@ export async function snapshotAndroid(
   truncated?: boolean;
   analysis: AndroidSnapshotAnalysis;
 }> {
-  const xml = options.waitStableMs
-    ? await dumpUiHierarchyStable(device, options.waitStableMs)
-    : await dumpUiHierarchy(device);
+  const xml = await dumpUiHierarchy(device);
   return parseUiHierarchy(xml, 800, options);
-}
-
-/**
- * Poll until the AX tree stabilizes: two consecutive dumps produce identical XML,
- * or the timeout is reached. Returns the last captured XML.
- */
-async function dumpUiHierarchyStable(device: DeviceInfo, timeoutMs: number): Promise<string> {
-  const POLL_INTERVAL = 200;
-  const start = Date.now();
-  let previousXml = await dumpUiHierarchy(device);
-  while (Date.now() - start < timeoutMs) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
-    const currentXml = await dumpUiHierarchy(device);
-    if (currentXml === previousXml) {
-      return currentXml;
-    }
-    previousXml = currentXml;
-  }
-  // Timeout reached — return the last dump even though it may still be changing.
-  return previousXml;
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {

@@ -1,8 +1,7 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
-import { snapshotAndroid } from '../../platforms/android/index.ts';
 import { isApplePlatform } from '../../utils/device.ts';
-import { attachRefs, findNodeByRef, normalizeRef } from '../../utils/snapshot.ts';
+import { findNodeByRef, normalizeRef } from '../../utils/snapshot.ts';
 import { findNodeByLabel, resolveRefLabel } from '../snapshot-processing.ts';
 import { SessionStore } from '../session-store.ts';
 import {
@@ -249,8 +248,15 @@ async function waitForText(params: {
         return { ok: true, data: { text, waitedMs: Date.now() - start } };
       }
     } else if (device.platform === 'android') {
-      const androidResult = await snapshotAndroid(device, { scope: text });
-      if (findNodeByLabel(attachRefs(androidResult.nodes ?? []), text)) {
+      const snapshot = await captureWaitSnapshot({
+        device,
+        logPath,
+        req,
+        session,
+        sessionName: session?.name ?? req.session ?? 'default',
+        sessionStore,
+      });
+      if (findNodeByLabel(snapshot.nodes, text)) {
         recordIfSession(sessionStore, session, req, { text, waitedMs: Date.now() - start });
         return { ok: true, data: { text, waitedMs: Date.now() - start } };
       }

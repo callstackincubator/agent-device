@@ -53,7 +53,6 @@ export type CliFlags = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
-  snapshotWaitStableMs?: number;
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
@@ -140,7 +139,6 @@ const SNAPSHOT_FLAGS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
-  'snapshotWaitStableMs',
 ] as const satisfies readonly FlagKey[];
 
 const SELECTOR_SNAPSHOT_FLAGS = [
@@ -872,15 +870,6 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Snapshot: raw node output',
   },
   {
-    key: 'snapshotWaitStableMs',
-    names: ['--wait-stable'],
-    type: 'int',
-    min: 0,
-    max: 10000,
-    usageLabel: '--wait-stable <ms>',
-    usageDescription: 'Snapshot: wait for AX tree to stabilize (Android)',
-  },
-  {
     key: 'findFirst',
     names: ['--first'],
     type: 'boolean',
@@ -1007,7 +996,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   snapshot: {
-    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--wait-stable <ms>]',
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
     helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
     positionalArgs: [],
     allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],

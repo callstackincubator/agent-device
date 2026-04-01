@@ -63,7 +63,6 @@ export async function dispatchCommand(
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
-    snapshotWaitStableMs?: number;
     screenshotFullscreen?: boolean;
     count?: number;
     intervalMs?: number;
@@ -713,7 +712,6 @@ export async function dispatchCommand(
                 depth: context?.snapshotDepth,
                 scope: context?.snapshotScope,
                 raw: context?.snapshotRaw,
-                waitStableMs: context?.snapshotWaitStableMs,
               }),
             {
               backend: 'android',

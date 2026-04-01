@@ -13,6 +13,11 @@ import { handleWaitCommand, parseWaitArgs, waitNeedsRunnerCleanup } from './snap
 import { handleAlertCommand } from './snapshot-alert.ts';
 import { handleSettingsCommand, parseSettingsArgs } from './snapshot-settings.ts';
 import { uniqueStrings } from '../action-utils.ts';
+import {
+  buildSnapshotSignatures,
+  isLikelySnapshotStuckOnPreviousRoute,
+  isLikelyStaleSnapshotDrop,
+} from '../android-snapshot-freshness.ts';
 
 const SNAPSHOT_COMMANDS = new Set(['snapshot', 'diff', 'wait', 'alert', 'settings']);
 
@@ -185,6 +190,7 @@ function buildSnapshotWarnings(params: {
 
   const previousSnapshot = session?.snapshot;
   if (
+    !capture.freshness &&
     previousSnapshot &&
     Date.now() - previousSnapshot.createdAt <= 2_000 &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, capture.snapshot.nodes.length)
@@ -194,76 +200,21 @@ function buildSnapshotWarnings(params: {
     );
   }
 
-  const recentAction = session?.actions.at(-1);
   if (
+    capture.freshness?.staleAfterRetries &&
     capture.snapshot.backend === 'android' &&
-    interactiveOnly &&
     previousSnapshot &&
-    recentAction &&
-    Date.now() - recentAction.ts <= 2_000 &&
-    isLikelySnapshotStuckOnPreviousRoute(previousSnapshot.nodes, capture.snapshot.nodes) &&
-    isNavigationSensitiveAction(recentAction.command)
+    isLikelySnapshotStuckOnPreviousRoute(
+      buildSnapshotSignatures(previousSnapshot.nodes),
+      capture.snapshot.nodes,
+    )
   ) {
     warnings.push(
-      `Recent ${recentAction.command} was followed by a nearly identical snapshot. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
+      `Recent ${capture.freshness.action} was followed by a nearly identical snapshot after ${capture.freshness.retryCount} automatic retr${capture.freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
     );
   }
 
   return uniqueStrings(warnings);
-}
-
-function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
-  if (previousCount < 12) {
-    return false;
-  }
-  return currentCount <= Math.floor(previousCount * 0.2);
-}
-
-function isNavigationSensitiveAction(command: string): boolean {
-  return command === 'press' || command === 'click' || command === 'back' || command === 'open';
-}
-
-function isLikelySnapshotStuckOnPreviousRoute(
-  previousNodes: NonNullable<SessionState['snapshot']>['nodes'],
-  currentNodes: NonNullable<SessionState['snapshot']>['nodes'],
-): boolean {
-  const total = Math.max(previousNodes.length, currentNodes.length);
-  if (total < 12) {
-    return false;
-  }
-  const comparableLength = Math.min(previousNodes.length, currentNodes.length);
-  let unchanged = 0;
-  for (let index = 0; index < comparableLength; index += 1) {
-    if (
-      snapshotNodeSignature(previousNodes[index]) === snapshotNodeSignature(currentNodes[index])
-    ) {
-      unchanged += 1;
-    }
-  }
-  const additions = Math.max(0, currentNodes.length - previousNodes.length);
-  const removals = Math.max(0, previousNodes.length - currentNodes.length);
-  const toleratedDelta = Math.max(3, Math.floor(total * 0.15));
-  return (
-    unchanged >= Math.floor(total * 0.9) &&
-    additions <= toleratedDelta &&
-    removals <= toleratedDelta
-  );
-}
-
-function snapshotNodeSignature(
-  node: NonNullable<SessionState['snapshot']>['nodes'][number],
-): string {
-  return [
-    node.depth ?? 0,
-    node.type ?? '',
-    node.role ?? '',
-    node.label ?? '',
-    node.value ?? '',
-    node.identifier ?? '',
-    node.enabled === false ? 'disabled' : 'enabled',
-    node.selected === true ? 'selected' : 'unselected',
-    node.hittable === true ? 'hittable' : 'not-hittable',
-  ].join('|');
 }
 
 async function handleSnapshotDiffRequest(params: {

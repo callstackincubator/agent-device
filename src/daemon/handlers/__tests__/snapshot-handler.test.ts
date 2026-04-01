@@ -7,6 +7,7 @@ import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
+import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -197,27 +198,98 @@ test('snapshot warns when recent snapshot node count collapses sharply', async (
   }
 });
 
-test('snapshot warns when a recent Android press is followed by a nearly identical tree', async () => {
+test('snapshot automatically retries stale Android trees after recent navigation', async () => {
   const sessionStore = makeSessionStore();
-  const sessionName = 'android-stale-after-press';
+  const sessionName = 'android-stale-retries-to-fresh';
   const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 24 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
   session.snapshot = {
-    nodes: Array.from({ length: 24 }, (_, index) => ({
-      ref: `e${index + 1}`,
-      index,
-      depth: 0,
-      type: 'android.widget.TextView',
-      label: `Inbox row ${index + 1}`,
-    })),
+    nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
   };
-  session.actions.push({
-    ts: Date.now(),
-    command: 'press',
-    positionals: ['@e4'],
-    flags: {},
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: Array.from({ length: 24 }, (_, index) => ({
+        index,
+        depth: 0,
+        type: 'android.widget.TextView',
+        label: `Inbox row ${index + 1}`,
+      })),
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 24, maxDepth: 2 },
+    })
+    .mockResolvedValueOnce({
+      nodes: [
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 1, depth: 0, type: 'android.widget.Button', label: 'Submit', hittable: true },
+      ],
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 2, maxDepth: 1 },
+    });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotInteractiveOnly: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
   });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings).toBeUndefined();
+    expect(response.data?.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: 'Create expense' })]),
+    );
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(2);
+  expect(sessionStore.get(sessionName)?.androidSnapshotFreshness).toBeUndefined();
+});
+
+test('snapshot warns when Android freshness retries still return the previous route', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-stale-after-press';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 24 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+  };
   sessionStore.set(sessionName, session);
 
   mockDispatch.mockResolvedValue({
@@ -248,32 +320,36 @@ test('snapshot warns when a recent Android press is followed by a nearly identic
   expect(response?.ok).toBe(true);
   if (response?.ok) {
     expect(response.data?.warnings).toEqual([
-      expect.stringContaining('Recent press was followed by a nearly identical snapshot'),
+      expect.stringContaining(
+        'Recent press was followed by a nearly identical snapshot after 2 automatic retries',
+      ),
     ]);
   }
+  expect(mockDispatch).toHaveBeenCalledTimes(3);
 });
 
 test('diff snapshot carries stale-tree warnings for recent Android presses', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-diff-stale-after-press';
   const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 24 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
   session.snapshot = {
-    nodes: Array.from({ length: 24 }, (_, index) => ({
-      ref: `e${index + 1}`,
-      index,
-      depth: 0,
-      type: 'android.widget.TextView',
-      label: `Inbox row ${index + 1}`,
-    })),
+    nodes: baselineNodes,
     createdAt: Date.now(),
     backend: 'android',
   };
-  session.actions.push({
-    ts: Date.now(),
-    command: 'press',
-    positionals: ['@e4'],
-    flags: {},
-  });
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+  };
   sessionStore.set(sessionName, session);
 
   mockDispatch.mockResolvedValue({
@@ -304,9 +380,81 @@ test('diff snapshot carries stale-tree warnings for recent Android presses', asy
   expect(response?.ok).toBe(true);
   if (response?.ok) {
     expect(response.data?.warnings).toEqual([
-      expect.stringContaining('Recent press was followed by a nearly identical snapshot'),
+      expect.stringContaining(
+        'Recent press was followed by a nearly identical snapshot after 2 automatic retries',
+      ),
     ]);
   }
+  expect(mockDispatch).toHaveBeenCalledTimes(3);
+});
+
+test('wait text on Android uses freshness-aware capture instead of one-shot snapshot polling', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-wait-freshness';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 18 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: Array.from({ length: 18 }, (_, index) => ({
+        index,
+        depth: 0,
+        type: 'android.widget.TextView',
+        label: `Inbox row ${index + 1}`,
+      })),
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: [
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 1, depth: 0, type: 'android.widget.TextView', label: 'Done' },
+      ],
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 2, maxDepth: 1 },
+    });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['Create expense', '50'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.text).toBe('Create expense');
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(2);
+  expect(sessionStore.get(sessionName)?.snapshot?.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Create expense' })]),
+  );
 });
 
 test('settings rejects unsupported iOS physical devices', async () => {

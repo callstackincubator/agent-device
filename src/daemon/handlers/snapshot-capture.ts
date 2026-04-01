@@ -9,6 +9,15 @@ import {
   type SnapshotState,
 } from '../../utils/snapshot.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
+import {
+  ANDROID_FRESHNESS_RETRY_DELAYS_MS,
+  clearAndroidSnapshotFreshness,
+  getActiveAndroidSnapshotFreshness,
+  isLikelySnapshotStuckOnPreviousRoute,
+  isLikelyStaleSnapshotDrop,
+  isNavigationSensitiveAction,
+  type AndroidFreshnessCaptureMeta,
+} from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 
@@ -28,10 +37,17 @@ type SnapshotData = {
   analysis?: AndroidSnapshotAnalysis;
 };
 
-export async function captureSnapshot(
-  params: CaptureSnapshotParams,
-): Promise<{ snapshot: SnapshotState; analysis?: AndroidSnapshotAnalysis }> {
+export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
+  snapshot: SnapshotState;
+  analysis?: AndroidSnapshotAnalysis;
+  freshness?: AndroidFreshnessCaptureMeta;
+}> {
+  const freshness = getActiveAndroidSnapshotFreshness(params.session);
+  if (freshness && params.device.platform === 'android') {
+    return await captureAndroidFreshnessAwareSnapshot(params, freshness);
+  }
   const data = await captureSnapshotData(params);
+  clearAndroidSnapshotFreshness(params.session);
   return {
     snapshot: buildSnapshotState(data, params.flags?.snapshotRaw),
     analysis: data.analysis,
@@ -58,6 +74,91 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
       session?.trace?.outPath,
     ),
   })) as SnapshotData;
+}
+
+async function captureAndroidFreshnessAwareSnapshot(
+  params: CaptureSnapshotParams,
+  freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
+): Promise<{
+  snapshot: SnapshotState;
+  analysis?: AndroidSnapshotAnalysis;
+  freshness?: AndroidFreshnessCaptureMeta;
+}> {
+  let latest = await captureSnapshotAttempt(params);
+  let suspicious = isSuspiciousAndroidFreshnessCapture(latest, freshness, params.flags);
+  let retryCount = 0;
+
+  for (const delayMs of ANDROID_FRESHNESS_RETRY_DELAYS_MS) {
+    if (!suspicious) break;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    latest = await captureSnapshotAttempt(params);
+    retryCount += 1;
+    suspicious = isSuspiciousAndroidFreshnessCapture(latest, freshness, params.flags);
+  }
+
+  if (!suspicious) {
+    clearAndroidSnapshotFreshness(params.session);
+  }
+
+  return {
+    snapshot: latest.snapshot,
+    analysis: latest.data.analysis,
+    freshness:
+      retryCount > 0 || suspicious
+        ? {
+            action: freshness.action,
+            retryCount,
+            staleAfterRetries: suspicious,
+          }
+        : undefined,
+  };
+}
+
+async function captureSnapshotAttempt(
+  params: CaptureSnapshotParams,
+): Promise<{ data: SnapshotData; snapshot: SnapshotState }> {
+  const data = await captureSnapshotData(params);
+  return {
+    data,
+    snapshot: buildSnapshotState(data, params.flags?.snapshotRaw),
+  };
+}
+
+function isSuspiciousAndroidFreshnessCapture(
+  attempt: { data: SnapshotData; snapshot: SnapshotState },
+  freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
+  flags: CommandFlags | undefined,
+): boolean {
+  const interactiveOnly = flags?.snapshotInteractiveOnly === true;
+  const analysis = attempt.data.analysis;
+
+  if (
+    interactiveOnly &&
+    attempt.snapshot.nodes.length === 0 &&
+    analysis &&
+    analysis.rawNodeCount >= 12
+  ) {
+    return true;
+  }
+
+  if (isLikelyStaleSnapshotDrop(freshness.baselineCount, attempt.snapshot.nodes.length)) {
+    return !hasMeaningfulSnapshotContent(attempt.snapshot);
+  }
+
+  return (
+    isNavigationSensitiveAction(freshness.action) &&
+    isLikelySnapshotStuckOnPreviousRoute(freshness.baselineSignatures, attempt.snapshot.nodes)
+  );
+}
+
+function hasMeaningfulSnapshotContent(snapshot: SnapshotState): boolean {
+  return snapshot.nodes.some(
+    (node) =>
+      node.hittable === true ||
+      Boolean(node.label?.trim()) ||
+      Boolean(node.value?.trim()) ||
+      Boolean(node.identifier?.trim()),
+  );
 }
 
 export function buildSnapshotState(

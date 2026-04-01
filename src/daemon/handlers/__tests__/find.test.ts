@@ -1,4 +1,4 @@
-import { test, expect, vi } from 'vitest';
+import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +6,7 @@ import { parseFindArgs, handleFindCommands } from '../find.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
+import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -21,6 +22,13 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
 import { dispatchCommand } from '../../../core/dispatch.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
+
+beforeEach(() => {
+  mockDispatch.mockReset();
+  mockDispatch.mockImplementation(async (_device: unknown, command: string) => {
+    return command === 'snapshot' ? { nodes: [] } : {};
+  });
+});
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-find-handler-'));
@@ -68,7 +76,9 @@ const INCREMENT_NODE = {
 
 async function runFindClickScenario(options: {
   positionals: string[];
-  nodes: Array<Record<string, unknown>>;
+  nodes?: Array<Record<string, unknown>>;
+  flags?: DaemonRequest['flags'];
+  session?: SessionState;
   invoke?: (req: DaemonRequest) => Promise<Record<string, unknown>>;
 }): Promise<{
   response: NonNullable<Awaited<ReturnType<typeof handleFindCommands>>>;
@@ -76,14 +86,16 @@ async function runFindClickScenario(options: {
 }> {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
+  sessionStore.set(sessionName, options.session ?? makeSession(sessionName));
 
-  mockDispatch.mockImplementation(async (_device, command) => {
-    if (command === 'snapshot') {
-      return { nodes: options.nodes };
-    }
-    return {};
-  });
+  if (options.nodes !== undefined) {
+    mockDispatch.mockImplementation(async (_device, command) => {
+      if (command === 'snapshot') {
+        return { nodes: options.nodes };
+      }
+      return {};
+    });
+  }
 
   const invokeCalls: DaemonRequest[] = [];
   const response = await handleFindCommands({
@@ -92,7 +104,7 @@ async function runFindClickScenario(options: {
       session: sessionName,
       command: 'find',
       positionals: options.positionals,
-      flags: {},
+      flags: options.flags ?? {},
     },
     sessionName,
     logPath: '/tmp/test.log',
@@ -201,6 +213,20 @@ test('parseFindArgs with bare locator yields empty query', () => {
   expect(parsed.action).toBe('click');
 });
 
+test('handleFindCommands rejects --first with --last', async () => {
+  const { response } = await runFindClickScenario({
+    positionals: ['Increment', 'click'],
+    nodes: [INCREMENT_NODE],
+    flags: { findFirst: true, findLast: true },
+  });
+
+  expect(response.ok).toBe(false);
+  if (!response.ok) {
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toContain('only one of --first or --last');
+  }
+});
+
 test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
   const hittableParentNoRect = { index: 0, type: 'View', hittable: true, depth: 0 };
   const nonHittableChildWithRect = {
@@ -265,6 +291,74 @@ test('handleFindCommands click returns deterministic metadata across locator var
     expect(invokeCalls.length).toBe(1);
     expect(invokeCalls[0].positionals?.[0]).toBe('@e1');
   }
+});
+
+test('handleFindCommands wait bypasses snapshot cache while Android freshness recovery is active', async () => {
+  const sessionName = 'android-find-wait';
+  const session: SessionState = {
+    name: sessionName,
+    device: {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel 9 Pro XL',
+      kind: 'emulator',
+      target: 'mobile',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    actions: [],
+  };
+  const baselineNodes = Array.from({ length: 16 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+  };
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: Array.from({ length: 16 }, (_, index) => ({
+        index,
+        depth: 0,
+        type: 'android.widget.TextView',
+        label: `Inbox row ${index + 1}`,
+      })),
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 16, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: [
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 1, depth: 0, type: 'android.widget.Button', label: 'Submit', hittable: true },
+      ],
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 2, maxDepth: 1 },
+    });
+
+  const { response } = await runFindClickScenario({
+    positionals: ['text', 'Create expense', 'wait', '700'],
+    session,
+  });
+
+  expect(response.ok).toBe(true);
+  if (response.ok) {
+    expect(response.data?.found).toBe(true);
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(2);
 });
 
 test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions', async () => {

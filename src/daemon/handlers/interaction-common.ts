@@ -4,6 +4,10 @@ import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { successText } from '../../utils/success-text.ts';
+import {
+  isNavigationSensitiveAction,
+  markAndroidSnapshotFreshness,
+} from '../android-snapshot-freshness.ts';
 
 export type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -172,6 +176,9 @@ function finalizeTouchInteraction(params: {
     flags: flags ?? {},
     result,
   });
+  if (isNavigationSensitiveAction(command)) {
+    markAndroidSnapshotFreshness(session, command);
+  }
   recordTouchVisualizationEvent(
     session,
     command,

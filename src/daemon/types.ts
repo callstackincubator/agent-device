@@ -4,6 +4,7 @@ import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
+import type { AndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 
 export type DaemonInstallSource = MaterializeInstallSource;
 export type DaemonLockPolicy = 'reject' | 'strip';
@@ -189,6 +190,7 @@ export type SessionState = {
   appBundleId?: string;
   appName?: string;
   snapshot?: SnapshotState;
+  androidSnapshotFreshness?: AndroidSnapshotFreshness;
   trace?: {
     outPath: string;
     startedAt: number;

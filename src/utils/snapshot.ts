@@ -16,7 +16,6 @@ export type SnapshotOptions = {
   depth?: number;
   scope?: string;
   raw?: boolean;
-  waitStableMs?: number;
 };
 
 export type RawSnapshotNode = {

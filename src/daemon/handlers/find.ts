@@ -11,6 +11,10 @@ import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { errorResponse } from './response.ts';
+import {
+  getActiveAndroidSnapshotFreshness,
+  markAndroidSnapshotFreshness,
+} from '../android-snapshot-freshness.ts';
 
 type FindContext = {
   req: DaemonRequest;
@@ -52,6 +56,9 @@ export async function handleFindCommands(params: {
   if (!query) {
     return errorResponse('INVALID_ARGS', 'find requires a value');
   }
+  if (req.flags?.findFirst && req.flags?.findLast) {
+    return errorResponse('INVALID_ARGS', 'find accepts only one of --first or --last');
+  }
   const session = sessionStore.get(sessionName);
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
@@ -74,7 +81,7 @@ export async function handleFindCommands(params: {
     backend?: SnapshotState['backend'];
   }> => {
     const now = Date.now();
-    if (lastNodes && now - lastSnapshotAt < 750) {
+    if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
       return { nodes: lastNodes };
     }
     const { snapshot } = await captureSnapshot({
@@ -256,6 +263,7 @@ async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<
     matchData.y = matchCoords.y;
   }
   if (session) {
+    markAndroidSnapshotFreshness(session, 'click');
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],

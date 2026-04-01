@@ -17,6 +17,7 @@ import {
 import { countConfiguredRuntimeHints, setSessionRuntimeHintsForOpen } from './session-runtime.ts';
 import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
 import { buildNextOpenSession, buildOpenResult } from './session-open-surface.ts';
+import { markAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import {
   invalidOpenArgs,
   prepareOpenCommandDetails,
@@ -185,6 +186,7 @@ async function completeOpenCommand(params: {
     runtime: req.runtime !== undefined ? runtime : undefined,
     result: openResult,
   });
+  markAndroidSnapshotFreshness(nextSession, 'open');
   sessionStore.set(sessionName, nextSession);
   return { ok: true, data: openResult };
 }
