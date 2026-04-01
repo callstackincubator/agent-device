@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-337/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-337/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-337/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-337/static/js/index.52a5e1173a.js"></script>
+<script defer src="/agent-device/pr-preview/pr-337/static/js/index.3ea22cf514.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -61,8 +61,10 @@
 It does not automatically switch to AX.</p>
 <h2 class="rp-toc-include" id="efficient-snapshot-usage"><a href="#efficient-snapshot-usage" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Efficient snapshot usage</h2>
 <ul>
+<li>iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.</li>
 <li>Default to <code>snapshot -i</code> for agent loops.</li>
 <li>Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as <code>[off-screen below] 3 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;, &quot;About&quot;</code>.</li>
+<li>When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example <code>[content above scroll-area hidden]</code> or <code>[content below list hidden]</code>.</li>
 <li>Those summaries intentionally show only a few labels for token efficiency. Use <code>snapshot --raw</code> when you need the full off-screen tree instead of the compact summary.</li>
 <li>Add <code>-s &quot;&lt;label&gt;&quot;</code> (or <code>-s @ref</code>) to keep results screen-local.</li>
 <li>Add <code>-d &lt;depth&gt;</code> when you only need upper hierarchy layers.</li>
