@@ -68,16 +68,54 @@ function inferHiddenScrollableContent(params: {
   if (visibleBlocks.length === 0 || nativeScrollView.contentBlocks.length === 0) {
     return null;
   }
-  const offset = estimateScrollOffset(nativeScrollView.contentBlocks, visibleBlocks);
+  // Virtualized Android lists often mount only the currently visible rows, so coverage gaps
+  // in the native content tree are the strongest signal. Offset matching remains useful for
+  // shallow scroll positions where content is still fully mounted and the first block is only
+  // slightly displaced, which coverage thresholds intentionally treat as inconclusive.
+  const mountedCoverageHiddenContent = inferMountedCoverageHiddenContent(nativeScrollView);
+  const offset =
+    estimateScrollOffset(nativeScrollView.contentBlocks, visibleBlocks) ??
+    estimateEdgeAlignedScrollOffset({
+      nativeBlocks: nativeScrollView.contentBlocks,
+      visibleBlocks,
+      viewportExtent: viewportRect.height,
+      contentExtent: nativeScrollView.contentExtent,
+    });
   if (offset === null) {
-    return null;
+    return mountedCoverageHiddenContent;
   }
 
   const viewportExtent = viewportRect.height;
-  const hiddenBefore = offset > 16;
-  const hiddenAfter = offset + viewportExtent < nativeScrollView.contentExtent - 16;
+  const hiddenBefore = (mountedCoverageHiddenContent?.above ?? false) || offset > 16;
+  const hiddenAfter =
+    (mountedCoverageHiddenContent?.below ?? false) ||
+    offset + viewportExtent < nativeScrollView.contentExtent - 16;
 
   return { above: hiddenBefore, below: hiddenAfter };
+}
+
+function inferMountedCoverageHiddenContent(
+  nativeScrollView: NativeScrollView,
+): { above?: boolean; below?: boolean } | null {
+  if (nativeScrollView.contentBlocks.length === 0) {
+    return null;
+  }
+  const firstBlock = nativeScrollView.contentBlocks[0];
+  const lastBlock = nativeScrollView.contentBlocks[nativeScrollView.contentBlocks.length - 1];
+  if (!firstBlock || !lastBlock) {
+    return null;
+  }
+
+  const medianBlockSize =
+    median(nativeScrollView.contentBlocks.map((block) => block.size)) ??
+    nativeScrollView.rect.height;
+  const hiddenAboveThreshold = Math.max(48, Math.round(medianBlockSize * 0.5));
+  const hiddenBelowThreshold = Math.max(24, Math.round(medianBlockSize * 0.25));
+  const hiddenBefore = firstBlock.start >= hiddenAboveThreshold;
+  const hiddenAfter =
+    nativeScrollView.contentExtent - (lastBlock.start + lastBlock.size) >= hiddenBelowThreshold;
+
+  return hiddenBefore || hiddenAfter ? { above: hiddenBefore, below: hiddenAfter } : null;
 }
 
 function estimateScrollOffset(
@@ -108,6 +146,48 @@ function estimateScrollOffset(
     return null;
   }
   const sorted = [...bestValues].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)] ?? null;
+}
+
+function estimateEdgeAlignedScrollOffset(params: {
+  nativeBlocks: FlowBlock[];
+  visibleBlocks: FlowBlock[];
+  viewportExtent: number;
+  contentExtent: number;
+}): number | null {
+  const { nativeBlocks, visibleBlocks, viewportExtent, contentExtent } = params;
+  const topAlignedOffsets: number[] = [];
+  const bottomAlignedOffsets: number[] = [];
+
+  for (const nativeBlock of nativeBlocks) {
+    for (const visibleBlock of visibleBlocks) {
+      if (!areFlowBlocksComparable(nativeBlock, visibleBlock)) {
+        continue;
+      }
+      const offset = nativeBlock.start - visibleBlock.start;
+      if (Math.abs(offset) <= 16) {
+        topAlignedOffsets.push(offset);
+      }
+      if (Math.abs(offset + viewportExtent - contentExtent) <= 16) {
+        bottomAlignedOffsets.push(offset);
+      }
+    }
+  }
+
+  if (bottomAlignedOffsets.length > 0) {
+    return median(bottomAlignedOffsets);
+  }
+  if (topAlignedOffsets.length > 0) {
+    return median(topAlignedOffsets);
+  }
+  return null;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.floor(sorted.length / 2)] ?? null;
 }
 

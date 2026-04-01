@@ -185,6 +185,7 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     truncated: result.truncated,
     ...(result.appName ? { appName: result.appName } : {}),
     ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
+    ...(result.visibility ? { visibility: result.visibility } : {}),
     ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
   };
 }

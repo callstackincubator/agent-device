@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
-import type { SnapshotNode } from './snapshot.ts';
+import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
 import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
@@ -65,11 +65,15 @@ export function formatSnapshotText(
   if (appName) meta.push(`Page: ${appName}`);
   if (appBundleId) meta.push(`App: ${appBundleId}`);
   const displayedNodes = visiblePresentation?.nodes ?? nodes;
-  const hiddenCount = visiblePresentation?.hiddenCount ?? 0;
-  const header =
-    hiddenCount > 0
-      ? `Snapshot: ${displayedNodes.length} visible nodes (${nodes.length} total)${truncated ? ' (truncated)' : ''}`
-      : `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
+  const visibility =
+    options.raw || backend === 'macos-helper'
+      ? null
+      : readSnapshotVisibility(data, visiblePresentation, displayedNodes.length, nodes.length);
+  const header = visibility?.partial
+    ? visibility.totalNodeCount > visibility.visibleNodeCount
+      ? `Snapshot: ${visibility.visibleNodeCount} visible nodes (${visibility.totalNodeCount} total)${truncated ? ' (truncated)' : ''}`
+      : `Snapshot: ${visibility.visibleNodeCount} visible nodes${truncated ? ' (truncated)' : ''}`
+    : `Snapshot: ${nodes.length} nodes${truncated ? ' (truncated)' : ''}`;
   const prefix = meta.length > 0 ? `${meta.join('\n')}\n` : '';
   const notices = buildSnapshotNotices(data, nodes, options);
   const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
@@ -96,6 +100,55 @@ export function formatSnapshotText(
       ? `\n${visiblePresentation.summaryLines.join('\n')}`
       : '';
   return `${prefix}${header}\n${noticesBlock}${lines.join('\n')}${summaryBlock}\n`;
+}
+
+function readSnapshotVisibility(
+  data: Record<string, unknown>,
+  visiblePresentation: ReturnType<typeof buildMobileSnapshotPresentation> | null,
+  displayedNodeCount: number,
+  totalNodeCount: number,
+): SnapshotVisibility | null {
+  const candidate = data.visibility;
+  if (candidate && typeof candidate === 'object') {
+    const visibility = candidate as Partial<SnapshotVisibility>;
+    if (
+      typeof visibility.partial === 'boolean' &&
+      typeof visibility.visibleNodeCount === 'number' &&
+      typeof visibility.totalNodeCount === 'number' &&
+      Array.isArray(visibility.reasons)
+    ) {
+      return {
+        partial: visibility.partial,
+        visibleNodeCount: visibility.visibleNodeCount,
+        totalNodeCount: visibility.totalNodeCount,
+        reasons: visibility.reasons.filter(
+          (reason): reason is SnapshotVisibility['reasons'][number] => typeof reason === 'string',
+        ),
+      };
+    }
+  }
+
+  const hiddenCount = visiblePresentation?.hiddenCount ?? 0;
+  const hasExplicitHiddenContentHints = visiblePresentation
+    ? visiblePresentation.nodes.some((node) => node.hiddenContentAbove || node.hiddenContentBelow)
+    : false;
+  if (hiddenCount > 0) {
+    return {
+      partial: true,
+      visibleNodeCount: displayedNodeCount,
+      totalNodeCount,
+      reasons: ['offscreen-nodes'],
+    };
+  }
+  if (hasExplicitHiddenContentHints) {
+    return {
+      partial: true,
+      visibleNodeCount: displayedNodeCount,
+      totalNodeCount: displayedNodeCount,
+      reasons: [],
+    };
+  }
+  return null;
 }
 
 export function formatSnapshotDiffText(data: Record<string, unknown>): string {
