@@ -525,20 +525,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               return;
             }
           }
-          if (command === 'scrollintoview') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const successText = data ? readCommandMessage(data) : '';
-            const ref = typeof data?.ref === 'string' ? data.ref : '';
-            const currentRef = typeof data?.currentRef === 'string' ? data.currentRef : '';
-            if (successText) {
-              process.stdout.write(`${successText}\n`);
-              if (currentRef && currentRef !== ref) {
-                process.stdout.write(`Current ref: @${currentRef}\n`);
-              }
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
           if (response.data && typeof response.data === 'object') {
             const data = response.data as Record<string, unknown>;
             if (command === 'devices') {
@@ -601,6 +587,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             const successText = readCommandMessage(data);
             if (successText) {
               process.stdout.write(`${successText}\n`);
+              for (const extraLine of readCommandSuccessLines(command, data)) {
+                process.stdout.write(`${extraLine}\n`);
+              }
               if (logTailStopper) logTailStopper();
               return;
             }
@@ -692,6 +681,15 @@ function renderBatchSummary(data: Record<string, unknown>): void {
 
 function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
   return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
+}
+
+function readCommandSuccessLines(command: string, data: Record<string, unknown>): string[] {
+  if (command !== 'scrollintoview') {
+    return [];
+  }
+  const ref = typeof data.ref === 'string' ? data.ref : '';
+  const currentRef = typeof data.currentRef === 'string' ? data.currentRef : '';
+  return currentRef && currentRef !== ref ? [`Current ref: @${currentRef}`] : [];
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

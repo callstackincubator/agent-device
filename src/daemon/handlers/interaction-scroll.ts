@@ -75,30 +75,23 @@ export async function handleScrollIntoViewCommand(
   const trackingLabel = fallbackLabel || refLabel || node.label || '';
 
   if (!buildScrollIntoViewPlan(node.rect, viewportRect)) {
+    const result = buildScrollIntoViewSuccessData({
+      ref,
+      currentRef,
+      attempts: 0,
+      alreadyVisible: true,
+    });
     sessionStore.recordAction(session, {
       command: req.command,
       positionals: req.positionals ?? [],
       flags: req.flags ?? {},
       result: {
-        ref,
-        currentRef,
-        attempts: 0,
-        alreadyVisible: true,
         refLabel,
         selectorChain,
-        ...successText(`Scrolled into view: @${ref}`),
+        ...result,
       },
     });
-    return {
-      ok: true,
-      data: {
-        ref,
-        currentRef,
-        attempts: 0,
-        alreadyVisible: true,
-        ...successText(`Scrolled into view: @${ref}`),
-      },
-    };
+    return { ok: true, data: result };
   }
   const maxScrolls = req.flags?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
   let attempts = 0;
@@ -165,32 +158,24 @@ export async function handleScrollIntoViewCommand(
     });
   }
 
+  const result = buildScrollIntoViewSuccessData({
+    data,
+    ref,
+    currentRef,
+    attempts,
+    direction: lastDirection,
+  });
   sessionStore.recordAction(session, {
     command: req.command,
     positionals: req.positionals ?? [],
     flags: req.flags ?? {},
     result: {
-      ...(data ?? {}),
-      ref,
-      currentRef,
-      attempts,
-      direction: lastDirection,
       refLabel,
       selectorChain,
-      ...successText(`Scrolled into view: @${ref}`),
+      ...result,
     },
   });
-  return {
-    ok: true,
-    data: {
-      ...(data ?? {}),
-      ref,
-      currentRef,
-      attempts,
-      direction: lastDirection,
-      ...successText(`Scrolled into view: @${ref}`),
-    },
-  };
+  return { ok: true, data: result };
 }
 
 function resolveInitialScrollRefState(
@@ -360,5 +345,25 @@ function notFoundScrollResponse(
         ...rest,
       },
     },
+  };
+}
+
+function buildScrollIntoViewSuccessData(params: {
+  data?: Record<string, unknown> | void;
+  ref: string;
+  currentRef: string;
+  attempts: number;
+  alreadyVisible?: boolean;
+  direction?: 'up' | 'down';
+}): Record<string, unknown> {
+  const { data, ref, currentRef, attempts, alreadyVisible, direction } = params;
+  return {
+    ...(data ?? {}),
+    ref,
+    currentRef,
+    attempts,
+    ...(alreadyVisible ? { alreadyVisible } : {}),
+    ...(direction ? { direction } : {}),
+    ...successText(`Scrolled into view: @${ref}`),
   };
 }
