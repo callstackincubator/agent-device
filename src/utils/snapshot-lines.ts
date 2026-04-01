@@ -96,6 +96,9 @@ export function formatRole(type: string): string {
       .replace(/^androidx\./, '')
       .replace(/^com\.google\.android\./, '')
       .replace(/^com\.android\./, '');
+    if (isAndroidClass && normalized.includes('.')) {
+      normalized = normalized.slice(normalized.lastIndexOf('.') + 1);
+    }
   }
   switch (normalized) {
     case 'application':

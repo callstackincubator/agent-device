@@ -308,3 +308,36 @@ test('snapshotAndroid preserves hidden scroll content hints in interactive snaps
   assert.equal(scrollArea?.hiddenContentAbove, true);
   assert.equal(scrollArea?.hiddenContentBelow, true);
 });
+
+test('snapshotAndroid keeps generic-id scroll containers in interactive snapshots', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" resource-id="com.android.settings:id/main_content_scrollable_container" bounds="[0,100][390,600]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,600]" clickable="false" focusable="false">
+        <node class="android.widget.TextView" text="Network &amp; internet" bounds="[20,140][240,180]" clickable="false" focusable="false" />
+        <node class="android.widget.Button" text="Apps" bounds="[20,240][200,288]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device, { interactiveOnly: true });
+  const scrollArea = result.nodes.find(
+    (node) =>
+      node.type === 'android.widget.ScrollView' &&
+      node.identifier === 'com.android.settings:id/main_content_scrollable_container',
+  );
+
+  assert.ok(scrollArea);
+});

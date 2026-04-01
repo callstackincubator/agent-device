@@ -256,6 +256,9 @@ function shouldIncludeAndroidNode(
   const isVisual = type === 'imageview' || type === 'imagebutton';
   if (options.interactiveOnly) {
     if (node.hittable) return true;
+    if (isScrollableContainerType(type) && descendantHittable) {
+      return true;
+    }
     // Keep text proxies for tappable rows while dropping structural noise.
     const proxyCandidate = hasMeaningfulText || hasMeaningfulId;
     if (!proxyCandidate) return false;
@@ -282,6 +285,15 @@ function isCollectionContainerType(type: string | null): boolean {
     normalized.includes('recyclerview') ||
     normalized.includes('listview') ||
     normalized.includes('gridview')
+  );
+}
+
+function isScrollableContainerType(type: string): boolean {
+  return (
+    type.includes('scrollview') ||
+    type.includes('recyclerview') ||
+    type.includes('listview') ||
+    type.includes('gridview')
   );
 }
 

@@ -372,6 +372,28 @@ test('formatSnapshotText renders hidden scroll-area content hints in flattened o
   assert.match(text, /^  \[content below scroll-area hidden\]$/m);
 });
 
+test('formatSnapshotText normalizes RecyclerView containers to list', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'androidx.recyclerview.widget.RecyclerView',
+          identifier: 'com.android.settings:id/recycler_view',
+          rect: { x: 0, y: 0, width: 390, height: 500 },
+          hiddenContentBelow: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^@e1 \[list\]$/m);
+  assert.match(text, /^  \[content below list hidden\]$/m);
+});
+
 test('formatSnapshotText marks visible scroll areas with hidden content above and below', () => {
   const text = withNoColor(() =>
     formatSnapshotText({
