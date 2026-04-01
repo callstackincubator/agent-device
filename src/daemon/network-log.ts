@@ -59,7 +59,6 @@ export function readRecentNetworkTraffic(
   },
 ): NetworkDump {
   const maxEntries = clampInt(options?.maxEntries, 25, 1, 200);
-  const backend = options?.backend;
   const include = options?.include ?? 'summary';
   const maxPayloadChars = clampInt(options?.maxPayloadChars, 2048, 64, 16_384);
   const maxScanLines = clampInt(options?.maxScanLines, 4000, 100, 20_000);
@@ -76,6 +75,28 @@ export function readRecentNetworkTraffic(
   }
 
   const content = fs.readFileSync(logPath, 'utf8');
+  return readRecentNetworkTrafficFromText(content, {
+    ...options,
+    path: logPath,
+  });
+}
+
+export function readRecentNetworkTrafficFromText(
+  content: string,
+  options?: {
+    path?: string;
+    backend?: NetworkLogBackend;
+    maxEntries?: number;
+    include?: NetworkIncludeMode;
+    maxPayloadChars?: number;
+    maxScanLines?: number;
+  },
+): NetworkDump {
+  const maxEntries = clampInt(options?.maxEntries, 25, 1, 200);
+  const backend = options?.backend;
+  const include = options?.include ?? 'summary';
+  const maxPayloadChars = clampInt(options?.maxPayloadChars, 2048, 64, 16_384);
+  const maxScanLines = clampInt(options?.maxScanLines, 4000, 100, 20_000);
   const allLines = content.split('\n');
   const startIndex = Math.max(0, allLines.length - maxScanLines);
   const lines = allLines.slice(startIndex);
@@ -98,7 +119,7 @@ export function readRecentNetworkTraffic(
   }
 
   return {
-    path: logPath,
+    path: options?.path ?? '<memory>',
     exists: true,
     scannedLines: lines.length,
     matchedLines: entries.length,

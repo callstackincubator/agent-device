@@ -25,6 +25,30 @@ async function resolveAndroidPid(deviceId: string, appBundleId: string): Promise
   return pid;
 }
 
+export async function readRecentAndroidLogcatForPackage(
+  deviceId: string,
+  appBundleId: string,
+): Promise<{ pid: string | null; text: string; recoveredPids: string[] } | null> {
+  assertAndroidPackageArgSafe(appBundleId);
+  const pid = await resolveAndroidPid(deviceId, appBundleId);
+  const dump = await runCmd('adb', ['-s', deviceId, 'logcat', '-d', '-v', 'time', '-t', '4000'], {
+    allowFailure: true,
+    timeoutMs: 3_000,
+  });
+  if (dump.exitCode !== 0 || dump.stdout.trim().length === 0) {
+    return null;
+  }
+  const recoveredPids = collectAndroidPackagePids(dump.stdout, appBundleId, pid);
+  if (recoveredPids.length === 0) {
+    return null;
+  }
+  const filteredText = filterAndroidLogcatToPids(dump.stdout, appBundleId, recoveredPids);
+  if (filteredText.trim().length === 0) {
+    return null;
+  }
+  return { pid, text: filteredText, recoveredPids };
+}
+
 export async function startAndroidAppLog(
   deviceId: string,
   appBundleId: string,
@@ -48,6 +72,7 @@ export async function startAndroidAppLog(
         const child = spawn('adb', ['-s', deviceId, 'logcat', '-v', 'time', '--pid', pid], {
           stdio: ['ignore', 'pipe', 'pipe'],
         });
+        state = 'active';
         activeChild = child;
         const writer = createLineWriter(stream, { redactionPatterns });
         activeWait = attachChildToStream(child, stream, { endStreamOnClose: false, writer });
@@ -89,4 +114,64 @@ export async function startAndroidAppLog(
       clearPidFile(pidPath);
     },
   };
+}
+
+function collectAndroidPackagePids(
+  content: string,
+  appBundleId: string,
+  currentPid: string | null,
+): string[] {
+  const pids = new Set<string>();
+  if (currentPid) {
+    pids.add(currentPid);
+  }
+  const lines = content.split('\n');
+  for (const line of lines) {
+    if (!line.includes(appBundleId)) continue;
+    for (const candidate of extractAndroidPidsFromPackageLine(line, appBundleId)) {
+      pids.add(candidate);
+    }
+  }
+  return [...pids];
+}
+
+function extractAndroidPidsFromPackageLine(line: string, appBundleId: string): string[] {
+  const escapedPackage = escapeRegExp(appBundleId);
+  const patterns = [
+    new RegExp(`\\bStart proc\\s+(\\d+):${escapedPackage}(?:\\b|/)`, 'i'),
+    new RegExp(`\\b(\\d+):${escapedPackage}(?:\\b|/)`, 'i'),
+    new RegExp(`${escapedPackage}.*?\\bpid\\s*[=:]?\\s*(\\d+)\\b`, 'i'),
+    new RegExp(`\\bpid\\s*[=:]?\\s*(\\d+)\\b.*${escapedPackage}`, 'i'),
+  ];
+  const results: string[] = [];
+  for (const pattern of patterns) {
+    const match = pattern.exec(line);
+    const pid = match?.[1];
+    if (pid && /^\d+$/.test(pid)) {
+      results.push(pid);
+    }
+  }
+  return results;
+}
+
+function filterAndroidLogcatToPids(content: string, appBundleId: string, pids: string[]): string {
+  const pidSet = new Set(pids);
+  return content
+    .split('\n')
+    .filter((line) => {
+      if (!line.trim()) return false;
+      if (line.includes(appBundleId)) return true;
+      const linePid = parseAndroidThreadtimePid(line);
+      return linePid ? pidSet.has(linePid) : false;
+    })
+    .join('\n');
+}
+
+function parseAndroidThreadtimePid(line: string): string | null {
+  const match = /\(\s*(\d+)\)\s*:/.exec(line);
+  return match?.[1] ?? null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

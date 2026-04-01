@@ -10,7 +10,10 @@ import { waitForChildExit } from './app-log-stream.ts';
 
 export type { AppLogResult } from './app-log-process.ts';
 export { APP_LOG_PID_FILENAME, cleanupStaleAppLogProcesses } from './app-log-process.ts';
-export { assertAndroidPackageArgSafe } from './app-log-android.ts';
+export {
+  assertAndroidPackageArgSafe,
+  readRecentAndroidLogcatForPackage,
+} from './app-log-android.ts';
 export { buildAppleLogPredicate, buildIosDeviceLogStreamArgs } from './app-log-ios.ts';
 
 export type AppLogDoctorResult = {
