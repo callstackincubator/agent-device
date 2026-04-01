@@ -1,0 +1,339 @@
+import type { RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
+
+type Axis = 'vertical' | 'horizontal';
+
+type ViewNode = {
+  className: string;
+  rect: Rect;
+  children: ViewNode[];
+};
+
+type FlowBlock = {
+  start: number;
+  size: number;
+  crossSize: number;
+};
+
+export function annotateAndroidScrollableContentHints(
+  nodes: RawSnapshotNode[],
+  activityTopDump: string,
+): void {
+  const viewTree = parseActivityTopViewTree(activityTopDump);
+  if (!viewTree) {
+    return;
+  }
+
+  const nativeScrollViews = collectNativeScrollViews(viewTree);
+  if (nativeScrollViews.length === 0) {
+    return;
+  }
+
+  for (const node of nodes) {
+    if (!node.rect || !isScrollableSnapshotType(node.type)) {
+      continue;
+    }
+    const axis = inferAxis(node.type);
+    const nativeScrollView = matchNativeScrollView(node.rect, axis, nativeScrollViews);
+    if (!nativeScrollView) {
+      continue;
+    }
+    const visibleBlocks = collectVisibleFlowBlocks(nodes, node, axis);
+    const hiddenContent = inferHiddenScrollableContent({
+      axis,
+      viewportRect: node.rect,
+      visibleBlocks,
+      nativeScrollView,
+    });
+    if (!hiddenContent) {
+      continue;
+    }
+    if (hiddenContent.above) {
+      node.hiddenContentAbove = true;
+    }
+    if (hiddenContent.below) {
+      node.hiddenContentBelow = true;
+    }
+    if (hiddenContent.left) {
+      node.hiddenContentLeft = true;
+    }
+    if (hiddenContent.right) {
+      node.hiddenContentRight = true;
+    }
+  }
+}
+
+type NativeScrollView = {
+  rect: Rect;
+  axis: Axis;
+  contentExtent: number;
+  contentBlocks: FlowBlock[];
+};
+
+function inferHiddenScrollableContent(params: {
+  axis: Axis;
+  viewportRect: Rect;
+  visibleBlocks: FlowBlock[];
+  nativeScrollView: NativeScrollView;
+}): { above?: boolean; below?: boolean; left?: boolean; right?: boolean } | null {
+  const { axis, viewportRect, visibleBlocks, nativeScrollView } = params;
+  if (visibleBlocks.length === 0 || nativeScrollView.contentBlocks.length === 0) {
+    return null;
+  }
+  const offset = estimateScrollOffset(nativeScrollView.contentBlocks, visibleBlocks);
+  if (offset === null) {
+    return null;
+  }
+
+  const viewportExtent = axis === 'vertical' ? viewportRect.height : viewportRect.width;
+  const hiddenBefore = offset > 16;
+  const hiddenAfter = offset + viewportExtent < nativeScrollView.contentExtent - 16;
+
+  return axis === 'vertical'
+    ? { above: hiddenBefore, below: hiddenAfter }
+    : { left: hiddenBefore, right: hiddenAfter };
+}
+
+function estimateScrollOffset(
+  nativeBlocks: FlowBlock[],
+  visibleBlocks: FlowBlock[],
+): number | null {
+  const offsetBuckets = new Map<number, number[]>();
+  for (const nativeBlock of nativeBlocks) {
+    for (const visibleBlock of visibleBlocks) {
+      if (!areFlowBlocksComparable(nativeBlock, visibleBlock)) {
+        continue;
+      }
+      const offset = nativeBlock.start - visibleBlock.start;
+      const bucket = Math.round(offset / 8) * 8;
+      const values = offsetBuckets.get(bucket) ?? [];
+      values.push(offset);
+      offsetBuckets.set(bucket, values);
+    }
+  }
+
+  let bestValues: number[] | null = null;
+  for (const values of offsetBuckets.values()) {
+    if (!bestValues || values.length > bestValues.length) {
+      bestValues = values;
+    }
+  }
+  if (!bestValues || bestValues.length < 2) {
+    return null;
+  }
+  const sorted = [...bestValues].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)] ?? null;
+}
+
+function areFlowBlocksComparable(nativeBlock: FlowBlock, visibleBlock: FlowBlock): boolean {
+  const sizeTolerance = Math.max(
+    24,
+    Math.round(Math.min(nativeBlock.size, visibleBlock.size) * 0.2),
+  );
+  const crossTolerance = Math.max(
+    48,
+    Math.round(Math.min(nativeBlock.crossSize, visibleBlock.crossSize) * 0.15),
+  );
+  return (
+    Math.abs(nativeBlock.size - visibleBlock.size) <= sizeTolerance &&
+    Math.abs(nativeBlock.crossSize - visibleBlock.crossSize) <= crossTolerance
+  );
+}
+
+function collectVisibleFlowBlocks(
+  nodes: RawSnapshotNode[],
+  scrollNode: RawSnapshotNode,
+  axis: Axis,
+): FlowBlock[] {
+  const contentRoot = unwrapScrollableContentRoot(nodes, scrollNode);
+  const children = nodes
+    .filter((node) => node.parentIndex === contentRoot.index && node.rect)
+    .map((node) => node.rect as Rect)
+    .filter((rect) => hasPositiveFlowExtent(rect, axis))
+    .sort((left, right) => (axis === 'vertical' ? left.y - right.y : left.x - right.x));
+
+  return children.map((rect) => toFlowBlock(rect, scrollNode.rect as Rect, axis));
+}
+
+function unwrapScrollableContentRoot(
+  nodes: RawSnapshotNode[],
+  scrollNode: RawSnapshotNode,
+): RawSnapshotNode {
+  let current = scrollNode;
+  const visited = new Set<number>();
+  while (!visited.has(current.index)) {
+    visited.add(current.index);
+    const children = nodes.filter((node) => node.parentIndex === current.index && node.rect);
+    if (children.length !== 1) {
+      return current;
+    }
+    const child = children[0] as RawSnapshotNode & { rect: Rect };
+    if (!sameRect(child.rect, scrollNode.rect as Rect)) {
+      return current;
+    }
+    current = child;
+  }
+  return scrollNode;
+}
+
+function collectNativeScrollViews(root: ViewNode): NativeScrollView[] {
+  const results: NativeScrollView[] = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const node = stack.pop() as ViewNode;
+    if (isScrollableViewClass(node.className)) {
+      const nativeScrollView = toNativeScrollView(node);
+      if (nativeScrollView) {
+        results.push(nativeScrollView);
+      }
+    }
+    stack.push(...node.children);
+  }
+  return results;
+}
+
+function toNativeScrollView(node: ViewNode): NativeScrollView | null {
+  const axis = inferAxis(node.className);
+  const contentRoot = node.children[0];
+  if (!contentRoot) {
+    return null;
+  }
+  const contentExtent =
+    axis === 'vertical'
+      ? Math.max(
+          contentRoot.rect.height,
+          ...contentRoot.children.map((child) => child.rect.y + child.rect.height),
+        )
+      : Math.max(
+          contentRoot.rect.width,
+          ...contentRoot.children.map((child) => child.rect.x + child.rect.width),
+        );
+  const contentBlocks = contentRoot.children
+    .filter((child) => hasPositiveFlowExtent(child.rect, axis))
+    .map((child) => toFlowBlock(child.rect, node.rect, axis))
+    .sort((left, right) => left.start - right.start);
+  if (contentBlocks.length === 0) {
+    return null;
+  }
+  return {
+    rect: node.rect,
+    axis,
+    contentExtent,
+    contentBlocks,
+  };
+}
+
+function matchNativeScrollView(
+  rect: Rect,
+  axis: Axis,
+  nativeScrollViews: NativeScrollView[],
+): NativeScrollView | null {
+  let best: NativeScrollView | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const nativeScrollView of nativeScrollViews) {
+    if (nativeScrollView.axis !== axis) {
+      continue;
+    }
+    const sizeScore =
+      Math.abs(nativeScrollView.rect.width - rect.width) +
+      Math.abs(nativeScrollView.rect.height - rect.height);
+    if (sizeScore > 32) {
+      continue;
+    }
+    if (sizeScore < bestScore) {
+      best = nativeScrollView;
+      bestScore = sizeScore;
+    }
+  }
+  return best;
+}
+
+function parseActivityTopViewTree(dump: string): ViewNode | null {
+  const root: ViewNode = {
+    className: 'root',
+    rect: { x: 0, y: 0, width: 0, height: 0 },
+    children: [],
+  };
+  const stack: Array<{ indent: number; node: ViewNode }> = [{ indent: -1, node: root }];
+  const lineRegex = /^(\s*)([\w.$]+)\{[^}]* (-?\d+),(-?\d+)-(-?\d+),(-?\d+) #/;
+
+  for (const line of dump.split('\n')) {
+    const match = lineRegex.exec(line);
+    if (!match) {
+      continue;
+    }
+    const indent = match[1].length;
+    const x1 = Number(match[3]);
+    const y1 = Number(match[4]);
+    const x2 = Number(match[5]);
+    const y2 = Number(match[6]);
+    const node: ViewNode = {
+      className: match[2],
+      rect: {
+        x: x1,
+        y: y1,
+        width: Math.max(0, x2 - x1),
+        height: Math.max(0, y2 - y1),
+      },
+      children: [],
+    };
+    while (stack.length > 1 && indent <= stack[stack.length - 1]!.indent) {
+      stack.pop();
+    }
+    stack[stack.length - 1]!.node.children.push(node);
+    stack.push({ indent, node });
+  }
+
+  return root.children.length > 0 ? root : null;
+}
+
+function toFlowBlock(rect: Rect, viewportRect: Rect, axis: Axis): FlowBlock {
+  return axis === 'vertical'
+    ? {
+        start: rect.y - viewportRect.y,
+        size: rect.height,
+        crossSize: rect.width,
+      }
+    : {
+        start: rect.x - viewportRect.x,
+        size: rect.width,
+        crossSize: rect.height,
+      };
+}
+
+function hasPositiveFlowExtent(rect: Rect, axis: Axis): boolean {
+  return axis === 'vertical' ? rect.height > 0 : rect.width > 0;
+}
+
+function sameRect(left: Rect, right: Rect): boolean {
+  return (
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height
+  );
+}
+
+function inferAxis(type: string | undefined): Axis {
+  return `${type ?? ''}`.toLowerCase().includes('horizontal') ? 'horizontal' : 'vertical';
+}
+
+function isScrollableSnapshotType(type: string | undefined): boolean {
+  const value = `${type ?? ''}`.toLowerCase();
+  return (
+    value.includes('scrollview') ||
+    value.includes('scrollarea') ||
+    value.includes('recyclerview') ||
+    value.includes('listview') ||
+    value.includes('collectionview')
+  );
+}
+
+function isScrollableViewClass(className: string): boolean {
+  const value = className.toLowerCase();
+  return (
+    value.includes('scrollview') ||
+    value.includes('recyclerview') ||
+    value.includes('listview') ||
+    value.includes('collectionview')
+  );
+}

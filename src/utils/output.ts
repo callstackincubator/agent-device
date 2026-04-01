@@ -90,9 +90,7 @@ export function formatSnapshotText(
     return `${prefix}${header}\n${noticesBlock}${rawLines.join('\n')}\n`;
   }
   if (options.flatten) {
-    const flatLines = displayedNodes.map((node) =>
-      formatSnapshotLine(node, 0, false, undefined, { summarizeTextSurfaces: true }),
-    );
+    const flatLines = buildFlattenedSnapshotDisplayLines(displayedNodes);
     const summaryBlock =
       visiblePresentation && visiblePresentation.summaryLines.length > 0
         ? `\n${visiblePresentation.summaryLines.join('\n')}`
@@ -409,7 +407,11 @@ function buildScrollAreaHintPresentation(
     const ordered = ORDERED_DIRECTIONS.filter((direction) => directions.has(direction));
     inlineHints.set(
       index,
-      ordered.map((direction) => `[content ${direction} hidden]`),
+      ordered.map((direction) =>
+        direction === 'left' || direction === 'right'
+          ? `[content ${direction} of scroll-area hidden]`
+          : `[content ${direction} scroll-area hidden]`,
+      ),
     );
   }
   return { inlineHints, coveredNodeIndexes };
@@ -467,11 +469,12 @@ function renderSnapshotDisplayLines(
   inlineHints: Map<number, string[]> | undefined,
 ): string[] {
   if (!inlineHints || inlineHints.size === 0) {
-    return lines.map((line) => line.text);
+    return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
   }
   const rendered: string[] = [];
   for (const line of lines) {
     rendered.push(line.text);
+    rendered.push(...readHiddenContentHintLines(line));
     const hints = inlineHints.get(line.node.index);
     if (!hints || hints.length === 0) {
       continue;
@@ -482,6 +485,47 @@ function renderSnapshotDisplayLines(
     }
   }
   return rendered;
+}
+
+function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
+  return buildSnapshotDisplayLines(nodes, { summarizeTextSurfaces: true }).flatMap((line) => [
+    formatSnapshotLine(line.node, 0, false, line.type, { summarizeTextSurfaces: true }),
+    ...readHiddenContentHintLines({ ...line, depth: 0 }),
+  ]);
+}
+
+function readHiddenContentHintLines(
+  line: ReturnType<typeof buildSnapshotDisplayLines>[number],
+): string[] {
+  const target = hintTargetLabel(line.type);
+  if (!target) {
+    return [];
+  }
+  const hints: string[] = [];
+  if (line.node.hiddenContentAbove) {
+    hints.push(`[content above ${target} hidden]`);
+  }
+  if (line.node.hiddenContentBelow) {
+    hints.push(`[content below ${target} hidden]`);
+  }
+  if (line.node.hiddenContentLeft) {
+    hints.push(`[content left of ${target} hidden]`);
+  }
+  if (line.node.hiddenContentRight) {
+    hints.push(`[content right of ${target} hidden]`);
+  }
+  if (hints.length === 0) {
+    return [];
+  }
+  const indent = '  '.repeat(line.depth + 1);
+  return hints.map((hint) => `${indent}${hint}`);
+}
+
+function hintTargetLabel(type: string): string | null {
+  if (type === 'scroll-area' || type === 'list' || type === 'collection' || type === 'table') {
+    return type;
+  }
+  return null;
 }
 
 function findNearestVisibleScrollableAncestor(

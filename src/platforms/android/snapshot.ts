@@ -5,6 +5,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import type { RawSnapshotNode, SnapshotOptions } from '../../utils/snapshot.ts';
 import { parseUiHierarchy, type AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
+import { annotateAndroidScrollableContentHints } from './scroll-hints.ts';
 
 export async function snapshotAndroid(
   device: DeviceInfo,
@@ -15,7 +16,20 @@ export async function snapshotAndroid(
   analysis: AndroidSnapshotAnalysis;
 }> {
   const xml = await dumpUiHierarchy(device);
-  return parseUiHierarchy(xml, 800, options);
+  const parsed = options.interactiveOnly
+    ? parseUiHierarchy(xml, 800, { ...options, interactiveOnly: false })
+    : parseUiHierarchy(xml, 800, options);
+  const activityTopDump = await dumpActivityTop(device);
+  if (activityTopDump) {
+    annotateAndroidScrollableContentHints(parsed.nodes, activityTopDump);
+  }
+  if (!options.interactiveOnly) {
+    return parsed;
+  }
+
+  const interactiveParsed = parseUiHierarchy(xml, 800, options);
+  copyHiddenContentHints(parsed.nodes, interactiveParsed.nodes);
+  return interactiveParsed;
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
@@ -84,4 +98,72 @@ function isRetryableAdbError(err: unknown): boolean {
   if (stderr.includes('timed out')) return true;
   if (stderr.includes('no such file or directory')) return true;
   return false;
+}
+
+async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
+  const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'activity', 'top']), {
+    allowFailure: true,
+  });
+  const text = `${result.stdout}\n${result.stderr}`.trim();
+  return text.length > 0 ? text : null;
+}
+
+function copyHiddenContentHints(
+  sourceNodes: RawSnapshotNode[],
+  targetNodes: RawSnapshotNode[],
+): void {
+  const hintsBySignature = new Map<string, RawSnapshotNode>();
+  const hintsByLooseSignature = new Map<string, RawSnapshotNode>();
+  for (const node of sourceNodes) {
+    if (
+      !node.hiddenContentAbove &&
+      !node.hiddenContentBelow &&
+      !node.hiddenContentLeft &&
+      !node.hiddenContentRight
+    ) {
+      continue;
+    }
+    const signature = buildHintSignature(node);
+    if (signature && !hintsBySignature.has(signature)) {
+      hintsBySignature.set(signature, node);
+    }
+    const looseSignature = buildLooseHintSignature(node);
+    if (!looseSignature || hintsByLooseSignature.has(looseSignature)) {
+      continue;
+    }
+    hintsByLooseSignature.set(looseSignature, node);
+  }
+
+  for (const node of targetNodes) {
+    const signature = buildHintSignature(node);
+    const looseSignature = buildLooseHintSignature(node);
+    const source =
+      (signature ? hintsBySignature.get(signature) : undefined) ??
+      (looseSignature ? hintsByLooseSignature.get(looseSignature) : undefined);
+    if (!source) {
+      continue;
+    }
+    node.hiddenContentAbove = source.hiddenContentAbove;
+    node.hiddenContentBelow = source.hiddenContentBelow;
+    node.hiddenContentLeft = source.hiddenContentLeft;
+    node.hiddenContentRight = source.hiddenContentRight;
+  }
+}
+
+function buildHintSignature(node: RawSnapshotNode): string | null {
+  if (!node.rect) {
+    return null;
+  }
+  const looseSignature = buildLooseHintSignature(node);
+  if (!looseSignature) {
+    return null;
+  }
+  return [looseSignature, node.rect.x, node.rect.y, node.rect.width, node.rect.height].join('|');
+}
+
+function buildLooseHintSignature(node: RawSnapshotNode): string | null {
+  if (!node.type) {
+    return null;
+  }
+  return [node.type ?? '', node.label ?? '', node.identifier ?? ''].join('|');
 }

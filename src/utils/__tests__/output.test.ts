@@ -295,6 +295,83 @@ test('formatSnapshotText keeps zero-height visible nodes out of off-screen summa
   assert.match(text, /\[off-screen below\] 1 interactive item: "Later"/);
 });
 
+test('formatSnapshotText renders explicit hidden scroll-area content hints', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'android.widget.ScrollView',
+          label: 'Messages',
+          rect: { x: 0, y: 120, width: 390, height: 500 },
+          hiddenContentAbove: true,
+          hiddenContentBelow: true,
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'Visible message',
+          rect: { x: 20, y: 240, width: 350, height: 48 },
+          hittable: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^  @e2 \[scroll-area\] "Messages" \[scrollable\]$/m);
+  assert.match(text, /^    \[content above scroll-area hidden\]$/m);
+  assert.match(text, /^    \[content below scroll-area hidden\]$/m);
+});
+
+test('formatSnapshotText renders hidden scroll-area content hints in flattened output', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes: [
+          {
+            ref: 'e1',
+            index: 0,
+            depth: 0,
+            type: 'Window',
+            rect: { x: 0, y: 0, width: 390, height: 844 },
+          },
+          {
+            ref: 'e2',
+            index: 1,
+            depth: 1,
+            parentIndex: 0,
+            type: 'android.widget.ScrollView',
+            label: 'Messages',
+            rect: { x: 0, y: 120, width: 390, height: 500 },
+            hiddenContentAbove: true,
+            hiddenContentBelow: true,
+          },
+        ],
+        truncated: false,
+      },
+      { flatten: true },
+    ),
+  );
+
+  assert.match(text, /^@e2 \[scroll-area\] "Messages" \[scrollable\]$/m);
+  assert.match(text, /^  \[content above scroll-area hidden\]$/m);
+  assert.match(text, /^  \[content below scroll-area hidden\]$/m);
+});
+
 test('formatSnapshotText marks visible scroll areas with hidden content above and below', () => {
   const text = withNoColor(() =>
     formatSnapshotText({
@@ -351,8 +428,8 @@ test('formatSnapshotText marks visible scroll areas with hidden content above an
   );
 
   assert.match(text, /^  @e2 \[scroll-area\] "Messages" \[scrollable\]$/m);
-  assert.match(text, /^    \[content above hidden\]$/m);
-  assert.match(text, /^    \[content below hidden\]$/m);
+  assert.match(text, /^    \[content above scroll-area hidden\]$/m);
+  assert.match(text, /^    \[content below scroll-area hidden\]$/m);
   assert.match(text, /^    @e4 \[button\] "Visible message"$/m);
   assert.doesNotMatch(text, /\[off-screen above\].*"Earlier message"/);
   assert.doesNotMatch(text, /\[off-screen below\].*"Later message"/);
