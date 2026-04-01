@@ -18,6 +18,7 @@ import { countConfiguredRuntimeHints, setSessionRuntimeHintsForOpen } from './se
 import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
 import { buildNextOpenSession, buildOpenResult } from './session-open-surface.ts';
 import { markAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
+import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import {
   invalidOpenArgs,
   prepareOpenCommandDetails,
@@ -25,6 +26,8 @@ import {
   validatePreResolvedOpenRequest,
   validateResolvedOpenRequest,
 } from './session-open-prepare.ts';
+
+const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
 async function relaunchCloseApp(params: {
   device: DeviceInfo;
@@ -307,43 +310,45 @@ export async function handleOpenCommand(params: {
     return validation;
   }
 
-  const inUse = sessionStore
-    .toArray()
-    .find((activeSession) => activeSession.device.id === device.id);
-  if (inUse) {
-    return {
-      ok: false,
-      error: {
-        code: 'DEVICE_IN_USE',
-        message: `Device is already in use by session "${inUse.name}".`,
-        details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
-      },
-    };
-  }
+  return await withKeyedLock(firstSessionOpenLocks, device.id, async () => {
+    const inUse = sessionStore
+      .toArray()
+      .find((activeSession) => activeSession.device.id === device.id);
+    if (inUse) {
+      return {
+        ok: false,
+        error: {
+          code: 'DEVICE_IN_USE',
+          message: `Device is already in use by session "${inUse.name}".`,
+          details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
+        },
+      };
+    }
 
-  const details = await prepareOpenCommandDetails({
-    req,
-    sessionName,
-    sessionStore,
-    device,
-    surface: surfaceResult,
-    openTarget,
-  });
-  if (details.type === 'response') {
-    return details.response;
-  }
+    const details = await prepareOpenCommandDetails({
+      req,
+      sessionName,
+      sessionStore,
+      device,
+      surface: surfaceResult,
+      openTarget,
+    });
+    if (details.type === 'response') {
+      return details.response;
+    }
 
-  return await completeOpenCommand({
-    req,
-    sessionName,
-    sessionStore,
-    logPath,
-    device,
-    openTarget,
-    openPositionals: req.positionals ?? [],
-    appBundleId: details.details.appBundleId,
-    appName: details.details.appName,
-    runtime: details.details.runtime,
-    surface: surfaceResult,
+    return await completeOpenCommand({
+      req,
+      sessionName,
+      sessionStore,
+      logPath,
+      device,
+      openTarget,
+      openPositionals: req.positionals ?? [],
+      appBundleId: details.details.appBundleId,
+      appName: details.details.appName,
+      runtime: details.details.runtime,
+      surface: surfaceResult,
+    });
   });
 }
