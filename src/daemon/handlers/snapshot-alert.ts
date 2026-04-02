@@ -1,6 +1,7 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
+import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { recordIfSession } from './snapshot-session.ts';
@@ -13,6 +14,9 @@ type HandleAlertCommandParams = {
   session: SessionState | undefined;
   device: SessionState['device'];
 };
+
+const ALERT_FALLBACK_HINT =
+  'If the permission sheet is visible in snapshot or screenshot but alert reports no alert, take a scoped snapshot around the visible button label and use press @ref.';
 
 export async function handleAlertCommand(
   params: HandleAlertCommandParams,
@@ -76,7 +80,7 @@ export async function handleAlertCommand(
         }
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
-      throw lastError;
+      throw withAlertFallbackHint(lastError);
     }
     const data = await runMacOsAlertAction('get', macOsAlertTarget);
     recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
@@ -136,7 +140,7 @@ export async function handleAlertCommand(
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
     // lastError is always set because ALERT_ACTION_RETRY_MS > 0
-    throw lastError;
+    throw withAlertFallbackHint(lastError);
   }
 
   const data = await runIosRunnerCommand(
@@ -146,4 +150,18 @@ export async function handleAlertCommand(
   );
   recordIfSession(sessionStore, session, req, data as Record<string, unknown>);
   return { ok: true, data };
+}
+
+function withAlertFallbackHint(error: unknown): unknown {
+  if (!(error instanceof AppError)) {
+    return error;
+  }
+  const message = String(error.message ?? '').toLowerCase();
+  if (!message.includes('alert not found') && !message.includes('no alert')) {
+    return error;
+  }
+  return new AppError(error.code, error.message, {
+    ...(error.details ?? {}),
+    hint: ALERT_FALLBACK_HINT,
+  });
 }

@@ -90,6 +90,7 @@ agent-device close
 - On iOS and Android, default snapshot output is visible-first. Off-screen interactive content is surfaced as discovery hints (including inline scroll/list hidden-content hints when known), not shown as directly tappable refs.
 - Treat large text-surface lines in `snapshot -i` as discovery output. If a node shows preview or truncation metadata, use `get text @ref` only after you have already decided that `snapshot -i` is needed for that surface.
 - Use `snapshot -i -s "Camera"` or `snapshot -i -s @e3` when you want a smaller, scoped result.
+- If `snapshot -i -s "<query>"` returns 0 nodes, the scope did not match the current screen. Widen the query or re-check the screen state instead of assuming the command silently fell back to the full tree.
 - If `snapshot -i` returns 0 nodes but the screen is visibly populated, treat `screenshot` as visual truth, wait briefly, then re-run `snapshot -i` once before escalating.
 - If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry without `-d` instead of taking more shallow snapshots.
 

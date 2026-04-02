@@ -4572,6 +4572,158 @@ test('network dump recovers Android entries from previous package pid in bounded
   }
 });
 
+test('network dump recovers iOS simulator entries from simctl log show when the live stream is empty', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-network-recovery';
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    'Filtering the log data using "subsystem == \\"com.expensify.chat.dev\\""\n',
+    'utf8',
+  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.expensify.chat.dev',
+    appLog: {
+      platform: 'ios',
+      backend: 'ios-simulator',
+      outPath: appLogPath,
+      startedAt: 1_712_040_000_000,
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (
+      args[0] === 'simctl' &&
+      args[1] === 'spawn' &&
+      args[2] === 'sim-1' &&
+      args[3] === 'log' &&
+      args[4] === 'show'
+    ) {
+      return {
+        stdout:
+          'Timestamp               Ty Process[PID:TID]\n' +
+          '2026-04-02 08:08:50.665 I New Expensify Dev[32193:8c7411e] POST https://api.example.com/v1/search statusCode=200 duration=42\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    expect(response.data?.path).toContain('simctl log show recovery');
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    expect(entries.length).toBe(1);
+    expect((entries[0] as Record<string, unknown>).url).toBe('https://api.example.com/v1/search');
+    expect((entries[0] as Record<string, unknown>).status).toBe(200);
+    expect((entries[0] as Record<string, unknown>).durationMs).toBe(42);
+    expect(response.data?.notes).toContain(
+      'Recovered 1 iOS simulator HTTP entry from simctl log show (1 app log lines scanned).',
+    );
+  }
+});
+
+test('network dump explains when iOS simulator recovery found app logs but no HTTP-shaped entries', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-network-no-http';
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    'Filtering the log data using "subsystem == \\"com.expensify.chat.dev\\""\n',
+    'utf8',
+  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.expensify.chat.dev',
+    appLog: {
+      platform: 'ios',
+      backend: 'ios-simulator',
+      outPath: appLogPath,
+      startedAt: 1_712_040_000_000,
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (
+      args[0] === 'simctl' &&
+      args[1] === 'spawn' &&
+      args[2] === 'sim-1' &&
+      args[3] === 'log' &&
+      args[4] === 'show'
+    ) {
+      return {
+        stdout:
+          'Timestamp               Ty Process[PID:TID]\n' +
+          '2026-04-02 08:08:50.665 E New Expensify Dev[32193:8c7411e] Airship config warning\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    expect(Array.isArray(response.data?.entries) ? response.data.entries : []).toHaveLength(0);
+    expect(response.data?.notes).toContain(
+      'Recovered 1 recent iOS simulator app log lines from simctl log show, but none looked like HTTP traffic. This app may not emit request URLs, status, or timing into Unified Logging for this repro window.',
+    );
+    expect(response.data?.notes).toContain(
+      'No HTTP(s) entries were found in recent iOS simulator app logs. If the app only emits non-HTTP diagnostics, inspect logs path or add app-side URLSession/network logging for per-request timing and payload details.',
+    );
+  }
+});
+
 test('network dump supports macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-network';

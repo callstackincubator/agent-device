@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
-const METHOD_REGEX = new RegExp(`\\b(${HTTP_METHODS.join('|')})\\b`, 'i');
+const METHOD_WITH_URL_REGEX = new RegExp(`\\b(${HTTP_METHODS.join('|')})\\b\\s+https?:\\/\\/`, 'i');
 const URL_REGEX = /https?:\/\/[^\s"'<>\])]+/i;
 const STATUS_PATTERNS = [
   /\bstatus(?:Code)?["'=: ]+([1-5]\d{2})\b/i,
@@ -165,18 +165,30 @@ function parseNetworkLine(
   const jsonUrl = readJsonString(maybeJson, ['url', 'requestUrl']);
   const jsonStatus = readJsonNumber(maybeJson, ['status', 'statusCode', 'responseCode']);
 
-  const methodMatch = METHOD_REGEX.exec(line);
+  const methodWithUrlMatch = METHOD_WITH_URL_REGEX.exec(line);
   const methodFieldMatch = /\bmethod["'=: ]+([A-Z]+)\b/i.exec(line);
-  const method = (jsonMethod ?? methodFieldMatch?.[1] ?? methodMatch?.[1])?.toUpperCase();
+  const method = (jsonMethod ?? methodFieldMatch?.[1] ?? methodWithUrlMatch?.[1])?.toUpperCase();
 
   const urlMatch = URL_REGEX.exec(line);
   const url = jsonUrl ?? urlMatch?.[0];
   if (!url) return null;
+  const inlineStatus = jsonStatus ?? parseStatusCode(line) ?? undefined;
+  const hasExplicitNetworkSignal =
+    Boolean(jsonMethod) ||
+    Boolean(methodFieldMatch?.[1]) ||
+    Boolean(methodWithUrlMatch?.[1]) ||
+    inlineStatus !== undefined ||
+    /\bURL["'=: ]+https?:\/\//i.test(line) ||
+    /\bheaders?["'=: ]+/i.test(line) ||
+    /\b(?:requestBody|responseBody|payload|request|response)["'=: ]+/i.test(line);
+  if (!hasExplicitNetworkSignal) {
+    return null;
+  }
 
   const result: NetworkEntry = {
     method,
     url,
-    status: jsonStatus ?? parseStatusCode(line) ?? undefined,
+    status: inlineStatus,
     timestamp: parseTimestamp(line),
     packetId: parseAndroidPacketId(line) ?? undefined,
     durationMs: parseAndroidDurationMs(line) ?? undefined,

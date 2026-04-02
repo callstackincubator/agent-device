@@ -1162,6 +1162,36 @@ test('alert accept does not retry on non-alert errors', async () => {
   expect(calls).toBe(1);
 });
 
+test('alert accept adds a scoped-snapshot hint after retrying alert-not-found failures', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  mockRunnerCommand.mockRejectedValue(new AppError('COMMAND_FAILED', 'alert not found'));
+
+  let thrown: unknown;
+  try {
+    await handleSnapshotCommands({
+      req: {
+        token: 't',
+        session: sessionName,
+        command: 'alert',
+        positionals: ['accept'],
+        flags: {},
+      },
+      sessionName,
+      logPath: '/tmp/daemon.log',
+      sessionStore,
+    });
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown).toBeInstanceOf(AppError);
+  expect((thrown as AppError).message).toBe('alert not found');
+  expect((thrown as AppError).details?.hint).toMatch(/scoped snapshot/i);
+});
+
 test('alert dismiss retries on "no alert" message', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';
@@ -1397,6 +1427,20 @@ test('buildSnapshotState marks comparisonSafe false for non-Android backends', (
   expect(state.comparisonSafe).toBe(false);
 });
 
+test('buildSnapshotState returns empty nodes when scoped snapshot has no label match', () => {
+  const nodes = [
+    { index: 0, depth: 0, type: 'Window', label: 'Root' },
+    { index: 1, depth: 1, type: 'Button', label: 'Search' },
+  ];
+
+  const state = buildSnapshotState(
+    { nodes, backend: 'xctest' },
+    { snapshotScope: 'zzzz-no-match-token' },
+  );
+
+  expect(state.nodes).toEqual([]);
+});
+
 // ---------------------------------------------------------------------------
 // Malformed snapshot data – buildSnapshotVisibility robustness
 // ---------------------------------------------------------------------------
@@ -1421,9 +1465,7 @@ test('buildSnapshotVisibility skips semantic analysis for raw snapshots', () => 
 });
 
 test('buildSnapshotVisibility skips semantic analysis for macos-helper backend', () => {
-  const nodes = [
-    { ref: 'e1', index: 0, depth: 0, type: 'AXButton', label: 'Click Me' },
-  ];
+  const nodes = [{ ref: 'e1', index: 0, depth: 0, type: 'AXButton', label: 'Click Me' }];
   const vis = buildSnapshotVisibility({ nodes, backend: 'macos-helper' });
   expect(vis.partial).toBe(false);
   expect(vis.reasons).toEqual([]);

@@ -9,6 +9,7 @@ import {
   assertAndroidPackageArgSafe,
   buildAppleLogPredicate,
   buildIosDeviceLogStreamArgs,
+  buildIosSimulatorLogStreamArgs,
   clearAppLogFiles,
   cleanupStaleAppLogProcesses,
   getAppLogPathMetadata,
@@ -22,7 +23,7 @@ test('buildAppleLogPredicate includes bundle-aware filters', () => {
   assert.match(predicate, /subsystem == "com\.example\.app"/);
   assert.match(predicate, /processImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
   assert.match(predicate, /senderImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
-  assert.match(predicate, /eventMessage CONTAINS\[c\] "com\.example\.app"/);
+  assert.doesNotMatch(predicate, /eventMessage CONTAINS\[c\] "com\.example\.app"/);
 });
 
 test('assertAndroidPackageArgSafe rejects unsafe values', () => {
@@ -90,6 +91,50 @@ test('buildIosDeviceLogStreamArgs builds expected devicectl command args', () =>
     '--device',
     '00008150-0000AAAA',
   ]);
+});
+
+test('buildIosSimulatorLogStreamArgs streams logs inside the simulator at info level', () => {
+  assert.deepEqual(
+    buildIosSimulatorLogStreamArgs({ deviceId: 'sim-1', appBundleId: 'com.example.app' }),
+    [
+      'simctl',
+      'spawn',
+      'sim-1',
+      'log',
+      'stream',
+      '--style',
+      'compact',
+      '--level',
+      'info',
+      '--predicate',
+      buildAppleLogPredicate('com.example.app'),
+    ],
+  );
+});
+
+test('buildIosSimulatorLogStreamArgs respects simulator device set scoping', () => {
+  assert.deepEqual(
+    buildIosSimulatorLogStreamArgs({
+      deviceId: 'sim-1',
+      appBundleId: 'com.example.app',
+      simulatorSetPath: '/tmp/tenant-a/simulators',
+    }),
+    [
+      'simctl',
+      '--set',
+      '/tmp/tenant-a/simulators',
+      'spawn',
+      'sim-1',
+      'log',
+      'stream',
+      '--style',
+      'compact',
+      '--level',
+      'info',
+      '--predicate',
+      buildAppleLogPredicate('com.example.app'),
+    ],
+  );
 });
 
 test('cleanupStaleAppLogProcesses removes legacy plain pid files safely', () => {
