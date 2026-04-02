@@ -2020,6 +2020,163 @@ test('perf preserves successful metrics and normalizes per-metric Android sampli
   }
 });
 
+test('perf samples Apple cpu and memory metrics on macOS app sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-macos';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'macos',
+      id: 'host-mac',
+      name: 'Host Mac',
+      kind: 'device',
+      target: 'desktop',
+      booted: true,
+    }),
+    appBundleId: 'com.example.mac',
+  });
+  mockRunCmd.mockImplementation(async (cmd, _args) => {
+    if (cmd === 'mdfind') {
+      return { stdout: '/Applications/Example.app\n', stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: 'ExampleExec\n', stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'ps') {
+      return {
+        stdout: [
+          '111 7.5 4096 /Applications/Example.app/Contents/MacOS/ExampleExec',
+          '222 0.5 1024 /Applications/Example.app/Contents/MacOS/ExampleExec --flag',
+          '333 5.0 2048 /Applications/Other.app/Contents/MacOS/OtherExec',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    expect(memory?.available).toBe(true);
+    expect(memory?.residentMemoryKb).toBe(5120);
+    expect(cpu?.available).toBe(true);
+    expect(cpu?.usagePercent).toBe(8);
+    expect(cpu?.matchedProcesses).toEqual(['ExampleExec']);
+  }
+});
+
+test('perf samples Apple cpu and memory metrics on iOS simulator app sessions', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-ios-sim';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.sim',
+  });
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: '/tmp/Example.app\n', stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: 'ExampleSimExec\n', stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
+      return {
+        stdout: ['111 11.0 6144 ExampleSimExec', '222 2.0 2048 SpringBoard'].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    expect(memory?.available).toBe(true);
+    expect(memory?.residentMemoryKb).toBe(6144);
+    expect(cpu?.available).toBe(true);
+    expect(cpu?.usagePercent).toBe(11);
+    expect(cpu?.matchedProcesses).toEqual(['ExampleSimExec']);
+  }
+});
+
+test('perf degrades Apple cpu and memory metrics on physical iOS devices', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-ios-device';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+    appBundleId: 'com.example.device',
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    expect(memory?.available).toBe(false);
+    expect(memory?.error?.code).toBe('UNSUPPORTED_OPERATION');
+    expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+    expect(cpu?.available).toBe(false);
+    expect(cpu?.error?.code).toBe('UNSUPPORTED_OPERATION');
+  }
+});
+
 test('open URL on existing iOS session clears stale app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-session';

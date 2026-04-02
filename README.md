@@ -65,7 +65,8 @@ In non-JSON mode, core mutating commands print a short success acknowledgment so
 
 - Startup timing is available on iOS and Android from `open` command round-trip sampling.
 - Android app sessions also sample CPU (`adb shell dumpsys cpuinfo`) and memory (`adb shell dumpsys meminfo <package>`) when the session has an active app package context.
-- Android CPU data is a recent process snapshot and may read as `0` for idle apps; Android memory values are reported in kilobytes from `dumpsys meminfo`.
+- Apple app sessions on macOS and iOS simulators also sample CPU and memory from process snapshots resolved from the active app bundle ID.
+- Physical iOS devices still report CPU and memory as unavailable in this release.
 
 ## Where To Go Next
 
