@@ -511,14 +511,18 @@ agent-device metrics --json
 - Android app sessions with an active package also sample:
   - `memory` from `adb shell dumpsys meminfo <package>` with values reported in kilobytes (`kB`)
   - `cpu` from `adb shell dumpsys cpuinfo`, aggregated across matching package processes and reported as a recent percentage snapshot
+- Apple app sessions with an active bundle ID also sample:
+  - `memory` from process RSS snapshots reported in kilobytes (`kB`)
+  - `cpu` from process CPU usage snapshots reported as a recent percentage
 - Platform support:
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
-  - `memory` and `cpu`: Android emulator/device with an active app session (`open <app>` first)
-- iOS still reports `fps`, `memory`, and `cpu` as unavailable placeholders in this release.
+  - `memory` and `cpu`: Android emulator/device, macOS app sessions, and iOS simulators with an active app session (`open <app>` first)
+  - physical iOS devices still report `memory` and `cpu` as unavailable in this release
+- `fps` is still unavailable on all platforms in this release.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
-- If the Android session has no app package yet, `memory` and `cpu` remain unavailable until you `open <app>`.
+- If the session has no app package/bundle ID yet, `memory` and `cpu` remain unavailable until you `open <app>`.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
-- Android CPU data is a lightweight `dumpsys` snapshot, so an idle app may legitimately read as `0`.
+- CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 
 ## Media and logs
 
