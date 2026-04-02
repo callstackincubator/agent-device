@@ -36,6 +36,7 @@ Logging is off by default. Enable it only when you need a debugging window.
 - Default app logs live under `~/.agent-device/sessions/<session>/app.log`.
 - `logs clear --restart` is the fastest clean repro loop.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from the same session app log.
+- On macOS, `network dump` is app-scoped and only sees Unified Logging associated with the active session app.
 - On iOS simulators, `network dump` can recover recent app log history with `simctl log show` when the live session stream is sparse, so check the returned notes before assuming the repro window was empty.
 - On iOS, `network dump` is still limited to what Unified Logging exposes for the app process. If the app does not emit request metadata there, `network dump` can legitimately return no HTTP entries even during a real repro.
 - Summary output already shows timestamp, status, and duration when the log backend exposes them.
@@ -44,6 +45,7 @@ Logging is off by default. Enable it only when you need a debugging window.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
 - `logs mark "before tap"` inserts a timestamped marker into the app log.
 - Android `network dump` surfaces timestamps from logcat-style prefixes and can backfill status and request/response duration from adjacent GIBSDK packet lines, so check it before dumping raw log windows.
+- Android app-log streaming rebinds to the current app PID after relaunches, so rerun the repro window before assuming the last log slice is stale.
 - Marker lines are emitted with the `[agent-device][mark][...]` prefix. When you grep later, prefer a narrow pattern such as `grep -n -E "agent-device.*mark|before tap" <path>`.
 - Session app logs can contain runtime data, headers, or payload fragments. Review them before sharing.
 - `logs start` requires an active app session and appends to `app.log`.
@@ -78,16 +80,16 @@ If the app showed a visible warning or error overlay during the flow:
 
 ## Alerts and permissions
 
-Use `alert` for iOS simulator permission dialogs instead of tapping coordinates.
+Use `alert` for iOS simulator permission dialogs and macOS desktop alerts instead of tapping coordinates.
 
 ```bash
 agent-device alert wait 5000
 agent-device alert accept
 ```
 
-- `alert` is only supported on iOS simulators.
+- `alert` is supported on iOS simulators and macOS desktop targets.
 - `alert accept` and `alert dismiss` retry internally for a short window, so you usually do not need manual sleeps.
-- If a permission sheet is visible in `snapshot` or `screenshot` but `alert accept` says no alert was found, treat it as normal tappable UI for that run: take a scoped `snapshot -i -s "<visible label>"` and `press @ref` instead of looping on `alert`.
+- If a permission sheet or modal is visible in `snapshot` or `screenshot` but `alert accept` says no alert was found, treat it as normal tappable UI for that run: take a scoped `snapshot -i -s "<visible label>"` and `press @ref` instead of looping on `alert`.
 - iOS 16+ "Allow Paste" prompts are suppressed under XCUITest. Use `xcrun simctl pbcopy booted` when you need to seed simulator clipboard content directly.
 
 ## Setup problems worth recognizing early
