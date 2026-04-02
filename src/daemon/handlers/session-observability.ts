@@ -370,6 +370,7 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
     device: session.device,
     appBundleId: session.appBundleId,
     appLogState: session.appLog?.getState(),
+    appLogStartedAt: session.appLog?.startedAt,
     appLogPath: sessionStore.resolveAppLogPath(sessionName),
     maxEntries,
     include,
@@ -408,9 +409,7 @@ function resolveNetworkIncludeMode(
     };
   }
   const requestedInclude = (flagInclude ?? positionalInclude ?? 'summary').toLowerCase();
-  if (
-    !NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])
-  ) {
+  if (!NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])) {
     return {
       ok: false,
       response: { ok: false, error: { code: 'INVALID_ARGS', message: NETWORK_INCLUDE_MESSAGE } },

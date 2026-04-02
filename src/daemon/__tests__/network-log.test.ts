@@ -129,6 +129,26 @@ test('readRecentNetworkTraffic keeps Android packet enrichment disabled for Appl
   assert.equal(dump.entries[0]?.durationMs, undefined);
 });
 
+test('readRecentNetworkTraffic ignores plain documentation URLs in non-network log messages', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-network-log-'));
+  const logPath = path.join(tempDir, 'app.log');
+  fs.writeFileSync(
+    logPath,
+    '2026-04-02 08:14:44.371 E New Expensify Dev[32193:8c7e18d] Airship config warning. See https://docs.airship.com/platform/mobile/setup/sdk/ios/#url-allow-list for more information.\n',
+    'utf8',
+  );
+
+  const dump = readRecentNetworkTraffic(logPath, {
+    backend: 'ios-simulator',
+    maxEntries: 5,
+    include: 'summary',
+    maxPayloadChars: 2048,
+    maxScanLines: 100,
+  });
+
+  assert.equal(dump.entries.length, 0);
+});
+
 test('readRecentNetworkTraffic returns empty result when log file is missing', () => {
   const logPath = path.join(os.tmpdir(), 'agent-device-network-log-missing', 'app.log');
   const dump = readRecentNetworkTraffic(logPath, {

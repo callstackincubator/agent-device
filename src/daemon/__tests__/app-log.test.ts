@@ -9,6 +9,7 @@ import {
   assertAndroidPackageArgSafe,
   buildAppleLogPredicate,
   buildIosDeviceLogStreamArgs,
+  buildIosSimulatorLogStreamArgs,
   clearAppLogFiles,
   cleanupStaleAppLogProcesses,
   getAppLogPathMetadata,
@@ -89,6 +90,22 @@ test('buildIosDeviceLogStreamArgs builds expected devicectl command args', () =>
     'stream',
     '--device',
     '00008150-0000AAAA',
+  ]);
+});
+
+test('buildIosSimulatorLogStreamArgs streams logs inside the simulator at info level', () => {
+  assert.deepEqual(buildIosSimulatorLogStreamArgs('sim-1', 'com.example.app'), [
+    'simctl',
+    'spawn',
+    'sim-1',
+    'log',
+    'stream',
+    '--style',
+    'compact',
+    '--level',
+    'info',
+    '--predicate',
+    buildAppleLogPredicate('com.example.app'),
   ]);
 });
 

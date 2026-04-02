@@ -8,7 +8,12 @@ import {
   readRecentAndroidLogcatForPackage,
   startAndroidAppLog,
 } from './app-log-android.ts';
-import { startIosDeviceAppLog, startIosSimulatorAppLog, startMacOsAppLog } from './app-log-ios.ts';
+import {
+  readRecentIosSimulatorLogShowForBundle,
+  startIosDeviceAppLog,
+  startIosSimulatorAppLog,
+  startMacOsAppLog,
+} from './app-log-ios.ts';
 import type { AppLogResult, AppLogState } from './app-log-process.ts';
 import { waitForChildExit } from './app-log-stream.ts';
 import {
@@ -27,7 +32,11 @@ export {
   assertAndroidPackageArgSafe,
   readRecentAndroidLogcatForPackage,
 } from './app-log-android.ts';
-export { buildAppleLogPredicate, buildIosDeviceLogStreamArgs } from './app-log-ios.ts';
+export {
+  buildAppleLogPredicate,
+  buildIosDeviceLogStreamArgs,
+  buildIosSimulatorLogStreamArgs,
+} from './app-log-ios.ts';
 
 export type AppLogDoctorResult = {
   checks: Record<string, boolean>;
@@ -38,6 +47,11 @@ export type SessionNetworkCapture = {
   backend: NetworkLogBackend;
   dump: NetworkDump;
   notes: string[];
+};
+
+type IosSimulatorNetworkRecovery = {
+  dump: NetworkDump;
+  recoveredLineCount: number;
 };
 
 const DEFAULT_MAX_APP_LOG_BYTES = 5 * 1024 * 1024;
@@ -129,6 +143,7 @@ export async function readSessionNetworkCapture(params: {
   device: DeviceInfo;
   appBundleId?: string;
   appLogState?: AppLogState;
+  appLogStartedAt?: number;
   appLogPath: string;
   maxEntries: number;
   include: NetworkIncludeMode;
@@ -139,6 +154,7 @@ export async function readSessionNetworkCapture(params: {
     device,
     appBundleId,
     appLogState,
+    appLogStartedAt,
     appLogPath,
     maxEntries,
     include,
@@ -179,19 +195,53 @@ export async function readSessionNetworkCapture(params: {
       }
     }
   }
+  const canRecoverIosSimulatorLogShow =
+    device.platform === 'ios' && device.kind === 'simulator' && Boolean(appBundleId);
+  if (canRecoverIosSimulatorLogShow && dump.entries.length === 0) {
+    const recovered = await readRecentIosSimulatorNetworkCapture({
+      deviceId: device.id,
+      appBundleId: appBundleId as string,
+      startedAt: appLogStartedAt,
+      appLogPath,
+      maxEntries,
+      include,
+      maxPayloadChars,
+      maxScanLines,
+    });
+    if (recovered) {
+      if (recovered.dump.entries.length > 0) {
+        dump = mergeNetworkDumps(recovered.dump, dump, maxEntries);
+        notes.push(
+          `Recovered ${recovered.dump.entries.length} iOS simulator HTTP entr${
+            recovered.dump.entries.length === 1 ? 'y' : 'ies'
+          } from simctl log show (${recovered.recoveredLineCount} app log lines scanned).`,
+        );
+      } else if (recovered.recoveredLineCount > 0) {
+        notes.push(
+          `Recovered ${recovered.recoveredLineCount} recent iOS simulator app log lines from simctl log show, but none looked like HTTP traffic. This app may not emit request URLs, status, or timing into Unified Logging for this repro window.`,
+        );
+      }
+    }
+  }
 
   if (appLogState === undefined) {
     notes.push(
       'Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.',
     );
   } else if (appLogState !== 'active' && notes.length === 0) {
-    notes.push(
-      'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
-    );
+    if (device.platform === 'ios' && device.kind === 'simulator') {
+      notes.push(
+        'Session app log stream is inactive. The iOS simulator recovery path scanned recent simctl log history, but a fresh logs clear --restart window is still the most reliable repro loop.',
+      );
+    } else {
+      notes.push(
+        'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
+      );
+    }
   }
 
   if (dump.entries.length === 0) {
-    notes.push('No HTTP(s) entries were found in recent session app logs.');
+    notes.push(buildNoHttpEntriesNote(device));
   }
 
   return { backend, dump, notes };
@@ -210,7 +260,13 @@ export async function startAppLog(
     if (device.kind === 'device') {
       return await startIosDeviceAppLog(device.id, stream, redactionPatterns, pidPath);
     }
-    return await startIosSimulatorAppLog(appBundleId, stream, redactionPatterns, pidPath);
+    return await startIosSimulatorAppLog(
+      device.id,
+      appBundleId,
+      stream,
+      redactionPatterns,
+      pidPath,
+    );
   }
   if (device.platform === 'android') {
     assertAndroidPackageArgSafe(appBundleId);
@@ -221,6 +277,47 @@ export async function startAppLog(
   }
   stream.end();
   throw new AppError('UNSUPPORTED_PLATFORM', `unsupported platform: ${device.platform}`);
+}
+
+async function readRecentIosSimulatorNetworkCapture(params: {
+  deviceId: string;
+  appBundleId: string;
+  startedAt?: number;
+  appLogPath: string;
+  maxEntries: number;
+  include: NetworkIncludeMode;
+  maxPayloadChars: number;
+  maxScanLines: number;
+}): Promise<IosSimulatorNetworkRecovery | null> {
+  const recovered = await readRecentIosSimulatorLogShowForBundle({
+    deviceId: params.deviceId,
+    appBundleId: params.appBundleId,
+    startedAt: params.startedAt,
+  });
+  if (!recovered) {
+    return null;
+  }
+  return {
+    dump: readRecentNetworkTrafficFromText(recovered.text, {
+      path: `${params.appLogPath} (simctl log show recovery)`,
+      backend: 'ios-simulator',
+      maxEntries: params.maxEntries,
+      include: params.include,
+      maxPayloadChars: params.maxPayloadChars,
+      maxScanLines: params.maxScanLines,
+    }),
+    recoveredLineCount: recovered.recoveredLineCount,
+  };
+}
+
+function buildNoHttpEntriesNote(device: DeviceInfo): string {
+  if (device.platform === 'ios' && device.kind === 'simulator') {
+    return 'No HTTP(s) entries were found in recent iOS simulator app logs. If the app only emits non-HTTP diagnostics, inspect logs path or add app-side URLSession/network logging for per-request timing and payload details.';
+  }
+  if (device.platform === 'ios') {
+    return 'No HTTP(s) entries were found in recent iOS device app logs. iOS network dump only sees what the app emits into Unified Logging for this process.';
+  }
+  return 'No HTTP(s) entries were found in recent session app logs.';
 }
 
 export async function stopAppLog(appLog: AppLogResult): Promise<void> {

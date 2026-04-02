@@ -36,9 +36,11 @@ Logging is off by default. Enable it only when you need a debugging window.
 - Default app logs live under `~/.agent-device/sessions/<session>/app.log`.
 - `logs clear --restart` is the fastest clean repro loop.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from the same session app log.
-- On iOS, `network dump` is limited to what Unified Logging exposes for the app process. If the app does not emit JS/network traffic there, `network dump` can legitimately return no HTTP entries even during a real repro.
+- On iOS simulators, `network dump` can recover recent app log history with `simctl log show` when the live session stream is sparse, so check the returned notes before assuming the repro window was empty.
+- On iOS, `network dump` is still limited to what Unified Logging exposes for the app process. If the app does not emit request metadata there, `network dump` can legitimately return no HTTP entries even during a real repro.
 - Summary output already shows timestamp, status, and duration when the log backend exposes them.
 - Prefer the explicit flag form `network dump 25 --include headers|body|all` when you need more than the default summary view.
+- If iOS simulator notes say app logs were recovered but none looked like HTTP traffic, treat that as an app instrumentation gap rather than a missing repro and inspect `logs path` for the non-network diagnostics that were captured.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
 - `logs mark "before tap"` inserts a timestamped marker into the app log.
 - Android `network dump` surfaces timestamps from logcat-style prefixes and can backfill status and request/response duration from adjacent GIBSDK packet lines, so check it before dumping raw log windows.
