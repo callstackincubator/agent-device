@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import { buildSimctlArgs } from '../platforms/ios/simctl.ts';
 import { runCmd } from '../utils/exec.ts';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
 import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
@@ -12,20 +13,27 @@ export function buildAppleLogPredicate(appBundleId: string): string {
   ].join(' OR ');
 }
 
-export function buildIosSimulatorLogStreamArgs(deviceId: string, appBundleId: string): string[] {
-  return [
-    'simctl',
-    'spawn',
-    deviceId,
-    'log',
-    'stream',
-    '--style',
-    'compact',
-    '--level',
-    'info',
-    '--predicate',
-    buildAppleLogPredicate(appBundleId),
-  ];
+export function buildIosSimulatorLogStreamArgs(params: {
+  deviceId: string;
+  appBundleId: string;
+  simulatorSetPath?: string;
+}): string[] {
+  const { deviceId, appBundleId, simulatorSetPath } = params;
+  return buildSimctlArgs(
+    [
+      'spawn',
+      deviceId,
+      'log',
+      'stream',
+      '--style',
+      'compact',
+      '--level',
+      'info',
+      '--predicate',
+      buildAppleLogPredicate(appBundleId),
+    ],
+    { simulatorSetPath },
+  );
 }
 
 export function buildIosDeviceLogStreamArgs(deviceId: string): string[] {
@@ -36,20 +44,23 @@ export async function readRecentIosSimulatorLogShowForBundle(params: {
   deviceId: string;
   appBundleId: string;
   startedAt?: number;
+  simulatorSetPath?: string;
 }): Promise<{ text: string; recoveredLineCount: number } | null> {
-  const { deviceId, appBundleId, startedAt } = params;
-  const args = [
-    'simctl',
-    'spawn',
-    deviceId,
-    'log',
-    'show',
-    '--style',
-    'compact',
-    '--info',
-    '--predicate',
-    buildAppleLogPredicate(appBundleId),
-  ];
+  const { deviceId, appBundleId, startedAt, simulatorSetPath } = params;
+  const args = buildSimctlArgs(
+    [
+      'spawn',
+      deviceId,
+      'log',
+      'show',
+      '--style',
+      'compact',
+      '--info',
+      '--predicate',
+      buildAppleLogPredicate(appBundleId),
+    ],
+    { simulatorSetPath },
+  );
   if (typeof startedAt === 'number' && Number.isFinite(startedAt) && startedAt > 0) {
     args.push('--start', `@${Math.floor(startedAt / 1000)}`);
   } else {
@@ -82,12 +93,17 @@ export async function startIosSimulatorAppLog(
   appBundleId: string,
   stream: fs.WriteStream,
   redactionPatterns: RegExp[],
+  simulatorSetPath?: string,
   pidPath?: string,
 ): Promise<AppLogResult> {
   let state: 'active' | 'failed' = 'active';
-  const child = spawn('xcrun', buildIosSimulatorLogStreamArgs(deviceId, appBundleId), {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const child = spawn(
+    'xcrun',
+    buildIosSimulatorLogStreamArgs({ deviceId, appBundleId, simulatorSetPath }),
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
   const writer = createLineWriter(stream, { redactionPatterns });
   if (typeof child.pid === 'number') {
     writePidFile(pidPath, child.pid);

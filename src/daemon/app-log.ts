@@ -202,6 +202,7 @@ export async function readSessionNetworkCapture(params: {
       deviceId: device.id,
       appBundleId: appBundleId as string,
       startedAt: appLogStartedAt,
+      simulatorSetPath: device.simulatorSetPath,
       appLogPath,
       maxEntries,
       include,
@@ -265,6 +266,7 @@ export async function startAppLog(
       appBundleId,
       stream,
       redactionPatterns,
+      device.simulatorSetPath,
       pidPath,
     );
   }
@@ -283,6 +285,7 @@ async function readRecentIosSimulatorNetworkCapture(params: {
   deviceId: string;
   appBundleId: string;
   startedAt?: number;
+  simulatorSetPath?: string;
   appLogPath: string;
   maxEntries: number;
   include: NetworkIncludeMode;
@@ -293,6 +296,7 @@ async function readRecentIosSimulatorNetworkCapture(params: {
     deviceId: params.deviceId,
     appBundleId: params.appBundleId,
     startedAt: params.startedAt,
+    simulatorSetPath: params.simulatorSetPath,
   });
   if (!recovered) {
     return null;

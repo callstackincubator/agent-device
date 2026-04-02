@@ -94,19 +94,47 @@ test('buildIosDeviceLogStreamArgs builds expected devicectl command args', () =>
 });
 
 test('buildIosSimulatorLogStreamArgs streams logs inside the simulator at info level', () => {
-  assert.deepEqual(buildIosSimulatorLogStreamArgs('sim-1', 'com.example.app'), [
-    'simctl',
-    'spawn',
-    'sim-1',
-    'log',
-    'stream',
-    '--style',
-    'compact',
-    '--level',
-    'info',
-    '--predicate',
-    buildAppleLogPredicate('com.example.app'),
-  ]);
+  assert.deepEqual(
+    buildIosSimulatorLogStreamArgs({ deviceId: 'sim-1', appBundleId: 'com.example.app' }),
+    [
+      'simctl',
+      'spawn',
+      'sim-1',
+      'log',
+      'stream',
+      '--style',
+      'compact',
+      '--level',
+      'info',
+      '--predicate',
+      buildAppleLogPredicate('com.example.app'),
+    ],
+  );
+});
+
+test('buildIosSimulatorLogStreamArgs respects simulator device set scoping', () => {
+  assert.deepEqual(
+    buildIosSimulatorLogStreamArgs({
+      deviceId: 'sim-1',
+      appBundleId: 'com.example.app',
+      simulatorSetPath: '/tmp/tenant-a/simulators',
+    }),
+    [
+      'simctl',
+      '--set',
+      '/tmp/tenant-a/simulators',
+      'spawn',
+      'sim-1',
+      'log',
+      'stream',
+      '--style',
+      'compact',
+      '--level',
+      'info',
+      '--predicate',
+      buildAppleLogPredicate('com.example.app'),
+    ],
+  );
 });
 
 test('cleanupStaleAppLogProcesses removes legacy plain pid files safely', () => {
