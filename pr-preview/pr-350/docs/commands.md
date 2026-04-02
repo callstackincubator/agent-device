@@ -507,13 +507,18 @@ agent-device metrics --json
 ```
 
 - `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
-- Current metric: `startup` from `open-command-roundtrip` sampling.
-- Sampling method: elapsed wall-clock time around each `open` command dispatch for the active session app target.
-- Unit: milliseconds (`ms`).
-- Platform support for current startup sampling: iOS simulator, iOS physical device, Android emulator/device.
-- `fps`, `memory`, and `cpu` are surfaced as unavailable placeholders in this release.
+- `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
+- Android app sessions with an active package also sample:
+  - `memory` from `adb shell dumpsys meminfo <package>` with values reported in kilobytes (`kB`)
+  - `cpu` from `adb shell dumpsys cpuinfo`, aggregated across matching package processes and reported as a recent percentage snapshot
+- Platform support:
+  - `startup`: iOS simulator, iOS physical device, Android emulator/device
+  - `memory` and `cpu`: Android emulator/device with an active app session (`open <app>` first)
+- iOS still reports `fps`, `memory`, and `cpu` as unavailable placeholders in this release.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
+- If the Android session has no app package yet, `memory` and `cpu` remain unavailable until you `open <app>`.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
+- Android CPU data is a lightweight `dumpsys` snapshot, so an idle app may legitimately read as `0`.
 
 ## Media and logs
 
@@ -559,8 +564,9 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 - Network dump limits: scans up to 4000 recent log lines, returns up to 200 entries, and truncates payload/header fields at 2048 characters.
 - Android `network dump` also surfaces logcat timestamps and can backfill status and duration from adjacent GIBSDK packet lines when the URL is logged separately.
 - Android log streaming automatically rebinds to the app PID after process restarts.
-- iOS log capture relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
-- On iOS, `network dump` can return zero HTTP entries for real app activity when the app does not emit request metadata into Unified Logging.
+- iOS simulator log capture now streams from inside the simulator with `simctl spawn <udid> log ...`, and `network dump` can recover recent simulator log history with `simctl log show` when the live app-log window is sparse.
+- iOS log capture still relies on Unified Logging signals (for example `os_log`); plain stdout/stderr output may be limited depending on app/runtime.
+- On iOS, `network dump` can return zero HTTP entries for real app activity when the app does not emit request metadata into Unified Logging. The response notes now distinguish between an empty repro window and a non-network app log window.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
 - Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.
 

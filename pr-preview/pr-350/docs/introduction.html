@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-350/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-350/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-350/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-350/static/js/index.2c7d5ac69c.js"></script>
+<script defer src="/agent-device/pr-preview/pr-350/static/js/index.1ae44b65e8.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -42,7 +42,7 @@ For exploratory QA and bug-hunting workflows, see <code>skills/dogfood/SKILL.md<
 <li>iOS <code>appstate</code> is session-scoped on the selected target device.</li>
 <li>iOS/tvOS simulator-only: <code>settings</code>, <code>push</code>, <code>clipboard</code>.</li>
 <li>Apple simulators and macOS desktop app sessions: <code>alert</code>, <code>pinch</code>.</li>
-<li>Session performance metrics: <code>perf</code>/<code>metrics</code> is available on iOS and Android and currently reports startup timing sampled from <code>open</code> command round-trip duration.</li>
+<li>Session performance metrics: <code>perf</code>/<code>metrics</code> is available on iOS and Android. Startup timing comes from <code>open</code> command round-trip duration, and Android app sessions also expose CPU and memory snapshots when an app package is available in the session.</li>
 <li>iOS <code>record</code> supports simulators and physical devices.
 <ul>
 <li>Simulators use native <code>simctl io ... recordVideo</code>.</li>
