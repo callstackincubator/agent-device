@@ -8,8 +8,8 @@ import { buildSimctlArgsForDevice } from './simctl.ts';
 
 export const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
 export const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
-const APPLE_UNAVAILABLE_DESCRIPTION =
-  'CPU/memory sampling for physical iOS devices is not implemented in this release.';
+export const APPLE_DEVICE_PERF_UNAVAILABLE_REASON =
+  'CPU and memory sampling are not yet implemented for physical iOS devices.';
 
 const APPLE_PERF_TIMEOUT_MS = 15_000;
 
@@ -39,16 +39,12 @@ export async function sampleApplePerfMetrics(
   appBundleId: string,
 ): Promise<{ cpu: AppleCpuPerfSample; memory: AppleMemoryPerfSample }> {
   if (device.platform === 'ios' && device.kind === 'device') {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'CPU and memory sampling are not yet implemented for physical iOS devices.',
-      {
-        platform: device.platform,
-        deviceKind: device.kind,
-        appBundleId,
-        hint: 'Use an iOS simulator or macOS app session for CPU/memory perf sampling for now.',
-      },
-    );
+    throw new AppError('UNSUPPORTED_OPERATION', APPLE_DEVICE_PERF_UNAVAILABLE_REASON, {
+      platform: device.platform,
+      deviceKind: device.kind,
+      appBundleId,
+      hint: 'Use an iOS simulator or macOS app session for CPU/memory perf sampling for now.',
+    });
   }
 
   const executable = await resolveAppleExecutable(device, appBundleId);
@@ -87,12 +83,12 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
     return {
       memory: {
         method: APPLE_MEMORY_SAMPLE_METHOD,
-        description: APPLE_UNAVAILABLE_DESCRIPTION,
+        description: APPLE_DEVICE_PERF_UNAVAILABLE_REASON,
         unit: 'kB',
       },
       cpu: {
         method: APPLE_CPU_SAMPLE_METHOD,
-        description: APPLE_UNAVAILABLE_DESCRIPTION,
+        description: APPLE_DEVICE_PERF_UNAVAILABLE_REASON,
         unit: 'percent',
       },
     };

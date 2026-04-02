@@ -2170,10 +2170,47 @@ test('perf degrades Apple cpu and memory metrics on physical iOS devices', async
     const memory = (response.data?.metrics as any)?.memory;
     const cpu = (response.data?.metrics as any)?.cpu;
     expect(memory?.available).toBe(false);
-    expect(memory?.error?.code).toBe('UNSUPPORTED_OPERATION');
     expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
     expect(cpu?.available).toBe(false);
-    expect(cpu?.error?.code).toBe('UNSUPPORTED_OPERATION');
+    expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  }
+});
+
+test('perf reports physical iOS cpu and memory as unsupported even without an app bundle id', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'perf-session-ios-device-no-bundle';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-2',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    const memory = (response.data?.metrics as any)?.memory;
+    const cpu = (response.data?.metrics as any)?.cpu;
+    expect(memory?.available).toBe(false);
+    expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+    expect(cpu?.available).toBe(false);
+    expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
   }
 });
 
