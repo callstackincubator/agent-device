@@ -2070,15 +2070,14 @@ test('perf samples Apple cpu and memory metrics on macOS app sessions', async ()
   });
 
   expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    const memory = (response.data?.metrics as any)?.memory;
-    const cpu = (response.data?.metrics as any)?.cpu;
-    expect(memory?.available).toBe(true);
-    expect(memory?.residentMemoryKb).toBe(5120);
-    expect(cpu?.available).toBe(true);
-    expect(cpu?.usagePercent).toBe(8);
-    expect(cpu?.matchedProcesses).toEqual(['ExampleExec']);
-  }
+  if (!response?.ok) throw new Error('Expected perf response to succeed for macOS session');
+  const memory = (response.data?.metrics as any)?.memory;
+  const cpu = (response.data?.metrics as any)?.cpu;
+  expect(memory?.available).toBe(true);
+  expect(memory?.residentMemoryKb).toBe(5120);
+  expect(cpu?.available).toBe(true);
+  expect(cpu?.usagePercent).toBe(8);
+  expect(cpu?.matchedProcesses).toEqual(['ExampleExec']);
 });
 
 test('perf samples Apple cpu and memory metrics on iOS simulator app sessions', async () => {
@@ -2126,15 +2125,14 @@ test('perf samples Apple cpu and memory metrics on iOS simulator app sessions', 
   });
 
   expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    const memory = (response.data?.metrics as any)?.memory;
-    const cpu = (response.data?.metrics as any)?.cpu;
-    expect(memory?.available).toBe(true);
-    expect(memory?.residentMemoryKb).toBe(6144);
-    expect(cpu?.available).toBe(true);
-    expect(cpu?.usagePercent).toBe(11);
-    expect(cpu?.matchedProcesses).toEqual(['ExampleSimExec']);
-  }
+  if (!response?.ok) throw new Error('Expected perf response to succeed for iOS simulator session');
+  const memory = (response.data?.metrics as any)?.memory;
+  const cpu = (response.data?.metrics as any)?.cpu;
+  expect(memory?.available).toBe(true);
+  expect(memory?.residentMemoryKb).toBe(6144);
+  expect(cpu?.available).toBe(true);
+  expect(cpu?.usagePercent).toBe(11);
+  expect(cpu?.matchedProcesses).toEqual(['ExampleSimExec']);
 });
 
 test('perf degrades Apple cpu and memory metrics on physical iOS devices', async () => {
@@ -2166,14 +2164,13 @@ test('perf degrades Apple cpu and memory metrics on physical iOS devices', async
   });
 
   expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    const memory = (response.data?.metrics as any)?.memory;
-    const cpu = (response.data?.metrics as any)?.cpu;
-    expect(memory?.available).toBe(false);
-    expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
-    expect(cpu?.available).toBe(false);
-    expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
-  }
+  if (!response?.ok) throw new Error('Expected perf response to succeed for physical iOS session');
+  const memory = (response.data?.metrics as any)?.memory;
+  const cpu = (response.data?.metrics as any)?.cpu;
+  expect(memory?.available).toBe(false);
+  expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  expect(cpu?.available).toBe(false);
+  expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
 });
 
 test('perf reports physical iOS cpu and memory as unsupported even without an app bundle id', async () => {
@@ -2204,14 +2201,15 @@ test('perf reports physical iOS cpu and memory as unsupported even without an ap
   });
 
   expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    const memory = (response.data?.metrics as any)?.memory;
-    const cpu = (response.data?.metrics as any)?.cpu;
-    expect(memory?.available).toBe(false);
-    expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
-    expect(cpu?.available).toBe(false);
-    expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  if (!response?.ok) {
+    throw new Error('Expected perf response to succeed for physical iOS session without bundle id');
   }
+  const memory = (response.data?.metrics as any)?.memory;
+  const cpu = (response.data?.metrics as any)?.cpu;
+  expect(memory?.available).toBe(false);
+  expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  expect(cpu?.available).toBe(false);
+  expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
 });
 
 test('open URL on existing iOS session clears stale app bundle id', async () => {

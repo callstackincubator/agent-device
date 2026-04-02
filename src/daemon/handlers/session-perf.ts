@@ -170,28 +170,27 @@ async function samplePlatformPerfResults(
 ): Promise<
   [PromiseSettledResult<Record<string, unknown>>, PromiseSettledResult<Record<string, unknown>>]
 > {
+  const appBundleId = session.appBundleId as string;
   if (session.device.platform === 'android') {
     const [memoryResult, cpuResult] = await Promise.allSettled([
-      sampleAndroidMemoryPerf(session.device, session.appBundleId as string),
-      sampleAndroidCpuPerf(session.device, session.appBundleId as string),
+      sampleAndroidMemoryPerf(session.device, appBundleId),
+      sampleAndroidCpuPerf(session.device, appBundleId),
     ]);
     return [memoryResult, cpuResult];
   }
 
-  const result = await sampleApplePerfMetrics(session.device, session.appBundleId as string).then(
-    (sample) => ({ status: 'fulfilled', value: sample }) as const,
-    (reason) => ({ status: 'rejected', reason }) as const,
-  );
-  if (result.status === 'fulfilled') {
+  try {
+    const sample = await sampleApplePerfMetrics(session.device, appBundleId);
     return [
-      { status: 'fulfilled', value: result.value.memory },
-      { status: 'fulfilled', value: result.value.cpu },
+      { status: 'fulfilled', value: sample.memory },
+      { status: 'fulfilled', value: sample.cpu },
+    ];
+  } catch (reason) {
+    return [
+      { status: 'rejected', reason },
+      { status: 'rejected', reason },
     ];
   }
-  return [
-    { status: 'rejected', reason: result.reason },
-    { status: 'rejected', reason: result.reason },
-  ];
 }
 
 function buildMetricResult<T extends Record<string, unknown>>(
