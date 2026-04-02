@@ -17,8 +17,8 @@ const ANDROID_NEARBY_LINE_RADIUS = 5;
 // many interleaved logcat lines.
 const ANDROID_PACKET_SCAN_RADIUS = 12;
 
-type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
-type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
+export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
+export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
 
 export type NetworkEntry = {
   method?: string;
@@ -48,6 +48,27 @@ export type NetworkDump = {
   };
 };
 
+export function mergeNetworkDumps(
+  primary: NetworkDump,
+  secondary: NetworkDump,
+  maxEntries = primary.limits.maxEntries,
+): NetworkDump {
+  const entries = [...primary.entries];
+  const seen = new Set(entries.map((entry) => networkEntryKey(entry)));
+  for (const entry of secondary.entries) {
+    const key = networkEntryKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(entry);
+    if (entries.length >= maxEntries) break;
+  }
+  return {
+    ...primary,
+    matchedLines: entries.length,
+    entries,
+  };
+}
+
 export function readRecentNetworkTraffic(
   logPath: string,
   options?: {
@@ -59,7 +80,6 @@ export function readRecentNetworkTraffic(
   },
 ): NetworkDump {
   const maxEntries = clampInt(options?.maxEntries, 25, 1, 200);
-  const backend = options?.backend;
   const include = options?.include ?? 'summary';
   const maxPayloadChars = clampInt(options?.maxPayloadChars, 2048, 64, 16_384);
   const maxScanLines = clampInt(options?.maxScanLines, 4000, 100, 20_000);
@@ -76,6 +96,28 @@ export function readRecentNetworkTraffic(
   }
 
   const content = fs.readFileSync(logPath, 'utf8');
+  return readRecentNetworkTrafficFromText(content, {
+    ...options,
+    path: logPath,
+  });
+}
+
+export function readRecentNetworkTrafficFromText(
+  content: string,
+  options?: {
+    path?: string;
+    backend?: NetworkLogBackend;
+    maxEntries?: number;
+    include?: NetworkIncludeMode;
+    maxPayloadChars?: number;
+    maxScanLines?: number;
+  },
+): NetworkDump {
+  const maxEntries = clampInt(options?.maxEntries, 25, 1, 200);
+  const backend = options?.backend;
+  const include = options?.include ?? 'summary';
+  const maxPayloadChars = clampInt(options?.maxPayloadChars, 2048, 64, 16_384);
+  const maxScanLines = clampInt(options?.maxScanLines, 4000, 100, 20_000);
   const allLines = content.split('\n');
   const startIndex = Math.max(0, allLines.length - maxScanLines);
   const lines = allLines.slice(startIndex);
@@ -98,7 +140,7 @@ export function readRecentNetworkTraffic(
   }
 
   return {
-    path: logPath,
+    path: options?.path ?? '<memory>',
     exists: true,
     scannedLines: lines.length,
     matchedLines: entries.length,
@@ -161,6 +203,10 @@ function parseNetworkLine(
   }
 
   return result;
+}
+
+function networkEntryKey(entry: NetworkEntry): string {
+  return `${entry.timestamp ?? ''}|${entry.method ?? ''}|${entry.url}|${entry.status ?? ''}|${entry.raw}`;
 }
 
 function enrichFromAndroidAdjacentLines(

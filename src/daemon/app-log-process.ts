@@ -4,9 +4,11 @@ import { readProcessCommand, readProcessStartTime } from '../utils/process-ident
 
 export const APP_LOG_PID_FILENAME = 'app-log.pid';
 
+export type AppLogState = 'active' | 'recovering' | 'failed';
+
 export type AppLogResult = {
   backend: 'ios-simulator' | 'ios-device' | 'android' | 'macos';
-  getState: () => 'active' | 'failed';
+  getState: () => AppLogState;
   startedAt: number;
   stop: () => Promise<void>;
   wait: Promise<{ stdout: string; stderr: string; exitCode: number }>;

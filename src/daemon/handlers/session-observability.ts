@@ -6,11 +6,11 @@ import {
   appendAppLogMarker,
   clearAppLogFiles,
   getAppLogPathMetadata,
+  readSessionNetworkCapture,
   runAppLogDoctor,
   startAppLog,
   stopAppLog,
 } from '../app-log.ts';
-import { readRecentNetworkTraffic } from '../network-log.ts';
 import { buildPerfResponseData } from './session-perf.ts';
 
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
@@ -366,25 +366,25 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
   if (!includeValidation.ok) return includeValidation.response;
   const { include } = includeValidation;
 
-  const backend = resolveSessionLogBackendLabel(session);
-  const dump = readRecentNetworkTraffic(sessionStore.resolveAppLogPath(sessionName), {
-    backend,
+  const capture = await readSessionNetworkCapture({
+    device: session.device,
+    appBundleId: session.appBundleId,
+    appLogState: session.appLog?.getState(),
+    appLogPath: sessionStore.resolveAppLogPath(sessionName),
     maxEntries,
     include,
     maxPayloadChars: 2048,
     maxScanLines: 4000,
   });
 
-  const notes = buildNetworkNotes(session, dump.entries.length);
-
   return {
     ok: true,
     data: {
-      ...dump,
+      ...capture.dump,
       active: Boolean(session.appLog),
       state: session.appLog?.getState() ?? 'inactive',
-      backend: resolveSessionLogBackendLabel(session),
-      notes,
+      backend: capture.backend,
+      notes: capture.notes,
     },
   };
 }
@@ -417,21 +417,4 @@ function resolveNetworkIncludeMode(
     };
   }
   return { ok: true, include: requestedInclude as NetworkIncludeMode };
-}
-
-function buildNetworkNotes(session: SessionState, entryCount: number): string[] {
-  const notes: string[] = [];
-  if (!session.appLog) {
-    notes.push(
-      'Capture uses the session app log file. For fresh traffic, run logs clear --restart before reproducing requests.',
-    );
-  } else if (session.appLog.getState() !== 'active') {
-    notes.push(
-      'Session app log stream is inactive. Run logs clear --restart, reproduce the request window again, then rerun network dump.',
-    );
-  }
-  if (entryCount === 0) {
-    notes.push('No HTTP(s) entries were found in recent session app logs.');
-  }
-  return notes;
 }

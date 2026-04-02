@@ -4369,6 +4369,209 @@ test('network dump adds a targeted note when the session app log stream is inact
   }
 });
 
+test('network dump recovers Android entries from adb logcat when the session stream is inactive', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-network-recovery';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'failed',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.join(' ') === '-s emulator-5554 shell pidof com.example.app') {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (args.join(' ') === '-s emulator-5554 logcat -d -v time -t 4000') {
+      return {
+        stdout:
+          '04-01 10:00:14.500 I/ActivityManager( 9999): Start proc 4321:com.example.app/u0a123 for top-activity\n' +
+          '04-01 10:00:15.000 D/GIBSDK  (4321): POST https://api.example.com/v1/expenses status=200 duration=15032\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    expect(response.data?.path).toContain('adb logcat recovery');
+    expect(response.data?.state).toBe('failed');
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    expect(entries.length).toBe(1);
+    const latest = entries[0] as Record<string, unknown>;
+    expect(latest.method).toBe('POST');
+    expect(latest.url).toBe('https://api.example.com/v1/expenses');
+    expect(latest.status).toBe(200);
+    expect(response.data?.notes).toContain(
+      'Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set 4321.',
+    );
+  }
+});
+
+test('network dump merges Android recovery entries ahead of stale session log traffic', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-network-merge';
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    '2026-04-01T09:59:00Z GET https://api.example.com/v1/stale status=200\n',
+    'utf8',
+  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: appLogPath,
+      startedAt: Date.now(),
+      getState: () => 'failed',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.join(' ') === '-s emulator-5554 shell pidof com.example.app') {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (args.join(' ') === '-s emulator-5554 logcat -d -v time -t 4000') {
+      return {
+        stdout:
+          '04-01 10:00:14.500 I/ActivityManager( 9999): Start proc 4321:com.example.app/u0a123 for top-activity\n' +
+          '04-01 10:00:15.000 D/GIBSDK  (4321): POST https://api.example.com/v1/fresh status=201 duration=15032\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    expect(entries.length).toBe(2);
+    expect((entries[0] as Record<string, unknown>).url).toBe('https://api.example.com/v1/fresh');
+    expect((entries[1] as Record<string, unknown>).url).toBe('https://api.example.com/v1/stale');
+  }
+});
+
+test('network dump recovers Android entries from previous package pid in bounded logcat window', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-network-previous-pid';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: '/tmp/app.log',
+      startedAt: Date.now(),
+      getState: () => 'failed',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.join(' ') === '-s emulator-5554 shell pidof com.example.app') {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (args.join(' ') === '-s emulator-5554 logcat -d -v time -t 4000') {
+      return {
+        stdout:
+          '04-01 10:00:00.000 I/ActivityManager( 9999): Process com.example.app (pid 1234) has died\n' +
+          '04-01 10:00:00.500 D/GIBSDK  (1234): POST https://api.example.com/v1/submit status=504 duration=15000\n' +
+          '04-01 10:00:01.000 I/ActivityManager( 9999): Start proc 4321:com.example.app/u0a123 for top-activity\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    expect(entries.length).toBe(1);
+    expect((entries[0] as Record<string, unknown>).url).toBe('https://api.example.com/v1/submit');
+    expect(response.data?.notes).toContain(
+      'Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set 4321, 1234.',
+    );
+  }
+});
+
 test('network dump supports macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-network';
