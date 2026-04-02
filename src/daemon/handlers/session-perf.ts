@@ -9,6 +9,11 @@ import {
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
 import {
+  APPLE_DEVICE_PERF_UNAVAILABLE_REASON,
+  buildAppleSamplingMetadata,
+  sampleApplePerfMetrics,
+} from '../../platforms/ios/perf.ts';
+import {
   PERF_STARTUP_SAMPLE_LIMIT,
   PERF_UNAVAILABLE_REASON,
   STARTUP_SAMPLE_DESCRIPTION,
@@ -68,8 +73,6 @@ export async function buildPerfResponseData(
         reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
         method: STARTUP_SAMPLE_METHOD,
       };
-  const androidSampling = buildAndroidSamplingMetadata(session);
-
   const defaultUnavailableMetrics = {
     fps: { available: false, reason: PERF_UNAVAILABLE_REASON },
     memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
@@ -98,52 +101,99 @@ export async function buildPerfResponseData(
         description: STARTUP_SAMPLE_DESCRIPTION,
         unit: 'ms',
       },
-      ...androidSampling,
+      ...buildPlatformSamplingMetadata(session),
     },
   };
 
-  if (session.device.platform !== 'android') {
+  if (!supportsPlatformPerfMetrics(session)) {
+    return response;
+  }
+
+  if (isUnsupportedAppleDevicePerfSession(session)) {
+    response.metrics.memory = { available: false, reason: APPLE_DEVICE_PERF_UNAVAILABLE_REASON };
+    response.metrics.cpu = { available: false, reason: APPLE_DEVICE_PERF_UNAVAILABLE_REASON };
     return response;
   }
 
   if (!session.appBundleId) {
-    response.metrics.memory = {
-      available: false,
-      reason: 'No Android app package is associated with this session. Run open <app> first.',
-    };
-    response.metrics.cpu = {
-      available: false,
-      reason: 'No Android app package is associated with this session. Run open <app> first.',
-    };
+    const reason = buildMissingAppPerfReason(session);
+    response.metrics.memory = { available: false, reason };
+    response.metrics.cpu = { available: false, reason };
     return response;
   }
 
-  const [memoryResult, cpuResult] = await Promise.allSettled([
-    sampleAndroidMemoryPerf(session.device, session.appBundleId),
-    sampleAndroidCpuPerf(session.device, session.appBundleId),
-  ]);
-  response.metrics.memory = buildAndroidMetricResult(memoryResult);
-  response.metrics.cpu = buildAndroidMetricResult(cpuResult);
+  const [memoryResult, cpuResult] = await samplePlatformPerfResults(session);
+  response.metrics.memory = buildMetricResult(memoryResult);
+  response.metrics.cpu = buildMetricResult(cpuResult);
   return response;
 }
 
-function buildAndroidSamplingMetadata(session: SessionState): Record<string, unknown> {
-  if (session.device.platform !== 'android') return {};
-  return {
-    memory: {
-      method: ANDROID_MEMORY_SAMPLE_METHOD,
-      description: ANDROID_MEMORY_SAMPLE_DESCRIPTION,
-      unit: 'kB',
-    },
-    cpu: {
-      method: ANDROID_CPU_SAMPLE_METHOD,
-      description: ANDROID_CPU_SAMPLE_DESCRIPTION,
-      unit: 'percent',
-    },
-  };
+function supportsPlatformPerfMetrics(session: SessionState): boolean {
+  return (
+    session.device.platform === 'android' ||
+    session.device.platform === 'ios' ||
+    session.device.platform === 'macos'
+  );
 }
 
-function buildAndroidMetricResult<T extends Record<string, unknown>>(
+function buildMissingAppPerfReason(session: SessionState): string {
+  if (session.device.platform === 'android') {
+    return 'No Android app package is associated with this session. Run open <app> first.';
+  }
+  return 'No Apple app bundle ID is associated with this session. Run open <app> first.';
+}
+
+function isUnsupportedAppleDevicePerfSession(session: SessionState): boolean {
+  return session.device.platform === 'ios' && session.device.kind === 'device';
+}
+
+function buildPlatformSamplingMetadata(session: SessionState): Record<string, unknown> {
+  if (session.device.platform === 'android') {
+    return {
+      memory: {
+        method: ANDROID_MEMORY_SAMPLE_METHOD,
+        description: ANDROID_MEMORY_SAMPLE_DESCRIPTION,
+        unit: 'kB',
+      },
+      cpu: {
+        method: ANDROID_CPU_SAMPLE_METHOD,
+        description: ANDROID_CPU_SAMPLE_DESCRIPTION,
+        unit: 'percent',
+      },
+    };
+  }
+  return buildAppleSamplingMetadata(session.device);
+}
+
+async function samplePlatformPerfResults(
+  session: SessionState,
+): Promise<
+  [PromiseSettledResult<Record<string, unknown>>, PromiseSettledResult<Record<string, unknown>>]
+> {
+  const appBundleId = session.appBundleId as string;
+  if (session.device.platform === 'android') {
+    const [memoryResult, cpuResult] = await Promise.allSettled([
+      sampleAndroidMemoryPerf(session.device, appBundleId),
+      sampleAndroidCpuPerf(session.device, appBundleId),
+    ]);
+    return [memoryResult, cpuResult];
+  }
+
+  try {
+    const sample = await sampleApplePerfMetrics(session.device, appBundleId);
+    return [
+      { status: 'fulfilled', value: sample.memory },
+      { status: 'fulfilled', value: sample.cpu },
+    ];
+  } catch (reason) {
+    return [
+      { status: 'rejected', reason },
+      { status: 'rejected', reason },
+    ];
+  }
+}
+
+function buildMetricResult<T extends Record<string, unknown>>(
   result: PromiseSettledResult<T>,
 ):
   | ({ available: true } & T)
