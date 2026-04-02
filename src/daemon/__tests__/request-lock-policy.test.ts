@@ -52,6 +52,28 @@ test('rejects fresh-session selector conflicts under request lock policy', () =>
   );
 });
 
+test('allows open to choose a fresh-session target under request lock policy', () => {
+  const req = applyRequestLockPolicy({
+    token: 'token',
+    session: 'qa-ios',
+    command: 'open',
+    positionals: ['Settings'],
+    flags: {
+      platform: 'ios',
+      device: 'iPhone 16',
+      udid: 'SIM-001',
+    },
+    meta: {
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  assert.equal(req.flags?.platform, 'ios');
+  assert.equal(req.flags?.device, 'iPhone 16');
+  assert.equal(req.flags?.udid, 'SIM-001');
+});
+
 test('strips fresh-session selector conflicts and restores lock platform', () => {
   const req = applyRequestLockPolicy({
     token: 'token',

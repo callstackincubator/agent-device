@@ -187,9 +187,12 @@ export function buildSnapshotState(
 ): SnapshotState {
   const rawNodes = data?.nodes ?? [];
   const snapshotRaw = flags?.snapshotRaw;
-  const nodes = attachRefs(
-    normalizeSnapshotTree(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes)),
-  );
+  const normalizedNodes = normalizeSnapshotTree(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
+  const scopedNodes =
+    flags?.snapshotScope && data?.backend !== 'macos-helper'
+      ? scopeSnapshotNodes(normalizedNodes, flags.snapshotScope)
+      : normalizedNodes;
+  const nodes = attachRefs(scopedNodes);
   return {
     nodes,
     truncated: data?.truncated,

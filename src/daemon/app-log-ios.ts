@@ -8,7 +8,6 @@ export function buildAppleLogPredicate(appBundleId: string): string {
     `subsystem == "${appBundleId}"`,
     `processImagePath ENDSWITH[c] "/${appBundleId}"`,
     `senderImagePath ENDSWITH[c] "/${appBundleId}"`,
-    `eventMessage CONTAINS[c] "${appBundleId}"`,
   ].join(' OR ');
 }
 

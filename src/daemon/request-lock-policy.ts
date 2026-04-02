@@ -32,7 +32,7 @@ export function applyRequestLockPolicy(
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
   const conflicts = existingSession
     ? listSessionSelectorConflicts(existingSession, nextFlags)
-    : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform);
+    : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
 
   if (conflicts.length === 0) {
     if (!existingSession && req.meta?.lockPlatform && nextFlags.platform === undefined) {
@@ -67,6 +67,7 @@ export function applyRequestLockPolicy(
 function listFreshSessionConflicts(
   flags: CommandFlags,
   lockPlatform: LockPlatform,
+  command: DaemonRequest['command'],
 ): SessionSelectorConflict[] {
   const conflicts: SessionSelectorConflict[] = [];
   const normalizedLockPlatform = normalizePlatformSelector(lockPlatform);
@@ -76,6 +77,9 @@ function listFreshSessionConflicts(
     platformSelectorsConflict(normalizePlatformSelector(flags.platform), normalizedLockPlatform)
   ) {
     conflicts.push({ key: 'platform', value: flags.platform });
+  }
+  if (command === 'open') {
+    return conflicts;
   }
   for (const key of LOCKABLE_SELECTOR_KEYS) {
     const value = flags[key];

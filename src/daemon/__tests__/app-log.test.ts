@@ -22,7 +22,7 @@ test('buildAppleLogPredicate includes bundle-aware filters', () => {
   assert.match(predicate, /subsystem == "com\.example\.app"/);
   assert.match(predicate, /processImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
   assert.match(predicate, /senderImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
-  assert.match(predicate, /eventMessage CONTAINS\[c\] "com\.example\.app"/);
+  assert.doesNotMatch(predicate, /eventMessage CONTAINS\[c\] "com\.example\.app"/);
 });
 
 test('assertAndroidPackageArgSafe rejects unsafe values', () => {

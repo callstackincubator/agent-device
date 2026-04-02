@@ -36,6 +36,7 @@ Logging is off by default. Enable it only when you need a debugging window.
 - Default app logs live under `~/.agent-device/sessions/<session>/app.log`.
 - `logs clear --restart` is the fastest clean repro loop.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from the same session app log.
+- On iOS, `network dump` is limited to what Unified Logging exposes for the app process. If the app does not emit JS/network traffic there, `network dump` can legitimately return no HTTP entries even during a real repro.
 - Summary output already shows timestamp, status, and duration when the log backend exposes them.
 - Prefer the explicit flag form `network dump 25 --include headers|body|all` when you need more than the default summary view.
 - `logs doctor` checks backend and runtime readiness for the current session and device.
@@ -84,6 +85,7 @@ agent-device alert accept
 
 - `alert` is only supported on iOS simulators.
 - `alert accept` and `alert dismiss` retry internally for a short window, so you usually do not need manual sleeps.
+- If a permission sheet is visible in `snapshot` or `screenshot` but `alert accept` says no alert was found, treat it as normal tappable UI for that run: take a scoped `snapshot -i -s "<visible label>"` and `press @ref` instead of looping on `alert`.
 - iOS 16+ "Allow Paste" prompts are suppressed under XCUITest. Use `xcrun simctl pbcopy booted` when you need to seed simulator clipboard content directly.
 
 ## Setup problems worth recognizing early
