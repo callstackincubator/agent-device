@@ -1,0 +1,2564 @@
+{
+  "generatedBy": "pnpm kb:build",
+  "routes": [
+    {
+      "task": "Learn the CLI surface or flag schema",
+      "paths": [
+        "src/utils/command-schema.ts",
+        "src/utils/args.ts",
+        "knowledge/index.md"
+      ]
+    },
+    {
+      "task": "Trace session lifecycle and session-owned commands",
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "skills/agent-device/references/bootstrap-install.md"
+      ]
+    },
+    {
+      "task": "Trace selectors and element interactions",
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "skills/agent-device/references/exploration.md"
+      ]
+    },
+    {
+      "task": "Trace snapshot, wait, alerts, settings, or screenshot behavior",
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "website/docs/docs/snapshots.md"
+      ]
+    },
+    {
+      "task": "Trace replay, test, record, and trace flows",
+      "paths": [
+        "src/daemon/handlers/record-trace.ts",
+        "src/daemon/handlers/session-replay.ts",
+        "website/docs/docs/replay-e2e.md"
+      ]
+    },
+    {
+      "task": "Trace Apple runner behavior",
+      "paths": [
+        "src/platforms/ios/runner-contract.ts",
+        "src/platforms/ios/runner-client.ts",
+        "src/platforms/ios/runner-transport.ts"
+      ]
+    }
+  ],
+  "sampleTargets": [
+    {
+      "key": "iosSimulator",
+      "label": "iOS sim"
+    },
+    {
+      "key": "iosDevice",
+      "label": "iOS device"
+    },
+    {
+      "key": "tvSimulator",
+      "label": "tvOS sim"
+    },
+    {
+      "key": "macosDesktop",
+      "label": "macOS"
+    },
+    {
+      "key": "androidEmulator",
+      "label": "Android emu"
+    },
+    {
+      "key": "androidDevice",
+      "label": "Android device"
+    },
+    {
+      "key": "androidTv",
+      "label": "Android TV"
+    }
+  ],
+  "sourceFiles": [
+    "AGENTS.md",
+    "src/utils/command-schema.ts",
+    "src/core/capabilities.ts",
+    "skills/agent-device/SKILL.md",
+    "website/docs/docs/commands.md"
+  ],
+  "commands": [
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Inspect or handle alert (iOS simulator and macOS desktop)",
+      "name": "alert",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": false,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": false,
+        "androidDevice": false,
+        "androidTv": false
+      },
+      "positionals": [
+        "action?",
+        "timeout?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Inspect or handle iOS/macOS alerts",
+      "usage": "alert [get|accept|dismiss|wait] [timeout]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Open app switcher (where supported)",
+      "name": "app-switcher",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Open app switcher",
+      "usage": "app-switcher"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "appsFilter",
+          "names": [
+            "--user-installed"
+          ],
+          "usageDescription": "Apps: list user-installed apps",
+          "usageLabel": "--user-installed"
+        },
+        {
+          "key": "appsFilter",
+          "names": [
+            "--all"
+          ],
+          "usageDescription": "Apps: list all apps (include system/default apps)",
+          "usageLabel": "--all"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "List installed apps (includes default/system apps by default)",
+      "name": "apps",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "List installed apps",
+      "usage": "apps [--user-installed] [--all]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Show foreground app/activity",
+      "name": "appstate",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Show foreground app/activity",
+      "usage": "appstate"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "backMode",
+          "names": [
+            "--in-app"
+          ],
+          "usageDescription": "Back: use app-provided back UI when available",
+          "usageLabel": "--in-app"
+        },
+        {
+          "key": "backMode",
+          "names": [
+            "--system"
+          ],
+          "usageDescription": "Back: use system back input or gesture when available",
+          "usageLabel": "--system"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Navigate back with explicit app or system semantics",
+      "name": "back",
+      "notes": [
+        "`back --in-app` is the explicit alias for the default app-owned behavior."
+      ],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Go back",
+      "usage": "back [--in-app|--system]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "steps",
+          "names": [
+            "--steps"
+          ],
+          "usageDescription": "Batch: JSON array of steps",
+          "usageLabel": "--steps <json>"
+        },
+        {
+          "key": "stepsFile",
+          "names": [
+            "--steps-file"
+          ],
+          "usageDescription": "Batch: read steps JSON from file",
+          "usageLabel": "--steps-file <path>"
+        },
+        {
+          "key": "batchOnError",
+          "names": [
+            "--on-error"
+          ],
+          "usageDescription": "Batch: stop when a step fails",
+          "usageLabel": "--on-error stop"
+        },
+        {
+          "key": "batchMaxSteps",
+          "names": [
+            "--max-steps"
+          ],
+          "usageDescription": "Batch: maximum number of allowed steps",
+          "usageLabel": "--max-steps <n>"
+        },
+        {
+          "key": "out",
+          "names": [
+            "--out"
+          ],
+          "usageDescription": "Output path",
+          "usageLabel": "--out <path>"
+        }
+      ],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Execute multiple commands in one daemon request",
+      "name": "batch",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [],
+      "sessionRequirement": "Creates or manages sessions internally.",
+      "summary": "Run multiple commands",
+      "usage": "batch [--steps <json> | --steps-file <path>]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "headless",
+          "names": [
+            "--headless"
+          ],
+          "usageDescription": "Boot: launch Android emulator without a GUI window",
+          "usageLabel": "--headless"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Ensure target device/simulator is booted and ready",
+      "name": "boot",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Boot target device/simulator",
+      "usage": "boot [--headless]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "count",
+          "names": [
+            "--count"
+          ],
+          "usageDescription": "Repeat count for press/swipe series",
+          "usageLabel": "--count <n>"
+        },
+        {
+          "key": "intervalMs",
+          "names": [
+            "--interval-ms"
+          ],
+          "usageDescription": "Delay between press iterations",
+          "usageLabel": "--interval-ms <ms>"
+        },
+        {
+          "key": "holdMs",
+          "names": [
+            "--hold-ms"
+          ],
+          "usageDescription": "Press hold duration for each iteration",
+          "usageLabel": "--hold-ms <ms>"
+        },
+        {
+          "key": "jitterPx",
+          "names": [
+            "--jitter-px"
+          ],
+          "usageDescription": "Deterministic coordinate jitter radius for press",
+          "usageLabel": "--jitter-px <n>"
+        },
+        {
+          "key": "doubleTap",
+          "names": [
+            "--double-tap"
+          ],
+          "usageDescription": "Use double-tap gesture per press iteration",
+          "usageLabel": "--double-tap"
+        },
+        {
+          "key": "clickButton",
+          "names": [
+            "--button"
+          ],
+          "usageDescription": "Click: choose mouse button (middle reserved for future macOS support)",
+          "usageLabel": "--button primary|secondary|middle"
+        },
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Tap/click by coordinates, snapshot ref, or selector",
+      "name": "click",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "target"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Tap by coordinates, ref, or selector",
+      "usage": "click <x y|@ref|selector>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Read or write device clipboard text",
+      "name": "clipboard",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": false,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "read|write",
+        "text?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Read or write device clipboard text",
+      "usage": "clipboard read | clipboard write <text>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "saveScript",
+          "names": [
+            "--save-script"
+          ],
+          "usageDescription": "Save session script (.ad) on close; optional custom output path",
+          "usageLabel": "--save-script [path]"
+        },
+        {
+          "key": "shutdown",
+          "names": [
+            "--shutdown"
+          ],
+          "usageDescription": "close: shutdown associated iOS simulator after ending session",
+          "usageLabel": "--shutdown"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Close app or just end session",
+      "name": "close",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "app?"
+      ],
+      "sessionRequirement": "Requires an active session to close it.",
+      "summary": "Close app or end session",
+      "usage": "close [app] [--save-script [path]] [--shutdown]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "List available devices",
+      "name": "devices",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "List available devices",
+      "usage": "devices"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotInteractiveOnly",
+          "names": [
+            "-i"
+          ],
+          "usageDescription": "Snapshot: interactive elements only",
+          "usageLabel": "-i"
+        },
+        {
+          "key": "snapshotCompact",
+          "names": [
+            "-c"
+          ],
+          "usageDescription": "Snapshot: compact output (drop empty structure)",
+          "usageLabel": "-c"
+        },
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        },
+        {
+          "key": "baseline",
+          "names": [
+            "--baseline",
+            "-b"
+          ],
+          "usageDescription": "Diff screenshot: path to baseline image file",
+          "usageLabel": "--baseline, -b <path>"
+        },
+        {
+          "key": "threshold",
+          "names": [
+            "--threshold"
+          ],
+          "usageDescription": "Diff screenshot: color distance threshold (default 0.1)",
+          "usageLabel": "--threshold <0-1>"
+        },
+        {
+          "key": "out",
+          "names": [
+            "--out"
+          ],
+          "usageDescription": "Output path",
+          "usageLabel": "--out <path>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Diff accessibility snapshot or compare screenshots pixel-by-pixel",
+      "name": "diff",
+      "notes": [
+        "`snapshot --diff` routes to `diff snapshot`."
+      ],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "kind"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Diff snapshot or screenshot",
+      "usage": "diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "runtime",
+          "names": [
+            "--runtime"
+          ],
+          "usageDescription": "ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)",
+          "usageLabel": "--runtime <id>"
+        },
+        {
+          "key": "boot",
+          "names": [
+            "--boot"
+          ],
+          "usageDescription": "ensure-simulator: boot the simulator after ensuring it exists",
+          "usageLabel": "--boot"
+        },
+        {
+          "key": "reuseExisting",
+          "names": [
+            "--reuse-existing"
+          ],
+          "usageDescription": "ensure-simulator: reuse an existing simulator (default: true)",
+          "usageLabel": "--reuse-existing"
+        }
+      ],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Ensure an iOS simulator exists in a device set (create if missing)",
+      "name": "ensure-simulator",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Ensure iOS simulator exists",
+      "usage": "ensure-simulator [--runtime <id>] [--boot] [--reuse-existing]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        },
+        {
+          "key": "delayMs",
+          "names": [
+            "--delay-ms"
+          ],
+          "usageDescription": "Delay between typed characters",
+          "usageLabel": "--delay-ms <ms>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Tap then type",
+      "name": "fill",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "targetOrX",
+        "yOrText",
+        "text?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Tap then type",
+      "usage": "fill <x> <y> <text> | fill <@ref|selector> <text>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        },
+        {
+          "key": "findFirst",
+          "names": [
+            "--first"
+          ],
+          "usageDescription": "Find: pick the first match when ambiguous",
+          "usageLabel": "--first"
+        },
+        {
+          "key": "findLast",
+          "names": [
+            "--last"
+          ],
+          "usageDescription": "Find: pick the last match when ambiguous",
+          "usageLabel": "--last"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "find",
+      "helpDescription": "Find by text/label/value/role/id and run action",
+      "name": "find",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/find.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/find.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "query",
+        "action",
+        "value?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Find an element and act",
+      "usage": "find <locator|text> <action> [value] [--first|--last]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Focus input at coordinates",
+      "name": "focus",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "x",
+        "y"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Focus input at coordinates",
+      "usage": "focus <x> <y>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Return element text/attributes by ref or selector",
+      "name": "get",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "subcommand",
+        "target"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Get text or attrs by ref or selector",
+      "usage": "get text|attrs <@ref|selector>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Go to home screen (where supported)",
+      "name": "home",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Go home",
+      "usage": "home"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Install app from binary path without uninstalling first",
+      "name": "install",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "app",
+        "path"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Install app from binary path",
+      "usage": "install <app> <path>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "header",
+          "names": [
+            "--header"
+          ],
+          "usageDescription": "install-from-source: repeatable HTTP header for URL downloads",
+          "usageLabel": "--header <name:value>"
+        },
+        {
+          "key": "retainPaths",
+          "names": [
+            "--retain-paths"
+          ],
+          "usageDescription": "install-from-source: keep materialized artifact paths after install",
+          "usageLabel": "--retain-paths"
+        },
+        {
+          "key": "retentionMs",
+          "names": [
+            "--retention-ms"
+          ],
+          "usageDescription": "install-from-source: retention TTL for materialized artifact paths",
+          "usageLabel": "--retention-ms <ms>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Install app from a URL source through the normal daemon artifact flow",
+      "name": "install-from-source",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "url"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Install app from a URL source",
+      "usage": "install-from-source <url> [--header <name:value>] [--retain-paths] [--retention-ms <ms>]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Assert UI state (visible|hidden|exists|editable|selected|text)",
+      "name": "is",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "predicate",
+        "selector",
+        "value?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Assert UI state",
+      "usage": "is <predicate> <selector> [value] [--depth, -d <depth>] [--scope, -s <scope>] [--raw]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Inspect Android keyboard visibility/type or dismiss the device keyboard",
+      "name": "keyboard",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": false,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "action?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Inspect or dismiss the device keyboard",
+      "usage": "keyboard [status|get|dismiss]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "restart",
+          "names": [
+            "--restart"
+          ],
+          "usageDescription": "logs clear: stop active stream, clear logs, then start streaming again",
+          "usageLabel": "--restart"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Session app log info, start/stop streaming, diagnostics, and markers",
+      "name": "logs",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "path|start|stop|clear|doctor|mark",
+        "message?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Manage session app logs",
+      "usage": "logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]"
+    },
+    {
+      "aliases": [
+        "long-press"
+      ],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Long press by coordinates (iOS and Android)",
+      "name": "longpress",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "x",
+        "y",
+        "durationMs?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Long press by coordinates",
+      "usage": "longpress <x> <y> [durationMs]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "metroProjectRoot",
+          "names": [
+            "--project-root"
+          ],
+          "usageDescription": "metro prepare: React Native project root (default: cwd)",
+          "usageLabel": "--project-root <path>"
+        },
+        {
+          "key": "metroKind",
+          "names": [
+            "--kind"
+          ],
+          "usageDescription": "metro prepare: detect or force the Metro launcher kind",
+          "usageLabel": "--kind auto|react-native|expo"
+        },
+        {
+          "key": "metroPublicBaseUrl",
+          "names": [
+            "--public-base-url"
+          ],
+          "usageDescription": "metro prepare: public base URL used to build bundle hints",
+          "usageLabel": "--public-base-url <url>"
+        },
+        {
+          "key": "metroProxyBaseUrl",
+          "names": [
+            "--proxy-base-url"
+          ],
+          "usageDescription": "metro prepare: optional remote host bridge base URL for Metro access",
+          "usageLabel": "--proxy-base-url <url>"
+        },
+        {
+          "key": "metroBearerToken",
+          "names": [
+            "--bearer-token"
+          ],
+          "usageDescription": "metro prepare: host bridge bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)",
+          "usageLabel": "--bearer-token <token>"
+        },
+        {
+          "key": "metroPreparePort",
+          "names": [
+            "--port"
+          ],
+          "usageDescription": "metro prepare: local Metro port (default: 8081)",
+          "usageLabel": "--port <port>"
+        },
+        {
+          "key": "metroListenHost",
+          "names": [
+            "--listen-host"
+          ],
+          "usageDescription": "metro prepare: host Metro listens on (default: 0.0.0.0)",
+          "usageLabel": "--listen-host <host>"
+        },
+        {
+          "key": "metroStatusHost",
+          "names": [
+            "--status-host"
+          ],
+          "usageDescription": "metro prepare: host used for local /status polling (default: 127.0.0.1)",
+          "usageLabel": "--status-host <host>"
+        },
+        {
+          "key": "metroStartupTimeoutMs",
+          "names": [
+            "--startup-timeout-ms"
+          ],
+          "usageDescription": "metro prepare: timeout while waiting for Metro to become ready",
+          "usageLabel": "--startup-timeout-ms <ms>"
+        },
+        {
+          "key": "metroProbeTimeoutMs",
+          "names": [
+            "--probe-timeout-ms"
+          ],
+          "usageDescription": "metro prepare: timeout for /status and proxy bridge calls",
+          "usageLabel": "--probe-timeout-ms <ms>"
+        },
+        {
+          "key": "metroRuntimeFile",
+          "names": [
+            "--runtime-file"
+          ],
+          "usageDescription": "metro prepare: optional file path to persist the JSON result",
+          "usageLabel": "--runtime-file <path>"
+        },
+        {
+          "key": "metroNoReuseExisting",
+          "names": [
+            "--no-reuse-existing"
+          ],
+          "usageDescription": "metro prepare: always start a fresh Metro process",
+          "usageLabel": "--no-reuse-existing"
+        },
+        {
+          "key": "metroNoInstallDeps",
+          "names": [
+            "--no-install-deps"
+          ],
+          "usageDescription": "metro prepare: skip package-manager install when node_modules is missing",
+          "usageLabel": "--no-install-deps"
+        }
+      ],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Prepare a local Metro runtime and optionally bridge it through a remote host",
+      "name": "metro",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [
+        "prepare"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Prepare local Metro runtime",
+      "usage": "metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "networkInclude",
+          "names": [
+            "--include"
+          ],
+          "usageDescription": "Network: include headers, bodies, or both in output",
+          "usageLabel": "--include summary|headers|body|all"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Dump recent HTTP(s) traffic parsed from the session app log",
+      "name": "network",
+      "notes": [
+        "`network log` is an alias for `network dump`."
+      ],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "dump|log",
+        "limit?",
+        "include?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Show recent HTTP traffic",
+      "usage": "network dump [limit] [summary|headers|body|all] [--include summary|headers|body|all] | network log [limit] [summary|headers|body|all] [--include summary|headers|body|all]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "activity",
+          "names": [
+            "--activity"
+          ],
+          "usageDescription": "Android app launch activity (package/Activity); not for URL opens",
+          "usageLabel": "--activity <component>"
+        },
+        {
+          "key": "saveScript",
+          "names": [
+            "--save-script"
+          ],
+          "usageDescription": "Save session script (.ad) on close; optional custom output path",
+          "usageLabel": "--save-script [path]"
+        },
+        {
+          "key": "relaunch",
+          "names": [
+            "--relaunch"
+          ],
+          "usageDescription": "open: terminate app process before launching it",
+          "usageLabel": "--relaunch"
+        },
+        {
+          "key": "surface",
+          "names": [
+            "--surface"
+          ],
+          "usageDescription": "macOS session surface for open (defaults to app)",
+          "usageLabel": "--surface app|frontmost-app|desktop|menubar"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)",
+      "name": "open",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "appOrUrl?",
+        "url?"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Open an app, deep link or URL, save replays",
+      "usage": "open [appOrUrl] [url] [--activity <component>] [--save-script [path]] [--relaunch] [--surface app|frontmost-app|desktop|menubar]"
+    },
+    {
+      "aliases": [
+        "metrics"
+      ],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Show session performance metrics",
+      "name": "perf",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Show performance metrics",
+      "usage": "perf"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Pinch/zoom gesture (Apple simulator or macOS app session)",
+      "name": "pinch",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": false,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": false,
+        "androidDevice": false,
+        "androidTv": false
+      },
+      "positionals": [
+        "scale",
+        "x?",
+        "y?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Pinch/zoom gesture (Apple simulator or macOS app session)",
+      "usage": "pinch <scale> [x] [y]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "count",
+          "names": [
+            "--count"
+          ],
+          "usageDescription": "Repeat count for press/swipe series",
+          "usageLabel": "--count <n>"
+        },
+        {
+          "key": "intervalMs",
+          "names": [
+            "--interval-ms"
+          ],
+          "usageDescription": "Delay between press iterations",
+          "usageLabel": "--interval-ms <ms>"
+        },
+        {
+          "key": "holdMs",
+          "names": [
+            "--hold-ms"
+          ],
+          "usageDescription": "Press hold duration for each iteration",
+          "usageLabel": "--hold-ms <ms>"
+        },
+        {
+          "key": "jitterPx",
+          "names": [
+            "--jitter-px"
+          ],
+          "usageDescription": "Deterministic coordinate jitter radius for press",
+          "usageLabel": "--jitter-px <n>"
+        },
+        {
+          "key": "doubleTap",
+          "names": [
+            "--double-tap"
+          ],
+          "usageDescription": "Use double-tap gesture per press iteration",
+          "usageLabel": "--double-tap"
+        },
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Tap/press by coordinates, snapshot ref, or selector (supports repeated series)",
+      "name": "press",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "targetOrX",
+        "y?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Press by coordinates, ref, or selector",
+      "usage": "press <x y|@ref|selector>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Simulate push notification payload delivery",
+      "name": "push",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": false,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "bundleOrPackage",
+        "payloadOrJson"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Deliver push payload",
+      "usage": "push <bundleOrPackage> <payloadOrJson>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "fps",
+          "names": [
+            "--fps"
+          ],
+          "usageDescription": "Record: target frames per second (iOS physical device runner)",
+          "usageLabel": "--fps <n>"
+        },
+        {
+          "key": "hideTouches",
+          "names": [
+            "--hide-touches"
+          ],
+          "usageDescription": "Record: disable touch overlays in the final video",
+          "usageLabel": "--hide-touches"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "skills/agent-device/references/verification.md"
+      ],
+      "family": "recordTrace",
+      "helpDescription": "Start/stop screen recording",
+      "name": "record",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/record-trace.ts",
+        "src/platforms/ios/runner-client.ts",
+        "src/daemon/handlers/__tests__/record-trace.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "start|stop",
+        "path?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Start or stop screen recording",
+      "usage": "record start [path] [--fps <n>] [--hide-touches] | record stop"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Uninstall + install app from binary path",
+      "name": "reinstall",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "app",
+        "path"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "Reinstall app from binary path",
+      "usage": "reinstall <app> <path>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "replayUpdate",
+          "names": [
+            "--update",
+            "-u"
+          ],
+          "usageDescription": "Replay: update selectors and rewrite replay file in place",
+          "usageLabel": "--update, -u"
+        }
+      ],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Replay a recorded session",
+      "name": "replay",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [
+        "path"
+      ],
+      "sessionRequirement": "Creates or manages sessions internally.",
+      "summary": "Replay a recorded session",
+      "usage": "replay <path> [--update, -u]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Rotate device orientation on iOS and Android",
+      "name": "rotate",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": false,
+        "macosDesktop": false,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "orientation"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Rotate device orientation",
+      "usage": "rotate <portrait|portrait-upside-down|landscape-left|landscape-right>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "out",
+          "names": [
+            "--out"
+          ],
+          "usageDescription": "Output path",
+          "usageLabel": "--out <path>"
+        },
+        {
+          "key": "overlayRefs",
+          "names": [
+            "--overlay-refs"
+          ],
+          "usageDescription": "Screenshot: draw current snapshot refs and target rectangles onto the saved PNG",
+          "usageLabel": "--overlay-refs"
+        },
+        {
+          "key": "screenshotFullscreen",
+          "names": [
+            "--fullscreen"
+          ],
+          "usageDescription": "Screenshot: capture the full screen instead of the app window",
+          "usageLabel": "--fullscreen"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, or --overlay-refs to annotate the image with current refs)",
+      "name": "screenshot",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "path?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, or --overlay-refs to annotate the image with current refs)",
+      "usage": "screenshot [path] [--out <path>] [--overlay-refs] [--fullscreen]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "pixels",
+          "names": [
+            "--pixels"
+          ],
+          "usageDescription": "Scroll: explicit gesture distance in pixels",
+          "usageLabel": "--pixels <n>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Scroll in direction (relative amount or explicit pixels)",
+      "name": "scroll",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "direction",
+        "amount?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Scroll in a direction",
+      "usage": "scroll <direction> [amount] [--pixels <n>]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "maxScrolls",
+          "names": [
+            "--max-scrolls"
+          ],
+          "usageDescription": "scrollintoview: cap the number of scroll gestures before failing",
+          "usageLabel": "--max-scrolls <n>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Scroll until text appears or a snapshot ref is brought into view",
+      "name": "scrollintoview",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "target"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Scroll until text or ref is visible",
+      "usage": "scrollintoview <text|@ref>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "List active sessions",
+      "name": "session",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [
+        "list?"
+      ],
+      "sessionRequirement": "Does not require an active session.",
+      "summary": "List active sessions",
+      "usage": "session list"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Toggle OS settings, appearance, and app permissions (macOS supports only settings appearance <light|dark|toggle> and settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>; wifi|airplane|location remain unsupported on macOS; mobile permission actions use the active session app)",
+      "name": "settings",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": false,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "setting",
+        "state",
+        "target?",
+        "mode?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Change OS settings and app permissions",
+      "usage": "settings <wifi|airplane|location> <on|off> | settings appearance <light|dark|toggle> | settings faceid <match|nonmatch|enroll|unenroll> | settings touchid <match|nonmatch|enroll|unenroll> | settings fingerprint <match|nonmatch> | settings permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited] | settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDiff",
+          "names": [
+            "--diff"
+          ],
+          "usageDescription": "Snapshot: show structural diff against the previous session baseline",
+          "usageLabel": "--diff"
+        },
+        {
+          "key": "snapshotInteractiveOnly",
+          "names": [
+            "-i"
+          ],
+          "usageDescription": "Snapshot: interactive elements only",
+          "usageLabel": "-i"
+        },
+        {
+          "key": "snapshotCompact",
+          "names": [
+            "-c"
+          ],
+          "usageDescription": "Snapshot: compact output (drop empty structure)",
+          "usageLabel": "-c"
+        },
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Capture accessibility tree or diff against the previous session baseline",
+      "name": "snapshot",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Capture accessibility tree or diff against the previous session baseline",
+      "usage": "snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "count",
+          "names": [
+            "--count"
+          ],
+          "usageDescription": "Repeat count for press/swipe series",
+          "usageLabel": "--count <n>"
+        },
+        {
+          "key": "pauseMs",
+          "names": [
+            "--pause-ms"
+          ],
+          "usageDescription": "Delay between swipe iterations",
+          "usageLabel": "--pause-ms <ms>"
+        },
+        {
+          "key": "pattern",
+          "names": [
+            "--pattern"
+          ],
+          "usageDescription": "Swipe repeat pattern",
+          "usageLabel": "--pattern one-way|ping-pong"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Swipe coordinates with optional repeat pattern",
+      "name": "swipe",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "x1",
+        "y1",
+        "x2",
+        "y2",
+        "durationMs?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Swipe coordinates",
+      "usage": "swipe <x1> <y1> <x2> <y2> [durationMs] [--count <n>] [--pause-ms <ms>] [--pattern one-way|ping-pong]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "replayUpdate",
+          "names": [
+            "--update",
+            "-u"
+          ],
+          "usageDescription": "Replay: update selectors and rewrite replay file in place",
+          "usageLabel": "--update, -u"
+        },
+        {
+          "key": "failFast",
+          "names": [
+            "--fail-fast"
+          ],
+          "usageDescription": "Test: stop the suite after the first failing script",
+          "usageLabel": "--fail-fast"
+        },
+        {
+          "key": "timeoutMs",
+          "names": [
+            "--timeout"
+          ],
+          "usageDescription": "Test: maximum wall-clock time per script attempt",
+          "usageLabel": "--timeout <ms>"
+        },
+        {
+          "key": "retries",
+          "names": [
+            "--retries"
+          ],
+          "usageDescription": "Test: retry each failed script up to n additional times",
+          "usageLabel": "--retries <n>"
+        },
+        {
+          "key": "artifactsDir",
+          "names": [
+            "--artifacts-dir"
+          ],
+          "usageDescription": "Test: root directory for suite artifacts",
+          "usageLabel": "--artifacts-dir <path>"
+        },
+        {
+          "key": "reportJunit",
+          "names": [
+            "--report-junit"
+          ],
+          "usageDescription": "Test: write a JUnit XML report for the replay suite",
+          "usageLabel": "--report-junit <path>"
+        }
+      ],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/replay-e2e.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/bootstrap-install.md"
+      ],
+      "family": "session",
+      "helpDescription": "Run one or more .ad scripts as a serial test suite",
+      "name": "test",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/session.ts",
+        "src/daemon/session-store.ts",
+        "src/daemon/handlers/__tests__/session.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [
+        "pathOrGlob"
+      ],
+      "sessionRequirement": "Creates or manages sessions internally.",
+      "summary": "Run .ad test suites",
+      "usage": "test <path-or-glob>..."
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": false,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "skills/agent-device/references/verification.md"
+      ],
+      "family": "recordTrace",
+      "helpDescription": "Start/stop trace log capture",
+      "name": "trace",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/record-trace.ts",
+        "src/platforms/ios/runner-client.ts",
+        "src/daemon/handlers/__tests__/record-trace.test.ts"
+      ],
+      "platformSupport": null,
+      "positionals": [
+        "start|stop",
+        "path?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Start or stop trace capture",
+      "usage": "trace start [path] | trace stop [path]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Trigger app-defined event hook via deep link template",
+      "name": "trigger-app-event",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "event",
+        "payloadJson?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Trigger app event hook",
+      "usage": "trigger-app-event <event> [payloadJson]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "delayMs",
+          "names": [
+            "--delay-ms"
+          ],
+          "usageDescription": "Delay between typed characters",
+          "usageLabel": "--delay-ms <ms>"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/selectors.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md"
+      ],
+      "family": "interaction",
+      "helpDescription": "Type text in focused field",
+      "name": "type",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/interaction.ts",
+        "src/daemon/selectors.ts",
+        "src/daemon/handlers/__tests__/interaction.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "text"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Type text in focused field",
+      "usage": "type <text> [--delay-ms <ms>]"
+    },
+    {
+      "aliases": [],
+      "allowedFlags": [
+        {
+          "key": "snapshotDepth",
+          "names": [
+            "--depth",
+            "-d"
+          ],
+          "usageDescription": "Snapshot: limit snapshot depth",
+          "usageLabel": "--depth, -d <depth>"
+        },
+        {
+          "key": "snapshotScope",
+          "names": [
+            "--scope",
+            "-s"
+          ],
+          "usageDescription": "Snapshot: scope snapshot to label/identifier",
+          "usageLabel": "--scope, -s <scope>"
+        },
+        {
+          "key": "snapshotRaw",
+          "names": [
+            "--raw"
+          ],
+          "usageDescription": "Snapshot: raw node output",
+          "usageLabel": "--raw"
+        }
+      ],
+      "capabilityChecked": true,
+      "docs": [
+        "website/docs/docs/commands.md",
+        "website/docs/docs/snapshots.md",
+        "skills/agent-device/SKILL.md",
+        "skills/agent-device/references/exploration.md",
+        "skills/agent-device/references/debugging.md"
+      ],
+      "family": "snapshot",
+      "helpDescription": "Wait for duration, text, ref, or selector to appear",
+      "name": "wait",
+      "notes": [],
+      "paths": [
+        "src/daemon/handlers/snapshot.ts",
+        "src/daemon/snapshot-processing.ts",
+        "src/daemon/handlers/__tests__/snapshot-handler.test.ts"
+      ],
+      "platformSupport": {
+        "iosSimulator": true,
+        "iosDevice": true,
+        "tvSimulator": true,
+        "macosDesktop": true,
+        "androidEmulator": true,
+        "androidDevice": true,
+        "androidTv": true
+      },
+      "positionals": [
+        "durationOrSelector",
+        "timeoutMs?"
+      ],
+      "sessionRequirement": "Usually expects an active session.",
+      "summary": "Wait for time, text, ref, or selector",
+      "usage": "wait <ms>|text <text>|@ref|<selector> [timeoutMs]"
+    }
+  ]
+}

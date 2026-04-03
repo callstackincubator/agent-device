@@ -60,6 +60,8 @@ Minimal operating guide for AI coding agents in this repo.
 
 ## Cheap Exploration
 - Prefer these first-pass commands over broader reads:
+  - `pnpm kb:build`: regenerate the agent-facing `knowledge/` index after command/doc/skill changes
+  - `pnpm kb:check`: detect stale generated knowledge files
   - `rg -n "<symbol|command|flag>" src test`
   - `rg --files src/daemon/handlers src/platforms/ios src/platforms/android`
   - `git diff -- <path>` for active-branch context
