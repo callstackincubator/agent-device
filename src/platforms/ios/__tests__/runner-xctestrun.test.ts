@@ -107,6 +107,7 @@ test('resolveXcodebuildSimulatorDeviceSetPath uses XCTestDevices under the user 
 
 test('acquireXcodebuildSimulatorSetRedirect swaps XCTestDevices to the requested simulator set', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
+  let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
   try {
     const requestedSetPath = path.join(root, 'requested');
     const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
@@ -116,7 +117,7 @@ test('acquireXcodebuildSimulatorSetRedirect swaps XCTestDevices to the requested
     fs.mkdirSync(xctestDeviceSetPath, { recursive: true });
     fs.writeFileSync(path.join(xctestDeviceSetPath, 'original.txt'), originalMarkerPath, 'utf8');
 
-    const handle = await acquireXcodebuildSimulatorSetRedirect(
+    handle = await acquireXcodebuildSimulatorSetRedirect(
       {
         ...iosSimulator,
         simulatorSetPath: requestedSetPath,
@@ -132,6 +133,7 @@ test('acquireXcodebuildSimulatorSetRedirect swaps XCTestDevices to the requested
     );
 
     await handle?.release();
+    handle = null;
 
     assert.equal(fs.lstatSync(xctestDeviceSetPath).isDirectory(), true);
     assert.equal(
@@ -139,6 +141,7 @@ test('acquireXcodebuildSimulatorSetRedirect swaps XCTestDevices to the requested
       originalMarkerPath,
     );
   } finally {
+    await handle?.release();
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
@@ -150,6 +153,7 @@ test('acquireXcodebuildSimulatorSetRedirect is a no-op for simulators without a 
 
 test('acquireXcodebuildSimulatorSetRedirect restores stale redirected XCTestDevices before applying a new one', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
+  let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
   try {
     const requestedSetPath = path.join(root, 'requested');
     const staleRequestedSetPath = path.join(root, 'stale-requested');
@@ -163,7 +167,7 @@ test('acquireXcodebuildSimulatorSetRedirect restores stale redirected XCTestDevi
     fs.writeFileSync(path.join(backupPath, 'original.txt'), 'restored', 'utf8');
     fs.symlinkSync(staleRequestedSetPath, xctestDeviceSetPath, 'dir');
 
-    const handle = await acquireXcodebuildSimulatorSetRedirect(
+    handle = await acquireXcodebuildSimulatorSetRedirect(
       {
         ...iosSimulator,
         simulatorSetPath: requestedSetPath,
@@ -178,6 +182,7 @@ test('acquireXcodebuildSimulatorSetRedirect restores stale redirected XCTestDevi
     );
 
     await handle?.release();
+    handle = null;
 
     assert.equal(fs.existsSync(backupPath), false);
     assert.equal(
@@ -185,12 +190,14 @@ test('acquireXcodebuildSimulatorSetRedirect restores stale redirected XCTestDevi
       'restored',
     );
   } finally {
+    await handle?.release();
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
 test('acquireXcodebuildSimulatorSetRedirect clears stale lock directories from dead owners', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
+  let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
   try {
     const requestedSetPath = path.join(root, 'requested');
     const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
@@ -203,7 +210,7 @@ test('acquireXcodebuildSimulatorSetRedirect clears stale lock directories from d
       'utf8',
     );
 
-    const handle = await acquireXcodebuildSimulatorSetRedirect(
+    handle = await acquireXcodebuildSimulatorSetRedirect(
       {
         ...iosSimulator,
         simulatorSetPath: requestedSetPath,
@@ -215,9 +222,11 @@ test('acquireXcodebuildSimulatorSetRedirect clears stale lock directories from d
     assert.equal(fs.lstatSync(xctestDeviceSetPath).isSymbolicLink(), true);
 
     await handle?.release();
+    handle = null;
 
     assert.equal(fs.existsSync(lockDirPath), false);
   } finally {
+    await handle?.release();
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
