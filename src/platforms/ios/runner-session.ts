@@ -18,6 +18,7 @@ import {
   RUNNER_DESTINATION_TIMEOUT_SECONDS,
 } from './runner-transport.ts';
 import {
+  acquireXcodebuildSimulatorSetRedirect,
   ensureXctestrun,
   IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   prepareXctestrunWithEnv,
@@ -37,6 +38,7 @@ export type RunnerSession = {
   testPromise: Promise<ExecResult>;
   child: ExecBackgroundResult['child'];
   ready: boolean;
+  releaseXcodebuildSimulatorSetRedirect?: () => Promise<void>;
 };
 
 const runnerSessions = new Map<string, RunnerSession>();
@@ -70,33 +72,41 @@ export async function ensureRunnerSession(
       { AGENT_DEVICE_RUNNER_PORT: String(port) },
       `session-${device.id}-${port}`,
     );
-    const { child, wait: testPromise } = runCmdBackground(
-      'xcodebuild',
-      [
-        'test-without-building',
-        '-only-testing',
-        'AgentDeviceRunnerUITests/RunnerTests/testCommand',
-        '-parallel-testing-enabled',
-        'NO',
-        '-test-timeouts-enabled',
-        'NO',
-        '-collect-test-diagnostics',
-        'never',
-        resolveRunnerMaxConcurrentDestinationsFlag(device),
-        '1',
-        '-destination-timeout',
-        String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
-        '-xctestrun',
-        xctestrunPath,
-        '-destination',
-        resolveRunnerDestination(device),
-      ],
-      {
-        allowFailure: true,
-        env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
-        detached: true,
-      },
-    );
+    const simulatorSetRedirect = await acquireXcodebuildSimulatorSetRedirect(device);
+    let child: ExecBackgroundResult['child'];
+    let testPromise: Promise<ExecResult>;
+    try {
+      ({ child, wait: testPromise } = runCmdBackground(
+        'xcodebuild',
+        [
+          'test-without-building',
+          '-only-testing',
+          'AgentDeviceRunnerUITests/RunnerTests/testCommand',
+          '-parallel-testing-enabled',
+          'NO',
+          '-test-timeouts-enabled',
+          'NO',
+          '-collect-test-diagnostics',
+          'never',
+          resolveRunnerMaxConcurrentDestinationsFlag(device),
+          '1',
+          '-destination-timeout',
+          String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
+          '-xctestrun',
+          xctestrunPath,
+          '-destination',
+          resolveRunnerDestination(device),
+        ],
+        {
+          allowFailure: true,
+          env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
+          detached: true,
+        },
+      ));
+    } catch (error) {
+      await simulatorSetRedirect?.release();
+      throw error;
+    }
     child.stdout?.on('data', (chunk: string) => {
       logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
     });
@@ -114,6 +124,11 @@ export async function ensureRunnerSession(
       testPromise,
       child,
       ready: false,
+      releaseXcodebuildSimulatorSetRedirect: simulatorSetRedirect
+        ? async () => {
+            await simulatorSetRedirect.release();
+          }
+        : undefined,
     };
     runnerSessions.set(device.id, session);
     return session;
@@ -196,6 +211,7 @@ async function stopRunnerSessionInternal(
   await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
+  await session.releaseXcodebuildSimulatorSetRedirect?.();
   if (runnerSessions.get(deviceId) === session) {
     runnerSessions.delete(deviceId);
   }
