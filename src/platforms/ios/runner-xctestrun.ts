@@ -204,6 +204,16 @@ function reconcileXcodebuildSimulatorSetRedirect(paths: {
     if (!fs.existsSync(xctestDeviceSetPath)) {
       fs.mkdirSync(path.dirname(xctestDeviceSetPath), { recursive: true });
       fs.renameSync(activeBackupPath, xctestDeviceSetPath);
+    } else if (!xctestIsSymlink) {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_runner_xctest_device_set_restore_collision',
+        data: {
+          xctestDeviceSetPath,
+          activeBackupPath,
+        },
+      });
+      return;
     } else if (activeBackupPath !== backupPath) {
       fs.rmSync(activeBackupPath, { recursive: true, force: true });
     } else {

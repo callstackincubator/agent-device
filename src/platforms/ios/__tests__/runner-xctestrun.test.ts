@@ -1,4 +1,4 @@
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -227,6 +227,52 @@ test('acquireXcodebuildSimulatorSetRedirect clears stale lock directories from d
     assert.equal(fs.existsSync(lockDirPath), false);
   } finally {
     await handle?.release();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('acquireXcodebuildSimulatorSetRedirect preserves the backup when XCTestDevices is recreated mid-swap', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
+  const renameSync = fs.renameSync.bind(fs);
+  const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
+  const backupPath = `${xctestDeviceSetPath}.agent-device-backup`;
+  const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation((oldPath, newPath) => {
+    if (
+      typeof oldPath === 'string' &&
+      typeof newPath === 'string' &&
+      newPath === xctestDeviceSetPath &&
+      oldPath.includes('.agent-device-link-')
+    ) {
+      fs.mkdirSync(xctestDeviceSetPath, { recursive: true });
+      fs.writeFileSync(path.join(xctestDeviceSetPath, 'collision.txt'), 'collision', 'utf8');
+    }
+    return renameSync(oldPath, newPath);
+  });
+  try {
+    const requestedSetPath = path.join(root, 'requested');
+    const lockDirPath = path.join(root, '.agent-device', 'xctest-device-set.lock');
+    fs.mkdirSync(requestedSetPath, { recursive: true });
+    fs.mkdirSync(xctestDeviceSetPath, { recursive: true });
+    fs.writeFileSync(path.join(xctestDeviceSetPath, 'original.txt'), 'original', 'utf8');
+
+    await assert.rejects(
+      acquireXcodebuildSimulatorSetRedirect(
+        {
+          ...iosSimulator,
+          simulatorSetPath: requestedSetPath,
+        },
+        { backupPath, lockDirPath, xctestDeviceSetPath },
+      ),
+      /Failed to redirect XCTest device set path/,
+    );
+
+    assert.equal(fs.readFileSync(path.join(backupPath, 'original.txt'), 'utf8'), 'original');
+    assert.equal(
+      fs.readFileSync(path.join(xctestDeviceSetPath, 'collision.txt'), 'utf8'),
+      'collision',
+    );
+  } finally {
+    renameSpy.mockRestore();
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
