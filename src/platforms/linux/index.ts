@@ -14,3 +14,4 @@ export {
   fillLinux,
 } from './input-actions.ts';
 export { openLinuxApp, closeLinuxApp, backLinux, homeLinux } from './app-lifecycle.ts';
+export { readLinuxClipboard, writeLinuxClipboard } from './clipboard.ts';

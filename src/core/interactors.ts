@@ -55,6 +55,7 @@ import {
   backLinux,
   homeLinux,
 } from '../platforms/linux/app-lifecycle.ts';
+import { readLinuxClipboard, writeLinuxClipboard } from '../platforms/linux/clipboard.ts';
 import type { PermissionSettingOptions } from '../platforms/permission-utils.ts';
 import type { SessionSurface } from './session-surface.ts';
 
@@ -176,12 +177,8 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         appSwitcher: () => {
           throw new AppError('UNSUPPORTED_OPERATION', 'appSwitcher not yet supported on Linux');
         },
-        readClipboard: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'readClipboard not yet supported on Linux');
-        },
-        writeClipboard: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'writeClipboard not yet supported on Linux');
-        },
+        readClipboard: () => readLinuxClipboard(),
+        writeClipboard: (text) => writeLinuxClipboard(text),
         setSetting: () => {
           throw new AppError('UNSUPPORTED_OPERATION', 'setSetting not supported on Linux');
         },

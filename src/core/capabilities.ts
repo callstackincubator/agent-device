@@ -71,9 +71,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   clipboard: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_NONE,
+    linux: LINUX_DEVICE,
     supports: (device) =>
-      device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
+      device.platform === 'android' || device.platform === 'linux' || device.platform === 'macos' || device.kind === 'simulator',
   },
   keyboard: {
     // iOS only supports keyboard dismiss; status/get remains Android-only.

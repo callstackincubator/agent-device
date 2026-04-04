@@ -261,3 +261,55 @@ test('role selector normalization matches Android class names by leaf type', () 
   assert.ok(resolved);
   assert.equal(resolved.node.ref, 'a1');
 });
+
+// ── appName / windowTitle selectors ──────────────────────────────────────
+
+test('appName selector matches nodes with appName field', () => {
+  const desktopNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'd1',
+      index: 0,
+      type: 'Button',
+      label: 'OK',
+      appName: 'Calculator',
+      windowTitle: 'Main Window',
+      rect: { x: 0, y: 0, width: 80, height: 30 },
+      hittable: true,
+    },
+    {
+      ref: 'd2',
+      index: 1,
+      type: 'Button',
+      label: 'OK',
+      appName: 'TextEditor',
+      windowTitle: 'Untitled',
+      rect: { x: 0, y: 0, width: 80, height: 30 },
+      hittable: true,
+    },
+  ];
+
+  // Match by appName — should disambiguate two OK buttons
+  const chain1 = parseSelectorChain('label=OK appname=Calculator');
+  const match1 = findSelectorChainMatch(desktopNodes, chain1, { platform: 'linux' });
+  assert.ok(match1);
+  assert.equal(match1.matches, 1);
+
+  // Match by windowTitle
+  const chain2 = parseSelectorChain('windowtitle=Untitled');
+  const match2 = findSelectorChainMatch(desktopNodes, chain2, { platform: 'linux' });
+  assert.ok(match2);
+  assert.equal(match2.matches, 1);
+
+  // Case-insensitive key (appName vs appname) and value
+  const chain3 = parseSelectorChain('appName=calculator');
+  const match3 = findSelectorChainMatch(desktopNodes, chain3, { platform: 'linux' });
+  assert.ok(match3);
+  assert.equal(match3.matches, 1);
+});
+
+test('isSelectorToken recognizes appname and windowtitle', () => {
+  assert.ok(isSelectorToken('appName=Foo'));
+  assert.ok(isSelectorToken('appname=Foo'));
+  assert.ok(isSelectorToken('windowTitle=Bar'));
+  assert.ok(isSelectorToken('windowtitle=Bar'));
+});

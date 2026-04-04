@@ -272,6 +272,7 @@ test('Linux supports desktop interaction commands and blocks mobile/unsupported 
     [
       'back',
       'click',
+      'clipboard',
       'close',
       'diff',
       'fill',
@@ -298,7 +299,6 @@ test('Linux supports desktop interaction commands and blocks mobile/unsupported 
       'app-switcher',
       'apps',
       'boot',
-      'clipboard',
       'install',
       'install-from-source',
       'keyboard',

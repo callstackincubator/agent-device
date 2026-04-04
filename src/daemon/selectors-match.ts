@@ -33,6 +33,10 @@ function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform)
       return textEquals(node.value, String(term.value));
     case 'text':
       return textEquals(extractNodeText(node), String(term.value));
+    case 'appname':
+      return textEquals(node.appName, String(term.value));
+    case 'windowtitle':
+      return textEquals(node.windowTitle, String(term.value));
     case 'visible':
       return isNodeVisible(node) === Boolean(term.value);
     case 'hidden':
