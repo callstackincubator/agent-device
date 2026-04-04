@@ -68,6 +68,37 @@ Common normalized types: `Button`, `StaticText`, `TextField`, `TextArea`,
 
 Unmapped roles should be PascalCased (e.g., `"extended table"` → `"ExtendedTable"`).
 
+## Linux platform notes
+
+### Surface mapping
+
+Linux maps session surfaces to AT-SPI2 as follows:
+
+| Session surface  | AT-SPI2 behaviour                           |
+|------------------|---------------------------------------------|
+| `app`            | Maps to `frontmost-app` (focused window)    |
+| `frontmost-app`  | Traverses the focused application's tree     |
+| `desktop`        | Traverses all visible applications           |
+| `menubar`        | **Not supported** — falls back to `desktop` with a diagnostic warning |
+
+### Supported commands
+
+Linux supports: `back`, `click`, `close`, `diff`, `fill`, `find`, `focus`,
+`get`, `home`, `is`, `longpress`, `open`, `press`, `screenshot`, `scroll`,
+`snapshot`, `swipe`, `type`, `wait`.
+
+Not supported (blocked at capability level): `alert`, `app-switcher`, `apps`,
+`boot`, `clipboard`, `install`, `keyboard`, `logs`, `network`, `perf`, `pinch`,
+`push`, `record`, `reinstall`, `rotate`, `scrollintoview`, `settings`,
+`trigger-app-event`.
+
+### Known limitations
+
+- Input synthesis uses `xdotool` (X11) or `ydotool` (Wayland) — availability depends on the desktop environment.
+- On Wayland without `ydotool`, falls back to `xdotool` with a diagnostic warning (may not work).
+- `scrollIntoView` is not yet implemented.
+- Clipboard and settings operations are not supported.
+
 ## Adding a new platform
 
 1. Implement a snapshot function returning `{ nodes: RawSnapshotNode[], truncated: boolean }`.

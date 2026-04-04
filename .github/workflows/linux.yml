@@ -14,8 +14,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Typecheck & Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test:unit
+
   smoke-linux:
     name: Smoke Tests
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -66,12 +84,18 @@ jobs:
           # The registry must start AFTER DBUS_SESSION_BUS_ADDRESS is available
           # (it was written to GITHUB_ENV in the previous step).
           ATSPI_REG=$(find /usr -name at-spi2-registryd -type f 2>/dev/null | head -1)
-          if [ -n "$ATSPI_REG" ]; then
-            "$ATSPI_REG" &
-            sleep 2
-            echo "AT-SPI2 registry started: $ATSPI_REG"
+          if [ -z "$ATSPI_REG" ]; then
+            echo "::error::at-spi2-registryd not found. Install at-spi2-core."
+            exit 1
+          fi
+          "$ATSPI_REG" &
+          sleep 2
+          # Health probe: verify the registry is reachable on the a11y bus
+          if python3 -c "import gi; gi.require_version('Atspi','2.0'); from gi.repository import Atspi; d=Atspi.get_desktop(0); assert d is not None, 'desktop is None'; print(f'AT-SPI2 OK — {d.get_child_count()} apps')"; then
+            echo "AT-SPI2 registry healthy"
           else
-            echo "::warning::at-spi2-registryd not found — accessibility tree may be empty"
+            echo "::error::AT-SPI2 registry started but health probe failed"
+            exit 1
           fi
 
       - name: Verify environment

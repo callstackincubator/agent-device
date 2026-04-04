@@ -40,6 +40,14 @@ const macOsDevice: DeviceInfo = {
   target: 'desktop',
 };
 
+const linuxDevice: DeviceInfo = {
+  platform: 'linux',
+  id: 'local',
+  name: 'Linux Desktop',
+  kind: 'device',
+  target: 'desktop',
+};
+
 const tvOsSimulator: DeviceInfo = {
   platform: 'ios',
   id: 'tv-sim-1',
@@ -259,7 +267,59 @@ test('tvOS follows iOS capability matrix by device kind', () => {
   );
 });
 
+test('Linux supports desktop interaction commands and blocks mobile/unsupported ones', () => {
+  assertCommandSupport(
+    [
+      'back',
+      'click',
+      'close',
+      'diff',
+      'fill',
+      'find',
+      'focus',
+      'get',
+      'home',
+      'is',
+      'longpress',
+      'open',
+      'press',
+      'screenshot',
+      'scroll',
+      'snapshot',
+      'swipe',
+      'type',
+      'wait',
+    ],
+    [{ device: linuxDevice, expected: true, label: 'on Linux' }],
+  );
+  assertCommandSupport(
+    [
+      'alert',
+      'app-switcher',
+      'apps',
+      'boot',
+      'clipboard',
+      'install',
+      'install-from-source',
+      'keyboard',
+      'logs',
+      'network',
+      'perf',
+      'pinch',
+      'push',
+      'record',
+      'reinstall',
+      'rotate',
+      'scrollintoview',
+      'settings',
+      'trigger-app-event',
+    ],
+    [{ device: linuxDevice, expected: false, label: 'on Linux' }],
+  );
+});
+
 test('unknown commands default to supported', () => {
   assert.equal(isCommandSupportedOnDevice('some-future-cmd', iosSimulator), true);
   assert.equal(isCommandSupportedOnDevice('some-future-cmd', androidDevice), true);
+  assert.equal(isCommandSupportedOnDevice('some-future-cmd', linuxDevice), true);
 });

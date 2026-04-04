@@ -235,39 +235,56 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
     }
 
 
-def main():
-    surface = "desktop"
-    max_nodes = MAX_NODES
-    max_depth = MAX_DEPTH
-    max_apps = MAX_DESKTOP_APPS
-
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        if args[i] == "--surface" and i + 1 < len(args):
-            surface = args[i + 1]
-            i += 2
-        elif args[i] == "--max-nodes" and i + 1 < len(args):
-            max_nodes = int(args[i + 1])
-            i += 2
-        elif args[i] == "--max-depth" and i + 1 < len(args):
-            max_depth = int(args[i + 1])
-            i += 2
-        elif args[i] == "--max-apps" and i + 1 < len(args):
-            max_apps = int(args[i + 1])
-            i += 2
-        else:
-            i += 1
-
-    if surface not in VALID_SURFACES:
-        json.dump(
-            {"error": f"Unknown surface '{surface}'. Valid: {', '.join(VALID_SURFACES)}"},
-            sys.stdout,
-        )
+def parse_int_arg(value, name):
+    try:
+        n = int(value)
+        if n < 0:
+            raise ValueError(f"negative value")
+        return n
+    except ValueError as e:
+        json.dump({"error": f"Invalid value for {name}: '{value}' ({e})"}, sys.stdout)
         sys.exit(1)
 
-    result = capture(surface, max_nodes, max_depth, max_apps)
-    json.dump(result, sys.stdout, ensure_ascii=False)
+
+def main():
+    try:
+        surface = "desktop"
+        max_nodes = MAX_NODES
+        max_depth = MAX_DEPTH
+        max_apps = MAX_DESKTOP_APPS
+
+        args = sys.argv[1:]
+        i = 0
+        while i < len(args):
+            if args[i] == "--surface" and i + 1 < len(args):
+                surface = args[i + 1]
+                i += 2
+            elif args[i] == "--max-nodes" and i + 1 < len(args):
+                max_nodes = parse_int_arg(args[i + 1], "--max-nodes")
+                i += 2
+            elif args[i] == "--max-depth" and i + 1 < len(args):
+                max_depth = parse_int_arg(args[i + 1], "--max-depth")
+                i += 2
+            elif args[i] == "--max-apps" and i + 1 < len(args):
+                max_apps = parse_int_arg(args[i + 1], "--max-apps")
+                i += 2
+            else:
+                i += 1
+
+        if surface not in VALID_SURFACES:
+            json.dump(
+                {"error": f"Unknown surface '{surface}'. Valid: {', '.join(VALID_SURFACES)}"},
+                sys.stdout,
+            )
+            sys.exit(1)
+
+        result = capture(surface, max_nodes, max_depth, max_apps)
+        json.dump(result, sys.stdout, ensure_ascii=False)
+    except SystemExit:
+        raise
+    except Exception as e:
+        json.dump({"error": f"Unexpected error: {e}"}, sys.stdout)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

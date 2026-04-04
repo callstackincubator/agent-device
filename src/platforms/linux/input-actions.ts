@@ -4,12 +4,15 @@ import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 
 // ── Low-level wrappers ─────────────────────────────────────────────────
 
+/** Per-action timeout — prevents hung xdotool/ydotool from blocking indefinitely. */
+const INPUT_TIMEOUT_MS = 10_000;
+
 async function xdotool(...args: string[]): Promise<void> {
-  await runCmd('xdotool', args, { allowFailure: false });
+  await runCmd('xdotool', args, { allowFailure: false, timeoutMs: INPUT_TIMEOUT_MS });
 }
 
 async function ydotool(...args: string[]): Promise<void> {
-  await runCmd('ydotool', args, { allowFailure: false });
+  await runCmd('ydotool', args, { allowFailure: false, timeoutMs: INPUT_TIMEOUT_MS });
 }
 
 /** Move the pointer to (x, y) using the detected input tool. */
