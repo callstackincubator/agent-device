@@ -13,6 +13,7 @@ import { getInteractor, type Interactor, type RunnerContext } from './interactor
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
+import { snapshotLinux } from '../platforms/linux/index.ts';
 import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { getClickButtonValidationError, resolveClickButton } from './click-button.ts';
@@ -765,6 +766,25 @@ async function handleSnapshotCommand(
   context: DispatchContext | undefined,
   _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
+  if (device.platform === 'linux') {
+    const linuxResult = await withDiagnosticTimer(
+      'snapshot_capture',
+      async () =>
+        await snapshotLinux(context?.surface, {
+          interactiveOnly: context?.snapshotInteractiveOnly,
+          compact: context?.snapshotCompact,
+          depth: context?.snapshotDepth,
+          scope: context?.snapshotScope,
+          raw: context?.snapshotRaw,
+        }),
+      { backend: 'linux-atspi' },
+    );
+    return {
+      nodes: linuxResult.nodes ?? [],
+      truncated: linuxResult.truncated ?? false,
+      backend: 'linux-atspi',
+    };
+  }
   if (device.platform !== 'android') {
     const result = (await withDiagnosticTimer(
       'snapshot_capture',

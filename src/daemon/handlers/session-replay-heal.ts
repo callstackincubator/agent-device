@@ -183,7 +183,7 @@ async function captureSnapshotForReplay(
   })) as {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'xctest' | 'android' | 'macos-helper';
+    backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
   };
   const rawNodes = data?.nodes ?? [];
   const nodes = attachRefs(action.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));

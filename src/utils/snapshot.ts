@@ -49,7 +49,7 @@ export type SnapshotState = {
   nodes: SnapshotNode[];
   createdAt: number;
   truncated?: boolean;
-  backend?: 'xctest' | 'android' | 'macos-helper';
+  backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
   comparisonSafe?: boolean;
 };
 

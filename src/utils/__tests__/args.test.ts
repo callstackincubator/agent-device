@@ -912,7 +912,7 @@ test('command usage shows command and global flags separately', () => {
   assert.match(help, /Command flags:/);
   assert.match(help, /--pattern one-way\|ping-pong/);
   assert.match(help, /Global flags:/);
-  assert.match(help, /--platform ios\|macos\|android\|apple/);
+  assert.match(help, /--platform ios\|macos\|android\|linux\|apple/);
 });
 
 test('back command usage documents explicit mode flags', () => {

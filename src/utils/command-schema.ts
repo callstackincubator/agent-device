@@ -17,7 +17,7 @@ export type CliFlags = {
   sessionLock?: 'reject' | 'strip';
   sessionLocked?: boolean;
   sessionLockConflicts?: 'reject' | 'strip';
-  platform?: 'ios' | 'macos' | 'android' | 'apple';
+  platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
   target?: 'mobile' | 'tv' | 'desktop';
   device?: string;
   udid?: string;
@@ -284,8 +284,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'platform',
     names: ['--platform'],
     type: 'enum',
-    enumValues: ['ios', 'macos', 'android', 'apple'],
-    usageLabel: '--platform ios|macos|android|apple',
+    enumValues: ['ios', 'macos', 'android', 'linux', 'apple'],
+    usageLabel: '--platform ios|macos|android|linux|apple',
     usageDescription: 'Platform to target (`apple` aliases the Apple automation backend)',
   },
   {

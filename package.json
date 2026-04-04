@@ -74,6 +74,9 @@
   "dependencies": {
     "pngjs": "^7.0.0"
   },
+  "optionalDependencies": {
+    "node-gtk": "^0.14.0"
+  },
   "devDependencies": {
     "@microsoft/api-extractor": "^7.52.10",
     "@rslib/core": "0.20.1",

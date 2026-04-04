@@ -1,7 +1,7 @@
 import { AppError } from './errors.ts';
 
 export type ApplePlatform = 'ios' | 'macos';
-export type Platform = ApplePlatform | 'android';
+export type Platform = ApplePlatform | 'android' | 'linux';
 export type PlatformSelector = Platform | 'apple';
 export type DeviceKind = 'simulator' | 'emulator' | 'device';
 export type DeviceTarget = 'mobile' | 'tv' | 'desktop';

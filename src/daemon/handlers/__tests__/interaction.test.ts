@@ -68,7 +68,7 @@ async function emulateCaptureSnapshotForSession(
     [],
     effectiveFlags.out,
     contextFromFlags(effectiveFlags, session.appBundleId, session.trace?.outPath),
-  )) as { nodes?: never[]; truncated?: boolean; backend?: 'xctest' | 'android' | 'macos-helper' };
+  )) as { nodes?: never[]; truncated?: boolean; backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi' };
   const snapshot = buildSnapshotState(snapshotData ?? {}, effectiveFlags);
   session.snapshot = snapshot;
   sessionStore.set(session.name, session);
