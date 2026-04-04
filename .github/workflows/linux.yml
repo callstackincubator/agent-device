@@ -54,16 +54,17 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Rebuild node-gtk native module
+      - name: Build node-gtk native module
         run: |
-          # pnpm install may have cached or silently skipped the optional dep.
-          # Force a rebuild now that the native build deps are available.
-          pnpm rebuild node-gtk 2>&1 || {
-            echo "Rebuild failed, attempting fresh install of node-gtk..."
-            cd node_modules/.pnpm/node-gtk@*/node_modules/node-gtk && npx node-gyp rebuild 2>&1
-          }
-          # Verify the binding exists
-          ls node_modules/.pnpm/node-gtk@*/node_modules/node-gtk/lib/binding/*/node_gtk.node
+          # node-gtk uses node-pre-gyp. The S3-hosted prebuilt likely doesn't
+          # exist for this Node ABI (v127 / Node 22), and pnpm install silently
+          # skips failed optional dep builds. Run node-pre-gyp directly inside
+          # the package to force a from-source build.
+          NODE_GTK_DIR=$(ls -d node_modules/.pnpm/node-gtk@*/node_modules/node-gtk)
+          echo "node-gtk at: $NODE_GTK_DIR"
+          cd "$NODE_GTK_DIR"
+          npx @mapbox/node-pre-gyp install --fallback-to-build --update-binary 2>&1
+          ls -la lib/binding/*/node_gtk.node
 
       - name: Start Xvfb and D-Bus
         run: |
