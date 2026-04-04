@@ -22,17 +22,25 @@ async function moveTo(x: number, y: number): Promise<void> {
   }
 }
 
-/** Send a key combination via the detected input tool. */
-export async function sendKey(combo: string, scancodes?: string[]): Promise<void> {
+/**
+ * Send a key combination via the detected input tool.
+ * Both `combo` (xdotool keysym notation) and `scancodes` (ydotool
+ * key:state pairs) must be provided — ydotool requires scancodes.
+ */
+export async function sendKey(combo: string, scancodes: string[]): Promise<void> {
   const { tool } = await ensureInputTool();
   if (tool === 'xdotool') {
     await xdotool('key', '--clearmodifiers', combo);
-  } else if (scancodes) {
+  } else {
     await ydotool('key', ...scancodes);
   }
 }
 
 // ── Mouse actions ───────────────────────────────────────────────────────
+
+// ydotool v1 button codes (Linux input event codes):
+//   0xC0 = BTN_LEFT with click flags, 0xC1 = BTN_RIGHT, 0xC2 = BTN_MIDDLE
+// These correspond to ydotool's packed button+action format.
 
 async function clickButton(x: number, y: number, xdoBtn: string, ydoCode: string): Promise<void> {
   await moveTo(x, y);
@@ -79,9 +87,10 @@ export async function longPressLinux(
     await sleep(durationMs);
     await xdotool('mouseup', '1');
   } else {
-    await ydotool('mousedown', '1');
+    // ydotool v1: use click --down / --up for press-hold
+    await ydotool('click', '--down', '0xC0');
     await sleep(durationMs);
-    await ydotool('mouseup', '1');
+    await ydotool('click', '--up', '0xC0');
   }
 }
 
@@ -106,10 +115,11 @@ export async function swipeLinux(
     await sleep(durationMs);
     await xdotool('mouseup', '1');
   } else {
-    await ydotool('mousedown', '1');
+    // ydotool v1: use click --down / --up for drag
+    await ydotool('click', '--down', '0xC0');
     await ydotool('mousemove', '--absolute', '-x', String(x2), '-y', String(y2));
     await sleep(durationMs);
-    await ydotool('mouseup', '1');
+    await ydotool('click', '--up', '0xC0');
   }
 }
 
@@ -173,7 +183,7 @@ export async function fillLinux(
   // Click to focus the field
   await pressLinux(x, y);
   await sleep(100);
-  // Select all existing text (Ctrl+A)
+  // Select all existing text (Ctrl+A scancodes: Ctrl=29, A=30)
   await sendKey('ctrl+a', ['29:1', '30:1', '30:0', '29:0']);
   await sleep(50);
   // Type replacement text

@@ -19,6 +19,8 @@ MAX_NODES = 1500
 MAX_DEPTH = 12
 MAX_DESKTOP_APPS = 24
 
+VALID_SURFACES = ("desktop", "frontmost-app")
+
 
 def get_rect(accessible):
     try:
@@ -28,7 +30,7 @@ def get_rect(accessible):
         extents = component.get_extents(Atspi.CoordType.SCREEN)
         if not extents:
             return None
-        if extents.width <= 0 and extents.height <= 0:
+        if extents.width <= 0 or extents.height <= 0:
             return None
         return {
             "x": extents.x,
@@ -74,8 +76,8 @@ def has_state(state_set, state_type):
         return False
 
 
-def traverse_node(accessible, depth, parent_index, nodes, app_info, window_title=None):
-    if len(nodes) >= MAX_NODES or depth > MAX_DEPTH or not accessible:
+def traverse_node(accessible, depth, parent_index, ctx, app_info, window_title=None):
+    if len(ctx["nodes"]) >= ctx["max_nodes"] or depth > ctx["max_depth"] or not accessible:
         return
 
     try:
@@ -111,6 +113,7 @@ def traverse_node(accessible, depth, parent_index, nodes, app_info, window_title
     if current_window_title is None and role_name in ("frame", "window", "dialog"):
         current_window_title = label
 
+    nodes = ctx["nodes"]
     node_index = len(nodes)
     value = get_text_value(accessible) or get_numeric_value(accessible)
 
@@ -127,7 +130,7 @@ def traverse_node(accessible, depth, parent_index, nodes, app_info, window_title
         "parentIndex": parent_index,
         "pid": app_info.get("pid"),
         "appName": app_info.get("appName"),
-        "windowTitle": current_window_title or window_title,
+        "windowTitle": current_window_title,
     }
     nodes.append(node)
 
@@ -137,14 +140,14 @@ def traverse_node(accessible, depth, parent_index, nodes, app_info, window_title
         return
 
     for i in range(child_count):
-        if len(nodes) >= MAX_NODES:
+        if len(nodes) >= ctx["max_nodes"]:
             break
         try:
             child = accessible.get_child_at_index(i)
             if child:
                 traverse_node(
-                    child, depth + 1, node_index, nodes, app_info,
-                    current_window_title or window_title
+                    child, depth + 1, node_index, ctx, app_info,
+                    current_window_title
                 )
         except Exception:
             pass
@@ -187,7 +190,7 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
         return {"error": "Could not get desktop accessible. Is the accessibility bus running?"}
 
     app_count = desktop.get_child_count()
-    nodes = []
+    ctx = {"nodes": [], "max_nodes": max_nodes, "max_depth": max_depth}
 
     if surface == "frontmost-app":
         focused = find_focused_application(desktop, app_count)
@@ -201,11 +204,11 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
             except Exception:
                 pid = None
             app_info = {"appName": app_name, "pid": pid}
-            traverse_node(focused, 0, None, nodes, app_info)
+            traverse_node(focused, 0, None, ctx, app_info)
     else:
         apps_to_traverse = min(app_count, max_apps)
         for i in range(apps_to_traverse):
-            if len(nodes) >= max_nodes:
+            if len(ctx["nodes"]) >= max_nodes:
                 break
             try:
                 app = desktop.get_child_at_index(i)
@@ -220,10 +223,11 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
                 except Exception:
                     pid = None
                 app_info = {"appName": app_name, "pid": pid}
-                traverse_node(app, 0, None, nodes, app_info)
+                traverse_node(app, 0, None, ctx, app_info)
             except Exception:
                 pass
 
+    nodes = ctx["nodes"]
     return {
         "nodes": nodes,
         "truncated": len(nodes) >= max_nodes,
@@ -254,6 +258,13 @@ def main():
             i += 2
         else:
             i += 1
+
+    if surface not in VALID_SURFACES:
+        json.dump(
+            {"error": f"Unknown surface '{surface}'. Valid: {', '.join(VALID_SURFACES)}"},
+            sys.stdout,
+        )
+        sys.exit(1)
 
     result = capture(surface, max_nodes, max_depth, max_apps)
     json.dump(result, sys.stdout, ensure_ascii=False)

@@ -39,8 +39,8 @@ export async function closeLinuxApp(app: string): Promise<void> {
     return;
   }
 
-  // Fallback: send SIGTERM via pkill (case-insensitive match)
-  await runCmd('pkill', ['-f', app], { allowFailure: true });
+  // Fallback: send SIGTERM via pkill (exact process name match)
+  await runCmd('pkill', ['-x', app], { allowFailure: true });
 }
 
 /**
