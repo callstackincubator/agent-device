@@ -290,16 +290,14 @@ function unlinkIfSymlink(targetPath: string): void {
 }
 
 function sameResolvedPath(left: string, right: string): boolean {
-  const candidates = (value: string): string[] => {
-    const resolved = path.resolve(value);
-    try {
-      return [resolved, fs.realpathSync.native(resolved)];
-    } catch {
-      return [resolved];
-    }
-  };
-  const rightCandidates = new Set(candidates(right));
-  return candidates(left).some((candidate) => rightCandidates.has(candidate));
+  if (path.resolve(left) === path.resolve(right)) {
+    return true;
+  }
+  try {
+    return fs.realpathSync.native(left) === fs.realpathSync.native(right);
+  } catch {
+    return false;
+  }
 }
 
 async function acquireXcodebuildSimulatorSetLock(params: {
@@ -359,10 +357,10 @@ function clearStaleXcodebuildSimulatorSetLock(lockDirPath: string, ownerFilePath
   }
 
   const owner = readXcodebuildSimulatorSetLockOwner(ownerFilePath);
-  if (owner && isLiveXcodebuildSimulatorSetLockOwner(owner)) {
-    return false;
-  }
-  if (owner && !isLiveXcodebuildSimulatorSetLockOwner(owner)) {
+  if (owner) {
+    if (isLiveXcodebuildSimulatorSetLockOwner(owner)) {
+      return false;
+    }
     fs.rmSync(lockDirPath, { recursive: true, force: true });
     return true;
   }

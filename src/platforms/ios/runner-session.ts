@@ -38,7 +38,7 @@ export type RunnerSession = {
   testPromise: Promise<ExecResult>;
   child: ExecBackgroundResult['child'];
   ready: boolean;
-  releaseXcodebuildSimulatorSetRedirect?: () => Promise<void>;
+  simulatorSetRedirect?: { release: () => Promise<void> };
 };
 
 const runnerSessions = new Map<string, RunnerSession>();
@@ -124,11 +124,7 @@ export async function ensureRunnerSession(
       testPromise,
       child,
       ready: false,
-      releaseXcodebuildSimulatorSetRedirect: simulatorSetRedirect
-        ? async () => {
-            await simulatorSetRedirect.release();
-          }
-        : undefined,
+      simulatorSetRedirect: simulatorSetRedirect ?? undefined,
     };
     runnerSessions.set(device.id, session);
     return session;
@@ -211,7 +207,7 @@ async function stopRunnerSessionInternal(
   await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
-  await session.releaseXcodebuildSimulatorSetRedirect?.();
+  await session.simulatorSetRedirect?.release();
   if (runnerSessions.get(deviceId) === session) {
     runnerSessions.delete(deviceId);
   }
@@ -255,6 +251,11 @@ export async function abortAllIosRunnerSessions(): Promise<void> {
     prepProcesses.map(async (child) => {
       await killRunnerProcessTree(child.pid, 'SIGKILL');
       runnerPrepProcesses.delete(child);
+    }),
+  );
+  await Promise.allSettled(
+    activeSessions.map(async (session) => {
+      await session.simulatorSetRedirect?.release();
     }),
   );
 }
