@@ -33,17 +33,15 @@ jobs:
 
       - name: Install Linux desktop dependencies
         run: |
+          # python3-gi, gir1.2-atspi-2.0, at-spi2-core, dbus-x11 are
+          # pre-installed on Ubuntu GitHub Actions runners.
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            python3-gi \
-            gir1.2-atspi-2.0 \
-            at-spi2-core \
-            libatk-adaptor \
             xvfb \
             xdotool \
             scrot \
+            libatk-adaptor \
             gnome-calculator \
-            dbus-x11 \
             wmctrl
 
       - name: Setup toolchain
