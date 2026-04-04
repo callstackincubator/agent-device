@@ -184,6 +184,18 @@ def find_focused_application(desktop, app_count):
     return None
 
 
+def get_app_info(app):
+    try:
+        app_name = app.get_name() or None
+    except Exception:
+        app_name = None
+    try:
+        pid = app.get_process_id()
+    except Exception:
+        pid = None
+    return {"appName": app_name, "pid": pid}
+
+
 def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESKTOP_APPS):
     desktop = Atspi.get_desktop(0)
     if not desktop:
@@ -195,16 +207,7 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
     if surface == "frontmost-app":
         focused = find_focused_application(desktop, app_count)
         if focused:
-            try:
-                app_name = focused.get_name() or None
-            except Exception:
-                app_name = None
-            try:
-                pid = focused.get_process_id()
-            except Exception:
-                pid = None
-            app_info = {"appName": app_name, "pid": pid}
-            traverse_node(focused, 0, None, ctx, app_info)
+            traverse_node(focused, 0, None, ctx, get_app_info(focused))
     else:
         apps_to_traverse = min(app_count, max_apps)
         for i in range(apps_to_traverse):
@@ -214,16 +217,7 @@ def capture(surface, max_nodes=MAX_NODES, max_depth=MAX_DEPTH, max_apps=MAX_DESK
                 app = desktop.get_child_at_index(i)
                 if not app or app.get_child_count() == 0:
                     continue
-                try:
-                    app_name = app.get_name() or None
-                except Exception:
-                    app_name = None
-                try:
-                    pid = app.get_process_id()
-                except Exception:
-                    pid = None
-                app_info = {"appName": app_name, "pid": pid}
-                traverse_node(app, 0, None, ctx, app_info)
+                traverse_node(app, 0, None, ctx, get_app_info(app))
             except Exception:
                 pass
 

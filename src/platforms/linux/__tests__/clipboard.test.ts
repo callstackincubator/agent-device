@@ -7,7 +7,7 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
 });
 
 import { runCmd, whichCmd } from '../../../utils/exec.ts';
-import { readLinuxClipboard, writeLinuxClipboard } from '../clipboard.ts';
+import { readLinuxClipboard, writeLinuxClipboard, resetClipboardToolCache } from '../clipboard.ts';
 import { AppError } from '../../../utils/errors.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
@@ -28,6 +28,7 @@ function setupWayland(): void {
 beforeEach(() => {
   mockRunCmd.mockReset();
   mockWhichCmd.mockReset();
+  resetClipboardToolCache();
 });
 
 afterAll(() => {
@@ -96,7 +97,7 @@ test('readLinuxClipboard uses wl-paste on Wayland', async () => {
 
 test('writeLinuxClipboard uses wl-copy on Wayland', async () => {
   setupWayland();
-  mockWhichCmd.mockImplementation(async (cmd) => cmd === 'wl-copy');
+  mockWhichCmd.mockImplementation(async (cmd) => cmd === 'wl-copy' || cmd === 'wl-paste');
   mockRunCmd.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
 
   await writeLinuxClipboard('copied');

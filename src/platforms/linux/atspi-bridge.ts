@@ -23,8 +23,11 @@ const MAX_DEPTH = 12;
 
 const SCRIPT_NAME = 'atspi-dump.py';
 
+let cachedScriptPath: string | null = null;
+
 /** Resolve atspi-dump.py relative to this module, checking both source and dist layouts. */
 function resolveScriptPath(): string {
+  if (cachedScriptPath) return cachedScriptPath;
   const thisDir = path.dirname(fileURLToPath(import.meta.url));
 
   // Walk upward looking for the script — handles both:
@@ -33,11 +36,11 @@ function resolveScriptPath(): string {
   let dir = thisDir;
   for (let i = 0; i < 5; i++) {
     const candidate = path.join(dir, 'src', 'platforms', 'linux', SCRIPT_NAME);
-    if (fs.existsSync(candidate)) return candidate;
+    if (fs.existsSync(candidate)) { cachedScriptPath = candidate; return candidate; }
     // Also check same-directory (running from source dir directly)
     if (i === 0) {
       const sameDir = path.join(dir, SCRIPT_NAME);
-      if (fs.existsSync(sameDir)) return sameDir;
+      if (fs.existsSync(sameDir)) { cachedScriptPath = sameDir; return sameDir; }
     }
     dir = path.dirname(dir);
   }
