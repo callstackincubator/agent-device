@@ -66,7 +66,7 @@ Common normalized types: `Button`, `StaticText`, `TextField`, `TextArea`,
 `ScrollBar`, `Slider`, `ProgressBar`, `Image`, `Link`, `Separator`,
 `Toolbar`, `StatusBar`, `Tooltip`, `Application`, `Heading`.
 
-Unmapped roles should be PascalCased (e.g., `"color chooser"` → `"ColorChooser"`).
+Unmapped roles should be PascalCased (e.g., `"extended table"` → `"ExtendedTable"`).
 
 ## Adding a new platform
 

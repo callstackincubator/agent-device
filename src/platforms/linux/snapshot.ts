@@ -1,6 +1,7 @@
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
 import { captureAccessibilityTree, type SnapshotSurface } from './atspi-bridge.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
 /**
  * Map the session-level surface to an AT-SPI2 surface.
@@ -11,6 +12,13 @@ import type { SessionSurface } from '../../core/session-surface.ts';
 function resolveLinuxSurface(surface: SessionSurface | undefined): SnapshotSurface {
   if (surface === 'desktop') return 'desktop';
   if (surface === 'frontmost-app' || surface === 'app') return 'frontmost-app';
+  if (surface === 'menubar') {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'linux_snapshot',
+      data: { message: 'menubar surface is not supported on Linux, falling back to desktop' },
+    });
+  }
   return 'desktop';
 }
 
