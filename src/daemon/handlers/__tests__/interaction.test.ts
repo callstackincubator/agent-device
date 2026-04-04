@@ -6,7 +6,7 @@ import { handleInteractionCommands, unsupportedRefSnapshotFlags } from '../inter
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
-import { attachRefs } from '../../../utils/snapshot.ts';
+import { attachRefs, type SnapshotBackend } from '../../../utils/snapshot.ts';
 import { buildSnapshotState } from '../snapshot-capture.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
@@ -68,7 +68,7 @@ async function emulateCaptureSnapshotForSession(
     [],
     effectiveFlags.out,
     contextFromFlags(effectiveFlags, session.appBundleId, session.trace?.outPath),
-  )) as { nodes?: never[]; truncated?: boolean; backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi' };
+  )) as { nodes?: never[]; truncated?: boolean; backend?: SnapshotBackend };
   const snapshot = buildSnapshotState(snapshotData ?? {}, effectiveFlags);
   session.snapshot = snapshot;
   sessionStore.set(session.name, session);

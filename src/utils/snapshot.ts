@@ -45,11 +45,13 @@ export type SnapshotNode = RawSnapshotNode & {
   ref: string;
 };
 
+export type SnapshotBackend = 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
+
 export type SnapshotState = {
   nodes: SnapshotNode[];
   createdAt: number;
   truncated?: boolean;
-  backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
+  backend?: SnapshotBackend;
   comparisonSafe?: boolean;
 };
 

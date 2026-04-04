@@ -1,5 +1,10 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
-import { attachRefs, type RawSnapshotNode, type SnapshotState } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  type RawSnapshotNode,
+  type SnapshotBackend,
+  type SnapshotState,
+} from '../../utils/snapshot.ts';
 import { pruneGroupNodes } from '../snapshot-processing.ts';
 import {
   buildSelectorChainForNode,
@@ -183,7 +188,7 @@ async function captureSnapshotForReplay(
   })) as {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
+    backend?: SnapshotBackend;
   };
   const rawNodes = data?.nodes ?? [];
   const nodes = attachRefs(action.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));

@@ -770,13 +770,7 @@ async function handleSnapshotCommand(
     const linuxResult = await withDiagnosticTimer(
       'snapshot_capture',
       async () =>
-        await snapshotLinux(context?.surface, {
-          interactiveOnly: context?.snapshotInteractiveOnly,
-          compact: context?.snapshotCompact,
-          depth: context?.snapshotDepth,
-          scope: context?.snapshotScope,
-          raw: context?.snapshotRaw,
-        }),
+        await snapshotLinux(context?.surface),
       { backend: 'linux-atspi' },
     );
     return {

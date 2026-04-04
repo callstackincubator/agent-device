@@ -7,6 +7,7 @@ import {
   findNodeByRef,
   normalizeRef,
   type RawSnapshotNode,
+  type SnapshotBackend,
   type SnapshotState,
   type SnapshotVisibility,
 } from '../../utils/snapshot.ts';
@@ -25,6 +26,10 @@ import {
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 
+function isDesktopBackend(backend: SnapshotBackend | undefined): boolean {
+  return backend === 'macos-helper' || backend === 'linux-atspi';
+}
+
 type CaptureSnapshotParams = {
   device: SessionState['device'];
   session: SessionState | undefined;
@@ -37,7 +42,7 @@ type CaptureSnapshotParams = {
 type SnapshotData = {
   nodes?: RawSnapshotNode[];
   truncated?: boolean;
-  backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
+  backend?: SnapshotBackend;
   analysis?: AndroidSnapshotAnalysis;
 };
 
@@ -63,13 +68,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
   const { device, session, flags, outPath, logPath, snapshotScope } = params;
   if (device.platform === 'linux') {
-    const linuxResult = await snapshotLinux(session?.surface, {
-      interactiveOnly: flags?.snapshotInteractiveOnly,
-      compact: flags?.snapshotCompact,
-      depth: flags?.snapshotDepth,
-      scope: snapshotScope,
-      raw: flags?.snapshotRaw,
-    });
+    const linuxResult = await snapshotLinux(session?.surface);
     return {
       nodes: linuxResult.nodes,
       truncated: linuxResult.truncated,
@@ -190,7 +189,7 @@ export function buildSnapshotState(
   data: {
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
-    backend?: 'xctest' | 'android' | 'macos-helper' | 'linux-atspi';
+    backend?: SnapshotBackend;
   },
   flags:
     | (Pick<
@@ -204,7 +203,7 @@ export function buildSnapshotState(
   const snapshotRaw = flags?.snapshotRaw;
   const normalizedNodes = normalizeSnapshotTree(snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
   const scopedNodes =
-    flags?.snapshotScope && data?.backend !== 'macos-helper' && data?.backend !== 'linux-atspi'
+    flags?.snapshotScope && data?.backend !== 'macos-helper'
       ? scopeSnapshotNodes(normalizedNodes, flags.snapshotScope)
       : normalizedNodes;
   const nodes = attachRefs(scopedNodes);
@@ -231,7 +230,7 @@ export function buildSnapshotVisibility(params: {
   snapshotRaw?: boolean;
 }): SnapshotVisibility {
   const { nodes, backend, snapshotRaw } = params;
-  if (snapshotRaw || backend === 'macos-helper' || backend === 'linux-atspi') {
+  if (snapshotRaw || isDesktopBackend(backend)) {
     return {
       partial: false,
       visibleNodeCount: nodes.length,

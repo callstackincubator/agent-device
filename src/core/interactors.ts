@@ -134,67 +134,35 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         setSetting: (setting, state, appId, options) =>
           setAndroidSetting(device, setting, state, appId, options),
       };
-    case 'linux':
-      return {
-        open: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'open not yet supported on Linux');
-        },
-        openDevice: () => Promise.resolve(),
-        close: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'close not yet supported on Linux');
-        },
-        tap: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'tap not yet supported on Linux');
-        },
-        doubleTap: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'doubleTap not yet supported on Linux');
-        },
-        swipe: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'swipe not yet supported on Linux');
-        },
-        longPress: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'longPress not yet supported on Linux');
-        },
-        focus: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'focus not yet supported on Linux');
-        },
-        type: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'type not yet supported on Linux');
-        },
-        fill: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'fill not yet supported on Linux');
-        },
-        scroll: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'scroll not yet supported on Linux');
-        },
-        scrollIntoView: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'scrollIntoView not yet supported on Linux');
-        },
-        screenshot: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'screenshot not yet supported on Linux');
-        },
-        back: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'back not yet supported on Linux');
-        },
-        home: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'home not yet supported on Linux');
-        },
-        rotate: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'rotate not supported on Linux');
-        },
-        appSwitcher: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'appSwitcher not yet supported on Linux');
-        },
-        readClipboard: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'readClipboard not yet supported on Linux');
-        },
-        writeClipboard: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'writeClipboard not yet supported on Linux');
-        },
-        setSetting: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'setSetting not supported on Linux');
-        },
+    case 'linux': {
+      const linuxStub = (op: string): (() => never) => {
+        return () => {
+          throw new AppError('UNSUPPORTED_OPERATION', `${op} not yet supported on Linux`);
+        };
       };
+      return {
+        open: linuxStub('open'),
+        openDevice: () => Promise.resolve(),
+        close: linuxStub('close'),
+        tap: linuxStub('tap'),
+        doubleTap: linuxStub('doubleTap'),
+        swipe: linuxStub('swipe'),
+        longPress: linuxStub('longPress'),
+        focus: linuxStub('focus'),
+        type: linuxStub('type'),
+        fill: linuxStub('fill'),
+        scroll: linuxStub('scroll'),
+        scrollIntoView: linuxStub('scrollIntoView'),
+        screenshot: linuxStub('screenshot'),
+        back: linuxStub('back'),
+        home: linuxStub('home'),
+        rotate: linuxStub('rotate'),
+        appSwitcher: linuxStub('appSwitcher'),
+        readClipboard: linuxStub('readClipboard'),
+        writeClipboard: linuxStub('writeClipboard'),
+        setSetting: linuxStub('setSetting'),
+      };
+    }
     case 'ios':
     case 'macos': {
       const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
