@@ -1,8 +1,7 @@
 # Smoke test for Linux desktop automation on CI.
-# Opens gnome-calculator, takes a screenshot, captures a snapshot,
-# and validates basic accessibility tree output.
+# Opens gnome-calculator, takes a screenshot, and captures a snapshot
+# to validate the AT-SPI2 accessibility tree.
 context platform=linux
-screenshot "./test/screenshots/replays/linux-desktop-before.png"
 open gnome-calculator
 wait 2000
 screenshot "./test/screenshots/replays/linux-calculator.png"
