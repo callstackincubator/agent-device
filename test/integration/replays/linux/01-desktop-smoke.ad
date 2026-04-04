@@ -1,9 +1,10 @@
 # Smoke test for Linux desktop automation on CI.
-# Opens gnome-calculator, takes a screenshot, and captures a snapshot
-# to validate the AT-SPI2 accessibility tree.
+# Opens gnome-calculator, takes a snapshot, and validates the
+# accessibility tree contains expected calculator UI elements.
 context platform=linux
 open gnome-calculator
-wait 2000
+wait 3000
 screenshot "./test/screenshots/replays/linux-calculator.png"
 snapshot
+is exists "label=Calculator || label=calculator || appName=gnome-calculator || appName=Calculator || role=push button"
 snapshot -i

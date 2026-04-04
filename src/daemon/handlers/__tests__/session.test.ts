@@ -2621,7 +2621,7 @@ test('open rejects --surface on non-macOS devices', async () => {
     invoke: noopInvoke,
   });
 
-  assertInvalidArgsMessage(response, 'surface is only supported on macOS');
+  assertInvalidArgsMessage(response, 'surface is only supported on macOS and Linux');
 });
 
 test('open on existing macOS frontmost-app session preserves surface without --surface flag', async () => {

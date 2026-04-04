@@ -21,24 +21,30 @@ const MAX_DESKTOP_APPS = 24;
 const MAX_NODES = 1500;
 const MAX_DEPTH = 12;
 
-function resolveScriptPath(): string {
-  // When running from source (node --experimental-strip-types src/…)
-  const srcPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    'atspi-dump.py',
-  );
-  if (fs.existsSync(srcPath)) return srcPath;
+const SCRIPT_NAME = 'atspi-dump.py';
 
-  // When running from dist bundle — the .py file lives in the package root
-  const pkgPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '..', '..', '..', 'src', 'platforms', 'linux', 'atspi-dump.py',
-  );
-  if (fs.existsSync(pkgPath)) return pkgPath;
+/** Resolve atspi-dump.py relative to this module, checking both source and dist layouts. */
+function resolveScriptPath(): string {
+  const thisDir = path.dirname(fileURLToPath(import.meta.url));
+
+  // Walk upward looking for the script — handles both:
+  //   src/platforms/linux/  (source)
+  //   dist/src/             (bundled, .py lives in package root under src/platforms/linux/)
+  let dir = thisDir;
+  for (let i = 0; i < 5; i++) {
+    const candidate = path.join(dir, 'src', 'platforms', 'linux', SCRIPT_NAME);
+    if (fs.existsSync(candidate)) return candidate;
+    // Also check same-directory (running from source dir directly)
+    if (i === 0) {
+      const sameDir = path.join(dir, SCRIPT_NAME);
+      if (fs.existsSync(sameDir)) return sameDir;
+    }
+    dir = path.dirname(dir);
+  }
 
   throw new AppError(
     'TOOL_MISSING',
-    `Cannot find atspi-dump.py (looked at ${srcPath} and ${pkgPath})`,
+    `Cannot find ${SCRIPT_NAME}. Ensure the agent-device package is installed correctly.`,
   );
 }
 

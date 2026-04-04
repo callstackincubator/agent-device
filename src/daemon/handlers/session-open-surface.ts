@@ -79,14 +79,30 @@ export function buildNextOpenSession(params: {
   };
 }
 
+const LINUX_SUPPORTED_SURFACES = new Set<SessionSurface>(['app', 'desktop', 'frontmost-app']);
+
 function resolveOpenSurface(
   device: DeviceInfo,
   surfaceFlag: string | undefined,
   openTarget: string | undefined,
 ): SessionSurface {
+  if (device.platform === 'linux') {
+    if (!surfaceFlag) return 'app';
+    const surface = parseSessionSurface(surfaceFlag);
+    if (!LINUX_SUPPORTED_SURFACES.has(surface)) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Linux supports --surface app, desktop, and frontmost-app (got "${surfaceFlag}")`,
+      );
+    }
+    if (surface !== 'app' && openTarget) {
+      throw new AppError('INVALID_ARGS', `open --surface ${surface} does not accept an app target`);
+    }
+    return surface;
+  }
   if (device.platform !== 'macos') {
     if (surfaceFlag) {
-      throw new AppError('INVALID_ARGS', 'surface is only supported on macOS');
+      throw new AppError('INVALID_ARGS', 'surface is only supported on macOS and Linux');
     }
     return 'app';
   }
@@ -104,7 +120,7 @@ export function resolveRequestedOpenSurface(params: {
   existingSurface?: SessionSurface;
 }): SessionSurface {
   const { device, surfaceFlag, openTarget, existingSurface } = params;
-  if (device.platform === 'macos' && !surfaceFlag) {
+  if ((device.platform === 'macos' || device.platform === 'linux') && !surfaceFlag) {
     return existingSurface ?? 'app';
   }
   return resolveOpenSurface(device, surfaceFlag, openTarget);
