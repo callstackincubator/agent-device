@@ -1,4 +1,5 @@
 import { runCmd, whichCmd } from '../../utils/exec.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { sendKey } from './input-actions.ts';
 
 /**
@@ -18,7 +19,13 @@ export async function openLinuxApp(app: string): Promise<void> {
   // Try launching as a binary first
   if (await whichCmd(app)) {
     // Fire-and-forget: apps don't exit when launched
-    runCmd(app, [], { allowFailure: true }).catch(() => {});
+    runCmd(app, [], { allowFailure: true }).catch((err) => {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'linux_app_launch',
+        data: { app, error: String(err) },
+      });
+    });
     // Give it a moment to start
     await new Promise((resolve) => setTimeout(resolve, 500));
     return;

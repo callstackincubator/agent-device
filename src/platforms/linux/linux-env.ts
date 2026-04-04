@@ -7,7 +7,6 @@
 
 import { whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
-import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
 export type DisplayServer = 'wayland' | 'x11';
 export type InputTool = 'xdotool' | 'ydotool';
@@ -39,20 +38,9 @@ export async function ensureInputTool(): Promise<{
       cachedInputTool = { tool: 'ydotool', display };
       return cachedInputTool;
     }
-    if (await whichCmd('xdotool')) {
-      emitDiagnostic({
-        level: 'warn',
-        phase: 'linux_input_tool',
-        data: {
-          message: 'Falling back to xdotool on Wayland. Input synthesis may not work — install ydotool for full Wayland support.',
-        },
-      });
-      cachedInputTool = { tool: 'xdotool', display };
-      return cachedInputTool;
-    }
     throw new AppError(
       'TOOL_MISSING',
-      'ydotool is required for input synthesis on Wayland. Install it via your package manager.',
+      'ydotool is required for input synthesis on Wayland (xdotool does not work on Wayland). Install it via your package manager.',
     );
   }
 

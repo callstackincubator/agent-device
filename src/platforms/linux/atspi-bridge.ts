@@ -120,7 +120,7 @@ export async function captureAccessibilityTree(
 
   const result = await runCmd('python3', args, {
     allowFailure: true,
-    timeoutMs: 15_000,
+    timeoutMs: 30_000,
   });
 
   if (result.exitCode !== 0) {
