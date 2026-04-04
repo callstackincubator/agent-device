@@ -6,5 +6,5 @@ open gnome-calculator
 wait 3000
 screenshot "./test/screenshots/replays/linux-calculator.png"
 snapshot
-is exists "label=Calculator || label=calculator || appName=gnome-calculator || appName=Calculator || role='push button'"
+is exists "label=Calculator || label=calculator || role='push button'"
 snapshot -i
