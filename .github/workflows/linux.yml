@@ -54,6 +54,17 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
+      - name: Rebuild node-gtk native module
+        run: |
+          # pnpm install may have cached or silently skipped the optional dep.
+          # Force a rebuild now that the native build deps are available.
+          pnpm rebuild node-gtk 2>&1 || {
+            echo "Rebuild failed, attempting fresh install of node-gtk..."
+            cd node_modules/.pnpm/node-gtk@*/node_modules/node-gtk && npx node-gyp rebuild 2>&1
+          }
+          # Verify the binding exists
+          ls node_modules/.pnpm/node-gtk@*/node_modules/node-gtk/lib/binding/*/node_gtk.node
+
       - name: Start Xvfb and D-Bus
         run: |
           # Start virtual framebuffer (1280x1024, 24-bit color)
