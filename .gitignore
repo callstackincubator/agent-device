@@ -2,6 +2,8 @@ node_modules/
 .pnpm-store/
 dist/
 .DS_Store
+__pycache__/
+*.pyc
 *.log
 test/screenshots/*.png
 test/artifacts/
