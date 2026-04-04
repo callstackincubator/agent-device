@@ -16,7 +16,7 @@ import {
 
 type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
 
-const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android', 'macos']);
+const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android', 'macos', 'linux']);
 
 export type ReplayScriptMetadata = {
   platform?: ReplayScriptPlatform;
