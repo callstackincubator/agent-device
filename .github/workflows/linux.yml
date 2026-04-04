@@ -22,6 +22,11 @@ jobs:
       # Force X11 mode (Xvfb) — no Wayland on CI.
       XDG_SESSION_TYPE: x11
       DISPLAY: ":99"
+      # Headless GTK: avoid dconf issues, enable accessibility bridge.
+      GSETTINGS_BACKEND: memory
+      NO_AT_BRIDGE: "0"
+      GTK_A11Y: atspi
+      GTK_MODULES: "gail:atk-bridge"
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -31,14 +36,17 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
+            build-essential \
+            gobject-introspection \
+            libgirepository1.0-dev \
+            libglib2.0-dev \
+            libcairo2-dev \
+            at-spi2-core \
+            libatk-adaptor \
+            gir1.2-atspi-2.0 \
             xvfb \
             xdotool \
             scrot \
-            at-spi2-core \
-            libatk-adaptor \
-            libglib2.0-dev \
-            libgirepository1.0-dev \
-            gir1.2-atspi-2.0 \
             gnome-calculator \
             dbus-x11 \
             wmctrl
@@ -52,31 +60,38 @@ jobs:
           Xvfb :99 -screen 0 1280x1024x24 &
           sleep 1
 
-          # Start a D-Bus session and export its env vars for subsequent steps
+          # Start a D-Bus session and export its env vars for subsequent steps.
+          # dbus-launch forks a persistent daemon, so it survives the step.
           eval "$(dbus-launch --sh-syntax)"
           echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          echo "DBUS_SESSION_BUS_PID=$DBUS_SESSION_BUS_PID" >> "$GITHUB_ENV"
 
-          # Enable accessibility on the D-Bus session
-          export DISPLAY=:99
-          # Start the AT-SPI2 registry daemon (path varies by distro)
+      - name: Start AT-SPI2 registry
+        run: |
+          # The registry must start AFTER DBUS_SESSION_BUS_ADDRESS is available
+          # (it was written to GITHUB_ENV in the previous step).
           ATSPI_REG=$(find /usr -name at-spi2-registryd -type f 2>/dev/null | head -1)
           if [ -n "$ATSPI_REG" ]; then
             "$ATSPI_REG" &
-            sleep 1
+            sleep 2
+            echo "AT-SPI2 registry started: $ATSPI_REG"
           else
-            echo "WARNING: at-spi2-registryd not found, accessibility tree may be empty"
+            echo "::warning::at-spi2-registryd not found — accessibility tree will be empty"
           fi
 
-      - name: Verify display and tools
+      - name: Verify environment
         run: |
-          echo "--- Display ---"
+          echo "=== Display ==="
           xdotool getdisplaygeometry || echo "Display check failed"
-          echo "--- xdotool ---"
+          echo "=== D-Bus ==="
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
+          dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>&1 | head -20
+          echo "=== node-gtk ==="
+          node -e "import('node-gtk').then(gi => { const Atspi = gi.require('Atspi', '2.0'); console.log('node-gtk + AT-SPI2 GI bindings OK'); process.exit(0); }).catch(e => { console.error('node-gtk FAILED:', e.message); process.exit(1); })"
+          echo "=== xdotool ==="
           xdotool version
-          echo "--- scrot ---"
-          scrot --version 2>&1 || echo "scrot available"
-          echo "--- AT-SPI2 ---"
-          python3 -c "import gi; gi.require_version('Atspi', '2.0'); from gi.repository import Atspi; print('AT-SPI2 GI bindings OK')" 2>/dev/null || echo "AT-SPI2 python check skipped"
+          echo "=== scrot ==="
+          scrot --version 2>&1 || echo "scrot OK"
 
       - name: Run Linux replay smoke test
         run: |
