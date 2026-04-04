@@ -69,17 +69,16 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
   const { device, session, flags, outPath, logPath, snapshotScope } = params;
   if (device.platform === 'linux') {
     const linuxResult = await snapshotLinux(session?.surface);
-    return {
-      nodes: linuxResult.nodes,
-      truncated: linuxResult.truncated,
-      backend: 'linux-atspi',
-    };
+    return shapeDesktopSurfaceSnapshot(
+      { nodes: linuxResult.nodes, truncated: linuxResult.truncated, backend: 'linux-atspi' },
+      { snapshotDepth: flags?.snapshotDepth, snapshotInteractiveOnly: flags?.snapshotInteractiveOnly, snapshotScope },
+    );
   }
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {
     const helperSnapshot = await runMacOsSnapshotAction(session.surface, {
       bundleId: session.surface === 'menubar' ? session.appBundleId : undefined,
     });
-    return shapeMacOsSurfaceSnapshot(helperSnapshot, {
+    return shapeDesktopSurfaceSnapshot(helperSnapshot, {
       snapshotDepth: flags?.snapshotDepth,
       snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,
       snapshotScope,
@@ -259,7 +258,7 @@ export function buildSnapshotVisibility(params: {
   };
 }
 
-function shapeMacOsSurfaceSnapshot(
+function shapeDesktopSurfaceSnapshot(
   data: SnapshotData,
   options: {
     snapshotDepth?: number;
