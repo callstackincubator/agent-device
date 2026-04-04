@@ -9,6 +9,8 @@ import {
   runCmdStreaming,
   type ExecBackgroundResult,
 } from '../../utils/exec.ts';
+import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
+import { isProcessAlive, readProcessStartTime } from '../../utils/process-identity.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
@@ -21,11 +23,36 @@ import {
 } from './runner-macos-products.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
+const XCTEST_DEVICE_SET_BASE_NAME = 'XCTestDevices';
+const XCTEST_DEVICE_SET_BACKUP_SUFFIX = '.agent-device-backup';
+const XCTEST_DEVICE_SET_LEGACY_BACKUP_PREFIX = '.agent-device-xctestdevices-backup-';
 
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
+const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
+const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
+const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
 
 const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 export const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
+
+type XcodebuildSimulatorSetRedirectHandle = {
+  release: () => Promise<void>;
+};
+
+type XcodebuildSimulatorSetRedirectOptions = {
+  xctestDeviceSetPath?: string;
+  backupPath?: string;
+  lockDirPath?: string;
+  ownerPid?: number;
+  ownerStartTime?: string | null;
+  nowMs?: number;
+};
+
+type XcodebuildSimulatorSetLockOwner = {
+  pid: number;
+  startTime: string | null;
+  acquiredAtMs: number;
+};
 
 function normalizeBundleId(value: string | undefined): string {
   return value?.trim() ?? '';
@@ -63,6 +90,309 @@ function resolveRunnerContainerBundleIds(env: NodeJS.ProcessEnv = process.env): 
 export const IOS_RUNNER_CONTAINER_BUNDLE_IDS: string[] = resolveRunnerContainerBundleIds(
   process.env,
 );
+
+export function resolveXcodebuildSimulatorDeviceSetPath(homeDir: string = os.homedir()): string {
+  return path.join(homeDir, 'Library', 'Developer', 'XCTestDevices');
+}
+
+function resolveXcodebuildSimulatorDeviceSetLockPath(homeDir: string = os.homedir()): string {
+  return path.join(homeDir, '.agent-device', 'xctest-device-set.lock');
+}
+
+function resolveXcodebuildSimulatorDeviceSetBackupPath(
+  xctestDeviceSetPath: string = resolveXcodebuildSimulatorDeviceSetPath(),
+): string {
+  return `${xctestDeviceSetPath}${XCTEST_DEVICE_SET_BACKUP_SUFFIX}`;
+}
+
+export async function acquireXcodebuildSimulatorSetRedirect(
+  device: DeviceInfo,
+  options: XcodebuildSimulatorSetRedirectOptions = {},
+): Promise<XcodebuildSimulatorSetRedirectHandle | null> {
+  if (device.platform !== 'ios' || device.kind !== 'simulator') {
+    return null;
+  }
+  const simulatorSetPath = resolveIosSimulatorDeviceSetPath(device.simulatorSetPath);
+  if (!simulatorSetPath) {
+    return null;
+  }
+  const requestedSetPath = path.resolve(simulatorSetPath);
+  const xctestDeviceSetPath = path.resolve(
+    options.xctestDeviceSetPath ?? resolveXcodebuildSimulatorDeviceSetPath(),
+  );
+  const backupPath = path.resolve(
+    options.backupPath ?? resolveXcodebuildSimulatorDeviceSetBackupPath(xctestDeviceSetPath),
+  );
+  const lockDirPath = path.resolve(
+    options.lockDirPath ?? resolveXcodebuildSimulatorDeviceSetLockPath(),
+  );
+  const ownerStartTime = options.ownerStartTime ?? readProcessStartTime(process.pid);
+  const releaseLock = await acquireXcodebuildSimulatorSetLock({
+    lockDirPath,
+    owner: {
+      pid: options.ownerPid ?? process.pid,
+      startTime: ownerStartTime,
+      acquiredAtMs: options.nowMs ?? Date.now(),
+    },
+  });
+
+  try {
+    reconcileXcodebuildSimulatorSetRedirect({
+      xctestDeviceSetPath,
+      backupPath,
+    });
+    if (sameResolvedPath(requestedSetPath, xctestDeviceSetPath)) {
+      await releaseLock();
+      return null;
+    }
+
+    fs.mkdirSync(requestedSetPath, { recursive: true });
+    if (fs.existsSync(xctestDeviceSetPath)) {
+      fs.renameSync(xctestDeviceSetPath, backupPath);
+    }
+    installXcodebuildSimulatorSetSymlink({
+      requestedSetPath,
+      xctestDeviceSetPath,
+    });
+  } catch (error) {
+    reconcileXcodebuildSimulatorSetRedirect({
+      xctestDeviceSetPath,
+      backupPath,
+    });
+    await releaseLock();
+    throw new AppError('COMMAND_FAILED', 'Failed to redirect XCTest device set path', {
+      requestedSetPath,
+      xctestDeviceSetPath,
+      backupPath,
+      error: String(error),
+    });
+  }
+
+  let released = false;
+  return {
+    release: async () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      try {
+        reconcileXcodebuildSimulatorSetRedirect({
+          xctestDeviceSetPath,
+          backupPath,
+        });
+      } finally {
+        await releaseLock();
+      }
+    },
+  };
+}
+
+function reconcileXcodebuildSimulatorSetRedirect(paths: {
+  xctestDeviceSetPath: string;
+  backupPath: string;
+}): void {
+  const { xctestDeviceSetPath, backupPath } = paths;
+  const existingBackups = [backupPath, ...findLegacyXcodebuildSimulatorSetBackups(backupPath)];
+  const activeBackupPath = existingBackups.find((candidate) => fs.existsSync(candidate));
+  const xctestExists = fs.existsSync(xctestDeviceSetPath);
+  const xctestIsSymlink = xctestExists && fs.lstatSync(xctestDeviceSetPath).isSymbolicLink();
+
+  if (activeBackupPath) {
+    if (xctestIsSymlink) {
+      unlinkIfSymlink(xctestDeviceSetPath);
+    }
+    if (!fs.existsSync(xctestDeviceSetPath)) {
+      fs.mkdirSync(path.dirname(xctestDeviceSetPath), { recursive: true });
+      fs.renameSync(activeBackupPath, xctestDeviceSetPath);
+    } else if (!xctestIsSymlink) {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_runner_xctest_device_set_restore_collision',
+        data: {
+          xctestDeviceSetPath,
+          activeBackupPath,
+        },
+      });
+      return;
+    } else if (activeBackupPath !== backupPath) {
+      fs.rmSync(activeBackupPath, { recursive: true, force: true });
+    } else {
+      fs.rmSync(backupPath, { recursive: true, force: true });
+    }
+    for (const candidate of existingBackups) {
+      if (candidate !== activeBackupPath && fs.existsSync(candidate)) {
+        fs.rmSync(candidate, { recursive: true, force: true });
+      }
+    }
+    return;
+  }
+
+  if (xctestIsSymlink) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'ios_runner_xctest_device_set_orphaned_symlink',
+      data: {
+        xctestDeviceSetPath,
+      },
+    });
+    unlinkIfSymlink(xctestDeviceSetPath);
+  }
+}
+
+function findLegacyXcodebuildSimulatorSetBackups(backupPath: string): string[] {
+  const parentDir = path.dirname(backupPath);
+  const backupBaseName = path.basename(backupPath).replace(XCTEST_DEVICE_SET_BACKUP_SUFFIX, '');
+  const legacyPrefix =
+    backupBaseName === XCTEST_DEVICE_SET_BASE_NAME
+      ? XCTEST_DEVICE_SET_LEGACY_BACKUP_PREFIX
+      : `${backupBaseName}${XCTEST_DEVICE_SET_LEGACY_BACKUP_PREFIX}`;
+  try {
+    return fs
+      .readdirSync(parentDir)
+      .filter((entry) => entry.startsWith(legacyPrefix))
+      .sort()
+      .map((entry) => path.join(parentDir, entry));
+  } catch {
+    return [];
+  }
+}
+
+function installXcodebuildSimulatorSetSymlink(paths: {
+  requestedSetPath: string;
+  xctestDeviceSetPath: string;
+}): void {
+  const { requestedSetPath, xctestDeviceSetPath } = paths;
+  const parentDir = path.dirname(xctestDeviceSetPath);
+  const tmpSymlinkPath = path.join(
+    parentDir,
+    `${XCTEST_DEVICE_SET_BASE_NAME}.agent-device-link-${process.pid}-${Date.now()}`,
+  );
+  fs.mkdirSync(parentDir, { recursive: true });
+  try {
+    fs.symlinkSync(requestedSetPath, tmpSymlinkPath, 'dir');
+    fs.renameSync(tmpSymlinkPath, xctestDeviceSetPath);
+  } catch (error) {
+    if (fs.existsSync(tmpSymlinkPath)) {
+      unlinkIfSymlink(tmpSymlinkPath);
+    }
+    throw error;
+  }
+}
+
+function unlinkIfSymlink(targetPath: string): void {
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
+  if (!fs.lstatSync(targetPath).isSymbolicLink()) {
+    return;
+  }
+  fs.unlinkSync(targetPath);
+}
+
+function sameResolvedPath(left: string, right: string): boolean {
+  if (path.resolve(left) === path.resolve(right)) {
+    return true;
+  }
+  try {
+    return fs.realpathSync.native(left) === fs.realpathSync.native(right);
+  } catch {
+    return false;
+  }
+}
+
+async function acquireXcodebuildSimulatorSetLock(params: {
+  lockDirPath: string;
+  owner: XcodebuildSimulatorSetLockOwner;
+}): Promise<() => Promise<void>> {
+  const { lockDirPath, owner } = params;
+  const ownerFilePath = path.join(lockDirPath, 'owner.json');
+  const deadline = Date.now() + XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS;
+
+  fs.mkdirSync(path.dirname(lockDirPath), { recursive: true });
+
+  while (Date.now() < deadline) {
+    try {
+      fs.mkdirSync(lockDirPath);
+      writeXcodebuildSimulatorSetLockOwner(ownerFilePath, owner);
+      let released = false;
+      return async () => {
+        if (released) {
+          return;
+        }
+        released = true;
+        fs.rmSync(lockDirPath, { recursive: true, force: true });
+      };
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== 'EEXIST') {
+        throw err;
+      }
+      if (clearStaleXcodebuildSimulatorSetLock(lockDirPath, ownerFilePath)) {
+        continue;
+      }
+      await new Promise((resolve) => setTimeout(resolve, XCTEST_DEVICE_SET_LOCK_POLL_MS));
+    }
+  }
+
+  throw new AppError('COMMAND_FAILED', 'Timed out waiting for XCTest device set lock', {
+    lockDirPath,
+  });
+}
+
+function writeXcodebuildSimulatorSetLockOwner(
+  ownerFilePath: string,
+  owner: XcodebuildSimulatorSetLockOwner,
+): void {
+  const tmpOwnerFilePath = `${ownerFilePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpOwnerFilePath, JSON.stringify(owner), 'utf8');
+  fs.renameSync(tmpOwnerFilePath, ownerFilePath);
+}
+
+function clearStaleXcodebuildSimulatorSetLock(lockDirPath: string, ownerFilePath: string): boolean {
+  let ownerStats: fs.Stats | null = null;
+  try {
+    ownerStats = fs.statSync(lockDirPath);
+  } catch {
+    return true;
+  }
+
+  const owner = readXcodebuildSimulatorSetLockOwner(ownerFilePath);
+  if (owner) {
+    if (isLiveXcodebuildSimulatorSetLockOwner(owner)) {
+      return false;
+    }
+    fs.rmSync(lockDirPath, { recursive: true, force: true });
+    return true;
+  }
+  if (Date.now() - ownerStats.mtimeMs < XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS) {
+    return false;
+  }
+  fs.rmSync(lockDirPath, { recursive: true, force: true });
+  return true;
+}
+
+function readXcodebuildSimulatorSetLockOwner(
+  ownerFilePath: string,
+): XcodebuildSimulatorSetLockOwner | null {
+  try {
+    return JSON.parse(fs.readFileSync(ownerFilePath, 'utf8')) as XcodebuildSimulatorSetLockOwner;
+  } catch {
+    return null;
+  }
+}
+
+function isLiveXcodebuildSimulatorSetLockOwner(owner: XcodebuildSimulatorSetLockOwner): boolean {
+  if (!Number.isInteger(owner.pid) || owner.pid <= 0) {
+    return false;
+  }
+  if (!isProcessAlive(owner.pid)) {
+    return false;
+  }
+  if (owner.startTime) {
+    return readProcessStartTime(owner.pid) === owner.startTime;
+  }
+  return true;
+}
 
 export async function ensureXctestrun(
   device: DeviceInfo,
@@ -420,6 +750,7 @@ async function buildRunnerXctestrun(
   );
   const provisioningArgs = device.kind === 'device' ? ['-allowProvisioningUpdates'] : [];
   const performanceBuildSettings = resolveRunnerPerformanceBuildSettings();
+  const simulatorSetRedirect = await acquireXcodebuildSimulatorSetRedirect(device);
   try {
     await runCmdStreaming(
       'xcodebuild',
@@ -467,6 +798,8 @@ async function buildRunnerXctestrun(
       logPath: options.logPath,
       hint,
     });
+  } finally {
+    await simulatorSetRedirect?.release();
   }
 }
 
