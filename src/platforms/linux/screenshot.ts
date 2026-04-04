@@ -1,5 +1,6 @@
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
+import { isWayland } from './linux-env.ts';
 
 /**
  * Capture a screenshot of the Linux desktop.
@@ -9,11 +10,7 @@ import { AppError } from '../../utils/errors.ts';
  * - `scrot` or `import` (ImageMagick) on X11
  */
 export async function screenshotLinux(outPath: string): Promise<void> {
-  const isWayland =
-    Boolean(process.env['WAYLAND_DISPLAY']) ||
-    process.env['XDG_SESSION_TYPE'] === 'wayland';
-
-  if (isWayland) {
+  if (isWayland()) {
     await screenshotWayland(outPath);
   } else {
     await screenshotX11(outPath);

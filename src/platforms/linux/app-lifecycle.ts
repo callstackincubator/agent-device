@@ -1,5 +1,5 @@
 import { runCmd, whichCmd } from '../../utils/exec.ts';
-import { AppError } from '../../utils/errors.ts';
+import { sendKey } from './input-actions.ts';
 
 /**
  * Open an application or URL on Linux.
@@ -47,32 +47,14 @@ export async function closeLinuxApp(app: string): Promise<void> {
  * Send Alt+Left arrow to go back (standard browser/app back navigation).
  */
 export async function backLinux(): Promise<void> {
-  const tool = (await whichCmd('xdotool')) ? 'xdotool' : (await whichCmd('ydotool')) ? 'ydotool' : null;
-  if (!tool) {
-    throw new AppError('TOOL_MISSING', 'xdotool or ydotool is required for back navigation on Linux.');
-  }
-
-  if (tool === 'xdotool') {
-    await runCmd('xdotool', ['key', '--clearmodifiers', 'alt+Left']);
-  } else {
-    // ydotool: Alt=56, Left=105 via scancodes
-    await runCmd('ydotool', ['key', '56:1', '105:1', '105:0', '56:0']);
-  }
+  // Alt=56, Left=105
+  await sendKey('alt+Left', ['56:1', '105:1', '105:0', '56:0']);
 }
 
 /**
  * Show desktop (minimize all windows) via Super+D.
  */
 export async function homeLinux(): Promise<void> {
-  const tool = (await whichCmd('xdotool')) ? 'xdotool' : (await whichCmd('ydotool')) ? 'ydotool' : null;
-  if (!tool) {
-    throw new AppError('TOOL_MISSING', 'xdotool or ydotool is required for home action on Linux.');
-  }
-
-  if (tool === 'xdotool') {
-    await runCmd('xdotool', ['key', '--clearmodifiers', 'super+d']);
-  } else {
-    // ydotool: Super=125, D=32
-    await runCmd('ydotool', ['key', '125:1', '32:1', '32:0', '125:0']);
-  }
+  // Super=125, D=32
+  await sendKey('super+d', ['125:1', '32:1', '32:0', '125:0']);
 }
