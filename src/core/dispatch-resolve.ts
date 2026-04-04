@@ -129,17 +129,19 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
 
       const devices: DeviceInfo[] = [];
       try {
-        devices.push(...(await listLinuxDevices()));
-      } catch {
-        // ignore
-      }
-      try {
         devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
       } catch {
         // ignore
       }
       try {
         devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
+      } catch {
+        // ignore
+      }
+      // Linux local device is appended last so it does not displace
+      // connected Android/Apple devices in implicit auto-selection.
+      try {
+        devices.push(...(await listLinuxDevices()));
       } catch {
         // ignore
       }

@@ -26,13 +26,13 @@ export function getClickButtonValidationError(options: {
   if (options.commandLabel !== 'click') {
     return new AppError('INVALID_ARGS', '--button is supported only for click');
   }
-  if (options.platform !== 'macos') {
+  if (options.platform !== 'macos' && options.platform !== 'linux') {
     return new AppError(
       'UNSUPPORTED_OPERATION',
-      `click --button ${options.button} is supported only on macOS`,
+      `click --button ${options.button} is supported only on macOS and Linux`,
     );
   }
-  if (options.button === 'middle') {
+  if (options.platform === 'macos' && options.button === 'middle') {
     return new AppError(
       'UNSUPPORTED_OPERATION',
       'click --button middle is not supported by the macOS runner yet',
