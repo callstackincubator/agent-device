@@ -15,7 +15,7 @@ import {
 } from './devicectl.ts';
 import { readInfoPlistString } from './plist.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-import { parseXmlDocument, type XmlNode } from './xml.ts';
+import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
 
 export const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
 export const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
@@ -148,7 +148,7 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
 }
 
 async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
-  const document = await parseXmlDocument(xml);
+  const document = parseXmlDocumentSync(xml);
   const schema = findFirstXmlNode(
     document,
     (node) => node.name === 'schema' && node.attributes.name === 'activity-monitor-process-live',

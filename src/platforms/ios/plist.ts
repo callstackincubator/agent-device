@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { runCmd } from '../../utils/exec.ts';
-import { parseXmlDocument } from './xml.ts';
+import { parseXmlDocumentSync, visitXmlPlistEntries } from './xml.ts';
 
 export async function readInfoPlistString(
   infoPlistPath: string,
@@ -22,25 +22,19 @@ export async function readInfoPlistString(
 
   try {
     const plist = await fs.readFile(infoPlistPath, 'utf8');
-    return await readXmlPlistString(plist, key);
+    return readXmlPlistString(plist, key);
   } catch {
     return undefined;
   }
 }
 
-async function readXmlPlistString(plist: string, key: string): Promise<string | undefined> {
-  const document = await parseXmlDocument(plist);
-  const plistNode = document.find((node) => node.name === 'plist');
-  const dictNode = plistNode?.children.find((node) => node.name === 'dict');
-  if (!dictNode) {
-    return undefined;
-  }
-  for (let index = 0; index < dictNode.children.length - 1; index += 1) {
-    const entry = dictNode.children[index];
-    const nextEntry = dictNode.children[index + 1];
-    if (entry?.name === 'key' && entry.text === key && nextEntry?.name === 'string') {
-      return nextEntry.text ?? undefined;
+function readXmlPlistString(plist: string, key: string): string | undefined {
+  let result: string | undefined;
+  visitXmlPlistEntries(parseXmlDocumentSync(plist), (entryKey, valueNode) => {
+    if (result !== undefined || entryKey !== key || valueNode.name !== 'string') {
+      return;
     }
-  }
-  return undefined;
+    result = valueNode.text ?? undefined;
+  });
+  return result;
 }

@@ -21,7 +21,7 @@ import {
   repairMacOsRunnerProductsIfNeeded,
   isExpectedRunnerRepairFailure,
 } from './runner-macos-products.ts';
-import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
+import { parseXmlDocumentSync, visitXmlPlistEntries, type XmlNode } from './xml.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 const XCTEST_DEVICE_SET_BASE_NAME = 'XCTestDevices';
@@ -1163,33 +1163,23 @@ function resolveXctestrunProductReferencesFromXml(contents: string): string[] {
 
 function collectXctestrunXmlProductReferenceValues(nodes: XmlNode[]): string[] {
   const values = new Set<string>();
-  for (const node of nodes) {
-    if (node.name === 'dict') {
-      for (let index = 0; index < node.children.length - 1; index += 1) {
-        const entry = node.children[index];
-        const nextEntry = node.children[index + 1];
-        const key = entry?.name === 'key' ? entry.text : null;
-        if (!key || !XCTESTRUN_PRODUCT_REFERENCE_KEYS.has(key) || !nextEntry) {
-          continue;
-        }
-        if (nextEntry.name === 'string' && nextEntry.text) {
-          values.add(nextEntry.text);
-          continue;
-        }
-        if (nextEntry.name !== 'array') {
-          continue;
-        }
-        for (const child of nextEntry.children) {
-          if (child.name === 'string' && child.text) {
-            values.add(child.text);
-          }
-        }
+  visitXmlPlistEntries(nodes, (key, valueNode) => {
+    if (!XCTESTRUN_PRODUCT_REFERENCE_KEYS.has(key)) {
+      return;
+    }
+    if (valueNode.name === 'string' && valueNode.text) {
+      values.add(valueNode.text);
+      return;
+    }
+    if (valueNode.name !== 'array') {
+      return;
+    }
+    for (const child of valueNode.children) {
+      if (child.name === 'string' && child.text) {
+        values.add(child.text);
       }
     }
-    for (const value of collectXctestrunXmlProductReferenceValues(node.children)) {
-      values.add(value);
-    }
-  }
+  });
   return Array.from(values);
 }
 
