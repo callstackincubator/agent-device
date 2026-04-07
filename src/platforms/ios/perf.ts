@@ -15,6 +15,7 @@ import {
 } from './devicectl.ts';
 import { readInfoPlistString } from './plist.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { parseXmlDocument, type XmlNode } from './xml.ts';
 
 export const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
 export const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
@@ -55,23 +56,10 @@ type IosDevicePerfProcessSample = {
   residentMemoryBytes: number | null;
 };
 
-type XmlNode = {
-  name: string;
-  attributes: Record<string, string>;
-  text: string | null;
-  children: XmlNode[];
-};
-
 type IosDevicePerfCapture = {
   capturedAtMs: number;
   xml: string;
 };
-
-type XmlParserInstance = {
-  parse(xml: string): unknown;
-};
-
-let xmlParserPromise: Promise<XmlParserInstance> | null = null;
 
 export async function sampleApplePerfMetrics(
   device: DeviceInfo,
@@ -624,76 +612,6 @@ function buildApplePerfSamples(args: {
       matchedProcesses: args.matchedProcesses,
     },
   };
-}
-
-async function loadXmlParser(): Promise<XmlParserInstance> {
-  xmlParserPromise ??= import('fast-xml-parser').then(
-    ({ XMLParser }) =>
-      new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '',
-        preserveOrder: true,
-        trimValues: true,
-        parseTagValue: false,
-      }),
-  );
-  return await xmlParserPromise;
-}
-
-async function parseXmlDocument(xml: string): Promise<XmlNode[]> {
-  const parser = await loadXmlParser();
-  return normalizeXmlNodes(parser.parse(xml));
-}
-
-function normalizeXmlNodes(value: unknown): XmlNode[] {
-  if (!Array.isArray(value)) return [];
-  const nodes: XmlNode[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
-    const record = entry as Record<string, unknown>;
-    for (const [name, childValue] of Object.entries(record)) {
-      if (name === ':@' || name === '#text') continue;
-      nodes.push({
-        name,
-        attributes: normalizeXmlAttributes(record[':@']),
-        text: normalizeXmlNodeText(childValue) ?? normalizeXmlText(record['#text']),
-        children: normalizeXmlNodes(childValue),
-      });
-    }
-  }
-  return nodes;
-}
-
-function normalizeXmlAttributes(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const attributes: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === 'string') {
-      attributes[key] = entry;
-    }
-  }
-  return attributes;
-}
-
-function normalizeXmlText(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeXmlNodeText(value: unknown): string | null {
-  if (!Array.isArray(value)) return null;
-  const text = value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
-      return '#text' in entry
-        ? normalizeXmlText((entry as Record<string, unknown>)['#text'])
-        : null;
-    })
-    .filter((entry): entry is string => entry !== null)
-    .join('')
-    .trim();
-  return text.length > 0 ? text : null;
 }
 
 function findFirstXmlNode(
