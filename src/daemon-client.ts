@@ -22,6 +22,8 @@ import {
   type DaemonTransportPreference,
 } from './daemon/config.ts';
 import { uploadArtifact } from './upload-client.ts';
+import { computeDaemonCodeSignature } from './daemon/code-signature.ts';
+export { computeDaemonCodeSignature } from './daemon/code-signature.ts';
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
 
@@ -732,19 +734,6 @@ function resolveLocalDaemonCodeSignature(): string {
   const launchSpec = resolveDaemonLaunchSpec();
   const entryPath = launchSpec.useSrc ? launchSpec.srcPath : launchSpec.distPath;
   return computeDaemonCodeSignature(entryPath, launchSpec.root);
-}
-
-export function computeDaemonCodeSignature(
-  entryPath: string,
-  root: string = findProjectRoot(),
-): string {
-  try {
-    const stat = fs.statSync(entryPath);
-    const relativePath = path.relative(root, entryPath) || entryPath;
-    return `${relativePath}:${stat.size}:${Math.trunc(stat.mtimeMs)}`;
-  } catch {
-    return 'unknown';
-  }
 }
 
 async function sendRequest(

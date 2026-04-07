@@ -1,7 +1,7 @@
 import fs from 'node:fs';
-import path from 'node:path';
-import { findProjectRoot, readVersion } from '../utils/version.ts';
+import { readVersion } from '../utils/version.ts';
 import { isAgentDeviceDaemonProcess, readProcessStartTime } from '../utils/process-identity.ts';
+import { resolveDaemonCodeSignature } from './code-signature.ts';
 
 export type DaemonLockInfo = {
   pid: number;
@@ -9,19 +9,6 @@ export type DaemonLockInfo = {
   startedAt: number;
   processStartTime?: string;
 };
-
-export function resolveDaemonCodeSignature(): string {
-  const entryPath = process.argv[1];
-  if (!entryPath) return 'unknown';
-  try {
-    const stat = fs.statSync(entryPath);
-    const root = findProjectRoot();
-    const relativePath = path.relative(root, entryPath) || entryPath;
-    return `${relativePath}:${stat.size}:${Math.trunc(stat.mtimeMs)}`;
-  } catch {
-    return 'unknown';
-  }
-}
 
 export function writeInfo(
   baseDir: string,
@@ -129,4 +116,4 @@ export function parseIntegerEnv(raw: string | undefined): number | undefined {
   return value;
 }
 
-export { readVersion, readProcessStartTime };
+export { readVersion, readProcessStartTime, resolveDaemonCodeSignature };

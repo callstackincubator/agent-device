@@ -1032,14 +1032,39 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
   }
 });
 
-test('computeDaemonCodeSignature includes relative path, size, and mtime', () => {
+test('computeDaemonCodeSignature fingerprints the daemon runtime import graph', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-signature-'));
   try {
-    const daemonEntryPath = path.join(root, 'dist', 'src', 'daemon.js');
+    const daemonEntryPath = path.join(root, 'src', 'daemon.ts');
+    const helperPath = path.join(root, 'src', 'helper.ts');
+    const lazyPath = path.join(root, 'src', 'lazy.ts');
+    const ignoredPath = path.join(root, 'src', 'ignored.ts');
     fs.mkdirSync(path.dirname(daemonEntryPath), { recursive: true });
-    fs.writeFileSync(daemonEntryPath, 'console.log("daemon");\n', 'utf8');
-    const signature = computeDaemonCodeSignature(daemonEntryPath, root);
-    assert.match(signature, /^dist\/src\/daemon\.js:\d+:\d+$/);
+    fs.writeFileSync(
+      daemonEntryPath,
+      [
+        "import './helper.ts';",
+        'export async function boot() {',
+        "  return await import('./lazy.ts');",
+        '}',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    fs.writeFileSync(helperPath, 'export const helper = 1;\n', 'utf8');
+    fs.writeFileSync(lazyPath, 'export const lazy = 1;\n', 'utf8');
+    fs.writeFileSync(ignoredPath, 'export const ignored = 1;\n', 'utf8');
+
+    const initial = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.match(initial, /^graph:3:[0-9a-f]{40}$/);
+
+    fs.writeFileSync(lazyPath, 'export const lazy = 200;\n', 'utf8');
+    const changedRuntime = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.notEqual(changedRuntime, initial);
+
+    fs.writeFileSync(ignoredPath, 'export const ignored = 200;\n', 'utf8');
+    const changedUnrelated = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.equal(changedUnrelated, changedRuntime);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
