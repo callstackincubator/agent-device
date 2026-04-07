@@ -128,6 +128,7 @@ const mockDefaultReinstallOpsIos = vi.mocked(defaultReinstallOps.ios);
 const mockDefaultReinstallOpsAndroid = vi.mocked(defaultReinstallOps.android);
 
 beforeEach(() => {
+  vi.useRealTimers();
   mockDispatch.mockReset();
   mockDispatch.mockResolvedValue({});
   mockResolveTargetDevice.mockReset();
@@ -2135,7 +2136,9 @@ test('perf samples Apple cpu and memory metrics on iOS simulator app sessions', 
   expect(cpu?.matchedProcesses).toEqual(['ExampleSimExec']);
 });
 
-test('perf degrades Apple cpu and memory metrics on physical iOS devices', async () => {
+test('perf samples Apple cpu and memory metrics on physical iOS devices', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
   const sessionStore = makeSessionStore();
   const sessionName = 'perf-session-ios-device';
   sessionStore.set(sessionName, {
@@ -2147,6 +2150,91 @@ test('perf degrades Apple cpu and memory metrics on physical iOS devices', async
       booted: true,
     }),
     appBundleId: 'com.example.device',
+  });
+  let exportCount = 0;
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'apps'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      fs.writeFileSync(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            apps: [
+              {
+                bundleIdentifier: 'com.example.device',
+                name: 'Example Device App',
+                url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
+              },
+            ],
+          },
+        }),
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'processes'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      fs.writeFileSync(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            runningProcesses: [
+              {
+                executable:
+                  'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
+                processIdentifier: 4001,
+              },
+            ],
+          },
+        }),
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'record') {
+      vi.setSystemTime(new Date(Date.now() + 1000));
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'export') {
+      const outputIndex = args.indexOf('--output');
+      exportCount += 1;
+      fs.writeFileSync(
+        args[outputIndex + 1]!,
+        [
+          '<?xml version="1.0"?>',
+          '<trace-query-result>',
+          '<node xpath="//trace-toc[1]/run[1]/data[1]/table[7]">',
+          '<schema name="activity-monitor-process-live">',
+          '<col><mnemonic>start</mnemonic></col>',
+          '<col><mnemonic>process</mnemonic></col>',
+          '<col><mnemonic>cpu-total</mnemonic></col>',
+          '<col><mnemonic>memory-real</mnemonic></col>',
+          '<col><mnemonic>pid</mnemonic></col>',
+          '</schema>',
+          '<row>',
+          '<start-time fmt="00:00.123">123</start-time>',
+          '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+          exportCount === 1
+            ? '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>'
+            : '<duration-on-core fmt="350.00 ms">350000000</duration-on-core>',
+          '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
+          '<pid fmt="4001">4001</pid>',
+          '</row>',
+          '</node>',
+          '</trace-query-result>',
+        ].join(''),
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
   });
 
   const response = await handleSessionCommands({
@@ -2167,13 +2255,14 @@ test('perf degrades Apple cpu and memory metrics on physical iOS devices', async
   if (!response?.ok) throw new Error('Expected perf response to succeed for physical iOS session');
   const memory = (response.data?.metrics as any)?.memory;
   const cpu = (response.data?.metrics as any)?.cpu;
-  expect(memory?.available).toBe(false);
-  expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
-  expect(cpu?.available).toBe(false);
-  expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  expect(memory?.available).toBe(true);
+  expect(memory?.residentMemoryKb).toBe(8192);
+  expect(cpu?.available).toBe(true);
+  expect(cpu?.usagePercent).toBe(25);
+  expect(cpu?.matchedProcesses).toEqual(['ExampleDeviceApp']);
 });
 
-test('perf reports physical iOS cpu and memory as unsupported even without an app bundle id', async () => {
+test('perf reports physical iOS cpu and memory as unavailable without an app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'perf-session-ios-device-no-bundle';
   sessionStore.set(sessionName, {
@@ -2207,9 +2296,9 @@ test('perf reports physical iOS cpu and memory as unsupported even without an ap
   const memory = (response.data?.metrics as any)?.memory;
   const cpu = (response.data?.metrics as any)?.cpu;
   expect(memory?.available).toBe(false);
-  expect(memory?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  expect(memory?.reason).toMatch(/no apple app bundle id is associated with this session/i);
   expect(cpu?.available).toBe(false);
-  expect(cpu?.reason).toMatch(/not yet implemented for physical iOS devices/i);
+  expect(cpu?.reason).toMatch(/no apple app bundle id is associated with this session/i);
 });
 
 test('open URL on existing iOS session clears stale app bundle id', async () => {

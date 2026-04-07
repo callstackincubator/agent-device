@@ -8,11 +8,7 @@ import {
   sampleAndroidCpuPerf,
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
-import {
-  APPLE_DEVICE_PERF_UNAVAILABLE_REASON,
-  buildAppleSamplingMetadata,
-  sampleApplePerfMetrics,
-} from '../../platforms/ios/perf.ts';
+import { buildAppleSamplingMetadata, sampleApplePerfMetrics } from '../../platforms/ios/perf.ts';
 import {
   PERF_STARTUP_SAMPLE_LIMIT,
   PERF_UNAVAILABLE_REASON,
@@ -109,12 +105,6 @@ export async function buildPerfResponseData(
     return response;
   }
 
-  if (isUnsupportedAppleDevicePerfSession(session)) {
-    response.metrics.memory = { available: false, reason: APPLE_DEVICE_PERF_UNAVAILABLE_REASON };
-    response.metrics.cpu = { available: false, reason: APPLE_DEVICE_PERF_UNAVAILABLE_REASON };
-    return response;
-  }
-
   if (!session.appBundleId) {
     const reason = buildMissingAppPerfReason(session);
     response.metrics.memory = { available: false, reason };
@@ -141,10 +131,6 @@ function buildMissingAppPerfReason(session: SessionState): string {
     return 'No Android app package is associated with this session. Run open <app> first.';
   }
   return 'No Apple app bundle ID is associated with this session. Run open <app> first.';
-}
-
-function isUnsupportedAppleDevicePerfSession(session: SessionState): boolean {
-  return session.device.platform === 'ios' && session.device.kind === 'device';
 }
 
 function buildPlatformSamplingMetadata(session: SessionState): Record<string, unknown> {
