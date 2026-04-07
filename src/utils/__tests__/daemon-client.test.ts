@@ -1052,6 +1052,27 @@ test('computeDaemonCodeSignature fingerprints the daemon source tree', () => {
   }
 });
 
+test('computeDaemonCodeSignature ignores source test files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-signature-tests-'));
+  try {
+    const daemonEntryPath = path.join(root, 'src', 'daemon.ts');
+    const runtimePath = path.join(root, 'src', 'platforms', 'ios', 'perf.ts');
+    const testPath = path.join(root, 'src', 'platforms', 'ios', '__tests__', 'perf.test.ts');
+    fs.mkdirSync(path.dirname(testPath), { recursive: true });
+    fs.writeFileSync(daemonEntryPath, 'console.log("daemon");\n', 'utf8');
+    fs.writeFileSync(runtimePath, 'export const value = 1;\n', 'utf8');
+    fs.writeFileSync(testPath, 'export const ignored = 1;\n', 'utf8');
+
+    const firstSignature = computeDaemonCodeSignature(daemonEntryPath, root);
+    fs.writeFileSync(testPath, 'export const ignored = 2;\n', 'utf8');
+    const secondSignature = computeDaemonCodeSignature(daemonEntryPath, root);
+
+    assert.equal(secondSignature, firstSignature);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('stopDaemonProcessForTakeover terminates a matching daemon process', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-test-'));
   const daemonDir = path.join(root, 'agent-device', 'dist', 'src');

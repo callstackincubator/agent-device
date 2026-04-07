@@ -63,12 +63,15 @@ function* walkSignatureFiles(dirPath: string): Generator<string> {
     .readdirSync(dirPath, { withFileTypes: true })
     .sort((left, right) => left.name.localeCompare(right.name));
   for (const entry of entries) {
+    if (entry.isDirectory() && entry.name === '__tests__') {
+      continue;
+    }
     const entryPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
       yield* walkSignatureFiles(entryPath);
       continue;
     }
-    if (entry.isFile()) {
+    if (entry.isFile() && !entry.name.includes('.test.')) {
       yield entryPath;
     }
   }
