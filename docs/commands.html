@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/18.525f5c1bdb.js"></script>
-<script defer src="/agent-device/static/js/index.cf2fff09a0.js"></script>
+<script defer src="/agent-device/static/js/index.8f10f5b66b.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.7">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -468,13 +468,13 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li>Platform support:
 <ul>
 <li><code>startup</code>: iOS simulator, iOS physical device, Android emulator/device</li>
-<li><code>memory</code> and <code>cpu</code>: Android emulator/device, macOS app sessions, and iOS simulators with an active app session (<code>open &lt;app&gt;</code> first)</li>
-<li>physical iOS devices still report <code>memory</code> and <code>cpu</code> as unavailable in this release</li>
+<li><code>memory</code> and <code>cpu</code>: Android emulator/device, macOS app sessions, iOS simulators with an active app session (<code>open &lt;app&gt;</code> first), and iOS physical devices with an active app session</li>
 </ul>
 </li>
 <li><code>fps</code> is still unavailable on all platforms in this release.</li>
 <li>If no startup sample exists yet for the session, run <code>open &lt;app|url&gt;</code> first and retry <code>perf</code>.</li>
 <li>If the session has no app package/bundle ID yet, <code>memory</code> and <code>cpu</code> remain unavailable until you <code>open &lt;app&gt;</code>.</li>
+<li>On physical iOS devices, <code>perf</code> records a short <code>xcrun xctrace</code> Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.</li>
 <li>Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.</li>
 <li>CPU data is a lightweight process snapshot, so an idle app may legitimately read as <code>0</code>.</li>
 </ul>

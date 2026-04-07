@@ -516,11 +516,11 @@ agent-device metrics --json
   - `cpu` from process CPU usage snapshots reported as a recent percentage
 - Platform support:
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
-  - `memory` and `cpu`: Android emulator/device, macOS app sessions, and iOS simulators with an active app session (`open <app>` first)
-  - physical iOS devices still report `memory` and `cpu` as unavailable in this release
+  - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
 - `fps` is still unavailable on all platforms in this release.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
 - If the session has no app package/bundle ID yet, `memory` and `cpu` remain unavailable until you `open <app>`.
+- On physical iOS devices, `perf` records a short `xcrun xctrace` Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 
