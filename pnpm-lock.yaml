@@ -49,11 +49,11 @@ importers:
   website:
     devDependencies:
       '@callstack/rspress-preset':
-        specifier: ^0.6.0
-        version: 0.6.0(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0))(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: ^0.6.1
+        version: 0.6.1(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0))(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@rspress/core':
-        specifier: ^2.0.7
-        version: 2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
+        specifier: ^2.0.8
+        version: 2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
 
 packages:
 
@@ -115,17 +115,17 @@ packages:
     resolution: {integrity: sha512-Hb4o6h1Pf6yRUAX07DR4JVY7dmQw+RVQMW5/m55GoiAT/VRoKCWBtIUPPOnqDVhbx1Cjfil9b6EDrgJsUAujEQ==}
     engines: {node: '>= 10'}
 
-  '@callstack/rspress-preset@0.6.0':
-    resolution: {integrity: sha512-wu11LUWxCG9NI+vtpZzMgI3eQtlHFkSxFwQekEm6B9vPXDxswVbR59b4cFh8eDxlI/NLiPS7DFq+edJjITEhow==}
+  '@callstack/rspress-preset@0.6.1':
+    resolution: {integrity: sha512-E9rsNWRV19REfqk8Yur7fYOJPFpVJcJRl4jH/MQVTaBbtvfeGCX1JfrD+y+zFJsLVpHfolpBUazcVA4fihhy0w==}
     peerDependencies:
-      '@rspress/core': ^2.0.0
+      '@rspress/core': ^2.0.8
 
-  '@callstack/rspress-theme@0.6.0':
-    resolution: {integrity: sha512-uaLu3B3Apk+t3LW2tdCQtJTfL0ZR5JwEy5d3lT3rA+ZUL2LdTEMPXTH6+9eyhT2uxFIAxiT3UeqbDEM9j9x4cA==}
+  '@callstack/rspress-theme@0.6.1':
+    resolution: {integrity: sha512-Eyiq9UExPtF1VIQ54bSNuSo1pvJ5MEMO1i+cdEZgrzsgnzyFmia9wYpNfiL4EJpeREkZ7sXVEUU9W5tGtmSHuQ==}
     peerDependencies:
-      '@rspress/core': ^2.0.0
-      react: ^19.2.3
-      react-dom: ^19.2.3
+      '@rspress/core': ^2.0.8
+      react: ^19.2.4
+      react-dom: ^19.2.4
 
   '@emnapi/core@1.9.1':
     resolution: {integrity: sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA==}
@@ -503,6 +503,16 @@ packages:
       core-js:
         optional: true
 
+  '@rsbuild/core@2.0.0-beta.11':
+    resolution: {integrity: sha512-IBbQx7SrnSpD7j2p2qyq3qDxoqmG4E6lcflTpbBitX6iUrzpVRQbP4rktXZ2iuY7ph9+FtUK/SVAVA+Ocm3Nig==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
+    peerDependencies:
+      core-js: '>= 3.0.0'
+    peerDependenciesMeta:
+      core-js:
+        optional: true
+
   '@rsbuild/plugin-react@1.4.6':
     resolution: {integrity: sha512-LAT6xHlEyZKA0VjF/ph5d50iyG+WSmBx+7g98HNZUwb94VeeTMZFB8qVptTkbIRMss3BNKOXmHOu71Lhsh9oEw==}
     peerDependencies:
@@ -529,8 +539,18 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
+  '@rspack/binding-darwin-arm64@2.0.0-beta.9':
+    resolution: {integrity: sha512-9Aao24b+lrVGG25itl2c7e6HK6eNH5J5ao1Uq5UoSwSJZOxRPuY+QlHIvE2tyt833Ly9qcT1J7os2AIUNlF6Vw==}
+    cpu: [arm64]
+    os: [darwin]
+
   '@rspack/binding-darwin-x64@2.0.0-beta.8':
     resolution: {integrity: sha512-+XTA37+FZjXgwxkNX94T/EqspFO8Q3Km4CklQ3nOQzieMi31w+TLBB0uTsnT1ugp0UTN5PHLd4DFK1SQB7Ckbg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@rspack/binding-darwin-x64@2.0.0-beta.9':
+    resolution: {integrity: sha512-sP6gusMsxm3W4aHpRsmVaBQU09n1p/1+XpLHT/gZy6nJ7Wy3nqfNKNoybNBORwCuFcGUon6cVRcieN9AEm6iJA==}
     cpu: [x64]
     os: [darwin]
 
@@ -539,8 +559,18 @@ packages:
     cpu: [arm64]
     os: [linux]
 
+  '@rspack/binding-linux-arm64-gnu@2.0.0-beta.9':
+    resolution: {integrity: sha512-k2DPN3B2qaz4L/h/R+l7rbDk/lLwbR/sayfsHZ8sLdZ3f6pvaSI9ejrsFv0nU4OmKCQsz4zYuoKTVFPtDfbGjA==}
+    cpu: [arm64]
+    os: [linux]
+
   '@rspack/binding-linux-arm64-musl@2.0.0-beta.8':
     resolution: {integrity: sha512-jJ1XB7Yz9YdPRA6MJ35S9/mb+3jeI4p9v78E3dexzCPA3G4X7WXbyOcRbUlYcyOlE5MtX5O19rDexqWlkD9tVw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@rspack/binding-linux-arm64-musl@2.0.0-beta.9':
+    resolution: {integrity: sha512-7+XwAsqhfc2rIHMc9mY6RMBTP76RRqmUm1UjidqYdJl5hYBa5apffjeZfJYgAhVbSwKB/tUffzPpEffGUuc5kw==}
     cpu: [arm64]
     os: [linux]
 
@@ -549,8 +579,18 @@ packages:
     cpu: [x64]
     os: [linux]
 
+  '@rspack/binding-linux-x64-gnu@2.0.0-beta.9':
+    resolution: {integrity: sha512-z/EOUKEq5rq4sYsVSFL9uzdPtTPVA82x3gsRJlDTfEcruZZI7Y6JKUkpDYkC0LivXqyOnoOz8slAFd2/dByRtA==}
+    cpu: [x64]
+    os: [linux]
+
   '@rspack/binding-linux-x64-musl@2.0.0-beta.8':
     resolution: {integrity: sha512-eJF1IsayHhsURu5Dp6fzdr5jYGeJmoREOZAc9UV3aEqY6zNAcWgZT1RwKCCujJylmHgCTCOuxqdK/VdFJqWDyw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@rspack/binding-linux-x64-musl@2.0.0-beta.9':
+    resolution: {integrity: sha512-LVIXrqtAOy/DowIB04jyUyYy+5kHtZNJ0W5EJd39OwY/9gGvhgAEVvSWu7JrRAvKW1kQsV7GnRT5ninbDrRw1A==}
     cpu: [x64]
     os: [linux]
 
@@ -558,8 +598,17 @@ packages:
     resolution: {integrity: sha512-HssdOQE8i+nUWoK+NDeD5OSyNxf80k3elKCl/due3WunoNn0h6tUTSZ8QB+bhcT4tjH9vTbibWZIT91avtvUNw==}
     cpu: [wasm32]
 
+  '@rspack/binding-wasm32-wasi@2.0.0-beta.9':
+    resolution: {integrity: sha512-Vl7aDAt7DCqtZ/RJd8hLFjQqufX+efL/XZG3qADsagl/SspH1ItJ7N6X1S8o50eKoshy27Jr7mQYZEdufX9qhQ==}
+    cpu: [wasm32]
+
   '@rspack/binding-win32-arm64-msvc@2.0.0-beta.8':
     resolution: {integrity: sha512-RuHbXuIMJr0ANMFoGXIb3sUZE5VwIsJw70u3TKPwfoaOFiJjgW7Pi2JTLPoTYfOlE+CNcu2ldX8VJRBbktR4NA==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@rspack/binding-win32-arm64-msvc@2.0.0-beta.9':
+    resolution: {integrity: sha512-g4Fc3JjfibuHt5ltoV64eK0bs6NKlh8kgHA8Go3ETwEGO6OBck877e+5CqPtjTH8c1/KQPbnCoccGR1OScoZGg==}
     cpu: [arm64]
     os: [win32]
 
@@ -568,16 +617,41 @@ packages:
     cpu: [ia32]
     os: [win32]
 
+  '@rspack/binding-win32-ia32-msvc@2.0.0-beta.9':
+    resolution: {integrity: sha512-Oii4HpCEH3CBDKSXcS6EVlV9nGYVKAV/uBLSsuZ0RNdEG0i+OHvEiicqHAwuIYZNlH4Ea/Vwc+Dl5PM2twCZ4Q==}
+    cpu: [ia32]
+    os: [win32]
+
   '@rspack/binding-win32-x64-msvc@2.0.0-beta.8':
     resolution: {integrity: sha512-MqPuHCbxyLSEjavbhYapHs7cvs2zSA9GKd8nJtDuSMmDTVHFzwHfUXTffUMFB4JTCAvdpMn8XtOG/UOW5QVRCA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@rspack/binding-win32-x64-msvc@2.0.0-beta.9':
+    resolution: {integrity: sha512-7UFjyy7QMtWvf1CBEVQkHL6bJBKaVY9yq9+Qxb7ggtxvpBbkoYykdsrhMTvr/f5TBjBqHmyeb0/oYXqo5pWFBQ==}
     cpu: [x64]
     os: [win32]
 
   '@rspack/binding@2.0.0-beta.8':
     resolution: {integrity: sha512-6tG/yYhUIF1zcEF7qw9GPA1Bwj5gq+Hqy4OzVzIBUWOn/2bKsFTWuorEJh8Yx1LwOnjNO7O+NbsATvk5zEOGKQ==}
 
+  '@rspack/binding@2.0.0-beta.9':
+    resolution: {integrity: sha512-QgkOvzl6BJc4Vg5eaY9r7MkHNfXvVZPgTIeYkdBEOYPowdyCLhlG9vH7QltqLKP9KDNel70YIeMyUrpTqez01w==}
+
   '@rspack/core@2.0.0-beta.8':
     resolution: {integrity: sha512-GHiMNhcxfzJV3DqxIYYjiBGzhFkwwt+jSJl8+aVFRbQM0AYRdZJSfQDH4G5rHD1gO2yc3ktOOMHYnZWNtXCwdA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      '@module-federation/runtime-tools': ^0.24.1 || ^2.0.0
+      '@swc/helpers': '>=0.5.1'
+    peerDependenciesMeta:
+      '@module-federation/runtime-tools':
+        optional: true
+      '@swc/helpers':
+        optional: true
+
+  '@rspack/core@2.0.0-beta.9':
+    resolution: {integrity: sha512-4sN3f72l4cj8n/dSCdWn6FkSjfHiDxHWrO1Kmqd0Bk0MmgyW+ldHitsSWPETCAxjTJGXY34r5sou5sYzb0DRww==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       '@module-federation/runtime-tools': ^0.24.1 || ^2.0.0
@@ -597,19 +671,19 @@ packages:
       webpack-hot-middleware:
         optional: true
 
-  '@rspress/core@2.0.7':
-    resolution: {integrity: sha512-+HH6EVSs1SVvm+6l78lluK8u70ihKVX26VHEqYJzTBHLtipMXllmX2mfkjCoATEP2uqU+es4xSPurss+AztHWg==}
+  '@rspress/core@2.0.8':
+    resolution: {integrity: sha512-MDkpm6fO0+NoW+Lx0KVL/n9DSRGQcoggeXY+EtlC+ySqF9VxQk4hu87fQhD8q2ikMOd7lbVsWmKspd3rIFD88g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
-  '@rspress/plugin-sitemap@2.0.2':
-    resolution: {integrity: sha512-3E0yEif4Pj3RX+QVOsyWXW6IIjuhwh93bhVSmhShmTKi8opH5vnHcRVZZ1z7X/P3MHXFTrC925F8383Sl2qOEg==}
+  '@rspress/plugin-sitemap@2.0.8':
+    resolution: {integrity: sha512-V3u+wRvzmJmC+GkigvQYDQfEo43xUlya9OVLqSyRcB/crQ0U99oto6v73isZB/qS/pTb2wbFY+CbzOqrD1uBsA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      '@rspress/core': ^2.0.2
+      '@rspress/core': ^2.0.8
 
-  '@rspress/shared@2.0.7':
-    resolution: {integrity: sha512-x7OqCGP5Ir1/X+6fvhtApw/ObHfwVIdWne6LlX3GGUHyHF+01yci6vrUzEP2R6PainnqySzW2+345C6zZ3dZuA==}
+  '@rspress/shared@2.0.8':
+    resolution: {integrity: sha512-kvfBUvMvWcn/7PJHqZxPeu1yblzvAuB1/gk/1orp5KsYu3wbZ7X3Hsm9smDJVs5Plw1iPt67t9fOYNSM0+VjUA==}
 
   '@rushstack/node-core-library@5.21.0':
     resolution: {integrity: sha512-LFzN+1lyWROit/P8Md6yxAth7lLYKn37oCKJHirEE2TQB25NDUM7bALf0ar+JAtwFfRCH+D+DGOA7DAzIi2r+g==}
@@ -682,6 +756,9 @@ packages:
   '@swc/helpers@0.5.19':
     resolution: {integrity: sha512-QamiFeIK3txNjgUTNppE6MiG3p7TdninpZu0E0PbqVh1a9FNLT2FRhisaa4NcaX52XVhA5l7Pk58Ft7Sqi/2sA==}
 
+  '@swc/helpers@0.5.21':
+    resolution: {integrity: sha512-jI/VAmtdjB/RnI8GTnokyX7Ug8c+g+ffD6QRLa6XQewtnGyukKkKSk3wLTM3b5cjt1jNh9x0jfVlagdN2gDKQg==}
+
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
 
@@ -738,12 +815,13 @@ packages:
     peerDependencies:
       react: '>=18.3.1'
 
-  '@vercel/analytics@1.6.1':
-    resolution: {integrity: sha512-oH9He/bEM+6oKlv3chWuOOcp8Y6fo6/PSro8hEkgCW3pu9/OiCXiUpRUogDh3Fs3LH2sosDrx8CxeOLBEE+afg==}
+  '@vercel/analytics@2.0.1':
+    resolution: {integrity: sha512-MTQG6V9qQrt1tsDeF+2Uoo5aPjqbVPys1xvnIftXSJYG2SrwXRHnqEvVoYID7BTruDz4lCd2Z7rM1BdkUehk2g==}
     peerDependencies:
       '@remix-run/react': ^2
       '@sveltejs/kit': ^1 || ^2
       next: '>= 13'
+      nuxt: '>= 3'
       react: ^18 || ^19 || ^19.0.0-rc
       svelte: '>= 4'
       vue: ^3
@@ -754,6 +832,8 @@ packages:
       '@sveltejs/kit':
         optional: true
       next:
+        optional: true
+      nuxt:
         optional: true
       react:
         optional: true
@@ -1963,8 +2043,8 @@ packages:
   yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -2010,28 +2090,29 @@ snapshots:
       '@ast-grep/napi-win32-ia32-msvc': 0.37.0
       '@ast-grep/napi-win32-x64-msvc': 0.37.0
 
-  '@callstack/rspress-preset@0.6.0(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0))(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@callstack/rspress-preset@0.6.1(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0))(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@callstack/rspress-theme': 0.6.0(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@rspress/core': 2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
-      '@rspress/plugin-sitemap': 2.0.2(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))
-      '@vercel/analytics': 1.6.1(react@19.2.4)
-      rsbuild-plugin-open-graph: 1.1.2(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0))
-      zod: 3.25.76
+      '@callstack/rspress-theme': 0.6.1(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@rspress/core': 2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
+      '@rspress/plugin-sitemap': 2.0.8(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))
+      '@vercel/analytics': 2.0.1(react@19.2.4)
+      rsbuild-plugin-open-graph: 1.1.2(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0))
+      zod: 4.3.6
     transitivePeerDependencies:
       - '@remix-run/react'
       - '@rsbuild/core'
       - '@sveltejs/kit'
       - next
+      - nuxt
       - react
       - react-dom
       - svelte
       - vue
       - vue-router
 
-  '@callstack/rspress-theme@0.6.0(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@callstack/rspress-theme@0.6.1(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@rspress/core': 2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
+      '@rspress/core': 2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
 
@@ -2315,12 +2396,21 @@ snapshots:
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
 
-  '@rsbuild/plugin-react@1.4.6(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0))':
+  '@rsbuild/core@2.0.0-beta.11(core-js@3.47.0)':
+    dependencies:
+      '@rspack/core': 2.0.0-beta.9(@swc/helpers@0.5.21)
+      '@swc/helpers': 0.5.21
+    optionalDependencies:
+      core-js: 3.47.0
+    transitivePeerDependencies:
+      - '@module-federation/runtime-tools'
+
+  '@rsbuild/plugin-react@1.4.6(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0))':
     dependencies:
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
       react-refresh: 0.18.0
     optionalDependencies:
-      '@rsbuild/core': 2.0.0-beta.10(core-js@3.47.0)
+      '@rsbuild/core': 2.0.0-beta.11(core-js@3.47.0)
     transitivePeerDependencies:
       - webpack-hot-middleware
 
@@ -2339,19 +2429,37 @@ snapshots:
   '@rspack/binding-darwin-arm64@2.0.0-beta.8':
     optional: true
 
+  '@rspack/binding-darwin-arm64@2.0.0-beta.9':
+    optional: true
+
   '@rspack/binding-darwin-x64@2.0.0-beta.8':
+    optional: true
+
+  '@rspack/binding-darwin-x64@2.0.0-beta.9':
     optional: true
 
   '@rspack/binding-linux-arm64-gnu@2.0.0-beta.8':
     optional: true
 
+  '@rspack/binding-linux-arm64-gnu@2.0.0-beta.9':
+    optional: true
+
   '@rspack/binding-linux-arm64-musl@2.0.0-beta.8':
+    optional: true
+
+  '@rspack/binding-linux-arm64-musl@2.0.0-beta.9':
     optional: true
 
   '@rspack/binding-linux-x64-gnu@2.0.0-beta.8':
     optional: true
 
+  '@rspack/binding-linux-x64-gnu@2.0.0-beta.9':
+    optional: true
+
   '@rspack/binding-linux-x64-musl@2.0.0-beta.8':
+    optional: true
+
+  '@rspack/binding-linux-x64-musl@2.0.0-beta.9':
     optional: true
 
   '@rspack/binding-wasm32-wasi@2.0.0-beta.8':
@@ -2359,13 +2467,27 @@ snapshots:
       '@napi-rs/wasm-runtime': 1.1.1
     optional: true
 
+  '@rspack/binding-wasm32-wasi@2.0.0-beta.9':
+    dependencies:
+      '@napi-rs/wasm-runtime': 1.1.1
+    optional: true
+
   '@rspack/binding-win32-arm64-msvc@2.0.0-beta.8':
+    optional: true
+
+  '@rspack/binding-win32-arm64-msvc@2.0.0-beta.9':
     optional: true
 
   '@rspack/binding-win32-ia32-msvc@2.0.0-beta.8':
     optional: true
 
+  '@rspack/binding-win32-ia32-msvc@2.0.0-beta.9':
+    optional: true
+
   '@rspack/binding-win32-x64-msvc@2.0.0-beta.8':
+    optional: true
+
+  '@rspack/binding-win32-x64-msvc@2.0.0-beta.9':
     optional: true
 
   '@rspack/binding@2.0.0-beta.8':
@@ -2381,11 +2503,30 @@ snapshots:
       '@rspack/binding-win32-ia32-msvc': 2.0.0-beta.8
       '@rspack/binding-win32-x64-msvc': 2.0.0-beta.8
 
+  '@rspack/binding@2.0.0-beta.9':
+    optionalDependencies:
+      '@rspack/binding-darwin-arm64': 2.0.0-beta.9
+      '@rspack/binding-darwin-x64': 2.0.0-beta.9
+      '@rspack/binding-linux-arm64-gnu': 2.0.0-beta.9
+      '@rspack/binding-linux-arm64-musl': 2.0.0-beta.9
+      '@rspack/binding-linux-x64-gnu': 2.0.0-beta.9
+      '@rspack/binding-linux-x64-musl': 2.0.0-beta.9
+      '@rspack/binding-wasm32-wasi': 2.0.0-beta.9
+      '@rspack/binding-win32-arm64-msvc': 2.0.0-beta.9
+      '@rspack/binding-win32-ia32-msvc': 2.0.0-beta.9
+      '@rspack/binding-win32-x64-msvc': 2.0.0-beta.9
+
   '@rspack/core@2.0.0-beta.8(@swc/helpers@0.5.19)':
     dependencies:
       '@rspack/binding': 2.0.0-beta.8
     optionalDependencies:
       '@swc/helpers': 0.5.19
+
+  '@rspack/core@2.0.0-beta.9(@swc/helpers@0.5.21)':
+    dependencies:
+      '@rspack/binding': 2.0.0-beta.9
+    optionalDependencies:
+      '@swc/helpers': 0.5.21
 
   '@rspack/plugin-react-refresh@1.6.1(react-refresh@0.18.0)':
     dependencies:
@@ -2393,13 +2534,13 @@ snapshots:
       html-entities: 2.6.0
       react-refresh: 0.18.0
 
-  '@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)':
+  '@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)':
     dependencies:
       '@mdx-js/mdx': 3.1.1
       '@mdx-js/react': 3.1.1(@types/react@19.2.13)(react@19.2.4)
-      '@rsbuild/core': 2.0.0-beta.10(core-js@3.47.0)
-      '@rsbuild/plugin-react': 1.4.6(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0))
-      '@rspress/shared': 2.0.7(core-js@3.47.0)
+      '@rsbuild/core': 2.0.0-beta.11(core-js@3.47.0)
+      '@rsbuild/plugin-react': 1.4.6(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0))
+      '@rspress/shared': 2.0.8(core-js@3.47.0)
       '@shikijs/rehype': 4.0.2
       '@types/unist': 3.0.3
       '@unhead/react': 2.1.12(react@19.2.4)
@@ -2450,13 +2591,13 @@ snapshots:
       - supports-color
       - webpack-hot-middleware
 
-  '@rspress/plugin-sitemap@2.0.2(@rspress/core@2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))':
+  '@rspress/plugin-sitemap@2.0.8(@rspress/core@2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2))':
     dependencies:
-      '@rspress/core': 2.0.7(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
+      '@rspress/core': 2.0.8(@types/mdast@4.0.4)(@types/react@19.2.13)(core-js@3.47.0)(micromark-util-types@2.0.2)(micromark@4.0.2)
 
-  '@rspress/shared@2.0.7(core-js@3.47.0)':
+  '@rspress/shared@2.0.8(core-js@3.47.0)':
     dependencies:
-      '@rsbuild/core': 2.0.0-beta.10(core-js@3.47.0)
+      '@rsbuild/core': 2.0.0-beta.11(core-js@3.47.0)
       '@shikijs/rehype': 4.0.2
       gray-matter: 4.0.3
       lodash-es: 4.18.1
@@ -2559,6 +2700,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@swc/helpers@0.5.21':
+    dependencies:
+      tslib: 2.8.1
+
   '@tybys/wasm-util@0.10.1':
     dependencies:
       tslib: 2.8.1
@@ -2618,7 +2763,7 @@ snapshots:
       react: 19.2.4
       unhead: 2.1.12
 
-  '@vercel/analytics@1.6.1(react@19.2.4)':
+  '@vercel/analytics@2.0.1(react@19.2.4)':
     optionalDependencies:
       react: 19.2.4
 
@@ -3917,9 +4062,9 @@ snapshots:
       '@microsoft/api-extractor': 7.58.1(@types/node@22.19.7)
       typescript: 6.0.2
 
-  rsbuild-plugin-open-graph@1.1.2(@rsbuild/core@2.0.0-beta.10(core-js@3.47.0)):
+  rsbuild-plugin-open-graph@1.1.2(@rsbuild/core@2.0.0-beta.11(core-js@3.47.0)):
     optionalDependencies:
-      '@rsbuild/core': 2.0.0-beta.10(core-js@3.47.0)
+      '@rsbuild/core': 2.0.0-beta.11(core-js@3.47.0)
 
   scheduler@0.27.0: {}
 
@@ -4143,6 +4288,6 @@ snapshots:
 
   yallist@4.0.0: {}
 
-  zod@3.25.76: {}
+  zod@4.3.6: {}
 
   zwitch@2.0.4: {}

@@ -7,7 +7,7 @@
     "build": "rspress build"
   },
   "devDependencies": {
-    "@callstack/rspress-preset": "^0.6.0",
-    "@rspress/core": "^2.0.7"
+    "@callstack/rspress-preset": "^0.6.1",
+    "@rspress/core": "^2.0.8"
   }
 }
