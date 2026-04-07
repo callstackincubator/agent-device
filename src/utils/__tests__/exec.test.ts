@@ -28,6 +28,24 @@ test('whichCmd resolves bare commands from PATH', async () => {
   assert.equal(await whichCmd('node'), true);
 });
 
+test.runIf(process.platform !== 'win32')(
+  'runCmd allows explicit relative executable paths when shell execution is disabled',
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runcmd-relative-'));
+    const target = path.join(root, 'local-node');
+    fs.symlinkSync(process.execPath, target);
+
+    try {
+      const result = await runCmd('./local-node', ['-e', 'process.stdout.write("ok")'], {
+        cwd: root,
+      });
+      assert.equal(result.stdout, 'ok');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
 test('whichCmd rejects suspicious command strings', async () => {
   assert.equal(await whichCmd('node; rm -rf /'), false);
   assert.equal(await whichCmd('./node'), false);

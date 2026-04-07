@@ -134,7 +134,7 @@ export async function runCmd(
 }
 
 export async function whichCmd(cmd: string): Promise<boolean> {
-  const candidate = normalizeExecutableLookup(cmd);
+  const candidate = normalizeExecutableLookup(cmd, { allowRelativePath: false });
   if (!candidate) return false;
 
   if (path.isAbsolute(candidate)) {
@@ -397,7 +397,7 @@ export function runCmdBackground(
 }
 
 function normalizeExecutableCommand(cmd: string): string {
-  const candidate = normalizeExecutableLookup(cmd);
+  const candidate = normalizeExecutableLookup(cmd, { allowRelativePath: true });
   if (!candidate) {
     throw new AppError('INVALID_ARGS', `Invalid executable command: ${JSON.stringify(cmd)}`, {
       cmd,
@@ -406,11 +406,16 @@ function normalizeExecutableCommand(cmd: string): string {
   return candidate;
 }
 
-function normalizeExecutableLookup(cmd: string): string | null {
+function normalizeExecutableLookup(
+  cmd: string,
+  options: { allowRelativePath: boolean },
+): string | null {
   const candidate = cmd.trim();
   if (!candidate || candidate.includes('\0')) return null;
   if (path.isAbsolute(candidate)) return candidate;
-  if (candidate.includes('/') || candidate.includes('\\')) return null;
+  if (candidate.includes('/') || candidate.includes('\\')) {
+    return options.allowRelativePath ? candidate : null;
+  }
   return BARE_COMMAND_RE.test(candidate) ? candidate : null;
 }
 
