@@ -11,6 +11,7 @@ import { IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 export type IosAppInfo = {
   bundleId: string;
   name: string;
+  url?: string;
 };
 
 type IosDeviceAppsPayload = {
@@ -18,6 +19,21 @@ type IosDeviceAppsPayload = {
     apps?: Array<{
       bundleIdentifier?: unknown;
       name?: unknown;
+      url?: unknown;
+    }>;
+  };
+};
+
+export type IosDeviceProcessInfo = {
+  executable: string;
+  pid: number;
+};
+
+type IosDeviceProcessesPayload = {
+  result?: {
+    runningProcesses?: Array<{
+      executable?: unknown;
+      processIdentifier?: unknown;
     }>;
   };
 };
@@ -97,6 +113,53 @@ export async function listIosDeviceApps(
   }
 }
 
+export async function listIosDeviceProcesses(device: DeviceInfo): Promise<IosDeviceProcessInfo[]> {
+  const jsonPath = path.join(
+    os.tmpdir(),
+    `agent-device-ios-processes-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
+  const args = [
+    'devicectl',
+    'device',
+    'info',
+    'processes',
+    '--device',
+    device.id,
+    '--json-output',
+    jsonPath,
+  ];
+  const result = await runCmd('xcrun', args, {
+    allowFailure: true,
+    timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
+  });
+
+  try {
+    if (result.exitCode !== 0) {
+      const stdout = String(result.stdout ?? '');
+      const stderr = String(result.stderr ?? '');
+      throw new AppError('COMMAND_FAILED', 'Failed to list iOS processes', {
+        cmd: 'xcrun',
+        args,
+        exitCode: result.exitCode,
+        stdout,
+        stderr,
+        deviceId: device.id,
+        hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
+      });
+    }
+    const jsonText = await fs.readFile(jsonPath, 'utf8');
+    return parseIosDeviceProcessesPayload(JSON.parse(jsonText));
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('COMMAND_FAILED', 'Failed to parse iOS process list', {
+      deviceId: device.id,
+      cause: String(error),
+    });
+  } finally {
+    await fs.unlink(jsonPath).catch(() => {});
+  }
+}
+
 export function parseIosDeviceAppsPayload(payload: unknown): IosAppInfo[] {
   const apps = (payload as IosDeviceAppsPayload | null | undefined)?.result?.apps;
   if (!Array.isArray(apps)) return [];
@@ -109,7 +172,28 @@ export function parseIosDeviceAppsPayload(payload: unknown): IosAppInfo[] {
     if (!bundleId) continue;
     const name =
       typeof entry.name === 'string' && entry.name.trim().length > 0 ? entry.name.trim() : bundleId;
-    parsed.push({ bundleId, name });
+    const url =
+      typeof entry.url === 'string' && entry.url.trim().length > 0 ? entry.url.trim() : undefined;
+    parsed.push({ bundleId, name, url });
+  }
+  return parsed;
+}
+
+export function parseIosDeviceProcessesPayload(payload: unknown): IosDeviceProcessInfo[] {
+  const processes = (payload as IosDeviceProcessesPayload | null | undefined)?.result
+    ?.runningProcesses;
+  if (!Array.isArray(processes)) return [];
+
+  const parsed: IosDeviceProcessInfo[] = [];
+  for (const entry of processes) {
+    if (!entry || typeof entry !== 'object') continue;
+    const executable = typeof entry.executable === 'string' ? entry.executable.trim() : '';
+    const pid =
+      typeof entry.processIdentifier === 'number' && Number.isFinite(entry.processIdentifier)
+        ? entry.processIdentifier
+        : NaN;
+    if (!executable || !Number.isFinite(pid)) continue;
+    parsed.push({ executable, pid });
   }
   return parsed;
 }

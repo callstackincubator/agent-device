@@ -78,6 +78,7 @@ import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { retryWithPolicy } from '../../../utils/retry.ts';
+import { parseIosDeviceProcessesPayload } from '../devicectl.ts';
 
 const IOS_TEST_DEVICE: DeviceInfo = {
   platform: 'ios',
@@ -1585,6 +1586,7 @@ test('parseIosDeviceAppsPayload maps devicectl app entries', () => {
         {
           bundleIdentifier: 'com.apple.Maps',
           name: 'Maps',
+          url: 'file:///Applications/Maps.app/',
         },
         {
           bundleIdentifier: 'com.example.NoName',
@@ -1597,9 +1599,11 @@ test('parseIosDeviceAppsPayload maps devicectl app entries', () => {
   assert.deepEqual(apps[0], {
     bundleId: 'com.apple.Maps',
     name: 'Maps',
+    url: 'file:///Applications/Maps.app/',
   });
   assert.equal(apps[1].bundleId, 'com.example.NoName');
   assert.equal(apps[1].name, 'com.example.NoName');
+  assert.equal(apps[1].url, undefined);
 });
 
 test('parseIosDeviceAppsPayload ignores malformed entries', () => {
@@ -1609,6 +1613,34 @@ test('parseIosDeviceAppsPayload ignores malformed entries', () => {
     },
   });
   assert.deepEqual(apps, []);
+});
+
+test('parseIosDeviceProcessesPayload maps running process entries', () => {
+  const processes = parseIosDeviceProcessesPayload({
+    result: {
+      runningProcesses: [
+        {
+          executable: 'file:///private/var/containers/Bundle/Application/ABC123/Demo.app/Demo',
+          processIdentifier: 421,
+        },
+        {
+          executable: 'file:///usr/libexec/backboardd',
+          processIdentifier: 72,
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(processes, [
+    {
+      executable: 'file:///private/var/containers/Bundle/Application/ABC123/Demo.app/Demo',
+      pid: 421,
+    },
+    {
+      executable: 'file:///usr/libexec/backboardd',
+      pid: 72,
+    },
+  ]);
 });
 
 test('resolveIosApp resolves app display name on iOS physical devices', async () => {

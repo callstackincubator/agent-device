@@ -9,7 +9,7 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   return { ...actual, runCmd: vi.fn(actual.runCmd) };
 });
 
-import { sampleApplePerfMetrics, parseApplePsOutput } from '../perf.ts';
+import { parseApplePsOutput, sampleApplePerfMetrics } from '../perf.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
@@ -42,6 +42,7 @@ const IOS_DEVICE: DeviceInfo = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.useRealTimers();
 });
 
 test('parseApplePsOutput reads pid cpu rss and command columns', () => {
@@ -156,9 +157,145 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
   }
 });
 
-test('sampleApplePerfMetrics rejects physical iOS devices for now', async () => {
-  await assert.rejects(
-    () => sampleApplePerfMetrics(IOS_DEVICE, 'com.example.device'),
-    /not yet implemented for physical iOS devices/i,
-  );
+test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
+
+  const firstCaptureXml = [
+    '<?xml version="1.0"?>',
+    '<trace-query-result>',
+    '<node xpath="//trace-toc[1]/run[1]/data[1]/table[7]">',
+    '<schema name="activity-monitor-process-live">',
+    '<col><mnemonic>start</mnemonic></col>',
+    '<col><mnemonic>process</mnemonic></col>',
+    '<col><mnemonic>cpu-total</mnemonic></col>',
+    '<col><mnemonic>memory-real</mnemonic></col>',
+    '<col><mnemonic>pid</mnemonic></col>',
+    '</schema>',
+    '<row>',
+    '<start-time fmt="00:00.123">123</start-time>',
+    '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+    '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
+    '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
+    '<pid fmt="4001">4001</pid>',
+    '<process ref="background-process"/>',
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.124">124</start-time>',
+    '<process fmt="OtherApp (5001)"><pid fmt="5001">5001</pid></process>',
+    '<duration-on-core fmt="75.00 ms">75000000</duration-on-core>',
+    '<size-in-bytes fmt="4.00 MiB">4194304</size-in-bytes>',
+    '<pid fmt="5001">5001</pid>',
+    '</row>',
+    '</node>',
+    '</trace-query-result>',
+  ].join('');
+  const secondCaptureXml = firstCaptureXml
+    .replace(
+      '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
+      '<duration-on-core id="cpu-ref" fmt="350.00 ms">350000000</duration-on-core>',
+    )
+    .replace(
+      '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
+      '<size-in-bytes id="mem-ref" fmt="8.00 MiB">8388608</size-in-bytes>',
+    )
+    .replace('<pid fmt="4001">4001</pid>', '<pid id="pid-ref" fmt="4001">4001</pid>')
+    .replace(
+      '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+      '<process id="proc-ref" fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+    )
+    .replace(
+      '</row><row><start-time fmt="00:00.124">124</start-time>',
+      [
+        '</row>',
+        '<row>',
+        '<start-time fmt="00:00.123">123</start-time>',
+        '<process ref="proc-ref"/>',
+        '<duration-on-core ref="cpu-ref"/>',
+        '<size-in-bytes ref="mem-ref"/>',
+        '<pid ref="pid-ref"/>',
+        '<process ref="background-process"/>',
+        '</row>',
+        '<row>',
+        '<start-time fmt="00:00.124">124</start-time>',
+      ].join(''),
+    );
+  let exportCount = 0;
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd !== 'xcrun') {
+      throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+    }
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'apps'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      await fs.writeFile(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            apps: [
+              {
+                bundleIdentifier: 'com.example.device',
+                name: 'Example Device App',
+                url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
+              },
+            ],
+          },
+        }),
+        'utf8',
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'processes'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      await fs.writeFile(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            runningProcesses: [
+              {
+                executable:
+                  'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
+                processIdentifier: 4001,
+              },
+            ],
+          },
+        }),
+        'utf8',
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'record') {
+      vi.setSystemTime(new Date(Date.now() + 1000));
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'export') {
+      const outputIndex = args.indexOf('--output');
+      exportCount += 1;
+      await fs.writeFile(
+        args[outputIndex + 1]!,
+        exportCount === 1 ? firstCaptureXml : secondCaptureXml,
+        'utf8',
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
+  });
+
+  const metrics = await sampleApplePerfMetrics(IOS_DEVICE, 'com.example.device');
+  assert.equal(metrics.cpu.usagePercent, 25);
+  assert.equal(metrics.memory.residentMemoryKb, 8192);
+  assert.equal(metrics.cpu.method, 'xctrace-activity-monitor');
+  assert.deepEqual(metrics.cpu.matchedProcesses, ['ExampleDeviceApp']);
+  assert.equal(metrics.cpu.measuredAt, '2026-04-01T10:00:02.000Z');
+  assert.equal(metrics.memory.measuredAt, '2026-04-01T10:00:02.000Z');
 });

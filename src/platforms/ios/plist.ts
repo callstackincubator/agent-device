@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { runCmd } from '../../utils/exec.ts';
+import { parseXmlDocument } from './xml.ts';
 
 export async function readInfoPlistString(
   infoPlistPath: string,
@@ -21,33 +22,25 @@ export async function readInfoPlistString(
 
   try {
     const plist = await fs.readFile(infoPlistPath, 'utf8');
-    return readXmlPlistString(plist, key);
+    return await readXmlPlistString(plist, key);
   } catch {
     return undefined;
   }
 }
 
-function readXmlPlistString(plist: string, key: string): string | undefined {
-  const escapedKey = escapeRegExp(key);
-  const match = plist.match(
-    new RegExp(`<key>\\s*${escapedKey}\\s*<\\/key>\\s*<string>([\\s\\S]*?)<\\/string>`, 'i'),
-  );
-  if (!match?.[1]) {
+async function readXmlPlistString(plist: string, key: string): Promise<string | undefined> {
+  const document = await parseXmlDocument(plist);
+  const plistNode = document.find((node) => node.name === 'plist');
+  const dictNode = plistNode?.children.find((node) => node.name === 'dict');
+  if (!dictNode) {
     return undefined;
   }
-  const value = decodeXmlEntities(match[1].trim());
-  return value.length > 0 ? value : undefined;
-}
-
-function decodeXmlEntities(value: string): string {
-  return value
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (let index = 0; index < dictNode.children.length - 1; index += 1) {
+    const entry = dictNode.children[index];
+    const nextEntry = dictNode.children[index + 1];
+    if (entry?.name === 'key' && entry.text === key && nextEntry?.name === 'string') {
+      return nextEntry.text ?? undefined;
+    }
+  }
+  return undefined;
 }
