@@ -55,18 +55,23 @@ type IosDevicePerfProcessSample = {
   residentMemoryBytes: number | null;
 };
 
-type ParsedXmlElement = {
-  raw: string;
-  id?: string;
-  ref?: string;
-  fmt?: string;
+type XmlNode = {
+  name: string;
+  attributes: Record<string, string>;
   text: string | null;
+  children: XmlNode[];
 };
 
 type IosDevicePerfCapture = {
   capturedAtMs: number;
   xml: string;
 };
+
+type XmlParserInstance = {
+  parse(xml: string): unknown;
+};
+
+let xmlParserPromise: Promise<XmlParserInstance> | null = null;
 
 export async function sampleApplePerfMetrics(
   device: DeviceInfo,
@@ -154,19 +159,21 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
   return rows;
 }
 
-export function parseIosDevicePerfTable(xml: string): IosDevicePerfProcessSample[] {
-  const schemaMatch = xml.match(
-    /<schema name="activity-monitor-process-live">([\s\S]*?)<\/schema>/,
+export async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
+  const document = await parseXmlDocument(xml);
+  const schema = findFirstXmlNode(
+    document,
+    (node) => node.name === 'schema' && node.attributes.name === 'activity-monitor-process-live',
   );
-  if (!schemaMatch) {
+  if (!schema) {
     throw new AppError(
       'COMMAND_FAILED',
       'Failed to parse xctrace activity-monitor-process-live schema',
     );
   }
-  const mnemonics = [...schemaMatch[1].matchAll(/<mnemonic>([^<]+)<\/mnemonic>/g)].map(
-    (match) => match[1] ?? '',
-  );
+  const mnemonics = schema.children
+    .filter((child) => child.name === 'col')
+    .map((column) => readFirstChildText(column, 'mnemonic') ?? '');
   const pidIndex = mnemonics.indexOf('pid');
   const processIndex = mnemonics.indexOf('process');
   const cpuTimeIndex = mnemonics.indexOf('cpu-total');
@@ -178,7 +185,7 @@ export function parseIosDevicePerfTable(xml: string): IosDevicePerfProcessSample
     );
   }
 
-  const rows = [...xml.matchAll(/<row>([\s\S]*?)<\/row>/g)];
+  const rows = findAllXmlNodes(document, (node) => node.name === 'row');
   const samples: IosDevicePerfProcessSample[] = [];
   const references = new Map<
     string,
@@ -188,18 +195,21 @@ export function parseIosDevicePerfTable(xml: string): IosDevicePerfProcessSample
     }
   >();
   for (const row of rows) {
-    const elements = splitTopLevelXmlElements(row[1] ?? '').map(parseXmlElement);
+    const elements = row.children;
     if (elements.length === 0) continue;
     for (const element of elements) {
-      const nestedPidMatch = element.raw.match(/<pid[^>]*\bid="([^"]+)"[^>]*>([^<]+)<\/pid>/);
-      if (nestedPidMatch) {
-        const pidValue = Number(nestedPidMatch[2]);
-        references.set(nestedPidMatch[1], {
+      const nestedPid = findFirstXmlNode(
+        element.children,
+        (child) => child.name === 'pid' && typeof child.attributes.id === 'string',
+      );
+      if (nestedPid?.attributes.id) {
+        const pidValue = Number(nestedPid.text);
+        references.set(nestedPid.attributes.id, {
           numberValue: Number.isFinite(pidValue) ? pidValue : null,
         });
       }
-      if (!element.id) continue;
-      references.set(element.id, {
+      if (!element.attributes.id) continue;
+      references.set(element.attributes.id, {
         numberValue: parseDirectXmlNumber(element),
         processName: readDirectProcessNameFromXml(element),
       });
@@ -252,17 +262,16 @@ async function sampleIosDevicePerfMetrics(
   appBundleId: string,
 ): Promise<{ cpu: AppleCpuPerfSample; memory: AppleMemoryPerfSample }> {
   const processes = await resolveIosDevicePerfTarget(device, appBundleId);
-  const measuredAt = new Date().toISOString();
   const firstCapture = await captureIosDevicePerfTable(device, appBundleId);
   const secondCapture = await captureIosDevicePerfTable(device, appBundleId);
   const firstSnapshot = summarizeIosDevicePerfSnapshot(
-    parseIosDevicePerfTable(firstCapture.xml),
+    await parseIosDevicePerfTable(firstCapture.xml),
     processes,
     appBundleId,
     device,
   );
   const secondSnapshot = summarizeIosDevicePerfSnapshot(
-    parseIosDevicePerfTable(secondCapture.xml),
+    await parseIosDevicePerfTable(secondCapture.xml),
     processes,
     appBundleId,
     device,
@@ -297,7 +306,7 @@ async function sampleIosDevicePerfMetrics(
   return buildApplePerfSamples({
     usagePercent,
     residentMemoryKb: secondSnapshot.residentMemoryBytes / 1024,
-    measuredAt,
+    measuredAt: new Date(secondCapture.capturedAtMs).toISOString(),
     matchedProcesses: secondSnapshot.matchedProcesses,
     cpuMethod: IOS_DEVICE_CPU_SAMPLE_METHOD,
     memoryMethod: IOS_DEVICE_MEMORY_SAMPLE_METHOD,
@@ -617,118 +626,141 @@ function buildApplePerfSamples(args: {
   };
 }
 
-function splitTopLevelXmlElements(xml: string): string[] {
-  const children: string[] = [];
-  let cursor = 0;
-  while (cursor < xml.length) {
-    const start = xml.indexOf('<', cursor);
-    if (start < 0) break;
-    const openEnd = xml.indexOf('>', start);
-    if (openEnd < 0) break;
-    const openTag = xml.slice(start + 1, openEnd).trim();
-    if (!openTag || openTag.startsWith('/') || openTag.startsWith('?') || openTag.startsWith('!')) {
-      cursor = openEnd + 1;
-      continue;
-    }
-    const nameMatch = openTag.match(/^([^\s/>]+)/);
-    const name = nameMatch?.[1];
-    if (!name) {
-      cursor = openEnd + 1;
-      continue;
-    }
-    if (openTag.endsWith('/')) {
-      children.push(xml.slice(start, openEnd + 1));
-      cursor = openEnd + 1;
-      continue;
-    }
+async function loadXmlParser(): Promise<XmlParserInstance> {
+  xmlParserPromise ??= import('fast-xml-parser').then(
+    ({ XMLParser }) =>
+      new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '',
+        preserveOrder: true,
+        trimValues: true,
+        parseTagValue: false,
+      }),
+  );
+  return await xmlParserPromise;
+}
 
-    let depth = 1;
-    let position = openEnd + 1;
-    while (depth > 0) {
-      const nextStart = xml.indexOf('<', position);
-      if (nextStart < 0) break;
-      const nextEnd = xml.indexOf('>', nextStart);
-      if (nextEnd < 0) break;
-      const nextTag = xml.slice(nextStart + 1, nextEnd).trim();
-      const nextNameMatch = nextTag.match(/^\/?([^\s/>]+)/);
-      const nextName = nextNameMatch?.[1];
-      if (nextName === name) {
-        if (nextTag.startsWith('/')) {
-          depth -= 1;
-        } else if (!nextTag.endsWith('/')) {
-          depth += 1;
-        }
-      }
-      position = nextEnd + 1;
+async function parseXmlDocument(xml: string): Promise<XmlNode[]> {
+  const parser = await loadXmlParser();
+  return normalizeXmlNodes(parser.parse(xml));
+}
+
+function normalizeXmlNodes(value: unknown): XmlNode[] {
+  if (!Array.isArray(value)) return [];
+  const nodes: XmlNode[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    for (const [name, childValue] of Object.entries(record)) {
+      if (name === ':@' || name === '#text') continue;
+      nodes.push({
+        name,
+        attributes: normalizeXmlAttributes(record[':@']),
+        text: normalizeXmlNodeText(childValue) ?? normalizeXmlText(record['#text']),
+        children: normalizeXmlNodes(childValue),
+      });
     }
-    children.push(xml.slice(start, position));
-    cursor = position;
   }
-  return children;
+  return nodes;
 }
 
-function parseXmlElement(raw: string): ParsedXmlElement {
-  const openEnd = raw.indexOf('>');
-  const openTag = openEnd >= 0 ? raw.slice(0, openEnd + 1) : raw;
-  const closeStart = raw.lastIndexOf('</');
-  const text =
-    openEnd >= 0 && closeStart > openEnd
-      ? raw
-          .slice(openEnd + 1, closeStart)
-          .replace(/<[^>]+>/g, '')
-          .trim() || null
-      : null;
-  return {
-    raw,
-    id: readXmlAttribute(openTag, 'id'),
-    ref: readXmlAttribute(openTag, 'ref'),
-    fmt: readXmlAttribute(openTag, 'fmt'),
-    text,
-  };
+function normalizeXmlAttributes(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const attributes: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === 'string') {
+      attributes[key] = entry;
+    }
+  }
+  return attributes;
 }
 
-function parseDirectXmlNumber(element: ParsedXmlElement | undefined): number | null {
-  if (!element || element.raw.includes('<sentinel')) return null;
+function normalizeXmlText(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeXmlNodeText(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  const text = value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+      return '#text' in entry
+        ? normalizeXmlText((entry as Record<string, unknown>)['#text'])
+        : null;
+    })
+    .filter((entry): entry is string => entry !== null)
+    .join('')
+    .trim();
+  return text.length > 0 ? text : null;
+}
+
+function findFirstXmlNode(
+  nodes: XmlNode[],
+  predicate: (node: XmlNode) => boolean,
+): XmlNode | undefined {
+  for (const node of nodes) {
+    if (predicate(node)) {
+      return node;
+    }
+    const descendant = findFirstXmlNode(node.children, predicate);
+    if (descendant) {
+      return descendant;
+    }
+  }
+  return undefined;
+}
+
+function findAllXmlNodes(nodes: XmlNode[], predicate: (node: XmlNode) => boolean): XmlNode[] {
+  const matches: XmlNode[] = [];
+  for (const node of nodes) {
+    if (predicate(node)) {
+      matches.push(node);
+    }
+    matches.push(...findAllXmlNodes(node.children, predicate));
+  }
+  return matches;
+}
+
+function readFirstChildText(node: XmlNode, childName: string): string | null {
+  const child = node.children.find((candidate) => candidate.name === childName);
+  return child?.text ?? null;
+}
+
+function parseDirectXmlNumber(element: XmlNode | undefined): number | null {
+  if (!element || element.children.some((child) => child.name === 'sentinel')) return null;
   if (!element.text) return null;
   const value = Number(element.text);
   return Number.isFinite(value) ? value : null;
 }
 
 function resolveXmlNumber(
-  element: ParsedXmlElement | undefined,
+  element: XmlNode | undefined,
   references: Map<string, { numberValue?: number | null }>,
 ): number | null {
   if (!element) return null;
-  if (element.ref) {
-    return references.get(element.ref)?.numberValue ?? null;
+  if (element.attributes.ref) {
+    return references.get(element.attributes.ref)?.numberValue ?? null;
   }
   return parseDirectXmlNumber(element);
 }
 
-function readDirectProcessNameFromXml(element: ParsedXmlElement | undefined): string | null {
-  const fmt = element?.fmt?.trim() ?? '';
+function readDirectProcessNameFromXml(element: XmlNode | undefined): string | null {
+  const fmt = element?.attributes.fmt?.trim() ?? '';
   if (!fmt) return null;
   return fmt.replace(/\s+\(\d+\)$/, '').trim();
 }
 
 function resolveProcessName(
-  element: ParsedXmlElement | undefined,
+  element: XmlNode | undefined,
   references: Map<string, { processName?: string | null }>,
 ): string | null {
   if (!element) return null;
-  if (element.ref) {
-    return references.get(element.ref)?.processName ?? null;
+  if (element.attributes.ref) {
+    return references.get(element.attributes.ref)?.processName ?? null;
   }
   return readDirectProcessNameFromXml(element);
-}
-
-function readXmlAttribute(openTag: string, attribute: string): string | undefined {
-  for (const match of openTag.matchAll(/\b([^\s=/>]+)="([^"]*)"/g)) {
-    if (match[1] === attribute) {
-      return match[2];
-    }
-  }
-  return undefined;
 }
 
 function resolveIosDevicePerfHint(stdout: string, stderr: string): string {

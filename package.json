@@ -74,6 +74,7 @@
     "android"
   ],
   "dependencies": {
+    "fast-xml-parser": "^5.5.10",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {

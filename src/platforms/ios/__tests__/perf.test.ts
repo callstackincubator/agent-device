@@ -68,8 +68,8 @@ test('parseApplePsOutput reads pid cpu rss and command columns', () => {
   ]);
 });
 
-test('parseIosDevicePerfTable reads Activity Monitor cpu time and memory columns', () => {
-  const rows = parseIosDevicePerfTable(
+test('parseIosDevicePerfTable reads Activity Monitor cpu time and memory columns', async () => {
+  const rows = await parseIosDevicePerfTable(
     [
       '<?xml version="1.0"?>',
       '<trace-query-result>',
@@ -359,4 +359,6 @@ test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', asy
   assert.equal(metrics.memory.residentMemoryKb, 8192);
   assert.equal(metrics.cpu.method, 'xctrace-activity-monitor');
   assert.deepEqual(metrics.cpu.matchedProcesses, ['ExampleDeviceApp']);
+  assert.equal(metrics.cpu.measuredAt, '2026-04-01T10:00:02.000Z');
+  assert.equal(metrics.memory.measuredAt, '2026-04-01T10:00:02.000Z');
 });
