@@ -130,6 +130,21 @@ test('type replay script preserves literal delay flag tokens', () => {
   assert.equal(parsed[0]?.flags.delayMs, undefined);
 });
 
+test('writeReplayScript escapes device labels with quotes and backslashes', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-device-label-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const session = makeSession();
+  session.device.name = 'Pixel "QA" \\ Lab';
+
+  writeReplayScript(replayPath, [], session);
+  const script = fs.readFileSync(replayPath, 'utf8');
+
+  assert.match(
+    script,
+    /context platform=android device="Pixel \\"QA\\" \\\\ Lab" kind=emulator theme=unknown/,
+  );
+});
+
 test('readReplayScriptMetadata extracts platform from context header', () => {
   const metadata = readReplayScriptMetadata(
     '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',

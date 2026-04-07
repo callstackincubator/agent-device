@@ -9,6 +9,7 @@ import {
   appendScriptSeriesFlags,
   formatScriptArgQuoteIfNeeded,
   formatScriptArg,
+  formatScriptStringLiteral,
   isClickLikeCommand,
   parseReplaySeriesFlags,
   parseReplayRuntimeFlags,
@@ -16,7 +17,12 @@ import {
 
 type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
 
-const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>(['ios', 'android', 'macos', 'linux']);
+const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>([
+  'ios',
+  'android',
+  'macos',
+  'linux',
+]);
 
 export type ReplayScriptMetadata = {
   platform?: ReplayScriptPlatform;
@@ -310,11 +316,10 @@ export function writeReplayScript(
   // Session can be missing if the replay session is closed/deleted between execution and update write.
   // In that case we still persist healed actions and omit only the context header.
   if (session) {
-    const deviceLabel = session.device.name.replace(/"/g, '\\"');
     const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
     const target = session.device.target ? ` target=${session.device.target}` : '';
     lines.push(
-      `context platform=${session.device.platform}${target} device="${deviceLabel}"${kind} theme=unknown`,
+      `context platform=${session.device.platform}${target} device=${formatScriptStringLiteral(session.device.name)}${kind} theme=unknown`,
     );
   }
   for (const action of actions) {

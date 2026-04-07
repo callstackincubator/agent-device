@@ -345,3 +345,25 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
   assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
   assert.match(script, /fill @e5 "search" --delay-ms 40/);
 });
+
+test('writeSessionLog escapes device labels with quotes and backslashes', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-device-label-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  session.device.name = 'QA "Lab" \\ Shelf';
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(
+    script,
+    /context platform=ios device="QA \\"Lab\\" \\\\ Shelf" kind=simulator theme=unknown/,
+  );
+});

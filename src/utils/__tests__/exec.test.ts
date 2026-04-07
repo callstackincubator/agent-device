@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { runCmd } from '../exec.ts';
+import { runCmd, whichCmd } from '../exec.ts';
 
 test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
   await assert.rejects(
@@ -15,4 +15,13 @@ test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
       );
     },
   );
+});
+
+test('whichCmd resolves absolute executable paths without invoking a shell', async () => {
+  assert.equal(await whichCmd(process.execPath), true);
+});
+
+test('whichCmd rejects suspicious command strings', async () => {
+  assert.equal(await whichCmd('node; rm -rf /'), false);
+  assert.equal(await whichCmd('./node'), false);
 });
