@@ -21,6 +21,7 @@ import {
   repairMacOsRunnerProductsIfNeeded,
   isExpectedRunnerRepairFailure,
 } from './runner-macos-products.ts';
+import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 const XCTEST_DEVICE_SET_BASE_NAME = 'XCTestDevices';
@@ -31,6 +32,13 @@ const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner
 const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
 const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
 const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
+const XCTESTRUN_PRODUCT_REFERENCE_KEYS = new Set([
+  'ProductPaths',
+  'DependentProductPaths',
+  'TestHostPath',
+  'TestBundlePath',
+  'UITargetAppPath',
+]);
 
 const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 export const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
@@ -1150,43 +1158,36 @@ function collectXctestrunProductReferenceValuesFromTarget(
 }
 
 function resolveXctestrunProductReferencesFromXml(contents: string): string[] {
-  const arrayPathKeys = ['ProductPaths', 'DependentProductPaths'];
-  const stringPathKeys = ['TestHostPath', 'TestBundlePath', 'UITargetAppPath'];
-  return Array.from(
-    new Set([
-      ...arrayPathKeys.flatMap((key) => extractPlistArrayStringValues(contents, key)),
-      ...stringPathKeys.flatMap((key) => extractPlistStringValues(contents, key)),
-    ]),
-  );
+  return collectXctestrunXmlProductReferenceValues(parseXmlDocumentSync(contents));
 }
 
-function extractPlistStringValues(contents: string, key: string): string[] {
-  const pattern = new RegExp(`<key>${key}</key>\\s*<string>([\\s\\S]*?)</string>`, 'g');
+function collectXctestrunXmlProductReferenceValues(nodes: XmlNode[]): string[] {
   const values = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(contents)) !== null) {
-    const value = match[1]?.trim();
-    if (value) {
-      values.add(value);
-    }
-  }
-  return Array.from(values);
-}
-
-function extractPlistArrayStringValues(contents: string, key: string): string[] {
-  // Best-effort XML extraction only. Prefer the plutil JSON path on macOS.
-  const blockPattern = new RegExp(`<key>${key}</key>\\s*<array>([\\s\\S]*?)</array>`, 'g');
-  const stringPattern = /<string>([\s\S]*?)<\/string>/g;
-  const values = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = blockPattern.exec(contents)) !== null) {
-    const block = match[1] ?? '';
-    let stringMatch: RegExpExecArray | null;
-    while ((stringMatch = stringPattern.exec(block)) !== null) {
-      const value = stringMatch[1]?.trim();
-      if (value) {
-        values.add(value);
+  for (const node of nodes) {
+    if (node.name === 'dict') {
+      for (let index = 0; index < node.children.length - 1; index += 1) {
+        const entry = node.children[index];
+        const nextEntry = node.children[index + 1];
+        const key = entry?.name === 'key' ? entry.text : null;
+        if (!key || !XCTESTRUN_PRODUCT_REFERENCE_KEYS.has(key) || !nextEntry) {
+          continue;
+        }
+        if (nextEntry.name === 'string' && nextEntry.text) {
+          values.add(nextEntry.text);
+          continue;
+        }
+        if (nextEntry.name !== 'array') {
+          continue;
+        }
+        for (const child of nextEntry.children) {
+          if (child.name === 'string' && child.text) {
+            values.add(child.text);
+          }
+        }
       }
+    }
+    for (const value of collectXctestrunXmlProductReferenceValues(node.children)) {
+      values.add(value);
     }
   }
   return Array.from(values);

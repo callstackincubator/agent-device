@@ -519,6 +519,55 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
 
+test('xctestrunReferencesExistingProducts parses nested plist fallback values from XML', async () => {
+  const tmpDir = await makeTmpDir();
+  const productsDir = path.join(tmpDir, 'Build', 'Products');
+  const debugDir = path.join(productsDir, 'Debug');
+  await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
+  await fs.promises.mkdir(path.join(debugDir, 'Target.app'), { recursive: true });
+  await fs.promises.mkdir(path.join(debugDir, 'Frameworks', 'Helper.framework'), {
+    recursive: true,
+  });
+  await fs.promises.mkdir(
+    path.join(
+      debugDir,
+      'AgentDeviceRunner.app',
+      'Contents',
+      'PlugIns',
+      'AgentDeviceRunnerUITests.xctest',
+    ),
+    { recursive: true },
+  );
+  const xctestrunPath = path.join(productsDir, 'AgentDeviceRunner.xctestrun');
+  fs.writeFileSync(
+    xctestrunPath,
+    [
+      '<plist><dict>',
+      '<key>TestConfigurations</key><array>',
+      '<dict>',
+      '<key>TestTargets</key><array>',
+      '<dict>',
+      '<key>ProductPaths</key><array>',
+      '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
+      '</array>',
+      '<key>DependentProductPaths</key><array>',
+      '<string>__TESTROOT__/Debug/Frameworks/Helper.framework</string>',
+      '</array>',
+      '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
+      '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
+      '<key>UITargetAppPath</key><string>__TESTROOT__/Debug/Target.app</string>',
+      '</dict>',
+      '</array>',
+      '</dict>',
+      '</array>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
+});
+
 test('ensureXctestrun rebuilds after cached macOS runner repair failure', async () => {
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
