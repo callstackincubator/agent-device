@@ -1,6 +1,9 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { runCmd } from '../exec.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { runCmd, whichCmd } from '../exec.ts';
 
 test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
   await assert.rejects(
@@ -15,4 +18,51 @@ test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
       );
     },
   );
+});
+
+test('whichCmd resolves absolute executable paths without invoking a shell', async () => {
+  assert.equal(await whichCmd(process.execPath), true);
+});
+
+test('whichCmd resolves bare commands from PATH', async () => {
+  assert.equal(await whichCmd('node'), true);
+});
+
+test.runIf(process.platform !== 'win32')(
+  'runCmd allows explicit relative executable paths when shell execution is disabled',
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runcmd-relative-'));
+    const target = path.join(root, 'local-node');
+    fs.symlinkSync(process.execPath, target);
+
+    try {
+      const result = await runCmd('./local-node', ['-e', 'process.stdout.write("ok")'], {
+        cwd: root,
+      });
+      assert.equal(result.stdout, 'ok');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test('whichCmd rejects suspicious command strings', async () => {
+  assert.equal(await whichCmd('node; rm -rf /'), false);
+  assert.equal(await whichCmd('./node'), false);
+});
+
+test.sequential('whichCmd ignores directories that match a command name in PATH', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-whichcmd-'));
+  const fakeCommandDir = path.join(root, 'fake-tool');
+  fs.mkdirSync(fakeCommandDir);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${root}${path.delimiter}${previousPath ?? ''}`;
+
+  try {
+    assert.equal(await whichCmd('fake-tool'), false);
+  } finally {
+    process.env.PATH = previousPath;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

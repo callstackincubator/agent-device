@@ -11,6 +11,7 @@ import {
   appendScriptSeriesFlags,
   formatScriptArgQuoteIfNeeded,
   formatScriptArg,
+  formatScriptStringLiteral,
   isClickLikeCommand,
 } from './script-utils.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
@@ -285,11 +286,10 @@ function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] 
 
 function formatScript(session: SessionState, actions: SessionAction[]): string {
   const lines: string[] = [];
-  const deviceLabel = session.device.name.replace(/"/g, '\\"');
   const kind = session.device.kind ? ` kind=${session.device.kind}` : '';
   const theme = 'unknown';
   lines.push(
-    `context platform=${session.device.platform} device="${deviceLabel}"${kind} theme=${theme}`,
+    `context platform=${session.device.platform} device=${formatScriptStringLiteral(session.device.name)}${kind} theme=${theme}`,
   );
   for (const action of actions) {
     if (action.flags?.noRecord) continue;
