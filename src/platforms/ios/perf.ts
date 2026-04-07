@@ -55,13 +55,6 @@ type IosDevicePerfProcessSample = {
   residentMemoryBytes: number | null;
 };
 
-type XmlNode = {
-  name: string;
-  attributes: Record<string, string>;
-  text: string | null;
-  children: XmlNode[];
-};
-
 type IosDevicePerfCapture = {
   capturedAtMs: number;
   xml: string;
@@ -70,6 +63,8 @@ type IosDevicePerfCapture = {
 type XmlParserInstance = {
   parse(xml: string): unknown;
 };
+
+type XmlValue = Record<string, unknown>;
 
 let xmlParserPromise: Promise<XmlParserInstance> | null = null;
 
@@ -159,21 +154,19 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
   return rows;
 }
 
-export async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
+async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
   const document = await parseXmlDocument(xml);
-  const schema = findFirstXmlNode(
-    document,
-    (node) => node.name === 'schema' && node.attributes.name === 'activity-monitor-process-live',
-  );
-  if (!schema) {
+  const node = asXmlObject(document['trace-query-result'])?.node;
+  const schema = asXmlObject(asXmlObject(node)?.schema);
+  if (!schema || schema.name !== 'activity-monitor-process-live') {
     throw new AppError(
       'COMMAND_FAILED',
       'Failed to parse xctrace activity-monitor-process-live schema',
     );
   }
-  const mnemonics = schema.children
-    .filter((child) => child.name === 'col')
-    .map((column) => readFirstChildText(column, 'mnemonic') ?? '');
+  const mnemonics = asXmlArray(schema.col).map(
+    (column) => asXmlObject(column)?.mnemonic?.toString().trim() ?? '',
+  );
   const pidIndex = mnemonics.indexOf('pid');
   const processIndex = mnemonics.indexOf('process');
   const cpuTimeIndex = mnemonics.indexOf('cpu-total');
@@ -185,7 +178,7 @@ export async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePer
     );
   }
 
-  const rows = findAllXmlNodes(document, (node) => node.name === 'row');
+  const rows = asXmlArray(asXmlObject(node)?.row);
   const samples: IosDevicePerfProcessSample[] = [];
   const references = new Map<
     string,
@@ -195,34 +188,31 @@ export async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePer
     }
   >();
   for (const row of rows) {
-    const elements = row.children;
+    const elements = readRowElements(row);
     if (elements.length === 0) continue;
     for (const element of elements) {
-      const nestedPid = findFirstXmlNode(
-        element.children,
-        (child) => child.name === 'pid' && typeof child.attributes.id === 'string',
-      );
-      if (nestedPid?.attributes.id) {
-        const pidValue = Number(nestedPid.text);
-        references.set(nestedPid.attributes.id, {
+      const nestedPid = asXmlObject(element.value.pid);
+      if (typeof nestedPid?.id === 'string') {
+        const pidValue = readXmlNumber(nestedPid);
+        references.set(nestedPid.id, {
           numberValue: Number.isFinite(pidValue) ? pidValue : null,
         });
       }
-      if (!element.attributes.id) continue;
-      references.set(element.attributes.id, {
-        numberValue: parseDirectXmlNumber(element),
-        processName: readDirectProcessNameFromXml(element),
+      if (typeof element.value.id !== 'string') continue;
+      references.set(element.value.id, {
+        numberValue: parseDirectXmlNumber(element.value),
+        processName: readDirectProcessNameFromXml(element.value),
       });
     }
 
-    const pid = resolveXmlNumber(elements[pidIndex], references);
-    const processName = resolveProcessName(elements[processIndex], references);
+    const pid = resolveXmlNumber(elements[pidIndex]?.value, references);
+    const processName = resolveProcessName(elements[processIndex]?.value, references);
     if (pid === null || !Number.isFinite(pid) || !processName) continue;
     samples.push({
       pid,
       processName,
-      cpuTimeNs: resolveXmlNumber(elements[cpuTimeIndex], references),
-      residentMemoryBytes: resolveXmlNumber(elements[residentMemoryIndex], references),
+      cpuTimeNs: resolveXmlNumber(elements[cpuTimeIndex]?.value, references),
+      residentMemoryBytes: resolveXmlNumber(elements[residentMemoryIndex]?.value, references),
     });
   }
   return samples;
@@ -632,133 +622,79 @@ async function loadXmlParser(): Promise<XmlParserInstance> {
       new XMLParser({
         ignoreAttributes: false,
         attributeNamePrefix: '',
-        preserveOrder: true,
         trimValues: true,
         parseTagValue: false,
+        isArray: (name) => name === 'col' || name === 'row',
       }),
   );
   return await xmlParserPromise;
 }
 
-async function parseXmlDocument(xml: string): Promise<XmlNode[]> {
+async function parseXmlDocument(xml: string): Promise<XmlValue> {
   const parser = await loadXmlParser();
-  return normalizeXmlNodes(parser.parse(xml));
+  return asXmlObject(parser.parse(xml)) ?? {};
 }
 
-function normalizeXmlNodes(value: unknown): XmlNode[] {
+function asXmlObject(value: unknown): XmlValue | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as XmlValue;
+}
+
+function asXmlArray(value: unknown): XmlValue[] {
   if (!Array.isArray(value)) return [];
-  const nodes: XmlNode[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
-    const record = entry as Record<string, unknown>;
-    for (const [name, childValue] of Object.entries(record)) {
-      if (name === ':@' || name === '#text') continue;
-      nodes.push({
-        name,
-        attributes: normalizeXmlAttributes(record[':@']),
-        text: normalizeXmlNodeText(childValue) ?? normalizeXmlText(record['#text']),
-        children: normalizeXmlNodes(childValue),
-      });
-    }
-  }
-  return nodes;
+  return value
+    .map((entry) => asXmlObject(entry))
+    .filter((entry): entry is XmlValue => entry !== null);
 }
 
-function normalizeXmlAttributes(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const attributes: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === 'string') {
-      attributes[key] = entry;
-    }
-  }
-  return attributes;
-}
-
-function normalizeXmlText(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeXmlNodeText(value: unknown): string | null {
-  if (!Array.isArray(value)) return null;
-  const text = value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
-      return '#text' in entry
-        ? normalizeXmlText((entry as Record<string, unknown>)['#text'])
-        : null;
+function readRowElements(row: unknown): Array<{ name: string; value: XmlValue }> {
+  const xmlRow = asXmlObject(row);
+  if (!xmlRow) return [];
+  return Object.entries(xmlRow)
+    .map(([name, value]) => {
+      const element = asXmlObject(value);
+      return element ? { name, value: element } : null;
     })
-    .filter((entry): entry is string => entry !== null)
-    .join('')
-    .trim();
-  return text.length > 0 ? text : null;
+    .filter((entry): entry is { name: string; value: XmlValue } => entry !== null);
 }
 
-function findFirstXmlNode(
-  nodes: XmlNode[],
-  predicate: (node: XmlNode) => boolean,
-): XmlNode | undefined {
-  for (const node of nodes) {
-    if (predicate(node)) {
-      return node;
-    }
-    const descendant = findFirstXmlNode(node.children, predicate);
-    if (descendant) {
-      return descendant;
-    }
-  }
-  return undefined;
-}
-
-function findAllXmlNodes(nodes: XmlNode[], predicate: (node: XmlNode) => boolean): XmlNode[] {
-  const matches: XmlNode[] = [];
-  for (const node of nodes) {
-    if (predicate(node)) {
-      matches.push(node);
-    }
-    matches.push(...findAllXmlNodes(node.children, predicate));
-  }
-  return matches;
-}
-
-function readFirstChildText(node: XmlNode, childName: string): string | null {
-  const child = node.children.find((candidate) => candidate.name === childName);
-  return child?.text ?? null;
-}
-
-function parseDirectXmlNumber(element: XmlNode | undefined): number | null {
-  if (!element || element.children.some((child) => child.name === 'sentinel')) return null;
-  if (!element.text) return null;
-  const value = Number(element.text);
+function readXmlNumber(element: XmlValue | undefined): number | null {
+  if (!element) return null;
+  const text = typeof element['#text'] === 'string' ? element['#text'].trim() : '';
+  if (text.length === 0) return null;
+  const value = Number(text);
   return Number.isFinite(value) ? value : null;
 }
 
+function parseDirectXmlNumber(element: XmlValue | undefined): number | null {
+  if (!element || asXmlObject(element.sentinel)) return null;
+  return readXmlNumber(element);
+}
+
 function resolveXmlNumber(
-  element: XmlNode | undefined,
+  element: XmlValue | undefined,
   references: Map<string, { numberValue?: number | null }>,
 ): number | null {
   if (!element) return null;
-  if (element.attributes.ref) {
-    return references.get(element.attributes.ref)?.numberValue ?? null;
+  if (typeof element.ref === 'string') {
+    return references.get(element.ref)?.numberValue ?? null;
   }
   return parseDirectXmlNumber(element);
 }
 
-function readDirectProcessNameFromXml(element: XmlNode | undefined): string | null {
-  const fmt = element?.attributes.fmt?.trim() ?? '';
+function readDirectProcessNameFromXml(element: XmlValue | undefined): string | null {
+  const fmt = typeof element?.fmt === 'string' ? element.fmt.trim() : '';
   if (!fmt) return null;
   return fmt.replace(/\s+\(\d+\)$/, '').trim();
 }
 
 function resolveProcessName(
-  element: XmlNode | undefined,
+  element: XmlValue | undefined,
   references: Map<string, { processName?: string | null }>,
 ): string | null {
   if (!element) return null;
-  if (element.attributes.ref) {
-    return references.get(element.attributes.ref)?.processName ?? null;
+  if (typeof element.ref === 'string') {
+    return references.get(element.ref)?.processName ?? null;
   }
   return readDirectProcessNameFromXml(element);
 }
