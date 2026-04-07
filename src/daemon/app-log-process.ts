@@ -54,6 +54,17 @@ function shouldTerminateStoredProcess(meta: StoredAppLogProcessMeta): boolean {
   return true;
 }
 
+export function readStoredAppLogProcessMeta(
+  pidPath: string | undefined,
+): StoredAppLogProcessMeta | null {
+  if (!pidPath || !fs.existsSync(pidPath)) return null;
+  try {
+    return parsePidFile(fs.readFileSync(pidPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 export function writePidFile(pidPath: string | undefined, pid: number): void {
   if (!pidPath) return;
   const dir = path.dirname(pidPath);
