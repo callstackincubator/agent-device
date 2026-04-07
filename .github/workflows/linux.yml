@@ -115,7 +115,7 @@ jobs:
         run: |
           pnpm clean:daemon
           node --experimental-strip-types src/bin.ts test test/integration/replays/linux \
-            --retries 3 \
+            --retries 2 \
             --report-junit test/artifacts/replays-linux.junit.xml
 
       - name: Upload Linux artifacts

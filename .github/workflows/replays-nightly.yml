@@ -36,7 +36,7 @@ jobs:
           profile: pixel_7
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 3 --report-junit test/artifacts/replays-android.junit.xml
+          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android --retries 2 --report-junit test/artifacts/replays-android.junit.xml
 
       - name: Upload Android artifacts
         if: always()
@@ -81,13 +81,13 @@ jobs:
           preferred-device-name: iPhone 17 Pro
 
       - name: Run iOS simulator replay suite
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 3 --report-junit test/artifacts/replays-ios-simulator.junit.xml
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 2 --report-junit test/artifacts/replays-ios-simulator.junit.xml
 
       - name: Run iOS physical device replay suite
         if: env.IOS_UDID != ''
         env:
           IOS_UDID: ${{ vars.IOS_UDID }}
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 3 --report-junit test/artifacts/replays-ios-device.junit.xml
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device --udid "$IOS_UDID" --retries 2 --report-junit test/artifacts/replays-ios-device.junit.xml
 
       - name: Upload iOS artifacts
         if: always()
@@ -122,7 +122,7 @@ jobs:
         run: pnpm build:macos-helper
 
       - name: Run macOS replay suite
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/macos --retries 3 --report-junit test/artifacts/replays-macos.junit.xml
+        run: node --experimental-strip-types src/bin.ts test test/integration/replays/macos --retries 2 --report-junit test/artifacts/replays-macos.junit.xml
 
       - name: Upload macOS artifacts
         if: always()

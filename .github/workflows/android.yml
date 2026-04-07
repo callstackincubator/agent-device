@@ -37,7 +37,7 @@ jobs:
           profile: pixel_7
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android/01-settings.ad --retries 3 --report-junit test/artifacts/replays-android-smoke.junit.xml
+          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android/01-settings.ad --retries 2 --report-junit test/artifacts/replays-android-smoke.junit.xml
 
       - name: Upload Android artifacts
         if: always()
