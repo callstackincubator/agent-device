@@ -1032,14 +1032,21 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
   }
 });
 
-test('computeDaemonCodeSignature includes relative path, size, and mtime', () => {
+test('computeDaemonCodeSignature fingerprints the daemon source tree', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-signature-'));
   try {
-    const daemonEntryPath = path.join(root, 'dist', 'src', 'daemon.js');
-    fs.mkdirSync(path.dirname(daemonEntryPath), { recursive: true });
+    const daemonEntryPath = path.join(root, 'src', 'daemon.ts');
+    const perfPath = path.join(root, 'src', 'platforms', 'ios', 'perf.ts');
+    fs.mkdirSync(path.dirname(perfPath), { recursive: true });
     fs.writeFileSync(daemonEntryPath, 'console.log("daemon");\n', 'utf8');
-    const signature = computeDaemonCodeSignature(daemonEntryPath, root);
-    assert.match(signature, /^dist\/src\/daemon\.js:\d+:\d+$/);
+    fs.writeFileSync(perfPath, 'export const value = 1;\n', 'utf8');
+
+    const firstSignature = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.match(firstSignature, /^src:\d+:[a-f0-9]{16}$/);
+
+    fs.writeFileSync(perfPath, 'export const value = 2;\n', 'utf8');
+    const secondSignature = computeDaemonCodeSignature(daemonEntryPath, root);
+    assert.notEqual(secondSignature, firstSignature);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
