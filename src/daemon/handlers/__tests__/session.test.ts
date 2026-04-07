@@ -4853,6 +4853,90 @@ test('network dump recovers Android entries from previous package pid in bounded
   }
 });
 
+test('network dump recovers Android entries when an active stream is still bound to a prior pid', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-network-stale-active-pid';
+  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
+  const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
+  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+  fs.writeFileSync(
+    appLogPath,
+    '2026-04-01T09:59:00Z GET https://api.example.com/v1/stale status=200\n',
+    'utf8',
+  );
+  fs.writeFileSync(
+    appLogPidPath,
+    `${JSON.stringify({
+      pid: 9999,
+      startTime: 'Tue Apr  1 09:59:00 2026',
+      command: 'adb -s emulator-5554 logcat -v time --pid 1234',
+    })}\n`,
+    'utf8',
+  );
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appLog: {
+      platform: 'android',
+      backend: 'android',
+      outPath: appLogPath,
+      startedAt: Date.now(),
+      getState: () => 'active',
+      stop: async () => {},
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    },
+  });
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.join(' ') === '-s emulator-5554 shell pidof com.example.app') {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (args.join(' ') === '-s emulator-5554 logcat -d -v time -t 4000') {
+      return {
+        stdout:
+          '04-01 10:00:14.500 I/ActivityManager( 9999): Start proc 4321:com.example.app/u0a123 for top-activity\n' +
+          '04-01 10:00:15.000 D/GIBSDK  (4321): POST https://api.example.com/v1/fresh status=201 duration=15032\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'network',
+      positionals: ['dump', '10', 'summary'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response && response.ok) {
+    expect(response.data?.path).toContain('adb logcat recovery');
+    expect(response.data?.state).toBe('active');
+    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
+    expect(entries.length).toBe(2);
+    expect((entries[0] as Record<string, unknown>).url).toBe('https://api.example.com/v1/fresh');
+    expect((entries[1] as Record<string, unknown>).url).toBe('https://api.example.com/v1/stale');
+    expect(response.data?.notes).toContain(
+      'Session app log stream was still bound to prior Android PID 1234. Recovered recent Android HTTP entries from adb logcat for PID set 4321.',
+    );
+  }
+});
+
 test('network dump recovers iOS simulator entries from simctl log show when the live stream is empty', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-network-recovery';

@@ -4,6 +4,7 @@ import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import {
   clearPidFile,
+  readStoredAppLogProcessMeta,
   writePidFile,
   type AppLogResult,
   type AppLogState,
@@ -21,13 +22,23 @@ export function assertAndroidPackageArgSafe(appBundleId: string): void {
   }
 }
 
-async function resolveAndroidPid(deviceId: string, appBundleId: string): Promise<string | null> {
+export async function resolveAndroidPid(
+  deviceId: string,
+  appBundleId: string,
+): Promise<string | null> {
   const pidResult = await runCmd('adb', ['-s', deviceId, 'shell', 'pidof', appBundleId], {
     allowFailure: true,
   });
   const pid = pidResult.stdout.trim().split(/\s+/)[0];
   if (!pid || !/^\d+$/.test(pid)) return null;
   return pid;
+}
+
+export function readTrackedAndroidLogcatPid(pidPath: string | undefined): string | null {
+  const command = readStoredAppLogProcessMeta(pidPath)?.command;
+  if (!command) return null;
+  const match = /(?:^|\s)--pid\s+(\d+)(?:\s|$)/.exec(command);
+  return match?.[1] ?? null;
 }
 
 export async function readRecentAndroidLogcatForPackage(

@@ -5,7 +5,9 @@ import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import {
   assertAndroidPackageArgSafe,
+  readTrackedAndroidLogcatPid,
   readRecentAndroidLogcatForPackage,
+  resolveAndroidPid,
   startAndroidAppLog,
 } from './app-log-android.ts';
 import {
@@ -14,7 +16,7 @@ import {
   startIosSimulatorAppLog,
   startMacOsAppLog,
 } from './app-log-ios.ts';
-import type { AppLogResult, AppLogState } from './app-log-process.ts';
+import { APP_LOG_PID_FILENAME, type AppLogResult, type AppLogState } from './app-log-process.ts';
 import { waitForChildExit } from './app-log-stream.ts';
 import {
   mergeNetworkDumps,
@@ -47,6 +49,11 @@ export type SessionNetworkCapture = {
   backend: NetworkLogBackend;
   dump: NetworkDump;
   notes: string[];
+};
+
+type AndroidNetworkRecoveryContext = {
+  reason: 'inactive' | 'stale-active';
+  trackedPid?: string;
 };
 
 type IosSimulatorNetworkRecovery = {
@@ -171,12 +178,13 @@ export async function readSessionNetworkCapture(params: {
   });
   const notes: string[] = [];
 
-  const canRecoverAndroidLogcat =
-    device.platform === 'android' &&
-    appLogState !== undefined &&
-    appLogState !== 'active' &&
-    Boolean(appBundleId);
-  if (canRecoverAndroidLogcat) {
+  const androidRecovery = await resolveAndroidNetworkRecoveryContext({
+    device,
+    appBundleId,
+    appLogPath,
+    appLogState,
+  });
+  if (androidRecovery) {
     const recovered = await readRecentAndroidLogcatForPackage(device.id, appBundleId as string);
     if (recovered) {
       const recoveredDump = readRecentNetworkTrafficFromText(recovered.text, {
@@ -189,9 +197,7 @@ export async function readSessionNetworkCapture(params: {
       });
       if (recoveredDump.entries.length > 0) {
         dump = mergeNetworkDumps(recoveredDump, dump, maxEntries);
-        notes.push(
-          `Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set ${recovered.recoveredPids.join(', ')}.`,
-        );
+        notes.push(buildAndroidRecoveryNote(androidRecovery, recovered.recoveredPids));
       }
     }
   }
@@ -246,6 +252,46 @@ export async function readSessionNetworkCapture(params: {
   }
 
   return { backend, dump, notes };
+}
+
+async function resolveAndroidNetworkRecoveryContext(params: {
+  device: DeviceInfo;
+  appBundleId?: string;
+  appLogPath: string;
+  appLogState?: AppLogState;
+}): Promise<AndroidNetworkRecoveryContext | null> {
+  const { device, appBundleId, appLogPath, appLogState } = params;
+  if (device.platform !== 'android' || !appBundleId) {
+    return null;
+  }
+  if (appLogState !== undefined && appLogState !== 'active') {
+    return { reason: 'inactive' };
+  }
+  if (appLogState !== 'active') {
+    return null;
+  }
+
+  const trackedPid = readTrackedAndroidLogcatPid(
+    path.join(path.dirname(appLogPath), APP_LOG_PID_FILENAME),
+  );
+  if (!trackedPid) {
+    return null;
+  }
+  const currentPid = await resolveAndroidPid(device.id, appBundleId);
+  if (!currentPid || currentPid === trackedPid) {
+    return null;
+  }
+  return { reason: 'stale-active', trackedPid };
+}
+
+function buildAndroidRecoveryNote(
+  context: AndroidNetworkRecoveryContext,
+  recoveredPids: string[],
+): string {
+  if (context.reason === 'stale-active') {
+    return `Session app log stream was still bound to prior Android PID ${context.trackedPid}. Recovered recent Android HTTP entries from adb logcat for PID set ${recoveredPids.join(', ')}.`;
+  }
+  return `Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set ${recoveredPids.join(', ')}.`;
 }
 
 export async function startAppLog(
