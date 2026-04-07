@@ -33,6 +33,7 @@ export function formatScriptArg(value: string): string {
   return JSON.stringify(trimmed);
 }
 
+// Use for literal values such as device labels where leading/trailing whitespace must survive round-trips.
 export function formatScriptStringLiteral(value: string): string {
   return JSON.stringify(value);
 }

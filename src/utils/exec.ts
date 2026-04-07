@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access } from 'node:fs/promises';
+import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn, spawnSync, type StdioOptions } from 'node:child_process';
 import { AppError } from './errors.ts';
@@ -436,6 +436,8 @@ function resolveExecutableCandidates(cmd: string, pathExtensions: string[]): str
 
 async function isExecutable(filePath: string): Promise<boolean> {
   try {
+    const fileStat = await stat(filePath);
+    if (!fileStat.isFile()) return false;
     await access(filePath, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
     return true;
   } catch {
