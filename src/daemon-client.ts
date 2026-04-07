@@ -13,7 +13,6 @@ import { runCmdDetached, runCmdSync } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { createRequestId, emitDiagnostic, withDiagnosticTimer } from './utils/diagnostics.ts';
 import { isAgentDeviceDaemonProcess, stopProcessForTakeover } from './utils/process-identity.ts';
-import { computeDaemonCodeSignature as computeSharedDaemonCodeSignature } from './daemon/code-signature.ts';
 import {
   resolveDaemonPaths,
   resolveDaemonServerMode,
@@ -739,7 +738,13 @@ export function computeDaemonCodeSignature(
   entryPath: string,
   root: string = findProjectRoot(),
 ): string {
-  return computeSharedDaemonCodeSignature(entryPath, root);
+  try {
+    const stat = fs.statSync(entryPath);
+    const relativePath = path.relative(root, entryPath) || entryPath;
+    return `${relativePath}:${stat.size}:${Math.trunc(stat.mtimeMs)}`;
+  } catch {
+    return 'unknown';
+  }
 }
 
 async function sendRequest(
