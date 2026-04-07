@@ -2206,7 +2206,7 @@ test('perf samples Apple cpu and memory metrics on physical iOS devices', async 
     if (args[0] === 'xctrace' && args[1] === 'export') {
       const outputIndex = args.indexOf('--output');
       exportCount += 1;
-      fs.writeFileSync(
+      await fs.promises.writeFile(
         args[outputIndex + 1]!,
         [
           '<?xml version="1.0"?>',

@@ -650,6 +650,8 @@ function asXmlArray(value: unknown): XmlValue[] {
 function readRowElements(row: unknown): Array<{ name: string; value: XmlValue }> {
   const xmlRow = asXmlObject(row);
   if (!xmlRow) return [];
+  // fast-xml-parser currently preserves child key insertion order, which keeps row elements aligned
+  // with the exported schema column order that we index into below.
   return Object.entries(xmlRow)
     .map(([name, value]) => {
       const element = asXmlObject(value);
