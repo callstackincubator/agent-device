@@ -263,10 +263,26 @@ test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', asy
     '</node>',
     '</trace-query-result>',
   ].join('');
-  const secondCaptureXml = firstCaptureXml.replace(
-    '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
-    '<duration-on-core fmt="350.00 ms">350000000</duration-on-core>',
-  );
+  const secondCaptureXml = firstCaptureXml
+    .replace(
+      '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
+      '<duration-on-core fmt="350.00 ms">350000000</duration-on-core>',
+    )
+    .replace(
+      '</row><row><start-time fmt="00:00.124">124</start-time>',
+      [
+        '</row>',
+        '<row>',
+        '<start-time fmt="00:00.123">123</start-time>',
+        '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+        '<duration-on-core fmt="350.00 ms">350000000</duration-on-core>',
+        '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
+        '<pid fmt="4001">4001</pid>',
+        '</row>',
+        '<row>',
+        '<start-time fmt="00:00.124">124</start-time>',
+      ].join(''),
+    );
   let exportCount = 0;
 
   mockRunCmd.mockImplementation(async (cmd, args) => {

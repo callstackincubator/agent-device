@@ -449,10 +449,29 @@ function summarizeIosDevicePerfSnapshot(
     });
   }
 
-  const cpuTimeValues = matchedSamples
+  const latestSamplesByPid = new Map<number, IosDevicePerfProcessSample>();
+  for (const sample of matchedSamples) {
+    const previous = latestSamplesByPid.get(sample.pid);
+    if (!previous) {
+      latestSamplesByPid.set(sample.pid, sample);
+      continue;
+    }
+    latestSamplesByPid.set(sample.pid, {
+      pid: sample.pid,
+      processName: sample.processName || previous.processName,
+      cpuTimeNs: maxNullableNumber(previous.cpuTimeNs, sample.cpuTimeNs),
+      residentMemoryBytes: maxNullableNumber(
+        previous.residentMemoryBytes,
+        sample.residentMemoryBytes,
+      ),
+    });
+  }
+
+  const latestSamples = [...latestSamplesByPid.values()];
+  const cpuTimeValues = latestSamples
     .map((sample) => sample.cpuTimeNs)
     .filter((value): value is number => value !== null);
-  const residentMemoryValues = matchedSamples
+  const residentMemoryValues = latestSamples
     .map((sample) => sample.residentMemoryBytes)
     .filter((value): value is number => value !== null);
   return {
@@ -462,7 +481,7 @@ function summarizeIosDevicePerfSnapshot(
       residentMemoryValues.length > 0
         ? residentMemoryValues.reduce((total, value) => total + value, 0)
         : null,
-    matchedProcesses: uniqueStrings(matchedSamples.map((sample) => sample.processName)),
+    matchedProcesses: uniqueStrings(latestSamples.map((sample) => sample.processName)),
   };
 }
 
@@ -704,8 +723,12 @@ function resolveProcessName(
 }
 
 function readXmlAttribute(openTag: string, attribute: string): string | undefined {
-  const match = openTag.match(new RegExp(`\\b${attribute}="([^"]+)"`));
-  return match?.[1];
+  for (const match of openTag.matchAll(/\b([^\s=/>]+)="([^"]*)"/g)) {
+    if (match[1] === attribute) {
+      return match[2];
+    }
+  }
+  return undefined;
 }
 
 function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
@@ -723,4 +746,10 @@ function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
 
 function roundPercent(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function maxNullableNumber(left: number | null, right: number | null): number | null {
+  if (left === null) return right;
+  if (right === null) return left;
+  return Math.max(left, right);
 }
