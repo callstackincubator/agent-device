@@ -94,7 +94,9 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
   fs.writeFileSync(daemonPaths.logPath, 'REMOTE_TAIL_SENTINEL\n', 'utf8');
 
   const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
   process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
 
   try {
     const result = await runCliCapture(
@@ -113,6 +115,8 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
   } finally {
     if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
     else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });

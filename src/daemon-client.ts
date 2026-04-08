@@ -394,6 +394,7 @@ function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientS
     req.flags?.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL,
   );
   const remoteAuthToken = req.flags?.daemonAuthToken ?? process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  validateRemoteDaemonTrust(remoteBaseUrl, remoteAuthToken);
   const rawTransport = req.flags?.daemonTransport ?? process.env.AGENT_DEVICE_DAEMON_TRANSPORT;
   const transportPreference = resolveDaemonTransportPreference(rawTransport);
   if (remoteBaseUrl && transportPreference === 'socket') {
@@ -1111,6 +1112,30 @@ function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined
     });
   }
   return parsed.toString().replace(/\/+$/, '');
+}
+
+function validateRemoteDaemonTrust(
+  remoteBaseUrl: string | undefined,
+  remoteAuthToken: string | undefined,
+): void {
+  if (!remoteBaseUrl) return;
+  const hostname = new URL(remoteBaseUrl).hostname;
+  if (isLoopbackHostname(hostname)) return;
+  if (typeof remoteAuthToken === 'string' && remoteAuthToken.trim().length > 0) return;
+  throw new AppError(
+    'INVALID_ARGS',
+    'Remote daemon base URL for non-loopback hosts requires daemon authentication',
+    {
+      daemonBaseUrl: remoteBaseUrl,
+      hint: 'Provide --daemon-auth-token or AGENT_DEVICE_DAEMON_AUTH_TOKEN when using a non-loopback remote daemon URL.',
+    },
+  );
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  if (normalized === 'localhost' || normalized === '::1' || normalized === '[::1]') return true;
+  return /^127(?:\.\d{1,3}){3}$/.test(normalized);
 }
 
 function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {

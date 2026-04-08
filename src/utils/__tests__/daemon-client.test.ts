@@ -344,6 +344,32 @@ test('sendToDaemon rejects socket transport when remote daemon base URL is set',
   }
 });
 
+test('sendToDaemon requires auth for non-loopback remote daemon URLs', async () => {
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'https://remote-mac.example.test/agent-device';
+  delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+
+  try {
+    await assert.rejects(
+      async () =>
+        await sendToDaemon({
+          session: 'default',
+          command: 'remote-smoke',
+          positionals: [],
+          flags: {},
+          meta: { requestId: 'req-remote-auth' },
+        }),
+      /requires daemon authentication/,
+    );
+  } finally {
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+});
+
 test('sendToDaemon uploads local install artifacts for remote daemons and passes upload id to RPC', async () => {
   const seenPaths: string[] = [];
   let uploadBodySize = 0;
@@ -553,7 +579,9 @@ test('sendToDaemon preserves explicit remote install paths without uploading', a
   }) as typeof http.request;
 
   const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
   process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
 
   try {
     const response = await sendToDaemon({
@@ -572,6 +600,8 @@ test('sendToDaemon preserves explicit remote install paths without uploading', a
     (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
     if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
     else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
   }
 });
 
@@ -630,7 +660,9 @@ test('sendToDaemon preserves install_source payload metadata for remote HTTP RPC
   }) as typeof http.request;
 
   const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
   process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
 
   try {
     const response = await sendToDaemon({
@@ -663,6 +695,8 @@ test('sendToDaemon preserves install_source payload metadata for remote HTTP RPC
     (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
     if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
     else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
   }
 });
 
