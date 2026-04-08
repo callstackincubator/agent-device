@@ -91,6 +91,10 @@ const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
   'xcodebuild .*AgentDeviceRunner\\.env\\.session-',
   'xcodebuild build-for-testing .*ios-runner/AgentDeviceRunner/AgentDeviceRunner\\.xcodeproj',
 ];
+const LOOPBACK_BLOCK_LIST = new net.BlockList();
+LOOPBACK_BLOCK_LIST.addSubnet('127.0.0.0', 8, 'ipv4');
+LOOPBACK_BLOCK_LIST.addAddress('::1', 'ipv6');
+LOOPBACK_BLOCK_LIST.addSubnet('::ffff:127.0.0.0', 104, 'ipv6');
 
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
   const requestId = req.meta?.requestId ?? createRequestId();
@@ -1133,18 +1137,14 @@ function validateRemoteDaemonTrust(
 }
 
 function isLoopbackHostname(hostname: string): boolean {
-  const normalized = hostname.trim().toLowerCase();
-  const unwrapped = normalized.replace(/^\[(.*)\]$/, '$1');
-  if (unwrapped === 'localhost' || unwrapped === '::1') return true;
-  if (/^127(?:\.\d{1,3}){3}$/.test(unwrapped)) return true;
-  const mappedIpv4 = /^::ffff:(.+)$/.exec(unwrapped)?.[1];
-  if (!mappedIpv4) return false;
-  if (/^127(?:\.\d{1,3}){3}$/.test(mappedIpv4)) return true;
-  const mappedHex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mappedIpv4);
-  if (!mappedHex) return false;
-  const upper = Number.parseInt(mappedHex[1], 16);
-  const lower = Number.parseInt(mappedHex[2], 16);
-  return upper >>> 8 === 127 && upper <= 0xffff && lower <= 0xffff;
+  const normalized = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[(.*)\]$/, '$1');
+  if (normalized === 'localhost') return true;
+  if (net.isIPv4(normalized)) return LOOPBACK_BLOCK_LIST.check(normalized, 'ipv4');
+  if (net.isIPv6(normalized)) return LOOPBACK_BLOCK_LIST.check(normalized, 'ipv6');
+  return false;
 }
 
 function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
