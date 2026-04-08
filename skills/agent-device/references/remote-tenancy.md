@@ -9,9 +9,6 @@ Open this file for remote daemon HTTP flows, including `--remote-config` launche
 - `agent-device open <app> --remote-config <path> --relaunch`
 - `AGENT_DEVICE_DAEMON_BASE_URL=...`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
-- `curl ... agent_device.lease.allocate`
-- `curl ... agent_device.lease.heartbeat`
-- `curl ... agent_device.lease.release`
 - `agent-device --tenant ... --session-isolation tenant --run-id ... --lease-id ...`
 
 ## Most common mistake to avoid
@@ -33,13 +30,8 @@ agent-device open com.example.myapp --remote-config ./agent-device.remote.json -
 ## Lease flow example
 
 ```bash
-export AGENT_DEVICE_DAEMON_BASE_URL=http://mac-host.example:4310
+export AGENT_DEVICE_DAEMON_BASE_URL=<trusted-daemon-base-url>
 export AGENT_DEVICE_DAEMON_AUTH_TOKEN=<token>
-
-curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
-  -H "content-type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"jsonrpc":"2.0","id":"alloc-1","method":"agent_device.lease.allocate","params":{"tenantId":"acme","runId":"run-123","ttlMs":60000}}'
 
 agent-device \
   --tenant acme \
@@ -49,34 +41,20 @@ agent-device \
   session list --json
 ```
 
-Heartbeat and release example:
+Low-level lease operations exist for host-side automation, but do not point them at arbitrary hosts. The remote daemon executes device-control commands, so only use a trusted daemon base URL and an auth token managed by the same operator boundary.
 
-```bash
-curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
-  -H "content-type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"jsonrpc":"2.0","id":"hb-1","method":"agent_device.lease.heartbeat","params":{"leaseId":"<lease-id>","ttlMs":60000}}'
+Lease lifecycle methods exposed by the daemon:
 
-curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
-  -H "content-type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"jsonrpc":"2.0","id":"rel-1","method":"agent_device.lease.release","params":{"leaseId":"<lease-id>"}}'
-```
-
-Session-locked RPC command example:
-
-```bash
-curl -sS "${AGENT_DEVICE_DAEMON_BASE_URL}/rpc" \
-  -H "content-type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{"jsonrpc":"2.0","id":"cmd-1","method":"agent_device.command","params":{"session":"qa-ios","command":"snapshot","positionals":[],"meta":{"lockPolicy":"reject","lockPlatform":"ios","tenantId":"acme","runId":"run-123","leaseId":"<lease-id>"}}}'
-```
+- `agent_device.lease.allocate`
+- `agent_device.lease.heartbeat`
+- `agent_device.lease.release`
+- `agent_device.command`
 
 ## Transport prerequisites
 
 - Start the daemon in HTTP mode with `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual`.
 - Point the client at the remote host with `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]`.
-- Use `AGENT_DEVICE_DAEMON_AUTH_TOKEN` or `--daemon-auth-token` when the client should send the shared daemon token automatically.
+- For non-loopback remote hosts, set `AGENT_DEVICE_DAEMON_AUTH_TOKEN` or `--daemon-auth-token`. The client rejects non-loopback remote daemon URLs without auth.
 - Direct JSON-RPC callers can authenticate with request params, `Authorization: Bearer <token>`, or `x-agent-device-token`.
 - Prefer an auth hook such as `AGENT_DEVICE_HTTP_AUTH_HOOK` when the host needs caller validation or tenant injection.
 
@@ -117,4 +95,5 @@ The CLI sends `AGENT_DEVICE_DAEMON_AUTH_TOKEN` in both the JSON-RPC request toke
 - Missing tenant, run, or lease fields in tenant-isolation mode should fail as `INVALID_ARGS`.
 - Inactive or scope-mismatched leases should fail as `UNAUTHORIZED`.
 - Inspect logs on the remote host during remote debugging. Client-side `--debug` does not tail a local daemon log once `AGENT_DEVICE_DAEMON_BASE_URL` is set.
+- Do not point `AGENT_DEVICE_DAEMON_BASE_URL` at untrusted hosts. Remote daemon requests can launch apps and execute interaction commands.
 - Treat daemon auth tokens and lease identifiers as sensitive operational data.

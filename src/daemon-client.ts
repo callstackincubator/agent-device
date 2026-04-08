@@ -91,6 +91,10 @@ const IOS_RUNNER_XCODEBUILD_KILL_PATTERNS = [
   'xcodebuild .*AgentDeviceRunner\\.env\\.session-',
   'xcodebuild build-for-testing .*ios-runner/AgentDeviceRunner/AgentDeviceRunner\\.xcodeproj',
 ];
+const LOOPBACK_BLOCK_LIST = new net.BlockList();
+LOOPBACK_BLOCK_LIST.addSubnet('127.0.0.0', 8, 'ipv4');
+LOOPBACK_BLOCK_LIST.addAddress('::1', 'ipv6');
+LOOPBACK_BLOCK_LIST.addSubnet('::ffff:127.0.0.0', 104, 'ipv6');
 
 export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> {
   const requestId = req.meta?.requestId ?? createRequestId();
@@ -394,6 +398,7 @@ function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientS
     req.flags?.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL,
   );
   const remoteAuthToken = req.flags?.daemonAuthToken ?? process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  validateRemoteDaemonTrust(remoteBaseUrl, remoteAuthToken);
   const rawTransport = req.flags?.daemonTransport ?? process.env.AGENT_DEVICE_DAEMON_TRANSPORT;
   const transportPreference = resolveDaemonTransportPreference(rawTransport);
   if (remoteBaseUrl && transportPreference === 'socket') {
@@ -1111,6 +1116,35 @@ function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined
     });
   }
   return parsed.toString().replace(/\/+$/, '');
+}
+
+function validateRemoteDaemonTrust(
+  remoteBaseUrl: string | undefined,
+  remoteAuthToken: string | undefined,
+): void {
+  if (!remoteBaseUrl) return;
+  const hostname = new URL(remoteBaseUrl).hostname;
+  if (isLoopbackHostname(hostname)) return;
+  if (typeof remoteAuthToken === 'string' && remoteAuthToken.trim().length > 0) return;
+  throw new AppError(
+    'INVALID_ARGS',
+    'Remote daemon base URL for non-loopback hosts requires daemon authentication',
+    {
+      daemonBaseUrl: remoteBaseUrl,
+      hint: 'Provide --daemon-auth-token or AGENT_DEVICE_DAEMON_AUTH_TOKEN when using a non-loopback remote daemon URL.',
+    },
+  );
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[(.*)\]$/, '$1');
+  if (normalized === 'localhost') return true;
+  if (net.isIPv4(normalized)) return LOOPBACK_BLOCK_LIST.check(normalized, 'ipv4');
+  if (net.isIPv6(normalized)) return LOOPBACK_BLOCK_LIST.check(normalized, 'ipv6');
+  return false;
 }
 
 function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
