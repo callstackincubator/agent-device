@@ -344,6 +344,32 @@ test('sendToDaemon rejects socket transport when remote daemon base URL is set',
   }
 });
 
+test('sendToDaemon treats IPv4-mapped loopback remote daemon URLs as local', async () => {
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://[::ffff:127.0.0.1]:4310/agent-device';
+  delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+
+  try {
+    await assert.rejects(
+      async () =>
+        await sendToDaemon({
+          session: 'default',
+          command: 'remote-smoke',
+          positionals: [],
+          flags: { daemonTransport: 'socket' },
+          meta: { requestId: 'req-remote-mapped-loopback' },
+        }),
+      /only supports HTTP transport/,
+    );
+  } finally {
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+});
+
 test('sendToDaemon requires auth for non-loopback remote daemon URLs', async () => {
   const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
   const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;

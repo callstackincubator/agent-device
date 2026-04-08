@@ -1134,8 +1134,17 @@ function validateRemoteDaemonTrust(
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
-  if (normalized === 'localhost' || normalized === '::1' || normalized === '[::1]') return true;
-  return /^127(?:\.\d{1,3}){3}$/.test(normalized);
+  const unwrapped = normalized.replace(/^\[(.*)\]$/, '$1');
+  if (unwrapped === 'localhost' || unwrapped === '::1') return true;
+  if (/^127(?:\.\d{1,3}){3}$/.test(unwrapped)) return true;
+  const mappedIpv4 = /^::ffff:(.+)$/.exec(unwrapped)?.[1];
+  if (!mappedIpv4) return false;
+  if (/^127(?:\.\d{1,3}){3}$/.test(mappedIpv4)) return true;
+  const mappedHex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(mappedIpv4);
+  if (!mappedHex) return false;
+  const upper = Number.parseInt(mappedHex[1], 16);
+  const lower = Number.parseInt(mappedHex[2], 16);
+  return upper >>> 8 === 127 && upper <= 0xffff && lower <= 0xffff;
 }
 
 function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
