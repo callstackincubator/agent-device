@@ -47,9 +47,11 @@ Example:
   "device": "iPhone 16",
   "session": "qa-ios",
   "snapshotDepth": 3,
-  "daemonBaseUrl": "http://mac-host.example:4310/agent-device"
+  "daemonBaseUrl": "http://127.0.0.1:4310/agent-device"
 }
 ```
+
+For non-loopback remote daemon URLs, also set `daemonAuthToken` or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`. The client rejects non-loopback remote daemon URLs without auth.
 
 Common keys include:
 

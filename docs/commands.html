@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.c8e7bc0479.js"></script>
+<script defer src="/agent-device/static/js/index.42fd6d7a51.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -66,7 +66,7 @@
 <li>In <code>batch</code>, steps that omit <code>platform</code> still inherit the parent batch <code>--platform</code>; lock-mode defaults do not override that parent setting.</li>
 <li>Tenant-scoped daemon runs can pass <code>--tenant</code>, <code>--session-isolation tenant</code>, <code>--run-id</code>, and <code>--lease-id</code> to enforce lease admission.</li>
 <li>Remote daemon clients can pass <code>--daemon-base-url http(s)://host:port[/base-path]</code> to skip local daemon discovery/startup and call a remote HTTP daemon directly.</li>
-<li>Use <code>--daemon-auth-token &lt;token&gt;</code> (or <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.</li>
+<li>Use <code>--daemon-auth-token &lt;token&gt;</code> (or <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>) for non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.</li>
 <li><code>open &lt;app&gt; --remote-config &lt;path&gt; --relaunch</code> is the canonical remote Metro-backed launch flow for sandbox agents. The remote profile supplies the remote host + Metro settings, <code>open</code> prepares Metro locally when needed, derives platform runtime hints, and forwards them inline to the remote daemon before launch.</li>
 <li><code>metro prepare --remote-config &lt;path&gt;</code> remains available for inspection and debugging. It prints JSON runtime hints to stdout, <code>--json</code> wraps them in the standard <code>{ success, data }</code> envelope, and <code>--runtime-file &lt;path&gt;</code> persists the same payload when callers need an artifact.</li>
 <li>Android React Native relaunch flows require an installed package name for <code>open --relaunch</code>; install/reinstall the APK first, then relaunch by package. <code>open &lt;apk|aab&gt; --relaunch</code> is rejected because runtime hints are written through the installed app sandbox.</li>
