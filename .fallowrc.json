@@ -21,6 +21,7 @@
     "website/docs/404.mdx",
     "website/rspress.config.ts"
   ],
+  "ignorePatterns": ["examples/test-app/**"],
   "ignoreDependencies": ["@theme"],
   "ignoreExports": [
     {
@@ -69,14 +70,7 @@
       ]
     }
   ],
-  "usedClassMembers": [
-    "name",
-    "listActiveLeases",
-    "delete",
-    "values",
-    "elapsedMs",
-    "isExpired"
-  ],
+  "usedClassMembers": ["name", "listActiveLeases", "delete", "values", "elapsedMs", "isExpired"],
   "rules": {
     "unused-types": "off",
     "duplicate-exports": "off"
