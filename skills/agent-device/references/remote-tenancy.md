@@ -24,6 +24,8 @@ agent-device open com.example.myapp --remote-config ./agent-device.remote.json -
 ```
 
 - This is the preferred remote launch path for sandbox or cloud agents.
+- `agent-device` prepares local Metro and auto-starts the local Metro companion tunnel when the remote bridge needs a path back to the developer machine.
+- `close --remote-config ...` cleans up the managed companion process for that project/profile, but leaves the developer’s Metro server running.
 - For Android React Native relaunch flows, install or reinstall the APK first, then relaunch by installed package name.
 - Do not use `open <apk|aab> --relaunch`; remote runtime hints are applied through the installed app sandbox.
 

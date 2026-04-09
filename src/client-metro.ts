@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { ensureMetroCompanion } from './client-metro-companion.ts';
+import { normalizeBaseUrl } from './utils/url.ts';
 import { AppError } from './utils/errors.ts';
 import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
@@ -119,10 +121,6 @@ type ProxyBridgeRequestOptions = {
   runtime: ProxyMetroRuntimeHints;
   timeoutMs: number;
 };
-
-function normalizeBaseUrl(input: string): string {
-  return input.replace(/\/+$/, '');
-}
 
 function normalizeOptionalBaseUrl(input: unknown): string {
   return typeof input === 'string' && input.trim() ? normalizeBaseUrl(input.trim()) : '';
@@ -412,6 +410,8 @@ function describeBridgeFailure(
   baseUrl: string,
   bridgeError: string | null,
   bridge: MetroBridgeResult | null,
+  initialBridgeError?: string | null,
+  companionLogPath?: string,
 ): string {
   const parts = [
     `Metro bridge is required for this run but could not be configured via ${baseUrl}/api/metro/bridge.`,
@@ -424,6 +424,12 @@ function describeBridgeFailure(
     parts.push(
       `bridgeProbe=${bridge.probe.detail || `unreachable (status ${bridge.probe.statusCode || 0})`}`,
     );
+  }
+  if (initialBridgeError && initialBridgeError !== bridgeError) {
+    parts.push(`initialBridgeError=${initialBridgeError}`);
+  }
+  if (companionLogPath) {
+    parts.push(`metroCompanionLog=${companionLogPath}`);
   }
 
   return parts.join(' ');
@@ -474,6 +480,53 @@ async function waitForMetroReady(
     }
   }
   return false;
+}
+
+async function configureMetroBridgeUntilReady(options: {
+  baseUrl: string;
+  bearerToken: string;
+  runtime: ProxyMetroRuntimeHints;
+  probeTimeoutMs: number;
+  startupTimeoutMs: number;
+  initialBridgeError?: string | null;
+  companionLogPath?: string;
+}): Promise<MetroBridgeResult> {
+  const deadline = Date.now() + options.startupTimeoutMs;
+  let lastBridge: MetroBridgeResult | null = null;
+  let lastBridgeError: string | null = null;
+
+  while (Date.now() < deadline) {
+    try {
+      const bridge = await configureMetroBridge({
+        baseUrl: options.baseUrl,
+        bearerToken: options.bearerToken,
+        runtime: options.runtime,
+        timeoutMs: options.probeTimeoutMs,
+      });
+      if (bridge.probe.reachable !== false) {
+        return bridge;
+      }
+      lastBridge = bridge;
+      lastBridgeError = null;
+    } catch (error) {
+      lastBridgeError = error instanceof Error ? error.message : String(error);
+    }
+
+    const sleepMs = Math.min(1_000, Math.max(deadline - Date.now(), 0));
+    if (sleepMs > 0) {
+      await wait(sleepMs);
+    }
+  }
+
+  throw new Error(
+    describeBridgeFailure(
+      options.baseUrl,
+      lastBridgeError,
+      lastBridge,
+      options.initialBridgeError,
+      options.companionLogPath,
+    ),
+  );
 }
 
 export async function prepareMetroRuntime(
@@ -542,7 +595,7 @@ export async function prepareMetroRuntime(
   const publicAndroidRuntime = buildPublicRuntime(publicBaseUrl, 'android');
 
   let bridge: MetroBridgeResult | null = null;
-  let bridgeError: string | null = null;
+  let initialBridgeError: string | null = null;
 
   if (proxyEnabled) {
     try {
@@ -555,12 +608,46 @@ export async function prepareMetroRuntime(
         timeoutMs: probeTimeoutMs,
       });
     } catch (error) {
-      bridgeError = error instanceof Error ? error.message : String(error);
+      initialBridgeError = error instanceof Error ? error.message : String(error);
     }
   }
 
   if (proxyEnabled && (!bridge || bridge.probe.reachable === false)) {
-    throw new Error(describeBridgeFailure(proxyBaseUrl, bridgeError, bridge));
+    let companionLogPath: string | undefined;
+    try {
+      const companion = await ensureMetroCompanion({
+        projectRoot,
+        serverBaseUrl: proxyBaseUrl,
+        bearerToken: proxyBearerToken,
+        localBaseUrl: `http://${statusHost}:${metroPort}`,
+        env: env as NodeJS.ProcessEnv,
+      });
+      companionLogPath = companion.logPath;
+    } catch (error) {
+      throw new Error(
+        describeBridgeFailure(
+          proxyBaseUrl,
+          error instanceof Error ? error.message : String(error),
+          bridge,
+          initialBridgeError,
+        ),
+      );
+    }
+    try {
+      bridge = await configureMetroBridgeUntilReady({
+        baseUrl: proxyBaseUrl,
+        bearerToken: proxyBearerToken,
+        runtime: {
+          metro_bundle_url: publicIosRuntime.bundleUrl,
+        },
+        probeTimeoutMs,
+        startupTimeoutMs,
+        initialBridgeError,
+        companionLogPath,
+      });
+    } catch (error) {
+      throw error instanceof Error ? error : new Error(String(error));
+    }
   }
 
   const iosRuntime = bridge?.iosRuntime ?? publicIosRuntime;

@@ -29,6 +29,7 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 - Tests: run deterministic `.ad` scripts as a light e2e test suite.
 - Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
   `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
+- Remote Metro flows: `open --remote-config <path> --relaunch` prepares Metro locally and auto-manages the local Metro companion tunnel when a hosted bridge needs access back to the developer machine.
 - Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
 
 ## Command Flow
