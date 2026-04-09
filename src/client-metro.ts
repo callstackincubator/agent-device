@@ -122,6 +122,10 @@ type ProxyBridgeRequestOptions = {
   timeoutMs: number;
 };
 
+type MetroBridgeRequestError = Error & {
+  retryable?: boolean;
+};
+
 function normalizeOptionalBaseUrl(input: unknown): string {
   return typeof input === 'string' && input.trim() ? normalizeBaseUrl(input.trim()) : '';
 }
@@ -347,6 +351,35 @@ function createProxyHeaders(baseUrl: string, bearerToken: string): Record<string
   };
 }
 
+function createMetroBridgeRequestError(
+  message: string,
+  retryable: boolean,
+): MetroBridgeRequestError {
+  const error = new Error(message) as MetroBridgeRequestError;
+  error.retryable = retryable;
+  return error;
+}
+
+function isRetryableBridgeHttpFailure(statusCode: number, responsePayload: unknown): boolean {
+  if (statusCode >= 500 || statusCode === 408 || statusCode === 425 || statusCode === 429) {
+    return true;
+  }
+  const responseText = JSON.stringify(responsePayload);
+  if (responseText.includes('Metro companion is not connected')) {
+    return true;
+  }
+  return false;
+}
+
+function isRetryableBridgeError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'retryable' in error &&
+    (error as MetroBridgeRequestError).retryable === true,
+  );
+}
+
 async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<MetroBridgeResult> {
   let response: Response;
 
@@ -362,19 +395,24 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
-      throw new Error(
+      throw createMetroBridgeRequestError(
         `/api/metro/bridge timed out after ${input.timeoutMs}ms calling ${input.baseUrl}/api/metro/bridge`,
+        true,
       );
     }
-    throw error;
+    throw createMetroBridgeRequestError(
+      error instanceof Error ? error.message : String(error),
+      true,
+    );
   }
 
   const responseText = await response.text();
   const responsePayload = responseText ? JSON.parse(responseText) : {};
 
   if (!response.ok) {
-    throw new Error(
+    throw createMetroBridgeRequestError(
       `/api/metro/bridge failed (${response.status}): ${JSON.stringify(responsePayload)}`,
+      isRetryableBridgeHttpFailure(response.status, responsePayload),
     );
   }
 
@@ -510,6 +548,17 @@ async function configureMetroBridgeUntilReady(options: {
       lastBridgeError = null;
     } catch (error) {
       lastBridgeError = error instanceof Error ? error.message : String(error);
+      if (!isRetryableBridgeError(error)) {
+        throw new Error(
+          describeBridgeFailure(
+            options.baseUrl,
+            lastBridgeError,
+            lastBridge,
+            options.initialBridgeError,
+            options.companionLogPath,
+          ),
+        );
+      }
     }
 
     const sleepMs = Math.min(1_000, Math.max(deadline - Date.now(), 0));

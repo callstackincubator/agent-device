@@ -179,3 +179,78 @@ test('prepareMetroRuntime preserves the initial bridge error if companion startu
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('prepareMetroRuntime fails fast on non-retryable bridge errors after companion startup', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-401-'));
+  const projectRoot = path.join(tempRoot, 'project');
+  fs.mkdirSync(path.join(projectRoot, 'node_modules'), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({
+      name: 'metro-auto-companion-non-retryable-test',
+      private: true,
+      dependencies: {
+        'react-native': '0.0.0-test',
+      },
+    }),
+  );
+
+  vi.mocked(ensureMetroCompanion).mockResolvedValue({
+    pid: 123,
+    spawned: true,
+    statePath: path.join(projectRoot, '.agent-device', 'metro-companion.json'),
+    logPath: path.join(projectRoot, '.agent-device', 'metro-companion.log'),
+  });
+
+  const fetchMock = vi.fn();
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => 'packager-status:running',
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 409,
+    text: async () => JSON.stringify({ ok: false, error: 'Metro companion is not connected' }),
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    text: async () => JSON.stringify({ ok: false, error: 'invalid token' }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  vi.useFakeTimers();
+
+  try {
+    let settled: unknown = 'pending';
+    const preparePromise = prepareMetroRuntime({
+      projectRoot,
+      publicBaseUrl: 'https://public.example.test',
+      proxyBaseUrl: 'https://proxy.example.test',
+      proxyBearerToken: 'shared-token',
+      metroPort: 8081,
+      reuseExisting: true,
+      installDependenciesIfNeeded: false,
+      probeTimeoutMs: 10,
+    });
+    void preparePromise.then(
+      () => {
+        settled = 'resolved';
+      },
+      (error) => {
+        settled = error;
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    assert.notEqual(settled, 'pending');
+    assert(settled instanceof Error);
+    assert.match(settled.message, /bridgeError=\/api\/metro\/bridge failed \(401\)/);
+    assert.match(settled.message, /initialBridgeError=\/api\/metro\/bridge failed \(409\)/);
+    assert.match(settled.message, /metroCompanionLog=.*metro-companion\.log/);
+    assert.equal(fetchMock.mock.calls.length, 3);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
