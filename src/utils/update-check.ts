@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { runCmdDetached } from './exec.ts';
 
 const PACKAGE_NAME = 'agent-device';
 const UPDATE_CHECK_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 const UPDATE_CHECK_TIMEOUT_MS = 3500;
-const UPDATE_CHECK_ARG = '--agent-device-run-update-check';
+export const UPDATE_CHECK_ARG = '--agent-device-run-update-check';
 const UPDATE_CHECK_CACHE_FILE = 'update-check.json';
 
 type UpdateCheckCache = {
@@ -121,8 +121,20 @@ function writeUpdateCheckCache(cachePath: string, cache: UpdateCheckCache): void
   }
 }
 
+function resolveUpdateCheckEntryModulePath(): string {
+  const currentModulePath = fileURLToPath(import.meta.url);
+  const extension = path.extname(currentModulePath) || '.js';
+  const entryPath = path.join(path.dirname(currentModulePath), `update-check-entry${extension}`);
+  if (!fs.existsSync(entryPath)) {
+    throw new Error(
+      `Update check entrypoint not found at ${entryPath}. Rebuild the package to include the update-check worker entry.`,
+    );
+  }
+  return entryPath;
+}
+
 function spawnBackgroundUpdateCheck(cachePath: string, currentVersion: string): void {
-  const modulePath = fileURLToPath(import.meta.url);
+  const modulePath = resolveUpdateCheckEntryModulePath();
   const execArgs = modulePath.endsWith('.ts') ? ['--experimental-strip-types'] : [];
   runCmdDetached(process.execPath, [
     ...execArgs,
@@ -156,25 +168,12 @@ function compareVersions(left: string, right: string): number {
   return left.localeCompare(right, undefined, { numeric: true });
 }
 
-function readWorkerArgs(argv: string[]): { cachePath: string; currentVersion: string } | null {
+export function readUpdateCheckWorkerArgs(
+  argv: string[],
+): { cachePath: string; currentVersion: string } | null {
   if (argv[0] !== UPDATE_CHECK_ARG) return null;
   const cachePath = argv[1]?.trim();
   const currentVersion = argv[2]?.trim();
   if (!cachePath || !currentVersion) return null;
   return { cachePath, currentVersion };
-}
-
-if (isCurrentModuleProcessEntry()) {
-  const workerArgs = readWorkerArgs(process.argv.slice(2));
-  if (workerArgs) {
-    void runUpdateCheckWorker(workerArgs).catch(() => {
-      process.exitCode = 0;
-    });
-  }
-}
-
-function isCurrentModuleProcessEntry(): boolean {
-  const entryArg = process.argv[1];
-  if (!entryArg) return false;
-  return pathToFileURL(path.resolve(entryArg)).href === import.meta.url;
 }

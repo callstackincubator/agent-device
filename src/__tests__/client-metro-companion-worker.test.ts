@@ -314,11 +314,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
 
   const companion = spawn(
     process.execPath,
-    [
-      '--experimental-strip-types',
-      'src/client-metro-companion.ts',
-      '--agent-device-run-metro-companion',
-    ],
+    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {
@@ -460,11 +456,7 @@ test('metro companion worker reconnects after the bridge closes immediately afte
 
   const companion = spawn(
     process.execPath,
-    [
-      '--experimental-strip-types',
-      'src/client-metro-companion.ts',
-      '--agent-device-run-metro-companion',
-    ],
+    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {

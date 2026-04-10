@@ -39,7 +39,9 @@ export default defineConfig({
       source: {
         entry: {
           bin: 'src/bin.ts',
+          'metro-companion': 'src/metro-companion.ts',
           daemon: 'src/daemon.ts',
+          'update-check-entry': 'src/utils/update-check-entry.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',
       },

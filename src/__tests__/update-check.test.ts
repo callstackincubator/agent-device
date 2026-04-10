@@ -130,7 +130,7 @@ test('notifier starts a background check when the cache is stale', () => {
   assert.ok(spawnCall);
   assert.equal(spawnCall[0], process.execPath);
   assert.equal(spawnCall[1][0], '--experimental-strip-types');
-  assert.match(spawnCall[1][1] ?? '', /\/src\/utils\/update-check\.ts$/);
+  assert.match(spawnCall[1][1] ?? '', /\/src\/utils\/update-check-entry\.ts$/);
   assert.equal(spawnCall[1][2], '--agent-device-run-update-check');
   assert.equal(spawnCall[1][3], path.join(stateDir, 'update-check.json'));
   assert.equal(spawnCall[1][4], '0.11.3');
