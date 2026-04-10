@@ -1,177 +1,44 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { AppError } from './errors.ts';
-import { mergeDefinedFlags } from './merge-flags.ts';
 import type { CliFlags } from './command-schema.ts';
-import { getOptionSpec, parseOptionValueFromSource } from './cli-option-schema.ts';
-import { resolveUserPath } from './path-resolution.ts';
-import { readEnvFlagDefaultsForKeys } from './cli-config.ts';
-
-type EnvMap = Record<string, string | undefined>;
-
-export const REMOTE_CONFIG_KEYS = [
-  'stateDir',
-  'daemonBaseUrl',
-  'daemonAuthToken',
-  'daemonTransport',
-  'daemonServerMode',
-  'tenant',
-  'sessionIsolation',
-  'runId',
-  'leaseId',
-  'platform',
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'iosSimulatorDeviceSet',
-  'androidDeviceAllowlist',
-  'session',
-  'metroProjectRoot',
-  'metroKind',
-  'metroPublicBaseUrl',
-  'metroProxyBaseUrl',
-  'metroBearerToken',
-  'metroPreparePort',
-  'metroListenHost',
-  'metroStatusHost',
-  'metroStartupTimeoutMs',
-  'metroProbeTimeoutMs',
-  'metroRuntimeFile',
-  'metroNoReuseExisting',
-  'metroNoInstallDeps',
-] as const satisfies readonly (keyof CliFlags)[];
-
-const REMOTE_CONFIG_PATH_KEYS = new Set<keyof CliFlags>([
-  'stateDir',
-  'iosSimulatorDeviceSet',
-  'metroProjectRoot',
-  'metroRuntimeFile',
-]);
+import {
+  REMOTE_OPEN_PROFILE_KEYS,
+  resolveRemoteConfigProfile,
+  type RemoteConfigProfile,
+} from '../remote-config-core.ts';
 
 export const REMOTE_OPEN_FLAG_KEYS = [
   'remoteConfig',
-  'session',
-  'platform',
-  'daemonBaseUrl',
-  'daemonAuthToken',
-  'daemonTransport',
-  'metroProjectRoot',
-  'metroKind',
-  'metroPublicBaseUrl',
-  'metroProxyBaseUrl',
-  'metroBearerToken',
-  'metroPreparePort',
-  'metroListenHost',
-  'metroStatusHost',
-  'metroStartupTimeoutMs',
-  'metroProbeTimeoutMs',
-  'metroRuntimeFile',
-  'metroNoReuseExisting',
-  'metroNoInstallDeps',
+  ...REMOTE_OPEN_PROFILE_KEYS,
 ] as const satisfies readonly (keyof CliFlags)[];
 
-export function loadRemoteConfigFile(options: {
-  configPath: string;
-  cwd: string;
-  env?: EnvMap;
-}): Partial<CliFlags> {
-  const env = options.env ?? process.env;
-  const resolvedPath = resolveRemoteConfigPath({
-    configPath: options.configPath,
-    cwd: options.cwd,
-    env,
-  });
-  if (!fs.existsSync(resolvedPath)) {
-    throw new AppError('INVALID_ARGS', `Remote config file not found: ${resolvedPath}`);
-  }
-
-  let raw: string;
-  try {
-    raw = fs.readFileSync(resolvedPath, 'utf8');
-  } catch (error) {
-    throw new AppError('INVALID_ARGS', `Failed to read remote config file: ${resolvedPath}`, {
-      cause: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    throw new AppError('INVALID_ARGS', `Invalid JSON in remote config file: ${resolvedPath}`, {
-      cause: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Remote config file must contain a JSON object: ${resolvedPath}`,
-    );
-  }
-
+function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
-  const source = parsed as Record<string, unknown>;
-  const configDir = path.dirname(resolvedPath);
-  for (const [rawKey, rawValue] of Object.entries(source)) {
-    if (!REMOTE_CONFIG_KEYS.includes(rawKey as (typeof REMOTE_CONFIG_KEYS)[number])) {
-      throw new AppError(
-        'INVALID_ARGS',
-        `Unsupported remote config key "${rawKey}" in remote config file ${resolvedPath}.`,
-      );
+  for (const key of REMOTE_OPEN_PROFILE_KEYS) {
+    const value = profile[key];
+    if (value !== undefined) {
+      (flags as Record<string, unknown>)[key] = value;
     }
-    const key = rawKey as (typeof REMOTE_CONFIG_KEYS)[number];
-    const spec = getOptionSpec(key);
-    if (!spec) {
-      throw new AppError(
-        'INVALID_ARGS',
-        `Unknown remote config key "${rawKey}" in remote config file ${resolvedPath}.`,
-      );
-    }
-    const parsedValue = parseOptionValueFromSource(
-      spec,
-      rawValue,
-      `remote config file ${resolvedPath}`,
-      rawKey,
-    );
-    (flags as Record<string, unknown>)[key] =
-      typeof parsedValue === 'string' && REMOTE_CONFIG_PATH_KEYS.has(key)
-        ? resolveUserPath(parsedValue, { cwd: configDir, env })
-        : parsedValue;
   }
   return flags;
-}
-
-export function resolveRemoteConfigPath(options: {
-  configPath: string;
-  cwd: string;
-  env?: EnvMap;
-}): string {
-  const env = options.env ?? process.env;
-  return resolveUserPath(options.configPath, { cwd: options.cwd, env });
 }
 
 export function resolveRemoteConfigDefaults(options: {
   cliFlags: CliFlags;
   cwd: string;
-  env: EnvMap;
+  env: Record<string, string | undefined>;
 }): Partial<CliFlags> {
   if (!options.cliFlags.remoteConfig) {
     return {};
   }
 
-  const defaults = readEnvFlagDefaultsForKeys(options.env, REMOTE_OPEN_FLAG_KEYS);
-  mergeDefinedFlags(
-    defaults,
-    loadRemoteConfigFile({
-      configPath: options.cliFlags.remoteConfig,
-      cwd: options.cwd,
-      env: options.env,
-    }),
-  );
-  defaults.remoteConfig = options.cliFlags.remoteConfig;
-  return defaults;
+  const resolved = resolveRemoteConfigProfile({
+    configPath: options.cliFlags.remoteConfig,
+    cwd: options.cwd,
+    env: options.env,
+  });
+  return {
+    ...profileToCliFlags(resolved.profile),
+    remoteConfig: options.cliFlags.remoteConfig,
+  };
 }
 
 export function pickRemoteOpenDefaults(defaultFlags: Partial<CliFlags>): Partial<CliFlags> {
