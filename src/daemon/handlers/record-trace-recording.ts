@@ -13,15 +13,12 @@ import type {
 } from '../types.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
-import { deriveRecordingTelemetryPath, persistRecordingTelemetry } from '../recording-telemetry.ts';
+import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
-import {
-  getRecordingOverlaySupportWarning,
-  overlayRecordingTouches,
-  trimRecordingStart,
-} from '../../recording/overlay.ts';
+import { overlayRecordingTouches, trimRecordingStart } from '../../recording/overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
-import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse, unsupportedOperationResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 import {
@@ -302,26 +299,11 @@ async function stopNonRunnerRecording(params: {
     );
   }
 
-  const telemetryPath = persistRecordingTelemetry({
+  await finalizeRecordingOverlay({
     recording,
+    deps,
+    targetLabel: 'iOS recording',
   });
-
-  if (recording.showTouches) {
-    const overlaySupportWarning = getRecordingOverlaySupportWarning();
-    if (overlaySupportWarning) {
-      recording.overlayWarning = overlaySupportWarning;
-    } else {
-      try {
-        await deps.overlayRecordingTouches({
-          videoPath: recording.outPath,
-          telemetryPath,
-          targetLabel: 'iOS recording',
-        });
-      } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-      }
-    }
-  }
 
   return null;
 }

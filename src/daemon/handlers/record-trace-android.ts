@@ -1,10 +1,9 @@
 import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
-import { persistRecordingTelemetry } from '../recording-telemetry.ts';
-import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-recording.ts';
+import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
@@ -361,25 +360,11 @@ export async function stopAndroidRecording(params: {
       return errorResponse('COMMAND_FAILED', copyError);
     }
 
-    persistRecordingTelemetry({
+    await finalizeRecordingOverlay({
       recording,
+      deps,
+      targetLabel: 'Android recording',
     });
-    if (recording.showTouches && recording.telemetryPath) {
-      const overlaySupportWarning = getRecordingOverlaySupportWarning();
-      if (overlaySupportWarning) {
-        recording.overlayWarning = overlaySupportWarning;
-      } else {
-        try {
-          await deps.overlayRecordingTouches({
-            videoPath: recording.outPath,
-            telemetryPath: recording.telemetryPath,
-            targetLabel: 'Android recording',
-          });
-        } catch (error) {
-          recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-        }
-      }
-    }
   }
 
   await cleanupRemoteRecording();
