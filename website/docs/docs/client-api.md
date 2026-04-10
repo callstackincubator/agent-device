@@ -6,6 +6,8 @@ title: Typed Client
 
 Use `createAgentDeviceClient()` when you want to drive the daemon from application code instead of shelling out to the CLI.
 
+For remote Metro-backed flows, import the reusable Node APIs instead of spawning the `agent-device` binary. The CLI uses the same helpers internally.
+
 ## Basic usage
 
 ```ts
@@ -82,3 +84,36 @@ If the daemon cannot determine installed app identity, the request fails instead
 - For other hosts, prefer `source: { kind: 'path', path: ... }` so the client downloads/uploads the artifact explicitly.
 
 Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact.
+
+## Remote Metro helpers
+
+```ts
+import {
+  prepareRemoteMetro,
+  stopMetroTunnel,
+} from 'agent-device/metro';
+import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
+
+const remoteConfig = resolveRemoteConfigProfile({
+  configPath: './agent-device.remote.json',
+  cwd: process.cwd(),
+});
+
+const prepared = await prepareRemoteMetro({
+  projectRoot: remoteConfig.profile.metroProjectRoot!,
+  kind: remoteConfig.profile.metroKind ?? 'auto',
+  publicBaseUrl: remoteConfig.profile.metroPublicBaseUrl!,
+  proxyBaseUrl: remoteConfig.profile.metroProxyBaseUrl,
+  proxyBearerToken: remoteConfig.profile.metroBearerToken,
+  profileKey: remoteConfig.resolvedPath,
+});
+
+console.log(prepared.iosRuntime, prepared.androidRuntime);
+
+await stopMetroTunnel({
+  projectRoot: remoteConfig.profile.metroProjectRoot!,
+  profileKey: remoteConfig.resolvedPath,
+});
+```
+
+Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types.

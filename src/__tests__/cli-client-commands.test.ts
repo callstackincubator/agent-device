@@ -482,6 +482,71 @@ test('open with --remote-config prepares Metro and forwards inline runtime hints
   });
 });
 
+test('open with --remote-config does not reload the profile after CLI parsing', async () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-open-path-'));
+  const configDir = path.join(tmpRoot, 'config');
+  fs.mkdirSync(configDir, { recursive: true });
+  const remoteConfigPath = path.join(configDir, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      platform: 'android',
+      metroProjectRoot: './apps/demo',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+    }),
+  );
+
+  const parsed = resolveCliOptions(
+    ['open', 'com.example.app', '--remote-config', remoteConfigPath],
+    {
+      cwd: tmpRoot,
+      env: process.env,
+    },
+  );
+  fs.unlinkSync(remoteConfigPath);
+
+  let observedPrepare: MetroPrepareOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    prepareMetro: async (options) => {
+      observedPrepare = options;
+      return {
+        projectRoot: '/tmp/project',
+        kind: 'react-native',
+        dependenciesInstalled: false,
+        packageManager: null,
+        started: false,
+        reused: true,
+        pid: 0,
+        logPath: '/tmp/project/.agent-device/metro.log',
+        statusUrl: 'http://127.0.0.1:8081/status',
+        runtimeFilePath: null,
+        iosRuntime: {
+          platform: 'ios',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=ios',
+        },
+        androidRuntime: {
+          platform: 'android',
+          bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+        },
+        bridge: null,
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'open',
+    positionals: ['com.example.app'],
+    flags: parsed.flags,
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.equal(observedPrepare?.companionProfileKey, remoteConfigPath);
+});
+
 test('open with --remote-config preserves CLI overrides over profile defaults', () => {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-open-override-'));
   const configDir = path.join(tmpRoot, 'config');

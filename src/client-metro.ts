@@ -24,20 +24,20 @@ type MetroProcessResult = {
   pid: number;
 };
 
-type ProxyMetroRuntimeHints = {
+type MetroRuntimeHintsPayload = {
   metro_host?: string;
   metro_port?: number;
   metro_bundle_url?: string;
   launch_url?: string;
 };
 
-type ProxyMetroBridgeResponse = {
+type MetroBridgeResponsePayload = {
   enabled: boolean;
   base_url: string;
   status_url: string;
   bundle_url: string;
-  ios_runtime: ProxyMetroRuntimeHints;
-  android_runtime: ProxyMetroRuntimeHints;
+  ios_runtime: MetroRuntimeHintsPayload;
+  android_runtime: MetroRuntimeHintsPayload;
   upstream: {
     bundle_url: string;
     host: string;
@@ -81,6 +81,27 @@ export type MetroBridgeResult = {
   };
 };
 
+export type PrepareRemoteMetroOptions = {
+  projectRoot: string;
+  kind: Exclude<MetroPrepareKind, 'auto'> | MetroPrepareKind;
+  publicBaseUrl: string;
+  proxyBaseUrl?: string;
+  proxyBearerToken?: string;
+  launchUrl?: string;
+  profileKey?: string;
+  consumerKey?: string;
+  port?: number;
+  listenHost?: string;
+  statusHost?: string;
+  startupTimeoutMs?: number;
+  probeTimeoutMs?: number;
+  reuseExisting?: boolean;
+  installDependenciesIfNeeded?: boolean;
+  runtimeFilePath?: string;
+  logPath?: string;
+  env?: EnvSource;
+};
+
 export type PrepareMetroRuntimeOptions = {
   projectRoot?: string;
   kind?: MetroPrepareKind;
@@ -121,7 +142,7 @@ export type PrepareMetroRuntimeResult = {
 type ProxyBridgeRequestOptions = {
   baseUrl: string;
   bearerToken: string;
-  runtime: ProxyMetroRuntimeHints;
+  runtime: MetroRuntimeHintsPayload;
   timeoutMs: number;
 };
 
@@ -225,7 +246,10 @@ function parsePort(value: number | string | undefined, fallback: number): number
   return parsed;
 }
 
-function buildPublicRuntime(baseUrl: string, platform: 'ios' | 'android'): MetroRuntimeHints {
+export function buildMetroRuntimeHints(
+  baseUrl: string,
+  platform: 'ios' | 'android',
+): MetroRuntimeHints {
   return {
     platform,
     bundleUrl: buildBundleUrl(baseUrl, platform),
@@ -233,7 +257,7 @@ function buildPublicRuntime(baseUrl: string, platform: 'ios' | 'android'): Metro
 }
 
 function normalizeProxyRuntimeHints(
-  value: ProxyMetroRuntimeHints | undefined,
+  value: MetroRuntimeHintsPayload | undefined,
   platform: 'ios' | 'android',
 ): MetroRuntimeHints {
   return {
@@ -420,11 +444,11 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
   }
 
   return normalizeBridgeResponse(
-    (responsePayload.data ?? responsePayload) as ProxyMetroBridgeResponse,
+    (responsePayload.data ?? responsePayload) as MetroBridgeResponsePayload,
   );
 }
 
-function normalizeBridgeResponse(response: ProxyMetroBridgeResponse): MetroBridgeResult {
+function normalizeBridgeResponse(response: MetroBridgeResponsePayload): MetroBridgeResult {
   return {
     enabled: response.enabled,
     baseUrl: response.base_url,
@@ -526,7 +550,7 @@ async function waitForMetroReady(
 async function configureMetroBridgeUntilReady(options: {
   baseUrl: string;
   bearerToken: string;
-  runtime: ProxyMetroRuntimeHints;
+  runtime: MetroRuntimeHintsPayload;
   probeTimeoutMs: number;
   startupTimeoutMs: number;
   initialBridgeError?: string | null;
@@ -643,8 +667,8 @@ export async function prepareMetroRuntime(
     }
   }
 
-  const publicIosRuntime = buildPublicRuntime(publicBaseUrl, 'ios');
-  const publicAndroidRuntime = buildPublicRuntime(publicBaseUrl, 'android');
+  const publicIosRuntime = buildMetroRuntimeHints(publicBaseUrl, 'ios');
+  const publicAndroidRuntime = buildMetroRuntimeHints(publicBaseUrl, 'android');
 
   let bridge: MetroBridgeResult | null = null;
   let initialBridgeError: string | null = null;

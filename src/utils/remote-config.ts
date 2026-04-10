@@ -9,7 +9,7 @@ import { readEnvFlagDefaultsForKeys } from './cli-config.ts';
 
 type EnvMap = Record<string, string | undefined>;
 
-const REMOTE_CONFIG_KEYS = [
+export const REMOTE_CONFIG_KEYS = [
   'stateDir',
   'daemonBaseUrl',
   'daemonAuthToken',

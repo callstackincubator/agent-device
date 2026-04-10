@@ -49,7 +49,7 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
       pid === 111 ? 'start-111' : 'start-222',
     );
     vi.mocked(readProcessCommand).mockImplementation(
-      () => `${process.execPath} src/client-metro-companion.ts --agent-device-run-metro-companion`,
+      () => `${process.execPath} src/metro-companion.ts --agent-device-run-metro-companion`,
     );
     vi.mocked(waitForProcessExit).mockResolvedValue(true);
     const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
@@ -139,7 +139,7 @@ test('launchUrl changes force a companion respawn for the same profile', async (
       pid === 333 ? 'start-333' : 'start-444',
     );
     vi.mocked(readProcessCommand).mockImplementation(
-      () => `${process.execPath} src/client-metro-companion.ts --agent-device-run-metro-companion`,
+      () => `${process.execPath} src/metro-companion.ts --agent-device-run-metro-companion`,
     );
     vi.mocked(waitForProcessExit).mockResolvedValue(true);
     const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);

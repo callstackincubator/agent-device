@@ -11,6 +11,18 @@
     ".": {
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
+    },
+    "./metro": {
+      "import": "./dist/src/metro.js",
+      "types": "./dist/src/metro.d.ts"
+    },
+    "./remote-config": {
+      "import": "./dist/src/remote-config.js",
+      "types": "./dist/src/remote-config.d.ts"
+    },
+    "./contracts": {
+      "import": "./dist/src/contracts.js",
+      "types": "./dist/src/contracts.d.ts"
     }
   },
   "engines": {

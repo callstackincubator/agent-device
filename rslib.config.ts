@@ -17,6 +17,9 @@ export default defineConfig({
       source: {
         entry: {
           index: 'src/index.ts',
+          metro: 'src/metro.ts',
+          'remote-config': 'src/remote-config.ts',
+          contracts: 'src/contracts.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',
       },

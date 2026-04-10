@@ -1,9 +1,9 @@
 import { serializeCloseResult, serializeOpenResult } from '../../client-shared.ts';
-import { stopMetroCompanion } from '../../client-metro-companion.ts';
+import { stopMetroTunnel } from '../../metro.ts';
 import { resolveRemoteOpenRuntime } from '../../core/remote-open.ts';
-import { loadRemoteConfigFile, resolveRemoteConfigPath } from '../../utils/remote-config.ts';
+import { loadRemoteConfigProfile } from '../../remote-config.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
-import type { StopMetroCompanionOptions } from '../../client-metro-companion.ts';
+import type { StopMetroTunnelOptions } from '../../metro.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const openCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -28,16 +28,11 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
 };
 
 export const closeCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
-  const resolveManagedMetroCompanionStopOptions = (): StopMetroCompanionOptions | null => {
+  const resolveManagedMetroCompanionStopOptions = (): StopMetroTunnelOptions | null => {
     if (!flags.remoteConfig) return null;
-    const profileKey = resolveRemoteConfigPath({
-      configPath: flags.remoteConfig,
-      cwd: process.cwd(),
-      env: process.env,
-    });
     let remoteConfig;
     try {
-      remoteConfig = loadRemoteConfigFile({
+      remoteConfig = loadRemoteConfigProfile({
         configPath: flags.remoteConfig,
         cwd: process.cwd(),
         env: process.env,
@@ -45,12 +40,12 @@ export const closeCommand: ClientCommandHandler = async ({ positionals, flags, c
     } catch {
       return null;
     }
-    if (!remoteConfig.metroProjectRoot || !remoteConfig.metroProxyBaseUrl) {
+    if (!remoteConfig.profile.metroProjectRoot || !remoteConfig.profile.metroProxyBaseUrl) {
       return null;
     }
     return {
-      projectRoot: remoteConfig.metroProjectRoot,
-      profileKey,
+      projectRoot: remoteConfig.profile.metroProjectRoot,
+      profileKey: remoteConfig.resolvedPath,
       consumerKey: flags.session,
     };
   };
@@ -63,7 +58,7 @@ export const closeCommand: ClientCommandHandler = async ({ positionals, flags, c
     } finally {
       try {
         if (managedMetroCompanionStopOptions) {
-          await stopMetroCompanion(managedMetroCompanionStopOptions);
+          await stopMetroTunnel(managedMetroCompanionStopOptions);
         }
       } catch {
         // Companion cleanup is best-effort and must not turn a successful close into a failure.
