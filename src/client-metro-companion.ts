@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import {
   ENV_BEARER_TOKEN,
   ENV_LAUNCH_URL,
@@ -9,7 +9,6 @@ import {
   ENV_SERVER_BASE_URL,
   METRO_COMPANION_RUN_ARG,
 } from './client-metro-companion-contract.ts';
-import { runMetroCompanionProcessFromEnv } from './client-metro-companion-worker.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
 import { runCmdDetached } from './utils/exec.ts';
 import {
@@ -224,11 +223,26 @@ function buildCompanionEnv(
   return nextEnv;
 }
 
+function resolveCompanionEntryModulePath(): string {
+  const currentModulePath = fileURLToPath(import.meta.url);
+  const extension = path.extname(currentModulePath) || '.js';
+  const entryPath = path.join(
+    path.dirname(currentModulePath),
+    `client-metro-companion-entry${extension}`,
+  );
+  if (!fs.existsSync(entryPath)) {
+    throw new Error(
+      `Metro companion entrypoint not found at ${entryPath}. Rebuild the package to include the companion worker entry.`,
+    );
+  }
+  return entryPath;
+}
+
 function spawnCompanionProcess(
   options: EnsureMetroCompanionOptions,
   logPath: string,
 ): CompanionState {
-  const modulePath = fileURLToPath(import.meta.url);
+  const modulePath = resolveCompanionEntryModulePath();
   const execArgs = modulePath.endsWith('.ts') ? ['--experimental-strip-types'] : [];
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   const logFd = fs.openSync(logPath, 'a');
@@ -308,22 +322,4 @@ export async function stopMetroCompanion(
   await stopCompanionProcess(existing);
   clearCompanionState(paths.statePath);
   return { stopped: true, statePath: paths.statePath };
-}
-
-function isCurrentModuleProcessEntry(): boolean {
-  const entryArg = process.argv[1];
-  if (!entryArg) return false;
-  return pathToFileURL(path.resolve(entryArg)).href === import.meta.url;
-}
-
-if (isCurrentModuleProcessEntry()) {
-  void runMetroCompanionProcessFromEnv(process.argv.slice(2), process.env).catch((error) => {
-    if (error instanceof Error && error.message.includes('missing required environment')) {
-      console.error(error.message);
-      process.exitCode = 1;
-      return;
-    }
-    console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
-    process.exitCode = 1;
-  });
 }

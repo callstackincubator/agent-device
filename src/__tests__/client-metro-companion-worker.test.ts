@@ -316,7 +316,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
     process.execPath,
     [
       '--experimental-strip-types',
-      'src/client-metro-companion.ts',
+      'src/client-metro-companion-entry.ts',
       '--agent-device-run-metro-companion',
     ],
     {
@@ -462,7 +462,7 @@ test('metro companion worker reconnects after the bridge closes immediately afte
     process.execPath,
     [
       '--experimental-strip-types',
-      'src/client-metro-companion.ts',
+      'src/client-metro-companion-entry.ts',
       '--agent-device-run-metro-companion',
     ],
     {

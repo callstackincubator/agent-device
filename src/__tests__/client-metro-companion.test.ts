@@ -29,6 +29,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function assertCompanionSpawnTarget(): void {
+  const firstCall = vi.mocked(runCmdDetached).mock.calls[0];
+  assert.ok(firstCall, 'expected runCmdDetached to be called');
+  assert.equal(firstCall[0], process.execPath);
+  assert.ok(
+    firstCall[1].some((arg) => arg.includes('src/client-metro-companion-entry.ts')),
+    `expected companion entry path in ${JSON.stringify(firstCall[1])}`,
+  );
+  assert.equal(firstCall[1].at(-1), '--agent-device-run-metro-companion');
+}
+
 test('companion ownership is profile-scoped and consumer-counted', async () => {
   const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-state-'));
   try {
@@ -75,6 +86,7 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
     assert.equal(stagingSecond.spawned, false);
     assert.notEqual(stagingFirst.statePath, prod.statePath);
     assert.equal(vi.mocked(runCmdDetached).mock.calls.length, 2);
+    assertCompanionSpawnTarget();
 
     const stagingState = JSON.parse(fs.readFileSync(stagingFirst.statePath, 'utf8')) as {
       consumers: string[];
@@ -155,6 +167,7 @@ test('launchUrl changes force a companion respawn for the same profile', async (
     assert.equal(second.spawned, true);
     assert.equal(vi.mocked(runCmdDetached).mock.calls.length, 2);
     assert.equal(killSpy.mock.calls.length, 1);
+    assertCompanionSpawnTarget();
     assert.deepEqual(killSpy.mock.calls[0], [333, 'SIGTERM']);
 
     const state = JSON.parse(fs.readFileSync(second.statePath, 'utf8')) as {
