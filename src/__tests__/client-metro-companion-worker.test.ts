@@ -1,7 +1,10 @@
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, test } from 'vitest';
@@ -487,4 +490,110 @@ test('metro companion worker reconnects after the bridge closes immediately afte
   await Promise.race([waitFor(bridgeReconnect.promise, 5_000, 'bridge reconnect'), earlyExit]);
 
   assert.equal(bridgeConnections, 2);
+});
+
+test('metro companion worker exits after its state file is removed', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
+  const statePath = path.join(tempRoot, 'metro-companion.json');
+  fs.writeFileSync(statePath, '{}', 'utf8');
+  cleanupTasks.push(async () => {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  const bridgeSocketReady = createDeferred<void>();
+  let bridgePort = 0;
+  let bridgeSocketRef: Duplex | null = null;
+
+  const localServer = http.createServer((_, res) => {
+    res.writeHead(404);
+    res.end('not found');
+  });
+  cleanupTasks.push(() => closeServer(localServer));
+  const localPort = await listen(localServer);
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
+          }),
+        );
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end('not found');
+  });
+  bridgeServer.on('upgrade', (req, socket) => {
+    if (req.url !== '/bridge') {
+      socket.destroy();
+      return;
+    }
+    bridgeSocketRef = socket;
+    const key = req.headers['sec-websocket-key'];
+    if (typeof key !== 'string') {
+      socket.destroy();
+      return;
+    }
+    const accept = crypto
+      .createHash('sha1')
+      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest('base64');
+    socket.write(
+      [
+        'HTTP/1.1 101 Switching Protocols',
+        'Upgrade: websocket',
+        'Connection: Upgrade',
+        `Sec-WebSocket-Accept: ${accept}`,
+        '\r\n',
+      ].join('\r\n'),
+    );
+    bridgeSocketReady.resolve();
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(async () => {
+    bridgeSocketRef?.destroy();
+  });
+  bridgePort = await listen(bridgeServer);
+
+  const companion = spawn(
+    process.execPath,
+    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  cleanupTasks.push(() => stopChild(companion));
+
+  let stderr = '';
+  companion.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  await waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection');
+  fs.unlinkSync(statePath);
+
+  const exit = await waitFor(
+    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+      companion.once('exit', (code, signal) => resolve({ code, signal }));
+    }),
+    5_000,
+    'worker exit after state cleanup',
+  );
+
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
 });

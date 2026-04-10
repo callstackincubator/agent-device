@@ -1,9 +1,11 @@
+import fs from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   ENV_BEARER_TOKEN,
   ENV_LAUNCH_URL,
   ENV_LOCAL_BASE_URL,
   ENV_SERVER_BASE_URL,
+  ENV_STATE_PATH,
   METRO_COMPANION_RECONNECT_DELAY_MS,
   METRO_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
@@ -132,6 +134,16 @@ function closeSocketQuietly(socket: WebSocket, code: number, reason: string): vo
   }
 }
 
+function shouldKeepWorkerRunning(options: CompanionOptions): boolean {
+  if (!options.statePath) return true;
+  try {
+    fs.accessSync(options.statePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleBridgeMessage(
   bridgeSocket: WebSocket,
   message: MetroCompanionRequest,
@@ -254,7 +266,13 @@ async function handleBridgeMessage(
 
 export async function runMetroCompanionWorker(options: CompanionOptions): Promise<void> {
   const upstreamSockets = new Map<string, WebSocket>();
-  while (true) {
+  const lifetimeHandle = setInterval(() => {
+    if (!shouldKeepWorkerRunning(options)) {
+      process.exit(0);
+    }
+  }, METRO_COMPANION_RECONNECT_DELAY_MS);
+  lifetimeHandle.unref();
+  while (shouldKeepWorkerRunning(options)) {
     try {
       const registration = await registerCompanion(options);
       const bridgeSocket = new WebSocket(registration.wsUrl);
@@ -274,8 +292,12 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
     }
+    if (!shouldKeepWorkerRunning(options)) {
+      break;
+    }
     await delay(METRO_COMPANION_RECONNECT_DELAY_MS);
   }
+  clearInterval(lifetimeHandle);
 }
 
 function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOptions | null {
@@ -291,6 +313,7 @@ function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOpt
     bearerToken,
     localBaseUrl,
     launchUrl: env[ENV_LAUNCH_URL]?.trim() || undefined,
+    statePath: env[ENV_STATE_PATH]?.trim() || undefined,
   };
 }
 
