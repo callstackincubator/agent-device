@@ -118,6 +118,9 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
       serverBaseUrl: 'https://proxy.example.test',
       bearerToken: 'shared-token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      launchUrl: undefined,
+      profileKey: undefined,
+      consumerKey: undefined,
       env: process.env,
     });
     assert.equal(fetchMock.mock.calls.length, 3);

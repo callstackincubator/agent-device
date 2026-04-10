@@ -1,7 +1,7 @@
 import { serializeCloseResult, serializeOpenResult } from '../../client-shared.ts';
 import { stopMetroCompanion } from '../../client-metro-companion.ts';
 import { resolveRemoteOpenRuntime } from '../../core/remote-open.ts';
-import { loadRemoteConfigFile } from '../../utils/remote-config.ts';
+import { loadRemoteConfigFile, resolveRemoteConfigPath } from '../../utils/remote-config.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
 import type { AgentDeviceClient } from '../../client.ts';
 import type { ClientCommandHandler } from './router.ts';
@@ -29,6 +29,7 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
 
 export const closeCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const stopManagedMetroCompanion = async (): Promise<void> => {
+    if (positionals[0]) return;
     if (!flags.remoteConfig) return;
     const remoteConfig = loadRemoteConfigFile({
       configPath: flags.remoteConfig,
@@ -36,7 +37,15 @@ export const closeCommand: ClientCommandHandler = async ({ positionals, flags, c
       env: process.env,
     });
     if (remoteConfig.metroProjectRoot && remoteConfig.metroProxyBaseUrl) {
-      await stopMetroCompanion({ projectRoot: remoteConfig.metroProjectRoot });
+      await stopMetroCompanion({
+        projectRoot: remoteConfig.metroProjectRoot,
+        profileKey: resolveRemoteConfigPath({
+          configPath: flags.remoteConfig,
+          cwd: process.cwd(),
+          env: process.env,
+        }),
+        consumerKey: flags.session,
+      });
     }
   };
 

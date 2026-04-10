@@ -90,6 +90,9 @@ export type PrepareMetroRuntimeOptions = {
   publicBaseUrl?: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
+  launchUrl?: string;
+  companionProfileKey?: string;
+  companionConsumerKey?: string;
   startupTimeoutMs?: number | string;
   probeTimeoutMs?: number | string;
   reuseExisting?: boolean;
@@ -669,6 +672,9 @@ export async function prepareMetroRuntime(
         serverBaseUrl: proxyBaseUrl,
         bearerToken: proxyBearerToken,
         localBaseUrl: `http://${statusHost}:${metroPort}`,
+        launchUrl: normalizeOptionalString(input.launchUrl),
+        profileKey: normalizeOptionalString(input.companionProfileKey),
+        consumerKey: normalizeOptionalString(input.companionConsumerKey),
         env: env as NodeJS.ProcessEnv,
       });
       companionLogPath = companion.logPath;

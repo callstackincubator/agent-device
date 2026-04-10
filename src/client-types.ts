@@ -227,6 +227,9 @@ export type MetroPrepareOptions = {
   publicBaseUrl: string;
   proxyBaseUrl?: string;
   bearerToken?: string;
+  launchUrl?: string;
+  companionProfileKey?: string;
+  companionConsumerKey?: string;
   port?: number;
   listenHost?: string;
   statusHost?: string;

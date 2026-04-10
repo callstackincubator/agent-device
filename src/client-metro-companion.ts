@@ -23,6 +23,7 @@ const METRO_COMPANION_TERM_TIMEOUT_MS = 1_000;
 const METRO_COMPANION_KILL_TIMEOUT_MS = 1_000;
 const METRO_COMPANION_STATE_FILE = 'metro-companion.json';
 const METRO_COMPANION_LOG_FILE = 'metro-companion.log';
+const METRO_COMPANION_STATE_DIR = 'metro-companion';
 
 type CompanionState = {
   pid: number;
@@ -30,7 +31,9 @@ type CompanionState = {
   command?: string;
   serverBaseUrl: string;
   localBaseUrl: string;
+  launchUrl?: string;
   tokenHash: string;
+  consumers: string[];
 };
 
 export type EnsureMetroCompanionOptions = {
@@ -39,6 +42,8 @@ export type EnsureMetroCompanionOptions = {
   bearerToken: string;
   localBaseUrl: string;
   launchUrl?: string;
+  profileKey?: string;
+  consumerKey?: string;
   env?: NodeJS.ProcessEnv;
 };
 
@@ -51,17 +56,38 @@ export type EnsureMetroCompanionResult = {
 
 export type StopMetroCompanionOptions = {
   projectRoot: string;
+  profileKey?: string;
+  consumerKey?: string;
 };
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function resolveCompanionPaths(projectRoot: string): { statePath: string; logPath: string } {
+function normalizeOptionalString(input: string | undefined): string | undefined {
+  return input?.trim() ? input.trim() : undefined;
+}
+
+function hashValue(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function resolveCompanionPaths(
+  projectRoot: string,
+  profileKey?: string,
+): { statePath: string; logPath: string } {
   const dir = path.join(projectRoot, '.agent-device');
+  if (!profileKey) {
+    return {
+      statePath: path.join(dir, METRO_COMPANION_STATE_FILE),
+      logPath: path.join(dir, METRO_COMPANION_LOG_FILE),
+    };
+  }
+  const profileHash = hashValue(profileKey).slice(0, 12);
+  const profileDir = path.join(dir, METRO_COMPANION_STATE_DIR);
   return {
-    statePath: path.join(dir, METRO_COMPANION_STATE_FILE),
-    logPath: path.join(dir, METRO_COMPANION_LOG_FILE),
+    statePath: path.join(profileDir, `metro-companion-${profileHash}.json`),
+    logPath: path.join(profileDir, `metro-companion-${profileHash}.log`),
   };
 }
 
@@ -73,13 +99,22 @@ function readCompanionState(statePath: string): CompanionState | null {
       return null;
     }
     if (typeof parsed.tokenHash !== 'string' || parsed.tokenHash.length === 0) return null;
+    const consumers = Array.isArray(parsed.consumers)
+      ? parsed.consumers.filter(
+          (entry): entry is string => typeof entry === 'string' && entry.length > 0,
+        )
+      : [];
     return {
       pid: Number(parsed.pid),
       startTime: typeof parsed.startTime === 'string' ? parsed.startTime : undefined,
       command: typeof parsed.command === 'string' ? parsed.command : undefined,
       serverBaseUrl: parsed.serverBaseUrl,
       localBaseUrl: parsed.localBaseUrl,
+      launchUrl: normalizeOptionalString(
+        typeof parsed.launchUrl === 'string' ? parsed.launchUrl : undefined,
+      ),
       tokenHash: parsed.tokenHash,
+      consumers,
     };
   } catch {
     return null;
@@ -117,8 +152,40 @@ function shouldReuseCompanion(
   return (
     state.serverBaseUrl === normalizeBaseUrl(options.serverBaseUrl) &&
     state.localBaseUrl === normalizeBaseUrl(options.localBaseUrl) &&
+    state.launchUrl === normalizeOptionalString(options.launchUrl) &&
     state.tokenHash === hashToken(options.bearerToken)
   );
+}
+
+function resolveConsumerKey(options: { profileKey?: string; consumerKey?: string }): string | null {
+  return (
+    normalizeOptionalString(options.consumerKey) ??
+    normalizeOptionalString(options.profileKey) ??
+    null
+  );
+}
+
+function withConsumer(state: CompanionState, consumerKey: string | null): CompanionState {
+  if (!consumerKey || state.consumers.includes(consumerKey)) {
+    return state;
+  }
+  return {
+    ...state,
+    consumers: [...state.consumers, consumerKey],
+  };
+}
+
+function withoutConsumer(state: CompanionState, consumerKey: string | null): CompanionState {
+  if (!consumerKey) {
+    return {
+      ...state,
+      consumers: [],
+    };
+  }
+  return {
+    ...state,
+    consumers: state.consumers.filter((entry) => entry !== consumerKey),
+  };
 }
 
 async function stopCompanionProcess(state: CompanionState): Promise<void> {
@@ -187,16 +254,23 @@ function spawnCompanionProcess(
     command: readProcessCommand(pid) ?? undefined,
     serverBaseUrl: normalizeBaseUrl(options.serverBaseUrl),
     localBaseUrl: normalizeBaseUrl(options.localBaseUrl),
+    launchUrl: normalizeOptionalString(options.launchUrl),
     tokenHash: hashToken(options.bearerToken),
+    consumers: [],
   };
 }
 
 export async function ensureMetroCompanion(
   options: EnsureMetroCompanionOptions,
 ): Promise<EnsureMetroCompanionResult> {
-  const paths = resolveCompanionPaths(options.projectRoot);
+  const consumerKey = resolveConsumerKey(options);
+  const paths = resolveCompanionPaths(options.projectRoot, options.profileKey);
   const existing = readCompanionState(paths.statePath);
   if (existing && shouldReuseCompanion(existing, options)) {
+    const nextState = withConsumer(existing, consumerKey);
+    if (nextState !== existing) {
+      writeCompanionState(paths.statePath, nextState);
+    }
     return {
       pid: existing.pid,
       spawned: false,
@@ -211,7 +285,7 @@ export async function ensureMetroCompanion(
   }
 
   const spawned = spawnCompanionProcess(options, paths.logPath);
-  writeCompanionState(paths.statePath, spawned);
+  writeCompanionState(paths.statePath, withConsumer(spawned, consumerKey));
   return {
     pid: spawned.pid,
     spawned: true,
@@ -223,10 +297,16 @@ export async function ensureMetroCompanion(
 export async function stopMetroCompanion(
   options: StopMetroCompanionOptions,
 ): Promise<{ stopped: boolean; statePath: string }> {
-  const paths = resolveCompanionPaths(options.projectRoot);
+  const consumerKey = resolveConsumerKey(options);
+  const paths = resolveCompanionPaths(options.projectRoot, options.profileKey);
   const existing = readCompanionState(paths.statePath);
   if (!existing) {
     clearCompanionState(paths.statePath);
+    return { stopped: false, statePath: paths.statePath };
+  }
+  const nextState = withoutConsumer(existing, consumerKey);
+  if (nextState.consumers.length > 0) {
+    writeCompanionState(paths.statePath, nextState);
     return { stopped: false, statePath: paths.statePath };
   }
   await stopCompanionProcess(existing);

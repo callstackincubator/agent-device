@@ -1,6 +1,7 @@
 import type { AgentDeviceClient } from '../client.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { AppError } from '../utils/errors.ts';
+import { resolveRemoteConfigPath } from '../utils/remote-config.ts';
 
 export async function resolveRemoteOpenRuntime(
   flags: CliFlags,
@@ -35,6 +36,13 @@ export async function resolveRemoteOpenRuntime(
     publicBaseUrl: flags.metroPublicBaseUrl,
     proxyBaseUrl: flags.metroProxyBaseUrl,
     bearerToken: flags.metroBearerToken,
+    launchUrl: flags.launchUrl,
+    companionProfileKey: resolveRemoteConfigPath({
+      configPath: flags.remoteConfig,
+      cwd: process.cwd(),
+      env: process.env,
+    }),
+    companionConsumerKey: flags.session,
     port: flags.metroPreparePort,
     listenHost: flags.metroListenHost,
     statusHost: flags.metroStatusHost,
