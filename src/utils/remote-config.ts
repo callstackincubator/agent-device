@@ -1,8 +1,19 @@
 import type { CliFlags } from './command-schema.ts';
-import { REMOTE_OPEN_PROFILE_KEYS, type RemoteConfigProfile } from '../remote-config-schema.ts';
+import {
+  REMOTE_CONFIG_FIELD_SPECS,
+  REMOTE_OPEN_PROFILE_KEYS,
+  type RemoteConfigProfile,
+} from '../remote-config-schema.ts';
 import { resolveRemoteConfigProfile } from '../remote-config-core.ts';
 
-// This subset is intentional: only the flags used by remote-config-backed CLI defaults belong here.
+// Remote config can supply defaults for any supported CLI flag that exists in the profile schema.
+// Command validation later strips unsupported defaults for the active command.
+const REMOTE_CONFIG_DEFAULT_FLAG_KEYS = REMOTE_CONFIG_FIELD_SPECS.map(
+  (spec) => spec.key,
+) as readonly (keyof RemoteConfigProfile)[];
+
+// This subset is still intentional: open preserves extra remote-config defaults after command
+// parsing so it can prepare remote Metro without exposing every Metro flag as an open CLI option.
 export const REMOTE_OPEN_FLAG_KEYS = [
   'remoteConfig',
   ...REMOTE_OPEN_PROFILE_KEYS,
@@ -10,7 +21,7 @@ export const REMOTE_OPEN_FLAG_KEYS = [
 
 function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
-  for (const key of REMOTE_OPEN_PROFILE_KEYS) {
+  for (const key of REMOTE_CONFIG_DEFAULT_FLAG_KEYS) {
     const value = profile[key];
     if (value !== undefined) {
       (flags as Record<string, unknown>)[key] = value;

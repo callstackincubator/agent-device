@@ -265,6 +265,103 @@ test('remote config defaults override generic config and env for remote workflow
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('install-from-source forwards remote-config run id with explicit lease binding', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'micha-pierzcha-a',
+      sessionIsolation: 'tenant',
+      runId: 'demo-run-001',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+
+  let stdout = '';
+  let stderr = '';
+  let code: number | null = null;
+  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
+
+  const originalExit = process.exit;
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const originalCwd = process.cwd();
+  const previousEnv = new Map<string, string | undefined>();
+
+  process.chdir(project);
+  previousEnv.set('HOME', process.env.HOME);
+  process.env.HOME = home;
+
+  (process as any).exit = ((nextCode?: number) => {
+    throw new ExitSignal(nextCode ?? 0);
+  }) as typeof process.exit;
+  (process.stdout as any).write = ((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+  (process.stderr as any).write = ((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+
+  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
+    calls.push(req);
+    return {
+      ok: true,
+      data: {
+        launchTarget: 'com.example.demo',
+        packageName: 'com.example.demo',
+      },
+    };
+  };
+
+  try {
+    await runCli(
+      [
+        'install-from-source',
+        'https://example.com/app.apk',
+        '--remote-config',
+        remoteConfig,
+        '--lease-id',
+        'lease-demo-001',
+        '--json',
+      ],
+      { sendToDaemon },
+    );
+  } catch (error) {
+    if (error instanceof ExitSignal) code = error.code;
+    else throw error;
+  } finally {
+    process.exit = originalExit;
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    process.chdir(originalCwd);
+    for (const [key, value] of previousEnv.entries()) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+
+  assert.equal(code, null);
+  assert.equal(stderr, '');
+  const payload = JSON.parse(stdout);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.launchTarget, 'com.example.demo');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.meta?.tenantId, 'micha-pierzcha-a');
+  assert.equal(calls[0]?.meta?.runId, 'demo-run-001');
+  assert.equal(calls[0]?.meta?.leaseId, 'lease-demo-001');
+  assert.equal(calls[0]?.flags?.tenant, 'micha-pierzcha-a');
+  assert.equal(calls[0]?.flags?.runId, 'demo-run-001');
+  assert.equal(calls[0]?.flags?.leaseId, 'lease-demo-001');
+  assert.deepEqual(calls[0]?.positionals, []);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('missing explicit remote config path returns parse error before daemon dispatch', async () => {
   const { root, home, project } = makeTempWorkspace();
 
