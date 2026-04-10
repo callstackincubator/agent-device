@@ -1,3 +1,12 @@
+import type {
+  DaemonArtifact as PublicDaemonArtifact,
+  DaemonRequest as PublicDaemonRequest,
+  DaemonRequestMeta as PublicDaemonRequestMeta,
+  DaemonResponse as PublicDaemonResponse,
+  DaemonResponseData as PublicDaemonResponseData,
+  SessionRuntimeHints as PublicSessionRuntimeHints,
+} from '../contracts.ts';
+export type { DaemonLockPolicy } from '../contracts.ts';
 import type { MaterializeInstallSource } from '../platforms/install-source.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
@@ -8,54 +17,18 @@ import type { AndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import type { AppLogState } from './app-log-process.ts';
 
 export type DaemonInstallSource = MaterializeInstallSource;
-export type DaemonLockPolicy = 'reject' | 'strip';
+export type SessionRuntimeHints = PublicSessionRuntimeHints;
+export type DaemonArtifact = PublicDaemonArtifact;
+export type DaemonResponseData = PublicDaemonResponseData;
 
-export type DaemonRequest = {
-  token: string;
-  session: string;
-  command: string;
-  positionals: string[];
+type DaemonRequestMeta = Omit<PublicDaemonRequestMeta, 'installSource' | 'lockPlatform'> & {
+  installSource?: DaemonInstallSource;
+  lockPlatform?: PlatformSelector;
+};
+
+export type DaemonRequest = Omit<PublicDaemonRequest, 'flags' | 'meta'> & {
   flags?: CommandFlags;
-  runtime?: SessionRuntimeHints;
-  meta?: {
-    requestId?: string;
-    debug?: boolean;
-    cwd?: string;
-    tenantId?: string;
-    runId?: string;
-    leaseId?: string;
-    leaseTtlMs?: number;
-    leaseBackend?: 'ios-simulator';
-    sessionIsolation?: 'none' | 'tenant';
-    uploadedArtifactId?: string;
-    clientArtifactPaths?: Record<string, string>;
-    installSource?: DaemonInstallSource;
-    retainMaterializedPaths?: boolean;
-    materializedPathRetentionMs?: number;
-    materializationId?: string;
-    lockPolicy?: DaemonLockPolicy;
-    lockPlatform?: PlatformSelector;
-  };
-};
-
-export type SessionRuntimeHints = {
-  platform?: 'ios' | 'android';
-  metroHost?: string;
-  metroPort?: number;
-  bundleUrl?: string;
-  launchUrl?: string;
-};
-
-export type DaemonArtifact = {
-  field: string;
-  artifactId?: string;
-  fileName?: string;
-  localPath?: string;
-  path?: string;
-};
-
-export type DaemonResponseData = Record<string, unknown> & {
-  artifacts?: DaemonArtifact[];
+  meta?: DaemonRequestMeta;
 };
 
 export type ReplaySuiteTestSkipReason = 'skipped-by-filter';
@@ -113,19 +86,7 @@ export type ReplaySuiteResult = {
   tests: ReplaySuiteTestResult[];
 };
 
-export type DaemonResponse =
-  | { ok: true; data?: DaemonResponseData }
-  | {
-      ok: false;
-      error: {
-        code: string;
-        message: string;
-        hint?: string;
-        diagnosticId?: string;
-        logPath?: string;
-        details?: Record<string, unknown>;
-      };
-    };
+export type DaemonResponse = PublicDaemonResponse;
 
 type RecordingTelemetryBase = {
   tMs: number;
