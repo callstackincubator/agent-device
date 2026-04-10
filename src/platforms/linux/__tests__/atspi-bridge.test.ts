@@ -180,7 +180,9 @@ test('throws COMMAND_FAILED on invalid JSON output', async () => {
 test('throws COMMAND_FAILED when Python returns an error field', async () => {
   mockRunCmd.mockResolvedValue({
     exitCode: 0,
-    stdout: JSON.stringify({ error: 'Could not get desktop accessible. Is the accessibility bus running?' }),
+    stdout: JSON.stringify({
+      error: 'Could not get desktop accessible. Is the accessibility bus running?',
+    }),
     stderr: '',
   });
 

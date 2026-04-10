@@ -393,13 +393,9 @@ async function dispatchGenericCommand(params: {
     ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
     surface: session.surface,
   };
-  const data = await dispatchCommand(
-    session.device,
-    command,
-    resolvedPositionals,
-    resolvedOut,
-    { ...dispatchContext },
-  );
+  const data = await dispatchCommand(session.device, command, resolvedPositionals, resolvedOut, {
+    ...dispatchContext,
+  });
 
   if (command === 'screenshot' && req.flags?.overlayRefs && typeof data?.path === 'string') {
     await applyScreenshotOverlay(session, data, logPath);
@@ -440,9 +436,7 @@ function resolveCommandPositionals(req: DaemonRequest): {
       ? [SessionStore.expandHome(positionals[0], req.meta?.cwd), ...positionals.slice(1)]
       : positionals;
   const resolvedOut =
-    command === 'screenshot' && outFlag
-      ? SessionStore.expandHome(outFlag, req.meta?.cwd)
-      : outFlag;
+    command === 'screenshot' && outFlag ? SessionStore.expandHome(outFlag, req.meta?.cwd) : outFlag;
   const recordedPositionals = command === 'screenshot' ? resolvedPositionals : positionals;
   const recordedFlags =
     command === 'screenshot' && resolvedOut

@@ -78,11 +78,7 @@ export async function doubleClickLinux(x: number, y: number): Promise<void> {
   }
 }
 
-export async function longPressLinux(
-  x: number,
-  y: number,
-  durationMs = 800,
-): Promise<void> {
+export async function longPressLinux(x: number, y: number, durationMs = 800): Promise<void> {
   const { tool } = await ensureInputTool();
   await moveTo(x, y);
   if (tool === 'xdotool') {
@@ -139,9 +135,10 @@ export async function scrollLinux(
   // ydotool wheel units are ~40px each.
   let scrollCount = DEFAULT_SCROLL_CLICKS;
   if (options?.pixels != null) {
-    scrollCount = tool === 'xdotool'
-      ? Math.max(1, Math.round(options.pixels / 15))
-      : Math.max(1, Math.round(options.pixels / 40));
+    scrollCount =
+      tool === 'xdotool'
+        ? Math.max(1, Math.round(options.pixels / 15))
+        : Math.max(1, Math.round(options.pixels / 40));
   } else if (options?.amount != null) {
     // amount is a fraction (0–1+) of the viewport; scale relative to default
     scrollCount = Math.max(1, Math.round(DEFAULT_SCROLL_CLICKS * (options.amount / 0.6)));
@@ -149,7 +146,8 @@ export async function scrollLinux(
 
   // xdotool: button 4=up, 5=down, 6=left, 7=right
   if (tool === 'xdotool') {
-    const button = direction === 'up' ? '4' : direction === 'down' ? '5' : direction === 'left' ? '6' : '7';
+    const button =
+      direction === 'up' ? '4' : direction === 'down' ? '5' : direction === 'left' ? '6' : '7';
     await xdotool('click', '--repeat', String(scrollCount), button);
   } else {
     // ydotool: wheel events use positive/negative values
@@ -177,12 +175,7 @@ export async function typeLinux(text: string, delayMs = 0): Promise<void> {
   }
 }
 
-export async function fillLinux(
-  x: number,
-  y: number,
-  text: string,
-  delayMs = 0,
-): Promise<void> {
+export async function fillLinux(x: number, y: number, text: string, delayMs = 0): Promise<void> {
   // Click to focus the field
   await pressLinux(x, y);
   await sleep(100);

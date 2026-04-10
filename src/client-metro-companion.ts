@@ -60,16 +60,12 @@ export type StopMetroCompanionOptions = {
   consumerKey?: string;
 };
 
-function hashToken(token: string): string {
+function hashString(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
 function normalizeOptionalString(input: string | undefined): string | undefined {
   return input?.trim() ? input.trim() : undefined;
-}
-
-function hashValue(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }
 
 function resolveCompanionPaths(
@@ -83,7 +79,7 @@ function resolveCompanionPaths(
       logPath: path.join(dir, METRO_COMPANION_LOG_FILE),
     };
   }
-  const profileHash = hashValue(profileKey).slice(0, 12);
+  const profileHash = hashString(profileKey).slice(0, 12);
   const profileDir = path.join(dir, METRO_COMPANION_STATE_DIR);
   return {
     statePath: path.join(profileDir, `metro-companion-${profileHash}.json`),
@@ -153,7 +149,7 @@ function shouldReuseCompanion(
     state.serverBaseUrl === normalizeBaseUrl(options.serverBaseUrl) &&
     state.localBaseUrl === normalizeBaseUrl(options.localBaseUrl) &&
     state.launchUrl === normalizeOptionalString(options.launchUrl) &&
-    state.tokenHash === hashToken(options.bearerToken)
+    state.tokenHash === hashString(options.bearerToken)
   );
 }
 
@@ -255,7 +251,7 @@ function spawnCompanionProcess(
     serverBaseUrl: normalizeBaseUrl(options.serverBaseUrl),
     localBaseUrl: normalizeBaseUrl(options.localBaseUrl),
     launchUrl: normalizeOptionalString(options.launchUrl),
-    tokenHash: hashToken(options.bearerToken),
+    tokenHash: hashString(options.bearerToken),
     consumers: [],
   };
 }

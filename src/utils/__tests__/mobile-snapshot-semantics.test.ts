@@ -226,9 +226,7 @@ test('mobile presentation handles nodes with negative coordinates', () => {
   ];
 
   const presentation = buildMobileSnapshotPresentation(nodes);
-  const visibleLabels = presentation.nodes
-    .filter((n) => n.label)
-    .map((n) => n.label);
+  const visibleLabels = presentation.nodes.filter((n) => n.label).map((n) => n.label);
   assert.ok(visibleLabels.includes('Visible'));
 });
 
