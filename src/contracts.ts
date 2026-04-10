@@ -1,3 +1,5 @@
+// Keep this public daemon contract shape aligned with MetroRuntimeHints in src/metro.ts
+// and the internal MetroRuntimeHints in src/client-metro.ts.
 export type SessionRuntimeHints = {
   platform?: 'ios' | 'android';
   metroHost?: string;

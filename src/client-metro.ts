@@ -52,6 +52,7 @@ type MetroBridgeResponsePayload = {
   };
 };
 
+// Keep this internal shape aligned with the public copies in src/metro.ts and src/contracts.ts.
 export type MetroRuntimeHints = {
   platform?: 'ios' | 'android';
   metroHost?: string;
@@ -79,27 +80,6 @@ export type MetroBridgeResult = {
     latencyMs: number;
     detail: string;
   };
-};
-
-export type PrepareRemoteMetroOptions = {
-  projectRoot: string;
-  kind: Exclude<MetroPrepareKind, 'auto'> | MetroPrepareKind;
-  publicBaseUrl: string;
-  proxyBaseUrl?: string;
-  proxyBearerToken?: string;
-  launchUrl?: string;
-  profileKey?: string;
-  consumerKey?: string;
-  port?: number;
-  listenHost?: string;
-  statusHost?: string;
-  startupTimeoutMs?: number;
-  probeTimeoutMs?: number;
-  reuseExisting?: boolean;
-  installDependenciesIfNeeded?: boolean;
-  runtimeFilePath?: string;
-  logPath?: string;
-  env?: EnvSource;
 };
 
 export type PrepareMetroRuntimeOptions = {

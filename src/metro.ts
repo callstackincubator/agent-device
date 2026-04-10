@@ -3,6 +3,8 @@ import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-compani
 
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
+// Keep this public shape aligned with SessionRuntimeHints in src/contracts.ts and the
+// internal MetroRuntimeHints in src/client-metro.ts.
 export type MetroRuntimeHints = {
   platform?: 'ios' | 'android';
   metroHost?: string;
@@ -70,7 +72,7 @@ export type EnsureMetroTunnelOptions = {
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
-  env?: NodeJS.ProcessEnv;
+  env?: EnvSource;
 };
 
 export type EnsureMetroTunnelResult = {
