@@ -4,6 +4,22 @@ Use `createAgentDeviceClient()` when you want to drive the daemon from applicati
 
 For remote Metro-backed flows, import the reusable Node APIs instead of spawning the `agent-device` binary. The CLI uses the same helpers internally.
 
+Public subpath API exposed for Node consumers:
+
+- `agent-device/metro`
+  - `prepareRemoteMetro(options)`
+  - `ensureMetroTunnel(options)`
+  - `stopMetroTunnel(options)`
+  - `buildIosRuntimeHints(baseUrl)`
+  - `buildAndroidRuntimeHints(baseUrl)`
+  - types: `PrepareRemoteMetroOptions`, `PrepareRemoteMetroResult`, `EnsureMetroTunnelOptions`, `EnsureMetroTunnelResult`, `StopMetroTunnelOptions`, `MetroRuntimeHints`, `MetroBridgeResult`
+- `agent-device/remote-config`
+  - `resolveRemoteConfigPath(options)`
+  - `resolveRemoteConfigProfile(options)`
+  - types: `RemoteConfigProfile`, `RemoteConfigProfileOptions`, `ResolvedRemoteConfigProfile`
+- `agent-device/contracts`
+  - types: `SessionRuntimeHints`, `DaemonInstallSource`, `DaemonLockPolicy`, `DaemonRequestMeta`, `DaemonRequest`, `DaemonArtifact`, `DaemonResponseData`, `DaemonError`, `DaemonResponse`
+
 ## Basic usage
 
 ```ts
