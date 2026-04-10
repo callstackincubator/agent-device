@@ -1,10 +1,8 @@
 import type { CliFlags } from './command-schema.ts';
-import {
-  REMOTE_OPEN_PROFILE_KEYS,
-  resolveRemoteConfigProfile,
-  type RemoteConfigProfile,
-} from '../remote-config-core.ts';
+import { REMOTE_OPEN_PROFILE_KEYS, type RemoteConfigProfile } from '../remote-config-schema.ts';
+import { resolveRemoteConfigProfile } from '../remote-config-core.ts';
 
+// This subset is intentional: only the flags used by remote-config-backed CLI defaults belong here.
 export const REMOTE_OPEN_FLAG_KEYS = [
   'remoteConfig',
   ...REMOTE_OPEN_PROFILE_KEYS,

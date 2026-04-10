@@ -6,8 +6,10 @@ import {
   getConfigurableOptionSpecs,
   isFlagSupportedForCommand,
   parseOptionValueFromSource,
+  resolveSourceValueDefinition,
 } from '../cli-option-schema.ts';
 import { AppError } from '../errors.ts';
+import { REMOTE_CONFIG_FIELD_SPECS, getRemoteConfigEnvNames } from '../../remote-config-schema.ts';
 
 test('option schema exposes config/env metadata for global options', () => {
   const spec = getOptionSpec('platform');
@@ -40,6 +42,20 @@ test('option schema exposes legacy env aliases and command scoping', () => {
     'AGENT_DEVICE_METRO_BEARER_TOKEN',
     'AGENT_DEVICE_PROXY_TOKEN',
   ]);
+});
+
+test('remote config schema stays aligned with CLI option metadata', () => {
+  for (const field of REMOTE_CONFIG_FIELD_SPECS) {
+    const spec = getOptionSpec(field.key);
+    assert.ok(spec, `missing option spec for ${field.key}`);
+    assert.deepEqual(spec.env.names, getRemoteConfigEnvNames(field.key));
+
+    const definition = resolveSourceValueDefinition(spec);
+    assert.equal(definition.type, field.type);
+    assert.equal(definition.min, 'min' in field ? field.min : undefined);
+    assert.equal(definition.max, 'max' in field ? field.max : undefined);
+    assert.deepEqual(definition.enumValues ?? [], 'enumValues' in field ? field.enumValues ?? [] : []);
+  }
 });
 
 test('configurable option specs are filtered by command support', () => {
