@@ -3,15 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  loadRemoteConfigProfile,
-  mergeRemoteConfigProfile,
-  readRemoteConfigEnvDefaults,
-  resolveRemoteConfigProfile,
-  resolveRemoteConfigPath,
-} from '../remote-config.ts';
+import { resolveRemoteConfigProfile, resolveRemoteConfigPath } from '../remote-config.ts';
 
-test('public remote-config helpers resolve file paths and merge env defaults', () => {
+test('public remote-config helpers resolve file paths and merged profiles', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-config-public-'));
   try {
     const configDir = path.join(root, 'profiles');
@@ -35,19 +29,6 @@ test('public remote-config helpers resolve file paths and merge env defaults', (
     };
 
     assert.equal(resolveRemoteConfigPath({ configPath, cwd: root, env }), configPath);
-
-    const loaded = loadRemoteConfigProfile({ configPath, cwd: root, env });
-    assert.equal(loaded.resolvedPath, configPath);
-    assert.equal(loaded.profile.metroProjectRoot, projectRoot);
-    assert.equal(loaded.profile.platform, 'ios');
-
-    assert.deepEqual(readRemoteConfigEnvDefaults(env), {
-      metroPreparePort: 9090,
-    });
-
-    assert.deepEqual(mergeRemoteConfigProfile({ platform: 'android' }, { platform: 'ios' }), {
-      platform: 'ios',
-    });
 
     assert.deepEqual(resolveRemoteConfigProfile({ configPath, cwd: root, env }), {
       resolvedPath: configPath,

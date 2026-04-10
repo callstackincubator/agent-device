@@ -1,7 +1,7 @@
 import { serializeCloseResult, serializeOpenResult } from '../../client-shared.ts';
 import { stopMetroTunnel } from '../../metro.ts';
 import { resolveRemoteOpenRuntime } from '../../core/remote-open.ts';
-import { loadRemoteConfigProfile } from '../../remote-config.ts';
+import { resolveRemoteConfigProfile } from '../../remote-config.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
 import type { StopMetroTunnelOptions } from '../../metro.ts';
 import type { ClientCommandHandler } from './router.ts';
@@ -32,7 +32,7 @@ export const closeCommand: ClientCommandHandler = async ({ positionals, flags, c
     if (!flags.remoteConfig) return null;
     let remoteConfig;
     try {
-      remoteConfig = loadRemoteConfigProfile({
+      remoteConfig = resolveRemoteConfigProfile({
         configPath: flags.remoteConfig,
         cwd: process.cwd(),
         env: process.env,

@@ -41,24 +41,22 @@ export type RemoteConfigProfile = {
   metroNoInstallDeps?: boolean;
 };
 
-export type LoadRemoteConfigProfileOptions = {
+export type RemoteConfigProfileOptions = {
   configPath: string;
   cwd: string;
   env?: EnvMap;
 };
 
-export type LoadRemoteConfigProfileResult = {
+export type ResolvedRemoteConfigProfile = {
   resolvedPath: string;
   profile: RemoteConfigProfile;
 };
 
-export function resolveRemoteConfigPath(options: LoadRemoteConfigProfileOptions): string {
+export function resolveRemoteConfigPath(options: RemoteConfigProfileOptions): string {
   return resolveRemoteConfigFilePath(options);
 }
 
-export function loadRemoteConfigProfile(
-  options: LoadRemoteConfigProfileOptions,
-): LoadRemoteConfigProfileResult {
+function loadRemoteConfigProfile(options: RemoteConfigProfileOptions): ResolvedRemoteConfigProfile {
   const env = options.env ?? process.env;
   const resolvedPath = resolveRemoteConfigFilePath({
     configPath: options.configPath,
@@ -75,11 +73,11 @@ export function loadRemoteConfigProfile(
   };
 }
 
-export function readRemoteConfigEnvDefaults(env: EnvMap = process.env): RemoteConfigProfile {
+function readRemoteConfigEnvDefaults(env: EnvMap = process.env): RemoteConfigProfile {
   return readEnvFlagDefaultsForKeys(env, REMOTE_CONFIG_KEYS) as RemoteConfigProfile;
 }
 
-export function mergeRemoteConfigProfile(
+function mergeRemoteConfigProfile(
   ...profiles: Array<RemoteConfigProfile | null | undefined>
 ): RemoteConfigProfile {
   const merged: RemoteConfigProfile = {};
@@ -91,8 +89,8 @@ export function mergeRemoteConfigProfile(
 }
 
 export function resolveRemoteConfigProfile(
-  options: LoadRemoteConfigProfileOptions,
-): LoadRemoteConfigProfileResult {
+  options: RemoteConfigProfileOptions,
+): ResolvedRemoteConfigProfile {
   const envDefaults = readRemoteConfigEnvDefaults(options.env);
   const loaded = loadRemoteConfigProfile(options);
   return {

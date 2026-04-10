@@ -1,33 +1,94 @@
-import {
-  buildMetroRuntimeHints,
-  prepareMetroRuntime,
-  type MetroBridgeResult,
-  type MetroRuntimeHints,
-  type PrepareRemoteMetroOptions,
-  type PrepareMetroRuntimeResult,
-} from './client-metro.ts';
-import {
-  ensureMetroCompanion,
-  stopMetroCompanion,
-  type EnsureMetroCompanionOptions,
-  type EnsureMetroCompanionResult,
-  type StopMetroCompanionOptions,
-} from './client-metro-companion.ts';
+import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
+import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
 
-export type {
-  MetroBridgeResult,
-  MetroRuntimeHints,
-  PrepareRemoteMetroOptions,
-  PrepareMetroRuntimeResult,
-  EnsureMetroCompanionOptions as EnsureMetroTunnelOptions,
-  EnsureMetroCompanionResult as EnsureMetroTunnelResult,
-  StopMetroCompanionOptions as StopMetroTunnelOptions,
+type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
+
+export type MetroRuntimeHints = {
+  platform?: 'ios' | 'android';
+  metroHost?: string;
+  metroPort?: number;
+  bundleUrl?: string;
+  launchUrl?: string;
+};
+
+export type MetroBridgeResult = {
+  enabled: boolean;
+  baseUrl: string;
+  statusUrl: string;
+  bundleUrl: string;
+  iosRuntime: MetroRuntimeHints;
+  androidRuntime: MetroRuntimeHints;
+  upstream: {
+    bundleUrl: string;
+    host: string;
+    port: number;
+    statusUrl: string;
+  };
+  probe: {
+    reachable: boolean;
+    statusCode: number;
+    latencyMs: number;
+    detail: string;
+  };
+};
+
+export type PrepareRemoteMetroOptions = {
+  projectRoot: string;
+  kind: 'auto' | 'react-native' | 'expo';
+  publicBaseUrl: string;
+  proxyBaseUrl?: string;
+  proxyBearerToken?: string;
+  launchUrl?: string;
+  profileKey?: string;
+  consumerKey?: string;
+  port?: number;
+  listenHost?: string;
+  statusHost?: string;
+  startupTimeoutMs?: number;
+  probeTimeoutMs?: number;
+  reuseExisting?: boolean;
+  installDependenciesIfNeeded?: boolean;
+  runtimeFilePath?: string;
+  logPath?: string;
+  env?: EnvSource;
+};
+
+export type PrepareRemoteMetroResult = {
+  iosRuntime: MetroRuntimeHints;
+  androidRuntime: MetroRuntimeHints;
+  bridge: MetroBridgeResult | null;
+  started: boolean;
+  reused: boolean;
+  logPath: string;
+};
+
+export type EnsureMetroTunnelOptions = {
+  projectRoot: string;
+  serverBaseUrl: string;
+  bearerToken: string;
+  localBaseUrl: string;
+  launchUrl?: string;
+  profileKey?: string;
+  consumerKey?: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+export type EnsureMetroTunnelResult = {
+  pid: number;
+  started: boolean;
+  logPath: string;
+};
+
+export type StopMetroTunnelOptions = {
+  projectRoot: string;
+  profileKey?: string;
+  consumerKey?: string;
 };
 
 export async function prepareRemoteMetro(
   options: PrepareRemoteMetroOptions,
-): Promise<PrepareMetroRuntimeResult> {
-  return await prepareMetroRuntime({
+): Promise<PrepareRemoteMetroResult> {
+  const prepared = await prepareMetroRuntime({
     projectRoot: options.projectRoot,
     kind: options.kind,
     publicBaseUrl: options.publicBaseUrl,
@@ -47,15 +108,28 @@ export async function prepareRemoteMetro(
     logPath: options.logPath,
     env: options.env,
   });
+  return {
+    iosRuntime: prepared.iosRuntime,
+    androidRuntime: prepared.androidRuntime,
+    bridge: prepared.bridge,
+    started: prepared.started,
+    reused: prepared.reused,
+    logPath: prepared.logPath,
+  };
 }
 
 export async function ensureMetroTunnel(
-  options: EnsureMetroCompanionOptions,
-): Promise<EnsureMetroCompanionResult> {
-  return await ensureMetroCompanion(options);
+  options: EnsureMetroTunnelOptions,
+): Promise<EnsureMetroTunnelResult> {
+  const ensured = await ensureMetroCompanion(options);
+  return {
+    pid: ensured.pid,
+    started: ensured.spawned,
+    logPath: ensured.logPath,
+  };
 }
 
-export async function stopMetroTunnel(options: StopMetroCompanionOptions): Promise<void> {
+export async function stopMetroTunnel(options: StopMetroTunnelOptions): Promise<void> {
   await stopMetroCompanion(options);
 }
 

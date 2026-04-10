@@ -276,9 +276,10 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     consumerRoot,
     ['--input-type=module', '-e'],
     `
+      import 'agent-device/contracts';
       import { buildIosRuntimeHints } from 'agent-device/metro';
-      import { loadRemoteConfigProfile } from 'agent-device/remote-config';
-      const loaded = loadRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
+      import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
+      const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
       console.log(JSON.stringify({
         bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
         resolvedPath: loaded.resolvedPath,

@@ -80,7 +80,9 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
   });
 
   assert.equal(prepared.reused, true);
-  assert.equal(tunnel.spawned, true);
+  assert.equal(prepared.logPath, '/tmp/project/.agent-device/metro.log');
+  assert.equal(tunnel.started, true);
+  assert.equal(tunnel.logPath, '/tmp/project/.agent-device/metro-companion.log');
   assert.deepEqual(vi.mocked(prepareMetroRuntime).mock.calls[0]?.[0], {
     projectRoot: '/tmp/project',
     kind: 'react-native',
