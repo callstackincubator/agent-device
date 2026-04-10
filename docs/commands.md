@@ -50,7 +50,7 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
-- `open <app> --remote-config <path> --relaunch` is the canonical remote Metro-backed launch flow for sandbox agents. The remote profile supplies the remote host + Metro settings, `open` prepares Metro locally when needed, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
+- `open <app> --remote-config <path> --relaunch` is the canonical remote Metro-backed launch flow for sandbox agents. The remote profile supplies the remote host + Metro settings, `open` prepares Metro locally when needed, auto-starts the local Metro companion tunnel when the remote bridge requires it, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
 - `metro prepare --remote-config <path>` remains available for inspection and debugging. It prints JSON runtime hints to stdout, `--json` wraps them in the standard `{ success, data }` envelope, and `--runtime-file <path>` persists the same payload when callers need an artifact.
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
@@ -631,9 +631,11 @@ agent-device metro prepare --remote-config ./agent-device.remote.json --json
 ```
 
 - `--remote-config <path>` points to a remote workflow profile that captures stable host + Metro settings.
-- `open --remote-config ... --relaunch` is the main agent flow. It prepares Metro locally, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
+- `open --remote-config ... --relaunch` is the main agent flow. It prepares Metro locally, auto-manages the local Metro companion when the remote bridge is not already connected, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
 - `snapshot`, `press`, `fill`, `screenshot`, and other normal commands can reuse the same `--remote-config` profile so agents do not need to repeat remote host/session selectors inline.
 - `metro prepare --remote-config ...` remains the inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
+- The local Metro companion runs on the same machine as the React Native project and Metro. Users no longer need to launch it as a separate manual command for standard `agent-device` remote Metro flows.
+- `close --remote-config ...` tears down the managed Metro companion for that profile, but it does not stop the user’s Metro server.
 
 ## Session inspection
 
