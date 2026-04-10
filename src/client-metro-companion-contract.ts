@@ -1,5 +1,6 @@
 export const METRO_COMPANION_RUN_ARG = '--agent-device-run-metro-companion';
 export const METRO_COMPANION_RECONNECT_DELAY_MS = 1_000;
+export const METRO_COMPANION_LEASE_CHECK_INTERVAL_MS = 250;
 export const WS_READY_STATE_OPEN = 1;
 
 export const ENV_SERVER_BASE_URL = 'AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL';

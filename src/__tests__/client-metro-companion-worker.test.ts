@@ -597,3 +597,44 @@ test('metro companion worker exits after its state file is removed', async () =>
   assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
   assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
 });
+
+test('metro companion worker exits immediately when its state file is already missing', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
+  const statePath = path.join(tempRoot, 'missing-metro-companion.json');
+  cleanupTasks.push(async () => {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  const companion = spawn(
+    process.execPath,
+    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  cleanupTasks.push(() => stopChild(companion));
+
+  let stderr = '';
+  companion.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  const exit = await waitFor(
+    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+      companion.once('exit', (code, signal) => resolve({ code, signal }));
+    }),
+    5_000,
+    'worker exit with missing state file',
+  );
+
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
+});

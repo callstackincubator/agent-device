@@ -6,6 +6,7 @@ import {
   ENV_LOCAL_BASE_URL,
   ENV_SERVER_BASE_URL,
   ENV_STATE_PATH,
+  METRO_COMPANION_LEASE_CHECK_INTERVAL_MS,
   METRO_COMPANION_RECONNECT_DELAY_MS,
   METRO_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
@@ -76,6 +77,12 @@ function normalizeCloseCode(code: number | undefined): number {
   return 1011;
 }
 
+function normalizeOutgoingCloseCode(code: number): number {
+  if (code === 1000) return code;
+  if (code >= 3000 && code <= 4999) return code;
+  return 3001;
+}
+
 function sendJson(socket: WebSocket, payload: object): void {
   if (socket.readyState !== WS_READY_STATE_OPEN) return;
   socket.send(JSON.stringify(payload));
@@ -128,20 +135,14 @@ async function waitForSocketShutdown(socket: WebSocket): Promise<void> {
 
 function closeSocketQuietly(socket: WebSocket, code: number, reason: string): void {
   try {
-    socket.close(code, reason);
+    socket.close(normalizeOutgoingCloseCode(code), reason);
   } catch {
     // ignore shutdown races
   }
 }
 
 function shouldKeepWorkerRunning(options: CompanionOptions): boolean {
-  if (!options.statePath) return true;
-  try {
-    fs.accessSync(options.statePath, fs.constants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
+  return !options.statePath || fs.existsSync(options.statePath);
 }
 
 async function handleBridgeMessage(
@@ -268,9 +269,12 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
   const upstreamSockets = new Map<string, WebSocket>();
   const lifetimeHandle = setInterval(() => {
     if (!shouldKeepWorkerRunning(options)) {
+      // Node's built-in WebSocket client does not expose a force-close API. If the peer never
+      // answers the close handshake, a detached worker can linger indefinitely, so lease expiry
+      // uses a hard exit to guarantee teardown.
       process.exit(0);
     }
-  }, METRO_COMPANION_RECONNECT_DELAY_MS);
+  }, METRO_COMPANION_LEASE_CHECK_INTERVAL_MS);
   lifetimeHandle.unref();
   while (shouldKeepWorkerRunning(options)) {
     try {
@@ -290,6 +294,9 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
       upstreamSockets.forEach((socket) => closeSocketQuietly(socket, 1012, 'bridge disconnected'));
       upstreamSockets.clear();
     } catch (error) {
+      if (!shouldKeepWorkerRunning(options)) {
+        break;
+      }
       console.error(error instanceof Error ? error.message : String(error));
     }
     if (!shouldKeepWorkerRunning(options)) {
