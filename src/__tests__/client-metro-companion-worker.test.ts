@@ -422,6 +422,9 @@ test('metro companion worker reconnects after the bridge closes immediately afte
       socket.destroy();
       return;
     }
+    socket.on('error', () => {
+      // The first bridge socket is expected to drop immediately to exercise reconnect handling.
+    });
     const key = req.headers['sec-websocket-key'];
     if (typeof key !== 'string') {
       socket.destroy();
