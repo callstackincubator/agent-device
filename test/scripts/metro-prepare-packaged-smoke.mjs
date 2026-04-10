@@ -135,9 +135,6 @@ async function runCliWithHeartbeat(command, args, cwd) {
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
-    const heartbeat = setInterval(() => {
-      console.error('[smoke] waiting for packaged metro prepare...');
-    }, 1_000);
     const timeout = setTimeout(() => {
       child.kill('SIGKILL');
       reject(
@@ -147,12 +144,10 @@ async function runCliWithHeartbeat(command, args, cwd) {
       );
     }, 30_000);
     child.on('error', (error) => {
-      clearInterval(heartbeat);
       clearTimeout(timeout);
       reject(error);
     });
     child.on('close', (code) => {
-      clearInterval(heartbeat);
       clearTimeout(timeout);
       resolve({
         status: code,
@@ -226,7 +221,6 @@ async function main() {
         }
         registerCalls += 1;
         registerBody = body;
-        console.error(`[smoke] companion register #${registerCalls}`);
         res.writeHead(200, {
           'content-type': 'application/json',
           connection: 'close',
@@ -255,7 +249,6 @@ async function main() {
         }
         bridgeCalls += 1;
         bridgeBodies.push(body);
-        console.error(`[smoke] bridge request #${bridgeCalls}`);
         if (registerCalls === 0) {
           res.writeHead(503, {
             'content-type': 'application/json',
@@ -386,17 +379,11 @@ async function main() {
     assert.equal(fs.existsSync(metroEntryPath), true, 'expected packaged Metro companion entry');
     assert.equal(fs.existsSync(updateCheckEntryPath), true, 'expected packaged update-check entry');
 
-    console.error('[smoke] running packaged metro prepare');
     const cliResult = await runCliWithHeartbeat(
       process.execPath,
       [cliPath, 'metro', 'prepare', '--remote-config', remoteConfigPath, '--json'],
       projectRoot,
     );
-    console.error('[smoke] packaged metro prepare completed');
-    console.error(`[smoke] cli status=${String(cliResult.status)}`);
-    console.error(`[smoke] cli stdout=${cliResult.stdout.trim()}`);
-    console.error(`[smoke] cli stderr=${cliResult.stderr.trim()}`);
-    console.error(`[smoke] registerCalls=${registerCalls} bridgeCalls=${bridgeCalls}`);
 
     assert.equal(
       cliResult.status,
@@ -427,7 +414,6 @@ async function main() {
       bridgeBodies.at(-1)?.ios_runtime?.metro_bundle_url,
       'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
     );
-    console.error('[smoke] assertions passed');
   } finally {
     stopProcessIfAlive(companionPid);
     for (const socket of wsSockets) {
