@@ -52,6 +52,51 @@ export type ResolvedRemoteConfigProfile = {
   profile: RemoteConfigProfile;
 };
 
+const REMOTE_CONFIG_PROFILE_KEYS = [
+  'stateDir',
+  'daemonBaseUrl',
+  'daemonAuthToken',
+  'daemonTransport',
+  'daemonServerMode',
+  'tenant',
+  'sessionIsolation',
+  'runId',
+  'leaseId',
+  'platform',
+  'target',
+  'device',
+  'udid',
+  'serial',
+  'iosSimulatorDeviceSet',
+  'androidDeviceAllowlist',
+  'session',
+  'metroProjectRoot',
+  'metroKind',
+  'metroPublicBaseUrl',
+  'metroProxyBaseUrl',
+  'metroBearerToken',
+  'metroPreparePort',
+  'metroListenHost',
+  'metroStatusHost',
+  'metroStartupTimeoutMs',
+  'metroProbeTimeoutMs',
+  'metroRuntimeFile',
+  'metroNoReuseExisting',
+  'metroNoInstallDeps',
+] as const satisfies readonly (keyof RemoteConfigProfile)[];
+
+function normalizeRemoteConfigProfile(source: object): RemoteConfigProfile {
+  const profile: RemoteConfigProfile = {};
+  const values = source as Partial<Record<keyof RemoteConfigProfile, unknown>>;
+  for (const key of REMOTE_CONFIG_PROFILE_KEYS) {
+    const value = values[key];
+    if (value !== undefined) {
+      (profile as Record<string, unknown>)[key] = value;
+    }
+  }
+  return profile;
+}
+
 export function resolveRemoteConfigPath(options: RemoteConfigProfileOptions): string {
   return resolveRemoteConfigFilePath(options);
 }
@@ -65,16 +110,18 @@ function loadRemoteConfigProfile(options: RemoteConfigProfileOptions): ResolvedR
   });
   return {
     resolvedPath,
-    profile: loadRemoteConfigFile({
-      configPath: options.configPath,
-      cwd: options.cwd,
-      env,
-    }) as RemoteConfigProfile,
+    profile: normalizeRemoteConfigProfile(
+      loadRemoteConfigFile({
+        configPath: options.configPath,
+        cwd: options.cwd,
+        env,
+      }),
+    ),
   };
 }
 
 function readRemoteConfigEnvDefaults(env: EnvMap = process.env): RemoteConfigProfile {
-  return readEnvFlagDefaultsForKeys(env, REMOTE_CONFIG_KEYS) as RemoteConfigProfile;
+  return normalizeRemoteConfigProfile(readEnvFlagDefaultsForKeys(env, REMOTE_CONFIG_KEYS));
 }
 
 function mergeRemoteConfigProfile(
