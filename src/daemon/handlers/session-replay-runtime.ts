@@ -6,16 +6,8 @@ import { SessionStore } from '../session-store.ts';
 import { parseReplayScript, writeReplayScript } from './session-replay-script.ts';
 import { healReplayAction } from './session-replay-heal.ts';
 import { formatScriptActionSummary } from '../script-utils.ts';
-
-const REPLAY_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = [
-  'platform',
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'verbose',
-  'out',
-];
+import { mergeParentFlags } from './handler-utils.ts';
+import { errorResponse } from './response.ts';
 
 export async function runReplayScriptFile(params: {
   req: DaemonRequest;
@@ -27,7 +19,7 @@ export async function runReplayScriptFile(params: {
   const { req, sessionName, logPath, sessionStore, invoke } = params;
   const filePath = req.positionals?.[0];
   if (!filePath) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'replay requires a path' } };
+    return errorResponse('INVALID_ARGS', 'replay requires a path');
   }
 
   let resolved = '';
@@ -37,13 +29,10 @@ export async function runReplayScriptFile(params: {
     const script = fs.readFileSync(resolved, 'utf8');
     const firstNonWhitespace = script.trimStart()[0];
     if (firstNonWhitespace === '{' || firstNonWhitespace === '[') {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'replay accepts .ad script files. JSON replay payloads are no longer supported.',
-        },
-      };
+      return errorResponse(
+        'INVALID_ARGS',
+        'replay accepts .ad script files. JSON replay payloads are no longer supported.',
+      );
     }
 
     const actions = parseReplayScript(script);
@@ -105,14 +94,11 @@ export async function runReplayScriptFile(params: {
     };
   } catch (err) {
     const appErr = asAppError(err);
-    return {
-      ok: false,
-      error: {
-        code: appErr.code,
-        message: appErr.message,
-        details: artifactPaths.size > 0 ? { artifactPaths: [...artifactPaths] } : undefined,
-      },
-    };
+    return errorResponse(
+      appErr.code,
+      appErr.message,
+      artifactPaths.size > 0 ? { artifactPaths: [...artifactPaths] } : undefined,
+    );
   }
 }
 
@@ -195,13 +181,5 @@ export function buildReplayActionFlags(
   parentFlags: CommandFlags | undefined,
   actionFlags: SessionAction['flags'] | undefined,
 ): CommandFlags {
-  const merged: CommandFlags = { ...(actionFlags ?? {}) };
-  const mergedRecord = merged as Record<string, unknown>;
-  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
-  for (const key of REPLAY_PARENT_FLAG_KEYS) {
-    if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
-      mergedRecord[key] = parentRecord[key];
-    }
-  }
-  return merged;
+  return mergeParentFlags(parentFlags, { ...(actionFlags ?? {}) });
 }

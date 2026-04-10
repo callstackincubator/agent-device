@@ -2,6 +2,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { adbArgs } from './adb.ts';
+import { roundPercent } from '../perf-utils.ts';
 
 export const ANDROID_CPU_SAMPLE_METHOD = 'adb-shell-dumpsys-cpuinfo';
 export const ANDROID_CPU_SAMPLE_DESCRIPTION =
@@ -166,9 +167,6 @@ function matchesAndroidPackageProcess(processName: string, packageName: string):
   return processName === packageName || processName.startsWith(`${packageName}:`);
 }
 
-function roundPercent(value: number): number {
-  return Math.round(value * 10) / 10;
-}
 
 function matchLabeledNumber(text: string, label: string): number | undefined {
   const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -11,6 +11,7 @@ import {
   resolveCommandDevice,
   selectorTargetsSessionDevice,
 } from './session-device-utils.ts';
+import { errorResponse, unsupportedOperationResponse } from './response.ts';
 
 async function ensureAndroidEmulatorBoot(params: {
   avdName: string;
@@ -41,10 +42,7 @@ async function handleAppStateCommand(params: {
       normalizedPlatform === 'ios'
         ? `No active session "${sessionName}". Run open with --session ${sessionName} first.`
         : `No active session "${sessionName}". Run open with --session ${sessionName} first, or omit --session to query by device selector.`;
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message },
-    };
+    return errorResponse('SESSION_NOT_FOUND', message);
   }
 
   const guard = requireSessionOrExplicitSelector('appstate', session, flags);
@@ -57,22 +55,10 @@ async function handleAppStateCommand(params: {
   const targetsMacOs = normalizedPlatform === 'macos';
 
   if (targetsIos && !shouldUseSessionStateForApple) {
-    return {
-      ok: false,
-      error: {
-        code: 'SESSION_NOT_FOUND',
-        message: IOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
-      },
-    };
+    return errorResponse('SESSION_NOT_FOUND', IOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
   if (targetsMacOs && !shouldUseSessionStateForApple) {
-    return {
-      ok: false,
-      error: {
-        code: 'SESSION_NOT_FOUND',
-        message: MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
-      },
-    };
+    return errorResponse('SESSION_NOT_FOUND', MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
 
   if (shouldUseSessionStateForApple && session) {
@@ -97,13 +83,10 @@ async function handleAppStateCommand(params: {
       }
 
       const sessionPlatform = session.device.platform === 'macos' ? 'macOS' : 'iOS';
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `No foreground app is tracked for this ${sessionPlatform} session. Open an app in the session, then retry appstate.`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `No foreground app is tracked for this ${sessionPlatform} session. Open an app in the session, then retry appstate.`,
+      );
     }
 
     return {
@@ -130,22 +113,10 @@ async function handleAppStateCommand(params: {
     ensureReady: true,
   });
   if (device.platform === 'ios') {
-    return {
-      ok: false,
-      error: {
-        code: 'SESSION_NOT_FOUND',
-        message: IOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
-      },
-    };
+    return errorResponse('SESSION_NOT_FOUND', IOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
   if (device.platform === 'macos') {
-    return {
-      ok: false,
-      error: {
-        code: 'SESSION_NOT_FOUND',
-        message: MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE,
-      },
-    };
+    return errorResponse('SESSION_NOT_FOUND', MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
 
   const { getAndroidAppState } = await import('../../platforms/android/index.ts');
@@ -178,13 +149,7 @@ export async function handleSessionStateCommands(params: {
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
     if (wantsAndroidHeadless && !targetsAndroid) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'boot --headless is supported only for Android emulators.',
-        },
-      };
+      return errorResponse('INVALID_ARGS', 'boot --headless is supported only for Android emulators.');
     }
 
     const fallbackAvdName = resolveAndroidEmulatorAvdName({
@@ -209,14 +174,10 @@ export async function handleSessionStateCommands(params: {
         !fallbackAvdName &&
         appErr.code === 'DEVICE_NOT_FOUND'
       ) {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message:
-              'boot --headless requires --device <avd-name> (or an Android emulator session target).',
-          },
-        };
+        return errorResponse(
+          'INVALID_ARGS',
+          'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+        );
       }
       if (
         !canFallbackLaunchAndroidEmulator ||
@@ -234,24 +195,15 @@ export async function handleSessionStateCommands(params: {
     }
 
     if (flags.target && (device.target ?? 'mobile') !== flags.target) {
-      return {
-        ok: false,
-        error: {
-          code: 'DEVICE_NOT_FOUND',
-          message: `No ${device.platform} device found matching --target ${flags.target}.`,
-        },
-      };
+      return errorResponse(
+        'DEVICE_NOT_FOUND',
+        `No ${device.platform} device found matching --target ${flags.target}.`,
+      );
     }
 
     if (targetsAndroid && wantsAndroidHeadless) {
       if (device.platform !== 'android' || device.kind !== 'emulator') {
-        return {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'boot --headless is supported only for Android emulators.',
-          },
-        };
+        return errorResponse('INVALID_ARGS', 'boot --headless is supported only for Android emulators.');
       }
       if (!launchedAndroidEmulator) {
         const avdName = resolveAndroidEmulatorAvdName({
@@ -260,14 +212,10 @@ export async function handleSessionStateCommands(params: {
           resolvedDevice: device,
         });
         if (!avdName) {
-          return {
-            ok: false,
-            error: {
-              code: 'INVALID_ARGS',
-              message:
-                'boot --headless requires --device <avd-name> (or an Android emulator session target).',
-            },
-          };
+          return errorResponse(
+            'INVALID_ARGS',
+            'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+          );
         }
         device = await ensureAndroidEmulatorBoot({
           avdName,
@@ -284,10 +232,7 @@ export async function handleSessionStateCommands(params: {
     }
 
     if (!isCommandSupportedOnDevice('boot', device)) {
-      return {
-        ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: 'boot is not supported on this device' },
-      };
+      return unsupportedOperationResponse('boot');
     }
 
     return {

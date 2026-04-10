@@ -10,7 +10,7 @@ import { extractNodeText, findNearestHittableAncestor } from '../snapshot-proces
 import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
-import { errorResponse } from './response.ts';
+import { errorResponse, sessionNotFoundResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 
 type FindContext = {
@@ -60,7 +60,7 @@ export async function handleFindCommands(params: {
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
   if (!session && !isReadOnly) {
-    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
+    return sessionNotFoundResponse();
   }
   const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
   if (!session) {
@@ -194,7 +194,7 @@ async function handleFindWait(
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
-  return { ok: false, error: { code: 'COMMAND_FAILED', message: 'find wait timed out' } };
+  return errorResponse('COMMAND_FAILED', 'find wait timed out');
 }
 
 async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
@@ -280,7 +280,7 @@ async function handleFindFill(
 ): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, session, invoke, command } = ctx;
   if (!value) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find fill requires text' } };
+    return errorResponse('INVALID_ARGS', 'find fill requires text');
   }
   const response = await invoke({
     token: req.token,
@@ -305,10 +305,7 @@ async function handleFindFocus(ctx: FindContext, match: ResolvedMatch): Promise<
   const { req, sessionStore, session, device, command, logPath } = ctx;
   const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
   if (!coords) {
-    return {
-      ok: false,
-      error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
-    };
+    return errorResponse('COMMAND_FAILED', 'matched element has no bounds');
   }
   const response = await dispatchCommand(
     device,
@@ -337,14 +334,11 @@ async function handleFindType(
 ): Promise<DaemonResponse> {
   const { req, sessionStore, session, device, command, logPath } = ctx;
   if (!value) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'find type requires text' } };
+    return errorResponse('INVALID_ARGS', 'find type requires text');
   }
   const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
   if (!coords) {
-    return {
-      ok: false,
-      error: { code: 'COMMAND_FAILED', message: 'matched element has no bounds' },
-    };
+    return errorResponse('COMMAND_FAILED', 'matched element has no bounds');
   }
   await dispatchCommand(device, 'focus', [String(coords.x), String(coords.y)], req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
@@ -375,19 +369,16 @@ function buildAmbiguousMatchError(
       extractNodeText(candidate) || candidate.label || candidate.identifier || candidate.type || '';
     return `@${candidate.ref}${label ? `(${label})` : ''}`;
   });
-  return {
-    ok: false,
-    error: {
-      code: 'AMBIGUOUS_MATCH',
-      message: `find matched ${matches.length} elements for ${locator} "${query}". Use a more specific locator or selector.`,
-      details: {
-        locator,
-        query,
-        matches: matches.length,
-        candidates,
-      },
+  return errorResponse(
+    'AMBIGUOUS_MATCH',
+    `find matched ${matches.length} elements for ${locator} "${query}". Use a more specific locator or selector.`,
+    {
+      locator,
+      query,
+      matches: matches.length,
+      candidates,
     },
-  };
+  );
 }
 
 type FindAction =

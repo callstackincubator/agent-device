@@ -33,7 +33,7 @@ import {
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
-import { errorResponse } from './response.ts';
+import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
 import { AppError } from '../../utils/errors.ts';
 import { getAndroidAppState } from '../../platforms/android/index.ts';
 
@@ -59,7 +59,7 @@ export async function handlePressCommand(params: {
   const command = req.command;
   const commandLabel = command === 'click' ? 'click' : 'press';
   if (!session) {
-    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
+    return sessionNotFoundResponse();
   }
 
   const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
@@ -70,7 +70,7 @@ export async function handlePressCommand(params: {
     return unsupportedSurfaceResponse;
   }
   if (!isCommandSupportedOnDevice('press', session.device)) {
-    return errorResponse('UNSUPPORTED_OPERATION', 'press is not supported on this device');
+    return unsupportedOperationResponse('press');
   }
 
   const clickButton = resolveClickButton(req.flags);
@@ -192,13 +192,10 @@ export async function handlePressCommand(params: {
 
   const selectorExpression = (req.positionals ?? []).join(' ').trim();
   if (!selectorExpression) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `${commandLabel} requires @ref, selector expression, or x y coordinates`,
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      `${commandLabel} requires @ref, selector expression, or x y coordinates`,
+    );
   }
 
   const chain = parseSelectorChain(selectorExpression);
@@ -221,25 +218,19 @@ export async function handlePressCommand(params: {
     { command },
   );
   if (!resolved || !resolved.node.rect) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
+    );
   }
 
   const actionableNode = resolveActionableTouchNode(snapshot.nodes, resolved.node);
   const pressPoint = resolveRectCenter(actionableNode.rect);
   if (!pressPoint) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `Selector ${resolved.selector.raw} resolved to invalid bounds`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `Selector ${resolved.selector.raw} resolved to invalid bounds`,
+    );
   }
 
   const { x, y } = pressPoint;

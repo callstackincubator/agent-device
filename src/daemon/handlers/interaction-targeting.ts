@@ -9,6 +9,7 @@ import {
 import { findNearestHittableAncestor, findNodeByLabel } from '../snapshot-processing.ts';
 import type { SessionStore } from '../session-store.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
+import { errorResponse } from './response.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import {
@@ -42,17 +43,14 @@ export function resolveRefTarget(params: {
   if (!session.snapshot) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'No snapshot in session. Run snapshot first.' },
-      },
+      response: errorResponse('INVALID_ARGS', 'No snapshot in session. Run snapshot first.'),
     };
   }
   const ref = normalizeRef(refInput);
   if (!ref) {
     return {
       ok: false,
-      response: { ok: false, error: { code: 'INVALID_ARGS', message: invalidRefMessage } },
+      response: errorResponse('INVALID_ARGS', invalidRefMessage),
     };
   }
   let node = findNodeByRef(session.snapshot.nodes, ref);
@@ -62,7 +60,7 @@ export function resolveRefTarget(params: {
   if (!node || (requireRect && !node.rect)) {
     return {
       ok: false,
-      response: { ok: false, error: { code: 'COMMAND_FAILED', message: notFoundMessage } },
+      response: errorResponse('COMMAND_FAILED', notFoundMessage),
     };
   }
   return { ok: true, target: { ref, node, snapshotNodes: session.snapshot.nodes } };
@@ -192,13 +190,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
   if (!point) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: invalidBoundsMessage,
-        },
-      },
+      response: errorResponse('COMMAND_FAILED', invalidBoundsMessage),
     };
   }
 

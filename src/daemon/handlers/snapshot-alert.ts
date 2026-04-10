@@ -6,6 +6,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
+import { errorResponse, unsupportedOperationResponse } from './response.ts';
 
 type HandleAlertCommandParams = {
   req: DaemonRequest;
@@ -34,13 +35,7 @@ export async function handleAlertCommand(
     };
   })();
   if (!isCommandSupportedOnDevice('alert', device)) {
-    return {
-      ok: false,
-      error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'alert is not supported on this device',
-      },
-    };
+    return unsupportedOperationResponse('alert');
   }
   if (device.platform === 'macos') {
     const runMacOsAlert = async () =>
@@ -61,7 +56,7 @@ export async function handleAlertCommand(
         }
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
-      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'alert wait timed out' } };
+      return errorResponse('COMMAND_FAILED', 'alert wait timed out');
     }
     const resolvedAction = action === 'accept' || action === 'dismiss' ? action : 'get';
     if (resolvedAction === 'accept' || resolvedAction === 'dismiss') {
@@ -108,7 +103,7 @@ export async function handleAlertCommand(
       }
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
-    return { ok: false, error: { code: 'COMMAND_FAILED', message: 'alert wait timed out' } };
+    return errorResponse('COMMAND_FAILED', 'alert wait timed out');
   }
 
   const resolvedAction =

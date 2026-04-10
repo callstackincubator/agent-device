@@ -2,6 +2,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
+import { errorResponse, unsupportedOperationResponse } from './response.ts';
 import {
   buildSnapshotVisibility,
   captureSnapshot,
@@ -39,13 +40,7 @@ export async function handleSnapshotCommands(params: {
   if (command === 'snapshot') {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     if (!isCommandSupportedOnDevice('snapshot', device)) {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'snapshot is not supported on this device',
-        },
-      };
+      return unsupportedOperationResponse('snapshot');
     }
     const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
     if (!resolvedScope.ok) return resolvedScope.response;
@@ -99,13 +94,7 @@ export async function handleSnapshotCommands(params: {
 
   if (command === 'diff') {
     if (req.positionals?.[0] !== 'snapshot') {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'diff currently supports only: diff snapshot',
-        },
-      };
+      return errorResponse('INVALID_ARGS', 'diff currently supports only: diff snapshot');
     }
     return await handleSnapshotDiffRequest({ req, sessionName, logPath, sessionStore });
   }
@@ -114,10 +103,7 @@ export async function handleSnapshotCommands(params: {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     const parsed = parseWaitArgs(req.positionals ?? []);
     if (!parsed) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'wait requires a duration or text' },
-      };
+      return errorResponse('INVALID_ARGS', 'wait requires a duration or text');
     }
     const executeWait = () =>
       handleWaitCommand({
@@ -236,13 +222,7 @@ async function handleSnapshotDiffRequest(params: {
   const { req, sessionName, logPath, sessionStore } = params;
   const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
   if (!isCommandSupportedOnDevice('diff', device)) {
-    return {
-      ok: false,
-      error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'diff is not supported on this device',
-      },
-    };
+    return unsupportedOperationResponse('diff');
   }
   const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
   if (!resolvedScope.ok) return resolvedScope.response;

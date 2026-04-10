@@ -8,6 +8,7 @@ import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { resolveTargetDevice } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import { errorResponse } from './response.ts';
 
 export const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
@@ -29,13 +30,10 @@ export function requireSessionOrExplicitSelector(
   if (session || hasExplicitDeviceSelector(flags)) {
     return null;
   }
-  return {
-    ok: false,
-    error: {
-      code: 'INVALID_ARGS',
-      message: `${command} requires an active session or an explicit device selector (e.g. --platform ios).`,
-    },
-  };
+  return errorResponse(
+    'INVALID_ARGS',
+    `${command} requires an active session or an explicit device selector (e.g. --platform ios).`,
+  );
 }
 
 export function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {

@@ -6,6 +6,7 @@ import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-clie
 import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
 import type { RecordTraceDeps, RecordingBase } from './record-trace-recording.ts';
+import { errorResponse } from './response.ts';
 
 export function normalizeAppBundleId(session: SessionState): string | undefined {
   const trimmed = session.appBundleId?.trim();
@@ -141,13 +142,10 @@ export async function startIosDeviceRecording(params: {
         : undefined;
   } catch (error) {
     if (!isRunnerRecordingAlreadyInProgressError(error)) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${formatRecordTraceError(error)}`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: ${formatRecordTraceError(error)}`,
+      );
     }
 
     emitDiagnostic({
@@ -168,13 +166,10 @@ export async function startIosDeviceRecording(params: {
       activeSession.name,
     );
     if (otherRecordingSession) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
+      );
     }
 
     try {
@@ -194,13 +189,10 @@ export async function startIosDeviceRecording(params: {
           ? startResult.targetAppReadyUptimeMs
           : undefined;
     } catch (retryError) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${formatRecordTraceError(retryError)}`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: ${formatRecordTraceError(retryError)}`,
+      );
     }
   }
 
@@ -237,13 +229,10 @@ export async function startMacOsRecording(params: {
       getRunnerOptions(req, logPath, activeSession),
     );
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to start recording: ${formatRecordTraceError(error)}`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `failed to start recording: ${formatRecordTraceError(error)}`,
+    );
   }
 
   return {
@@ -316,13 +305,10 @@ export async function stopIosDeviceRecording(params: {
       copyResult.stderr.trim() ||
       copyResult.stdout.trim() ||
       `devicectl exited with code ${copyResult.exitCode}`;
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to copy recording from device: ${copyError}`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `failed to copy recording from device: ${copyError}`,
+    );
   }
 
   const trimStartMs = resolveIosRecordingTrimStartMs(recording);

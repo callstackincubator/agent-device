@@ -4,6 +4,7 @@ import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
+import { errorResponse } from './response.ts';
 
 const RUNTIME_HINT_FIELD_NAMES = [
   'platform',
@@ -231,14 +232,7 @@ export function tryResolveOpenRuntimeHints(
     const appErr = asAppError(error);
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: appErr.code,
-          message: appErr.message,
-          details: appErr.details,
-        },
-      },
+      response: errorResponse(appErr.code, appErr.message, appErr.details),
     };
   }
 }

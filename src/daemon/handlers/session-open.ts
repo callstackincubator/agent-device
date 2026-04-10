@@ -26,6 +26,7 @@ import {
   validatePreResolvedOpenRequest,
   validateResolvedOpenRequest,
 } from './session-open-prepare.ts';
+import { errorResponse } from './response.ts';
 
 const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
@@ -150,14 +151,7 @@ async function completeOpenCommand(params: {
   await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
   if (isRequestCanceled(req.meta?.requestId)) {
     const canceled = createRequestCanceledError();
-    return {
-      ok: false,
-      error: {
-        code: canceled.code,
-        message: canceled.message,
-        details: canceled.details,
-      },
-    };
+    return errorResponse(canceled.code, canceled.message, canceled.details);
   }
 
   if (existingSession) {
@@ -209,13 +203,7 @@ export async function handleOpenCommand(params: {
   if (sessionStore.has(sessionName)) {
     const session = sessionStore.get(sessionName);
     if (!session) {
-      return {
-        ok: false,
-        error: {
-          code: 'SESSION_NOT_FOUND',
-          message: `Session "${sessionName}" not found.`,
-        },
-      };
+      return errorResponse('SESSION_NOT_FOUND', `Session "${sessionName}" not found.`);
     }
     const shouldRelaunch = req.flags?.relaunch === true;
     const requestedOpenTarget = req.positionals?.[0];
@@ -315,14 +303,11 @@ export async function handleOpenCommand(params: {
       .toArray()
       .find((activeSession) => activeSession.device.id === device.id);
     if (inUse) {
-      return {
-        ok: false,
-        error: {
-          code: 'DEVICE_IN_USE',
-          message: `Device is already in use by session "${inUse.name}".`,
-          details: { session: inUse.name, deviceId: device.id, deviceName: device.name },
-        },
-      };
+      return errorResponse(
+        'DEVICE_IN_USE',
+        `Device is already in use by session "${inUse.name}".`,
+        { session: inUse.name, deviceId: device.id, deviceName: device.name },
+      );
     }
 
     const details = await prepareOpenCommandDetails({

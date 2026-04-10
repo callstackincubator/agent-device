@@ -1,6 +1,7 @@
 import { AppError } from './errors.ts';
 import type { CliFlags } from './command-schema.ts';
 import type { DaemonLockPolicy } from '../daemon/types.ts';
+import { isEnvTruthy } from './retry.ts';
 
 export type BindingSettings = {
   defaultPlatform?: CliFlags['platform'];
@@ -107,18 +108,6 @@ function readConflictMode(raw: string | undefined): DaemonLockPolicy | undefined
   throw new AppError('INVALID_ARGS', `Invalid session lock mode: ${raw}. Use reject or strip.`);
 }
 
-function isEnvTruthy(raw: string | undefined): boolean {
-  if (!raw) return false;
-  switch (raw.trim().toLowerCase()) {
-    case '1':
-    case 'true':
-    case 'yes':
-    case 'on':
-      return true;
-    default:
-      return false;
-  }
-}
 
 function hasConfiguredSession(raw: string | undefined): boolean {
   return typeof raw === 'string' && raw.trim().length > 0;

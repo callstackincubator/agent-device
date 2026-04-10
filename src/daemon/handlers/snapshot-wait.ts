@@ -14,7 +14,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
-import { errorResponse } from './response.ts';
+import { errorResponse, unsupportedOperationResponse } from './response.ts';
 
 export type WaitParsed =
   | { kind: 'sleep'; durationMs: number }
@@ -85,7 +85,7 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
     return { ok: true, data: { waitedMs: parsed.durationMs } };
   }
   if (!isCommandSupportedOnDevice('wait', device)) {
-    return errorResponse('UNSUPPORTED_OPERATION', 'wait is not supported on this device');
+    return unsupportedOperationResponse('wait');
   }
 
   if (parsed.kind === 'selector') {
@@ -159,23 +159,14 @@ function resolveWaitText(
     if (!session?.snapshot) {
       return {
         ok: false,
-        response: {
-          ok: false,
-          error: {
-            code: 'INVALID_ARGS',
-            message: 'Ref wait requires an existing snapshot in session.',
-          },
-        },
+        response: errorResponse('INVALID_ARGS', 'Ref wait requires an existing snapshot in session.'),
       };
     }
     const ref = normalizeRef(parsed.rawRef);
     if (!ref) {
       return {
         ok: false,
-        response: {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: `Invalid ref: ${parsed.rawRef}` },
-        },
+        response: errorResponse('INVALID_ARGS', `Invalid ref: ${parsed.rawRef}`),
       };
     }
     const node = findNodeByRef(session.snapshot.nodes, ref);
@@ -183,13 +174,7 @@ function resolveWaitText(
     if (!resolved) {
       return {
         ok: false,
-        response: {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: `Ref ${parsed.rawRef} not found or has no label`,
-          },
-        },
+        response: errorResponse('COMMAND_FAILED', `Ref ${parsed.rawRef} not found or has no label`),
       };
     }
     return { ok: true, text: resolved, timeoutMs: parsed.timeoutMs };
@@ -198,7 +183,7 @@ function resolveWaitText(
   if (!parsed.text) {
     return {
       ok: false,
-      response: { ok: false, error: { code: 'INVALID_ARGS', message: 'wait requires text' } },
+      response: errorResponse('INVALID_ARGS', 'wait requires text'),
     };
   }
   return { ok: true, text: parsed.text, timeoutMs: parsed.timeoutMs };

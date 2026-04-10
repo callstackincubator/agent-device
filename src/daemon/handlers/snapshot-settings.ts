@@ -9,6 +9,7 @@ import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { recordIfSession } from './snapshot-session.ts';
+import { errorResponse, unsupportedOperationResponse } from './response.ts';
 
 type ParsedSettingsArgs = {
   setting: string;
@@ -34,13 +35,7 @@ export function parseSettingsArgs(
   if (!setting || !state || (setting === 'permission' && !permissionTarget)) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: SETTINGS_INVALID_ARGS_MESSAGE,
-        },
-      },
+      response: errorResponse('INVALID_ARGS', SETTINGS_INVALID_ARGS_MESSAGE),
     };
   }
   return { ok: true, parsed: { setting, state, permissionTarget } };
@@ -52,22 +47,10 @@ export async function handleSettingsCommand(
   const { req, logPath, sessionStore, session, device, parsed } = params;
   const { setting, state, permissionTarget } = parsed;
   if (!isCommandSupportedOnDevice('settings', device)) {
-    return {
-      ok: false,
-      error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'settings is not supported on this device',
-      },
-    };
+    return unsupportedOperationResponse('settings');
   }
   if (device.platform === 'macos' && !isMacOsSettingSupported(setting)) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: getUnsupportedMacOsSettingMessage(setting),
-      },
-    };
+    return errorResponse('INVALID_ARGS', getUnsupportedMacOsSettingMessage(setting));
   }
 
   const appBundleId = session?.appBundleId;

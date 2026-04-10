@@ -16,6 +16,7 @@ import {
   resolveSessionAppBundleIdForTarget,
 } from './session-open-target.ts';
 import { AppError } from '../../utils/errors.ts';
+import { errorResponse } from './response.ts';
 import {
   resolveMacOsSurfaceAppState,
   resolveRequestedOpenSurface,
@@ -33,13 +34,7 @@ export type PreparedOpenCommandDetailsResult =
   | { type: 'details'; details: OpenCommandDetails };
 
 export function invalidOpenArgs(message: string): DaemonResponse {
-  return {
-    ok: false,
-    error: {
-      code: 'INVALID_ARGS',
-      message,
-    },
-  };
+  return errorResponse('INVALID_ARGS', message);
 }
 
 export function resolveOpenSurfaceResponse(
@@ -56,13 +51,10 @@ export function resolveOpenSurfaceResponse(
       existingSurface,
     });
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: error instanceof AppError ? error.code : 'INVALID_ARGS',
-        message: String((error as Error).message),
-      },
-    };
+    return errorResponse(
+      error instanceof AppError ? error.code : 'INVALID_ARGS',
+      String((error as Error).message),
+    );
   }
 }
 

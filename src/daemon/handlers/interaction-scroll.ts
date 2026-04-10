@@ -19,6 +19,7 @@ import type { InteractionHandlerParams } from './interaction-common.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
+import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
 
 type ScrollRefState = {
   ref: string;
@@ -41,19 +42,10 @@ export async function handleScrollIntoViewCommand(
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return sessionNotFoundResponse();
   }
   if (!isCommandSupportedOnDevice('scrollintoview', session.device)) {
-    return {
-      ok: false,
-      error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'scrollintoview is not supported on this device',
-      },
-    };
+    return unsupportedOperationResponse('scrollintoview');
   }
   const targetInput = req.positionals?.[0] ?? '';
   if (!targetInput.startsWith('@')) {
@@ -290,13 +282,7 @@ function finalizeScrollRefState(
   if (!viewportRect) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `scrollintoview could not infer viewport for ${targetInput}`,
-        },
-      },
+      response: errorResponse('COMMAND_FAILED', `scrollintoview could not infer viewport for ${targetInput}`),
     };
   }
   return {
@@ -337,19 +323,15 @@ function notFoundScrollResponse(
   details: ScrollNotFoundDetails = {},
 ): DaemonResponse {
   const { message, ...rest } = details;
-  return {
-    ok: false,
-    error: {
-      code: 'COMMAND_FAILED',
-      message:
-        typeof message === 'string' ? message : `scrollintoview could not find ${targetInput}`,
-      details: {
-        reason: 'not_found',
-        attempts,
-        ...rest,
-      },
+  return errorResponse(
+    'COMMAND_FAILED',
+    typeof message === 'string' ? message : `scrollintoview could not find ${targetInput}`,
+    {
+      reason: 'not_found',
+      attempts,
+      ...rest,
     },
-  };
+  );
 }
 
 function buildScrollIntoViewSuccessData(params: {

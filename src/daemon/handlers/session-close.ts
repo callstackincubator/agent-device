@@ -19,6 +19,7 @@ import {
   isIosSimulator,
   settleIosSimulator,
 } from './session-device-utils.ts';
+import { errorResponse } from './response.ts';
 
 async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   success: boolean;
@@ -102,7 +103,7 @@ export async function handleCloseCommand(params: {
   const { req, sessionName, logPath, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return { ok: false, error: { code: 'SESSION_NOT_FOUND', message: 'No active session' } };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session');
   }
   if (session.appLog) {
     await stopAppLog(session.appLog);

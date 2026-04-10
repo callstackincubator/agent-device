@@ -7,16 +7,8 @@ import {
 import type { BatchStep, CommandFlags } from '../../core/dispatch.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
-
-const BATCH_PARENT_FLAG_KEYS: Array<keyof CommandFlags> = [
-  'platform',
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'verbose',
-  'out',
-];
+import { mergeParentFlags } from './handler-utils.ts';
+import { errorResponse } from './response.ts';
 
 export async function runBatchCommands(
   req: DaemonRequest,
@@ -25,23 +17,11 @@ export async function runBatchCommands(
 ): Promise<DaemonResponse> {
   const batchOnError = req.flags?.batchOnError ?? 'stop';
   if (batchOnError !== 'stop') {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `Unsupported batch on-error mode: ${batchOnError}.`,
-      },
-    };
+    return errorResponse('INVALID_ARGS', `Unsupported batch on-error mode: ${batchOnError}.`);
   }
   const batchMaxSteps = req.flags?.batchMaxSteps ?? DEFAULT_BATCH_MAX_STEPS;
   if (!Number.isInteger(batchMaxSteps) || batchMaxSteps < 1 || batchMaxSteps > 1000) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`,
-      },
-    };
+    return errorResponse('INVALID_ARGS', `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`);
   }
   try {
     const steps = validateAndNormalizeBatchSteps(req.flags?.batchSteps, batchMaxSteps);
@@ -84,10 +64,7 @@ export async function runBatchCommands(
     };
   } catch (error) {
     const appErr = asAppError(error);
-    return {
-      ok: false,
-      error: { code: appErr.code, message: appErr.message, details: appErr.details },
-    };
+    return errorResponse(appErr.code, appErr.message, appErr.details);
   }
 }
 
@@ -153,12 +130,5 @@ function buildBatchStepFlags(
     batchMaxSteps: _batchMaxSteps,
     ...merged
   } = stepFlags ?? {};
-  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
-  const mergedRecord = merged as Record<string, unknown>;
-  for (const key of BATCH_PARENT_FLAG_KEYS) {
-    if (mergedRecord[key] === undefined && parentRecord[key] !== undefined) {
-      mergedRecord[key] = parentRecord[key];
-    }
-  }
-  return merged as CommandFlags;
+  return mergeParentFlags(parentFlags, merged as CommandFlags);
 }

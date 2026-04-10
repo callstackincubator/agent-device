@@ -10,6 +10,7 @@ import { readVersion } from './utils/version.ts';
 import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
+import { throwDaemonError } from './daemon-error.ts';
 import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
@@ -209,12 +210,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             flags: batchFlags,
           });
           if (!response.ok) {
-            throw new AppError(response.error.code as any, response.error.message, {
-              ...(response.error.details ?? {}),
-              hint: response.error.hint,
-              diagnosticId: response.error.diagnosticId,
-              logPath: response.error.logPath,
-            });
+            throwDaemonError(response.error);
           }
           if (flags.json) {
             printJson({ success: true, data: response.data ?? {} });

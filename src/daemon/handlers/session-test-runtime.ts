@@ -1,6 +1,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { asAppError } from '../../utils/errors.ts';
+import { errorResponse } from './response.ts';
 import {
   clearRequestCanceled,
   markRequestCanceled,
@@ -43,10 +44,7 @@ export async function runReplayTestAttempt(params: {
   })
     .catch((error) => {
       const appErr = asAppError(error);
-      return {
-        ok: false,
-        error: { code: appErr.code, message: appErr.message },
-      } as DaemonResponse;
+      return errorResponse(appErr.code, appErr.message) as DaemonResponse;
     })
     .finally(() => {
       clearRequestCanceled(requestId);

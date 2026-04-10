@@ -5,6 +5,7 @@ import type { SessionStore } from '../session-store.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
+import { errorResponse } from './response.ts';
 
 export async function resolveSelectorTarget(params: {
   command: string;
@@ -56,15 +57,12 @@ export async function resolveSelectorTarget(params: {
   if (!resolved || (requireRect && !resolved.node.rect)) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], {
-            unique: requireUnique,
-          }),
-        },
-      },
+      response: errorResponse(
+        'COMMAND_FAILED',
+        formatSelectorFailure(chain, resolved?.diagnostics ?? [], {
+          unique: requireUnique,
+        }),
+      ),
     };
   }
   return { ok: true, chain, snapshot, resolved };

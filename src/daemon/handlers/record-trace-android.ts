@@ -5,6 +5,7 @@ import type { DaemonResponse, SessionState } from '../types.ts';
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-recording.ts';
+import { errorResponse } from './response.ts';
 
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
 const ANDROID_REMOTE_FILE_ATTEMPTS = 20;
@@ -296,13 +297,7 @@ export async function startAndroidRecording(params: {
     await cleanupAndroidRemoteRecording(deps, device.id, remotePath);
   }
 
-  return {
-    ok: false,
-    error: {
-      code: 'COMMAND_FAILED',
-      message: lastStartError,
-    },
-  };
+  return errorResponse('COMMAND_FAILED', lastStartError);
 }
 
 export async function stopAndroidRecording(params: {
@@ -363,13 +358,7 @@ export async function stopAndroidRecording(params: {
     });
     if (copyError) {
       await cleanupRemoteRecording();
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: copyError,
-        },
-      };
+      return errorResponse('COMMAND_FAILED', copyError);
     }
 
     persistRecordingTelemetry({
@@ -396,23 +385,11 @@ export async function stopAndroidRecording(params: {
   await cleanupRemoteRecording();
 
   if (stopError) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: stopError,
-      },
-    };
+    return errorResponse('COMMAND_FAILED', stopError);
   }
 
   if (cleanupError) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: cleanupError,
-      },
-    };
+    return errorResponse('COMMAND_FAILED', cleanupError);
   }
 
   return null;

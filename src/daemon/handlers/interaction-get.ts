@@ -6,28 +6,22 @@ import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
+import {
+  errorResponse,
+  sessionNotFoundResponse,
+  unsupportedOperationResponse,
+} from './response.ts';
 
 export async function handleGetCommand(params: InteractionHandlerParams): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const sub = req.positionals?.[0];
   if (sub !== 'text' && sub !== 'attrs') {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'get only supports text or attrs' },
-    };
+    return errorResponse('INVALID_ARGS', 'get only supports text or attrs');
   }
   const session = sessionStore.get(sessionName);
-  if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
-  }
+  if (!session) return sessionNotFoundResponse();
   if (!isCommandSupportedOnDevice('get', session.device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: 'get is not supported on this device' },
-    };
+    return unsupportedOperationResponse('get');
   }
   const refInput = req.positionals?.[1] ?? '';
   if (refInput.startsWith('@')) {
@@ -77,10 +71,7 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
 
   const selectorExpression = req.positionals.slice(1).join(' ').trim();
   if (!selectorExpression) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'get requires @ref or selector expression' },
-    };
+    return errorResponse('INVALID_ARGS', 'get requires @ref or selector expression');
   }
   const resolvedSelectorTarget = await resolveSelectorTarget({
     command: req.command,

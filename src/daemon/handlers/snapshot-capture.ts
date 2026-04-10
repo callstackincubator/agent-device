@@ -25,6 +25,7 @@ import {
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import { errorResponse } from './response.ts';
 
 function isDesktopBackend(backend: SnapshotBackend | undefined): boolean {
   return backend === 'macos-helper' || backend === 'linux-atspi';
@@ -374,23 +375,14 @@ export function resolveSnapshotScope(
   if (!session?.snapshot) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'Ref scope requires an existing snapshot in session.',
-        },
-      },
+      response: errorResponse('INVALID_ARGS', 'Ref scope requires an existing snapshot in session.'),
     };
   }
   const ref = normalizeRef(snapshotScope.trim());
   if (!ref) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: `Invalid ref scope: ${snapshotScope}` },
-      },
+      response: errorResponse('INVALID_ARGS', `Invalid ref scope: ${snapshotScope}`),
     };
   }
   const node = findNodeByRef(session.snapshot.nodes, ref);
@@ -398,13 +390,7 @@ export function resolveSnapshotScope(
   if (!resolved) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `Ref ${snapshotScope} not found or has no label`,
-        },
-      },
+      response: errorResponse('COMMAND_FAILED', `Ref ${snapshotScope} not found or has no label`),
     };
   }
   return { ok: true, scope: resolved };

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
+import { displayNodeLabel } from './snapshot-tree.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import { styleText } from 'node:util';
 import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
@@ -327,9 +328,6 @@ function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
   return duplicateCount >= 8;
 }
 
-function displayNodeLabel(node: SnapshotNode): string {
-  return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
-}
 
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
   return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
