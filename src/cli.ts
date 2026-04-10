@@ -242,7 +242,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         });
 
         if (response.ok) {
-          writeCommandCliOutput(command, positionals, flags, response.data ?? {});
+          const exitCode = writeCommandCliOutput(command, positionals, flags, response.data ?? {});
+          if (exitCode !== 0) {
+            if (logTailStopper) logTailStopper();
+            process.exit(exitCode);
+          }
           return;
         }
 
@@ -282,6 +286,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             }
           }
         }
+        if (logTailStopper) logTailStopper();
         process.exit(1);
       } finally {
         if (logTailStopper) logTailStopper();
@@ -331,19 +336,17 @@ function writeCommandCliOutput(
   positionals: string[],
   flags: { json?: boolean; verbose?: boolean; snapshotRaw?: boolean; snapshotInteractiveOnly?: boolean; reportJunit?: string },
   data: Record<string, unknown>,
-): void {
+): number {
   if (flags.json) {
     if (command === 'test') {
-      const testExitCode = renderReplayTestResponse({
+      return renderReplayTestResponse({
         suite: data as ReplaySuiteResult,
         json: true,
         reportJunit: flags.reportJunit,
       });
-      if (testExitCode !== 0) process.exit(testExitCode);
-      return;
     }
     printJson({ success: true, data });
-    return;
+    return 0;
   }
 
   if (command === 'snapshot') {
@@ -351,40 +354,38 @@ function writeCommandCliOutput(
       raw: flags.snapshotRaw,
       flatten: flags.snapshotInteractiveOnly,
     }));
-    return;
+    return 0;
   }
   if (command === 'test') {
-    const testExitCode = renderReplayTestResponse({
+    return renderReplayTestResponse({
       suite: data as ReplaySuiteResult,
       verbose: flags.verbose,
       reportJunit: flags.reportJunit,
     });
-    if (testExitCode !== 0) process.exit(testExitCode);
-    return;
   }
   if (command === 'diff' && positionals[0] === 'snapshot') {
     process.stdout.write(formatSnapshotDiffText(data));
-    return;
+    return 0;
   }
   if (command === 'get') {
     const sub = positionals[0];
-    if (sub === 'text') { process.stdout.write(`${(data as any)?.text ?? ''}\n`); return; }
-    if (sub === 'attrs') { process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`); return; }
+    if (sub === 'text') { process.stdout.write(`${(data as any)?.text ?? ''}\n`); return 0; }
+    if (sub === 'attrs') { process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`); return 0; }
   }
   if (command === 'find') {
-    if (typeof (data as any)?.text === 'string') { process.stdout.write(`${(data as any).text}\n`); return; }
-    if (typeof (data as any)?.found === 'boolean') { process.stdout.write(`Found: ${(data as any).found}\n`); return; }
-    if ((data as any)?.node) { process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`); return; }
+    if (typeof (data as any)?.text === 'string') { process.stdout.write(`${(data as any).text}\n`); return 0; }
+    if (typeof (data as any)?.found === 'boolean') { process.stdout.write(`Found: ${(data as any).found}\n`); return 0; }
+    if ((data as any)?.node) { process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`); return 0; }
   }
   if (command === 'is') {
     process.stdout.write(`Passed: is ${(data as any)?.predicate ?? 'assertion'}\n`);
-    return;
+    return 0;
   }
   if (command === 'boot') {
     const platform = (data as any)?.platform ?? 'unknown';
     const device = (data as any)?.device ?? (data as any)?.id ?? 'unknown';
     process.stdout.write(`Boot ready: ${device} (${platform})\n`);
-    return;
+    return 0;
   }
   if (command === 'ensure-simulator') {
     const udid = typeof data?.udid === 'string' ? data.udid : 'unknown';
@@ -394,30 +395,30 @@ function writeCommandCliOutput(
     const bootedSuffix = data?.booted === true ? ' (booted)' : '';
     process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
     if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
-    return;
+    return 0;
   }
   if (command === 'screenshot') {
     const pathOut = typeof (data as any)?.path === 'string' ? (data as any).path : '';
     if (pathOut) process.stdout.write(`${pathOut}\n`);
-    return;
+    return 0;
   }
   if (command === 'record') {
     const outPath = typeof data?.outPath === 'string' ? data.outPath : '';
     if (outPath) process.stdout.write(`${outPath}\n`);
-    return;
+    return 0;
   }
   if (command === 'logs') {
     writeLogsCliOutput(data, flags);
-    return;
+    return 0;
   }
   if (command === 'clipboard') {
     const action = (positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')).toLowerCase();
-    if (action === 'read') { process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`); return; }
-    if (action === 'write') { process.stdout.write('Clipboard updated\n'); return; }
+    if (action === 'read') { process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`); return 0; }
+    if (action === 'write') { process.stdout.write('Clipboard updated\n'); return 0; }
   }
   if (command === 'network') {
     writeNetworkCliOutput(data);
-    return;
+    return 0;
   }
   if (command === 'click' || command === 'press') {
     const ref = (data as any)?.ref ?? '';
@@ -425,7 +426,7 @@ function writeCommandCliOutput(
     const y = (data as any)?.y;
     if (ref && typeof x === 'number' && typeof y === 'number') {
       process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
-      return;
+      return 0;
     }
   }
   if (command === 'devices') {
@@ -438,7 +439,7 @@ function writeCommandCliOutput(
       const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
       return `${name} (${platform}${kind}${target})${booted}`;
     }).join('\n')}\n`);
-    return;
+    return 0;
   }
   if (command === 'apps') {
     const apps = Array.isArray((data as any).apps) ? (data as any).apps : [];
@@ -453,7 +454,7 @@ function writeCommandCliOutput(
       }
       return String(app);
     }).join('\n')}\n`);
-    return;
+    return 0;
   }
   if (command === 'appstate') {
     const platform = (data as any)?.platform;
@@ -461,17 +462,17 @@ function writeCommandCliOutput(
       process.stdout.write(`Foreground app: ${(data as any)?.appName ?? (data as any)?.appBundleId ?? 'unknown'}\n`);
       if ((data as any)?.appBundleId) process.stdout.write(`Bundle: ${(data as any).appBundleId}\n`);
       if ((data as any)?.source) process.stdout.write(`Source: ${(data as any).source}\n`);
-      return;
+      return 0;
     }
     if (platform === 'android') {
       process.stdout.write(`Foreground app: ${(data as any)?.package ?? 'unknown'}\n`);
       if ((data as any)?.activity) process.stdout.write(`Activity: ${(data as any).activity}\n`);
-      return;
+      return 0;
     }
   }
   if (command === 'perf') {
     process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
-    return;
+    return 0;
   }
   const successText = readCommandMessage(data);
   if (successText) {
@@ -480,6 +481,7 @@ function writeCommandCliOutput(
       process.stdout.write(`${extraLine}\n`);
     }
   }
+  return 0;
 }
 
 function writeLogsCliOutput(data: Record<string, unknown>, flags: { json?: boolean }): void {
