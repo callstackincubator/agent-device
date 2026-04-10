@@ -373,7 +373,7 @@ async function main() {
       'agent-device',
       'dist',
       'src',
-      'client-metro-companion-entry.js',
+      'metro-companion.js',
     );
     const updateCheckEntryPath = path.join(
       installRoot,

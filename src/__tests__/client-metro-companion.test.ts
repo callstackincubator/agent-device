@@ -34,7 +34,7 @@ function assertCompanionSpawnTarget(): void {
   assert.ok(firstCall, 'expected runCmdDetached to be called');
   assert.equal(firstCall[0], process.execPath);
   assert.ok(
-    firstCall[1].some((arg) => arg.includes('src/client-metro-companion-entry.ts')),
+    firstCall[1].some((arg) => arg.includes('src/metro-companion.ts')),
     `expected companion entry path in ${JSON.stringify(firstCall[1])}`,
   );
   assert.equal(firstCall[1].at(-1), '--agent-device-run-metro-companion');

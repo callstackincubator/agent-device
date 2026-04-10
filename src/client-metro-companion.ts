@@ -226,10 +226,7 @@ function buildCompanionEnv(
 function resolveCompanionEntryModulePath(): string {
   const currentModulePath = fileURLToPath(import.meta.url);
   const extension = path.extname(currentModulePath) || '.js';
-  const entryPath = path.join(
-    path.dirname(currentModulePath),
-    `client-metro-companion-entry${extension}`,
-  );
+  const entryPath = path.join(path.dirname(currentModulePath), `metro-companion${extension}`);
   if (!fs.existsSync(entryPath)) {
     throw new Error(
       `Metro companion entrypoint not found at ${entryPath}. Rebuild the package to include the companion worker entry.`,
