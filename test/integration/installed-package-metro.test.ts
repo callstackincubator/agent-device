@@ -35,6 +35,10 @@ async function closeServer(server: http.Server): Promise<void> {
   });
 }
 
+function destroySocket(socket: Duplex | null): void {
+  socket?.destroy();
+}
+
 function readJson(stdout: string): any {
   return JSON.parse(stdout);
 }
@@ -257,7 +261,7 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     });
     bridgePort = await listen(bridgeServer);
     t.after(async () => {
-      bridgeSocketRef?.destroy();
+      destroySocket(bridgeSocketRef);
       await closeServer(bridgeServer);
     });
 
@@ -347,7 +351,7 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
         // best effort cleanup for detached companions during test teardown
       });
     }
-    bridgeSocketRef?.destroy();
+    destroySocket(bridgeSocketRef);
     await closeServer(bridgeServer);
     await closeServer(metroServer);
     fs.rmSync(root, { recursive: true, force: true });
