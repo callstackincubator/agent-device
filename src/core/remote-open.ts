@@ -1,7 +1,7 @@
 import type { AgentDeviceClient } from '../client.ts';
+import { resolveRemoteConfigPath } from '../remote-config.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { AppError } from '../utils/errors.ts';
-import { resolveRemoteConfigPath } from '../utils/remote-config.ts';
 
 export async function resolveRemoteOpenRuntime(
   flags: CliFlags,
