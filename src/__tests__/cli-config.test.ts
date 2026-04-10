@@ -27,6 +27,7 @@ async function runCliCapture(
   options?: {
     cwd?: string;
     env?: Record<string, string | undefined>;
+    sendToDaemon?: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>;
   },
 ): Promise<RunResult> {
   let stdout = '';
@@ -61,10 +62,12 @@ async function runCliCapture(
     return true;
   }) as typeof process.stderr.write;
 
-  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-    calls.push(req);
-    return { ok: true, data: {} };
-  };
+  const sendToDaemon =
+    options?.sendToDaemon ??
+    (async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
+      calls.push(req);
+      return { ok: true, data: {} };
+    });
 
   try {
     await runCli(argv, { sendToDaemon });
@@ -261,6 +264,65 @@ test('remote config defaults override generic config and env for remote workflow
     result.calls[0]?.flags?.daemonBaseUrl,
     'http://remote-mac.example.test:9124/agent-device',
   );
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('install-from-source forwards remote-config run id with explicit lease binding', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'micha-pierzcha-a',
+      sessionIsolation: 'tenant',
+      runId: 'demo-run-001',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+
+  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
+  const result = await runCliCapture(
+    [
+      'install-from-source',
+      'https://example.com/app.apk',
+      '--remote-config',
+      remoteConfig,
+      '--lease-id',
+      'lease-demo-001',
+      '--json',
+    ],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        calls.push(req);
+        return {
+          ok: true,
+          data: {
+            launchTarget: 'com.example.demo',
+            packageName: 'com.example.demo',
+          },
+        };
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.stderr, '');
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.launchTarget, 'com.example.demo');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.meta?.tenantId, 'micha-pierzcha-a');
+  assert.equal(calls[0]?.meta?.runId, 'demo-run-001');
+  assert.equal(calls[0]?.meta?.leaseId, 'lease-demo-001');
+  assert.equal(calls[0]?.flags?.tenant, 'micha-pierzcha-a');
+  assert.equal(calls[0]?.flags?.runId, 'demo-run-001');
+  assert.equal(calls[0]?.flags?.leaseId, 'lease-demo-001');
+  assert.deepEqual(calls[0]?.positionals, []);
 
   fs.rmSync(root, { recursive: true, force: true });
 });
