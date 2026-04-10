@@ -8,7 +8,7 @@ import {
   type MetroTunnelResponseMessage,
 } from '../metro.ts';
 
-test('public metro protocol helpers expose stable bridge payload types and url helpers', () => {
+test('public metro exports expose stable bridge payload types and url helpers', () => {
   const descriptor: MetroBridgeDescriptor = {
     enabled: true,
     base_url: 'https://bridge.example.test',
@@ -46,7 +46,7 @@ test('public metro protocol helpers expose stable bridge payload types and url h
   );
 });
 
-test('public metro protocol exports stable tunnel message types', () => {
+test('public metro exports compile for representative tunnel request and response payloads', () => {
   const request: MetroTunnelRequestMessage = {
     type: 'ws-frame',
     streamId: 'stream-1',
@@ -60,6 +60,9 @@ test('public metro protocol exports stable tunnel message types', () => {
     headers: { 'content-type': 'application/json' },
   };
 
+  const messages = [request, response];
+
   assert.equal(request.type, 'ws-frame');
   assert.equal(response.type, 'http-response');
+  assert.equal(messages.length, 2);
 });

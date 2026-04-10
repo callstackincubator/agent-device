@@ -25,7 +25,7 @@ type MetroProcessResult = {
   pid: number;
 };
 
-// Keep this internal shape aligned with the public copies in src/metro.ts and src/contracts.ts.
+// Keep this internal shape aligned with the public Metro/runtime contracts.
 export type MetroRuntimeHints = {
   platform?: 'ios' | 'android';
   metroHost?: string;

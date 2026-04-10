@@ -118,6 +118,8 @@ type RuntimeSchema<T> = {
   parse(input: unknown): T;
 };
 
+// Keep the public contracts entrypoint dependency-free. These schemas exist so bridge/cloud
+// consumers can validate shared payloads without pulling in an additional runtime library.
 function schema<T>(parse: (input: unknown, path: string) => T): RuntimeSchema<T> {
   return {
     parse(input: unknown): T {
@@ -360,11 +362,14 @@ export const leaseHeartbeatSchema = schema<LeaseHeartbeatPayload>((input, path) 
 );
 
 export const leaseReleaseSchema = schema<LeaseReleasePayload>((input, path) => {
-  const parsed = parseLeaseCommon(input, path);
+  const record = expectObject(input, path);
+  if (record.ttlMs !== undefined) {
+    fail(`${path}.ttlMs`, 'Unexpected field');
+  }
   return {
-    token: parsed.token,
-    session: parsed.session,
-    leaseId: parsed.leaseId,
+    token: optionalString(record, 'token', path),
+    session: optionalString(record, 'session', path),
+    leaseId: optionalString(record, 'leaseId', path),
   };
 });
 

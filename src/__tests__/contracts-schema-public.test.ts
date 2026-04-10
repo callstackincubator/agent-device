@@ -72,4 +72,13 @@ test('public contract schemas reject invalid payloads', () => {
       }),
     /\.id/,
   );
+  assert.throws(
+    () =>
+      leaseReleaseSchema.parse({
+        token: 'secret',
+        leaseId: 'lease-1',
+        ttlMs: 60_000,
+      }),
+    /\.ttlMs/,
+  );
 });
