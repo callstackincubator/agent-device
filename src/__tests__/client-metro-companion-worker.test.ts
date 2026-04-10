@@ -385,3 +385,111 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   assert.equal(echoedMessage, 'hello websocket');
   assert.equal(closeFrame.code, 1000);
 });
+
+test('metro companion worker reconnects after the bridge closes immediately after open', async () => {
+  const bridgeReconnect = createDeferred<void>();
+  let bridgeConnections = 0;
+  let bridgePort = 0;
+  let bridgeSocketRef: Duplex | null = null;
+
+  const localServer = http.createServer((_, res) => {
+    res.writeHead(404);
+    res.end('not found');
+  });
+  cleanupTasks.push(() => closeServer(localServer));
+  const localPort = await listen(localServer);
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
+          }),
+        );
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end('not found');
+  });
+  bridgeServer.on('upgrade', (req, socket) => {
+    if (req.url !== '/bridge') {
+      socket.destroy();
+      return;
+    }
+    const key = req.headers['sec-websocket-key'];
+    if (typeof key !== 'string') {
+      socket.destroy();
+      return;
+    }
+    const accept = crypto
+      .createHash('sha1')
+      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest('base64');
+    socket.write(
+      [
+        'HTTP/1.1 101 Switching Protocols',
+        'Upgrade: websocket',
+        'Connection: Upgrade',
+        `Sec-WebSocket-Accept: ${accept}`,
+        '\r\n',
+      ].join('\r\n'),
+    );
+    bridgeSocketRef = socket;
+    bridgeConnections += 1;
+    if (bridgeConnections === 1) {
+      socket.end();
+      return;
+    }
+    bridgeReconnect.resolve();
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(async () => {
+    bridgeSocketRef?.destroy();
+  });
+  const listenedBridgePort = await listen(bridgeServer);
+  bridgePort = listenedBridgePort;
+
+  const companion = spawn(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      'src/client-metro-companion.ts',
+      '--agent-device-run-metro-companion',
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  let stderr = '';
+  companion.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+  cleanupTasks.push(() => stopChild(companion));
+
+  const earlyExit = new Promise<never>((_, reject) => {
+    companion.once('exit', (code, signal) => {
+      reject(
+        new Error(
+          `Metro companion exited unexpectedly with code=${String(code)} signal=${String(signal)} stderr=${stderr}`,
+        ),
+      );
+    });
+  });
+
+  await Promise.race([waitFor(bridgeReconnect.promise, 5_000, 'bridge reconnect'), earlyExit]);
+
+  assert.equal(bridgeConnections, 2);
+});

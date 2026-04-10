@@ -29,7 +29,6 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 - Tests: run deterministic `.ad` scripts as a light e2e test suite.
 - Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
   `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
-- Remote Metro flows: `open --remote-config <path> --relaunch` prepares Metro locally and auto-manages the local Metro companion tunnel when a hosted bridge needs access back to the developer machine.
 - Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
 
 ## Command Flow
@@ -59,15 +58,6 @@ In practice, most work follows the same pattern:
 6. `close` when the session is finished.
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
-
-## Performance Metrics
-
-`agent-device perf --json` (alias: `metrics --json`) returns session-scoped metrics data.
-
-- Startup timing is available on iOS and Android from `open` command round-trip sampling.
-- Android app sessions also sample CPU (`adb shell dumpsys cpuinfo`) and memory (`adb shell dumpsys meminfo <package>`) when the session has an active app package context.
-- Apple app sessions on macOS and iOS simulators sample CPU and memory from process snapshots resolved from the active app bundle ID.
-- Physical iOS devices sample CPU and memory from a short `xcrun xctrace` Activity Monitor capture against the connected device, so `perf` can take a few seconds longer there than on simulators or macOS.
 
 ## Where To Go Next
 

@@ -106,6 +106,7 @@ async function waitForSocketOpen(socket: WebSocket, label: string): Promise<void
 }
 
 async function waitForSocketShutdown(socket: WebSocket): Promise<void> {
+  if (socket.readyState >= WebSocket.CLOSING) return;
   await new Promise<void>((resolve) => {
     const finish = () => {
       cleanup();
@@ -117,6 +118,9 @@ async function waitForSocketShutdown(socket: WebSocket): Promise<void> {
     };
     socket.addEventListener('close', finish, { once: true });
     socket.addEventListener('error', finish, { once: true });
+    if (socket.readyState >= WebSocket.CLOSING) {
+      finish();
+    }
   });
 }
 
