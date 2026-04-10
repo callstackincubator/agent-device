@@ -1,18 +1,11 @@
+import type { SessionRuntimeHints } from './contracts.ts';
 import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
-// Keep this public shape aligned with SessionRuntimeHints in src/contracts.ts and the
-// internal MetroRuntimeHints in src/client-metro.ts.
-export type MetroRuntimeHints = {
-  platform?: 'ios' | 'android';
-  metroHost?: string;
-  metroPort?: number;
-  bundleUrl?: string;
-  launchUrl?: string;
-};
+export type MetroRuntimeHints = SessionRuntimeHints;
 
 export type MetroBridgeResult = {
   enabled: boolean;

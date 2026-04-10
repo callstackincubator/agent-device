@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureMetroCompanion } from './client-metro-companion.ts';
-import type { MetroBridgeDescriptor, MetroBridgeRuntimePayload } from './metro.ts';
+import type {
+  MetroBridgeDescriptor,
+  MetroBridgeResult,
+  MetroBridgeRuntimePayload,
+  MetroRuntimeHints,
+} from './metro.ts';
 import { AppError } from './utils/errors.ts';
 import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
@@ -23,36 +28,6 @@ type PackageManagerConfig = {
 
 type MetroProcessResult = {
   pid: number;
-};
-
-// Keep this internal shape aligned with the public Metro/runtime contracts.
-export type MetroRuntimeHints = {
-  platform?: 'ios' | 'android';
-  metroHost?: string;
-  metroPort?: number;
-  bundleUrl?: string;
-  launchUrl?: string;
-};
-
-export type MetroBridgeResult = {
-  enabled: boolean;
-  baseUrl: string;
-  statusUrl: string;
-  bundleUrl: string;
-  iosRuntime: MetroRuntimeHints;
-  androidRuntime: MetroRuntimeHints;
-  upstream: {
-    bundleUrl: string;
-    host: string;
-    port: number;
-    statusUrl: string;
-  };
-  probe: {
-    reachable: boolean;
-    statusCode: number;
-    latencyMs: number;
-    detail: string;
-  };
 };
 
 export type PrepareMetroRuntimeOptions = {
