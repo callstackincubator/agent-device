@@ -17,37 +17,41 @@ test('public contract schemas validate daemon requests and lease payloads', () =
     bundleUrl: 'https://example.test/index.bundle?platform=ios',
   });
   const request = daemonCommandRequestSchema.parse({
-    token: 'secret',
-    session: 'default',
     command: 'open',
     positionals: ['Demo'],
     runtime,
     meta: {
       tenantId: 'acme',
       runId: 'run-1',
+      leaseBackend: 'ios-instance',
       lockPolicy: 'reject',
       lockPlatform: 'ios',
     },
   });
   const allocate = leaseAllocateSchema.parse({
-    token: 'secret',
     tenantId: 'acme',
     runId: 'run-1',
     ttlMs: 60_000,
-    backend: 'ios-simulator',
+    backend: 'android-instance',
   });
   const heartbeat = leaseHeartbeatSchema.parse({
-    token: 'secret',
+    tenantId: 'acme',
+    runId: 'run-1',
     leaseId: 'lease-1',
     ttlMs: 60_000,
   });
   const release = leaseReleaseSchema.parse({
-    token: 'secret',
+    tenant: 'acme',
+    runId: 'run-1',
     leaseId: 'lease-1',
   });
 
   assert.equal(request.runtime?.platform, 'ios');
-  assert.equal(allocate.backend, 'ios-simulator');
+  assert.equal(request.meta?.leaseBackend, 'ios-instance');
+  assert.equal(request.session, undefined);
+  assert.equal(allocate.backend, 'android-instance');
+  assert.equal(heartbeat.runId, 'run-1');
+  assert.equal(release.tenant, 'acme');
   assert.equal(heartbeat.leaseId, 'lease-1');
   assert.equal(release.leaseId, 'lease-1');
 });

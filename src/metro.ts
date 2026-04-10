@@ -38,15 +38,15 @@ export type MetroBridgeRuntimePayload = {
 export type MetroBridgeDescriptor = {
   enabled: boolean;
   base_url: string;
-  status_url: string;
-  bundle_url: string;
+  status_url?: string;
+  bundle_url?: string;
   ios_runtime: MetroBridgeRuntimePayload;
   android_runtime: MetroBridgeRuntimePayload;
   upstream: {
-    bundle_url: string;
-    host: string;
-    port: number;
-    status_url: string;
+    bundle_url?: string;
+    host?: string;
+    port?: number;
+    status_url?: string;
   };
   probe: {
     reachable: boolean;

@@ -20,6 +20,7 @@ export type DaemonInstallSource =
     };
 
 export type DaemonLockPolicy = 'reject' | 'strip';
+export type LeaseBackend = 'ios-simulator' | 'ios-instance' | 'android-instance';
 
 export type DaemonRequestMeta = {
   requestId?: string;
@@ -29,7 +30,7 @@ export type DaemonRequestMeta = {
   runId?: string;
   leaseId?: string;
   leaseTtlMs?: number;
-  leaseBackend?: 'ios-simulator';
+  leaseBackend?: LeaseBackend;
   sessionIsolation?: 'none' | 'tenant';
   uploadedArtifactId?: string;
   clientArtifactPaths?: Record<string, string>;
@@ -42,8 +43,8 @@ export type DaemonRequestMeta = {
 };
 
 export type DaemonRequest = {
-  token: string;
-  session: string;
+  token?: string;
+  session?: string;
   command: string;
   positionals: string[];
   flags?: Record<string, unknown>;
@@ -89,12 +90,15 @@ export type LeaseAllocatePayload = {
   tenant?: string;
   runId?: string;
   ttlMs?: number;
-  backend?: 'ios-simulator';
+  backend?: LeaseBackend;
 };
 
 export type LeaseHeartbeatPayload = {
   token?: string;
   session?: string;
+  tenantId?: string;
+  tenant?: string;
+  runId?: string;
   leaseId?: string;
   ttlMs?: number;
 };
@@ -102,6 +106,9 @@ export type LeaseHeartbeatPayload = {
 export type LeaseReleasePayload = {
   token?: string;
   session?: string;
+  tenantId?: string;
+  tenant?: string;
+  runId?: string;
   leaseId?: string;
 };
 
@@ -259,8 +266,8 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
   const rawPositionals = expectArray(record.positionals, `${path}.positionals`);
   const meta = optionalObject(record, 'meta', path);
   return {
-    token: expectString(record.token, `${path}.token`),
-    session: expectString(record.session, `${path}.session`),
+    token: optionalString(record, 'token', path),
+    session: optionalString(record, 'session', path),
     command: expectString(record.command, `${path}.command`),
     positionals: rawPositionals.map((value, index) =>
       expectString(value, `${path}.positionals[${String(index)}]`),
@@ -281,7 +288,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             leaseBackend: optionalEnum(
               meta,
               'leaseBackend',
-              ['ios-simulator'] as const,
+              ['ios-simulator', 'ios-instance', 'android-instance'] as const,
               `${path}.meta`,
             ),
             sessionIsolation: optionalEnum(
@@ -353,13 +360,28 @@ export const leaseAllocateSchema = schema<LeaseAllocatePayload>((input, path) =>
     tenant: optionalString(record, 'tenant', path),
     runId: optionalString(record, 'runId', path),
     ttlMs: optionalInteger(record, 'ttlMs', path),
-    backend: optionalEnum(record, 'backend', ['ios-simulator'] as const, path),
+    backend: optionalEnum(
+      record,
+      'backend',
+      ['ios-simulator', 'ios-instance', 'android-instance'] as const,
+      path,
+    ),
   };
 });
 
-export const leaseHeartbeatSchema = schema<LeaseHeartbeatPayload>((input, path) =>
-  parseLeaseCommon(input, path),
-);
+export const leaseHeartbeatSchema = schema<LeaseHeartbeatPayload>((input, path) => {
+  const parsed = parseLeaseCommon(input, path);
+  const record = expectObject(input, path);
+  return {
+    token: parsed.token,
+    session: parsed.session,
+    tenantId: optionalString(record, 'tenantId', path),
+    tenant: optionalString(record, 'tenant', path),
+    runId: optionalString(record, 'runId', path),
+    leaseId: parsed.leaseId,
+    ttlMs: parsed.ttlMs,
+  };
+});
 
 export const leaseReleaseSchema = schema<LeaseReleasePayload>((input, path) => {
   const record = expectObject(input, path);
@@ -369,6 +391,9 @@ export const leaseReleaseSchema = schema<LeaseReleasePayload>((input, path) => {
   return {
     token: optionalString(record, 'token', path),
     session: optionalString(record, 'session', path),
+    tenantId: optionalString(record, 'tenantId', path),
+    tenant: optionalString(record, 'tenant', path),
+    runId: optionalString(record, 'runId', path),
     leaseId: optionalString(record, 'leaseId', path),
   };
 });

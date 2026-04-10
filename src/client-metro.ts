@@ -372,15 +372,15 @@ function normalizeBridgeResponse(response: MetroBridgeDescriptor): MetroBridgeRe
   return {
     enabled: response.enabled,
     baseUrl: response.base_url,
-    statusUrl: response.status_url,
-    bundleUrl: response.bundle_url,
+    statusUrl: response.status_url ?? '',
+    bundleUrl: response.bundle_url ?? '',
     iosRuntime: normalizeProxyRuntimeHints(response.ios_runtime, 'ios'),
     androidRuntime: normalizeProxyRuntimeHints(response.android_runtime, 'android'),
     upstream: {
-      bundleUrl: response.upstream.bundle_url,
-      host: response.upstream.host,
-      port: response.upstream.port,
-      statusUrl: response.upstream.status_url,
+      bundleUrl: response.upstream.bundle_url ?? '',
+      host: response.upstream.host ?? '',
+      port: response.upstream.port ?? 0,
+      statusUrl: response.upstream.status_url ?? '',
     },
     probe: {
       reachable: response.probe.reachable,

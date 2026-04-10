@@ -24,9 +24,12 @@ export type DaemonResponseData = PublicDaemonResponseData;
 type DaemonRequestMeta = Omit<PublicDaemonRequestMeta, 'installSource' | 'lockPlatform'> & {
   installSource?: DaemonInstallSource;
   lockPlatform?: PlatformSelector;
+  leaseBackend?: 'ios-simulator';
 };
 
-export type DaemonRequest = Omit<PublicDaemonRequest, 'flags' | 'meta'> & {
+export type DaemonRequest = Omit<PublicDaemonRequest, 'token' | 'session' | 'flags' | 'meta'> & {
+  token: string;
+  session: string;
   flags?: CommandFlags;
   meta?: DaemonRequestMeta;
 };

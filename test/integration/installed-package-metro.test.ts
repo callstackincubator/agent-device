@@ -286,8 +286,6 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
         normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
         protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
         parsedCommand: daemonCommandRequestSchema.parse({
-          token: 'secret',
-          session: 'default',
           command: 'session_list',
           positionals: []
         }).command,

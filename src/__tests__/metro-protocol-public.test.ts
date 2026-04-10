@@ -12,8 +12,6 @@ test('public metro exports expose stable bridge payload types and url helpers', 
   const descriptor: MetroBridgeDescriptor = {
     enabled: true,
     base_url: 'https://bridge.example.test',
-    status_url: 'https://bridge.example.test/status',
-    bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
     ios_runtime: {
       metro_host: '127.0.0.1',
       metro_port: 8081,
@@ -26,9 +24,6 @@ test('public metro exports expose stable bridge payload types and url helpers', 
     },
     upstream: {
       bundle_url: 'http://127.0.0.1:8081/index.bundle?platform=ios',
-      host: '127.0.0.1',
-      port: 8081,
-      status_url: 'http://127.0.0.1:8081/status',
     },
     probe: {
       reachable: true,
@@ -38,7 +33,8 @@ test('public metro exports expose stable bridge payload types and url helpers', 
     },
   };
 
-  assert.equal(descriptor.upstream.port, 8081);
+  assert.equal(descriptor.upstream.port, undefined);
+  assert.equal(descriptor.status_url, undefined);
   assert.equal(normalizeBaseUrl('https://bridge.example.test///'), 'https://bridge.example.test');
   assert.equal(
     buildBundleUrl('https://bridge.example.test/', 'ios'),
