@@ -3,7 +3,7 @@ import { stopMetroCompanion } from '../../client-metro-companion.ts';
 import { resolveRemoteOpenRuntime } from '../../core/remote-open.ts';
 import { loadRemoteConfigFile, resolveRemoteConfigPath } from '../../utils/remote-config.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
-import type { AgentDeviceClient } from '../../client.ts';
+import type { StopMetroCompanionOptions } from '../../client-metro-companion.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const openCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -28,53 +28,57 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
 };
 
 export const closeCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
-  const stopManagedMetroCompanion = async (): Promise<void> => {
-    if (positionals[0]) return;
-    if (!flags.remoteConfig) return;
-    const remoteConfig = loadRemoteConfigFile({
+  const resolveManagedMetroCompanionStopOptions = (): StopMetroCompanionOptions | null => {
+    if (!flags.remoteConfig) return null;
+    const profileKey = resolveRemoteConfigPath({
       configPath: flags.remoteConfig,
       cwd: process.cwd(),
       env: process.env,
     });
-    if (remoteConfig.metroProjectRoot && remoteConfig.metroProxyBaseUrl) {
-      await stopMetroCompanion({
-        projectRoot: remoteConfig.metroProjectRoot,
-        profileKey: resolveRemoteConfigPath({
-          configPath: flags.remoteConfig,
-          cwd: process.cwd(),
-          env: process.env,
-        }),
-        consumerKey: flags.session,
+    let remoteConfig;
+    try {
+      remoteConfig = loadRemoteConfigFile({
+        configPath: flags.remoteConfig,
+        cwd: process.cwd(),
+        env: process.env,
       });
+    } catch {
+      return null;
+    }
+    if (!remoteConfig.metroProjectRoot || !remoteConfig.metroProxyBaseUrl) {
+      return null;
+    }
+    return {
+      projectRoot: remoteConfig.metroProjectRoot,
+      profileKey,
+      consumerKey: flags.session,
+    };
+  };
+
+  const managedMetroCompanionStopOptions = resolveManagedMetroCompanionStopOptions();
+
+  const runWithCompanionCleanup = async <T>(runClose: () => Promise<T>): Promise<T> => {
+    try {
+      return await runClose();
+    } finally {
+      try {
+        if (managedMetroCompanionStopOptions) {
+          await stopMetroCompanion(managedMetroCompanionStopOptions);
+        }
+      } catch {
+        // Companion cleanup is best-effort and must not turn a successful close into a failure.
+      }
     }
   };
 
-  let result:
-    | Awaited<ReturnType<AgentDeviceClient['apps']['close']>>
-    | Awaited<ReturnType<AgentDeviceClient['sessions']['close']>>;
-  let closeError: unknown;
-
-  try {
-    result = positionals[0]
-      ? await client.apps.close({ app: positionals[0], shutdown: flags.shutdown })
-      : await client.sessions.close({ shutdown: flags.shutdown });
-  } catch (error) {
-    closeError = error;
-  } finally {
-    try {
-      await stopManagedMetroCompanion();
-    } catch (cleanupError) {
-      if (!closeError) {
-        throw cleanupError;
-      }
+  const result = await runWithCompanionCleanup(async () => {
+    if (positionals[0]) {
+      return await client.apps.close({ app: positionals[0], shutdown: flags.shutdown });
     }
-  }
+    return await client.sessions.close({ shutdown: flags.shutdown });
+  });
 
-  if (closeError) {
-    throw closeError;
-  }
-
-  const data = serializeCloseResult(result!);
+  const data = serializeCloseResult(result);
   writeCommandMessage(flags, data);
   return true;
 };

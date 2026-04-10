@@ -206,7 +206,7 @@ test('close with remote-config still stops the managed Metro companion when clos
   }
 });
 
-test('close app with remote-config does not stop the managed Metro companion', async () => {
+test('close app with remote-config stops the managed Metro companion for that session', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-close-app-remote-metro-'));
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
   try {
@@ -279,8 +279,104 @@ test('close app with remote-config does not stop the managed Metro companion', a
       },
     };
 
+    vi.mocked(stopMetroCompanion).mockResolvedValue({
+      stopped: true,
+      statePath: '/tmp/project/.agent-device/metro-companion.json',
+    });
+
     const handled = await closeCommand({
       positionals: ['com.example.demo'],
+      flags: { ...parsed.flags, json: true, shutdown: true },
+      client,
+    });
+
+    assert.equal(handled, true);
+    assert.equal(vi.mocked(stopMetroCompanion).mock.calls.length, 1);
+    assert.deepEqual(vi.mocked(stopMetroCompanion).mock.calls[0]?.[0], {
+      projectRoot: '/tmp/project',
+      profileKey: remoteConfigPath,
+      consumerKey: 'adc-android',
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('close with remote-config still succeeds when the config file is gone before cleanup', async () => {
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-close-remote-metro-missing-config-'),
+  );
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  try {
+    fs.writeFileSync(
+      remoteConfigPath,
+      JSON.stringify({
+        daemonBaseUrl: 'https://daemon.example.test/agent-device',
+        session: 'adc-android',
+        platform: 'android',
+        metroProjectRoot: '/tmp/project',
+        metroProxyBaseUrl: 'https://proxy.example.test',
+      }),
+    );
+    const parsed = resolveCliOptions(['close', '--remote-config', remoteConfigPath], {
+      cwd: tempRoot,
+      env: process.env,
+    });
+    fs.rmSync(remoteConfigPath);
+
+    const client: AgentDeviceClient = {
+      devices: { list: async () => [] },
+      sessions: {
+        list: async () => [],
+        close: async () => ({
+          session: 'adc-android',
+          identifiers: { session: 'adc-android' },
+        }),
+      },
+      simulators: {
+        ensure: async () => {
+          throw new Error('unexpected call');
+        },
+      },
+      apps: {
+        install: async () => {
+          throw new Error('unexpected call');
+        },
+        reinstall: async () => {
+          throw new Error('unexpected call');
+        },
+        installFromSource: async () => {
+          throw new Error('unexpected call');
+        },
+        open: async () => {
+          throw new Error('unexpected call');
+        },
+        close: async () => {
+          throw new Error('unexpected call');
+        },
+      },
+      materializations: {
+        release: async () => {
+          throw new Error('unexpected call');
+        },
+      },
+      metro: {
+        prepare: async () => {
+          throw new Error('unexpected call');
+        },
+      },
+      capture: {
+        snapshot: async () => {
+          throw new Error('unexpected call');
+        },
+        screenshot: async () => {
+          throw new Error('unexpected call');
+        },
+      },
+    };
+
+    const handled = await closeCommand({
+      positionals: [],
       flags: { ...parsed.flags, json: true, shutdown: true },
       client,
     });
