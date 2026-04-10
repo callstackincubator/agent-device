@@ -277,11 +277,20 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     ['--input-type=module', '-e'],
     `
       import 'agent-device/contracts';
-      import { buildIosRuntimeHints } from 'agent-device/metro';
+      import { daemonCommandRequestSchema } from 'agent-device/contracts';
+      import { buildBundleUrl, buildIosRuntimeHints, normalizeBaseUrl } from 'agent-device/metro';
       import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
       const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
       console.log(JSON.stringify({
         bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
+        normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
+        protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
+        parsedCommand: daemonCommandRequestSchema.parse({
+          token: 'secret',
+          session: 'default',
+          command: 'session_list',
+          positionals: []
+        }).command,
         resolvedPath: loaded.resolvedPath,
         metroProjectRoot: loaded.profile.metroProjectRoot
       }));
@@ -291,6 +300,12 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     imports.bundleUrl,
     'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
   );
+  assert.equal(imports.normalizedBaseUrl, 'https://public.example.test');
+  assert.equal(
+    imports.protocolBundleUrl,
+    'https://public.example.test/index.bundle?platform=android&dev=true&minify=false',
+  );
+  assert.equal(imports.parsedCommand, 'session_list');
   assert.equal(imports.resolvedPath, remoteConfigPath);
   assert.equal(imports.metroProjectRoot, projectRoot);
 

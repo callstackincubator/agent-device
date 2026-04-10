@@ -1,5 +1,6 @@
 import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
+export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -33,6 +34,113 @@ export type MetroBridgeResult = {
     detail: string;
   };
 };
+
+export type MetroBridgeRuntimePayload = {
+  metro_host?: string;
+  metro_port?: number;
+  metro_bundle_url?: string;
+  launch_url?: string;
+};
+
+export type MetroBridgeDescriptor = {
+  enabled: boolean;
+  base_url: string;
+  status_url: string;
+  bundle_url: string;
+  ios_runtime: MetroBridgeRuntimePayload;
+  android_runtime: MetroBridgeRuntimePayload;
+  upstream: {
+    bundle_url: string;
+    host: string;
+    port: number;
+    status_url: string;
+  };
+  probe: {
+    reachable: boolean;
+    status_code: number;
+    latency_ms: number;
+    detail: string;
+  };
+};
+
+export type MetroTunnelPingMessage = {
+  type: 'ping';
+  timestamp: number;
+};
+
+export type MetroTunnelPongMessage = {
+  type: 'pong';
+  timestamp: number;
+};
+
+export type MetroTunnelHttpRequestMessage = {
+  type: 'http-request';
+  requestId: string;
+  method: string;
+  path: string;
+  headers?: Record<string, string>;
+  bodyBase64?: string;
+};
+
+export type MetroTunnelHttpResponseMessage = {
+  type: 'http-response';
+  requestId: string;
+  status: number;
+  headers: Record<string, string>;
+  bodyBase64?: string;
+};
+
+export type MetroTunnelHttpErrorMessage = {
+  type: 'http-error';
+  requestId: string;
+  message: string;
+};
+
+export type MetroTunnelWebSocketOpenMessage = {
+  type: 'ws-open';
+  streamId: string;
+  path: string;
+  headers?: Record<string, string>;
+};
+
+export type MetroTunnelWebSocketOpenResultMessage = {
+  type: 'ws-open-result';
+  streamId: string;
+  success: boolean;
+  headers?: Record<string, string>;
+  error?: string;
+};
+
+export type MetroTunnelWebSocketFrameMessage = {
+  type: 'ws-frame';
+  streamId: string;
+  dataBase64: string;
+  binary: boolean;
+};
+
+export type MetroTunnelWebSocketCloseMessage = {
+  type: 'ws-close';
+  streamId: string;
+  code?: number;
+  reason?: string;
+};
+
+export type MetroTunnelRequestMessage =
+  | MetroTunnelPingMessage
+  | MetroTunnelHttpRequestMessage
+  | MetroTunnelWebSocketOpenMessage
+  | MetroTunnelWebSocketFrameMessage
+  | MetroTunnelWebSocketCloseMessage;
+
+export type MetroTunnelResponseMessage =
+  | MetroTunnelPongMessage
+  | MetroTunnelHttpResponseMessage
+  | MetroTunnelHttpErrorMessage
+  | MetroTunnelWebSocketOpenResultMessage
+  | MetroTunnelWebSocketFrameMessage
+  | MetroTunnelWebSocketCloseMessage;
+
+export type MetroTunnelMessage = MetroTunnelRequestMessage | MetroTunnelResponseMessage;
 
 export type PrepareRemoteMetroOptions = {
   projectRoot: string;
