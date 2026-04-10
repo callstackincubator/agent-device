@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { ensureMetroCompanion } from './client-metro-companion.ts';
+import { normalizeBaseUrl } from './utils/url.ts';
 import { AppError } from './utils/errors.ts';
 import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
@@ -88,6 +90,9 @@ export type PrepareMetroRuntimeOptions = {
   publicBaseUrl?: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
+  launchUrl?: string;
+  companionProfileKey?: string;
+  companionConsumerKey?: string;
   startupTimeoutMs?: number | string;
   probeTimeoutMs?: number | string;
   reuseExisting?: boolean;
@@ -120,9 +125,9 @@ type ProxyBridgeRequestOptions = {
   timeoutMs: number;
 };
 
-function normalizeBaseUrl(input: string): string {
-  return input.replace(/\/+$/, '');
-}
+type MetroBridgeRequestError = Error & {
+  retryable?: boolean;
+};
 
 function normalizeOptionalBaseUrl(input: unknown): string {
   return typeof input === 'string' && input.trim() ? normalizeBaseUrl(input.trim()) : '';
@@ -349,6 +354,35 @@ function createProxyHeaders(baseUrl: string, bearerToken: string): Record<string
   };
 }
 
+function createMetroBridgeRequestError(
+  message: string,
+  retryable: boolean,
+): MetroBridgeRequestError {
+  const error = new Error(message) as MetroBridgeRequestError;
+  error.retryable = retryable;
+  return error;
+}
+
+function isRetryableBridgeHttpFailure(statusCode: number, responsePayload: unknown): boolean {
+  if (statusCode >= 500 || statusCode === 408 || statusCode === 425 || statusCode === 429) {
+    return true;
+  }
+  const responseText = JSON.stringify(responsePayload);
+  if (responseText.includes('Metro companion is not connected')) {
+    return true;
+  }
+  return false;
+}
+
+function isRetryableBridgeError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'retryable' in error &&
+    (error as MetroBridgeRequestError).retryable === true,
+  );
+}
+
 async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<MetroBridgeResult> {
   let response: Response;
 
@@ -364,19 +398,24 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
-      throw new Error(
+      throw createMetroBridgeRequestError(
         `/api/metro/bridge timed out after ${input.timeoutMs}ms calling ${input.baseUrl}/api/metro/bridge`,
+        true,
       );
     }
-    throw error;
+    throw createMetroBridgeRequestError(
+      error instanceof Error ? error.message : String(error),
+      true,
+    );
   }
 
   const responseText = await response.text();
   const responsePayload = responseText ? JSON.parse(responseText) : {};
 
   if (!response.ok) {
-    throw new Error(
+    throw createMetroBridgeRequestError(
       `/api/metro/bridge failed (${response.status}): ${JSON.stringify(responsePayload)}`,
+      isRetryableBridgeHttpFailure(response.status, responsePayload),
     );
   }
 
@@ -412,6 +451,8 @@ function describeBridgeFailure(
   baseUrl: string,
   bridgeError: string | null,
   bridge: MetroBridgeResult | null,
+  initialBridgeError?: string | null,
+  companionLogPath?: string,
 ): string {
   const parts = [
     `Metro bridge is required for this run but could not be configured via ${baseUrl}/api/metro/bridge.`,
@@ -424,6 +465,12 @@ function describeBridgeFailure(
     parts.push(
       `bridgeProbe=${bridge.probe.detail || `unreachable (status ${bridge.probe.statusCode || 0})`}`,
     );
+  }
+  if (initialBridgeError && initialBridgeError !== bridgeError) {
+    parts.push(`initialBridgeError=${initialBridgeError}`);
+  }
+  if (companionLogPath) {
+    parts.push(`metroCompanionLog=${companionLogPath}`);
   }
 
   return parts.join(' ');
@@ -474,6 +521,64 @@ async function waitForMetroReady(
     }
   }
   return false;
+}
+
+async function configureMetroBridgeUntilReady(options: {
+  baseUrl: string;
+  bearerToken: string;
+  runtime: ProxyMetroRuntimeHints;
+  probeTimeoutMs: number;
+  startupTimeoutMs: number;
+  initialBridgeError?: string | null;
+  companionLogPath?: string;
+}): Promise<MetroBridgeResult> {
+  const deadline = Date.now() + options.startupTimeoutMs;
+  let lastBridge: MetroBridgeResult | null = null;
+  let lastBridgeError: string | null = null;
+
+  while (Date.now() < deadline) {
+    try {
+      const bridge = await configureMetroBridge({
+        baseUrl: options.baseUrl,
+        bearerToken: options.bearerToken,
+        runtime: options.runtime,
+        timeoutMs: options.probeTimeoutMs,
+      });
+      if (bridge.probe.reachable !== false) {
+        return bridge;
+      }
+      lastBridge = bridge;
+      lastBridgeError = null;
+    } catch (error) {
+      lastBridgeError = error instanceof Error ? error.message : String(error);
+      if (!isRetryableBridgeError(error)) {
+        throw new Error(
+          describeBridgeFailure(
+            options.baseUrl,
+            lastBridgeError,
+            lastBridge,
+            options.initialBridgeError,
+            options.companionLogPath,
+          ),
+        );
+      }
+    }
+
+    const sleepMs = Math.min(1_000, Math.max(deadline - Date.now(), 0));
+    if (sleepMs > 0) {
+      await wait(sleepMs);
+    }
+  }
+
+  throw new Error(
+    describeBridgeFailure(
+      options.baseUrl,
+      lastBridgeError,
+      lastBridge,
+      options.initialBridgeError,
+      options.companionLogPath,
+    ),
+  );
 }
 
 export async function prepareMetroRuntime(
@@ -542,7 +647,7 @@ export async function prepareMetroRuntime(
   const publicAndroidRuntime = buildPublicRuntime(publicBaseUrl, 'android');
 
   let bridge: MetroBridgeResult | null = null;
-  let bridgeError: string | null = null;
+  let initialBridgeError: string | null = null;
 
   if (proxyEnabled) {
     try {
@@ -555,12 +660,49 @@ export async function prepareMetroRuntime(
         timeoutMs: probeTimeoutMs,
       });
     } catch (error) {
-      bridgeError = error instanceof Error ? error.message : String(error);
+      initialBridgeError = error instanceof Error ? error.message : String(error);
     }
   }
 
   if (proxyEnabled && (!bridge || bridge.probe.reachable === false)) {
-    throw new Error(describeBridgeFailure(proxyBaseUrl, bridgeError, bridge));
+    let companionLogPath: string | undefined;
+    try {
+      const companion = await ensureMetroCompanion({
+        projectRoot,
+        serverBaseUrl: proxyBaseUrl,
+        bearerToken: proxyBearerToken,
+        localBaseUrl: `http://${statusHost}:${metroPort}`,
+        launchUrl: normalizeOptionalString(input.launchUrl),
+        profileKey: normalizeOptionalString(input.companionProfileKey),
+        consumerKey: normalizeOptionalString(input.companionConsumerKey),
+        env: env as NodeJS.ProcessEnv,
+      });
+      companionLogPath = companion.logPath;
+    } catch (error) {
+      throw new Error(
+        describeBridgeFailure(
+          proxyBaseUrl,
+          error instanceof Error ? error.message : String(error),
+          bridge,
+          initialBridgeError,
+        ),
+      );
+    }
+    try {
+      bridge = await configureMetroBridgeUntilReady({
+        baseUrl: proxyBaseUrl,
+        bearerToken: proxyBearerToken,
+        runtime: {
+          metro_bundle_url: publicIosRuntime.bundleUrl,
+        },
+        probeTimeoutMs,
+        startupTimeoutMs,
+        initialBridgeError,
+        companionLogPath,
+      });
+    } catch (error) {
+      throw error instanceof Error ? error : new Error(String(error));
+    }
   }
 
   const iosRuntime = bridge?.iosRuntime ?? publicIosRuntime;

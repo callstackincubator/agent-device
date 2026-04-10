@@ -9,32 +9,33 @@ all backends must conform to this shared contract so that the downstream pipelin
 
 Every node in the `nodes` array must include:
 
-| Field         | Type                              | Required | Notes                                    |
-|---------------|-----------------------------------|----------|------------------------------------------|
-| `index`       | `number`                          | yes      | Sequential, 0-based, pre-order DFS       |
-| `type`        | `string`                          | yes      | Normalized role (see table below)         |
-| `role`        | `string`                          | no       | Raw platform role for debugging           |
-| `label`       | `string \| undefined`             | no       | Accessible name or description            |
-| `value`       | `string \| undefined`             | no       | Text content or numeric value             |
-| `rect`        | `{x, y, width, height} \| undef`  | no       | Screen-absolute bounding rect             |
-| `enabled`     | `boolean \| undefined`            | no       |                                           |
-| `selected`    | `boolean \| undefined`            | no       |                                           |
-| `hittable`    | `boolean \| undefined`            | no       | Can receive pointer/touch events          |
-| `depth`       | `number`                          | yes      | Tree depth (root = 0)                     |
-| `parentIndex` | `number \| undefined`             | no       | Index of parent node; undefined for roots |
+| Field         | Type                             | Required | Notes                                     |
+| ------------- | -------------------------------- | -------- | ----------------------------------------- |
+| `index`       | `number`                         | yes      | Sequential, 0-based, pre-order DFS        |
+| `type`        | `string`                         | yes      | Normalized role (see table below)         |
+| `role`        | `string`                         | no       | Raw platform role for debugging           |
+| `label`       | `string \| undefined`            | no       | Accessible name or description            |
+| `value`       | `string \| undefined`            | no       | Text content or numeric value             |
+| `rect`        | `{x, y, width, height} \| undef` | no       | Screen-absolute bounding rect             |
+| `enabled`     | `boolean \| undefined`           | no       |                                           |
+| `selected`    | `boolean \| undefined`           | no       |                                           |
+| `hittable`    | `boolean \| undefined`           | no       | Can receive pointer/touch events          |
+| `depth`       | `number`                         | yes      | Tree depth (root = 0)                     |
+| `parentIndex` | `number \| undefined`            | no       | Index of parent node; undefined for roots |
 
 Platform-specific fields (optional, passed through):
+
 - `pid`, `appName`, `windowTitle` (Linux, macOS desktop)
 - `identifier`, `subrole` (iOS/macOS)
 - `resourceId`, `className` (Android)
 
 ## Traversal rules
 
-| Parameter       | Default | Description                                  |
-|-----------------|---------|----------------------------------------------|
-| `maxNodes`      | 1500    | Stop traversal after this many nodes          |
-| `maxDepth`      | 12      | Do not descend beyond this tree depth         |
-| `maxApps`       | 24      | Desktop only: max top-level apps to traverse  |
+| Parameter  | Default | Description                                  |
+| ---------- | ------- | -------------------------------------------- |
+| `maxNodes` | 1500    | Stop traversal after this many nodes         |
+| `maxDepth` | 12      | Do not descend beyond this tree depth        |
+| `maxApps`  | 24      | Desktop only: max top-level apps to traverse |
 
 - Traversal order is **pre-order depth-first**.
 - `index` values are assigned in traversal order (0, 1, 2, …).
@@ -44,17 +45,18 @@ Platform-specific fields (optional, passed through):
 
 ## Surface semantics
 
-| Surface          | Behavior                                              |
-|------------------|-------------------------------------------------------|
-| `app`            | Snapshot the target application's UI tree              |
-| `frontmost-app`  | Snapshot the focused/frontmost application (desktop)   |
-| `desktop`        | Snapshot all visible applications on the desktop       |
-| `menubar`        | macOS only: snapshot the system menu bar               |
+| Surface         | Behavior                                             |
+| --------------- | ---------------------------------------------------- |
+| `app`           | Snapshot the target application's UI tree            |
+| `frontmost-app` | Snapshot the focused/frontmost application (desktop) |
+| `desktop`       | Snapshot all visible applications on the desktop     |
+| `menubar`       | macOS only: snapshot the system menu bar             |
 
 ## Normalized role types
 
 All backends must map platform-specific roles to these normalized strings.
 The canonical mapping is maintained in:
+
 - **iOS/macOS**: `ios-runner/…/SnapshotTraversal.swift` → `normalizedSnapshotType`
 - **Android**: `src/platforms/android/ui-hierarchy.ts` → `normalizeAndroidType`
 - **Linux**: `src/platforms/linux/role-map.ts` → `normalizeAtspiRole`
@@ -74,12 +76,12 @@ Unmapped roles should be PascalCased (e.g., `"extended table"` → `"ExtendedTab
 
 Linux maps session surfaces to AT-SPI2 as follows:
 
-| Session surface  | AT-SPI2 behaviour                           |
-|------------------|---------------------------------------------|
-| `app`            | Maps to `frontmost-app` (focused window)    |
-| `frontmost-app`  | Traverses the focused application's tree     |
-| `desktop`        | Traverses all visible applications           |
-| `menubar`        | **Not supported** — falls back to `desktop` with a diagnostic warning |
+| Session surface | AT-SPI2 behaviour                                                     |
+| --------------- | --------------------------------------------------------------------- |
+| `app`           | Maps to `frontmost-app` (focused window)                              |
+| `frontmost-app` | Traverses the focused application's tree                              |
+| `desktop`       | Traverses all visible applications                                    |
+| `menubar`       | **Not supported** — falls back to `desktop` with a diagnostic warning |
 
 ### Supported commands
 

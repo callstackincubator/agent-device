@@ -30,7 +30,15 @@ export type SelectorChain = {
   selectors: Selector[];
 };
 
-const TEXT_KEYS = new Set<SelectorKey>(['id', 'role', 'text', 'label', 'value', 'appname', 'windowtitle']);
+const TEXT_KEYS = new Set<SelectorKey>([
+  'id',
+  'role',
+  'text',
+  'label',
+  'value',
+  'appname',
+  'windowtitle',
+]);
 const BOOLEAN_KEYS = new Set<SelectorKey>([
   'visible',
   'hidden',

@@ -71,7 +71,11 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
     const linuxResult = await snapshotLinux(session?.surface);
     return shapeDesktopSurfaceSnapshot(
       { nodes: linuxResult.nodes, truncated: linuxResult.truncated, backend: 'linux-atspi' },
-      { snapshotDepth: flags?.snapshotDepth, snapshotInteractiveOnly: flags?.snapshotInteractiveOnly, snapshotScope },
+      {
+        snapshotDepth: flags?.snapshotDepth,
+        snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,
+        snapshotScope,
+      },
     );
   }
   if (device.platform === 'macos' && session?.surface && session.surface !== 'app') {

@@ -22,9 +22,7 @@ function resolveLinuxSurface(surface: SessionSurface | undefined): SnapshotSurfa
   return 'desktop';
 }
 
-export async function snapshotLinux(
-  surface: SessionSurface | undefined,
-): Promise<{
+export async function snapshotLinux(surface: SessionSurface | undefined): Promise<{
   nodes: RawSnapshotNode[];
   truncated?: boolean;
 }> {

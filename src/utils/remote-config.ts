@@ -77,7 +77,11 @@ export function loadRemoteConfigFile(options: {
   env?: EnvMap;
 }): Partial<CliFlags> {
   const env = options.env ?? process.env;
-  const resolvedPath = resolveUserPath(options.configPath, { cwd: options.cwd, env });
+  const resolvedPath = resolveRemoteConfigPath({
+    configPath: options.configPath,
+    cwd: options.cwd,
+    env,
+  });
   if (!fs.existsSync(resolvedPath)) {
     throw new AppError('INVALID_ARGS', `Remote config file not found: ${resolvedPath}`);
   }
@@ -137,6 +141,15 @@ export function loadRemoteConfigFile(options: {
         : parsedValue;
   }
   return flags;
+}
+
+export function resolveRemoteConfigPath(options: {
+  configPath: string;
+  cwd: string;
+  env?: EnvMap;
+}): string {
+  const env = options.env ?? process.env;
+  return resolveUserPath(options.configPath, { cwd: options.cwd, env });
 }
 
 export function resolveRemoteConfigDefaults(options: {

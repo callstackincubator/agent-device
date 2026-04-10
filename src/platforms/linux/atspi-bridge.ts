@@ -36,11 +36,17 @@ function resolveScriptPath(): string {
   let dir = thisDir;
   for (let i = 0; i < 5; i++) {
     const candidate = path.join(dir, 'src', 'platforms', 'linux', SCRIPT_NAME);
-    if (fs.existsSync(candidate)) { cachedScriptPath = candidate; return candidate; }
+    if (fs.existsSync(candidate)) {
+      cachedScriptPath = candidate;
+      return candidate;
+    }
     // Also check same-directory (running from source dir directly)
     if (i === 0) {
       const sameDir = path.join(dir, SCRIPT_NAME);
-      if (fs.existsSync(sameDir)) { cachedScriptPath = sameDir; return sameDir; }
+      if (fs.existsSync(sameDir)) {
+        cachedScriptPath = sameDir;
+        return sameDir;
+      }
     }
     dir = path.dirname(dir);
   }
@@ -95,10 +101,7 @@ export async function captureAccessibilityTree(
   surface: SnapshotSurface;
 }> {
   if (process.platform !== 'linux') {
-    throw new AppError(
-      'UNSUPPORTED_PLATFORM',
-      'AT-SPI2 bridge is only available on Linux',
-    );
+    throw new AppError('UNSUPPORTED_PLATFORM', 'AT-SPI2 bridge is only available on Linux');
   }
 
   if (!(await whichCmd('python3'))) {
@@ -115,10 +118,14 @@ export async function captureAccessibilityTree(
   const scriptPath = resolveScriptPath();
   const args = [
     scriptPath,
-    '--surface', surface,
-    '--max-nodes', String(maxNodes),
-    '--max-depth', String(maxDepth),
-    '--max-apps', String(maxApps),
+    '--surface',
+    surface,
+    '--max-nodes',
+    String(maxNodes),
+    '--max-depth',
+    String(maxDepth),
+    '--max-apps',
+    String(maxApps),
   ];
 
   const result = await runCmd('python3', args, {

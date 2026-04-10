@@ -59,15 +59,6 @@ In practice, most work follows the same pattern:
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
 
-## Performance Metrics
-
-`agent-device perf --json` (alias: `metrics --json`) returns session-scoped metrics data.
-
-- Startup timing is available on iOS and Android from `open` command round-trip sampling.
-- Android app sessions also sample CPU (`adb shell dumpsys cpuinfo`) and memory (`adb shell dumpsys meminfo <package>`) when the session has an active app package context.
-- Apple app sessions on macOS and iOS simulators sample CPU and memory from process snapshots resolved from the active app bundle ID.
-- Physical iOS devices sample CPU and memory from a short `xcrun xctrace` Activity Monitor capture against the connected device, so `perf` can take a few seconds longer there than on simulators or macOS.
-
 ## Where To Go Next
 
 For people:

@@ -267,10 +267,7 @@ async function handleOpenCommand(
   }
   if (url !== undefined) {
     if (device.platform === 'android') {
-      throw new AppError(
-        'INVALID_ARGS',
-        'open <app> <url> is supported only on Apple platforms',
-      );
+      throw new AppError('INVALID_ARGS', 'open <app> <url> is supported only on Apple platforms');
     }
     if (isDeepLinkTarget(app)) {
       throw new AppError(
@@ -303,8 +300,7 @@ async function handlePressCommand(
   _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y))
-    throw new AppError('INVALID_ARGS', 'press requires x y');
+  if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'press requires x y');
 
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
     const clickButton = resolveClickButton(context);
@@ -625,10 +621,7 @@ async function handleClipboardCommand(
     return { action, text };
   }
   if (positionals.length < 2) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'clipboard write requires text (use "" to clear clipboard)',
-    );
+    throw new AppError('INVALID_ARGS', 'clipboard write requires text (use "" to clear clipboard)');
   }
   const text = positionals.slice(1).join(' ');
   await interactor.writeClipboard(text);
@@ -648,10 +641,7 @@ async function handleKeyboardCommand(
 ): Promise<Record<string, unknown>> {
   const action = (positionals[0] ?? 'status').toLowerCase();
   if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
-    throw new AppError(
-      'INVALID_ARGS',
-      'keyboard requires a subcommand: status, get, or dismiss',
-    );
+    throw new AppError('INVALID_ARGS', 'keyboard requires a subcommand: status, get, or dismiss');
   }
   if (positionals.length > 1) {
     throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
@@ -750,10 +740,7 @@ async function handlePushCommand(
   const target = positionals[0]?.trim();
   const payloadArg = positionals[1]?.trim();
   if (!target || !payloadArg) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'push requires <bundle|package> <payload.json|inline-json>',
-    );
+    throw new AppError('INVALID_ARGS', 'push requires <bundle|package> <payload.json|inline-json>');
   }
   const payload = await readNotificationPayload(payloadArg);
   if (device.platform === 'ios') {
@@ -783,8 +770,7 @@ async function handleSnapshotCommand(
   if (device.platform === 'linux') {
     const linuxResult = await withDiagnosticTimer(
       'snapshot_capture',
-      async () =>
-        await snapshotLinux(context?.surface),
+      async () => await snapshotLinux(context?.surface),
       { backend: 'linux-atspi' },
     );
     return {
@@ -821,10 +807,7 @@ async function handleSnapshotCommand(
     )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
     const nodes = result.nodes ?? [];
     if (nodes.length === 0 && device.kind === 'simulator') {
-      throw new AppError(
-        'COMMAND_FAILED',
-        'XCTest snapshot returned 0 nodes on iOS simulator.',
-      );
+      throw new AppError('COMMAND_FAILED', 'XCTest snapshot returned 0 nodes on iOS simulator.');
     }
     return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
   }
