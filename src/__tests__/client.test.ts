@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
-import type { DaemonRequest, DaemonResponse } from '../daemon/types.ts';
+import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 import { AppError } from '../utils/errors.ts';
 
 function createTransport(

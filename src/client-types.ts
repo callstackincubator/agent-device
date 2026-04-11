@@ -5,7 +5,7 @@ import type {
   DaemonRequest,
   DaemonResponse,
   SessionRuntimeHints,
-} from './daemon/types.ts';
+} from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { ScreenshotOverlayRef, SnapshotNode, SnapshotVisibility } from './utils/snapshot.ts';
 import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';

@@ -10,7 +10,11 @@ import type {
 import { AppError } from './utils/errors.ts';
 import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
+import { waitForProcessExit } from './utils/process-identity.ts';
 import { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
+
+const METRO_TERM_TIMEOUT_MS = 1_000;
+const METRO_KILL_TIMEOUT_MS = 1_000;
 
 export type MetroPrepareKind = 'auto' | 'react-native' | 'expo';
 type ResolvedMetroKind = Exclude<MetroPrepareKind, 'auto'>;
@@ -290,6 +294,26 @@ function startMetroProcess(
   };
 }
 
+async function stopSpawnedMetroProcess(pid: number): Promise<void> {
+  if (!Number.isInteger(pid) || pid <= 0) return;
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH' || code === 'EPERM') return;
+    throw error;
+  }
+  if (await waitForProcessExit(pid, METRO_TERM_TIMEOUT_MS)) return;
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH' || code === 'EPERM') return;
+    throw error;
+  }
+  await waitForProcessExit(pid, METRO_KILL_TIMEOUT_MS);
+}
+
 function createProxyHeaders(baseUrl: string, bearerToken: string): Record<string, string> {
   return {
     Authorization: `Bearer ${bearerToken}`,
@@ -354,7 +378,11 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
   }
 
   const responseText = await response.text();
-  const responsePayload = responseText ? JSON.parse(responseText) : {};
+  const responsePayload = parseMetroBridgeResponsePayload(
+    responseText,
+    response.status,
+    input.baseUrl,
+  );
 
   if (!response.ok) {
     throw createMetroBridgeRequestError(
@@ -363,9 +391,29 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
     );
   }
 
-  return normalizeBridgeResponse(
-    (responsePayload.data ?? responsePayload) as MetroBridgeDescriptor,
-  );
+  return normalizeMetroBridgeResponsePayload(responsePayload);
+}
+
+function parseMetroBridgeResponsePayload(
+  responseText: string,
+  statusCode: number,
+  baseUrl: string,
+): Record<string, unknown> {
+  if (!responseText) return {};
+  try {
+    const parsed = JSON.parse(responseText) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Expected a JSON object');
+    }
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    const snippet = responseText.slice(0, 200);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw createMetroBridgeRequestError(
+      `/api/metro/bridge returned invalid JSON (${statusCode}) from ${baseUrl}: ${detail}. body=${JSON.stringify(snippet)}`,
+      isRetryableBridgeHttpFailure(statusCode, responseText),
+    );
+  }
 }
 
 function normalizeBridgeResponse(response: MetroBridgeDescriptor): MetroBridgeResult {
@@ -389,6 +437,26 @@ function normalizeBridgeResponse(response: MetroBridgeDescriptor): MetroBridgeRe
       detail: response.probe.detail,
     },
   };
+}
+
+function normalizeMetroBridgeResponsePayload(
+  responsePayload: Record<string, unknown>,
+): MetroBridgeResult {
+  const descriptor = responsePayload.data ?? responsePayload;
+  if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) {
+    throw createMetroBridgeRequestError(
+      '/api/metro/bridge returned malformed descriptor: Expected a JSON object.',
+      false,
+    );
+  }
+  try {
+    return normalizeBridgeResponse(descriptor as MetroBridgeDescriptor);
+  } catch (error) {
+    throw createMetroBridgeRequestError(
+      `/api/metro/bridge returned malformed descriptor: ${error instanceof Error ? error.message : String(error)}`,
+      false,
+    );
+  }
 }
 
 function describeBridgeFailure(
@@ -581,6 +649,7 @@ export async function prepareMetroRuntime(
     pid = startedProcess.pid;
 
     if (!(await waitForMetroReady(statusUrl, startupTimeoutMs, probeTimeoutMs))) {
+      await stopSpawnedMetroProcess(pid).catch(() => {});
       throw new Error(
         `Metro did not become ready at ${statusUrl} within ${startupTimeoutMs}ms. Check ${logPath}.`,
       );
