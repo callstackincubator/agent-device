@@ -53,36 +53,38 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 await client.sessions.close();
 ```
 
-## Command escape hatch
+## Command methods
 
-Use `client.command()` for device commands that do not have a dedicated convenience method yet. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, remote config defaults, normalized daemon errors, and remote artifact handling.
+Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, remote config defaults, normalized daemon errors, and remote artifact handling.
 
-Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI while stable command groups can grow dedicated normalized methods over time.
+Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.
 
 ```ts
-await client.command('wait', {
+await client.command.wait({
   text: 'Continue',
   timeoutMs: 5_000,
 });
 
-await client.command('keyboard', {
+await client.command.keyboard({
   action: 'dismiss',
 });
 
-await client.command('clipboard', {
+await client.command.clipboard({
   action: 'write',
   text: 'hello from Node',
 });
 
-await client.command('back', {
+await client.command.back({
   mode: 'system',
 });
+
+await client.command.appSwitcher();
 ```
 
-Supported command names:
+Supported command methods:
 
 - `wait`
-- `appstate`
+- `appState`
 - `back`
 - `home`
 - `rotate`
