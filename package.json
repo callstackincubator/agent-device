@@ -27,6 +27,10 @@
     "./selectors": {
       "import": "./dist/src/selectors.js",
       "types": "./dist/src/selectors.d.ts"
+    },
+    "./finders": {
+      "import": "./dist/src/finders.js",
+      "types": "./dist/src/finders.d.ts"
     }
   },
   "engines": {
