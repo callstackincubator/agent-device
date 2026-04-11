@@ -28,13 +28,13 @@ Public subpath API exposed for Node consumers:
   - `isNodeVisible(node)`
   - `isSelectorToken(token)`
   - `isNodeEditable(node, platform)`
-  - types: `Selector`, `SelectorChain`, `SelectorDiagnostics`, `SelectorResolution`
+  - types: `Selector`, `SelectorChain`, `SelectorDiagnostics`, `SelectorResolution`, `SnapshotNode`
 - `agent-device/finders`
-  - `findBestMatchesByLocator(nodes, locator, query, requireRect)`
+  - `findBestMatchesByLocator(nodes, locator, query, requireRectOrOptions)`
   - `normalizeRole(value)`
   - `normalizeText(value)`
   - `parseFindArgs(args)`
-  - types: `FindLocator`
+  - types: `FindLocator`, `FindMatchOptions`, `SnapshotNode`
 - `agent-device/install-source`
   - `ARCHIVE_EXTENSIONS`
   - `isBlockedIpAddress(address)`
