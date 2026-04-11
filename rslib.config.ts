@@ -16,6 +16,7 @@ export default defineConfig({
       },
       source: {
         entry: {
+          artifacts: 'src/artifacts.ts',
           index: 'src/index.ts',
           'install-source': 'src/install-source.ts',
           metro: 'src/metro.ts',
