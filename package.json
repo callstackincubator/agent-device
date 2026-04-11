@@ -12,6 +12,10 @@
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
     },
+    "./artifacts": {
+      "import": "./dist/src/artifacts.js",
+      "types": "./dist/src/artifacts.d.ts"
+    },
     "./metro": {
       "import": "./dist/src/metro.js",
       "types": "./dist/src/metro.d.ts"

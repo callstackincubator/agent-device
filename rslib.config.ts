@@ -16,6 +16,7 @@ export default defineConfig({
       },
       source: {
         entry: {
+          artifacts: 'src/artifacts.ts',
           index: 'src/index.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
