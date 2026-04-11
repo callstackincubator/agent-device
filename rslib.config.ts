@@ -17,6 +17,7 @@ export default defineConfig({
       source: {
         entry: {
           index: 'src/index.ts',
+          'install-source': 'src/install-source.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
           contracts: 'src/contracts.ts',

@@ -6,10 +6,13 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  ARCHIVE_EXTENSIONS,
+  isBlockedIpAddress,
+  isBlockedSourceHostname,
   isTrustedInstallSourceUrl,
   materializeInstallablePath,
   validateDownloadSourceUrl,
-} from '../install-source.ts';
+} from '../../install-source.ts';
 import { prepareAndroidInstallArtifact } from '../android/install-artifact.ts';
 import { prepareIosInstallArtifact } from '../ios/install-artifact.ts';
 
@@ -44,6 +47,14 @@ test('validateDownloadSourceUrl rejects unsupported protocols', async () => {
     async () => await validateDownloadSourceUrl(new URL('ftp://example.com/app.apk')),
     /Unsupported source URL protocol/i,
   );
+});
+
+test('public install-source helpers expose the SSRF and archive surface', () => {
+  assert.deepEqual(ARCHIVE_EXTENSIONS, ['.zip', '.tar', '.tar.gz', '.tgz']);
+  assert.equal(isBlockedSourceHostname('localhost'), true);
+  assert.equal(isBlockedSourceHostname('example.com'), false);
+  assert.equal(isBlockedIpAddress('127.0.0.1'), true);
+  assert.equal(isBlockedIpAddress('203.0.113.10'), false);
 });
 
 test('isTrustedInstallSourceUrl recognizes supported artifact services', () => {
