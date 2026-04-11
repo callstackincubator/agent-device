@@ -57,6 +57,8 @@ await client.sessions.close();
 
 Use `client.command()` for device commands that do not have a dedicated convenience method yet. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, remote config defaults, normalized daemon errors, and remote artifact handling.
 
+Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI while stable command groups can grow dedicated normalized methods over time.
+
 ```ts
 await client.command('wait', {
   text: 'Continue',
@@ -84,7 +86,7 @@ Supported command names:
 - `back`
 - `home`
 - `rotate`
-- `appSwitcher` or `app-switcher`
+- `appSwitcher`
 - `keyboard`
 - `clipboard`
 - `alert`
