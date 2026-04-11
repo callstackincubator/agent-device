@@ -12,6 +12,10 @@
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
     },
+    "./artifacts": {
+      "import": "./dist/src/artifacts.js",
+      "types": "./dist/src/artifacts.d.ts"
+    },
     "./metro": {
       "import": "./dist/src/metro.js",
       "types": "./dist/src/metro.d.ts"
@@ -20,9 +24,21 @@
       "import": "./dist/src/remote-config.js",
       "types": "./dist/src/remote-config.d.ts"
     },
+    "./install-source": {
+      "import": "./dist/src/install-source.js",
+      "types": "./dist/src/install-source.d.ts"
+    },
     "./contracts": {
       "import": "./dist/src/contracts.js",
       "types": "./dist/src/contracts.d.ts"
+    },
+    "./selectors": {
+      "import": "./dist/src/selectors.js",
+      "types": "./dist/src/selectors.d.ts"
+    },
+    "./finders": {
+      "import": "./dist/src/finders.js",
+      "types": "./dist/src/finders.d.ts"
     }
   },
   "engines": {
