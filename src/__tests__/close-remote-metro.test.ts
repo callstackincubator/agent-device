@@ -61,6 +61,9 @@ test('close with remote-config stops the managed Metro companion for that projec
         installFromSource: async () => {
           throw new Error('unexpected call');
         },
+        list: async () => {
+          throw new Error('unexpected call');
+        },
         open: async () => {
           throw new Error('unexpected call');
         },
@@ -151,6 +154,9 @@ test('close with remote-config still stops the managed Metro companion when clos
           throw new Error('unexpected call');
         },
         installFromSource: async () => {
+          throw new Error('unexpected call');
+        },
+        list: async () => {
           throw new Error('unexpected call');
         },
         open: async () => {
@@ -251,6 +257,9 @@ test('close app with remote-config stops the managed Metro companion for that se
         installFromSource: async () => {
           throw new Error('unexpected call');
         },
+        list: async () => {
+          throw new Error('unexpected call');
+        },
         open: async () => {
           throw new Error('unexpected call');
         },
@@ -346,6 +355,9 @@ test('close with remote-config still succeeds when the config file is gone befor
           throw new Error('unexpected call');
         },
         installFromSource: async () => {
+          throw new Error('unexpected call');
+        },
+        list: async () => {
           throw new Error('unexpected call');
         },
         open: async () => {

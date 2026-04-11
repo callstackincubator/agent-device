@@ -26,6 +26,7 @@ import type {
   AppCloseOptions,
   AppDeployOptions,
   AppInstallFromSourceOptions,
+  AppListOptions,
   AppOpenOptions,
   CaptureScreenshotOptions,
   CaptureSnapshotOptions,
@@ -142,6 +143,12 @@ export function createAgentDeviceClient(
           }),
           resolveSessionName(config.session, options.session),
         ),
+      list: async (options: AppListOptions = {}) => {
+        const data = await execute('apps', [], options);
+        return Array.isArray(data.apps)
+          ? data.apps.filter((app): app is string => typeof app === 'string')
+          : [];
+      },
       open: async (options: AppOpenOptions) => {
         const session = resolveSessionName(config.session, options.session);
         const positionals = options.url ? [options.app, options.url] : [options.app];
@@ -268,6 +275,7 @@ export type {
   AppDeployResult,
   AppInstallFromSourceOptions,
   AppInstallFromSourceResult,
+  AppListOptions,
   AppOpenOptions,
   AppOpenResult,
   CaptureScreenshotOptions,

@@ -670,6 +670,7 @@ function createStubClient(params: {
         identifiers: { appId: 'com.example.demo' },
       }),
       installFromSource: params.installFromSource,
+      list: async () => [],
       open:
         params.open ??
         (async () => ({

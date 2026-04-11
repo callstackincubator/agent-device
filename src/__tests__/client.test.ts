@@ -294,6 +294,30 @@ test('apps.installFromSource derives Android launchTarget from packageName when 
   });
 });
 
+test('apps.list forwards filters and returns daemon app names', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      apps: ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)', { ignored: true }],
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const apps = await client.apps.list({
+    platform: 'ios',
+    device: 'iPhone 16',
+    appsFilter: 'user-installed',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'apps');
+  assert.deepEqual(setup.calls[0]?.positionals, []);
+  assert.equal(setup.calls[0]?.flags?.platform, 'ios');
+  assert.equal(setup.calls[0]?.flags?.device, 'iPhone 16');
+  assert.equal(setup.calls[0]?.flags?.appsFilter, 'user-installed');
+  assert.deepEqual(apps, ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)']);
+});
+
 test('materializations.release forwards materialization identity through the daemon request', async () => {
   const setup = createTransport(async () => ({
     ok: true,
