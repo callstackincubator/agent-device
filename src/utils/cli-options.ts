@@ -18,7 +18,7 @@ export function resolveCliOptions(
   const env = options?.env ?? process.env;
   const cwd = options?.cwd ?? process.cwd();
   const remoteConfigDefaults = resolveRemoteConfigDefaults({
-    cliFlags: rawParsed.flags as CliFlags,
+    remoteConfig: rawParsed.flags.remoteConfig,
     cwd,
     env,
   });

@@ -7,9 +7,6 @@ import type { StopMetroTunnelOptions } from '../../metro.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const openCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
-  if (!positionals[0]) {
-    return false;
-  }
   const runtime = await resolveRemoteOpenRuntime(flags, client);
   const result = await client.apps.open({
     app: positionals[0],

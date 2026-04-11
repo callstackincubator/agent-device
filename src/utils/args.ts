@@ -313,23 +313,6 @@ function formatUnsupportedFlagMessage(command: string | null, unsupported: strin
     : `Flags ${unsupported.join(', ')} are not supported for command ${command}.`;
 }
 
-export function toDaemonFlags(
-  flags: CliFlags,
-): Omit<CliFlags, 'json' | 'config' | 'remoteConfig' | 'help' | 'version'> {
-  const {
-    json: _json,
-    config: _config,
-    remoteConfig: _remoteConfig,
-    help: _help,
-    version: _version,
-    sessionLock: _sessionLock,
-    sessionLocked: _sessionLocked,
-    sessionLockConflicts: _sessionLockConflicts,
-    ...daemonFlags
-  } = flags;
-  return daemonFlags;
-}
-
 export function usage(): string {
   return buildUsageText();
 }

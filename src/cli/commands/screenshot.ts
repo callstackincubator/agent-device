@@ -1,17 +1,18 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { formatScreenshotDiffText } from '../../utils/output.ts';
+import { formatScreenshotDiffText, formatSnapshotDiffText } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from '../../utils/screenshot-diff.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
-import { writeCommandOutput } from './shared.ts';
+import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await client.capture.screenshot({
     path: positionals[0] ?? flags.out,
     overlayRefs: flags.overlayRefs,
+    ...(flags.screenshotFullscreen !== undefined ? { fullscreen: flags.screenshotFullscreen } : {}),
   });
   const data = {
     path: result.path,
@@ -26,6 +27,21 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
 };
 
 export const diffCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
+  if (positionals[0] === 'snapshot') {
+    const result = await client.capture.diff({
+      ...buildSelectionOptions(flags),
+      kind: 'snapshot',
+      out: flags.out,
+      interactiveOnly: flags.snapshotInteractiveOnly,
+      compact: flags.snapshotCompact,
+      depth: flags.snapshotDepth,
+      scope: flags.snapshotScope,
+      raw: flags.snapshotRaw,
+    });
+    writeCommandOutput(flags, result, () => formatSnapshotDiffText(result));
+    return true;
+  }
+
   if (positionals[0] !== 'screenshot') return false;
 
   const baselineRaw = flags.baseline;

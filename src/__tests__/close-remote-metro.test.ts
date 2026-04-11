@@ -18,6 +18,36 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const unexpectedCommandCall = async (): Promise<never> => {
+  throw new Error('unexpected call');
+};
+
+function createThrowingMethodGroup<T extends object>(methods: Partial<T> = {}): T {
+  return new Proxy(methods, {
+    get: (target, property) => target[property as keyof T] ?? unexpectedCommandCall,
+  }) as T;
+}
+
+function createTestClient(groups: Partial<AgentDeviceClient> = {}): AgentDeviceClient {
+  return {
+    command: createThrowingMethodGroup<AgentDeviceClient['command']>(),
+    devices: createThrowingMethodGroup<AgentDeviceClient['devices']>(),
+    sessions: createThrowingMethodGroup<AgentDeviceClient['sessions']>(),
+    simulators: createThrowingMethodGroup<AgentDeviceClient['simulators']>(),
+    apps: createThrowingMethodGroup<AgentDeviceClient['apps']>(),
+    materializations: createThrowingMethodGroup<AgentDeviceClient['materializations']>(),
+    metro: createThrowingMethodGroup<AgentDeviceClient['metro']>(),
+    capture: createThrowingMethodGroup<AgentDeviceClient['capture']>(),
+    interactions: createThrowingMethodGroup<AgentDeviceClient['interactions']>(),
+    replay: createThrowingMethodGroup<AgentDeviceClient['replay']>(),
+    batch: createThrowingMethodGroup<AgentDeviceClient['batch']>(),
+    observability: createThrowingMethodGroup<AgentDeviceClient['observability']>(),
+    recording: createThrowingMethodGroup<AgentDeviceClient['recording']>(),
+    settings: createThrowingMethodGroup<AgentDeviceClient['settings']>(),
+    ...groups,
+  };
+}
+
 test('close with remote-config stops the managed Metro companion for that project', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-close-remote-metro-'));
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
@@ -37,59 +67,14 @@ test('close with remote-config stops the managed Metro companion for that projec
       env: process.env,
     });
 
-    const client: AgentDeviceClient = {
-      devices: { list: async () => [] },
-      sessions: {
-        list: async () => [],
+    const client = createTestClient({
+      sessions: createThrowingMethodGroup<AgentDeviceClient['sessions']>({
         close: async () => ({
           session: 'adc-android',
           identifiers: { session: 'adc-android' },
         }),
-      },
-      simulators: {
-        ensure: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      apps: {
-        install: async () => {
-          throw new Error('unexpected call');
-        },
-        reinstall: async () => {
-          throw new Error('unexpected call');
-        },
-        installFromSource: async () => {
-          throw new Error('unexpected call');
-        },
-        list: async () => {
-          throw new Error('unexpected call');
-        },
-        open: async () => {
-          throw new Error('unexpected call');
-        },
-        close: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      materializations: {
-        release: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      metro: {
-        prepare: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      capture: {
-        snapshot: async () => {
-          throw new Error('unexpected call');
-        },
-        screenshot: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-    };
+      }),
+    });
 
     vi.mocked(stopMetroCompanion).mockResolvedValue({
       stopped: true,
@@ -133,58 +118,13 @@ test('close with remote-config still stops the managed Metro companion when clos
       env: process.env,
     });
 
-    const client: AgentDeviceClient = {
-      devices: { list: async () => [] },
-      sessions: {
-        list: async () => [],
+    const client = createTestClient({
+      sessions: createThrowingMethodGroup<AgentDeviceClient['sessions']>({
         close: async () => {
           throw new Error('session close failed');
         },
-      },
-      simulators: {
-        ensure: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      apps: {
-        install: async () => {
-          throw new Error('unexpected call');
-        },
-        reinstall: async () => {
-          throw new Error('unexpected call');
-        },
-        installFromSource: async () => {
-          throw new Error('unexpected call');
-        },
-        list: async () => {
-          throw new Error('unexpected call');
-        },
-        open: async () => {
-          throw new Error('unexpected call');
-        },
-        close: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      materializations: {
-        release: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      metro: {
-        prepare: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      capture: {
-        snapshot: async () => {
-          throw new Error('unexpected call');
-        },
-        screenshot: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-    };
+      }),
+    });
 
     vi.mocked(stopMetroCompanion).mockResolvedValue({
       stopped: true,
@@ -234,59 +174,14 @@ test('close app with remote-config stops the managed Metro companion for that se
       },
     );
 
-    const client: AgentDeviceClient = {
-      devices: { list: async () => [] },
-      sessions: {
-        list: async () => [],
-        close: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      simulators: {
-        ensure: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      apps: {
-        install: async () => {
-          throw new Error('unexpected call');
-        },
-        reinstall: async () => {
-          throw new Error('unexpected call');
-        },
-        installFromSource: async () => {
-          throw new Error('unexpected call');
-        },
-        list: async () => {
-          throw new Error('unexpected call');
-        },
-        open: async () => {
-          throw new Error('unexpected call');
-        },
+    const client = createTestClient({
+      apps: createThrowingMethodGroup<AgentDeviceClient['apps']>({
         close: async () => ({
           session: 'adc-android',
           identifiers: { session: 'adc-android' },
         }),
-      },
-      materializations: {
-        release: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      metro: {
-        prepare: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      capture: {
-        snapshot: async () => {
-          throw new Error('unexpected call');
-        },
-        screenshot: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-    };
+      }),
+    });
 
     vi.mocked(stopMetroCompanion).mockResolvedValue({
       stopped: true,
@@ -333,59 +228,14 @@ test('close with remote-config still succeeds when the config file is gone befor
     });
     fs.rmSync(remoteConfigPath);
 
-    const client: AgentDeviceClient = {
-      devices: { list: async () => [] },
-      sessions: {
-        list: async () => [],
+    const client = createTestClient({
+      sessions: createThrowingMethodGroup<AgentDeviceClient['sessions']>({
         close: async () => ({
           session: 'adc-android',
           identifiers: { session: 'adc-android' },
         }),
-      },
-      simulators: {
-        ensure: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      apps: {
-        install: async () => {
-          throw new Error('unexpected call');
-        },
-        reinstall: async () => {
-          throw new Error('unexpected call');
-        },
-        installFromSource: async () => {
-          throw new Error('unexpected call');
-        },
-        list: async () => {
-          throw new Error('unexpected call');
-        },
-        open: async () => {
-          throw new Error('unexpected call');
-        },
-        close: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      materializations: {
-        release: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      metro: {
-        prepare: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-      capture: {
-        snapshot: async () => {
-          throw new Error('unexpected call');
-        },
-        screenshot: async () => {
-          throw new Error('unexpected call');
-        },
-      },
-    };
+      }),
+    });
 
     const handled = await closeCommand({
       positionals: [],
