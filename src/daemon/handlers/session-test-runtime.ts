@@ -44,7 +44,7 @@ export async function runReplayTestAttempt(params: {
   })
     .catch((error) => {
       const appErr = asAppError(error);
-      return errorResponse(appErr.code, appErr.message) as DaemonResponse;
+      return errorResponse(appErr.code, appErr.message);
     })
     .finally(() => {
       clearRequestCanceled(requestId);
