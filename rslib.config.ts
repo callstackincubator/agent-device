@@ -17,9 +17,13 @@ export default defineConfig({
       source: {
         entry: {
           index: 'src/index.ts',
+          artifacts: 'src/artifacts.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
+          'install-source': 'src/install-source.ts',
           contracts: 'src/contracts.ts',
+          selectors: 'src/selectors.ts',
+          finders: 'src/finders.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',
       },
