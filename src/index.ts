@@ -1,5 +1,6 @@
 export { createAgentDeviceClient } from './client.ts';
 export { AppError } from './utils/errors.ts';
+export { centerOfRect } from './utils/snapshot.ts';
 
 export type {
   AgentDeviceClient,

@@ -5,6 +5,7 @@ import {
   type AgentDeviceClient,
   type CaptureScreenshotResult,
   type CaptureSnapshotResult,
+  centerOfRect,
   type Point,
   type Rect,
   type ScreenshotOverlayRef,
@@ -55,4 +56,5 @@ const overlay = {
 test('package root exports createAgentDeviceClient', () => {
   const client: AgentDeviceClient = createAgentDeviceClient();
   assert.equal(typeof client.capture.snapshot, 'function');
+  assert.deepEqual(centerOfRect(rect), { x: 3, y: 4 });
 });

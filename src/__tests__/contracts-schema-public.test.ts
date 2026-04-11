@@ -3,11 +3,23 @@ import assert from 'node:assert/strict';
 import {
   daemonCommandRequestSchema,
   daemonRuntimeSchema,
+  centerOfRect,
   jsonRpcRequestSchema,
   leaseAllocateSchema,
   leaseHeartbeatSchema,
   leaseReleaseSchema,
+  type Rect,
+  type SnapshotNode,
 } from '../contracts.ts';
+
+const rect = { x: 1, y: 2, width: 3, height: 4 } satisfies Rect;
+const node = {
+  index: 0,
+  ref: 'e1',
+  type: 'Button',
+  label: 'Continue',
+  rect,
+} satisfies SnapshotNode;
 
 test('public contract schemas validate daemon requests and lease payloads', () => {
   const runtime = daemonRuntimeSchema.parse({
@@ -54,6 +66,8 @@ test('public contract schemas validate daemon requests and lease payloads', () =
   assert.equal(release.tenant, 'acme');
   assert.equal(heartbeat.leaseId, 'lease-1');
   assert.equal(release.leaseId, 'lease-1');
+  assert.deepEqual(centerOfRect(rect), { x: 3, y: 4 });
+  assert.equal(node.ref, 'e1');
 });
 
 test('public contract schemas reject invalid payloads', () => {
