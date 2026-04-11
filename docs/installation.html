@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.cdd03d1158.js"></script>
+<script defer src="/agent-device/static/js/index.b2c740a629.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -40,6 +40,7 @@
 <li>The macOS desktop path uses a local <code>agent-device-macos-helper</code> for permission checks (<code>settings permission ...</code>), alert handling, and helper-backed desktop snapshot surfaces (<code>frontmost-app</code>, <code>desktop</code>, <code>menubar</code>).</li>
 <li>Source checkouts build the helper lazily on first use and cache it under <code>~/.agent-device/macos-helper/current/</code>.</li>
 <li>Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.</li>
+<li>Local helper overrides through <code>AGENT_DEVICE_MACOS_HELPER_BIN</code> are intended for operators and packaged distributions; the value must be an absolute executable path.</li>
 </ul>
 <h2 class="rp-toc-include" id="ios-physical-device-prerequisites"><a href="#ios-physical-device-prerequisites" class="rp-header-anchor rp-link" aria-hidden="true">#</a>iOS physical device prerequisites</h2>
 <ul>

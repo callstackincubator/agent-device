@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.cdd03d1158.js"></script>
+<script defer src="/agent-device/static/js/index.b2c740a629.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -313,7 +313,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li>Useful for upgrade flows where you want to keep existing app data when supported by the platform.</li>
 <li>Remote daemons automatically upload local app artifacts for <code>install</code>; prefix the path with <code>remote:</code> to use a daemon-side path verbatim.</li>
 <li>Supported binary formats: Android <code>.apk</code>/<code>.aab</code>, iOS <code>.app</code>/<code>.ipa</code>.</li>
-<li><code>.aab</code> requires <code>bundletool</code> in <code>PATH</code>, or <code>AGENT_DEVICE_BUNDLETOOL_JAR=&lt;path-to-bundletool-all.jar&gt;</code> with <code>java</code> in <code>PATH</code>.</li>
+<li><code>.aab</code> requires <code>bundletool</code> in <code>PATH</code>, or <code>AGENT_DEVICE_BUNDLETOOL_JAR=&lt;absolute-path-to-bundletool-all.jar&gt;</code> with <code>java</code> in <code>PATH</code>.</li>
 <li>Optional: <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=&lt;mode&gt;</code> overrides bundletool <code>build-apks --mode</code> (default: <code>universal</code>).</li>
 <li><code>.ipa</code> installs by extracting <code>Payload/*.app</code>; if multiple app bundles exist, <code>&lt;app&gt;</code> is used as a bundle id/name hint to select one.</li>
 </ul>
