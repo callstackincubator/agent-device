@@ -51,6 +51,7 @@ Minimal operating guide for AI coding agents in this repo.
 
 ## Toolchain Snapshot
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
+- Runtime baseline is Node >= 22. Prefer built-in Node APIs such as global `fetch`, Web Streams, and `AbortSignal.timeout` over compatibility wrappers unless the surrounding code needs a lower-level transport.
 - Lint/format stack is OXC:
   - config: `.oxlintrc.json`, `.oxfmtrc.json`
 - TypeScript is strict enough to surface dead code early: `strict`, `isolatedModules`, `noUnusedLocals`, and `noUnusedParameters` are enabled.
@@ -123,6 +124,10 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Preserve `hint`, `diagnosticId`, `logPath` when wrapping/rethrowing errors.
 - `--debug` is canonical; `--verbose` is backward-compatible alias.
 - Keep redaction centralized in diagnostics helpers.
+
+## Remote Daemon Optimizations
+- Treat cache/preflight/probe calls as best-effort optimizations unless the feature contract says they are required. If an optimization fails, times out, returns non-OK, or returns an unusable shape, prefer falling back to the existing required command path.
+- Keep optimization timeouts shorter than the underlying operation timeout. A preflight should not consume the full budget for a later upload or command.
 
 ## Selector System Rules
 - Interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors and `@ref`.

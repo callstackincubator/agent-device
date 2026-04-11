@@ -3,9 +3,12 @@ import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { AppError } from './utils/errors.ts';
 
 const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const UPLOAD_PREFLIGHT_TIMEOUT_MS = 30 * 1000;
+const ARTIFACT_HASH_ALGORITHM = 'sha256';
 
 type UploadArtifactOptions = {
   localPath: string;
@@ -18,6 +21,12 @@ type UploadResponse = {
   uploadId: string;
 };
 
+type UploadPreflightResponse = {
+  ok: boolean;
+  cacheHit: boolean;
+  uploadId?: string;
+};
+
 export async function uploadArtifact(options: UploadArtifactOptions): Promise<string> {
   const { localPath, baseUrl, token } = options;
 
@@ -27,6 +36,21 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
   const artifactType = isDirectory ? 'app-bundle' : 'file';
 
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  const artifactHash = isDirectory ? undefined : await computeFileHash(localPath);
+  if (artifactHash) {
+    const cachedUploadId = await requestUploadPreflight({
+      normalizedBase,
+      token,
+      hash: artifactHash,
+      filename,
+      sizeBytes: stat.size,
+      artifactType,
+    });
+    if (cachedUploadId) {
+      return cachedUploadId;
+    }
+  }
+
   const uploadUrl = new URL('upload', normalizedBase);
   const transport = uploadUrl.protocol === 'https:' ? https : http;
 
@@ -35,6 +59,10 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
     'x-artifact-filename': filename,
     'transfer-encoding': 'chunked',
   };
+  if (artifactHash) {
+    headers['x-artifact-hash'] = artifactHash;
+    headers['x-artifact-hash-algorithm'] = ARTIFACT_HASH_ALGORITHM;
+  }
   if (token) {
     headers.authorization = `Bearer ${token}`;
     headers['x-agent-device-token'] = token;
@@ -123,4 +151,65 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
       });
     }
   });
+}
+
+async function requestUploadPreflight(options: {
+  normalizedBase: string;
+  token: string;
+  hash: string;
+  filename: string;
+  sizeBytes: number;
+  artifactType: string;
+}): Promise<string | undefined> {
+  const preflightUrl = new URL('upload/preflight', options.normalizedBase);
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+  if (options.token) {
+    headers.authorization = `Bearer ${options.token}`;
+    headers['x-agent-device-token'] = options.token;
+  }
+
+  const response = await fetch(preflightUrl, {
+    method: 'POST',
+    headers,
+    signal: AbortSignal.timeout(UPLOAD_PREFLIGHT_TIMEOUT_MS),
+    body: JSON.stringify({
+      hash: options.hash,
+      hashAlgorithm: ARTIFACT_HASH_ALGORITHM,
+      fileName: options.filename,
+      sizeBytes: options.sizeBytes,
+      artifactType: options.artifactType,
+    }),
+  }).catch(() => undefined);
+
+  if (!response?.ok) {
+    return undefined;
+  }
+
+  const parsed = (await response.json().catch(() => undefined)) as unknown;
+  return isUploadPreflightHit(parsed) ? parsed.uploadId : undefined;
+}
+
+function isUploadPreflightHit(value: unknown): value is Required<UploadPreflightResponse> {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const preflight = value as UploadPreflightResponse;
+  return (
+    preflight.ok === true && preflight.cacheHit === true && typeof preflight.uploadId === 'string'
+  );
+}
+
+async function computeFileHash(localPath: string): Promise<string> {
+  const hash = createHash(ARTIFACT_HASH_ALGORITHM);
+  await new Promise<void>((resolve, reject) => {
+    fs.createReadStream(localPath)
+      .on('data', (chunk) => hash.update(chunk))
+      .on('error', (err) => {
+        reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err));
+      })
+      .on('end', resolve);
+  });
+  return hash.digest('hex');
 }
