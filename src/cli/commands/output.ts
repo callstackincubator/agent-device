@@ -130,9 +130,6 @@ export function writeCommandCliOutput(
   const successText = readCommandMessage(data);
   if (successText) {
     process.stdout.write(`${successText}\n`);
-    for (const extraLine of readCommandSuccessLines(command, data)) {
-      process.stdout.write(`${extraLine}\n`);
-    }
   }
   return 0;
 }
@@ -215,13 +212,4 @@ function writeNetworkCliOutput(data: Record<string, unknown>): void {
       if (typeof note === 'string' && note.length > 0) process.stderr.write(`${note}\n`);
     }
   }
-}
-
-function readCommandSuccessLines(command: string, data: Record<string, unknown>): string[] {
-  if (command !== CLIENT_COMMANDS.scrollIntoView) {
-    return [];
-  }
-  const ref = typeof data.ref === 'string' ? data.ref : '';
-  const currentRef = typeof data.currentRef === 'string' ? data.currentRef : '';
-  return currentRef && currentRef !== ref ? [`Current ref: @${currentRef}`] : [];
 }

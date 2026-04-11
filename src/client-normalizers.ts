@@ -283,7 +283,6 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     clickButton: options.clickButton,
     pauseMs: options.pauseMs,
     pattern: options.pattern,
-    maxScrolls: options.maxScrolls,
     headless: options.headless,
     restart: options.restart,
     replayUpdate: options.replayUpdate,

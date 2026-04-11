@@ -527,22 +527,6 @@ export type ScrollOptions = ClientCommandBaseOptions & {
   pixels?: number;
 };
 
-export type ScrollIntoViewOptions = ClientCommandBaseOptions &
-  (
-    | {
-        text: string;
-        ref?: never;
-        label?: never;
-      }
-    | {
-        ref: string;
-        label?: string;
-        text?: never;
-      }
-  ) & {
-    maxScrolls?: number;
-  };
-
 export type PinchOptions = ClientCommandBaseOptions & {
   scale: number;
   x?: number;
@@ -704,7 +688,6 @@ type CommandExecutionOptions = {
   clickButton?: 'primary' | 'secondary' | 'middle';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
-  maxScrolls?: number;
   headless?: boolean;
   restart?: boolean;
   replayUpdate?: boolean;
@@ -802,7 +785,6 @@ export type AgentDeviceClient = {
     type: (options: TypeTextOptions) => Promise<CommandRequestResult>;
     fill: (options: FillOptions) => Promise<CommandRequestResult>;
     scroll: (options: ScrollOptions) => Promise<CommandRequestResult>;
-    scrollIntoView: (options: ScrollIntoViewOptions) => Promise<CommandRequestResult>;
     pinch: (options: PinchOptions) => Promise<CommandRequestResult>;
     get: (options: GetOptions) => Promise<CommandRequestResult>;
     is: (options: IsOptions) => Promise<CommandRequestResult>;

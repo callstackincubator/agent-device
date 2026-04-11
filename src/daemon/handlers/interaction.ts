@@ -3,7 +3,6 @@ import type { InteractionHandlerParams } from './interaction-common.ts';
 import { handleTouchInteractionCommands } from './interaction-touch.ts';
 import { handleGetCommand } from './interaction-get.ts';
 import { handleIsCommand } from './interaction-is.ts';
-import { handleScrollIntoViewCommand } from './interaction-scroll.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
@@ -28,8 +27,6 @@ export async function handleInteractionCommands(
       return await handleGetCommand(params);
     case 'is':
       return await handleIsCommand(params);
-    case 'scrollintoview':
-      return await handleScrollIntoViewCommand(params);
     default:
       return null;
   }

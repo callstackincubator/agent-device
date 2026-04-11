@@ -203,11 +203,6 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_DEVICE,
   },
-  scrollintoview: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_NONE,
-  },
   swipe: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
