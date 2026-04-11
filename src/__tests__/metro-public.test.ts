@@ -21,6 +21,7 @@ import {
   buildIosRuntimeHints,
   ensureMetroTunnel,
   prepareRemoteMetro,
+  resolveRuntimeTransport,
   stopMetroTunnel,
 } from '../metro.ts';
 
@@ -110,5 +111,16 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
   assert.equal(
     buildAndroidRuntimeHints('https://public.example.test').bundleUrl,
     'https://public.example.test/index.bundle?platform=android&dev=true&minify=false',
+  );
+  assert.deepEqual(
+    resolveRuntimeTransport({
+      platform: 'ios',
+      bundleUrl: 'https://10.0.0.10:8082/index.bundle?platform=ios',
+    }),
+    {
+      host: '10.0.0.10',
+      port: 8082,
+      scheme: 'https',
+    },
   );
 });

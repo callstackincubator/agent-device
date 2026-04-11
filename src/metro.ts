@@ -1,12 +1,19 @@
 import type { SessionRuntimeHints } from './contracts.ts';
 import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
+import { resolveRuntimeTransportHints } from './daemon/runtime-hints.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
 /** Re-export of {@link SessionRuntimeHints} under the Metro-specific alias used by public API consumers. */
 export type MetroRuntimeHints = SessionRuntimeHints;
+
+export function resolveRuntimeTransport(
+  runtime: SessionRuntimeHints | undefined,
+): { host: string; port: number; scheme: 'http' | 'https' } | undefined {
+  return resolveRuntimeTransportHints(runtime);
+}
 
 export type MetroBridgeResult = {
   enabled: boolean;
