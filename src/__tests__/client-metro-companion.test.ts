@@ -87,6 +87,8 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
     assert.notEqual(stagingFirst.statePath, prod.statePath);
     assert.equal(vi.mocked(runCmdDetached).mock.calls.length, 2);
     assertCompanionSpawnTarget();
+    assert.equal(fs.existsSync(stagingFirst.logPath), true);
+    assert.equal(fs.existsSync(prod.logPath), true);
 
     const stagingState = JSON.parse(fs.readFileSync(stagingFirst.statePath, 'utf8')) as {
       consumers: string[];
@@ -114,6 +116,8 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
     assert.equal(finalStop.stopped, true);
     assert.equal(killSpy.mock.calls.length, 1);
     assert.deepEqual(killSpy.mock.calls[0], [111, 'SIGTERM']);
+    assert.equal(fs.existsSync(stagingFirst.statePath), false);
+    assert.equal(fs.existsSync(stagingFirst.logPath), false);
 
     const prodStop = await stopMetroCompanion({
       projectRoot,
@@ -123,6 +127,8 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
     assert.equal(prodStop.stopped, true);
     assert.equal(killSpy.mock.calls.length, 2);
     assert.deepEqual(killSpy.mock.calls[1], [222, 'SIGTERM']);
+    assert.equal(fs.existsSync(prod.statePath), false);
+    assert.equal(fs.existsSync(prod.logPath), false);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

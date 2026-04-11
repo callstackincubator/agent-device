@@ -7,6 +7,7 @@ import {
   ENV_LAUNCH_URL,
   ENV_LOCAL_BASE_URL,
   ENV_SERVER_BASE_URL,
+  ENV_STATE_PATH,
   METRO_COMPANION_RUN_ARG,
 } from './client-metro-companion-contract.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
@@ -129,6 +130,39 @@ function clearCompanionState(statePath: string): void {
   }
 }
 
+function clearCompanionLog(logPath: string): void {
+  try {
+    fs.unlinkSync(logPath);
+  } catch {
+    // best effort cleanup
+  }
+}
+
+function removeDirectoryIfEmpty(dirPath: string): void {
+  try {
+    const entries = fs.readdirSync(dirPath);
+    if (entries.length === 0) {
+      fs.rmdirSync(dirPath);
+    }
+  } catch {
+    // best effort cleanup
+  }
+}
+
+function clearCompanionArtifacts(paths: { statePath: string; logPath: string }): void {
+  const stateDir = path.dirname(paths.statePath);
+  const logDir = path.dirname(paths.logPath);
+  clearCompanionState(paths.statePath);
+  clearCompanionLog(paths.logPath);
+  removeDirectoryIfEmpty(stateDir);
+  if (logDir !== stateDir) {
+    removeDirectoryIfEmpty(logDir);
+  }
+  if (path.basename(stateDir) === METRO_COMPANION_STATE_DIR) {
+    removeDirectoryIfEmpty(path.dirname(stateDir));
+  }
+}
+
 function isMetroCompanionCommand(command: string): boolean {
   return command.includes(METRO_COMPANION_RUN_ARG);
 }
@@ -214,6 +248,7 @@ function buildCompanionEnv(
     [ENV_SERVER_BASE_URL]: normalizeBaseUrl(options.serverBaseUrl),
     [ENV_BEARER_TOKEN]: options.bearerToken,
     [ENV_LOCAL_BASE_URL]: normalizeBaseUrl(options.localBaseUrl),
+    [ENV_STATE_PATH]: resolveCompanionPaths(options.projectRoot, options.profileKey).statePath,
   };
   if (options.launchUrl?.trim()) {
     nextEnv[ENV_LAUNCH_URL] = options.launchUrl.trim();
@@ -288,7 +323,7 @@ export async function ensureMetroCompanion(
 
   if (existing) {
     await stopCompanionProcess(existing);
-    clearCompanionState(paths.statePath);
+    clearCompanionArtifacts(paths);
   }
 
   const spawned = spawnCompanionProcess(options, paths.logPath);
@@ -308,7 +343,7 @@ export async function stopMetroCompanion(
   const paths = resolveCompanionPaths(options.projectRoot, options.profileKey);
   const existing = readCompanionState(paths.statePath);
   if (!existing) {
-    clearCompanionState(paths.statePath);
+    clearCompanionArtifacts(paths);
     return { stopped: false, statePath: paths.statePath };
   }
   const nextState = withoutConsumer(existing, consumerKey);
@@ -317,6 +352,6 @@ export async function stopMetroCompanion(
     return { stopped: false, statePath: paths.statePath };
   }
   await stopCompanionProcess(existing);
-  clearCompanionState(paths.statePath);
+  clearCompanionArtifacts(paths);
   return { stopped: true, statePath: paths.statePath };
 }
