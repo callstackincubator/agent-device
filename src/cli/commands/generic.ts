@@ -176,17 +176,6 @@ export const genericClientCommandHandlers = {
         pixels: flags.pixels,
       }),
   ),
-  [CLIENT_COMMANDS.scrollIntoView]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.scrollIntoView,
-    ({ client, positionals, flags }) =>
-      client.interactions.scrollIntoView({
-        ...buildSelectionOptions(flags),
-        ...(positionals[0]?.startsWith('@')
-          ? { ref: positionals[0], label: positionals.slice(1).join(' ') || undefined }
-          : { text: positionals.join(' ') }),
-        maxScrolls: flags.maxScrolls,
-      }),
-  ),
   [CLIENT_COMMANDS.pinch]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.pinch,
     ({ client, positionals, flags }) =>

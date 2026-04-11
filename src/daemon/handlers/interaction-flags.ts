@@ -9,7 +9,7 @@ const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
 ];
 
 export function refSnapshotFlagGuardResponse(
-  command: 'press' | 'fill' | 'get' | 'scrollintoview',
+  command: 'press' | 'fill' | 'get',
   flags: CommandFlags | undefined,
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);

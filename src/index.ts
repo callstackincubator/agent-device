@@ -74,7 +74,6 @@ export type {
   ReplayTestOptions,
   RotateCommandOptions,
   RotateCommandResult,
-  ScrollIntoViewOptions,
   ScrollOptions,
   SessionCloseResult,
   SettingsUpdateOptions,

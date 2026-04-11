@@ -72,7 +72,6 @@ export type CliFlags = {
   backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
-  maxScrolls?: number;
   activity?: string;
   header?: string[];
   saveScript?: boolean | string;
@@ -638,15 +637,6 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     enumValues: ['one-way', 'ping-pong'],
     usageLabel: '--pattern one-way|ping-pong',
     usageDescription: 'Swipe repeat pattern',
-  },
-  {
-    key: 'maxScrolls',
-    names: ['--max-scrolls'],
-    type: 'int',
-    min: 1,
-    max: 200,
-    usageLabel: '--max-scrolls <n>',
-    usageDescription: 'scrollintoview: cap the number of scroll gestures before failing',
   },
   {
     key: 'verbose',
@@ -1228,14 +1218,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Scroll in a direction',
     positionalArgs: ['direction', 'amount?'],
     allowedFlags: ['pixels'],
-  },
-  scrollintoview: {
-    usageOverride: 'scrollintoview <text|@ref>',
-    helpDescription: 'Scroll until text appears or a snapshot ref is brought into view',
-    summary: 'Scroll until text or ref is visible',
-    positionalArgs: ['target'],
-    allowsExtraPositionals: true,
-    allowedFlags: ['maxScrolls'],
   },
   pinch: {
     helpDescription: 'Pinch/zoom gesture (Apple simulator or macOS app session)',

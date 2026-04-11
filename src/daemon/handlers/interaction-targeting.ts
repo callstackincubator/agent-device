@@ -189,7 +189,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
       error: {
         code: 'COMMAND_FAILED',
         message: `Ref ${refInput} is off-screen and not safe to ${commandLabel}`,
-        hint: `Run scrollintoview ${refInput}, then retry ${commandLabel} with the returned currentRef or a fresh snapshot.`,
+        hint: `Use scroll with the direction from the off-screen summary, take a fresh snapshot, then retry ${commandLabel} with the new ref or a selector.`,
         details: {
           reason: 'offscreen_ref',
           ref,

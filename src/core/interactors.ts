@@ -17,7 +17,6 @@ import {
   rotateAndroid,
   swipeAndroid,
   scrollAndroid,
-  scrollIntoViewAndroid,
   screenshotAndroid,
   setAndroidSetting,
   typeAndroid,
@@ -104,10 +103,6 @@ export type Interactor = {
     direction: ScrollDirection,
     options?: { amount?: number; pixels?: number },
   ): Promise<Record<string, unknown> | void>;
-  scrollIntoView(
-    text: string,
-    options?: { maxScrolls?: number },
-  ): Promise<{ attempts?: number } | void>;
   screenshot(outPath: string, options?: ScreenshotOptions): Promise<void>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
@@ -141,7 +136,6 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         type: (text, delayMs) => typeAndroid(device, text, delayMs),
         fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
         scroll: (direction, options) => scrollAndroid(device, direction, options),
-        scrollIntoView: (text, options) => scrollIntoViewAndroid(device, text, options),
         screenshot: (outPath) => screenshotAndroid(device, outPath),
         back: (_mode) => backAndroid(device),
         home: () => homeAndroid(device),
@@ -165,9 +159,6 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
         type: (text, delayMs) => typeLinux(text, delayMs),
         fill: (x, y, text, delayMs) => fillLinux(x, y, text, delayMs),
         scroll: (direction, options) => scrollLinux(direction, options),
-        scrollIntoView: () => {
-          throw new AppError('UNSUPPORTED_OPERATION', 'scrollIntoView not yet supported on Linux');
-        },
         screenshot: (outPath) => screenshotLinux(outPath),
         back: () => backLinux(),
         home: () => homeLinux(),

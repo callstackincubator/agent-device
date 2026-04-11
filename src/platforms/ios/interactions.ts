@@ -1,10 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
-import type { RunnerCommand } from './runner-client.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
-import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
-import { DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS } from '../../utils/scroll-into-view.ts';
 import type { BackMode, Interactor, RunnerContext } from '../../core/interactors.ts';
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
@@ -29,64 +26,14 @@ type NormalizedScrollOptions = {
   preferProvidedPixels?: boolean;
 };
 
-type RunnerCommandExecutor = (command: RunnerCommand) => Promise<Record<string, unknown>>;
 type IosRunnerOverrides = Pick<
   Interactor,
-  | 'tap'
-  | 'doubleTap'
-  | 'swipe'
-  | 'longPress'
-  | 'focus'
-  | 'type'
-  | 'fill'
-  | 'scroll'
-  | 'scrollIntoView'
+  'tap' | 'doubleTap' | 'swipe' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll'
 >;
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
   if (mode === 'system') return 'backSystem';
   return 'backInApp';
-}
-
-export async function scrollIntoViewIosRunnerText(
-  runCommand: RunnerCommandExecutor,
-  throwIfCanceled: () => void,
-  text: string,
-  options?: { maxScrolls?: number },
-): Promise<{ attempts?: number }> {
-  const maxScrolls = options?.maxScrolls ?? DEFAULT_SCROLL_INTO_VIEW_MAX_SCROLLS;
-  const initial = await runCommand({ command: 'findText', text });
-  if (initial?.found) return { attempts: 0 };
-
-  let previousSnapshot = snapshotProgressFingerprint(
-    await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
-  );
-
-  for (let attempts = 1; attempts <= maxScrolls; attempts += 1) {
-    throwIfCanceled();
-    await runCommand({ command: 'swipe', direction: 'up' });
-    // Small settle keeps gesture chain stable without long visible pauses.
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    const found = await runCommand({ command: 'findText', text });
-    if (found?.found) return { attempts };
-
-    const snapshot = snapshotProgressFingerprint(
-      await runCommand({ command: 'snapshot', interactiveOnly: true, compact: true }),
-    );
-    if (snapshot === previousSnapshot) {
-      throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
-        reason: 'not_found',
-        attempts,
-        stalled: true,
-      });
-    }
-    previousSnapshot = snapshot;
-  }
-
-  throw new AppError('COMMAND_FAILED', `scrollintoview could not find text: ${text}`, {
-    reason: 'not_found',
-    attempts: maxScrolls,
-  });
 }
 
 export function iosRunnerOverrides(
@@ -102,11 +49,6 @@ export function iosRunnerOverrides(
     traceLogPath: ctx.traceLogPath,
     requestId: ctx.requestId,
   };
-  const throwIfCanceled = () => {
-    if (!isRequestCanceled(ctx.requestId)) return;
-    throw createRequestCanceledError();
-  };
-
   return {
     runnerOpts,
     overrides: {
@@ -189,22 +131,8 @@ export function iosRunnerOverrides(
           options,
         );
       },
-      scrollIntoView: async (text, options) => {
-        return await scrollIntoViewIosRunnerText(
-          (command) =>
-            runIosRunnerCommand(device, { ...command, appBundleId: ctx.appBundleId }, runnerOpts),
-          throwIfCanceled,
-          text,
-          options,
-        );
-      },
     },
   };
-}
-
-function snapshotProgressFingerprint(snapshot: Record<string, unknown>): string {
-  const nodes = snapshot.nodes;
-  return JSON.stringify(Array.isArray(nodes) ? nodes : snapshot);
 }
 
 function invertScrollDirection(direction: ScrollDirection): ScrollDirection {

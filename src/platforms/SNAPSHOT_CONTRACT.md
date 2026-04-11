@@ -91,14 +91,13 @@ Linux supports: `back`, `click`, `close`, `diff`, `fill`, `find`, `focus`,
 
 Not supported (blocked at capability level): `alert`, `app-switcher`, `apps`,
 `boot`, `install`, `keyboard`, `logs`, `network`, `perf`, `pinch`,
-`push`, `record`, `reinstall`, `rotate`, `scrollintoview`, `settings`,
+`push`, `record`, `reinstall`, `rotate`, `settings`,
 `trigger-app-event`.
 
 ### Known limitations
 
 - Input synthesis uses `xdotool` (X11) or `ydotool` (Wayland) — availability depends on the desktop environment.
 - On Wayland without `ydotool`, falls back to `xdotool` with a diagnostic warning (may not work).
-- `scrollIntoView` is not yet implemented.
 - Clipboard requires `xclip`/`xsel` (X11) or `wl-copy`/`wl-paste` (Wayland).
 - Settings operations are not supported.
 

@@ -351,12 +351,6 @@ export function createAgentDeviceClient(
           [options.direction, ...optionalNumber(options.amount)],
           options,
         ),
-      scrollIntoView: async (options) =>
-        await executeCommandRequest(
-          CLIENT_COMMANDS.scrollIntoView,
-          scrollIntoViewPositionals(options),
-          options,
-        ),
       pinch: async (options) =>
         await executeCommandRequest(
           CLIENT_COMMANDS.pinch,
@@ -456,15 +450,6 @@ function targetPositionals(options: InteractionTarget): string[] {
 function elementPositionals(options: ElementTarget): string[] {
   if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
   return [options.selector];
-}
-
-function scrollIntoViewPositionals(options: {
-  text?: string;
-  ref?: string;
-  label?: string;
-}): string[] {
-  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
-  return [options.text ?? ''];
 }
 
 function stringifyPayload(payload: AppPushOptions['payload']): string {
@@ -615,7 +600,6 @@ export type {
   ReplayTestOptions,
   RotateCommandOptions,
   RotateCommandResult,
-  ScrollIntoViewOptions,
   ScrollOptions,
   SessionCloseResult,
   SettingsUpdateOptions,

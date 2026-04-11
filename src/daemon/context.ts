@@ -27,7 +27,6 @@ export type DaemonCommandContext = {
   backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
-  maxScrolls?: number;
   surface?: SessionSurface;
 };
 
@@ -63,6 +62,5 @@ export function contextFromFlags(
     backMode: flags?.backMode,
     pauseMs: flags?.pauseMs,
     pattern: flags?.pattern,
-    maxScrolls: flags?.maxScrolls,
   };
 }

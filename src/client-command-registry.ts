@@ -28,7 +28,6 @@ export const CLIENT_COMMANDS = {
   replay: 'replay',
   rotate: 'rotate',
   scroll: 'scroll',
-  scrollIntoView: 'scrollintoview',
   screenshot: 'screenshot',
   settings: 'settings',
   snapshot: 'snapshot',
