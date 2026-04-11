@@ -82,7 +82,7 @@ npm install -g agent-device
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
-On macOS, `agent-device` includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and helper-backed desktop snapshot surfaces. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build.
+On macOS, `agent-device` includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and helper-backed desktop snapshot surfaces. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build. Local helper overrides through `AGENT_DEVICE_MACOS_HELPER_BIN` must use an absolute executable path.
 
 ## Contributing
 

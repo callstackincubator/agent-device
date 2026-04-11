@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
+import { resolveExecutableOverridePath, runCmd } from '../../utils/exec.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
 
 export type MacOsPermissionTarget = 'accessibility' | 'screen-recording' | 'input-monitoring';
@@ -155,7 +155,10 @@ async function readInstalledMacOsHelperFingerprint(): Promise<string | null> {
 }
 
 async function ensureMacOsHelperBinary(): Promise<string> {
-  const configuredPath = process.env[MACOS_HELPER_ENV_PATH]?.trim();
+  const configuredPath = await resolveExecutableOverridePath(
+    process.env[MACOS_HELPER_ENV_PATH],
+    MACOS_HELPER_ENV_PATH,
+  );
   if (configuredPath) {
     return configuredPath;
   }

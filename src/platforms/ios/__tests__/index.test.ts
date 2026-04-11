@@ -141,6 +141,21 @@ test('resolveMacOsHelperPackageRootFrom finds helper package from source and dis
   }
 });
 
+test('AGENT_DEVICE_MACOS_HELPER_BIN rejects relative override paths', async () => {
+  const previousHelperPath = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = './agent-device-macos-helper';
+
+  try {
+    await assert.rejects(() => quitMacOsApp('com.example.App'), { code: 'INVALID_ARGS' });
+  } finally {
+    if (previousHelperPath === undefined) {
+      delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
+    } else {
+      process.env.AGENT_DEVICE_MACOS_HELPER_BIN = previousHelperPath;
+    }
+  }
+});
+
 async function withMockedXcrun(
   tempPrefix: string,
   script: string,

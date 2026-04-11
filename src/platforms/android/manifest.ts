@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
-import { runCmd } from '../../utils/exec.ts';
+import { isExecutablePath, runCmd } from '../../utils/exec.ts';
 import { resolveAndroidSdkRoots } from './sdk.ts';
 
 const RES_XML_TYPE = 0x0003;
@@ -197,12 +197,10 @@ async function resolveAaptPath(): Promise<string | undefined> {
         );
         for (const version of sortedVersions) {
           const candidate = path.join(buildToolsDir, version, 'aapt');
-          try {
-            await fs.access(candidate);
+          // SDK roots can come from env vars; reject relative roots before returning an executable.
+          if (path.isAbsolute(candidate) && (await isExecutablePath(candidate))) {
             aaptPathCache = candidate;
             return candidate;
-          } catch {
-            // Continue searching other build-tools versions.
           }
         }
       } catch {

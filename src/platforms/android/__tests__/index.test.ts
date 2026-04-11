@@ -617,6 +617,42 @@ test('installAndroidApp .aab reports missing bundletool tooling', async () => {
   }
 });
 
+test('installAndroidApp .aab rejects relative AGENT_DEVICE_BUNDLETOOL_JAR overrides', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-android-install-aab-relative-jar-'),
+  );
+  const adbPath = path.join(tmpDir, 'adb');
+  const aabPath = path.join(tmpDir, 'Sample.aab');
+  await fs.writeFile(aabPath, 'placeholder', 'utf8');
+  await fs.writeFile(adbPath, '#!/bin/sh\nexit 0\n', 'utf8');
+  await fs.chmod(adbPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousBundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+  process.env.PATH = tmpDir;
+  process.env.AGENT_DEVICE_BUNDLETOOL_JAR = './bundletool-all.jar';
+
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await assert.rejects(() => installAndroidApp(device, aabPath), { code: 'INVALID_ARGS' });
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousBundletoolJar === undefined) {
+      delete process.env.AGENT_DEVICE_BUNDLETOOL_JAR;
+    } else {
+      process.env.AGENT_DEVICE_BUNDLETOOL_JAR = previousBundletoolJar;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('openAndroidApp rejects activity override for deep link URLs', async () => {
   const device: DeviceInfo = {
     platform: 'android',

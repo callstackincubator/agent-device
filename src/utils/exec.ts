@@ -134,11 +134,11 @@ export async function runCmd(
 }
 
 export async function whichCmd(cmd: string): Promise<boolean> {
-  const candidate = normalizeExecutableLookup(cmd, { allowRelativePath: false });
+  const candidate = normalizeExecutableLookup(cmd);
   if (!candidate) return false;
 
   if (path.isAbsolute(candidate)) {
-    return isExecutable(candidate);
+    return isExecutablePath(candidate);
   }
 
   const pathValue = process.env.PATH;
@@ -148,13 +148,45 @@ export async function whichCmd(cmd: string): Promise<boolean> {
     const trimmedDirectory = directory.trim();
     if (!trimmedDirectory) continue;
     for (const entry of resolveExecutableCandidates(candidate, pathExtensions)) {
-      if (await isExecutable(path.join(trimmedDirectory, entry))) {
+      if (await isExecutablePath(path.join(trimmedDirectory, entry))) {
         return true;
       }
     }
   }
 
   return false;
+}
+
+export async function resolveExecutableOverridePath(
+  rawPath: string | undefined,
+  envName: string,
+): Promise<string | undefined> {
+  const candidate = normalizeOverridePath(rawPath, envName, 'executable');
+  if (!candidate) return undefined;
+  if (!(await isExecutablePath(candidate))) {
+    throw new AppError(
+      'TOOL_MISSING',
+      `${envName} points to a missing or non-executable file: ${candidate}`,
+      { envName, path: candidate },
+    );
+  }
+  return candidate;
+}
+
+export async function resolveFileOverridePath(
+  rawPath: string | undefined,
+  envName: string,
+): Promise<string | undefined> {
+  const candidate = normalizeOverridePath(rawPath, envName, 'file');
+  if (!candidate) return undefined;
+  if (!(await isFilePath(candidate))) {
+    throw new AppError(
+      'TOOL_MISSING',
+      `${envName} points to a missing or non-file path: ${candidate}`,
+      { envName, path: candidate },
+    );
+  }
+  return candidate;
 }
 
 export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {}): ExecResult {
@@ -397,24 +429,39 @@ export function runCmdBackground(
 }
 
 function normalizeExecutableCommand(cmd: string): string {
-  const candidate = normalizeExecutableLookup(cmd, { allowRelativePath: true });
+  const candidate = normalizeExecutableLookup(cmd);
   if (!candidate) {
     throw new AppError('INVALID_ARGS', `Invalid executable command: ${JSON.stringify(cmd)}`, {
       cmd,
+      hint: 'Use a bare command name from PATH or an absolute executable path.',
     });
   }
   return candidate;
 }
 
-function normalizeExecutableLookup(
-  cmd: string,
-  options: { allowRelativePath: boolean },
-): string | null {
+function normalizeOverridePath(
+  rawPath: string | undefined,
+  envName: string,
+  kind: 'executable' | 'file',
+): string | undefined {
+  const candidate = rawPath?.trim();
+  if (!candidate) return undefined;
+  if (!path.isAbsolute(candidate) || candidate.includes('\0')) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `${envName} must be an absolute ${kind} path, not ${JSON.stringify(rawPath)}`,
+      { envName, path: rawPath },
+    );
+  }
+  return candidate;
+}
+
+function normalizeExecutableLookup(cmd: string): string | null {
   const candidate = cmd.trim();
   if (!candidate || candidate.includes('\0')) return null;
   if (path.isAbsolute(candidate)) return candidate;
   if (candidate.includes('/') || candidate.includes('\\')) {
-    return options.allowRelativePath ? candidate : null;
+    return null;
   }
   return BARE_COMMAND_RE.test(candidate) ? candidate : null;
 }
@@ -439,12 +486,20 @@ function resolveExecutableCandidates(cmd: string, pathExtensions: string[]): str
   return pathExtensions.map((extension) => `${cmd}${extension}`);
 }
 
-async function isExecutable(filePath: string): Promise<boolean> {
+export async function isExecutablePath(filePath: string): Promise<boolean> {
   try {
-    const fileStat = await stat(filePath);
-    if (!fileStat.isFile()) return false;
+    if (!(await isFilePath(filePath))) return false;
     await access(filePath, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isFilePath(filePath: string): Promise<boolean> {
+  try {
+    const fileStat = await stat(filePath);
+    return fileStat.isFile();
   } catch {
     return false;
   }

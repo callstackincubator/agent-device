@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runCmd, whichCmd } from '../../utils/exec.ts';
+import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
@@ -499,19 +499,14 @@ async function resolveBundletoolInvocation(): Promise<BundletoolInvocation> {
     return invocation;
   }
 
-  const bundletoolJar = process.env.AGENT_DEVICE_BUNDLETOOL_JAR?.trim();
+  const bundletoolJar = await resolveFileOverridePath(
+    process.env.AGENT_DEVICE_BUNDLETOOL_JAR,
+    'AGENT_DEVICE_BUNDLETOOL_JAR',
+  );
   if (!bundletoolJar) {
     throw new AppError(
       'TOOL_MISSING',
       'bundletool not found in PATH. Install bundletool or set AGENT_DEVICE_BUNDLETOOL_JAR to a bundletool-all.jar path.',
-    );
-  }
-  try {
-    await fs.access(bundletoolJar);
-  } catch {
-    throw new AppError(
-      'TOOL_MISSING',
-      `AGENT_DEVICE_BUNDLETOOL_JAR points to a missing file: ${bundletoolJar}`,
     );
   }
   const invocation = { cmd: 'java', prefixArgs: ['-jar', bundletoolJar] } as const;

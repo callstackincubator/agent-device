@@ -85,3 +85,4 @@ Troubleshooting:
 - If `menubar` is missing the expected menu, retry with `open <app> --platform macos --surface menubar` for menu bar apps, or make the app frontmost first and retry the generic menubar surface.
 - If the wrong menu opened, retry secondary-clicking the row or cell wrapper rather than the nested text node.
 - If the app has multiple windows, make the correct window frontmost before relying on refs.
+- If overriding the local helper, set `AGENT_DEVICE_MACOS_HELPER_BIN` to an absolute executable path; relative helper paths are rejected.
