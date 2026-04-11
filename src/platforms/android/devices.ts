@@ -435,17 +435,6 @@ export async function ensureAndroidEmulatorBooted(params: {
   };
 }
 
-export async function ensureAndroidEmulatorHeadlessBooted(params: {
-  avdName: string;
-  serial?: string;
-  timeoutMs?: number;
-}): Promise<DeviceInfo> {
-  return await ensureAndroidEmulatorBooted({
-    ...params,
-    headless: true,
-  });
-}
-
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {
   const timeoutBudget = timeoutMs;
   const deadline = Deadline.fromTimeoutMs(timeoutBudget);

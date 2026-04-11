@@ -6,4 +6,10 @@ export function resolveTimeoutMs(raw: string | undefined, fallback: number, min:
 }
 
 /** Alias for `resolveTimeoutMs` — semantically marks the caller expects seconds. */
-export const resolveTimeoutSeconds = resolveTimeoutMs;
+export function resolveTimeoutSeconds(
+  raw: string | undefined,
+  fallback: number,
+  min: number,
+): number {
+  return resolveTimeoutMs(raw, fallback, min);
+}

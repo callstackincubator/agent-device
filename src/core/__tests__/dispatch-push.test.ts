@@ -59,7 +59,10 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
 
   try {
-    const result = await dispatchCommand(ANDROID_EMULATOR, 'push', ['com.example.app', payloadPath]);
+    const result = await dispatchCommand(ANDROID_EMULATOR, 'push', [
+      'com.example.app',
+      payloadPath,
+    ]);
     assert.deepEqual(result, {
       platform: 'android',
       package: 'com.example.app',

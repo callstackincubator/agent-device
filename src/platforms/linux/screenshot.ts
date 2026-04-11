@@ -19,9 +19,6 @@ const screenshotResolver = createLinuxToolResolver<ScreenshotTool>({
     'scrot, import (ImageMagick), or gnome-screenshot is required for screenshots on X11. Install via your package manager.',
 });
 
-/** Reset cached tool (for testing). */
-export const resetScreenshotToolCache = screenshotResolver.resetCache;
-
 /**
  * Capture a screenshot of the Linux desktop.
  *

@@ -39,10 +39,6 @@ const LEGACY_ENV_VAR_NAMES: Partial<Record<FlagKey, string[]>> = {
 const optionSpecs = buildOptionSpecs();
 const optionSpecByKey = new Map(optionSpecs.map((spec) => [spec.key, spec]));
 
-export function getOptionSpecs(): readonly OptionSpec[] {
-  return optionSpecs;
-}
-
 export function getOptionSpec(key: FlagKey): OptionSpec | undefined {
   return optionSpecByKey.get(key);
 }

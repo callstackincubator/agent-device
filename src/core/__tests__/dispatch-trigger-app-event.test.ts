@@ -44,7 +44,10 @@ test('trigger-app-event validates payload JSON', async () => {
   try {
     await assert.rejects(
       () =>
-        dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken', '{invalid-json']),
+        dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', [
+          'screenshot_taken',
+          '{invalid-json',
+        ]),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -126,7 +129,9 @@ test('trigger-app-event prefers platform-specific template over global template'
   process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = 'myapp://android?name={event}';
 
   try {
-    const result = await dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken']);
+    const result = await dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', [
+      'screenshot_taken',
+    ]);
     assert.equal(result?.eventUrl, 'myapp://android?name=screenshot_taken');
   } finally {
     process.env.PATH = previousPath;

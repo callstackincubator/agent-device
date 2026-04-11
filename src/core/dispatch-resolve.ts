@@ -82,7 +82,13 @@ export async function resolveAppleDevice(
   throw new AppError('DEVICE_NOT_FOUND', 'No devices found', { selector });
 }
 
-export const resolveIosDevice = resolveAppleDevice;
+export async function resolveIosDevice(
+  devices: DeviceInfo[],
+  selector: AppleDeviceSelector,
+  context: { simulatorSetPath?: string },
+): Promise<DeviceInfo> {
+  return await resolveAppleDevice(devices, selector, context);
+}
 
 export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<DeviceInfo> {
   const normalizedPlatform = normalizePlatformSelector(flags.platform);

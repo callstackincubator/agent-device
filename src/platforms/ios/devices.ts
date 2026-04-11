@@ -371,5 +371,3 @@ export async function listAppleDevices(
   devices = mergeAppleDevices(devices, devicectlDevices);
   return mergeAppleDevices(devices, xctraceDevices);
 }
-
-export const listIosDevices = listAppleDevices;

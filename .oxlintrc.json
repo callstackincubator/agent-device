@@ -5,8 +5,14 @@
     "node": true,
     "es6": true
   },
+  "categories": {
+    "correctness": "error"
+  },
   "rules": {
-    "eslint/no-unused-vars": "error",
+    "eslint/no-unused-vars": [
+      "error",
+      { "fix": { "imports": "safe-fix", "variables": "suggestion" } }
+    ],
     "eslint/prefer-const": "error",
     "eslint/no-useless-escape": "error",
     "eslint/no-empty": ["error", { "allowEmptyCatch": true }],

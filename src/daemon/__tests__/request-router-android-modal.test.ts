@@ -61,7 +61,6 @@ vi.mock('../../utils/exec.ts', () => ({
   }),
 }));
 
-
 function makeAndroidSession(name: string): SessionState {
   return {
     name,
