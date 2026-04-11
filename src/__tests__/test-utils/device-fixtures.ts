@@ -1,0 +1,58 @@
+import type { DeviceInfo } from '../../utils/device.ts';
+
+export const ANDROID_EMULATOR: DeviceInfo = {
+  platform: 'android',
+  id: 'emulator-5554',
+  name: 'Pixel',
+  kind: 'emulator',
+  booted: true,
+};
+
+export const IOS_SIMULATOR: DeviceInfo = {
+  platform: 'ios',
+  id: 'sim-1',
+  name: 'iPhone 17 Pro',
+  kind: 'simulator',
+  booted: true,
+};
+
+export const IOS_DEVICE: DeviceInfo = {
+  platform: 'ios',
+  id: 'ios-device-1',
+  name: 'iPhone',
+  kind: 'device',
+  booted: true,
+};
+
+export const MACOS_DEVICE: DeviceInfo = {
+  platform: 'macos',
+  id: 'host-macos-local',
+  name: 'Mac',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
+export const LINUX_DEVICE: DeviceInfo = {
+  platform: 'linux',
+  id: 'local',
+  name: 'Linux Desktop',
+  kind: 'device',
+  target: 'desktop',
+};
+
+export const ANDROID_TV_DEVICE: DeviceInfo = {
+  platform: 'android',
+  id: 'and-tv-1',
+  name: 'Android TV',
+  kind: 'device',
+  target: 'tv',
+};
+
+export const TVOS_SIMULATOR: DeviceInfo = {
+  platform: 'ios',
+  id: 'tv-sim-1',
+  name: 'Apple TV',
+  kind: 'simulator',
+  target: 'tv',
+};

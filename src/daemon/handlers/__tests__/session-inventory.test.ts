@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { handleSessionInventoryCommands } from '../session-inventory.ts';
-import { makeSessionStore } from './session-test-store.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
 
 test('session inventory lists iOS session metadata directly', async () => {
   const sessionStore = makeSessionStore('agent-device-session-inventory-');

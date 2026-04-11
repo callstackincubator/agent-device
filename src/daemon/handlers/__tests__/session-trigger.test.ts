@@ -1,7 +1,4 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -14,10 +11,11 @@ vi.mock('../session-open-target.ts', async (importOriginal) => {
 });
 
 import { handleSessionCommands } from '../session.ts';
-import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
 import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
+import { makeSession as makeBaseSession } from '../../../__tests__/test-utils/session-factories.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
@@ -31,20 +29,12 @@ beforeEach(() => {
   mockResolveAndroidPackage.mockResolvedValue(undefined);
 });
 
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-trigger-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
-
 function makeSession(name: string, device: SessionState['device']): SessionState {
-  return {
-    name,
+  return makeBaseSession(name, {
     device,
-    createdAt: Date.now(),
-    actions: [],
     appName: 'ExampleApp',
     appBundleId: 'com.example.app',
-  };
+  });
 }
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
@@ -55,7 +45,7 @@ const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
 };
 
 test('trigger-app-event requires active session or explicit device selector', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-trigger-');
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -78,7 +68,7 @@ test('trigger-app-event requires active session or explicit device selector', as
 });
 
 test('trigger-app-event supports explicit selector without active session', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-trigger-');
   mockResolveTargetDevice.mockResolvedValue({
     platform: 'android',
     id: 'emulator-5554',
@@ -117,7 +107,7 @@ test('trigger-app-event supports explicit selector without active session', asyn
 });
 
 test('trigger-app-event records action and refreshes session app bundle context', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-trigger-');
   const session = makeSession('default', {
     platform: 'android',
     id: 'emulator-5554',

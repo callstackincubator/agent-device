@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { handleSessionObservabilityCommands } from '../session-observability.ts';
-import { makeSessionStore } from './session-test-store.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
 
 test('logs path reports backend for macOS desktop sessions directly', async () => {
   const sessionStore = makeSessionStore('agent-device-session-observability-');

@@ -1,13 +1,17 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { handleInteractionCommands, unsupportedRefSnapshotFlags } from '../interaction.ts';
-import { SessionStore } from '../../session-store.ts';
+import type { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { attachRefs, type SnapshotBackend } from '../../../utils/snapshot.ts';
 import { buildSnapshotState } from '../snapshot-capture.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
+import {
+  makeIosSession,
+  makeAndroidSession as makeBaseAndroidSession,
+  makeMacOsSession as makeBaseMacOsSession,
+} from '../../../__tests__/test-utils/session-factories.ts';
+import { makeSnapshotState } from '../../../__tests__/test-utils/snapshot-builders.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -75,49 +79,16 @@ async function emulateCaptureSnapshotForSession(
   return snapshot;
 }
 
-function makeSessionStore(): SessionStore {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-interaction-handler-'));
-  return new SessionStore(path.join(root, 'sessions'));
-}
-
 function makeSession(name: string): SessionState {
-  return {
-    name,
-    device: {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    actions: [],
-  };
+  return makeIosSession(name);
 }
 
 function makeAndroidSession(name: string): SessionState {
-  return {
-    name,
-    device: {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel 9 Pro XL',
-      kind: 'emulator',
-      target: 'mobile',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    appBundleId: 'com.android.settings',
-    actions: [],
-  };
+  return makeBaseAndroidSession(name, { appBundleId: 'com.android.settings' });
 }
 
 function makeScrollSnapshot(nodes: Parameters<typeof attachRefs>[0]) {
-  return {
-    nodes: attachRefs(nodes),
-    createdAt: Date.now(),
-    backend: 'xctest' as const,
-  };
+  return makeSnapshotState(nodes, { backend: 'xctest' });
 }
 
 function makeScrollSession(
@@ -132,26 +103,11 @@ function makeScrollSession(
 }
 
 function makeMacOsDesktopSession(name: string): SessionState {
-  return {
-    name,
-    device: {
-      platform: 'macos',
-      id: 'macos-host',
-      name: 'Mac',
-      kind: 'device',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    actions: [],
-    surface: 'desktop',
-  };
+  return makeBaseMacOsSession(name, { surface: 'desktop' });
 }
 
 function makeMacOsMenubarSession(name: string): SessionState {
-  return {
-    ...makeMacOsDesktopSession(name),
-    surface: 'menubar',
-  };
+  return makeBaseMacOsSession(name, { surface: 'menubar' });
 }
 
 const contextFromFlags = (flags: CommandFlags | undefined) => ({

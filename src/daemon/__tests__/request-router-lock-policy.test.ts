@@ -1,5 +1,4 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -10,16 +9,11 @@ vi.mock('../../core/dispatch.ts', async (importOriginal) => {
 
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
-import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-lock-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
 
 function makeIosSession(name: string): SessionState {
   return {
@@ -44,7 +38,7 @@ beforeEach(() => {
 });
 
 test('direct daemon requests cannot bypass reject lock policy for existing sessions', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
 
   const handler = createRequestHandler({
@@ -77,7 +71,7 @@ test('direct daemon requests cannot bypass reject lock policy for existing sessi
 });
 
 test('batch steps cannot bypass reject lock policy on nested direct requests', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
 
   const handler = createRequestHandler({
@@ -118,7 +112,7 @@ test('batch steps cannot bypass reject lock policy on nested direct requests', a
 });
 
 test('direct daemon requests apply strip lock policy for existing sessions before dispatch', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
   sessionStore.set('qa-ios', makeIosSession('qa-ios'));
   let dispatchCalls = 0;
   mockDispatch.mockImplementation(async () => {
@@ -159,7 +153,7 @@ test('direct daemon requests apply strip lock policy for existing sessions befor
 });
 
 test('batch preserves tenant-scoped session names across nested requests', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
   sessionStore.set('tenant-a:default', makeIosSession('tenant-a:default'));
   const leaseRegistry = new LeaseRegistry();
   const lease = leaseRegistry.allocateLease({

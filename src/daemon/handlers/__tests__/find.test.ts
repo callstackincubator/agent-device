@@ -1,12 +1,15 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { parseFindArgs, handleFindCommands } from '../find.ts';
-import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
+import {
+  makeIosSession as makeSession,
+  makeMacOsSession as makeBaseMacOsSession,
+} from '../../../__tests__/test-utils/session-factories.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -30,40 +33,8 @@ beforeEach(() => {
   });
 });
 
-function makeSessionStore(): SessionStore {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-find-handler-'));
-  return new SessionStore(path.join(root, 'sessions'));
-}
-
-function makeSession(name: string): SessionState {
-  return {
-    name,
-    device: {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    actions: [],
-  };
-}
-
-function makeMacOsSession(name: string): SessionState {
-  return {
-    name,
-    device: {
-      platform: 'macos',
-      id: 'macos-host',
-      name: 'Mac',
-      kind: 'device',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    actions: [],
-    surface: 'desktop',
-  };
+function makeMacOsSession(name: string) {
+  return makeBaseMacOsSession(name, { surface: 'desktop' });
 }
 
 const INCREMENT_NODE = {
