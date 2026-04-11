@@ -1,5 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -332,11 +333,22 @@ test('installAndroidApp installs .apk via adb install -r', async () => {
 test('installAndroidApp resolves packageName and launchTarget from nested archive artifacts', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-install-archive-'));
   const adbPath = path.join(tmpDir, 'adb');
-  const dittoPath = path.join(tmpDir, 'ditto');
   const argsLogPath = path.join(tmpDir, 'args.log');
   const installMarkerPath = path.join(tmpDir, 'installed.marker');
   const archivePath = path.join(tmpDir, 'Sample.zip');
-  await fs.writeFile(archivePath, 'placeholder', 'utf8');
+  const manifestDir = path.join(tmpDir, 'manifest');
+  const nestedDir = path.join(tmpDir, 'nested');
+  await fs.mkdir(manifestDir);
+  await fs.mkdir(nestedDir);
+  await fs.writeFile(
+    path.join(manifestDir, 'AndroidManifest.xml'),
+    '<manifest package="com.example.archive" />',
+    'utf8',
+  );
+  execFileSync('zip', ['-qr', path.join(nestedDir, 'Sample.apk'), 'AndroidManifest.xml'], {
+    cwd: manifestDir,
+  });
+  execFileSync('zip', ['-qr', archivePath, 'nested'], { cwd: tmpDir });
 
   await fs.writeFile(
     adbPath,
@@ -359,23 +371,6 @@ test('installAndroidApp resolves packageName and launchTarget from nested archiv
     'utf8',
   );
   await fs.chmod(adbPath, 0o755);
-  await fs.writeFile(
-    dittoPath,
-    [
-      '#!/bin/sh',
-      'mkdir -p "$4/nested/apk"',
-      'cat > "$4/nested/apk/AndroidManifest.xml" <<\'XML\'',
-      '<manifest package="com.example.archive" />',
-      'XML',
-      '(cd "$4/nested/apk" && zip -qr ../Sample.apk AndroidManifest.xml)',
-      'rm -rf "$4/nested/apk"',
-      'exit 0',
-      '',
-    ].join('\n'),
-    'utf8',
-  );
-  await fs.chmod(dittoPath, 0o755);
-
   const previousPath = process.env.PATH;
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
   process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;

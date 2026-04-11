@@ -428,7 +428,7 @@ async function extractArchive(
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-archive-'));
   try {
     if (archivePath.toLowerCase().endsWith('.zip')) {
-      await runCmd('ditto', ['-x', '-k', archivePath, tempDir]);
+      await extractZipArchive(archivePath, tempDir);
     } else if (
       archivePath.toLowerCase().endsWith('.tar.gz') ||
       archivePath.toLowerCase().endsWith('.tgz')
@@ -447,6 +447,10 @@ async function extractArchive(
     await fs.rm(tempDir, { recursive: true, force: true });
     throw error;
   }
+}
+
+async function extractZipArchive(archivePath: string, outputPath: string): Promise<void> {
+  await runCmd('unzip', ['-q', archivePath, '-d', outputPath]);
 }
 
 function isArchivePath(candidatePath: string): boolean {

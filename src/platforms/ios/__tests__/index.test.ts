@@ -1180,7 +1180,7 @@ exit 1
 test('installIosApp on iOS physical device accepts .ipa and installs extracted .app payload', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-ipa-test-'));
   const xcrunPath = path.join(tmpDir, 'xcrun');
-  const dittoPath = path.join(tmpDir, 'ditto');
+  const unzipPath = path.join(tmpDir, 'unzip');
   const argsLogPath = path.join(tmpDir, 'args.log');
   const ipaPath = path.join(tmpDir, 'Sample.ipa');
   await fs.writeFile(ipaPath, 'placeholder', 'utf8');
@@ -1191,8 +1191,8 @@ test('installIosApp on iOS physical device accepts .ipa and installs extracted .
     'utf8',
   );
   await fs.chmod(xcrunPath, 0o755);
-  await fs.writeFile(dittoPath, '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nexit 0\n', 'utf8');
-  await fs.chmod(dittoPath, 0o755);
+  await fs.writeFile(unzipPath, '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nexit 0\n', 'utf8');
+  await fs.chmod(unzipPath, 0o755);
 
   const previousPath = process.env.PATH;
   const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
@@ -1230,7 +1230,7 @@ test('installIosApp on iOS physical device accepts .ipa and installs extracted .
 test('installIosApp returns bundleId and launchTarget for nested archive sources', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-archive-test-'));
   const xcrunPath = path.join(tmpDir, 'xcrun');
-  const dittoPath = path.join(tmpDir, 'ditto');
+  const unzipPath = path.join(tmpDir, 'unzip');
   const plutilPath = path.join(tmpDir, 'plutil');
   const argsLogPath = path.join(tmpDir, 'args.log');
   const archivePath = path.join(tmpDir, 'Sample.zip');
@@ -1243,10 +1243,10 @@ test('installIosApp returns bundleId and launchTarget for nested archive sources
   );
   await fs.chmod(xcrunPath, 0o755);
   await fs.writeFile(
-    dittoPath,
+    unzipPath,
     [
       '#!/bin/sh',
-      'src="$3"',
+      'src="$2"',
       'out="$4"',
       'case "$src" in',
       '  *.zip)',
@@ -1264,7 +1264,7 @@ test('installIosApp returns bundleId and launchTarget for nested archive sources
     ].join('\n'),
     'utf8',
   );
-  await fs.chmod(dittoPath, 0o755);
+  await fs.chmod(unzipPath, 0o755);
   await fs.writeFile(
     plutilPath,
     [
@@ -1318,7 +1318,7 @@ test('installIosApp on iOS physical device resolves multi-app .ipa using bundle 
     path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-test-'),
   );
   const xcrunPath = path.join(tmpDir, 'xcrun');
-  const dittoPath = path.join(tmpDir, 'ditto');
+  const unzipPath = path.join(tmpDir, 'unzip');
   const plutilPath = path.join(tmpDir, 'plutil');
   const argsLogPath = path.join(tmpDir, 'args.log');
   const ipaPath = path.join(tmpDir, 'Sample.ipa');
@@ -1331,11 +1331,11 @@ test('installIosApp on iOS physical device resolves multi-app .ipa using bundle 
   );
   await fs.chmod(xcrunPath, 0o755);
   await fs.writeFile(
-    dittoPath,
+    unzipPath,
     '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nmkdir -p "$4/Payload/Companion.app"\nexit 0\n',
     'utf8',
   );
-  await fs.chmod(dittoPath, 0o755);
+  await fs.chmod(unzipPath, 0o755);
   await fs.writeFile(
     plutilPath,
     [
@@ -1385,7 +1385,7 @@ test('installIosApp rejects multi-app .ipa when no hint is provided', async () =
     path.join(os.tmpdir(), 'agent-device-ios-install-ipa-multi-missing-hint-test-'),
   );
   const xcrunPath = path.join(tmpDir, 'xcrun');
-  const dittoPath = path.join(tmpDir, 'ditto');
+  const unzipPath = path.join(tmpDir, 'unzip');
   const plutilPath = path.join(tmpDir, 'plutil');
   const ipaPath = path.join(tmpDir, 'Sample.ipa');
   await fs.writeFile(ipaPath, 'placeholder', 'utf8');
@@ -1393,11 +1393,11 @@ test('installIosApp rejects multi-app .ipa when no hint is provided', async () =
   await fs.writeFile(xcrunPath, '#!/bin/sh\nexit 0\n', 'utf8');
   await fs.chmod(xcrunPath, 0o755);
   await fs.writeFile(
-    dittoPath,
+    unzipPath,
     '#!/bin/sh\nmkdir -p "$4/Payload/Sample.app"\nmkdir -p "$4/Payload/Companion.app"\nexit 0\n',
     'utf8',
   );
-  await fs.chmod(dittoPath, 0o755);
+  await fs.chmod(unzipPath, 0o755);
   await fs.writeFile(
     plutilPath,
     [
@@ -1442,14 +1442,14 @@ test('installIosApp rejects invalid .ipa payloads without embedded .app', async 
     path.join(os.tmpdir(), 'agent-device-ios-install-ipa-invalid-test-'),
   );
   const xcrunPath = path.join(tmpDir, 'xcrun');
-  const dittoPath = path.join(tmpDir, 'ditto');
+  const unzipPath = path.join(tmpDir, 'unzip');
   const ipaPath = path.join(tmpDir, 'Broken.ipa');
   await fs.writeFile(ipaPath, 'placeholder', 'utf8');
 
   await fs.writeFile(xcrunPath, '#!/bin/sh\nexit 0\n', 'utf8');
   await fs.chmod(xcrunPath, 0o755);
-  await fs.writeFile(dittoPath, '#!/bin/sh\nmkdir -p "$4/NoPayload"\nexit 0\n', 'utf8');
-  await fs.chmod(dittoPath, 0o755);
+  await fs.writeFile(unzipPath, '#!/bin/sh\nmkdir -p "$4/NoPayload"\nexit 0\n', 'utf8');
+  await fs.chmod(unzipPath, 0o755);
 
   const previousPath = process.env.PATH;
   process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;

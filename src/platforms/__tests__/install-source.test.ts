@@ -2,6 +2,7 @@ import { test, onTestFinished } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import http from 'node:http';
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -107,6 +108,44 @@ test('materializeInstallablePath rejects archive extraction when disabled', asyn
   }
 });
 
+test.sequential('materializeInstallablePath extracts zip archives without ditto', async () => {
+  const unzipPath = findExecutableInPath('unzip');
+  assert.ok(unzipPath, 'unzip must be available for portable zip extraction');
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-install-source-unzip-'));
+  const archivePath = path.join(tempRoot, 'bundle.zip');
+  const binDir = path.join(tempRoot, 'bin');
+  const payloadDir = path.join(tempRoot, 'payload');
+  const apkPath = path.join(payloadDir, 'Sample.apk');
+  const previousPath = process.env.PATH;
+
+  try {
+    await fs.mkdir(binDir);
+    await fs.symlink(unzipPath, path.join(binDir, 'unzip'));
+    await fs.mkdir(payloadDir);
+    await fs.writeFile(apkPath, 'placeholder apk', 'utf8');
+    execFileSync('zip', ['-qr', archivePath, 'payload'], { cwd: tempRoot });
+
+    process.env.PATH = binDir;
+    const result = await materializeInstallablePath({
+      source: { kind: 'path', path: archivePath },
+      isInstallablePath: (candidatePath, stat) => stat.isFile() && candidatePath.endsWith('.apk'),
+      installableLabel: 'Android installable (.apk or .aab)',
+      allowArchiveExtraction: true,
+    });
+
+    try {
+      assert.equal(path.basename(result.installablePath), 'Sample.apk');
+      assert.equal(await fs.readFile(result.installablePath, 'utf8'), 'placeholder apk');
+    } finally {
+      await result.cleanup();
+    }
+  } finally {
+    process.env.PATH = previousPath;
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('prepareIosInstallArtifact rejects untrusted URL sources', async () => {
   await assert.rejects(
     async () =>
@@ -160,3 +199,20 @@ test('prepareAndroidInstallArtifact resolves package identity for direct APK URL
     await result.cleanup();
   }
 });
+
+function findExecutableInPath(command: string): string | undefined {
+  const pathValue = process.env.PATH;
+  if (!pathValue) return undefined;
+  for (const directory of pathValue.split(path.delimiter)) {
+    if (!directory) continue;
+    const candidate = path.join(directory, command);
+    try {
+      if (!fsSync.statSync(candidate).isFile()) continue;
+      fsSync.accessSync(candidate, fsSync.constants.X_OK);
+      return candidate;
+    } catch {
+      // Keep scanning PATH.
+    }
+  }
+  return undefined;
+}

@@ -98,7 +98,7 @@ async function resolveIosInstallablePath(
     await fs.rm(tempDir, { recursive: true, force: true });
   };
   try {
-    await runCmd('ditto', ['-x', '-k', appPath, tempDir]);
+    await runCmd('unzip', ['-q', appPath, '-d', tempDir]);
     const payloadDir = path.join(tempDir, 'Payload');
     const payloadEntries = await fs.readdir(payloadDir, { withFileTypes: true }).catch(() => {
       throw new AppError('INVALID_ARGS', 'Invalid IPA: missing Payload directory');
