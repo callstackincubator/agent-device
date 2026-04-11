@@ -8,7 +8,7 @@ export type SelectorDiagnostics = {
   matches: number;
 };
 
-type SelectorResolution = {
+export type SelectorResolution = {
   node: SnapshotNode;
   selector: Selector;
   selectorIndex: number;

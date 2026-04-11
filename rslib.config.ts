@@ -20,6 +20,7 @@ export default defineConfig({
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
           contracts: 'src/contracts.ts',
+          selectors: 'src/selectors.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',
       },

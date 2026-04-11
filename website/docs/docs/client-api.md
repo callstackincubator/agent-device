@@ -23,6 +23,16 @@ Public subpath API exposed for Node consumers:
   - types: `RemoteConfigProfile`, `RemoteConfigProfileOptions`, `ResolvedRemoteConfigProfile`
 - `agent-device/contracts`
   - types: `SessionRuntimeHints`, `DaemonInstallSource`, `DaemonLockPolicy`, `DaemonRequestMeta`, `DaemonRequest`, `DaemonArtifact`, `DaemonResponseData`, `DaemonError`, `DaemonResponse`
+- `agent-device/selectors`
+  - `parseSelectorChain(expression)`
+  - `tryParseSelectorChain(expression)`
+  - `resolveSelectorChain(nodes, chain, options)`
+  - `findSelectorChainMatch(nodes, chain, options)`
+  - `formatSelectorFailure(chain, diagnostics, options)`
+  - `isNodeVisible(node)`
+  - `isSelectorToken(token)`
+  - `isNodeEditable(node, platform)`
+  - types: `Selector`, `SelectorChain`, `SelectorDiagnostics`, `SelectorResolution`
 
 ## Basic usage
 
@@ -189,3 +199,22 @@ await stopMetroTunnel({
 ```
 
 Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types.
+
+## Selector helpers
+
+Use `agent-device/selectors` when a remote daemon or bridge needs to parse and match selector expressions without deep-importing daemon internals. Matching is platform-aware because role normalization and editability checks differ by backend.
+
+```ts
+import { findSelectorChainMatch, parseSelectorChain } from 'agent-device/selectors';
+
+const chain = parseSelectorChain('role=button label="Continue" visible=true');
+
+const match = findSelectorChainMatch(snapshot.nodes, chain, {
+  platform: 'android',
+  requireRect: true,
+});
+
+if (!match) {
+  // Build a daemon-shaped error with formatSelectorFailure(...) if needed.
+}
+```

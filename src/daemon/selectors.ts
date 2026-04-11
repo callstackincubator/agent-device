@@ -1,4 +1,5 @@
-export type { SelectorChain } from './selectors-parse.ts';
+export type { Selector, SelectorChain } from './selectors-parse.ts';
+export type { SelectorDiagnostics, SelectorResolution } from './selectors-resolve.ts';
 
 export {
   parseSelectorChain,

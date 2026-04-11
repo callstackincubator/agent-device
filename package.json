@@ -23,6 +23,10 @@
     "./contracts": {
       "import": "./dist/src/contracts.js",
       "types": "./dist/src/contracts.d.ts"
+    },
+    "./selectors": {
+      "import": "./dist/src/selectors.js",
+      "types": "./dist/src/selectors.d.ts"
     }
   },
   "engines": {
