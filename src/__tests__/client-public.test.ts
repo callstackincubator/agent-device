@@ -5,6 +5,7 @@ import {
   type AgentDeviceClient,
   type CaptureScreenshotResult,
   type CaptureSnapshotResult,
+  type AgentDeviceDaemonTransport,
   centerOfRect,
   type Point,
   type Rect,
@@ -13,6 +14,7 @@ import {
   type SnapshotVisibility,
   type SnapshotVisibilityReason,
 } from '../index.ts';
+import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 
 const rect = { x: 1, y: 2, width: 3, height: 4 } satisfies Rect;
 const point = { x: 2, y: 4 } satisfies Point;
@@ -57,4 +59,18 @@ test('package root exports createAgentDeviceClient', () => {
   const client: AgentDeviceClient = createAgentDeviceClient();
   assert.equal(typeof client.capture.snapshot, 'function');
   assert.deepEqual(centerOfRect(rect), { x: 3, y: 4 });
+});
+
+test('public daemon transport is typed against public daemon contracts', async () => {
+  const transport: AgentDeviceDaemonTransport = async (
+    request: Omit<DaemonRequest, 'token'>,
+  ): Promise<DaemonResponse> => ({
+    ok: true,
+    data: {
+      command: request.command,
+    },
+  });
+  const response = await transport({ command: 'devices', positionals: [] });
+
+  assert.equal(response.ok, true);
 });

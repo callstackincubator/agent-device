@@ -257,3 +257,100 @@ test('prepareMetroRuntime fails fast on non-retryable bridge errors after compan
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('prepareMetroRuntime retries malformed retryable bridge responses after companion startup', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-html-'));
+  const projectRoot = path.join(tempRoot, 'project');
+  fs.mkdirSync(path.join(projectRoot, 'node_modules'), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({
+      name: 'metro-auto-companion-html-test',
+      private: true,
+      dependencies: {
+        'react-native': '0.0.0-test',
+      },
+    }),
+  );
+
+  vi.mocked(ensureMetroCompanion).mockResolvedValue({
+    pid: 123,
+    spawned: true,
+    statePath: path.join(projectRoot, '.agent-device', 'metro-companion.json'),
+    logPath: path.join(projectRoot, '.agent-device', 'metro-companion.log'),
+  });
+
+  const fetchMock = vi.fn();
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => 'packager-status:running',
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 409,
+    text: async () => JSON.stringify({ ok: false, error: 'Metro companion is not connected' }),
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 503,
+    text: async () => '<html>upstream unavailable</html>',
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () =>
+      JSON.stringify({
+        ok: true,
+        data: {
+          enabled: true,
+          base_url: 'https://proxy.example.test',
+          status_url: 'https://proxy.example.test/status',
+          bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+          ios_runtime: {
+            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+          },
+          android_runtime: {
+            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=android',
+          },
+          upstream: {
+            bundle_url:
+              'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+          },
+          probe: {
+            reachable: true,
+            status_code: 200,
+            latency_ms: 5,
+            detail: 'ok',
+          },
+        },
+      }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  vi.useFakeTimers();
+
+  try {
+    const preparePromise = prepareMetroRuntime({
+      projectRoot,
+      publicBaseUrl: 'https://public.example.test',
+      proxyBaseUrl: 'https://proxy.example.test',
+      proxyBearerToken: 'shared-token',
+      metroPort: 8081,
+      reuseExisting: true,
+      installDependenciesIfNeeded: false,
+      probeTimeoutMs: 10,
+    });
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    const result = await preparePromise;
+
+    assert.equal(result.bridge?.enabled, true);
+    assert.equal(
+      result.iosRuntime.bundleUrl,
+      'https://proxy.example.test/index.bundle?platform=ios',
+    );
+    assert.equal(fetchMock.mock.calls.length, 4);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

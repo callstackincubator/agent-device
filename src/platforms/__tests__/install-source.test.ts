@@ -12,7 +12,7 @@ import {
   isTrustedInstallSourceUrl,
   materializeInstallablePath,
   validateDownloadSourceUrl,
-} from '../../install-source.ts';
+} from '../install-source.ts';
 import { prepareAndroidInstallArtifact } from '../android/install-artifact.ts';
 import { prepareIosInstallArtifact } from '../ios/install-artifact.ts';
 
@@ -49,7 +49,7 @@ test('validateDownloadSourceUrl rejects unsupported protocols', async () => {
   );
 });
 
-test('public install-source helpers expose the SSRF and archive surface', () => {
+test('install-source helpers expose the SSRF and archive surface', () => {
   assert.deepEqual(ARCHIVE_EXTENSIONS, ['.zip', '.tar', '.tar.gz', '.tgz']);
   assert.equal(Object.isFrozen(ARCHIVE_EXTENSIONS), true);
   assert.equal(isBlockedSourceHostname('localhost'), true);

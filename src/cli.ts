@@ -7,7 +7,11 @@ import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
-import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
+import {
+  createAgentDeviceClient,
+  type AgentDeviceClientConfig,
+  type AgentDeviceDaemonTransport,
+} from './client.ts';
 import { tryRunClientBackedCommand } from './cli/commands/router.ts';
 import {
   createRequestId,
@@ -151,7 +155,9 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         cwd: process.cwd(),
         debug: Boolean(flags.verbose),
       };
-      const client = createAgentDeviceClient(clientConfig, { transport: deps.sendToDaemon });
+      const client = createAgentDeviceClient(clientConfig, {
+        transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
+      });
       try {
         if (command === 'batch') {
           if (positionals.length > 0) {
