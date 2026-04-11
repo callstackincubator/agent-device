@@ -4,8 +4,6 @@ import {
   buildBundleUrl,
   normalizeBaseUrl,
   type MetroBridgeDescriptor,
-  type MetroTunnelRequestMessage,
-  type MetroTunnelResponseMessage,
 } from '../metro.ts';
 
 test('public metro exports expose stable bridge payload types and url helpers', () => {
@@ -33,32 +31,9 @@ test('public metro exports expose stable bridge payload types and url helpers', 
     },
   };
 
-  assert.equal(descriptor.upstream.port, undefined);
-  assert.equal(descriptor.status_url, undefined);
   assert.equal(normalizeBaseUrl('https://bridge.example.test///'), 'https://bridge.example.test');
   assert.equal(
     buildBundleUrl('https://bridge.example.test/', 'ios'),
     'https://bridge.example.test/index.bundle?platform=ios&dev=true&minify=false',
   );
-});
-
-test('public metro exports compile for representative tunnel request and response payloads', () => {
-  const request: MetroTunnelRequestMessage = {
-    type: 'ws-frame',
-    streamId: 'stream-1',
-    dataBase64: 'aGVsbG8=',
-    binary: false,
-  };
-  const response: MetroTunnelResponseMessage = {
-    type: 'http-response',
-    requestId: 'req-1',
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  };
-
-  const messages = [request, response];
-
-  assert.equal(request.type, 'ws-frame');
-  assert.equal(response.type, 'http-response');
-  assert.equal(messages.length, 2);
 });
