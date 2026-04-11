@@ -1,5 +1,4 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -15,20 +14,15 @@ vi.mock('../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) 
 
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
-import { SessionStore } from '../session-store.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
+import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
 const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-open-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
 
 function makeIosDevice(id: string): DeviceInfo {
   return {
@@ -50,7 +44,7 @@ beforeEach(() => {
 });
 
 test('router serializes same-device open requests before first session creation finishes', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-open-');
   const sameDevice = makeIosDevice('SIM-001');
   const resolutionPlan: Array<DeviceInfo | AppError> = [
     new AppError('DEVICE_NOT_FOUND', 'device discovery is still warming up'),
@@ -136,7 +130,7 @@ test('router serializes same-device open requests before first session creation 
 });
 
 test('router allows pre-open requests for different devices to proceed concurrently', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-open-');
   const deviceA = makeIosDevice('SIM-001');
   const deviceB = makeIosDevice('SIM-002');
   mockResolveTargetDevice.mockImplementation(async (flags) => {

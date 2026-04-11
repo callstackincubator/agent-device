@@ -1,7 +1,7 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { dispatchCommand } from '../dispatch.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
+import { MACOS_DEVICE } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/macos-helper.ts')>();
@@ -12,15 +12,6 @@ vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
 });
 
 import { runMacOsScreenshotAction } from '../../platforms/ios/macos-helper.ts';
-
-const MACOS_DEVICE: DeviceInfo = {
-  platform: 'macos',
-  id: 'host-macos-local',
-  name: 'Mac',
-  kind: 'device',
-  target: 'desktop',
-  booted: true,
-};
 
 test('dispatchCommand routes macOS menubar screenshots through the helper', async () => {
   const mockRunMacOsScreenshotAction = vi.mocked(runMacOsScreenshotAction);

@@ -10,35 +10,18 @@ vi.mock('../../core/dispatch.ts', async (importOriginal) => {
 
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
-import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { attachRefs } from '../../utils/snapshot.ts';
 import { PNG } from 'pngjs';
+import { ANDROID_EMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
+import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
+import { makeSession as makeBaseSession } from '../../__tests__/test-utils/session-factories.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 
-const ANDROID_DEVICE: DeviceInfo = {
-  platform: 'android',
-  id: 'emulator-5554',
-  name: 'Pixel',
-  kind: 'emulator',
-  booted: true,
-};
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-screenshot-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
-
 function makeSession(name: string): SessionState {
-  return {
-    name,
-    device: ANDROID_DEVICE,
-    createdAt: Date.now(),
-    actions: [],
-  };
+  return makeBaseSession(name, { device: ANDROID_EMULATOR });
 }
 
 function makeMacOsMenubarSession(name: string): SessionState {
@@ -77,7 +60,7 @@ function writeSolidPng(filePath: string, width = 100, height = 50): void {
 
 test('screenshot resolves relative positional path against request cwd', async () => {
   const callerCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-screenshot-cwd-caller-'));
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeSession('default'));
 
   let capturedPath: string | undefined;
@@ -112,7 +95,7 @@ test('screenshot resolves relative positional path against request cwd', async (
 });
 
 test('router serializes concurrent commands for the same device across sessions', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('session-a', makeSession('session-a'));
   sessionStore.set('session-b', makeSession('session-b'));
 
@@ -186,7 +169,7 @@ test('router serializes concurrent commands for the same device across sessions'
 });
 
 test('screenshot forwards macOS session surface to dispatch', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeMacOsMenubarSession('default'));
 
   mockDispatch.mockImplementation(async () => ({}));
@@ -214,7 +197,7 @@ test('screenshot forwards macOS session surface to dispatch', async () => {
 });
 
 test('click forwards macOS menubar session surface to dispatch', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeMacOsMenubarSession('default'));
 
   mockDispatch.mockImplementation(async () => ({}));
@@ -243,7 +226,7 @@ test('click forwards macOS menubar session surface to dispatch', async () => {
 });
 
 test('screenshot keeps absolute positional path unchanged', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeSession('default'));
 
   const absolutePath = path.join(os.tmpdir(), 'evidence/test.png');
@@ -279,7 +262,7 @@ test('screenshot keeps absolute positional path unchanged', async () => {
 
 test('screenshot resolves --out flag path against request cwd', async () => {
   const callerCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-screenshot-out-cwd-'));
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeSession('default'));
 
   let capturedOut: string | undefined;
@@ -316,7 +299,7 @@ test('screenshot resolves --out flag path against request cwd', async () => {
 });
 
 test('screenshot --overlay-refs captures a fresh snapshot when the session has none', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   sessionStore.set('default', makeSession('default'));
   const screenshotPath = path.join(os.tmpdir(), `agent-device-overlay-${Date.now()}.png`);
 
@@ -374,7 +357,7 @@ test('screenshot --overlay-refs captures a fresh snapshot when the session has n
 });
 
 test('screenshot --overlay-refs uses a fresh snapshot instead of stale session snapshot', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
   const session = makeSession('default');
   session.snapshot = {
     nodes: attachRefs([

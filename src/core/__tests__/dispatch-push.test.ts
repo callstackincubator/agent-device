@@ -5,19 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { dispatchCommand } from '../dispatch.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
-
-const ANDROID_DEVICE: DeviceInfo = {
-  platform: 'android',
-  id: 'emulator-5554',
-  name: 'Pixel',
-  kind: 'emulator',
-  booted: true,
-};
+import { ANDROID_EMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 
 test('dispatch push reports missing payload file as INVALID_ARGS', async () => {
   await assert.rejects(
-    () => dispatchCommand(ANDROID_DEVICE, 'push', ['com.example.app', './missing-payload.json']),
+    () => dispatchCommand(ANDROID_EMULATOR, 'push', ['com.example.app', './missing-payload.json']),
     (error: unknown) => {
       assert.equal(error instanceof AppError, true);
       assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -31,7 +23,7 @@ test('dispatch push reports directory payload path as INVALID_ARGS', async () =>
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-dispatch-push-dir-'));
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'push', ['com.example.app', tempDir]),
+      () => dispatchCommand(ANDROID_EMULATOR, 'push', ['com.example.app', tempDir]),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -67,7 +59,7 @@ test('dispatch push prefers existing brace-prefixed payload file over inline par
   process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
 
   try {
-    const result = await dispatchCommand(ANDROID_DEVICE, 'push', ['com.example.app', payloadPath]);
+    const result = await dispatchCommand(ANDROID_EMULATOR, 'push', ['com.example.app', payloadPath]);
     assert.deepEqual(result, {
       platform: 'android',
       package: 'com.example.app',

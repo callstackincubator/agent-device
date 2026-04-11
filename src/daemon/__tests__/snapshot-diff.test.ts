@@ -1,11 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { attachRefs, type RawSnapshotNode } from '../../utils/snapshot.ts';
 import { buildSnapshotDiff } from '../snapshot-diff.ts';
-
-function nodes(raw: RawSnapshotNode[]) {
-  return attachRefs(raw);
-}
+import { buildNodes as nodes } from '../../__tests__/test-utils/snapshot-builders.ts';
 
 test('buildSnapshotDiff reports unchanged lines when snapshots are equal', () => {
   const previous = nodes([

@@ -6,7 +6,7 @@ vi.mock('../../../platforms/android/devices.ts', async (importOriginal) => {
 });
 
 import { handleSessionStateCommands } from '../session-state.ts';
-import { makeSessionStore } from './session-test-store.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
 import { ensureAndroidEmulatorBooted } from '../../../platforms/android/devices.ts';
 
 const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);

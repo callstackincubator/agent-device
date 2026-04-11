@@ -1,5 +1,4 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -10,16 +9,11 @@ vi.mock('../../core/dispatch.ts', async (importOriginal) => {
 
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
-import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
-
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-router-recording-health-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
 
 beforeEach(() => {
   mockDispatch.mockReset();
@@ -27,7 +21,7 @@ beforeEach(() => {
 });
 
 test('router blocks non-record commands when recording was invalidated', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-router-recording-health-');
   const session: SessionState = {
     name: 'default',
     createdAt: Date.now(),

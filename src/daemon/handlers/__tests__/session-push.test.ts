@@ -10,10 +10,11 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
 vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
 
 import { handleSessionCommands } from '../session.ts';
-import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
+import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
+import { makeSession as makeBaseSession } from '../../../__tests__/test-utils/session-factories.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
@@ -24,19 +25,8 @@ beforeEach(() => {
   mockResolveTargetDevice.mockReset();
 });
 
-function makeStore(): SessionStore {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-'));
-  return new SessionStore(path.join(tempRoot, 'sessions'));
-}
-
 function makeSession(name: string, device: SessionState['device']): SessionState {
-  return {
-    name,
-    device,
-    createdAt: Date.now(),
-    actions: [],
-    appBundleId: 'com.example.active',
-  };
+  return makeBaseSession(name, { device, appBundleId: 'com.example.active' });
 }
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
@@ -47,7 +37,7 @@ const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
 };
 
 test('push requires active session or explicit device selector', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-push-');
   const response = await handleSessionCommands({
     req: {
       token: 't',
@@ -70,7 +60,7 @@ test('push requires active session or explicit device selector', async () => {
 });
 
 test('push uses session device and records action', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-push-');
   const session = makeSession('default', {
     platform: 'android',
     id: 'emulator-5554',
@@ -112,7 +102,7 @@ test('push uses session device and records action', async () => {
 });
 
 test('push expands payload file path from request cwd', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-push-');
   const session = makeSession('default', {
     platform: 'android',
     id: 'emulator-5554',
@@ -152,7 +142,7 @@ test('push expands payload file path from request cwd', async () => {
 });
 
 test('push treats brace-prefixed existing payload path as file', async () => {
-  const sessionStore = makeStore();
+  const sessionStore = makeSessionStore('agent-device-session-push-');
   const session = makeSession('default', {
     platform: 'android',
     id: 'emulator-5554',

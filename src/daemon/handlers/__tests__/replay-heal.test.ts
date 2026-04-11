@@ -12,10 +12,11 @@ import path from 'node:path';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction, SessionState } from '../../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
 import { ensureDeviceReady } from '../../device-ready.ts';
+import { makeIosSession } from '../../../__tests__/test-utils/session-factories.ts';
 
 const mockDispatchCommand = vi.mocked(dispatchCommand);
 const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
@@ -29,24 +30,8 @@ beforeEach(() => {
   mockEnsureDeviceReady.mockResolvedValue(undefined);
 });
 
-function makeDevice(): DeviceInfo {
-  return {
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone Test',
-    kind: 'simulator',
-    booted: true,
-  };
-}
-
-function makeSession(name: string): SessionState {
-  return {
-    name,
-    device: makeDevice(),
-    createdAt: Date.now(),
-    appBundleId: 'com.example.app',
-    actions: [],
-  };
+function makeSession(name: string) {
+  return makeIosSession(name, { appBundleId: 'com.example.app' });
 }
 
 function writeReplayFile(filePath: string, action: SessionAction) {

@@ -5,32 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { dispatchCommand } from '../dispatch.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
-
-const ANDROID_DEVICE: DeviceInfo = {
-  platform: 'android',
-  id: 'emulator-5554',
-  name: 'Pixel',
-  kind: 'emulator',
-  booted: true,
-};
-
-const IOS_DEVICE: DeviceInfo = {
-  platform: 'ios',
-  id: 'ios-device-1',
-  name: 'iPhone Device',
-  kind: 'device',
-  booted: true,
-};
-
-const MACOS_DEVICE: DeviceInfo = {
-  platform: 'macos',
-  id: 'host-macos-local',
-  name: 'Mac',
-  kind: 'device',
-  target: 'desktop',
-  booted: true,
-};
+import {
+  ANDROID_EMULATOR,
+  IOS_DEVICE,
+  MACOS_DEVICE,
+} from '../../__tests__/test-utils/device-fixtures.ts';
 
 test('trigger-app-event reports missing URL template as UNSUPPORTED_OPERATION', async () => {
   const previousGlobalTemplate = process.env.AGENT_DEVICE_APP_EVENT_URL_TEMPLATE;
@@ -40,7 +19,7 @@ test('trigger-app-event reports missing URL template as UNSUPPORTED_OPERATION', 
 
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken']),
+      () => dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken']),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
@@ -65,7 +44,7 @@ test('trigger-app-event validates payload JSON', async () => {
   try {
     await assert.rejects(
       () =>
-        dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken', '{invalid-json']),
+        dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken', '{invalid-json']),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -100,7 +79,7 @@ test('trigger-app-event opens deep link with encoded event payload', async () =>
     'myapp://agent-device/event?name={event}&payload={payload}&platform={platform}';
 
   try {
-    const result = await dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', [
+    const result = await dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', [
       'screenshot_taken',
       '{"source":"qa","count":2}',
     ]);
@@ -147,7 +126,7 @@ test('trigger-app-event prefers platform-specific template over global template'
   process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = 'myapp://android?name={event}';
 
   try {
-    const result = await dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken']);
+    const result = await dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken']);
     assert.equal(result?.eventUrl, 'myapp://android?name=screenshot_taken');
   } finally {
     process.env.PATH = previousPath;
@@ -271,7 +250,7 @@ test('trigger-app-event rejects invalid event names', async () => {
     'myapp://agent-device/event?name={event}';
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['bad event']),
+      () => dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['bad event']),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');
@@ -294,7 +273,7 @@ test('trigger-app-event rejects payloads that exceed size limits', async () => {
   try {
     await assert.rejects(
       () =>
-        dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', [
+        dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', [
           'screenshot_taken',
           oversizedPayload,
         ]),
@@ -317,7 +296,7 @@ test('trigger-app-event rejects event URLs that exceed length limits', async () 
   process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE = `myapp://${'a'.repeat(5000)}?name={event}`;
   try {
     await assert.rejects(
-      () => dispatchCommand(ANDROID_DEVICE, 'trigger-app-event', ['screenshot_taken']),
+      () => dispatchCommand(ANDROID_EMULATOR, 'trigger-app-event', ['screenshot_taken']),
       (error: unknown) => {
         assert.equal(error instanceof AppError, true);
         assert.equal((error as AppError).code, 'INVALID_ARGS');

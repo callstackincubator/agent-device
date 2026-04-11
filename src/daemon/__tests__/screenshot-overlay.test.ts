@@ -4,15 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { PNG } from 'pngjs';
-import { attachRefs, type SnapshotState } from '../../utils/snapshot.ts';
 import { annotateScreenshotWithRefs, buildScreenshotOverlayRefs } from '../screenshot-overlay.ts';
-
-function makeSnapshotState(nodes: Parameters<typeof attachRefs>[0]): SnapshotState {
-  return {
-    nodes: attachRefs(nodes),
-    createdAt: Date.now(),
-  };
-}
+import { makeSnapshotState } from '../../__tests__/test-utils/snapshot-builders.ts';
 
 function writeSolidPng(filePath: string, width: number, height: number): void {
   const png = new PNG({ width, height });

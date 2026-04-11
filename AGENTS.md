@@ -140,6 +140,17 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - On macOS, snapshot rects are absolute in window space. Point-based runner interactions must translate through the interaction root frame; do not assume app-origin `(0,0)` coordinates.
 - Prefer selector or `@ref` interactions over raw x/y commands in tests and docs, especially on macOS where window position can vary across runs.
 
+## Shared Test Utilities
+- Before writing a new test, check `src/__tests__/test-utils/` for existing helpers:
+  - `device-fixtures.ts`: canonical `DeviceInfo` constants (`ANDROID_EMULATOR`, `IOS_SIMULATOR`, `IOS_DEVICE`, `MACOS_DEVICE`, `LINUX_DEVICE`, etc.)
+  - `session-factories.ts`: `makeSession`, `makeIosSession`, `makeAndroidSession`, `makeMacOsSession`
+  - `store-factory.ts`: `makeSessionStore` (creates temp `SessionStore` instances)
+  - `snapshot-builders.ts`: `buildNodes`, `makeSnapshotState`
+  - `mocked-binaries.ts`: `withMockedAdb`, `withMockedXcrun` (stub CLI binaries for dispatch tests)
+- Use `import { ... } from '<relative-path>/__tests__/test-utils/index.ts'` for convenient barrel imports.
+- Prefer shared fixtures over inlining new `DeviceInfo` or `SessionState` objects in tests.
+- Do not duplicate `makeSessionStore`, `makeSession`, or device constants when a shared helper already exists.
+
 ## Testing Matrix
 - Docs/skills only: no tests required.
 - Non-TS, no behavior impact: no tests unless requested.

@@ -1,35 +1,24 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import type { SessionState } from '../types.ts';
 import {
   augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
 } from '../recording-gestures.ts';
-import { attachRefs } from '../../utils/snapshot.ts';
+import { makeIosSession } from '../../__tests__/test-utils/session-factories.ts';
+import { makeSnapshotState } from '../../__tests__/test-utils/snapshot-builders.ts';
 
-function makeSession(): SessionState {
-  return {
-    name: 'default',
-    device: {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    },
-    createdAt: Date.now(),
-    actions: [],
-    snapshot: {
-      nodes: attachRefs([
+function makeSession() {
+  return makeIosSession('default', {
+    snapshot: makeSnapshotState(
+      [
         {
           index: 0,
           type: 'Application',
           rect: { x: 0, y: 0, width: 402, height: 874 },
         },
-      ]),
-      createdAt: Date.now(),
-      backend: 'xctest',
-    },
+      ],
+      { backend: 'xctest' },
+    ),
     recording: {
       platform: 'ios',
       outPath: '/tmp/demo.mp4',
@@ -39,7 +28,7 @@ function makeSession(): SessionState {
       child: { kill: () => {} } as any,
       wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     },
-  };
+  });
 }
 
 test('scroll records a semantic scroll gesture for visualization telemetry', () => {
