@@ -51,6 +51,7 @@ test('validateDownloadSourceUrl rejects unsupported protocols', async () => {
 
 test('public install-source helpers expose the SSRF and archive surface', () => {
   assert.deepEqual(ARCHIVE_EXTENSIONS, ['.zip', '.tar', '.tar.gz', '.tgz']);
+  assert.equal(Object.isFrozen(ARCHIVE_EXTENSIONS), true);
   assert.equal(isBlockedSourceHostname('localhost'), true);
   assert.equal(isBlockedSourceHostname('example.com'), false);
   assert.equal(isBlockedIpAddress('127.0.0.1'), true);

@@ -42,7 +42,9 @@ export type MaterializedInstallable = {
   cleanup: () => Promise<void>;
 };
 
-export const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tgz'] as const;
+const INTERNAL_ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tgz'] as const;
+
+export const ARCHIVE_EXTENSIONS = Object.freeze([...INTERNAL_ARCHIVE_EXTENSIONS] as const);
 const MAX_INSTALL_SOURCE_SEARCH_DEPTH = 5;
 const DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS,
@@ -449,7 +451,7 @@ async function extractArchive(
 
 function isArchivePath(candidatePath: string): boolean {
   const lower = candidatePath.toLowerCase();
-  return ARCHIVE_EXTENSIONS.some((extension) => lower.endsWith(extension));
+  return INTERNAL_ARCHIVE_EXTENSIONS.some((extension) => lower.endsWith(extension));
 }
 
 async function runCleanupTasks(tasks: Array<() => Promise<void>>): Promise<void> {
