@@ -1,9 +1,18 @@
-import { test } from 'vitest';
+import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { promises as fs } from 'node:fs';
+import { appendFileSync, promises as fs, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+vi.mock('../../../utils/exec.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
+  return { ...actual, runCmdDetached: vi.fn(actual.runCmdDetached) };
+});
+
+const execActual =
+  await vi.importActual<typeof import('../../../utils/exec.ts')>('../../../utils/exec.ts');
+
 import { AppError } from '../../../utils/errors.ts';
+import { runCmdDetached } from '../../../utils/exec.ts';
 import {
   ensureAndroidEmulatorBooted,
   listAndroidDevices,
@@ -14,6 +23,8 @@ import {
   resolveAndroidAvdName,
   resolveAndroidEmulatorAvdName,
 } from '../devices.ts';
+
+const mockRunCmdDetached = vi.mocked(runCmdDetached);
 
 const MOCK_ANDROID_ADB_SCRIPT = [
   '#!/bin/sh',
@@ -86,9 +97,25 @@ const MOCK_ANDROID_EMULATOR_SCRIPT = [
   '',
 ];
 
+beforeEach(() => {
+  mockRunCmdDetached.mockReset();
+  mockRunCmdDetached.mockImplementation(execActual.runCmdDetached);
+});
+
 async function writeExecutable(filePath: string, lines: readonly string[]): Promise<void> {
   await fs.writeFile(filePath, lines.join('\n'), 'utf8');
   await fs.chmod(filePath, 0o755);
+}
+
+function mockDetachedEmulatorLaunch(emulatorLogPath: string, emulatorBootedPath: string): void {
+  mockRunCmdDetached.mockImplementation((cmd, args, options) => {
+    if (cmd === 'emulator' && args[0] === '-avd') {
+      appendFileSync(emulatorLogPath, `${args.join(' ')}\n`, 'utf8');
+      writeFileSync(emulatorBootedPath, 'ready', 'utf8');
+      return 1234;
+    }
+    return execActual.runCmdDetached(cmd, args, options);
+  });
 }
 
 async function withEnv(
@@ -161,6 +188,7 @@ async function withMockedAndroidTools(
   await writeExecutable(emulatorPath, MOCK_ANDROID_EMULATOR_SCRIPT);
 
   try {
+    mockDetachedEmulatorLaunch(emulatorLogPath, emulatorBootedPath);
     await withEnv(
       {
         PATH: `${tmpDir}${path.delimiter}${process.env.PATH ?? ''}`,
@@ -201,6 +229,7 @@ async function withMockedAndroidSdkRoot(
   await writeExecutable(emulatorPath, MOCK_ANDROID_EMULATOR_SCRIPT);
 
   try {
+    mockDetachedEmulatorLaunch(emulatorLogPath, emulatorBootedPath);
     await withEnv(
       {
         PATH: process.env.PATH ?? '',
