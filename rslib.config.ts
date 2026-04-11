@@ -21,6 +21,7 @@ export default defineConfig({
           'remote-config': 'src/remote-config.ts',
           contracts: 'src/contracts.ts',
           selectors: 'src/selectors.ts',
+          finders: 'src/finders.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',
       },

@@ -1,17 +1,17 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
-import { findBestMatchesByLocator, type FindLocator } from '../../utils/finders.ts';
+import { findBestMatchesByLocator, parseFindArgs, type FindLocator } from '../../utils/finders.ts';
 import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
-import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { extractNodeText, findNearestHittableAncestor } from '../snapshot-processing.ts';
-import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
+
+export { parseFindArgs } from '../../utils/finders.ts';
 
 type FindContext = {
   req: DaemonRequest;
@@ -379,60 +379,6 @@ function buildAmbiguousMatchError(
       candidates,
     },
   );
-}
-
-type FindAction =
-  | { kind: 'click' }
-  | { kind: 'focus' }
-  | { kind: 'fill'; value: string }
-  | { kind: 'type'; value: string }
-  | { kind: 'get_text' }
-  | { kind: 'get_attrs' }
-  | { kind: 'exists' }
-  | { kind: 'wait'; timeoutMs?: number };
-
-export function parseFindArgs(args: string[]): {
-  locator: FindLocator;
-  query: string;
-  action: FindAction['kind'];
-  value?: string;
-  timeoutMs?: number;
-} {
-  const locatorTokens: FindLocator[] = ['text', 'label', 'value', 'role', 'id'];
-  let locator: FindLocator = 'any';
-  let queryIndex = 0;
-  if (locatorTokens.includes(args[0] as FindLocator)) {
-    locator = args[0] as FindLocator;
-    queryIndex = 1;
-  }
-  const query = args[queryIndex] ?? '';
-  const actionTokens = args.slice(queryIndex + 1);
-  if (actionTokens.length === 0) {
-    return { locator, query, action: 'click' };
-  }
-  const action = actionTokens[0].toLowerCase();
-  if (action === 'get') {
-    const sub = actionTokens[1]?.toLowerCase();
-    if (sub === 'text') return { locator, query, action: 'get_text' };
-    if (sub === 'attrs') return { locator, query, action: 'get_attrs' };
-    throw new AppError('INVALID_ARGS', 'find get only supports text or attrs');
-  }
-  if (action === 'wait') {
-    const timeoutMs = parseTimeout(actionTokens[1]);
-    return { locator, query, action: 'wait', timeoutMs: timeoutMs ?? undefined };
-  }
-  if (action === 'exists') return { locator, query, action: 'exists' };
-  if (action === 'click') return { locator, query, action: 'click' };
-  if (action === 'focus') return { locator, query, action: 'focus' };
-  if (action === 'fill') {
-    const value = actionTokens.slice(1).join(' ');
-    return { locator, query, action: 'fill', value };
-  }
-  if (action === 'type') {
-    const value = actionTokens.slice(1).join(' ');
-    return { locator, query, action: 'type', value };
-  }
-  throw new AppError('INVALID_ARGS', `Unsupported find action: ${actionTokens[0]}`);
 }
 
 function shouldScopeFind(locator: FindLocator): boolean {
