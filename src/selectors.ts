@@ -4,6 +4,7 @@ export type {
   SelectorDiagnostics,
   SelectorResolution,
 } from './daemon/selectors.ts';
+export type { SnapshotNode } from './utils/snapshot.ts';
 
 export {
   findSelectorChainMatch,
