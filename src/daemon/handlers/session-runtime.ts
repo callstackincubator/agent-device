@@ -1,9 +1,10 @@
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
-import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
+import type { DaemonRequest, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 const RUNTIME_HINT_FIELD_NAMES = [
   'platform',
@@ -219,9 +220,7 @@ function resolveOpenRuntimeHints(params: {
 
 export function tryResolveOpenRuntimeHints(
   params: Parameters<typeof resolveOpenRuntimeHints>[0],
-):
-  | { ok: true; data: ReturnType<typeof resolveOpenRuntimeHints> }
-  | { ok: false; response: DaemonResponse } {
+): { ok: true; data: ReturnType<typeof resolveOpenRuntimeHints> } | DaemonFailureResponse {
   try {
     return {
       ok: true,
@@ -229,17 +228,7 @@ export function tryResolveOpenRuntimeHints(
     };
   } catch (error) {
     const appErr = asAppError(error);
-    return {
-      ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: appErr.code,
-          message: appErr.message,
-          details: appErr.details,
-        },
-      },
-    };
+    return errorResponse(appErr.code, appErr.message, appErr.details);
   }
 }
 

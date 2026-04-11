@@ -8,6 +8,7 @@ import {
 } from '../selectors.ts';
 import type { DaemonResponse } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
+import { errorResponse } from './response.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
 
@@ -15,55 +16,28 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const predicate = (req.positionals?.[0] ?? '').toLowerCase();
   if (!isSupportedPredicate(predicate)) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: 'is requires predicate: visible|hidden|exists|editable|selected|text',
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      'is requires predicate: visible|hidden|exists|editable|selected|text',
+    );
   }
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   if (!isCommandSupportedOnDevice('is', session.device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: 'is is not supported on this device' },
-    };
+    return errorResponse('UNSUPPORTED_OPERATION', 'is is not supported on this device');
   }
   const { split } = splitIsSelectorArgs(req.positionals);
   if (!split) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: 'is requires a selector expression',
-      },
-    };
+    return errorResponse('INVALID_ARGS', 'is requires a selector expression');
   }
   const expectedText = split.rest.join(' ').trim();
   if (predicate === 'text' && !expectedText) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: 'is text requires expected text value',
-      },
-    };
+    return errorResponse('INVALID_ARGS', 'is text requires expected text value');
   }
   if (predicate !== 'text' && split.rest.length > 0) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `is ${predicate} does not accept trailing values`,
-      },
-    };
+    return errorResponse('INVALID_ARGS', `is ${predicate} does not accept trailing values`);
   }
   const chain = parseSelectorChain(split.selectorExpression);
   if (predicate === 'exists') {
@@ -78,13 +52,7 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
       platform: session.device.platform,
     });
     if (!matched) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: formatSelectorFailure(chain, [], { unique: false }),
-        },
-      };
+      return errorResponse('COMMAND_FAILED', formatSelectorFailure(chain, [], { unique: false }));
     }
     sessionStore.recordAction(session, {
       command: req.command,
@@ -116,7 +84,7 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     requireUnique: true,
     disambiguateAmbiguous: false,
   });
-  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget.response;
+  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget;
   const { resolved } = resolvedSelectorTarget;
   const result = evaluateIsPredicate({
     predicate,
@@ -126,13 +94,10 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     platform: session.device.platform,
   });
   if (!result.pass) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `is ${predicate} failed for selector ${resolved.selector.raw}: ${result.details}`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `is ${predicate} failed for selector ${resolved.selector.raw}: ${result.details}`,
+    );
   }
   sessionStore.recordAction(session, {
     command: req.command,

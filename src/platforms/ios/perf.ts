@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
+import { roundPercent } from '../perf-utils.ts';
 import { uniqueStrings } from '../../daemon/action-utils.ts';
 import {
   IOS_DEVICECTL_DEFAULT_HINT,
@@ -692,10 +693,6 @@ function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
     return 'Keep the iOS device unlocked and connected by cable, keep the app active, then retry perf.';
   }
   return 'Ensure the iOS device is unlocked, trusted, visible to xctrace, and the target app stays active while perf samples it.';
-}
-
-function roundPercent(value: number): number {
-  return Math.round(value * 10) / 10;
 }
 
 function maxNullableNumber(left: number | null, right: number | null): number | null {

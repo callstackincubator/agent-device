@@ -20,3 +20,34 @@ export function recordSessionAction(
     result: result ?? {},
   });
 }
+
+/**
+ * Flag keys inherited from a parent request (batch/replay) into child step flags.
+ * Shared between batch and replay so the inheritance rules stay in sync.
+ */
+export const INHERITED_PARENT_FLAG_KEYS: ReadonlyArray<keyof CommandFlags> = [
+  'platform',
+  'target',
+  'device',
+  'udid',
+  'serial',
+  'verbose',
+  'out',
+];
+
+/**
+ * Merge parent flag values into child flags for keys that are undefined in the child.
+ */
+export function mergeParentFlags(
+  parentFlags: CommandFlags | undefined,
+  childFlags: CommandFlags,
+): CommandFlags {
+  const parentRecord = (parentFlags ?? {}) as Record<string, unknown>;
+  const childRecord = childFlags as Record<string, unknown>;
+  for (const key of INHERITED_PARENT_FLAG_KEYS) {
+    if (childRecord[key] === undefined && parentRecord[key] !== undefined) {
+      childRecord[key] = parentRecord[key];
+    }
+  }
+  return childFlags;
+}

@@ -1,11 +1,11 @@
 import { SessionStore } from '../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
-import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
 import type { RecordTraceDeps, RecordingBase } from './record-trace-recording.ts';
+import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
+import { errorResponse } from './response.ts';
 
 export function normalizeAppBundleId(session: SessionState): string | undefined {
   const trimmed = session.appBundleId?.trim();
@@ -141,13 +141,10 @@ export async function startIosDeviceRecording(params: {
         : undefined;
   } catch (error) {
     if (!isRunnerRecordingAlreadyInProgressError(error)) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${formatRecordTraceError(error)}`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: ${formatRecordTraceError(error)}`,
+      );
     }
 
     emitDiagnostic({
@@ -168,13 +165,10 @@ export async function startIosDeviceRecording(params: {
       activeSession.name,
     );
     if (otherRecordingSession) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: recording already in progress in session '${otherRecordingSession.name}'`,
+      );
     }
 
     try {
@@ -194,13 +188,10 @@ export async function startIosDeviceRecording(params: {
           ? startResult.targetAppReadyUptimeMs
           : undefined;
     } catch (retryError) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `failed to start recording: ${formatRecordTraceError(retryError)}`,
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        `failed to start recording: ${formatRecordTraceError(retryError)}`,
+      );
     }
   }
 
@@ -237,13 +228,10 @@ export async function startMacOsRecording(params: {
       getRunnerOptions(req, logPath, activeSession),
     );
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to start recording: ${formatRecordTraceError(error)}`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `failed to start recording: ${formatRecordTraceError(error)}`,
+    );
   }
 
   return {
@@ -316,13 +304,7 @@ export async function stopIosDeviceRecording(params: {
       copyResult.stderr.trim() ||
       copyResult.stdout.trim() ||
       `devicectl exited with code ${copyResult.exitCode}`;
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to copy recording from device: ${copyError}`,
-      },
-    };
+    return errorResponse('COMMAND_FAILED', `failed to copy recording from device: ${copyError}`);
   }
 
   const trimStartMs = resolveIosRecordingTrimStartMs(recording);
@@ -333,27 +315,12 @@ export async function stopIosDeviceRecording(params: {
     });
   }
 
-  const telemetryPath = persistRecordingTelemetry({
+  await finalizeRecordingOverlay({
     recording,
+    deps,
     trimStartMs,
+    targetLabel: 'iOS recording',
   });
-
-  if (recording.showTouches) {
-    const overlaySupportWarning = getRecordingOverlaySupportWarning();
-    if (overlaySupportWarning) {
-      recording.overlayWarning = overlaySupportWarning;
-    } else {
-      try {
-        await deps.overlayRecordingTouches({
-          videoPath: recording.outPath,
-          telemetryPath,
-          targetLabel: 'iOS recording',
-        });
-      } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-      }
-    }
-  }
 
   return null;
 }
@@ -389,26 +356,11 @@ export async function stopMacOsRecording(params: {
     });
   }
 
-  const telemetryPath = persistRecordingTelemetry({
+  await finalizeRecordingOverlay({
     recording,
+    deps,
+    targetLabel: 'macOS recording',
   });
-
-  if (recording.showTouches) {
-    const overlaySupportWarning = getRecordingOverlaySupportWarning();
-    if (overlaySupportWarning) {
-      recording.overlayWarning = overlaySupportWarning;
-    } else {
-      try {
-        await deps.overlayRecordingTouches({
-          videoPath: recording.outPath,
-          telemetryPath,
-          targetLabel: 'macOS recording',
-        });
-      } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-      }
-    }
-  }
 
   return null;
 }

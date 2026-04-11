@@ -5,6 +5,7 @@ export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
+/** Re-export of {@link SessionRuntimeHints} under the Metro-specific alias used by public API consumers. */
 export type MetroRuntimeHints = SessionRuntimeHints;
 
 export type MetroBridgeResult = {

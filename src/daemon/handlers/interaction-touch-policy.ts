@@ -1,4 +1,5 @@
 import type { DaemonResponse, SessionState } from '../types.ts';
+import { errorResponse } from './response.ts';
 
 export function unsupportedMacOsDesktopSurfaceInteraction(
   session: SessionState,
@@ -13,11 +14,8 @@ export function unsupportedMacOsDesktopSurfaceInteraction(
   if (session.surface === 'menubar' && (command === 'click' || command === 'press')) {
     return null;
   }
-  return {
-    ok: false,
-    error: {
-      code: 'UNSUPPORTED_OPERATION',
-      message: `${command} is not supported on macOS ${session.surface} sessions yet. Open an app session to act, or use the ${session.surface} surface to inspect.`,
-    },
-  };
+  return errorResponse(
+    'UNSUPPORTED_OPERATION',
+    `${command} is not supported on macOS ${session.surface} sessions yet. Open an app session to act, or use the ${session.surface} surface to inspect.`,
+  );
 }

@@ -1,7 +1,7 @@
 import { isRectVisibleInViewport, resolveViewportRect } from './rect-visibility.ts';
 import { inferVerticalScrollIndicatorDirections } from './scroll-indicator.ts';
 import type { Rect, SnapshotNode } from './snapshot.ts';
-import { buildSnapshotNodeMap } from './snapshot-tree.ts';
+import { buildSnapshotNodeMap, displayNodeLabel } from './snapshot-tree.ts';
 import { isScrollableNodeLike } from './scrollable.ts';
 
 type Direction = 'above' | 'below';
@@ -205,10 +205,6 @@ function isDiscoverableOffscreenNode(node: SnapshotNode): boolean {
     type.includes('menuitem') ||
     Boolean(displayNodeLabel(node))
   );
-}
-
-function displayNodeLabel(node: SnapshotNode): string {
-  return node.label?.trim() || node.value?.trim() || node.identifier?.trim() || '';
 }
 
 function uniqueLabels(nodes: SnapshotNode[]): string[] {

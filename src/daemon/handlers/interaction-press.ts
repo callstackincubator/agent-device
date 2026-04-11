@@ -151,7 +151,7 @@ export async function handlePressCommand(params: {
       captureSnapshotForSession,
       resolveRefTarget,
     });
-    if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget.response;
+    if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget;
 
     const { ref, node, snapshotNodes, point: pressPoint } = resolvedRefPressTarget.target;
     const refLabel = resolveRefLabel(node, snapshotNodes);
@@ -192,13 +192,10 @@ export async function handlePressCommand(params: {
 
   const selectorExpression = (req.positionals ?? []).join(' ').trim();
   if (!selectorExpression) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `${commandLabel} requires @ref, selector expression, or x y coordinates`,
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      `${commandLabel} requires @ref, selector expression, or x y coordinates`,
+    );
   }
 
   const chain = parseSelectorChain(selectorExpression);
@@ -221,25 +218,19 @@ export async function handlePressCommand(params: {
     { command },
   );
   if (!resolved || !resolved.node.rect) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
+    );
   }
 
   const actionableNode = resolveActionableTouchNode(snapshot.nodes, resolved.node);
   const pressPoint = resolveRectCenter(actionableNode.rect);
   if (!pressPoint) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `Selector ${resolved.selector.raw} resolved to invalid bounds`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `Selector ${resolved.selector.raw} resolved to invalid bounds`,
+    );
   }
 
   const { x, y } = pressPoint;

@@ -13,15 +13,13 @@ import type {
 } from '../types.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
-import { deriveRecordingTelemetryPath, persistRecordingTelemetry } from '../recording-telemetry.ts';
+import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
-import {
-  getRecordingOverlaySupportWarning,
-  overlayRecordingTouches,
-  trimRecordingStart,
-} from '../../recording/overlay.ts';
+import { overlayRecordingTouches, trimRecordingStart } from '../../recording/overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
-import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
+import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 import {
   normalizeAppBundleId,
@@ -178,10 +176,7 @@ async function startRecording(params: {
   const { req, sessionName, sessionStore, activeSession, device, logPath, deps } = params;
 
   if (activeSession.recording) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'recording already in progress' },
-    };
+    return errorResponse('INVALID_ARGS', 'recording already in progress');
   }
 
   const fpsFlag = req.flags?.fps;
@@ -191,23 +186,14 @@ async function startRecording(params: {
       fpsFlag < IOS_DEVICE_RECORD_MIN_FPS ||
       fpsFlag > IOS_DEVICE_RECORD_MAX_FPS)
   ) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `fps must be an integer between ${IOS_DEVICE_RECORD_MIN_FPS} and ${IOS_DEVICE_RECORD_MAX_FPS}`,
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      `fps must be an integer between ${IOS_DEVICE_RECORD_MIN_FPS} and ${IOS_DEVICE_RECORD_MAX_FPS}`,
+    );
   }
 
   if (!isCommandSupportedOnDevice('record', device)) {
-    return {
-      ok: false,
-      error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: 'record is not supported on this device',
-      },
-    };
+    return errorResponse('UNSUPPORTED_OPERATION', 'record is not supported on this device');
   }
 
   const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
@@ -220,14 +206,10 @@ async function startRecording(params: {
   if (device.platform === 'ios' && device.kind === 'device') {
     const appBundleId = normalizeAppBundleId(activeSession);
     if (!appBundleId) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message:
-            'record on physical iOS devices requires an active app session; run open <app> first',
-        },
-      };
+      return errorResponse(
+        'INVALID_ARGS',
+        'record on physical iOS devices requires an active app session; run open <app> first',
+      );
     }
     recording = await startIosDeviceRecording({
       req,
@@ -243,13 +225,10 @@ async function startRecording(params: {
   } else if (device.platform === 'macos') {
     const appBundleId = normalizeAppBundleId(activeSession);
     if (!appBundleId) {
-      return {
-        ok: false,
-        error: {
-          code: 'INVALID_ARGS',
-          message: 'record on macOS requires an active app session; run open <app> first',
-        },
-      };
+      return errorResponse(
+        'INVALID_ARGS',
+        'record on macOS requires an active app session; run open <app> first',
+      );
     }
     recording = await startMacOsRecording({
       req,
@@ -314,35 +293,17 @@ async function stopNonRunnerRecording(params: {
 
   const stopResult = await recording.wait;
   if (stopResult.exitCode !== 0) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'simctl recordVideo')}`,
-      },
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'simctl recordVideo')}`,
+    );
   }
 
-  const telemetryPath = persistRecordingTelemetry({
+  await finalizeRecordingOverlay({
     recording,
+    deps,
+    targetLabel: 'iOS recording',
   });
-
-  if (recording.showTouches) {
-    const overlaySupportWarning = getRecordingOverlaySupportWarning();
-    if (overlaySupportWarning) {
-      recording.overlayWarning = overlaySupportWarning;
-    } else {
-      try {
-        await deps.overlayRecordingTouches({
-          videoPath: recording.outPath,
-          telemetryPath,
-          targetLabel: 'iOS recording',
-        });
-      } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-      }
-    }
-  }
 
   return null;
 }
@@ -357,7 +318,7 @@ async function stopRecording(params: {
   const { req, activeSession, device, logPath, deps } = params;
 
   if (!activeSession.recording) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'no active recording' } };
+    return errorResponse('INVALID_ARGS', 'no active recording');
   }
 
   const recording = activeSession.recording;
@@ -375,13 +336,7 @@ async function stopRecording(params: {
   }
 
   if (invalidatedReason) {
-    return {
-      ok: false,
-      error: {
-        code: 'COMMAND_FAILED',
-        message: invalidatedReason,
-      },
-    };
+    return errorResponse('COMMAND_FAILED', invalidatedReason);
   }
 
   return buildRecordStopResponse(recording);
@@ -456,7 +411,7 @@ export async function handleRecordCommand(params: {
 
   const action = (req.positionals?.[0] ?? '').toLowerCase();
   if (!['start', 'stop'].includes(action)) {
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'record requires start|stop' } };
+    return errorResponse('INVALID_ARGS', 'record requires start|stop');
   }
 
   if (action === 'start') {

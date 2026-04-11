@@ -1,6 +1,6 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime } from './client-metro.ts';
-import { AppError } from './utils/errors.ts';
+import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,
   buildMeta,
@@ -58,12 +58,7 @@ export function createAgentDeviceClient(
       meta: buildMeta(merged),
     });
     if (!response.ok) {
-      throw new AppError(response.error.code as any, response.error.message, {
-        ...(response.error.details ?? {}),
-        hint: response.error.hint,
-        diagnosticId: response.error.diagnosticId,
-        logPath: response.error.logPath,
-      });
+      throwDaemonError(response.error);
     }
     return (response.data ?? {}) as Record<string, unknown>;
   };

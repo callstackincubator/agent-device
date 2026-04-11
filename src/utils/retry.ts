@@ -43,7 +43,7 @@ type RetryTelemetryEvent = {
 const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
 
 export function isEnvTruthy(value: string | undefined): boolean {
-  return ['1', 'true', 'yes', 'on'].includes((value ?? '').toLowerCase());
+  return ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase());
 }
 
 export const TIMEOUT_PROFILES: Record<string, TimeoutProfile> = {

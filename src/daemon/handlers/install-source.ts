@@ -13,6 +13,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { resolveInstallFromSourceResultTarget } from '../../client-shared.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
+import { errorResponse } from './response.ts';
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
@@ -73,13 +74,10 @@ export async function handleInstallFromSourceCommand(params: {
       flags: req.flags,
     });
     if (!isCommandSupportedOnDevice('install', device)) {
-      return {
-        ok: false,
-        error: {
-          code: 'UNSUPPORTED_OPERATION',
-          message: 'install_from_source is not supported on this device',
-        },
-      };
+      return errorResponse(
+        'UNSUPPORTED_OPERATION',
+        'install_from_source is not supported on this device',
+      );
     }
 
     const requestSignal = getRequestSignal(req.meta?.requestId);

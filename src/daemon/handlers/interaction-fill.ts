@@ -21,6 +21,7 @@ import { readSnapshotNodesReferenceFrame } from './interaction-touch-reference-f
 import { resolveRefTargetWithRectRefresh, type ResolveRefTarget } from './interaction-targeting.ts';
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleFillCommand(params: {
   req: DaemonRequest;
@@ -49,17 +50,11 @@ export async function handleFillCommand(params: {
     }
   }
   if (session && !isCommandSupportedOnDevice('fill', session.device)) {
-    return {
-      ok: false,
-      error: { code: 'UNSUPPORTED_OPERATION', message: 'fill is not supported on this device' },
-    };
+    return errorResponse('UNSUPPORTED_OPERATION', 'fill is not supported on this device');
   }
   if (req.positionals?.[0]?.startsWith('@')) {
     if (!session) {
-      return {
-        ok: false,
-        error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-      };
+      return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
     }
     const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
@@ -70,10 +65,7 @@ export async function handleFillCommand(params: {
         ? req.positionals.slice(2).join(' ')
         : req.positionals.slice(1).join(' ');
     if (!text) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'fill requires text after ref' },
-      };
+      return errorResponse('INVALID_ARGS', 'fill requires text after ref');
     }
 
     const resolvedRefFillTarget = await resolveRefTargetWithRectRefresh({
@@ -91,7 +83,7 @@ export async function handleFillCommand(params: {
       captureSnapshotForSession,
       resolveRefTarget,
     });
-    if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget.response;
+    if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget;
 
     const { ref, node, snapshotNodes, point } = resolvedRefFillTarget.target;
     const nodeType = node.type ?? '';
@@ -140,10 +132,7 @@ export async function handleFillCommand(params: {
   }
 
   if (!session) {
-    return {
-      ok: false,
-      error: { code: 'SESSION_NOT_FOUND', message: 'No active session. Run open first.' },
-    };
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
 
   const selectorArgs = splitSelectorFromArgs(req.positionals ?? [], {
@@ -151,17 +140,11 @@ export async function handleFillCommand(params: {
   });
   if (selectorArgs) {
     if (selectorArgs.rest.length === 0) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' },
-      };
+      return errorResponse('INVALID_ARGS', 'fill requires text after selector');
     }
     const text = selectorArgs.rest.join(' ').trim();
     if (!text) {
-      return {
-        ok: false,
-        error: { code: 'INVALID_ARGS', message: 'fill requires text after selector' },
-      };
+      return errorResponse('INVALID_ARGS', 'fill requires text after selector');
     }
 
     const chain = parseSelectorChain(selectorArgs.selectorExpression);
@@ -184,13 +167,10 @@ export async function handleFillCommand(params: {
       { command: req.command },
     );
     if (!resolved || !resolved.node.rect) {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
-        },
-      };
+      return errorResponse(
+        'COMMAND_FAILED',
+        formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
+      );
     }
 
     const node = resolved.node;
@@ -235,11 +215,5 @@ export async function handleFillCommand(params: {
     });
   }
 
-  return {
-    ok: false,
-    error: {
-      code: 'INVALID_ARGS',
-      message: 'fill requires x y text, @ref text, or selector text',
-    },
-  };
+  return errorResponse('INVALID_ARGS', 'fill requires x y text, @ref text, or selector text');
 }

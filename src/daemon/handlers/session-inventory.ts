@@ -15,6 +15,7 @@ import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleSessionInventoryCommands(params: {
   req: DaemonRequest;
@@ -52,10 +53,7 @@ export async function handleSessionInventoryCommands(params: {
       const runtime = flags.runtime;
       const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(flags.iosSimulatorDeviceSet);
       if (!deviceName) {
-        return {
-          ok: false,
-          error: { code: 'INVALID_ARGS', message: 'ensure-simulator requires --device <name>' },
-        };
+        return errorResponse('INVALID_ARGS', 'ensure-simulator requires --device <name>');
       }
 
       const result = await ensureSimulatorExists({
@@ -79,10 +77,7 @@ export async function handleSessionInventoryCommands(params: {
       };
     } catch (err) {
       const appErr = asAppError(err);
-      return {
-        ok: false,
-        error: { code: appErr.code, message: appErr.message, details: appErr.details },
-      };
+      return errorResponse(appErr.code, appErr.message, appErr.details);
     }
   }
 
@@ -138,10 +133,7 @@ export async function handleSessionInventoryCommands(params: {
       return { ok: true, data: { devices: publicDevices } };
     } catch (err) {
       const appErr = asAppError(err);
-      return {
-        ok: false,
-        error: { code: appErr.code, message: appErr.message, details: appErr.details },
-      };
+      return errorResponse(appErr.code, appErr.message, appErr.details);
     }
   }
 
@@ -157,10 +149,7 @@ export async function handleSessionInventoryCommands(params: {
       ensureReady: true,
     });
     if (!isCommandSupportedOnDevice('apps', device)) {
-      return {
-        ok: false,
-        error: { code: 'UNSUPPORTED_OPERATION', message: 'apps is not supported on this device' },
-      };
+      return errorResponse('UNSUPPORTED_OPERATION', 'apps is not supported on this device');
     }
 
     const appsFilter = req.flags?.appsFilter ?? 'all';

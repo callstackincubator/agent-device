@@ -1,5 +1,6 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonResponse } from '../types.ts';
+import { errorResponse } from './response.ts';
 
 const REF_UNSUPPORTED_FLAG_MAP: ReadonlyArray<[keyof CommandFlags, string]> = [
   ['snapshotDepth', '--depth'],
@@ -13,13 +14,10 @@ export function refSnapshotFlagGuardResponse(
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
   if (unsupported.length === 0) return null;
-  return {
-    ok: false,
-    error: {
-      code: 'INVALID_ARGS',
-      message: `${command} @ref does not support ${unsupported.join(', ')}.`,
-    },
-  };
+  return errorResponse(
+    'INVALID_ARGS',
+    `${command} @ref does not support ${unsupported.join(', ')}.`,
+  );
 }
 
 export type RefSnapshotFlagGuardResponse = typeof refSnapshotFlagGuardResponse;

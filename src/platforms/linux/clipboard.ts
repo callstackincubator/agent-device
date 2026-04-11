@@ -1,50 +1,25 @@
-import { runCmd, whichCmd } from '../../utils/exec.ts';
-import { AppError } from '../../utils/errors.ts';
-import { isWayland } from './linux-env.ts';
+import { runCmd } from '../../utils/exec.ts';
+import { createLinuxToolResolver } from './tool-resolver.ts';
 
 type ClipboardTool = 'wl-clipboard' | 'xclip' | 'xsel';
 
-let cachedTool: { tool: ClipboardTool; display: 'wayland' | 'x11' } | null = null;
-
-async function resolveClipboardTool(): Promise<{
-  tool: ClipboardTool;
-  display: 'wayland' | 'x11';
-}> {
-  if (cachedTool) return cachedTool;
-
-  if (isWayland()) {
-    // wl-clipboard provides both wl-paste and wl-copy
-    if (await whichCmd('wl-paste')) {
-      cachedTool = { tool: 'wl-clipboard', display: 'wayland' };
-      return cachedTool;
-    }
-    throw new AppError(
-      'TOOL_MISSING',
-      'wl-paste (wl-clipboard) is required for clipboard access on Wayland. Install via your package manager.',
-    );
-  }
-
-  if (await whichCmd('xclip')) {
-    cachedTool = { tool: 'xclip', display: 'x11' };
-    return cachedTool;
-  }
-  if (await whichCmd('xsel')) {
-    cachedTool = { tool: 'xsel', display: 'x11' };
-    return cachedTool;
-  }
-  throw new AppError(
-    'TOOL_MISSING',
+const clipboardResolver = createLinuxToolResolver<ClipboardTool>({
+  wayland: [{ tool: 'wl-clipboard', command: 'wl-paste' }],
+  x11: [
+    { tool: 'xclip', command: 'xclip' },
+    { tool: 'xsel', command: 'xsel' },
+  ],
+  waylandError:
+    'wl-paste (wl-clipboard) is required for clipboard access on Wayland. Install via your package manager.',
+  x11Error:
     'xclip or xsel is required for clipboard access on X11. Install via your package manager.',
-  );
-}
+});
 
 /** Reset cached tool (for testing). */
-export function resetClipboardToolCache(): void {
-  cachedTool = null;
-}
+export const resetClipboardToolCache = clipboardResolver.resetCache;
 
 export async function readLinuxClipboard(): Promise<string> {
-  const { tool } = await resolveClipboardTool();
+  const { tool } = await clipboardResolver.resolve();
 
   switch (tool) {
     case 'wl-clipboard': {
@@ -72,7 +47,7 @@ export async function readLinuxClipboard(): Promise<string> {
 }
 
 export async function writeLinuxClipboard(text: string): Promise<void> {
-  const { tool } = await resolveClipboardTool();
+  const { tool } = await clipboardResolver.resolve();
 
   switch (tool) {
     case 'wl-clipboard':

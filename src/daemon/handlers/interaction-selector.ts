@@ -1,10 +1,11 @@
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { formatSelectorFailure, parseSelectorChain, resolveSelectorChain } from '../selectors.ts';
-import type { DaemonResponse, SessionState } from '../types.ts';
+import type { SessionState } from '../types.ts';
 import type { SessionStore } from '../session-store.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
+import type { DaemonFailureResponse } from './response.ts';
 
 export async function resolveSelectorTarget(params: {
   command: string;
@@ -24,7 +25,7 @@ export async function resolveSelectorTarget(params: {
       snapshot: Awaited<ReturnType<typeof captureSnapshotForSession>>;
       resolved: NonNullable<Awaited<ReturnType<typeof resolveSelectorChain>>>;
     }
-  | { ok: false; response: DaemonResponse }
+  | DaemonFailureResponse
 > {
   const {
     command,
@@ -56,14 +57,11 @@ export async function resolveSelectorTarget(params: {
   if (!resolved || (requireRect && !resolved.node.rect)) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], {
-            unique: requireUnique,
-          }),
-        },
+      error: {
+        code: 'COMMAND_FAILED',
+        message: formatSelectorFailure(chain, resolved?.diagnostics ?? [], {
+          unique: requireUnique,
+        }),
       },
     };
   }

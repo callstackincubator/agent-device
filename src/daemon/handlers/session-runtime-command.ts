@@ -2,6 +2,7 @@ import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
+import { errorResponse } from './response.ts';
 import {
   buildRuntimeHints,
   countConfiguredRuntimeHints,
@@ -19,10 +20,7 @@ export async function handleRuntimeCommand(params: {
   const session = sessionStore.get(sessionName);
   const current = sessionStore.getRuntimeHints(sessionName);
   if (!['set', 'show', 'clear'].includes(action)) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'runtime requires set, show, or clear' },
-    };
+    return errorResponse('INVALID_ARGS', 'runtime requires set, show, or clear');
   }
   if (action === 'clear') {
     if (hasRuntimeTransportHints(current) && session?.appBundleId) {
@@ -49,34 +47,23 @@ export async function handleRuntimeCommand(params: {
     normalizePlatformSelector(req.flags?.platform) ?? current?.platform ?? session?.device.platform,
   );
   if (!platform) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message:
-          'runtime set only supports iOS and Android sessions. Pass --platform ios|android or open an iOS/Android session first.',
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      'runtime set only supports iOS and Android sessions. Pass --platform ios|android or open an iOS/Android session first.',
+    );
   }
   if (session && session.device.platform !== platform) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message: `runtime set targets ${platform}, but session "${sessionName}" is already bound to ${session.device.platform}.`,
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      `runtime set targets ${platform}, but session "${sessionName}" is already bound to ${session.device.platform}.`,
+    );
   }
   const nextRuntime = mergeRuntimeHints(current, buildRuntimeHints(req.flags, platform));
   if (countConfiguredRuntimeHints(nextRuntime) === 0) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_ARGS',
-        message:
-          'runtime set requires at least one hint such as --metro-host, --metro-port, --bundle-url, or --launch-url.',
-      },
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      'runtime set requires at least one hint such as --metro-host, --metro-port, --bundle-url, or --launch-url.',
+    );
   }
   sessionStore.setRuntimeHints(sessionName, nextRuntime);
   return {

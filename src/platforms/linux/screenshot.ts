@@ -1,54 +1,26 @@
-import { runCmd, whichCmd } from '../../utils/exec.ts';
-import { AppError } from '../../utils/errors.ts';
-import { isWayland } from './linux-env.ts';
+import { runCmd } from '../../utils/exec.ts';
+import { createLinuxToolResolver } from './tool-resolver.ts';
 
 type ScreenshotTool = 'grim' | 'gnome-screenshot' | 'scrot' | 'import';
 
-let cachedTool: { tool: ScreenshotTool; display: 'wayland' | 'x11' } | null = null;
-
-async function resolveScreenshotTool(): Promise<{
-  tool: ScreenshotTool;
-  display: 'wayland' | 'x11';
-}> {
-  if (cachedTool) return cachedTool;
-
-  if (isWayland()) {
-    if (await whichCmd('grim')) {
-      cachedTool = { tool: 'grim', display: 'wayland' };
-      return cachedTool;
-    }
-    if (await whichCmd('gnome-screenshot')) {
-      cachedTool = { tool: 'gnome-screenshot', display: 'wayland' };
-      return cachedTool;
-    }
-    throw new AppError(
-      'TOOL_MISSING',
-      'grim or gnome-screenshot is required for screenshots on Wayland. Install via your package manager.',
-    );
-  }
-
-  if (await whichCmd('scrot')) {
-    cachedTool = { tool: 'scrot', display: 'x11' };
-    return cachedTool;
-  }
-  if (await whichCmd('import')) {
-    cachedTool = { tool: 'import', display: 'x11' };
-    return cachedTool;
-  }
-  if (await whichCmd('gnome-screenshot')) {
-    cachedTool = { tool: 'gnome-screenshot', display: 'x11' };
-    return cachedTool;
-  }
-  throw new AppError(
-    'TOOL_MISSING',
+const screenshotResolver = createLinuxToolResolver<ScreenshotTool>({
+  wayland: [
+    { tool: 'grim', command: 'grim' },
+    { tool: 'gnome-screenshot', command: 'gnome-screenshot' },
+  ],
+  x11: [
+    { tool: 'scrot', command: 'scrot' },
+    { tool: 'import', command: 'import' },
+    { tool: 'gnome-screenshot', command: 'gnome-screenshot' },
+  ],
+  waylandError:
+    'grim or gnome-screenshot is required for screenshots on Wayland. Install via your package manager.',
+  x11Error:
     'scrot, import (ImageMagick), or gnome-screenshot is required for screenshots on X11. Install via your package manager.',
-  );
-}
+});
 
 /** Reset cached tool (for testing). */
-export function resetScreenshotToolCache(): void {
-  cachedTool = null;
-}
+export const resetScreenshotToolCache = screenshotResolver.resetCache;
 
 /**
  * Capture a screenshot of the Linux desktop.
@@ -58,7 +30,7 @@ export function resetScreenshotToolCache(): void {
  * - `scrot` or `import` (ImageMagick) on X11
  */
 export async function screenshotLinux(outPath: string): Promise<void> {
-  const { tool } = await resolveScreenshotTool();
+  const { tool } = await screenshotResolver.resolve();
 
   switch (tool) {
     case 'grim':

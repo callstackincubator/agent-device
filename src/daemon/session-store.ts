@@ -216,72 +216,48 @@ export class SessionStore {
   }
 }
 
+const SANITIZED_FLAG_KEYS = [
+  'platform',
+  'device',
+  'udid',
+  'serial',
+  'out',
+  'verbose',
+  'metroHost',
+  'metroPort',
+  'bundleUrl',
+  'launchUrl',
+  'snapshotInteractiveOnly',
+  'snapshotCompact',
+  'snapshotDepth',
+  'snapshotScope',
+  'snapshotRaw',
+  'screenshotFullscreen',
+  'relaunch',
+  'saveScript',
+  'noRecord',
+  'fps',
+  'hideTouches',
+  'count',
+  'intervalMs',
+  'delayMs',
+  'holdMs',
+  'jitterPx',
+  'doubleTap',
+  'clickButton',
+  'pauseMs',
+  'pattern',
+] as const;
+
 function sanitizeFlags(flags: CommandFlags | undefined): SessionAction['flags'] {
   if (!flags) return {};
-  const {
-    platform,
-    device,
-    udid,
-    serial,
-    out,
-    verbose,
-    metroHost,
-    metroPort,
-    bundleUrl,
-    launchUrl,
-    snapshotInteractiveOnly,
-    snapshotCompact,
-    snapshotDepth,
-    snapshotScope,
-    snapshotRaw,
-    screenshotFullscreen,
-    relaunch,
-    saveScript,
-    noRecord,
-    fps,
-    hideTouches,
-    count,
-    intervalMs,
-    delayMs,
-    holdMs,
-    jitterPx,
-    doubleTap,
-    clickButton,
-    pauseMs,
-    pattern,
-  } = flags;
-  return {
-    platform,
-    device,
-    udid,
-    serial,
-    out,
-    verbose,
-    metroHost,
-    metroPort,
-    bundleUrl,
-    launchUrl,
-    snapshotInteractiveOnly,
-    snapshotCompact,
-    snapshotDepth,
-    snapshotScope,
-    snapshotRaw,
-    screenshotFullscreen,
-    relaunch,
-    saveScript,
-    noRecord,
-    fps,
-    hideTouches,
-    count,
-    intervalMs,
-    delayMs,
-    holdMs,
-    jitterPx,
-    doubleTap,
-    clickButton,
-    pauseMs,
-    pattern,
-  };
+  const result: Record<string, unknown> = {};
+  for (const key of SANITIZED_FLAG_KEYS) {
+    if (flags[key] !== undefined) {
+      result[key] = flags[key];
+    }
+  }
+  return result as SessionAction['flags'];
 }
 
 function formatScript(session: SessionState, actions: SessionAction[]): string {

@@ -85,7 +85,7 @@ function matchRole(value: string | undefined, query: string): number {
   return 0;
 }
 
-function normalizeText(value: string): string {
+export function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 

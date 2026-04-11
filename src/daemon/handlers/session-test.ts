@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { asAppError } from '../../utils/errors.ts';
+import { errorResponse } from './response.ts';
 import type {
   DaemonRequest,
   DaemonResponse,
@@ -38,10 +39,7 @@ export async function runReplayTestSuite(params: {
 }): Promise<DaemonResponse> {
   const { req, sessionName, runReplay, cleanupSession } = params;
   if ((req.positionals?.length ?? 0) === 0) {
-    return {
-      ok: false,
-      error: { code: 'INVALID_ARGS', message: 'test requires at least one path or glob' },
-    };
+    return errorResponse('INVALID_ARGS', 'test requires at least one path or glob');
   }
 
   try {
@@ -96,7 +94,7 @@ export async function runReplayTestSuite(params: {
     return { ok: true, data };
   } catch (err) {
     const appErr = asAppError(err);
-    return { ok: false, error: { code: appErr.code, message: appErr.message } };
+    return errorResponse(appErr.code, appErr.message);
   }
 }
 

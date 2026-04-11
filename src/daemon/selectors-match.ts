@@ -1,6 +1,7 @@
 import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { extractNodeText, isFillableType, normalizeType } from './snapshot-processing.ts';
+import { normalizeText } from '../utils/finders.ts';
 import type { Selector, SelectorTerm } from './selectors-parse.ts';
 
 export function matchesSelector(
@@ -56,8 +57,4 @@ function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform)
 
 function textEquals(value: string | undefined, query: string): boolean {
   return normalizeText(value ?? '') === normalizeText(query);
-}
-
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }

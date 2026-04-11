@@ -10,6 +10,7 @@ import { readVersion } from './utils/version.ts';
 import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
+import { throwDaemonError } from './daemon-error.ts';
 import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
@@ -209,19 +210,13 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             flags: batchFlags,
           });
           if (!response.ok) {
-            throw new AppError(response.error.code as any, response.error.message, {
-              ...(response.error.details ?? {}),
-              hint: response.error.hint,
-              diagnosticId: response.error.diagnosticId,
-              logPath: response.error.logPath,
-            });
+            throwDaemonError(response.error);
           }
           if (flags.json) {
             printJson({ success: true, data: response.data ?? {} });
           } else {
             renderBatchSummary(response.data ?? {});
           }
-          if (logTailStopper) logTailStopper();
           return;
         }
 
@@ -233,7 +228,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         }
 
         if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
-          if (logTailStopper) logTailStopper();
           return;
         }
 
@@ -248,362 +242,15 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         });
 
         if (response.ok) {
-          if (flags.json) {
-            if (command === 'test') {
-              const testExitCode = renderReplayTestResponse({
-                suite: (response.data ?? {}) as ReplaySuiteResult,
-                json: true,
-                reportJunit: flags.reportJunit,
-              });
-              if (logTailStopper) logTailStopper();
-              if (testExitCode !== 0) {
-                process.exit(testExitCode);
-              }
-              return;
-            }
-            printJson({ success: true, data: response.data ?? {} });
+          const exitCode = writeCommandCliOutput(command, positionals, flags, response.data ?? {});
+          if (exitCode !== 0) {
             if (logTailStopper) logTailStopper();
-            return;
+            process.exit(exitCode);
           }
-          if (command === 'snapshot') {
-            process.stdout.write(
-              formatSnapshotText((response.data ?? {}) as Record<string, unknown>, {
-                raw: flags.snapshotRaw,
-                flatten: flags.snapshotInteractiveOnly,
-              }),
-            );
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'test') {
-            const testExitCode = renderReplayTestResponse({
-              suite: (response.data ?? {}) as ReplaySuiteResult,
-              verbose: flags.verbose,
-              reportJunit: flags.reportJunit,
-            });
-            if (logTailStopper) logTailStopper();
-            if (testExitCode !== 0) {
-              process.exit(testExitCode);
-            }
-            return;
-          }
-          if (command === 'diff' && positionals[0] === 'snapshot') {
-            process.stdout.write(
-              formatSnapshotDiffText((response.data ?? {}) as Record<string, unknown>),
-            );
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'get') {
-            const sub = positionals[0];
-            if (sub === 'text') {
-              const text = (response.data as any)?.text ?? '';
-              process.stdout.write(`${text}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (sub === 'attrs') {
-              const node = (response.data as any)?.node ?? {};
-              process.stdout.write(`${JSON.stringify(node, null, 2)}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
-          if (command === 'find') {
-            const data = response.data as any;
-            if (typeof data?.text === 'string') {
-              process.stdout.write(`${data.text}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (typeof data?.found === 'boolean') {
-              process.stdout.write(`Found: ${data.found}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (data?.node) {
-              process.stdout.write(`${JSON.stringify(data.node, null, 2)}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
-          if (command === 'is') {
-            const predicate = (response.data as any)?.predicate ?? 'assertion';
-            process.stdout.write(`Passed: is ${predicate}\n`);
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'boot') {
-            const platform = (response.data as any)?.platform ?? 'unknown';
-            const device =
-              (response.data as any)?.device ?? (response.data as any)?.id ?? 'unknown';
-            process.stdout.write(`Boot ready: ${device} (${platform})\n`);
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'ensure-simulator') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const udid = typeof data?.udid === 'string' ? data.udid : 'unknown';
-            const device = typeof data?.device === 'string' ? data.device : 'unknown';
-            const runtime = typeof data?.runtime === 'string' ? data.runtime : '';
-            const created = data?.created === true;
-            const booted = data?.booted === true;
-            const action = created ? 'Created' : 'Reused';
-            const bootedSuffix = booted ? ' (booted)' : '';
-            process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
-            if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'screenshot') {
-            const pathOut =
-              typeof (response.data as any)?.path === 'string' ? (response.data as any).path : '';
-            if (pathOut) {
-              process.stdout.write(`${pathOut}\n`);
-            }
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'record') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const outPath = typeof data?.outPath === 'string' ? data.outPath : '';
-            if (outPath) process.stdout.write(`${outPath}\n`);
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'logs') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const pathOut = typeof data?.path === 'string' ? data.path : '';
-            if (pathOut) {
-              process.stdout.write(`${pathOut}\n`);
-              const active = typeof data?.active === 'boolean' ? data.active : undefined;
-              const state = typeof data?.state === 'string' ? data.state : undefined;
-              const backend = typeof data?.backend === 'string' ? data.backend : undefined;
-              const sizeBytes = typeof data?.sizeBytes === 'number' ? data.sizeBytes : undefined;
-              const started = data?.started === true;
-              const stopped = data?.stopped === true;
-              const marked = data?.marked === true;
-              const cleared = data?.cleared === true;
-              const restarted = data?.restarted === true;
-              const removedRotatedFiles =
-                typeof data?.removedRotatedFiles === 'number'
-                  ? data.removedRotatedFiles
-                  : undefined;
-              if (
-                !flags.json &&
-                (active !== undefined || state || backend || sizeBytes !== undefined)
-              ) {
-                const meta = [
-                  active !== undefined ? `active=${active}` : '',
-                  state ? `state=${state}` : '',
-                  backend ? `backend=${backend}` : '',
-                  sizeBytes !== undefined ? `sizeBytes=${sizeBytes}` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-                if (meta) process.stderr.write(`${meta}\n`);
-              }
-              if (
-                !flags.json &&
-                (started ||
-                  stopped ||
-                  marked ||
-                  cleared ||
-                  restarted ||
-                  removedRotatedFiles !== undefined)
-              ) {
-                const actionMeta = [
-                  started ? 'started=true' : '',
-                  stopped ? 'stopped=true' : '',
-                  marked ? 'marked=true' : '',
-                  cleared ? 'cleared=true' : '',
-                  restarted ? 'restarted=true' : '',
-                  removedRotatedFiles !== undefined
-                    ? `removedRotatedFiles=${removedRotatedFiles}`
-                    : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-                if (actionMeta) process.stderr.write(`${actionMeta}\n`);
-              }
-              if (data?.hint && !flags.json) {
-                process.stderr.write(`${data.hint}\n`);
-              }
-              if (Array.isArray(data?.notes) && !flags.json) {
-                for (const note of data.notes) {
-                  if (typeof note === 'string' && note.length > 0) {
-                    process.stderr.write(`${note}\n`);
-                  }
-                }
-              }
-            }
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'clipboard') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const action = (
-              positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')
-            ).toLowerCase();
-            if (action === 'read') {
-              const text = typeof data?.text === 'string' ? data.text : '';
-              process.stdout.write(`${text}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (action === 'write') {
-              process.stdout.write('Clipboard updated\n');
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
-          if (command === 'network') {
-            const data = response.data as Record<string, unknown> | undefined;
-            const pathOut = typeof data?.path === 'string' ? data.path : '';
-            if (pathOut) {
-              process.stdout.write(`${pathOut}\n`);
-            }
-            const entries = Array.isArray(data?.entries) ? data.entries : [];
-            if (entries.length === 0) {
-              process.stdout.write('No recent HTTP(s) entries found.\n');
-            } else {
-              for (const entry of entries as Array<Record<string, unknown>>) {
-                const method = typeof entry.method === 'string' ? entry.method : 'HTTP';
-                const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
-                const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
-                const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
-                const durationMs =
-                  typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
-                process.stdout.write(`${timestamp}${method} ${url}${status}${durationMs}\n`);
-                if (typeof entry.headers === 'string') {
-                  process.stdout.write(`  headers: ${entry.headers}\n`);
-                }
-                if (typeof entry.requestBody === 'string') {
-                  process.stdout.write(`  request: ${entry.requestBody}\n`);
-                }
-                if (typeof entry.responseBody === 'string') {
-                  process.stdout.write(`  response: ${entry.responseBody}\n`);
-                }
-              }
-            }
-            const active = typeof data?.active === 'boolean' ? data.active : undefined;
-            const state = typeof data?.state === 'string' ? data.state : undefined;
-            const backend = typeof data?.backend === 'string' ? data.backend : undefined;
-            const scannedLines =
-              typeof data?.scannedLines === 'number' ? data.scannedLines : undefined;
-            const matchedLines =
-              typeof data?.matchedLines === 'number' ? data.matchedLines : undefined;
-            const include = typeof data?.include === 'string' ? data.include : undefined;
-            const meta = [
-              active !== undefined ? `active=${active}` : '',
-              state ? `state=${state}` : '',
-              backend ? `backend=${backend}` : '',
-              include ? `include=${include}` : '',
-              scannedLines !== undefined ? `scannedLines=${scannedLines}` : '',
-              matchedLines !== undefined ? `matchedLines=${matchedLines}` : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-            if (meta) process.stderr.write(`${meta}\n`);
-            if (Array.isArray(data?.notes)) {
-              for (const note of data.notes) {
-                if (typeof note === 'string' && note.length > 0) {
-                  process.stderr.write(`${note}\n`);
-                }
-              }
-            }
-            if (logTailStopper) logTailStopper();
-            return;
-          }
-          if (command === 'click' || command === 'press') {
-            const ref = (response.data as any)?.ref ?? '';
-            const x = (response.data as any)?.x;
-            const y = (response.data as any)?.y;
-            if (ref && typeof x === 'number' && typeof y === 'number') {
-              process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
-          if (response.data && typeof response.data === 'object') {
-            const data = response.data as Record<string, unknown>;
-            if (command === 'devices') {
-              const devices = Array.isArray((data as any).devices) ? (data as any).devices : [];
-              const lines = devices.map((d: any) => {
-                const name = d?.name ?? d?.id ?? 'unknown';
-                const platform = d?.platform ?? 'unknown';
-                const kind = d?.kind ? ` ${d.kind}` : '';
-                const target = d?.target ? ` target=${d.target}` : '';
-                const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
-                return `${name} (${platform}${kind}${target})${booted}`;
-              });
-              process.stdout.write(`${lines.join('\n')}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (command === 'apps') {
-              const apps = Array.isArray((data as any).apps) ? (data as any).apps : [];
-              const lines = apps.map((app: any) => {
-                if (typeof app === 'string') return app;
-                if (app && typeof app === 'object') {
-                  const bundleId = app.bundleId ?? app.package;
-                  const name = app.name ?? app.label;
-                  if (name && bundleId) return `${name} (${bundleId})`;
-                  if (bundleId) return String(bundleId);
-                  return JSON.stringify(app);
-                }
-                return String(app);
-              });
-              process.stdout.write(`${lines.join('\n')}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            if (command === 'appstate') {
-              const platform = (data as any)?.platform;
-              const appBundleId = (data as any)?.appBundleId;
-              const appName = (data as any)?.appName;
-              const source = (data as any)?.source;
-              const pkg = (data as any)?.package;
-              const activity = (data as any)?.activity;
-              if (platform === 'ios') {
-                process.stdout.write(`Foreground app: ${appName ?? appBundleId ?? 'unknown'}\n`);
-                if (appBundleId) process.stdout.write(`Bundle: ${appBundleId}\n`);
-                if (source) process.stdout.write(`Source: ${source}\n`);
-                if (logTailStopper) logTailStopper();
-                return;
-              }
-              if (platform === 'android') {
-                process.stdout.write(`Foreground app: ${pkg ?? 'unknown'}\n`);
-                if (activity) process.stdout.write(`Activity: ${activity}\n`);
-                if (logTailStopper) logTailStopper();
-                return;
-              }
-            }
-            if (command === 'perf') {
-              process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-            const successText = readCommandMessage(data);
-            if (successText) {
-              process.stdout.write(`${successText}\n`);
-              for (const extraLine of readCommandSuccessLines(command, data)) {
-                process.stdout.write(`${extraLine}\n`);
-              }
-              if (logTailStopper) logTailStopper();
-              return;
-            }
-          }
-          if (logTailStopper) logTailStopper();
           return;
         }
 
-        throw new AppError(response.error.code as any, response.error.message, {
-          ...(response.error.details ?? {}),
-          hint: response.error.hint,
-          diagnosticId: response.error.diagnosticId,
-          logPath: response.error.logPath,
-        });
+        throwDaemonError(response.error);
       } catch (err) {
         const appErr = asAppError(err);
         const normalized = normalizeError(appErr, {
@@ -614,7 +261,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           if (flags.json) {
             printJson({ success: true, data: { closed: 'session', source: 'no-daemon' } });
           }
-          if (logTailStopper) logTailStopper();
           return;
         }
         if (flags.json) {
@@ -642,6 +288,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         }
         if (logTailStopper) logTailStopper();
         process.exit(1);
+      } finally {
+        if (logTailStopper) logTailStopper();
       }
     },
   );
@@ -681,6 +329,277 @@ function renderBatchSummary(data: Record<string, unknown>): void {
 
 function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
   return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
+}
+
+function writeCommandCliOutput(
+  command: string,
+  positionals: string[],
+  flags: {
+    json?: boolean;
+    verbose?: boolean;
+    snapshotRaw?: boolean;
+    snapshotInteractiveOnly?: boolean;
+    reportJunit?: string;
+  },
+  data: Record<string, unknown>,
+): number {
+  if (flags.json) {
+    if (command === 'test') {
+      return renderReplayTestResponse({
+        suite: data as ReplaySuiteResult,
+        json: true,
+        reportJunit: flags.reportJunit,
+      });
+    }
+    printJson({ success: true, data });
+    return 0;
+  }
+
+  if (command === 'snapshot') {
+    process.stdout.write(
+      formatSnapshotText(data, {
+        raw: flags.snapshotRaw,
+        flatten: flags.snapshotInteractiveOnly,
+      }),
+    );
+    return 0;
+  }
+  if (command === 'test') {
+    return renderReplayTestResponse({
+      suite: data as ReplaySuiteResult,
+      verbose: flags.verbose,
+      reportJunit: flags.reportJunit,
+    });
+  }
+  if (command === 'diff' && positionals[0] === 'snapshot') {
+    process.stdout.write(formatSnapshotDiffText(data));
+    return 0;
+  }
+  if (command === 'get') {
+    const sub = positionals[0];
+    if (sub === 'text') {
+      process.stdout.write(`${(data as any)?.text ?? ''}\n`);
+      return 0;
+    }
+    if (sub === 'attrs') {
+      process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`);
+      return 0;
+    }
+  }
+  if (command === 'find') {
+    if (typeof (data as any)?.text === 'string') {
+      process.stdout.write(`${(data as any).text}\n`);
+      return 0;
+    }
+    if (typeof (data as any)?.found === 'boolean') {
+      process.stdout.write(`Found: ${(data as any).found}\n`);
+      return 0;
+    }
+    if ((data as any)?.node) {
+      process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`);
+      return 0;
+    }
+  }
+  if (command === 'is') {
+    process.stdout.write(`Passed: is ${(data as any)?.predicate ?? 'assertion'}\n`);
+    return 0;
+  }
+  if (command === 'boot') {
+    const platform = (data as any)?.platform ?? 'unknown';
+    const device = (data as any)?.device ?? (data as any)?.id ?? 'unknown';
+    process.stdout.write(`Boot ready: ${device} (${platform})\n`);
+    return 0;
+  }
+  if (command === 'ensure-simulator') {
+    const udid = typeof data?.udid === 'string' ? data.udid : 'unknown';
+    const device = typeof data?.device === 'string' ? data.device : 'unknown';
+    const runtime = typeof data?.runtime === 'string' ? data.runtime : '';
+    const action = data?.created === true ? 'Created' : 'Reused';
+    const bootedSuffix = data?.booted === true ? ' (booted)' : '';
+    process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
+    if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
+    return 0;
+  }
+  if (command === 'screenshot') {
+    const pathOut = typeof (data as any)?.path === 'string' ? (data as any).path : '';
+    if (pathOut) process.stdout.write(`${pathOut}\n`);
+    return 0;
+  }
+  if (command === 'record') {
+    const outPath = typeof data?.outPath === 'string' ? data.outPath : '';
+    if (outPath) process.stdout.write(`${outPath}\n`);
+    return 0;
+  }
+  if (command === 'logs') {
+    writeLogsCliOutput(data, flags);
+    return 0;
+  }
+  if (command === 'clipboard') {
+    const action = (
+      positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')
+    ).toLowerCase();
+    if (action === 'read') {
+      process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`);
+      return 0;
+    }
+    if (action === 'write') {
+      process.stdout.write('Clipboard updated\n');
+      return 0;
+    }
+  }
+  if (command === 'network') {
+    writeNetworkCliOutput(data);
+    return 0;
+  }
+  if (command === 'click' || command === 'press') {
+    const ref = (data as any)?.ref ?? '';
+    const x = (data as any)?.x;
+    const y = (data as any)?.y;
+    if (ref && typeof x === 'number' && typeof y === 'number') {
+      process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
+      return 0;
+    }
+  }
+  if (command === 'devices') {
+    const devices = Array.isArray((data as any).devices) ? (data as any).devices : [];
+    process.stdout.write(
+      `${devices
+        .map((d: any) => {
+          const name = d?.name ?? d?.id ?? 'unknown';
+          const platform = d?.platform ?? 'unknown';
+          const kind = d?.kind ? ` ${d.kind}` : '';
+          const target = d?.target ? ` target=${d.target}` : '';
+          const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
+          return `${name} (${platform}${kind}${target})${booted}`;
+        })
+        .join('\n')}\n`,
+    );
+    return 0;
+  }
+  if (command === 'apps') {
+    const apps = Array.isArray((data as any).apps) ? (data as any).apps : [];
+    process.stdout.write(
+      `${apps
+        .map((app: any) => {
+          if (typeof app === 'string') return app;
+          if (app && typeof app === 'object') {
+            const bundleId = app.bundleId ?? app.package;
+            const name = app.name ?? app.label;
+            if (name && bundleId) return `${name} (${bundleId})`;
+            if (bundleId) return String(bundleId);
+            return JSON.stringify(app);
+          }
+          return String(app);
+        })
+        .join('\n')}\n`,
+    );
+    return 0;
+  }
+  if (command === 'appstate') {
+    const platform = (data as any)?.platform;
+    if (platform === 'ios') {
+      process.stdout.write(
+        `Foreground app: ${(data as any)?.appName ?? (data as any)?.appBundleId ?? 'unknown'}\n`,
+      );
+      if ((data as any)?.appBundleId)
+        process.stdout.write(`Bundle: ${(data as any).appBundleId}\n`);
+      if ((data as any)?.source) process.stdout.write(`Source: ${(data as any).source}\n`);
+      return 0;
+    }
+    if (platform === 'android') {
+      process.stdout.write(`Foreground app: ${(data as any)?.package ?? 'unknown'}\n`);
+      if ((data as any)?.activity) process.stdout.write(`Activity: ${(data as any).activity}\n`);
+      return 0;
+    }
+  }
+  if (command === 'perf') {
+    process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+    return 0;
+  }
+  const successText = readCommandMessage(data);
+  if (successText) {
+    process.stdout.write(`${successText}\n`);
+    for (const extraLine of readCommandSuccessLines(command, data)) {
+      process.stdout.write(`${extraLine}\n`);
+    }
+  }
+  return 0;
+}
+
+function writeLogsCliOutput(data: Record<string, unknown>, flags: { json?: boolean }): void {
+  const pathOut = typeof data?.path === 'string' ? data.path : '';
+  if (!pathOut) return;
+  process.stdout.write(`${pathOut}\n`);
+  const metaFields = ['active', 'state', 'backend', 'sizeBytes'] as const;
+  const meta = metaFields
+    .map((key) => (data[key] !== undefined && data[key] !== null ? `${key}=${data[key]}` : ''))
+    .filter(Boolean)
+    .join(' ');
+  if (meta && !flags.json) process.stderr.write(`${meta}\n`);
+  const actionFields = [
+    'started',
+    'stopped',
+    'marked',
+    'cleared',
+    'restarted',
+    'removedRotatedFiles',
+  ] as const;
+  const actionMeta = actionFields
+    .map((key) => {
+      const v = data[key];
+      return v === true ? `${key}=true` : typeof v === 'number' ? `${key}=${v}` : '';
+    })
+    .filter(Boolean)
+    .join(' ');
+  if (actionMeta && !flags.json) process.stderr.write(`${actionMeta}\n`);
+  if (data?.hint && !flags.json) process.stderr.write(`${data.hint}\n`);
+  if (Array.isArray(data?.notes) && !flags.json) {
+    for (const note of data.notes) {
+      if (typeof note === 'string' && note.length > 0) process.stderr.write(`${note}\n`);
+    }
+  }
+}
+
+function writeNetworkCliOutput(data: Record<string, unknown>): void {
+  const pathOut = typeof data?.path === 'string' ? data.path : '';
+  if (pathOut) process.stdout.write(`${pathOut}\n`);
+  const entries = Array.isArray(data?.entries) ? data.entries : [];
+  if (entries.length === 0) {
+    process.stdout.write('No recent HTTP(s) entries found.\n');
+  } else {
+    for (const entry of entries as Array<Record<string, unknown>>) {
+      const method = typeof entry.method === 'string' ? entry.method : 'HTTP';
+      const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
+      const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
+      const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
+      const durationMs =
+        typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
+      process.stdout.write(`${timestamp}${method} ${url}${status}${durationMs}\n`);
+      if (typeof entry.headers === 'string') process.stdout.write(`  headers: ${entry.headers}\n`);
+      if (typeof entry.requestBody === 'string')
+        process.stdout.write(`  request: ${entry.requestBody}\n`);
+      if (typeof entry.responseBody === 'string')
+        process.stdout.write(`  response: ${entry.responseBody}\n`);
+    }
+  }
+  const networkMetaFields = [
+    'active',
+    'state',
+    'backend',
+    'include',
+    'scannedLines',
+    'matchedLines',
+  ] as const;
+  const meta = networkMetaFields
+    .map((key) => (data[key] !== undefined && data[key] !== null ? `${key}=${data[key]}` : ''))
+    .filter(Boolean)
+    .join(' ');
+  if (meta) process.stderr.write(`${meta}\n`);
+  if (Array.isArray(data?.notes)) {
+    for (const note of data.notes) {
+      if (typeof note === 'string' && note.length > 0) process.stderr.write(`${note}\n`);
+    }
+  }
 }
 
 function readCommandSuccessLines(command: string, data: Record<string, unknown>): string[] {
