@@ -108,7 +108,6 @@ function readConflictMode(raw: string | undefined): DaemonLockPolicy | undefined
   throw new AppError('INVALID_ARGS', `Invalid session lock mode: ${raw}. Use reject or strip.`);
 }
 
-
 function hasConfiguredSession(raw: string | undefined): boolean {
   return typeof raw === 'string' && raw.trim().length > 0;
 }

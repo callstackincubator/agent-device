@@ -304,10 +304,7 @@ export async function stopIosDeviceRecording(params: {
       copyResult.stderr.trim() ||
       copyResult.stdout.trim() ||
       `devicectl exited with code ${copyResult.exitCode}`;
-    return errorResponse(
-      'COMMAND_FAILED',
-      `failed to copy recording from device: ${copyError}`,
-    );
+    return errorResponse('COMMAND_FAILED', `failed to copy recording from device: ${copyError}`);
   }
 
   const trimStartMs = resolveIosRecordingTrimStartMs(recording);

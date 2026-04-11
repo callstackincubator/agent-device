@@ -13,7 +13,7 @@ import {
 } from '../../utils/snapshot.ts';
 import { normalizeSnapshotTree } from '../../utils/snapshot-tree.ts';
 import { buildMobileSnapshotPresentation } from '../../utils/mobile-snapshot-semantics.ts';
-import type { DaemonResponse, SessionState } from '../types.ts';
+import type { SessionState } from '../types.ts';
 import {
   ANDROID_FRESHNESS_RETRY_DELAYS_MS,
   clearAndroidSnapshotFreshness,
@@ -25,7 +25,7 @@ import {
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
-import { errorResponse } from './response.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 function isDesktopBackend(backend: SnapshotBackend | undefined): boolean {
   return backend === 'macos-helper' || backend === 'linux-atspi';
@@ -368,30 +368,21 @@ function isInteractiveSnapshotNode(node: RawSnapshotNode): boolean {
 export function resolveSnapshotScope(
   snapshotScope: string | undefined,
   session: SessionState | undefined,
-): { ok: true; scope?: string } | { ok: false; response: DaemonResponse } {
+): { ok: true; scope?: string } | DaemonFailureResponse {
   if (!snapshotScope || !snapshotScope.trim().startsWith('@')) {
     return { ok: true, scope: snapshotScope };
   }
   if (!session?.snapshot) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', 'Ref scope requires an existing snapshot in session.'),
-    };
+    return errorResponse('INVALID_ARGS', 'Ref scope requires an existing snapshot in session.');
   }
   const ref = normalizeRef(snapshotScope.trim());
   if (!ref) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', `Invalid ref scope: ${snapshotScope}`),
-    };
+    return errorResponse('INVALID_ARGS', `Invalid ref scope: ${snapshotScope}`);
   }
   const node = findNodeByRef(session.snapshot.nodes, ref);
   const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
   if (!resolved) {
-    return {
-      ok: false,
-      response: errorResponse('COMMAND_FAILED', `Ref ${snapshotScope} not found or has no label`),
-    };
+    return errorResponse('COMMAND_FAILED', `Ref ${snapshotScope} not found or has no label`);
   }
   return { ok: true, scope: resolved };
 }

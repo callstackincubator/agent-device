@@ -328,7 +328,6 @@ function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
   return duplicateCount >= 8;
 }
 
-
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
   return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
 }

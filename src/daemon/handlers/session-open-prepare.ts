@@ -124,7 +124,7 @@ export async function prepareOpenCommandDetails(params: {
   if (!runtimeResult.ok) {
     return {
       type: 'response',
-      response: runtimeResult.response,
+      response: runtimeResult,
     };
   }
 

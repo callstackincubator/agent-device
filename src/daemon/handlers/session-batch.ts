@@ -21,7 +21,10 @@ export async function runBatchCommands(
   }
   const batchMaxSteps = req.flags?.batchMaxSteps ?? DEFAULT_BATCH_MAX_STEPS;
   if (!Number.isInteger(batchMaxSteps) || batchMaxSteps < 1 || batchMaxSteps > 1000) {
-    return errorResponse('INVALID_ARGS', `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`);
+    return errorResponse(
+      'INVALID_ARGS',
+      `Invalid batch max-steps: ${String(req.flags?.batchMaxSteps)}`,
+    );
   }
   try {
     const steps = validateAndNormalizeBatchSteps(req.flags?.batchSteps, batchMaxSteps);

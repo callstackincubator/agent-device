@@ -10,7 +10,7 @@ import { extractNodeText, findNearestHittableAncestor } from '../snapshot-proces
 import { parseTimeout } from './parse-utils.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
-import { errorResponse, sessionNotFoundResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 
 type FindContext = {
@@ -60,7 +60,7 @@ export async function handleFindCommands(params: {
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';
   if (!session && !isReadOnly) {
-    return sessionNotFoundResponse();
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   const device = session?.device ?? (await resolveTargetDevice(req.flags ?? {}));
   if (!session) {

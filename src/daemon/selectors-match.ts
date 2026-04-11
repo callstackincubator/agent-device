@@ -58,4 +58,3 @@ function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform)
 function textEquals(value: string | undefined, query: string): boolean {
   return normalizeText(value ?? '') === normalizeText(query);
 }
-

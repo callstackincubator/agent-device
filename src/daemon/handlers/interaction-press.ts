@@ -33,7 +33,7 @@ import {
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { resolveRefLabel } from '../snapshot-processing.ts';
-import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import { AppError } from '../../utils/errors.ts';
 import { getAndroidAppState } from '../../platforms/android/index.ts';
 
@@ -59,7 +59,7 @@ export async function handlePressCommand(params: {
   const command = req.command;
   const commandLabel = command === 'click' ? 'click' : 'press';
   if (!session) {
-    return sessionNotFoundResponse();
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
 
   const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
@@ -70,7 +70,7 @@ export async function handlePressCommand(params: {
     return unsupportedSurfaceResponse;
   }
   if (!isCommandSupportedOnDevice('press', session.device)) {
-    return unsupportedOperationResponse('press');
+    return errorResponse('UNSUPPORTED_OPERATION', 'press is not supported on this device');
   }
 
   const clickButton = resolveClickButton(req.flags);
@@ -151,7 +151,7 @@ export async function handlePressCommand(params: {
       captureSnapshotForSession,
       resolveRefTarget,
     });
-    if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget.response;
+    if (!resolvedRefPressTarget.ok) return resolvedRefPressTarget;
 
     const { ref, node, snapshotNodes, point: pressPoint } = resolvedRefPressTarget.target;
     const refLabel = resolveRefLabel(node, snapshotNodes);

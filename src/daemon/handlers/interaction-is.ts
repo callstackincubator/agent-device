@@ -8,7 +8,7 @@ import {
 } from '../selectors.ts';
 import type { DaemonResponse } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
-import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
 
@@ -16,14 +16,17 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const predicate = (req.positionals?.[0] ?? '').toLowerCase();
   if (!isSupportedPredicate(predicate)) {
-    return errorResponse('INVALID_ARGS', 'is requires predicate: visible|hidden|exists|editable|selected|text');
+    return errorResponse(
+      'INVALID_ARGS',
+      'is requires predicate: visible|hidden|exists|editable|selected|text',
+    );
   }
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return sessionNotFoundResponse();
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   if (!isCommandSupportedOnDevice('is', session.device)) {
-    return unsupportedOperationResponse('is');
+    return errorResponse('UNSUPPORTED_OPERATION', 'is is not supported on this device');
   }
   const { split } = splitIsSelectorArgs(req.positionals);
   if (!split) {
@@ -81,7 +84,7 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     requireUnique: true,
     disambiguateAmbiguous: false,
   });
-  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget.response;
+  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget;
   const { resolved } = resolvedSelectorTarget;
   const result = evaluateIsPredicate({
     predicate,
@@ -91,7 +94,10 @@ export async function handleIsCommand(params: InteractionHandlerParams): Promise
     platform: session.device.platform,
   });
   if (!result.pass) {
-    return errorResponse('COMMAND_FAILED', `is ${predicate} failed for selector ${resolved.selector.raw}: ${result.details}`);
+    return errorResponse(
+      'COMMAND_FAILED',
+      `is ${predicate} failed for selector ${resolved.selector.raw}: ${result.details}`,
+    );
   }
   sessionStore.recordAction(session, {
     command: req.command,

@@ -2,7 +2,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../snapshot-diff.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import {
   buildSnapshotVisibility,
   captureSnapshot,
@@ -40,10 +40,10 @@ export async function handleSnapshotCommands(params: {
   if (command === 'snapshot') {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     if (!isCommandSupportedOnDevice('snapshot', device)) {
-      return unsupportedOperationResponse('snapshot');
+      return errorResponse('UNSUPPORTED_OPERATION', 'snapshot is not supported on this device');
     }
     const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
-    if (!resolvedScope.ok) return resolvedScope.response;
+    if (!resolvedScope.ok) return resolvedScope;
 
     return await withSessionlessRunnerCleanup(session, device, async () => {
       const capture = await captureSnapshot({
@@ -136,7 +136,7 @@ export async function handleSnapshotCommands(params: {
 
   if (command === 'settings') {
     const parsedSettings = parseSettingsArgs(req);
-    if (!parsedSettings.ok) return parsedSettings.response;
+    if (!parsedSettings.ok) return parsedSettings;
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     return await withSessionlessRunnerCleanup(session, device, async () => {
       return await handleSettingsCommand({
@@ -222,10 +222,10 @@ async function handleSnapshotDiffRequest(params: {
   const { req, sessionName, logPath, sessionStore } = params;
   const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
   if (!isCommandSupportedOnDevice('diff', device)) {
-    return unsupportedOperationResponse('diff');
+    return errorResponse('UNSUPPORTED_OPERATION', 'diff is not supported on this device');
   }
   const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
-  if (!resolvedScope.ok) return resolvedScope.response;
+  if (!resolvedScope.ok) return resolvedScope;
   const flattenForDiff = req.flags?.snapshotInteractiveOnly === true;
 
   return await withSessionlessRunnerCleanup(session, device, async () => {

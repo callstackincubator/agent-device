@@ -14,7 +14,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 export type WaitParsed =
   | { kind: 'sleep'; durationMs: number }
@@ -85,7 +85,7 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
     return { ok: true, data: { waitedMs: parsed.durationMs } };
   }
   if (!isCommandSupportedOnDevice('wait', device)) {
-    return unsupportedOperationResponse('wait');
+    return errorResponse('UNSUPPORTED_OPERATION', 'wait is not supported on this device');
   }
 
   if (parsed.kind === 'selector') {
@@ -101,7 +101,7 @@ export async function handleWaitCommand(params: HandleWaitCommandParams): Promis
   }
 
   const textResult = resolveWaitText(parsed, session);
-  if (!textResult.ok) return textResult.response;
+  if (!textResult.ok) return textResult;
   return await waitForText({
     device,
     logPath,
@@ -154,37 +154,25 @@ async function waitForSelector(params: {
 function resolveWaitText(
   parsed: Exclude<WaitParsed, { kind: 'sleep' } | { kind: 'selector' }>,
   session: SessionState | undefined,
-): { ok: true; text: string; timeoutMs: number | null } | { ok: false; response: DaemonResponse } {
+): { ok: true; text: string; timeoutMs: number | null } | DaemonFailureResponse {
   if (parsed.kind === 'ref') {
     if (!session?.snapshot) {
-      return {
-        ok: false,
-        response: errorResponse('INVALID_ARGS', 'Ref wait requires an existing snapshot in session.'),
-      };
+      return errorResponse('INVALID_ARGS', 'Ref wait requires an existing snapshot in session.');
     }
     const ref = normalizeRef(parsed.rawRef);
     if (!ref) {
-      return {
-        ok: false,
-        response: errorResponse('INVALID_ARGS', `Invalid ref: ${parsed.rawRef}`),
-      };
+      return errorResponse('INVALID_ARGS', `Invalid ref: ${parsed.rawRef}`);
     }
     const node = findNodeByRef(session.snapshot.nodes, ref);
     const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
     if (!resolved) {
-      return {
-        ok: false,
-        response: errorResponse('COMMAND_FAILED', `Ref ${parsed.rawRef} not found or has no label`),
-      };
+      return errorResponse('COMMAND_FAILED', `Ref ${parsed.rawRef} not found or has no label`);
     }
     return { ok: true, text: resolved, timeoutMs: parsed.timeoutMs };
   }
 
   if (!parsed.text) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', 'wait requires text'),
-    };
+    return errorResponse('INVALID_ARGS', 'wait requires text');
   }
   return { ok: true, text: parsed.text, timeoutMs: parsed.timeoutMs };
 }

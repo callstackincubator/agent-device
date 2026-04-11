@@ -15,7 +15,7 @@ import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleSessionInventoryCommands(params: {
   req: DaemonRequest;
@@ -149,7 +149,7 @@ export async function handleSessionInventoryCommands(params: {
       ensureReady: true,
     });
     if (!isCommandSupportedOnDevice('apps', device)) {
-      return unsupportedOperationResponse('apps');
+      return errorResponse('UNSUPPORTED_OPERATION', 'apps is not supported on this device');
     }
 
     const appsFilter = req.flags?.appsFilter ?? 'all';

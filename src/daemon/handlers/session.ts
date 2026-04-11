@@ -11,7 +11,7 @@ import {
   handleReleaseMaterializedPathsCommand,
 } from './install-source.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import { handleRuntimeCommand } from './session-runtime-command.ts';
 import { handleOpenCommand } from './session-open.ts';
 import {
@@ -70,7 +70,7 @@ async function runSessionOrSelectorDispatch(params: {
     ensureReady: true,
   });
   if (!isCommandSupportedOnDevice(command, device)) {
-    return unsupportedOperationResponse(command);
+    return errorResponse('UNSUPPORTED_OPERATION', `${command} is not supported on this device`);
   }
 
   const result = await dispatchCommand(device, command, positionals, req.flags?.out, {
@@ -116,7 +116,7 @@ async function handleClipboardCommand(params: {
     ensureReady: true,
   });
   if (!isCommandSupportedOnDevice('clipboard', device)) {
-    return unsupportedOperationResponse('clipboard');
+    return errorResponse('UNSUPPORTED_OPERATION', 'clipboard is not supported on this device');
   }
 
   const result = await dispatchCommand(device, 'clipboard', req.positionals ?? [], req.flags?.out, {
@@ -183,9 +183,9 @@ export async function handleSessionCommands(params: {
       const normalizedPlatform = normalizePlatformSelector(flags.platform);
       if (normalizedPlatform === 'ios') {
         return errorResponse(
-            'SESSION_NOT_FOUND',
-            'iOS keyboard dismiss requires an active session so the target app stays foregrounded. Run open first.',
-          );
+          'SESSION_NOT_FOUND',
+          'iOS keyboard dismiss requires an active session so the target app stays foregrounded. Run open first.',
+        );
       }
     }
     return await runSessionOrSelectorDispatch({
@@ -232,7 +232,10 @@ export async function handleSessionCommands(params: {
     const appId = req.positionals?.[0]?.trim();
     const payloadArg = req.positionals?.[1]?.trim();
     if (!appId || !payloadArg) {
-      return errorResponse('INVALID_ARGS', 'push requires <bundle|package> <payload.json|inline-json>');
+      return errorResponse(
+        'INVALID_ARGS',
+        'push requires <bundle|package> <payload.json|inline-json>',
+      );
     }
 
     return await runSessionOrSelectorDispatch({

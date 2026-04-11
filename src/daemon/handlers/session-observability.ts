@@ -12,7 +12,7 @@ import {
   stopAppLog,
 } from '../app-log.ts';
 import { buildPerfResponseData } from './session-perf.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
@@ -91,7 +91,7 @@ async function handleLogsCommand(params: ObservabilityParams): Promise<DaemonRes
     return errorResponse('SESSION_NOT_FOUND', 'logs requires an active session');
   }
   if (!isCommandSupportedOnDevice('logs', session.device)) {
-    return unsupportedOperationResponse('logs');
+    return errorResponse('UNSUPPORTED_OPERATION', 'logs is not supported on this device');
   }
 
   const action = (req.positionals?.[0] ?? 'path').toLowerCase();
@@ -186,10 +186,16 @@ async function handleLogsClear(
   restart: boolean,
 ): Promise<DaemonResponse> {
   if (session.appLog && !restart) {
-    return errorResponse('INVALID_ARGS', 'logs clear requires logs to be stopped first; run logs stop');
+    return errorResponse(
+      'INVALID_ARGS',
+      'logs clear requires logs to be stopped first; run logs stop',
+    );
   }
   if (restart && !session.appBundleId) {
-    return errorResponse('INVALID_ARGS', 'logs clear --restart requires an app session; run open <app> first');
+    return errorResponse(
+      'INVALID_ARGS',
+      'logs clear --restart requires an app session; run open <app> first',
+    );
   }
 
   const logPath = sessionStore.resolveAppLogPath(sessionName);
@@ -237,7 +243,10 @@ async function handleLogsStart(
     return errorResponse('INVALID_ARGS', 'app log already streaming; run logs stop first');
   }
   if (!session.appBundleId) {
-    return errorResponse('INVALID_ARGS', 'logs start requires an app session; run open <app> first');
+    return errorResponse(
+      'INVALID_ARGS',
+      'logs start requires an app session; run open <app> first',
+    );
   }
 
   const appLogPath = sessionStore.resolveAppLogPath(sessionName);
@@ -292,7 +301,7 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
     return errorResponse('SESSION_NOT_FOUND', 'network requires an active session');
   }
   if (!isCommandSupportedOnDevice('network', session.device)) {
-    return unsupportedOperationResponse('network');
+    return errorResponse('UNSUPPORTED_OPERATION', 'network is not supported on this device');
   }
 
   const action = (req.positionals?.[0] ?? 'dump').toLowerCase();
@@ -306,7 +315,7 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
   }
 
   const includeValidation = resolveNetworkIncludeMode(req);
-  if (!includeValidation.ok) return includeValidation.response;
+  if (!includeValidation.ok) return includeValidation;
   const { include } = includeValidation;
 
   const capture = await readSessionNetworkCapture({
@@ -335,24 +344,18 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
 
 function resolveNetworkIncludeMode(
   req: DaemonRequest,
-): { ok: true; include: NetworkIncludeMode } | { ok: false; response: DaemonResponse } {
+): { ok: true; include: NetworkIncludeMode } | DaemonFailureResponse {
   const positionalInclude = req.positionals?.[2]?.toLowerCase();
   const flagInclude = req.flags?.networkInclude;
   if (positionalInclude && flagInclude && positionalInclude !== flagInclude) {
-    return {
-      ok: false,
-      response: errorResponse(
-        'INVALID_ARGS',
-        'network include mode was provided both positionally and via --include with different values',
-      ),
-    };
+    return errorResponse(
+      'INVALID_ARGS',
+      'network include mode was provided both positionally and via --include with different values',
+    );
   }
   const requestedInclude = (flagInclude ?? positionalInclude ?? 'summary').toLowerCase();
   if (!NETWORK_INCLUDE_MODES.includes(requestedInclude as (typeof NETWORK_INCLUDE_MODES)[number])) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', NETWORK_INCLUDE_MESSAGE),
-    };
+    return errorResponse('INVALID_ARGS', NETWORK_INCLUDE_MESSAGE);
   }
   return { ok: true, include: requestedInclude as NetworkIncludeMode };
 }

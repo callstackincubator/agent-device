@@ -11,7 +11,7 @@ import {
   resolveCommandDevice,
   selectorTargetsSessionDevice,
 } from './session-device-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 
 async function ensureAndroidEmulatorBoot(params: {
   avdName: string;
@@ -149,7 +149,10 @@ export async function handleSessionStateCommands(params: {
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
     if (wantsAndroidHeadless && !targetsAndroid) {
-      return errorResponse('INVALID_ARGS', 'boot --headless is supported only for Android emulators.');
+      return errorResponse(
+        'INVALID_ARGS',
+        'boot --headless is supported only for Android emulators.',
+      );
     }
 
     const fallbackAvdName = resolveAndroidEmulatorAvdName({
@@ -203,7 +206,10 @@ export async function handleSessionStateCommands(params: {
 
     if (targetsAndroid && wantsAndroidHeadless) {
       if (device.platform !== 'android' || device.kind !== 'emulator') {
-        return errorResponse('INVALID_ARGS', 'boot --headless is supported only for Android emulators.');
+        return errorResponse(
+          'INVALID_ARGS',
+          'boot --headless is supported only for Android emulators.',
+        );
       }
       if (!launchedAndroidEmulator) {
         const avdName = resolveAndroidEmulatorAvdName({
@@ -232,7 +238,7 @@ export async function handleSessionStateCommands(params: {
     }
 
     if (!isCommandSupportedOnDevice('boot', device)) {
-      return unsupportedOperationResponse('boot');
+      return errorResponse('UNSUPPORTED_OPERATION', 'boot is not supported on this device');
     }
 
     return {

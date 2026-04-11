@@ -334,7 +334,13 @@ function readBatchStepFailure(error: Record<string, unknown> | undefined): strin
 function writeCommandCliOutput(
   command: string,
   positionals: string[],
-  flags: { json?: boolean; verbose?: boolean; snapshotRaw?: boolean; snapshotInteractiveOnly?: boolean; reportJunit?: string },
+  flags: {
+    json?: boolean;
+    verbose?: boolean;
+    snapshotRaw?: boolean;
+    snapshotInteractiveOnly?: boolean;
+    reportJunit?: string;
+  },
   data: Record<string, unknown>,
 ): number {
   if (flags.json) {
@@ -350,10 +356,12 @@ function writeCommandCliOutput(
   }
 
   if (command === 'snapshot') {
-    process.stdout.write(formatSnapshotText(data, {
-      raw: flags.snapshotRaw,
-      flatten: flags.snapshotInteractiveOnly,
-    }));
+    process.stdout.write(
+      formatSnapshotText(data, {
+        raw: flags.snapshotRaw,
+        flatten: flags.snapshotInteractiveOnly,
+      }),
+    );
     return 0;
   }
   if (command === 'test') {
@@ -369,13 +377,28 @@ function writeCommandCliOutput(
   }
   if (command === 'get') {
     const sub = positionals[0];
-    if (sub === 'text') { process.stdout.write(`${(data as any)?.text ?? ''}\n`); return 0; }
-    if (sub === 'attrs') { process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`); return 0; }
+    if (sub === 'text') {
+      process.stdout.write(`${(data as any)?.text ?? ''}\n`);
+      return 0;
+    }
+    if (sub === 'attrs') {
+      process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`);
+      return 0;
+    }
   }
   if (command === 'find') {
-    if (typeof (data as any)?.text === 'string') { process.stdout.write(`${(data as any).text}\n`); return 0; }
-    if (typeof (data as any)?.found === 'boolean') { process.stdout.write(`Found: ${(data as any).found}\n`); return 0; }
-    if ((data as any)?.node) { process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`); return 0; }
+    if (typeof (data as any)?.text === 'string') {
+      process.stdout.write(`${(data as any).text}\n`);
+      return 0;
+    }
+    if (typeof (data as any)?.found === 'boolean') {
+      process.stdout.write(`Found: ${(data as any).found}\n`);
+      return 0;
+    }
+    if ((data as any)?.node) {
+      process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`);
+      return 0;
+    }
   }
   if (command === 'is') {
     process.stdout.write(`Passed: is ${(data as any)?.predicate ?? 'assertion'}\n`);
@@ -412,9 +435,17 @@ function writeCommandCliOutput(
     return 0;
   }
   if (command === 'clipboard') {
-    const action = (positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')).toLowerCase();
-    if (action === 'read') { process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`); return 0; }
-    if (action === 'write') { process.stdout.write('Clipboard updated\n'); return 0; }
+    const action = (
+      positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')
+    ).toLowerCase();
+    if (action === 'read') {
+      process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`);
+      return 0;
+    }
+    if (action === 'write') {
+      process.stdout.write('Clipboard updated\n');
+      return 0;
+    }
   }
   if (command === 'network') {
     writeNetworkCliOutput(data);
@@ -431,36 +462,47 @@ function writeCommandCliOutput(
   }
   if (command === 'devices') {
     const devices = Array.isArray((data as any).devices) ? (data as any).devices : [];
-    process.stdout.write(`${devices.map((d: any) => {
-      const name = d?.name ?? d?.id ?? 'unknown';
-      const platform = d?.platform ?? 'unknown';
-      const kind = d?.kind ? ` ${d.kind}` : '';
-      const target = d?.target ? ` target=${d.target}` : '';
-      const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
-      return `${name} (${platform}${kind}${target})${booted}`;
-    }).join('\n')}\n`);
+    process.stdout.write(
+      `${devices
+        .map((d: any) => {
+          const name = d?.name ?? d?.id ?? 'unknown';
+          const platform = d?.platform ?? 'unknown';
+          const kind = d?.kind ? ` ${d.kind}` : '';
+          const target = d?.target ? ` target=${d.target}` : '';
+          const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
+          return `${name} (${platform}${kind}${target})${booted}`;
+        })
+        .join('\n')}\n`,
+    );
     return 0;
   }
   if (command === 'apps') {
     const apps = Array.isArray((data as any).apps) ? (data as any).apps : [];
-    process.stdout.write(`${apps.map((app: any) => {
-      if (typeof app === 'string') return app;
-      if (app && typeof app === 'object') {
-        const bundleId = app.bundleId ?? app.package;
-        const name = app.name ?? app.label;
-        if (name && bundleId) return `${name} (${bundleId})`;
-        if (bundleId) return String(bundleId);
-        return JSON.stringify(app);
-      }
-      return String(app);
-    }).join('\n')}\n`);
+    process.stdout.write(
+      `${apps
+        .map((app: any) => {
+          if (typeof app === 'string') return app;
+          if (app && typeof app === 'object') {
+            const bundleId = app.bundleId ?? app.package;
+            const name = app.name ?? app.label;
+            if (name && bundleId) return `${name} (${bundleId})`;
+            if (bundleId) return String(bundleId);
+            return JSON.stringify(app);
+          }
+          return String(app);
+        })
+        .join('\n')}\n`,
+    );
     return 0;
   }
   if (command === 'appstate') {
     const platform = (data as any)?.platform;
     if (platform === 'ios') {
-      process.stdout.write(`Foreground app: ${(data as any)?.appName ?? (data as any)?.appBundleId ?? 'unknown'}\n`);
-      if ((data as any)?.appBundleId) process.stdout.write(`Bundle: ${(data as any).appBundleId}\n`);
+      process.stdout.write(
+        `Foreground app: ${(data as any)?.appName ?? (data as any)?.appBundleId ?? 'unknown'}\n`,
+      );
+      if ((data as any)?.appBundleId)
+        process.stdout.write(`Bundle: ${(data as any).appBundleId}\n`);
       if ((data as any)?.source) process.stdout.write(`Source: ${(data as any).source}\n`);
       return 0;
     }
@@ -494,11 +536,18 @@ function writeLogsCliOutput(data: Record<string, unknown>, flags: { json?: boole
     .filter(Boolean)
     .join(' ');
   if (meta && !flags.json) process.stderr.write(`${meta}\n`);
-  const actionFields = ['started', 'stopped', 'marked', 'cleared', 'restarted', 'removedRotatedFiles'] as const;
+  const actionFields = [
+    'started',
+    'stopped',
+    'marked',
+    'cleared',
+    'restarted',
+    'removedRotatedFiles',
+  ] as const;
   const actionMeta = actionFields
     .map((key) => {
       const v = data[key];
-      return v === true ? `${key}=true` : (typeof v === 'number' ? `${key}=${v}` : '');
+      return v === true ? `${key}=true` : typeof v === 'number' ? `${key}=${v}` : '';
     })
     .filter(Boolean)
     .join(' ');
@@ -523,14 +572,24 @@ function writeNetworkCliOutput(data: Record<string, unknown>): void {
       const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
       const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
       const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
-      const durationMs = typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
+      const durationMs =
+        typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
       process.stdout.write(`${timestamp}${method} ${url}${status}${durationMs}\n`);
       if (typeof entry.headers === 'string') process.stdout.write(`  headers: ${entry.headers}\n`);
-      if (typeof entry.requestBody === 'string') process.stdout.write(`  request: ${entry.requestBody}\n`);
-      if (typeof entry.responseBody === 'string') process.stdout.write(`  response: ${entry.responseBody}\n`);
+      if (typeof entry.requestBody === 'string')
+        process.stdout.write(`  request: ${entry.requestBody}\n`);
+      if (typeof entry.responseBody === 'string')
+        process.stdout.write(`  response: ${entry.responseBody}\n`);
     }
   }
-  const networkMetaFields = ['active', 'state', 'backend', 'include', 'scannedLines', 'matchedLines'] as const;
+  const networkMetaFields = [
+    'active',
+    'state',
+    'backend',
+    'include',
+    'scannedLines',
+    'matchedLines',
+  ] as const;
   const meta = networkMetaFields
     .map((key) => (data[key] !== undefined && data[key] !== null ? `${key}=${data[key]}` : ''))
     .filter(Boolean)

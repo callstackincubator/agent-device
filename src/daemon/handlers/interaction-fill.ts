@@ -21,7 +21,7 @@ import { readSnapshotNodesReferenceFrame } from './interaction-touch-reference-f
 import { resolveRefTargetWithRectRefresh, type ResolveRefTarget } from './interaction-targeting.ts';
 import { unsupportedMacOsDesktopSurfaceInteraction } from './interaction-touch-policy.ts';
 import type { RefSnapshotFlagGuardResponse } from './interaction-flags.ts';
-import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleFillCommand(params: {
   req: DaemonRequest;
@@ -50,11 +50,11 @@ export async function handleFillCommand(params: {
     }
   }
   if (session && !isCommandSupportedOnDevice('fill', session.device)) {
-    return unsupportedOperationResponse('fill');
+    return errorResponse('UNSUPPORTED_OPERATION', 'fill is not supported on this device');
   }
   if (req.positionals?.[0]?.startsWith('@')) {
     if (!session) {
-      return sessionNotFoundResponse();
+      return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
     }
     const invalidRefFlagsResponse = refSnapshotFlagGuardResponse('fill', req.flags);
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
@@ -83,7 +83,7 @@ export async function handleFillCommand(params: {
       captureSnapshotForSession,
       resolveRefTarget,
     });
-    if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget.response;
+    if (!resolvedRefFillTarget.ok) return resolvedRefFillTarget;
 
     const { ref, node, snapshotNodes, point } = resolvedRefFillTarget.target;
     const nodeType = node.type ?? '';
@@ -132,7 +132,7 @@ export async function handleFillCommand(params: {
   }
 
   if (!session) {
-    return sessionNotFoundResponse();
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
 
   const selectorArgs = splitSelectorFromArgs(req.positionals ?? [], {
@@ -167,7 +167,10 @@ export async function handleFillCommand(params: {
       { command: req.command },
     );
     if (!resolved || !resolved.node.rect) {
-      return errorResponse('COMMAND_FAILED', formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }));
+      return errorResponse(
+        'COMMAND_FAILED',
+        formatSelectorFailure(chain, resolved?.diagnostics ?? [], { unique: true }),
+      );
     }
 
     const node = resolved.node;

@@ -14,7 +14,10 @@ export function refSnapshotFlagGuardResponse(
 ): DaemonResponse | null {
   const unsupported = unsupportedRefSnapshotFlags(flags);
   if (unsupported.length === 0) return null;
-  return errorResponse('INVALID_ARGS', `${command} @ref does not support ${unsupported.join(', ')}.`);
+  return errorResponse(
+    'INVALID_ARGS',
+    `${command} @ref does not support ${unsupported.join(', ')}.`,
+  );
 }
 
 export type RefSnapshotFlagGuardResponse = typeof refSnapshotFlagGuardResponse;

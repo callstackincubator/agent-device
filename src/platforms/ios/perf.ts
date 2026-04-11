@@ -695,7 +695,6 @@ function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
   return 'Ensure the iOS device is unlocked, trusted, visible to xctrace, and the target app stays active while perf samples it.';
 }
 
-
 function maxNullableNumber(left: number | null, right: number | null): number | null {
   if (left === null) return right;
   if (right === null) return left;

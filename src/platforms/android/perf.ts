@@ -167,7 +167,6 @@ function matchesAndroidPackageProcess(processName: string, packageName: string):
   return processName === packageName || processName.startsWith(`${packageName}:`);
 }
 
-
 function matchLabeledNumber(text: string, label: string): number | undefined {
   const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = text.match(new RegExp(`${escapedLabel}:\\s*([0-9][0-9,]*)`, 'i'));

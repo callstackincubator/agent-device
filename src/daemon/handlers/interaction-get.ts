@@ -6,11 +6,7 @@ import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
 import { resolveSelectorTarget } from './interaction-selector.ts';
-import {
-  errorResponse,
-  sessionNotFoundResponse,
-  unsupportedOperationResponse,
-} from './response.ts';
+import { errorResponse } from './response.ts';
 
 export async function handleGetCommand(params: InteractionHandlerParams): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore, contextFromFlags } = params;
@@ -19,9 +15,9 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
     return errorResponse('INVALID_ARGS', 'get only supports text or attrs');
   }
   const session = sessionStore.get(sessionName);
-  if (!session) return sessionNotFoundResponse();
+  if (!session) return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   if (!isCommandSupportedOnDevice('get', session.device)) {
-    return unsupportedOperationResponse('get');
+    return errorResponse('UNSUPPORTED_OPERATION', 'get is not supported on this device');
   }
   const refInput = req.positionals?.[1] ?? '';
   if (refInput.startsWith('@')) {
@@ -37,7 +33,7 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
       invalidRefMessage: 'get text requires a ref like @e2',
       notFoundMessage: `Ref ${refInput} not found`,
     });
-    if (!resolvedRefTarget.ok) return resolvedRefTarget.response;
+    if (!resolvedRefTarget.ok) return resolvedRefTarget;
     const { ref, node } = resolvedRefTarget.target;
     const selectorChain = buildSelectorChainForNode(node, session.device.platform, {
       action: 'get',
@@ -85,7 +81,7 @@ export async function handleGetCommand(params: InteractionHandlerParams): Promis
     requireUnique: true,
     disambiguateAmbiguous: sub === 'text',
   });
-  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget.response;
+  if (!resolvedSelectorTarget.ok) return resolvedSelectorTarget;
   const { resolved } = resolvedSelectorTarget;
   const node = resolved.node;
   const selectorChain = buildSelectorChainForNode(node, session.device.platform, {

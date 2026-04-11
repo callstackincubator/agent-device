@@ -8,7 +8,7 @@ import { recordSessionAction } from './handler-utils.ts';
 import { resolveDeployResultTarget } from '../../client-shared.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 
 export type ReinstallOps = {
   ios: (device: DeviceInfo, app: string, appPath: string) => Promise<{ bundleId: string }>;
@@ -119,7 +119,7 @@ export async function handleAppDeployCommand(params: {
       ensureReady: false,
     });
     if (!isCommandSupportedOnDevice(command, device)) {
-      return unsupportedOperationResponse(command);
+      return errorResponse('UNSUPPORTED_OPERATION', `${command} is not supported on this device`);
     }
 
     let result: DeployCommandResult;

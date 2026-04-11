@@ -8,8 +8,8 @@ import {
 } from '../../utils/snapshot.ts';
 import { findNearestHittableAncestor, findNodeByLabel } from '../snapshot-processing.ts';
 import type { SessionStore } from '../session-store.ts';
-import type { DaemonResponse, SessionState } from '../types.ts';
-import { errorResponse } from './response.ts';
+import type { SessionState } from '../types.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import {
@@ -37,31 +37,22 @@ export function resolveRefTarget(params: {
   notFoundMessage: string;
 }):
   | { ok: true; target: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] } }
-  | { ok: false; response: DaemonResponse } {
+  | DaemonFailureResponse {
   const { session, refInput, fallbackLabel, requireRect, invalidRefMessage, notFoundMessage } =
     params;
   if (!session.snapshot) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', 'No snapshot in session. Run snapshot first.'),
-    };
+    return errorResponse('INVALID_ARGS', 'No snapshot in session. Run snapshot first.');
   }
   const ref = normalizeRef(refInput);
   if (!ref) {
-    return {
-      ok: false,
-      response: errorResponse('INVALID_ARGS', invalidRefMessage),
-    };
+    return errorResponse('INVALID_ARGS', invalidRefMessage);
   }
   let node = findNodeByRef(session.snapshot.nodes, ref);
   if ((!node || (requireRect && !node.rect)) && fallbackLabel.length > 0) {
     node = findNodeByLabel(session.snapshot.nodes, fallbackLabel);
   }
   if (!node || (requireRect && !node.rect)) {
-    return {
-      ok: false,
-      response: errorResponse('COMMAND_FAILED', notFoundMessage),
-    };
+    return errorResponse('COMMAND_FAILED', notFoundMessage);
   }
   return { ok: true, target: { ref, node, snapshotNodes: session.snapshot.nodes } };
 }
@@ -116,7 +107,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
         point: { x: number; y: number };
       };
     }
-  | { ok: false; response: DaemonResponse }
+  | DaemonFailureResponse
 > {
   const {
     session,
@@ -141,7 +132,7 @@ export async function resolveRefTargetWithRectRefresh(params: {
     invalidRefMessage,
     notFoundMessage: missingBoundsMessage,
   });
-  if (!resolvedRefTarget.ok) return { ok: false, response: resolvedRefTarget.response };
+  if (!resolvedRefTarget.ok) return resolvedRefTarget;
 
   const { ref } = resolvedRefTarget.target;
   let node = promoteToHittableAncestor
@@ -188,28 +179,22 @@ export async function resolveRefTargetWithRectRefresh(params: {
   }
 
   if (!point) {
-    return {
-      ok: false,
-      response: errorResponse('COMMAND_FAILED', invalidBoundsMessage),
-    };
+    return errorResponse('COMMAND_FAILED', invalidBoundsMessage);
   }
 
   const viewport = node.rect ? resolveEffectiveViewportRect(node, snapshotNodes) : null;
   if (node.rect && viewport && !isNodeVisibleInEffectiveViewport(node, snapshotNodes)) {
     return {
       ok: false,
-      response: {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: `Ref ${refInput} is off-screen and not safe to ${commandLabel}`,
-          hint: `Run scrollintoview ${refInput}, then retry ${commandLabel} with the returned currentRef or a fresh snapshot.`,
-          details: {
-            reason: 'offscreen_ref',
-            ref,
-            rect: node.rect,
-            viewport,
-          },
+      error: {
+        code: 'COMMAND_FAILED',
+        message: `Ref ${refInput} is off-screen and not safe to ${commandLabel}`,
+        hint: `Run scrollintoview ${refInput}, then retry ${commandLabel} with the returned currentRef or a fresh snapshot.`,
+        details: {
+          reason: 'offscreen_ref',
+          ref,
+          rect: node.rect,
+          viewport,
         },
       },
     };

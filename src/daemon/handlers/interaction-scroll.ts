@@ -19,7 +19,7 @@ import type { InteractionHandlerParams } from './interaction-common.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { resolveRefTarget } from './interaction-targeting.ts';
-import { errorResponse, sessionNotFoundResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 type ScrollRefState = {
   ref: string;
@@ -42,10 +42,10 @@ export async function handleScrollIntoViewCommand(
   const { req, sessionName, sessionStore, contextFromFlags } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return sessionNotFoundResponse();
+    return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   }
   if (!isCommandSupportedOnDevice('scrollintoview', session.device)) {
-    return unsupportedOperationResponse('scrollintoview');
+    return errorResponse('UNSUPPORTED_OPERATION', 'scrollintoview is not supported on this device');
   }
   const targetInput = req.positionals?.[0] ?? '';
   if (!targetInput.startsWith('@')) {
@@ -56,7 +56,7 @@ export async function handleScrollIntoViewCommand(
   const fallbackLabel =
     req.positionals && req.positionals.length > 1 ? req.positionals.slice(1).join(' ').trim() : '';
   const initialState = resolveInitialScrollRefState(session, targetInput, fallbackLabel);
-  if (!initialState.ok) return initialState.response;
+  if (!initialState.ok) return initialState;
 
   const { ref } = initialState.state;
   let { currentRef, node, snapshotNodes, viewportRect } = initialState.state;
@@ -122,7 +122,7 @@ export async function handleScrollIntoViewCommand(
       selectorChain,
       platform: session.device.platform,
     });
-    if (!refreshedState.ok) return refreshedState.response;
+    if (!refreshedState.ok) return refreshedState;
     ({ currentRef, node, snapshotNodes, viewportRect } = refreshedState.state);
 
     const distance = distanceFromSafeViewportBand(node.rect, viewportRect);
@@ -178,7 +178,7 @@ function resolveInitialScrollRefState(
   session: SessionState,
   targetInput: string,
   fallbackLabel: string,
-): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
+): { ok: true; state: ScrollRefState } | DaemonFailureResponse {
   const resolvedRefTarget = resolveRefTarget({
     session,
     refInput: targetInput,
@@ -188,16 +188,12 @@ function resolveInitialScrollRefState(
     notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
   });
   if (!resolvedRefTarget.ok) {
-    const { response } = resolvedRefTarget;
-    if (response.ok || response.error.code !== 'COMMAND_FAILED') {
-      return { ok: false, response };
+    if (resolvedRefTarget.error.code !== 'COMMAND_FAILED') {
+      return resolvedRefTarget;
     }
-    return {
-      ok: false,
-      response: notFoundScrollResponse(targetInput, 0, {
-        message: response.error.message,
-      }),
-    };
+    return notFoundScrollResponse(targetInput, 0, {
+      message: resolvedRefTarget.error.message,
+    });
   }
   return finalizeScrollRefState(targetInput, 0, resolvedRefTarget.target);
 }
@@ -210,7 +206,7 @@ function resolveRefreshedScrollRefState(params: {
   ref: string;
   selectorChain: string[];
   platform: SessionState['device']['platform'];
-}): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
+}): { ok: true; state: ScrollRefState } | DaemonFailureResponse {
   const { session, targetInput, fallbackLabel, attempts, ref, selectorChain, platform } = params;
   if (session.snapshot) {
     const trackedNode = resolveTrackedScrollNode(
@@ -242,17 +238,13 @@ function resolveRefreshedScrollRefState(params: {
     notFoundMessage: `Ref ${targetInput} not found or has no bounds`,
   });
   if (!resolvedRefTarget.ok) {
-    const { response } = resolvedRefTarget;
-    if (response.ok || response.error.code !== 'COMMAND_FAILED') {
-      return { ok: false, response };
+    if (resolvedRefTarget.error.code !== 'COMMAND_FAILED') {
+      return resolvedRefTarget;
     }
-    return {
-      ok: false,
-      response: notFoundScrollResponse(targetInput, attempts, {
-        message: `scrollintoview lost track of ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
-        ref,
-      }),
-    };
+    return notFoundScrollResponse(targetInput, attempts, {
+      message: `scrollintoview lost track of ${targetInput} after ${attempts} scroll${attempts === 1 ? '' : 's'}`,
+      ref,
+    });
   }
   return finalizeScrollRefState(targetInput, attempts, resolvedRefTarget.target, {
     ref,
@@ -266,24 +258,21 @@ function finalizeScrollRefState(
   attempts: number,
   resolvedTarget: { ref: string; node: SnapshotNode; snapshotNodes: SnapshotNode[] },
   options: { ref?: string; currentRef?: string; missingBoundsMessage?: string } = {},
-): { ok: true; state: ScrollRefState } | { ok: false; response: DaemonResponse } {
+): { ok: true; state: ScrollRefState } | DaemonFailureResponse {
   const { ref, currentRef, missingBoundsMessage } = options;
   const node = resolvedTarget.node;
   if (!node.rect) {
-    return {
-      ok: false,
-      response: notFoundScrollResponse(targetInput, attempts, {
-        message: missingBoundsMessage ?? `Ref ${targetInput} not found or has no bounds`,
-        ref: ref ?? resolvedTarget.ref,
-      }),
-    };
+    return notFoundScrollResponse(targetInput, attempts, {
+      message: missingBoundsMessage ?? `Ref ${targetInput} not found or has no bounds`,
+      ref: ref ?? resolvedTarget.ref,
+    });
   }
   const viewportRect = resolveViewportRect(resolvedTarget.snapshotNodes, node.rect);
   if (!viewportRect) {
-    return {
-      ok: false,
-      response: errorResponse('COMMAND_FAILED', `scrollintoview could not infer viewport for ${targetInput}`),
-    };
+    return errorResponse(
+      'COMMAND_FAILED',
+      `scrollintoview could not infer viewport for ${targetInput}`,
+    );
   }
   return {
     ok: true,
@@ -321,7 +310,7 @@ function notFoundScrollResponse(
   targetInput: string,
   attempts: number,
   details: ScrollNotFoundDetails = {},
-): DaemonResponse {
+): DaemonFailureResponse {
   const { message, ...rest } = details;
   return errorResponse(
     'COMMAND_FAILED',

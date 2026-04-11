@@ -207,7 +207,6 @@ function isDiscoverableOffscreenNode(node: SnapshotNode): boolean {
   );
 }
 
-
 function uniqueLabels(nodes: SnapshotNode[]): string[] {
   const seen = new Set<string>();
   const labels: string[] = [];

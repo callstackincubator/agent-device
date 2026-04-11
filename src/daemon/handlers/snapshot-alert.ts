@@ -6,7 +6,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import { DEFAULT_TIMEOUT_MS, parseTimeout, POLL_INTERVAL_MS } from './parse-utils.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 
 type HandleAlertCommandParams = {
   req: DaemonRequest;
@@ -35,7 +35,7 @@ export async function handleAlertCommand(
     };
   })();
   if (!isCommandSupportedOnDevice('alert', device)) {
-    return unsupportedOperationResponse('alert');
+    return errorResponse('UNSUPPORTED_OPERATION', 'alert is not supported on this device');
   }
   if (device.platform === 'macos') {
     const runMacOsAlert = async () =>

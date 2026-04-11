@@ -19,7 +19,7 @@ import { overlayRecordingTouches, trimRecordingStart } from '../../recording/ove
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
-import { errorResponse, unsupportedOperationResponse } from './response.ts';
+import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 import {
   normalizeAppBundleId,
@@ -193,7 +193,7 @@ async function startRecording(params: {
   }
 
   if (!isCommandSupportedOnDevice('record', device)) {
-    return unsupportedOperationResponse('record');
+    return errorResponse('UNSUPPORTED_OPERATION', 'record is not supported on this device');
   }
 
   const outPath = req.positionals?.[1] ?? `./recording-${Date.now()}.mp4`;
