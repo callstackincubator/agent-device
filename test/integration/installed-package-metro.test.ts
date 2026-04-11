@@ -35,6 +35,10 @@ async function closeServer(server: http.Server): Promise<void> {
   });
 }
 
+function destroySocket(socket: Duplex | null): void {
+  socket?.destroy();
+}
+
 function readJson(stdout: string): any {
   return JSON.parse(stdout);
 }
@@ -147,14 +151,8 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     'utf8',
   );
 
-  const tarballPath = packInstalledPackage(root);
-  const installedPackageRoot = extractInstalledPackage(tarballPath, consumerRoot);
-  linkRuntimeDependencies(installedPackageRoot, consumerRoot);
-  assert.equal(
-    fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'metro-companion.js')),
-    true,
-  );
-
+  let installedPackageRoot = '';
+  let remoteConfigPath = '';
   const metroServer = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/status') {
       res.writeHead(200, { 'content-type': 'text/plain' });
@@ -164,16 +162,11 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     res.writeHead(404);
     res.end('not found');
   });
-  const metroPort = await listen(metroServer);
-  t.after(async () => {
-    await closeServer(metroServer);
-  });
-
-  let bridgePort = 0;
-  let bridgeRegistered = false;
-  let bridgeRequestCount = 0;
   let bridgeSocketRef: Duplex | null = null;
   const bridgeToken = 'bridge-token';
+  let bridgeRegistered = false;
+  let bridgeRequestCount = 0;
+  let bridgePort = 0;
   const bridgeServer = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/metro/bridge') {
       bridgeRequestCount += 1;
@@ -238,105 +231,129 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     res.writeHead(404);
     res.end('not found');
   });
-  bridgeServer.on('upgrade', (req, socket) => {
-    if (req.url !== '/bridge') {
-      socket.destroy();
-      return;
-    }
-    const key = req.headers['sec-websocket-key'];
-    if (typeof key !== 'string') {
-      socket.destroy();
-      return;
-    }
-    bridgeSocketRef = socket;
-    acceptWebSocket(socket, key);
-  });
-  bridgePort = await listen(bridgeServer);
-  t.after(async () => {
-    bridgeSocketRef?.destroy();
-    await closeServer(bridgeServer);
-  });
+  let metroPort = 0;
+  try {
+    const tarballPath = packInstalledPackage(root);
+    installedPackageRoot = extractInstalledPackage(tarballPath, consumerRoot);
+    linkRuntimeDependencies(installedPackageRoot, consumerRoot);
+    assert.equal(
+      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'metro-companion.js')),
+      true,
+    );
 
-  const remoteConfigPath = path.join(configDir, 'demo.remote.json');
-  fs.writeFileSync(
-    remoteConfigPath,
-    JSON.stringify({
-      platform: 'ios',
-      metroProjectRoot: projectRoot,
-      metroPublicBaseUrl: 'https://public.example.test',
-      metroProxyBaseUrl: `http://127.0.0.1:${bridgePort}`,
-      metroBearerToken: bridgeToken,
-      metroPreparePort: metroPort,
-      metroStatusHost: '127.0.0.1',
-    }),
-    'utf8',
-  );
+    metroPort = await listen(metroServer);
+    t.after(async () => {
+      await closeServer(metroServer);
+    });
 
-  const imports = await runNodeModuleJson(
-    consumerRoot,
-    ['--input-type=module', '-e'],
-    `
-      import 'agent-device/contracts';
-      import { daemonCommandRequestSchema } from 'agent-device/contracts';
-      import { buildBundleUrl, buildIosRuntimeHints, normalizeBaseUrl } from 'agent-device/metro';
-      import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
-      const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
-      console.log(JSON.stringify({
-        bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
-        normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
-        protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
-        parsedCommand: daemonCommandRequestSchema.parse({
-          command: 'session_list',
-          positionals: []
-        }).command,
-        resolvedPath: loaded.resolvedPath,
-        metroProjectRoot: loaded.profile.metroProjectRoot
-      }));
-    `,
-  );
-  assert.equal(
-    imports.bundleUrl,
-    'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-  );
-  assert.equal(imports.normalizedBaseUrl, 'https://public.example.test');
-  assert.equal(
-    imports.protocolBundleUrl,
-    'https://public.example.test/index.bundle?platform=android&dev=true&minify=false',
-  );
-  assert.equal(imports.parsedCommand, 'session_list');
-  assert.equal(imports.resolvedPath, remoteConfigPath);
-  assert.equal(imports.metroProjectRoot, projectRoot);
+    bridgeServer.on('upgrade', (req, socket) => {
+      if (req.url !== '/bridge') {
+        socket.destroy();
+        return;
+      }
+      const key = req.headers['sec-websocket-key'];
+      if (typeof key !== 'string') {
+        socket.destroy();
+        return;
+      }
+      bridgeSocketRef = socket;
+      acceptWebSocket(socket, key);
+    });
+    bridgePort = await listen(bridgeServer);
+    t.after(async () => {
+      destroySocket(bridgeSocketRef);
+      await closeServer(bridgeServer);
+    });
 
-  const cliStdout = await execFileText(
-    process.execPath,
-    [
-      path.join(installedPackageRoot, 'bin', 'agent-device.mjs'),
-      'metro',
-      'prepare',
-      '--remote-config',
+    remoteConfigPath = path.join(configDir, 'demo.remote.json');
+    fs.writeFileSync(
       remoteConfigPath,
-      '--json',
-    ],
-    { cwd: consumerRoot },
-  );
-  const cliResult = readJson(cliStdout);
-  assert.equal(cliResult.success, true);
-  assert.equal(cliResult.data.reused, true);
-  assert.equal(cliResult.data.bridge.enabled, true);
-  assert.equal(bridgeRegistered, true);
-  assert.equal(bridgeRequestCount >= 2, true);
+      JSON.stringify({
+        platform: 'ios',
+        metroProjectRoot: projectRoot,
+        metroPublicBaseUrl: 'https://public.example.test',
+        metroProxyBaseUrl: `http://127.0.0.1:${bridgePort}`,
+        metroBearerToken: bridgeToken,
+        metroPreparePort: metroPort,
+        metroStatusHost: '127.0.0.1',
+      }),
+      'utf8',
+    );
 
-  await runNodeModuleJson(
-    consumerRoot,
-    ['--input-type=module', '-e'],
-    `
-      import { stopMetroTunnel } from 'agent-device/metro';
-      import { resolveRemoteConfigPath } from 'agent-device/remote-config';
-      await stopMetroTunnel({
-        projectRoot: ${JSON.stringify(projectRoot)},
-        profileKey: resolveRemoteConfigPath({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() })
+    const imports = await runNodeModuleJson(
+      consumerRoot,
+      ['--input-type=module', '-e'],
+      `
+        import 'agent-device/contracts';
+        import { daemonCommandRequestSchema } from 'agent-device/contracts';
+        import { buildBundleUrl, buildIosRuntimeHints, normalizeBaseUrl } from 'agent-device/metro';
+        import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
+        const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
+        console.log(JSON.stringify({
+          bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
+          normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
+          protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
+          parsedCommand: daemonCommandRequestSchema.parse({
+            command: 'session_list',
+            positionals: []
+          }).command,
+          resolvedPath: loaded.resolvedPath,
+          metroProjectRoot: loaded.profile.metroProjectRoot
+        }));
+      `,
+    );
+    assert.equal(
+      imports.bundleUrl,
+      'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+    );
+    assert.equal(imports.normalizedBaseUrl, 'https://public.example.test');
+    assert.equal(
+      imports.protocolBundleUrl,
+      'https://public.example.test/index.bundle?platform=android&dev=true&minify=false',
+    );
+    assert.equal(imports.parsedCommand, 'session_list');
+    assert.equal(imports.resolvedPath, remoteConfigPath);
+    assert.equal(imports.metroProjectRoot, projectRoot);
+
+    const cliStdout = await execFileText(
+      process.execPath,
+      [
+        path.join(installedPackageRoot, 'bin', 'agent-device.mjs'),
+        'metro',
+        'prepare',
+        '--remote-config',
+        remoteConfigPath,
+        '--json',
+      ],
+      { cwd: consumerRoot },
+    );
+    const cliResult = readJson(cliStdout);
+    assert.equal(cliResult.success, true);
+    assert.equal(cliResult.data.reused, true);
+    assert.equal(cliResult.data.bridge.enabled, true);
+    assert.equal(bridgeRegistered, true);
+    assert.equal(bridgeRequestCount >= 2, true);
+  } finally {
+    if (installedPackageRoot && remoteConfigPath) {
+      await runNodeModuleJson(
+        consumerRoot,
+        ['--input-type=module', '-e'],
+        `
+          import { stopMetroTunnel } from 'agent-device/metro';
+          import { resolveRemoteConfigPath } from 'agent-device/remote-config';
+          await stopMetroTunnel({
+            projectRoot: ${JSON.stringify(projectRoot)},
+            profileKey: resolveRemoteConfigPath({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() })
+          });
+          console.log(JSON.stringify({ stopped: true }));
+        `,
+      ).catch(() => {
+        // best effort cleanup for detached companions during test teardown
       });
-      console.log(JSON.stringify({ stopped: true }));
-    `,
-  );
+    }
+    destroySocket(bridgeSocketRef);
+    await closeServer(bridgeServer);
+    await closeServer(metroServer);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
