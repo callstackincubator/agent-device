@@ -145,6 +145,67 @@ test('writeReplayScript escapes device labels with quotes and backslashes', () =
   );
 });
 
+test('writeReplayScript preserves significant whitespace and empty string arguments', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-whitespace-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'type',
+      positionals: ['  leading\ttrailing  '],
+      flags: {},
+    },
+    {
+      ts: Date.now(),
+      command: 'fill',
+      positionals: ['@e2', ''],
+      flags: {},
+    },
+    {
+      ts: Date.now(),
+      command: 'screenshot',
+      positionals: [' ./screens/final.png '],
+      flags: {},
+    },
+    {
+      ts: Date.now(),
+      command: 'screenshot',
+      positionals: ['foo\\nbar.png'],
+      flags: {},
+    },
+    {
+      ts: Date.now(),
+      command: 'open',
+      positionals: ['Demo'],
+      runtime: {
+        platform: 'android',
+        metroHost: ' host\t',
+        launchUrl: 'myapp://dev ',
+      },
+      flags: {},
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+
+  assert.match(script, /type "  leading\\ttrailing  "/);
+  assert.match(script, /fill @e2 ""/);
+  assert.match(script, /screenshot " \.\/screens\/final\.png "/);
+  assert.match(script, /screenshot "foo\\\\nbar\.png"/);
+  assert.match(script, /--metro-host " host\\t" --launch-url "myapp:\/\/dev "/);
+  const parsed = parseReplayScript(script);
+  assert.deepEqual(parsed[0]?.positionals, ['  leading\ttrailing  ']);
+  assert.deepEqual(parsed[1]?.positionals, ['@e2', '']);
+  assert.deepEqual(parsed[2]?.positionals, [' ./screens/final.png ']);
+  assert.deepEqual(parsed[3]?.positionals, ['foo\\nbar.png']);
+  assert.deepEqual(parsed[4]?.runtime, {
+    platform: 'android',
+    metroHost: ' host\t',
+    launchUrl: 'myapp://dev ',
+  });
+});
+
 test('readReplayScriptMetadata extracts platform from context header', () => {
   const metadata = readReplayScriptMetadata(
     '# comment\n\ncontext platform=android device="Pixel 9 Pro"\nopen "Demo"\n',

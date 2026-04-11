@@ -367,3 +367,47 @@ test('writeSessionLog escapes device labels with quotes and backslashes', () => 
     /context platform=ios device="QA \\"Lab\\" \\\\ Shelf" kind=simulator theme=unknown/,
   );
 });
+
+test('writeSessionLog preserves significant whitespace and empty string arguments', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-whitespace-'));
+  const store = new SessionStore(root);
+  const session = makeSession('default');
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags: { platform: 'ios', saveScript: true },
+    runtime: {
+      platform: 'ios',
+      metroHost: ' host\t',
+      launchUrl: 'myapp://dev ',
+    },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'type',
+    positionals: ['  leading\ttrailing  '],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+  store.recordAction(session, {
+    command: 'fill',
+    positionals: ['@e5', ''],
+    flags: { platform: 'ios' },
+    result: { refLabel: 'Search field' },
+  });
+  store.recordAction(session, {
+    command: 'screenshot',
+    positionals: [' ./screens/final.png '],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+
+  store.writeSessionLog(session);
+  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
+  assert.ok(scriptFile);
+  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  assert.match(script, /type "  leading\\ttrailing  "/);
+  assert.match(script, /fill @e5 "Search field" ""/);
+  assert.match(script, /screenshot " \.\/screens\/final\.png "/);
+  assert.match(script, /--metro-host " host\\t" --launch-url "myapp:\/\/dev "/);
+});

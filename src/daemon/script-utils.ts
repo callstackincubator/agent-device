@@ -1,6 +1,7 @@
 import type { SessionAction } from './types.ts';
 
 const NUMERIC_ARG_RE = /^-?\d+(\.\d+)?$/;
+const BARE_SCRIPT_TOKEN_RE = /^[^\s"\\]+$/;
 
 const CLICK_LIKE_NUMERIC_FLAG_MAP = new Map<string, 'count' | 'intervalMs' | 'holdMs' | 'jitterPx'>(
   [
@@ -27,10 +28,7 @@ function isTypingCommand(command: string): command is 'type' | 'fill' {
 }
 
 export function formatScriptArg(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('@')) return trimmed;
-  if (NUMERIC_ARG_RE.test(trimmed)) return trimmed;
-  return JSON.stringify(trimmed);
+  return formatScriptToken(value, isStructuralScriptToken);
 }
 
 // Use for literal values such as device labels where leading/trailing whitespace must survive round-trips.
@@ -40,8 +38,19 @@ export function formatScriptStringLiteral(value: string): string {
 
 // Preserve readable CLI-ish script output for ordinary tokens while still quoting whitespace.
 export function formatScriptArgQuoteIfNeeded(value: string): string {
-  const trimmed = value.trim();
-  return /\s/.test(trimmed) ? JSON.stringify(trimmed) : trimmed;
+  return formatScriptToken(value, isBareScriptToken);
+}
+
+function formatScriptToken(value: string, canStayBare: (value: string) => boolean): string {
+  return canStayBare(value) ? value : formatScriptStringLiteral(value);
+}
+
+function isStructuralScriptToken(value: string): boolean {
+  return (isBareScriptToken(value) && value.startsWith('@')) || NUMERIC_ARG_RE.test(value);
+}
+
+function isBareScriptToken(value: string): boolean {
+  return BARE_SCRIPT_TOKEN_RE.test(value);
 }
 
 export function formatScriptActionSummary(action: SessionAction): string {

@@ -304,7 +304,8 @@ function formatActionLine(action: SessionAction): string {
       if (typeof refLabel === 'string' && refLabel.trim().length > 0) {
         parts.push(formatScriptArg(refLabel));
       }
-      if (text) {
+      // Preserve explicit empty-string fill arguments.
+      if (action.positionals.length > 1) {
         parts.push(formatScriptArg(text));
       }
       appendScriptSeriesFlags(parts, action);
