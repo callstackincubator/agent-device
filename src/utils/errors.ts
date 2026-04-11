@@ -1,6 +1,6 @@
-import { redactDiagnosticData } from './diagnostics.ts';
+import { redactDiagnosticData } from './redaction.ts';
 
-type ErrorCode =
+export type AppErrorCode =
   | 'INVALID_ARGS'
   | 'DEVICE_NOT_FOUND'
   | 'TOOL_MISSING'
@@ -28,11 +28,11 @@ export type NormalizedError = {
 };
 
 export class AppError extends Error {
-  code: ErrorCode;
+  code: AppErrorCode;
   details?: AppErrorDetails;
   cause?: unknown;
 
-  constructor(code: ErrorCode, message: string, details?: AppErrorDetails, cause?: unknown) {
+  constructor(code: AppErrorCode, message: string, details?: AppErrorDetails, cause?: unknown) {
     super(message);
     this.code = code;
     this.details = details;
@@ -115,7 +115,7 @@ function stripDiagnosticMeta(
   return Object.keys(output).length > 0 ? output : undefined;
 }
 
-function defaultHintForCode(code: string): string | undefined {
+export function defaultHintForCode(code: string): string | undefined {
   switch (code) {
     case 'INVALID_ARGS':
       return 'Check command arguments and run --help for usage examples.';

@@ -1,6 +1,10 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { AppError } from '../index.ts';
 import {
+  defaultHintForCode,
   daemonCommandRequestSchema,
   daemonRuntimeSchema,
   centerOfRect,
@@ -8,10 +12,13 @@ import {
   leaseAllocateSchema,
   leaseHeartbeatSchema,
   leaseReleaseSchema,
+  normalizeError,
+  type AppErrorCode,
   type Rect,
   type SnapshotNode,
 } from '../contracts.ts';
 
+const invalidArgsCode = 'INVALID_ARGS' satisfies AppErrorCode;
 const rect = { x: 1, y: 2, width: 3, height: 4 } satisfies Rect;
 const node = {
   index: 0,
@@ -20,6 +27,16 @@ const node = {
   label: 'Continue',
   rect,
 } satisfies SnapshotNode;
+
+test('public contracts error helpers do not load diagnostics module', () => {
+  const errorsSource = fs.readFileSync(
+    path.join(import.meta.dirname, '..', 'utils', 'errors.ts'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(errorsSource, /['"]\.\/diagnostics\.ts['"]/);
+  assert.doesNotMatch(errorsSource, /node:/);
+});
 
 test('public contract schemas validate daemon requests and lease payloads', () => {
   const runtime = daemonRuntimeSchema.parse({
@@ -68,6 +85,17 @@ test('public contract schemas validate daemon requests and lease payloads', () =
   assert.equal(release.leaseId, 'lease-1');
   assert.deepEqual(centerOfRect(rect), { x: 3, y: 4 });
   assert.equal(node.ref, 'e1');
+});
+
+test('public contract exports normalize and hint app errors', () => {
+  const normalized = normalizeError(new AppError(invalidArgsCode, 'Invalid command'));
+
+  assert.equal(normalized.code, invalidArgsCode);
+  assert.equal(normalized.hint, defaultHintForCode(invalidArgsCode));
+  assert.equal(
+    defaultHintForCode('UNKNOWN'),
+    'Retry with --debug and inspect diagnostics log for details.',
+  );
 });
 
 test('public contract schemas reject invalid payloads', () => {

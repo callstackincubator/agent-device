@@ -1,3 +1,6 @@
+export type { AppErrorCode } from './utils/errors.ts';
+export { defaultHintForCode, normalizeError } from './utils/errors.ts';
+
 export type SessionRuntimeHints = {
   platform?: 'ios' | 'android';
   metroHost?: string;
