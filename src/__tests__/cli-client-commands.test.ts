@@ -274,6 +274,59 @@ test('screenshot reports annotated ref count in non-json mode', async () => {
   assert.equal(stdout, 'Annotated 2 refs onto /tmp/screenshot.png\n');
 });
 
+test('wait keeps CLI bare text behavior through the typed client command API', async () => {
+  let observed: Parameters<AgentDeviceClient['command']['wait']>[0] | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+  client.command.wait = async (options) => {
+    observed = options;
+    return { text: 'Continue', waitedMs: 12 };
+  };
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'wait',
+    positionals: ['Continue', '1500'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.equal(observed?.text, 'Continue');
+  assert.equal(observed?.timeoutMs, 1500);
+});
+
+test('clipboard read keeps human text output through the typed client command API', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+  client.command.clipboard = async () => ({ action: 'read', text: 'hello' });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'clipboard',
+      positionals: ['read'],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  assert.equal(stdout, 'hello\n');
+});
+
 test('metro prepare wraps output in the standard success envelope for --json', async () => {
   const client = createStubClient({
     installFromSource: async () => {
@@ -634,9 +687,15 @@ function createStubClient(params: {
   open?: AgentDeviceClient['apps']['open'];
   screenshot?: AgentDeviceClient['capture']['screenshot'];
 }): AgentDeviceClient {
+  const unexpectedCommandCall = async (): Promise<never> => {
+    throw new Error('unexpected command call');
+  };
+  const command = createThrowingMethodGroup<AgentDeviceClient['command']>();
   return {
+    command,
     devices: {
       list: async () => [],
+      boot: unexpectedCommandCall,
     },
     sessions: {
       list: async () => [],
@@ -681,6 +740,8 @@ function createStubClient(params: {
         session: 'default',
         identifiers: { session: 'default' },
       }),
+      push: unexpectedCommandCall,
+      triggerEvent: unexpectedCommandCall,
     },
     materializations: {
       release: async (options) => ({
@@ -726,6 +787,22 @@ function createStubClient(params: {
           path: '/tmp/screenshot.png',
           identifiers: { session: 'default' },
         })),
+      diff: unexpectedCommandCall,
     },
+    interactions: createThrowingMethodGroup<AgentDeviceClient['interactions']>(),
+    replay: createThrowingMethodGroup<AgentDeviceClient['replay']>(),
+    batch: createThrowingMethodGroup<AgentDeviceClient['batch']>(),
+    observability: createThrowingMethodGroup<AgentDeviceClient['observability']>(),
+    recording: createThrowingMethodGroup<AgentDeviceClient['recording']>(),
+    settings: createThrowingMethodGroup<AgentDeviceClient['settings']>(),
   };
+}
+
+function createThrowingMethodGroup<T extends object>(): T {
+  const unexpectedCommandCall = async (): Promise<never> => {
+    throw new Error('unexpected command call');
+  };
+  return new Proxy({} as Partial<T>, {
+    get: (target, property) => target[property as keyof T] ?? unexpectedCommandCall,
+  }) as T;
 }

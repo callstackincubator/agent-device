@@ -1,5 +1,8 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon/types.ts';
 import { AppError } from '../utils/errors.ts';
@@ -369,6 +372,87 @@ test('client throws AppError for daemon failures', async () => {
       return true;
     },
   );
+});
+
+test('client.command.wait prepares selector options and rejects invalid selectors', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {},
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.command.wait({
+    selector: 'role=button[name="Continue"]',
+    timeoutMs: 1_500,
+    depth: 3,
+    raw: true,
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'wait');
+  assert.deepEqual(setup.calls[0]?.positionals, ['role=button[name="Continue"]', '1500']);
+  assert.equal(setup.calls[0]?.flags?.snapshotDepth, 3);
+  assert.equal(setup.calls[0]?.flags?.snapshotRaw, true);
+
+  await assert.rejects(
+    async () => await client.command.wait({ selector: 'Continue' }),
+    /Invalid wait selector: Continue/,
+  );
+  assert.equal(setup.calls.length, 1);
+});
+
+test('remote-config defaults apply across daemon-backed client methods', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-client-remote-scope-'));
+  try {
+    const remoteConfig = path.join(tempRoot, 'remote.json');
+    fs.writeFileSync(
+      remoteConfig,
+      JSON.stringify({
+        session: 'remote-session',
+        platform: 'android',
+        daemonBaseUrl: 'http://127.0.0.1:9124/agent-device',
+        tenant: 'remote-tenant',
+        sessionIsolation: 'tenant',
+        runId: 'remote-run',
+        leaseId: 'remote-lease',
+      }),
+    );
+    const setup = createTransport(async () => ({
+      ok: true,
+      data: {},
+    }));
+    const client = createAgentDeviceClient(
+      {
+        remoteConfig,
+        cwd: tempRoot,
+      },
+      { transport: setup.transport },
+    );
+    fs.writeFileSync(remoteConfig, '{');
+
+    await client.devices.list();
+    await client.command.home();
+    const snapshot = await client.capture.snapshot();
+
+    assert.equal(setup.calls[0]?.session, 'remote-session');
+    assert.equal(setup.calls[0]?.command, 'devices');
+    assert.equal(setup.calls[0]?.flags?.platform, 'android');
+    assert.equal(setup.calls[0]?.flags?.daemonBaseUrl, 'http://127.0.0.1:9124/agent-device');
+    assert.equal(setup.calls[0]?.meta?.tenantId, 'remote-tenant');
+    assert.equal(setup.calls[1]?.session, 'remote-session');
+    assert.equal(setup.calls[1]?.command, 'home');
+    assert.equal(setup.calls[1]?.flags?.platform, 'android');
+    assert.equal(setup.calls[1]?.flags?.daemonBaseUrl, 'http://127.0.0.1:9124/agent-device');
+    assert.equal(setup.calls[1]?.meta?.tenantId, 'remote-tenant');
+    assert.equal(setup.calls[1]?.meta?.runId, 'remote-run');
+    assert.equal(setup.calls[1]?.meta?.leaseId, 'remote-lease');
+    assert.equal(setup.calls[2]?.session, 'remote-session');
+    assert.equal(setup.calls[2]?.command, 'snapshot');
+    assert.equal(setup.calls[2]?.flags?.platform, 'android');
+    assert.equal(snapshot.identifiers.session, 'remote-session');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('client capture.snapshot preserves visibility metadata from daemon responses', async () => {

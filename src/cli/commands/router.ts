@@ -1,13 +1,17 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient } from '../../client.ts';
+import { CLIENT_COMMANDS, type ClientCommandName } from '../../client-command-registry.ts';
 import { sessionCommand } from './session.ts';
 import { devicesCommand } from './devices.ts';
 import { ensureSimulatorCommand } from './ensure-simulator.ts';
 import { metroCommand } from './metro.ts';
+import { appsCommand } from './apps.ts';
 import { installCommand, reinstallCommand, installFromSourceCommand } from './install.ts';
 import { openCommand, closeCommand } from './open.ts';
 import { snapshotCommand } from './snapshot.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
+import { clientCommandMethodHandlers } from './client-command.ts';
+import { genericClientCommandHandlers } from './generic.ts';
 
 export type ClientCommandParams = {
   positionals: string[];
@@ -16,10 +20,12 @@ export type ClientCommandParams = {
 };
 
 export type ClientCommandHandler = (params: ClientCommandParams) => Promise<boolean>;
+export type ClientCommandHandlerMap = Partial<Record<string, ClientCommandHandler>>;
 
-const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
+const dedicatedClientApiHandlers = {
   session: sessionCommand,
-  devices: devicesCommand,
+  [CLIENT_COMMANDS.devices]: devicesCommand,
+  [CLIENT_COMMANDS.apps]: appsCommand,
   'ensure-simulator': ensureSimulatorCommand,
   metro: metroCommand,
   install: installCommand,
@@ -27,9 +33,16 @@ const clientCommandHandlers: Partial<Record<string, ClientCommandHandler>> = {
   'install-from-source': installFromSourceCommand,
   open: openCommand,
   close: closeCommand,
-  snapshot: snapshotCommand,
-  screenshot: screenshotCommand,
-  diff: diffCommand,
+  [CLIENT_COMMANDS.snapshot]: snapshotCommand,
+  [CLIENT_COMMANDS.screenshot]: screenshotCommand,
+  [CLIENT_COMMANDS.diff]: diffCommand,
+} satisfies ClientCommandHandlerMap;
+
+const clientCommandHandlers: ClientCommandHandlerMap &
+  Record<ClientCommandName, ClientCommandHandler> = {
+  ...dedicatedClientApiHandlers,
+  ...clientCommandMethodHandlers,
+  ...genericClientCommandHandlers,
 };
 
 export async function tryRunClientBackedCommand(params: {

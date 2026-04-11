@@ -31,22 +31,22 @@ function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
 }
 
 export function resolveRemoteConfigDefaults(options: {
-  cliFlags: CliFlags;
+  remoteConfig?: string;
   cwd: string;
   env: Record<string, string | undefined>;
 }): Partial<CliFlags> {
-  if (!options.cliFlags.remoteConfig) {
+  if (!options.remoteConfig) {
     return {};
   }
 
   const resolved = resolveRemoteConfigProfile({
-    configPath: options.cliFlags.remoteConfig,
+    configPath: options.remoteConfig,
     cwd: options.cwd,
     env: options.env,
   });
   return {
     ...profileToCliFlags(resolved.profile),
-    remoteConfig: options.cliFlags.remoteConfig,
+    remoteConfig: options.remoteConfig,
   };
 }
 

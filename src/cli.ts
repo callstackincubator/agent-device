@@ -1,23 +1,14 @@
-import { toDaemonFlags, usage, usageForCommand } from './utils/args.ts';
+import { usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
-import {
-  formatSnapshotDiffText,
-  formatSnapshotText,
-  printHumanError,
-  printJson,
-} from './utils/output.ts';
+import { printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
-import { readCommandMessage } from './utils/success-text.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
-import { throwDaemonError } from './daemon-error.ts';
 import fs from 'node:fs';
 import type { BatchStep } from './core/dispatch.ts';
 import { parseBatchStepsJson } from './core/batch.ts';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from './client.ts';
-import type { ReplaySuiteResult } from './daemon/types.ts';
 import { tryRunClientBackedCommand } from './cli/commands/router.ts';
-import { announceReplayTestRun, renderReplayTestResponse } from './cli-test.ts';
 import {
   createRequestId,
   emitDiagnostic,
@@ -129,7 +120,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             configuredPlatform: parsed.flags.platform,
             configuredSession: parsed.flags.session,
           });
-      const daemonFlags = toDaemonFlags(flags);
       const daemonPaths = resolveDaemonPaths(flags.stateDir);
       const sessionName = flags.session ?? 'default';
       maybeRunUpgradeNotifier({
@@ -151,6 +141,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         daemonAuthToken: flags.daemonAuthToken,
         daemonTransport: flags.daemonTransport,
         daemonServerMode: flags.daemonServerMode,
+        remoteConfig: flags.remoteConfig,
         tenant: flags.tenant,
         sessionIsolation: flags.sessionIsolation,
         runId: flags.runId,
@@ -161,28 +152,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         debug: Boolean(flags.verbose),
       };
       const client = createAgentDeviceClient(clientConfig, { transport: deps.sendToDaemon });
-      const sendDaemonRequest = async (payload: {
-        command: string;
-        positionals: string[];
-        flags?: Record<string, unknown>;
-      }) =>
-        await deps.sendToDaemon({
-          session: sessionName,
-          command: payload.command,
-          positionals: payload.positionals,
-          flags: payload.flags as any,
-          meta: {
-            requestId,
-            debug: Boolean(flags.verbose),
-            cwd: process.cwd(),
-            tenantId: flags.tenant,
-            runId: flags.runId,
-            leaseId: flags.leaseId,
-            sessionIsolation: flags.sessionIsolation,
-            lockPolicy: binding.lockPolicy,
-            lockPlatform: binding.defaultPlatform,
-          },
-        });
       try {
         if (command === 'batch') {
           if (positionals.length > 0) {
@@ -192,65 +161,34 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             ...step,
             flags:
               binding.lockPolicy && flags.platform === undefined
-                ? { ...((step.flags ?? {}) as Partial<typeof daemonFlags>) }
-                : applyDefaultPlatformBinding((step.flags ?? {}) as Partial<typeof daemonFlags>, {
+                ? { ...((step.flags ?? {}) as Partial<typeof flags>) }
+                : applyDefaultPlatformBinding((step.flags ?? {}) as Partial<typeof flags>, {
                     policyOverrides: flags,
                     configuredPlatform: flags.platform,
                     configuredSession: flags.session,
                     inheritedPlatform: flags.platform,
                   }),
           }));
-          const batchFlags = { ...daemonFlags, batchSteps };
-          delete (batchFlags as Record<string, unknown>).steps;
-          delete (batchFlags as Record<string, unknown>).stepsFile;
-
-          const response = await sendDaemonRequest({
-            command: 'batch',
-            positionals,
-            flags: batchFlags,
-          });
-          if (!response.ok) {
-            throwDaemonError(response.error);
+          if (
+            await tryRunClientBackedCommand({
+              command,
+              positionals,
+              flags: { ...flags, batchSteps },
+              client,
+            })
+          ) {
+            return;
           }
-          if (flags.json) {
-            printJson({ success: true, data: response.data ?? {} });
-          } else {
-            renderBatchSummary(response.data ?? {});
-          }
-          return;
-        }
-
-        if (command === 'runtime') {
+        } else if (command === 'runtime') {
           throw new AppError(
             'INVALID_ARGS',
             'runtime command was removed. Use open --remote-config <path> --relaunch for remote Metro launches, or metro prepare --remote-config <path> for inspection.',
           );
-        }
-
-        if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
+        } else if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
           return;
         }
 
-        if (command === 'test') {
-          announceReplayTestRun({ json: flags.json });
-        }
-
-        const response = await sendDaemonRequest({
-          command: command!,
-          positionals,
-          flags: daemonFlags,
-        });
-
-        if (response.ok) {
-          const exitCode = writeCommandCliOutput(command, positionals, flags, response.data ?? {});
-          if (exitCode !== 0) {
-            if (logTailStopper) logTailStopper();
-            process.exit(exitCode);
-          }
-          return;
-        }
-
-        throwDaemonError(response.error);
+        throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
       } catch (err) {
         const appErr = asAppError(err);
         const normalized = normalizeError(appErr, {
@@ -293,322 +231,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
     },
   );
-}
-
-function renderBatchSummary(data: Record<string, unknown>): void {
-  const total = typeof data.total === 'number' ? data.total : 0;
-  const executed = typeof data.executed === 'number' ? data.executed : 0;
-  const durationMs = typeof data.totalDurationMs === 'number' ? data.totalDurationMs : undefined;
-  process.stdout.write(
-    `Batch completed: ${executed}/${total} steps${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
-  );
-  const results = Array.isArray(data.results) ? data.results : [];
-  for (const entry of results) {
-    if (!entry || typeof entry !== 'object') continue;
-    const result = entry as Record<string, unknown>;
-    const step = typeof result.step === 'number' ? result.step : undefined;
-    const command = typeof result.command === 'string' ? result.command : 'step';
-    const stepOk = result.ok !== false;
-    const stepDurationMs = typeof result.durationMs === 'number' ? result.durationMs : undefined;
-    const stepData =
-      result.data && typeof result.data === 'object'
-        ? (result.data as Record<string, unknown>)
-        : undefined;
-    const stepError =
-      result.error && typeof result.error === 'object'
-        ? (result.error as Record<string, unknown>)
-        : undefined;
-    const description = stepOk
-      ? (readCommandMessage(stepData) ?? command)
-      : (readBatchStepFailure(stepError) ?? command);
-    const prefix = step !== undefined ? `${step}. ` : '- ';
-    const durationSuffix = stepDurationMs !== undefined ? ` (${stepDurationMs}ms)` : '';
-    process.stdout.write(`${prefix}${stepOk ? 'OK' : 'FAILED'} ${description}${durationSuffix}\n`);
-  }
-}
-
-function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
-  return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
-}
-
-function writeCommandCliOutput(
-  command: string,
-  positionals: string[],
-  flags: {
-    json?: boolean;
-    verbose?: boolean;
-    snapshotRaw?: boolean;
-    snapshotInteractiveOnly?: boolean;
-    reportJunit?: string;
-  },
-  data: Record<string, unknown>,
-): number {
-  if (flags.json) {
-    if (command === 'test') {
-      return renderReplayTestResponse({
-        suite: data as ReplaySuiteResult,
-        json: true,
-        reportJunit: flags.reportJunit,
-      });
-    }
-    printJson({ success: true, data });
-    return 0;
-  }
-
-  if (command === 'snapshot') {
-    process.stdout.write(
-      formatSnapshotText(data, {
-        raw: flags.snapshotRaw,
-        flatten: flags.snapshotInteractiveOnly,
-      }),
-    );
-    return 0;
-  }
-  if (command === 'test') {
-    return renderReplayTestResponse({
-      suite: data as ReplaySuiteResult,
-      verbose: flags.verbose,
-      reportJunit: flags.reportJunit,
-    });
-  }
-  if (command === 'diff' && positionals[0] === 'snapshot') {
-    process.stdout.write(formatSnapshotDiffText(data));
-    return 0;
-  }
-  if (command === 'get') {
-    const sub = positionals[0];
-    if (sub === 'text') {
-      process.stdout.write(`${(data as any)?.text ?? ''}\n`);
-      return 0;
-    }
-    if (sub === 'attrs') {
-      process.stdout.write(`${JSON.stringify((data as any)?.node ?? {}, null, 2)}\n`);
-      return 0;
-    }
-  }
-  if (command === 'find') {
-    if (typeof (data as any)?.text === 'string') {
-      process.stdout.write(`${(data as any).text}\n`);
-      return 0;
-    }
-    if (typeof (data as any)?.found === 'boolean') {
-      process.stdout.write(`Found: ${(data as any).found}\n`);
-      return 0;
-    }
-    if ((data as any)?.node) {
-      process.stdout.write(`${JSON.stringify((data as any).node, null, 2)}\n`);
-      return 0;
-    }
-  }
-  if (command === 'is') {
-    process.stdout.write(`Passed: is ${(data as any)?.predicate ?? 'assertion'}\n`);
-    return 0;
-  }
-  if (command === 'boot') {
-    const platform = (data as any)?.platform ?? 'unknown';
-    const device = (data as any)?.device ?? (data as any)?.id ?? 'unknown';
-    process.stdout.write(`Boot ready: ${device} (${platform})\n`);
-    return 0;
-  }
-  if (command === 'ensure-simulator') {
-    const udid = typeof data?.udid === 'string' ? data.udid : 'unknown';
-    const device = typeof data?.device === 'string' ? data.device : 'unknown';
-    const runtime = typeof data?.runtime === 'string' ? data.runtime : '';
-    const action = data?.created === true ? 'Created' : 'Reused';
-    const bootedSuffix = data?.booted === true ? ' (booted)' : '';
-    process.stdout.write(`${action}: ${device} ${udid}${bootedSuffix}\n`);
-    if (runtime) process.stdout.write(`Runtime: ${runtime}\n`);
-    return 0;
-  }
-  if (command === 'screenshot') {
-    const pathOut = typeof (data as any)?.path === 'string' ? (data as any).path : '';
-    if (pathOut) process.stdout.write(`${pathOut}\n`);
-    return 0;
-  }
-  if (command === 'record') {
-    const outPath = typeof data?.outPath === 'string' ? data.outPath : '';
-    if (outPath) process.stdout.write(`${outPath}\n`);
-    return 0;
-  }
-  if (command === 'logs') {
-    writeLogsCliOutput(data, flags);
-    return 0;
-  }
-  if (command === 'clipboard') {
-    const action = (
-      positionals[0] ?? (typeof data?.action === 'string' ? data.action : '')
-    ).toLowerCase();
-    if (action === 'read') {
-      process.stdout.write(`${typeof data?.text === 'string' ? data.text : ''}\n`);
-      return 0;
-    }
-    if (action === 'write') {
-      process.stdout.write('Clipboard updated\n');
-      return 0;
-    }
-  }
-  if (command === 'network') {
-    writeNetworkCliOutput(data);
-    return 0;
-  }
-  if (command === 'click' || command === 'press') {
-    const ref = (data as any)?.ref ?? '';
-    const x = (data as any)?.x;
-    const y = (data as any)?.y;
-    if (ref && typeof x === 'number' && typeof y === 'number') {
-      process.stdout.write(`Tapped @${ref} (${x}, ${y})\n`);
-      return 0;
-    }
-  }
-  if (command === 'devices') {
-    const devices = Array.isArray((data as any).devices) ? (data as any).devices : [];
-    process.stdout.write(
-      `${devices
-        .map((d: any) => {
-          const name = d?.name ?? d?.id ?? 'unknown';
-          const platform = d?.platform ?? 'unknown';
-          const kind = d?.kind ? ` ${d.kind}` : '';
-          const target = d?.target ? ` target=${d.target}` : '';
-          const booted = typeof d?.booted === 'boolean' ? ` booted=${d.booted}` : '';
-          return `${name} (${platform}${kind}${target})${booted}`;
-        })
-        .join('\n')}\n`,
-    );
-    return 0;
-  }
-  if (command === 'apps') {
-    const apps = Array.isArray((data as any).apps) ? (data as any).apps : [];
-    process.stdout.write(
-      `${apps
-        .map((app: any) => {
-          if (typeof app === 'string') return app;
-          if (app && typeof app === 'object') {
-            const bundleId = app.bundleId ?? app.package;
-            const name = app.name ?? app.label;
-            if (name && bundleId) return `${name} (${bundleId})`;
-            if (bundleId) return String(bundleId);
-            return JSON.stringify(app);
-          }
-          return String(app);
-        })
-        .join('\n')}\n`,
-    );
-    return 0;
-  }
-  if (command === 'appstate') {
-    const platform = (data as any)?.platform;
-    if (platform === 'ios') {
-      process.stdout.write(
-        `Foreground app: ${(data as any)?.appName ?? (data as any)?.appBundleId ?? 'unknown'}\n`,
-      );
-      if ((data as any)?.appBundleId)
-        process.stdout.write(`Bundle: ${(data as any).appBundleId}\n`);
-      if ((data as any)?.source) process.stdout.write(`Source: ${(data as any).source}\n`);
-      return 0;
-    }
-    if (platform === 'android') {
-      process.stdout.write(`Foreground app: ${(data as any)?.package ?? 'unknown'}\n`);
-      if ((data as any)?.activity) process.stdout.write(`Activity: ${(data as any).activity}\n`);
-      return 0;
-    }
-  }
-  if (command === 'perf') {
-    process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
-    return 0;
-  }
-  const successText = readCommandMessage(data);
-  if (successText) {
-    process.stdout.write(`${successText}\n`);
-    for (const extraLine of readCommandSuccessLines(command, data)) {
-      process.stdout.write(`${extraLine}\n`);
-    }
-  }
-  return 0;
-}
-
-function writeLogsCliOutput(data: Record<string, unknown>, flags: { json?: boolean }): void {
-  const pathOut = typeof data?.path === 'string' ? data.path : '';
-  if (!pathOut) return;
-  process.stdout.write(`${pathOut}\n`);
-  const metaFields = ['active', 'state', 'backend', 'sizeBytes'] as const;
-  const meta = metaFields
-    .map((key) => (data[key] !== undefined && data[key] !== null ? `${key}=${data[key]}` : ''))
-    .filter(Boolean)
-    .join(' ');
-  if (meta && !flags.json) process.stderr.write(`${meta}\n`);
-  const actionFields = [
-    'started',
-    'stopped',
-    'marked',
-    'cleared',
-    'restarted',
-    'removedRotatedFiles',
-  ] as const;
-  const actionMeta = actionFields
-    .map((key) => {
-      const v = data[key];
-      return v === true ? `${key}=true` : typeof v === 'number' ? `${key}=${v}` : '';
-    })
-    .filter(Boolean)
-    .join(' ');
-  if (actionMeta && !flags.json) process.stderr.write(`${actionMeta}\n`);
-  if (data?.hint && !flags.json) process.stderr.write(`${data.hint}\n`);
-  if (Array.isArray(data?.notes) && !flags.json) {
-    for (const note of data.notes) {
-      if (typeof note === 'string' && note.length > 0) process.stderr.write(`${note}\n`);
-    }
-  }
-}
-
-function writeNetworkCliOutput(data: Record<string, unknown>): void {
-  const pathOut = typeof data?.path === 'string' ? data.path : '';
-  if (pathOut) process.stdout.write(`${pathOut}\n`);
-  const entries = Array.isArray(data?.entries) ? data.entries : [];
-  if (entries.length === 0) {
-    process.stdout.write('No recent HTTP(s) entries found.\n');
-  } else {
-    for (const entry of entries as Array<Record<string, unknown>>) {
-      const method = typeof entry.method === 'string' ? entry.method : 'HTTP';
-      const url = typeof entry.url === 'string' ? entry.url : '<unknown-url>';
-      const status = typeof entry.status === 'number' ? ` status=${entry.status}` : '';
-      const timestamp = typeof entry.timestamp === 'string' ? `${entry.timestamp} ` : '';
-      const durationMs =
-        typeof entry.durationMs === 'number' ? ` durationMs=${entry.durationMs}` : '';
-      process.stdout.write(`${timestamp}${method} ${url}${status}${durationMs}\n`);
-      if (typeof entry.headers === 'string') process.stdout.write(`  headers: ${entry.headers}\n`);
-      if (typeof entry.requestBody === 'string')
-        process.stdout.write(`  request: ${entry.requestBody}\n`);
-      if (typeof entry.responseBody === 'string')
-        process.stdout.write(`  response: ${entry.responseBody}\n`);
-    }
-  }
-  const networkMetaFields = [
-    'active',
-    'state',
-    'backend',
-    'include',
-    'scannedLines',
-    'matchedLines',
-  ] as const;
-  const meta = networkMetaFields
-    .map((key) => (data[key] !== undefined && data[key] !== null ? `${key}=${data[key]}` : ''))
-    .filter(Boolean)
-    .join(' ');
-  if (meta) process.stderr.write(`${meta}\n`);
-  if (Array.isArray(data?.notes)) {
-    for (const note of data.notes) {
-      if (typeof note === 'string' && note.length > 0) process.stderr.write(`${note}\n`);
-    }
-  }
-}
-
-function readCommandSuccessLines(command: string, data: Record<string, unknown>): string[] {
-  if (command !== 'scrollintoview') {
-    return [];
-  }
-  const ref = typeof data.ref === 'string' ? data.ref : '';
-  const currentRef = typeof data.currentRef === 'string' ? data.currentRef : '';
-  return currentRef && currentRef !== ref ? [`Current ref: @${currentRef}`] : [];
 }
 
 function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): BatchStep[] {

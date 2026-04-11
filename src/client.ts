@@ -1,6 +1,9 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime } from './client-metro.ts';
+import { CLIENT_COMMANDS } from './client-command-registry.ts';
+import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
 import { throwDaemonError } from './daemon-error.ts';
+import { resolveRemoteConfigDefaults } from './utils/remote-config.ts';
 import {
   buildFlags,
   buildMeta,
@@ -23,6 +26,8 @@ import type {
   AgentDeviceClient,
   AgentDeviceClientConfig,
   AgentDeviceDaemonTransport,
+  AppPushOptions,
+  AppTriggerEventOptions,
   AppCloseOptions,
   AppDeployOptions,
   AppInstallFromSourceOptions,
@@ -31,10 +36,15 @@ import type {
   CaptureScreenshotOptions,
   CaptureSnapshotOptions,
   CaptureSnapshotResult,
+  CommandRequestResult,
+  ElementTarget,
   EnsureSimulatorOptions,
+  FindOptions,
+  InteractionTarget,
   InternalRequestOptions,
   MaterializationReleaseOptions,
   MetroPrepareOptions,
+  NetworkOptions,
 } from './client-types.ts';
 
 export function createAgentDeviceClient(
@@ -42,15 +52,16 @@ export function createAgentDeviceClient(
   deps: { transport?: AgentDeviceDaemonTransport } = {},
 ): AgentDeviceClient {
   const transport = deps.transport ?? sendToDaemon;
+  const remoteConfigDefaults = resolveClientRemoteConfigDefaults(config);
 
   const execute = async (
     command: string,
     positionals: string[] = [],
     options: InternalRequestOptions = {},
   ): Promise<Record<string, unknown>> => {
-    const merged = { ...config, ...options };
+    const merged = mergeClientOptions(config, remoteConfigDefaults, options);
     const response = await transport({
-      session: resolveSessionName(config.session, options.session),
+      session: resolveSessionName(merged.session),
       command,
       positionals,
       flags: buildFlags(merged),
@@ -69,18 +80,33 @@ export function createAgentDeviceClient(
     return sessions.map(normalizeSession);
   };
 
+  const executePreparedCommand = async <T>(prepared: PreparedClientCommand): Promise<T> =>
+    (await execute(prepared.command, prepared.positionals, prepared.options)) as T;
+
+  const executeCommandRequest = async (
+    command: string,
+    positionals: string[] = [],
+    options: InternalRequestOptions = {},
+  ): Promise<CommandRequestResult> =>
+    (await execute(command, positionals, options)) as CommandRequestResult;
+
+  const resolveRequestSession = (options: InternalRequestOptions = {}) =>
+    resolveSessionName(mergeClientOptions(config, remoteConfigDefaults, options).session);
+
   return {
+    command: createAgentDeviceCommandClient(executePreparedCommand),
     devices: {
       list: async (options = {}) => {
-        const data = await execute('devices', [], options);
+        const data = await execute(CLIENT_COMMANDS.devices, [], options);
         const devices = Array.isArray(data.devices) ? data.devices : [];
         return devices.map(normalizeDevice);
       },
+      boot: async (options = {}) => await executeCommandRequest(CLIENT_COMMANDS.boot, [], options),
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),
       close: async (options = {}) => {
-        const session = resolveSessionName(config.session, options.session);
+        const session = resolveRequestSession(options);
         const data = await execute('close', [], options);
         const shutdown = data.shutdown;
         return {
@@ -121,12 +147,12 @@ export function createAgentDeviceClient(
       install: async (options: AppDeployOptions) =>
         normalizeDeployResult(
           await execute('install', [options.app, options.appPath], options),
-          resolveSessionName(config.session, options.session),
+          resolveRequestSession(options),
         ),
       reinstall: async (options: AppDeployOptions) =>
         normalizeDeployResult(
           await execute('reinstall', [options.app, options.appPath], options),
-          resolveSessionName(config.session, options.session),
+          resolveRequestSession(options),
         ),
       installFromSource: async (options: AppInstallFromSourceOptions) =>
         normalizeInstallFromSourceResult(
@@ -136,17 +162,21 @@ export function createAgentDeviceClient(
             retainMaterializedPaths: options.retainPaths,
             materializedPathRetentionMs: options.retentionMs,
           }),
-          resolveSessionName(config.session, options.session),
+          resolveRequestSession(options),
         ),
       list: async (options: AppListOptions = {}) => {
-        const data = await execute('apps', [], options);
+        const data = await execute(CLIENT_COMMANDS.apps, [], options);
         return Array.isArray(data.apps)
           ? data.apps.filter((app): app is string => typeof app === 'string')
           : [];
       },
       open: async (options: AppOpenOptions) => {
-        const session = resolveSessionName(config.session, options.session);
-        const positionals = options.url ? [options.app, options.url] : [options.app];
+        const session = resolveRequestSession(options);
+        const positionals = options.app
+          ? options.url
+            ? [options.app, options.url]
+            : [options.app]
+          : [];
         const data = await execute('open', positionals, options);
         const device = normalizeOpenDevice(data);
         const appBundleId = readOptionalString(data, 'appBundleId');
@@ -171,7 +201,7 @@ export function createAgentDeviceClient(
         };
       },
       close: async (options: AppCloseOptions = {}) => {
-        const session = resolveSessionName(config.session, options.session);
+        const session = resolveRequestSession(options);
         const data = await execute('close', options.app ? [options.app] : [], options);
         const shutdown = data.shutdown;
         return {
@@ -184,6 +214,18 @@ export function createAgentDeviceClient(
           identifiers: { session },
         };
       },
+      push: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.push,
+          [options.app, stringifyPayload(options.payload)],
+          options,
+        ),
+      triggerEvent: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.triggerAppEvent,
+          triggerEventPositionals(options),
+          options,
+        ),
     },
     materializations: {
       release: async (options: MaterializationReleaseOptions) =>
@@ -218,8 +260,8 @@ export function createAgentDeviceClient(
     },
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
-        const session = resolveSessionName(config.session, options.session);
-        const data = await execute('snapshot', [], options);
+        const session = resolveRequestSession(options);
+        const data = await execute(CLIENT_COMMANDS.snapshot, [], options);
         const appBundleId = readOptionalString(data, 'appBundleId');
         const visibility =
           typeof data.visibility === 'object' && data.visibility !== null
@@ -242,21 +284,269 @@ export function createAgentDeviceClient(
         };
       },
       screenshot: async (options: CaptureScreenshotOptions = {}) => {
-        const session = resolveSessionName(config.session, options.session);
-        const data = await execute('screenshot', options.path ? [options.path] : [], options);
+        const session = resolveRequestSession(options);
+        const data = await execute(CLIENT_COMMANDS.screenshot, options.path ? [options.path] : [], {
+          ...options,
+          screenshotFullscreen: options.fullscreen,
+        });
         return {
           path: readRequiredString(data, 'path'),
           overlayRefs: readScreenshotOverlayRefs(data),
           identifiers: { session },
         };
       },
+      diff: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.diff, [options.kind], {
+          ...options,
+          interactiveOnly: options.interactiveOnly,
+          compact: options.compact,
+          depth: options.depth,
+          scope: options.scope,
+          raw: options.raw,
+        }),
+    },
+    interactions: {
+      click: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.click, targetPositionals(options), {
+          ...options,
+          clickButton: options.button,
+        }),
+      press: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.press, targetPositionals(options), options),
+      longPress: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.longPress,
+          [String(options.x), String(options.y), ...optionalNumber(options.durationMs)],
+          options,
+        ),
+      swipe: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.swipe,
+          [
+            String(options.from.x),
+            String(options.from.y),
+            String(options.to.x),
+            String(options.to.y),
+            ...optionalNumber(options.durationMs),
+          ],
+          options,
+        ),
+      focus: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.focus,
+          [String(options.x), String(options.y)],
+          options,
+        ),
+      type: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.type, [options.text], options),
+      fill: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.fill,
+          [...targetPositionals(options), options.text],
+          options,
+        ),
+      scroll: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.scroll,
+          [options.direction, ...optionalNumber(options.amount)],
+          options,
+        ),
+      scrollIntoView: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.scrollIntoView,
+          scrollIntoViewPositionals(options),
+          options,
+        ),
+      pinch: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.pinch,
+          [String(options.scale), ...optionalNumber(options.x), ...optionalNumber(options.y)],
+          options,
+        ),
+      get: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.get,
+          [options.format, ...elementPositionals(options)],
+          options,
+        ),
+      is: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.is,
+          [
+            options.predicate,
+            options.selector,
+            ...(options.predicate === 'text' ? [options.value] : []),
+          ],
+          options,
+        ),
+      find: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.find, findPositionals(options), {
+          ...options,
+          findFirst: options.first,
+          findLast: options.last,
+        }),
+    },
+    replay: {
+      run: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.replay, [options.path], {
+          ...options,
+          replayUpdate: options.update,
+        }),
+      test: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.test, options.paths, {
+          ...options,
+          replayUpdate: options.update,
+        }),
+    },
+    batch: {
+      run: async (options) =>
+        await executeCommandRequest(CLIENT_COMMANDS.batch, [], {
+          ...options,
+          batchSteps: options.steps,
+          batchOnError: options.onError,
+          batchMaxSteps: options.maxSteps,
+        }),
+    },
+    observability: {
+      perf: async (options = {}) => await executeCommandRequest(CLIENT_COMMANDS.perf, [], options),
+      logs: async (options = {}) =>
+        await executeCommandRequest(CLIENT_COMMANDS.logs, logsPositionals(options), options),
+      network: async (options = {}) =>
+        await executeCommandRequest(CLIENT_COMMANDS.network, networkPositionals(options), {
+          ...options,
+          networkInclude: options.include,
+        }),
+    },
+    recording: {
+      record: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.record,
+          [options.action, ...optionalString(options.path)],
+          options,
+        ),
+      trace: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.trace,
+          [options.action, ...optionalString(options.path)],
+          options,
+        ),
+    },
+    settings: {
+      update: async (options) =>
+        await executeCommandRequest(
+          CLIENT_COMMANDS.settings,
+          [
+            options.setting,
+            options.state,
+            ...('permission' in options ? [options.permission] : []),
+            ...('mode' in options && options.mode ? [options.mode] : []),
+          ],
+          options,
+        ),
     },
   };
+}
+
+function targetPositionals(options: InteractionTarget): string[] {
+  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
+  if (options.selector !== undefined) return [options.selector];
+  return [String(options.x), String(options.y)];
+}
+
+function elementPositionals(options: ElementTarget): string[] {
+  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
+  return [options.selector];
+}
+
+function scrollIntoViewPositionals(options: {
+  text?: string;
+  ref?: string;
+  label?: string;
+}): string[] {
+  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
+  return [options.text ?? ''];
+}
+
+function stringifyPayload(payload: AppPushOptions['payload']): string {
+  return typeof payload === 'string' ? payload : JSON.stringify(payload);
+}
+
+function triggerEventPositionals(options: AppTriggerEventOptions): string[] {
+  return [options.event, ...(options.payload ? [JSON.stringify(options.payload)] : [])];
+}
+
+function findPositionals(options: FindOptions): string[] {
+  const args =
+    options.locator && options.locator !== 'any'
+      ? [options.locator, options.query]
+      : [options.query];
+  switch (options.action) {
+    case undefined:
+    case 'click':
+    case 'focus':
+    case 'exists':
+      return options.action ? [...args, options.action] : args;
+    case 'getText':
+      return [...args, 'get', 'text'];
+    case 'getAttrs':
+      return [...args, 'get', 'attrs'];
+    case 'wait':
+      return [...args, 'wait', ...optionalNumber(options.timeoutMs)];
+    case 'fill':
+    case 'type':
+      return [...args, options.action, options.value];
+  }
+}
+
+function logsPositionals(options: { action?: string; message?: string }): string[] {
+  return [options.action ?? 'path', ...optionalString(options.message)];
+}
+
+function networkPositionals(options: NetworkOptions): string[] {
+  return [...(options.action ? [options.action] : []), ...optionalNumber(options.limit)];
+}
+
+function optionalString(value: string | undefined): string[] {
+  return value === undefined ? [] : [value];
+}
+
+function optionalNumber(value: number | undefined): string[] {
+  return value === undefined ? [] : [String(value)];
+}
+
+function mergeClientOptions(
+  config: AgentDeviceClientConfig,
+  remoteConfigDefaults: InternalRequestOptions,
+  options: InternalRequestOptions,
+): InternalRequestOptions {
+  if (options.remoteConfig && options.remoteConfig !== config.remoteConfig) {
+    return {
+      ...resolveClientRemoteConfigDefaults({ ...config, ...options }),
+      ...config,
+      ...options,
+    };
+  }
+  return { ...remoteConfigDefaults, ...config, ...options };
+}
+
+function resolveClientRemoteConfigDefaults(
+  config: AgentDeviceClientConfig,
+): InternalRequestOptions {
+  if (!config.remoteConfig) return {};
+
+  const remoteDefaults = resolveRemoteConfigDefaults({
+    remoteConfig: config.remoteConfig,
+    cwd: config.cwd ?? process.cwd(),
+    env: process.env,
+  });
+  const { runtime: _cliRuntime, ...clientDefaults } = remoteDefaults;
+  return clientDefaults;
 }
 
 export type {
   AgentDeviceClient,
   AgentDeviceClientConfig,
+  AgentDeviceCommandClient,
   AgentDeviceDaemonTransport,
   AgentDeviceDevice,
   AgentDeviceIdentifiers,
@@ -264,6 +554,12 @@ export type {
   AgentDeviceSelectionOptions,
   AgentDeviceSession,
   AgentDeviceSessionDevice,
+  AlertCommandOptions,
+  AlertCommandResult,
+  AppPushOptions,
+  AppStateCommandOptions,
+  AppStateCommandResult,
+  AppTriggerEventOptions,
   AppCloseOptions,
   AppCloseResult,
   AppDeployOptions,
@@ -273,16 +569,60 @@ export type {
   AppListOptions,
   AppOpenOptions,
   AppOpenResult,
+  AppSwitcherCommandOptions,
+  AppSwitcherCommandResult,
+  BackCommandOptions,
+  BackCommandResult,
   CaptureScreenshotOptions,
   CaptureScreenshotResult,
   CaptureSnapshotOptions,
   CaptureSnapshotResult,
+  CaptureDiffOptions,
+  ClipboardCommandOptions,
+  ClipboardCommandResult,
+  CommandRequestResult,
+  BatchRunOptions,
+  BatchStep,
+  ClickOptions,
+  ElementTarget,
+  DeviceBootOptions,
   EnsureSimulatorOptions,
   EnsureSimulatorResult,
+  FillOptions,
+  FindLocator,
+  FindOptions,
+  FocusOptions,
+  GetOptions,
+  HomeCommandOptions,
+  HomeCommandResult,
+  IsOptions,
+  InteractionTarget,
+  KeyboardCommandOptions,
+  KeyboardCommandResult,
+  LogsOptions,
+  LongPressOptions,
   MaterializationReleaseOptions,
   MaterializationReleaseResult,
   MetroPrepareOptions,
   MetroPrepareResult,
+  NetworkOptions,
+  PerfOptions,
+  PermissionTarget,
+  PinchOptions,
+  PressOptions,
+  RecordOptions,
+  ReplayRunOptions,
+  ReplayTestOptions,
+  RotateCommandOptions,
+  RotateCommandResult,
+  ScrollIntoViewOptions,
+  ScrollOptions,
   SessionCloseResult,
+  SettingsUpdateOptions,
   StartupPerfSample,
+  SwipeOptions,
+  TraceOptions,
+  TypeTextOptions,
+  WaitCommandOptions,
+  WaitCommandResult,
 } from './client-types.ts';

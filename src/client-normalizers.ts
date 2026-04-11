@@ -257,6 +257,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     shutdown: options.shutdown,
     saveScript: options.saveScript,
     noRecord: options.noRecord,
+    backMode: options.backMode,
     metroHost: options.metroHost,
     metroPort: options.metroPort,
     bundleUrl: options.bundleUrl,
@@ -266,8 +267,37 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotDepth: options.depth,
     snapshotScope: options.scope,
     snapshotRaw: options.raw,
+    screenshotFullscreen: options.screenshotFullscreen,
     overlayRefs: options.overlayRefs,
     appsFilter: options.appsFilter,
+    out: options.out,
+    count: options.count,
+    fps: options.fps,
+    hideTouches: options.hideTouches,
+    intervalMs: options.intervalMs,
+    delayMs: options.delayMs,
+    holdMs: options.holdMs,
+    jitterPx: options.jitterPx,
+    pixels: options.pixels,
+    doubleTap: options.doubleTap,
+    clickButton: options.clickButton,
+    pauseMs: options.pauseMs,
+    pattern: options.pattern,
+    maxScrolls: options.maxScrolls,
+    headless: options.headless,
+    restart: options.restart,
+    replayUpdate: options.replayUpdate,
+    failFast: options.failFast,
+    timeoutMs: options.timeoutMs,
+    retries: options.retries,
+    artifactsDir: options.artifactsDir,
+    reportJunit: options.reportJunit,
+    findFirst: options.findFirst,
+    findLast: options.findLast,
+    networkInclude: options.networkInclude,
+    batchOnError: options.batchOnError,
+    batchMaxSteps: options.batchMaxSteps,
+    batchSteps: options.batchSteps,
     verbose: options.debug,
   }) as CommandFlags;
 }
@@ -290,9 +320,6 @@ export function buildMeta(options: InternalRequestOptions): DaemonRequest['meta'
   });
 }
 
-export function resolveSessionName(
-  defaultSession: string | undefined,
-  session: string | undefined,
-): string {
-  return session ?? defaultSession ?? DEFAULT_SESSION_NAME;
+export function resolveSessionName(session: string | undefined): string {
+  return session ?? DEFAULT_SESSION_NAME;
 }

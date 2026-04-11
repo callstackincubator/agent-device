@@ -34,6 +34,7 @@ Minimal operating guide for AI coding agents in this repo.
 - Surgical edits only.
 - Match existing style.
 - Remove imports/variables YOUR changes made unused; do not clean unrelated dead code.
+- Keep tests minimal: if TypeScript can enforce a contract or invalid shape, prefer a type-level check over duplicating that assertion in runtime tests.
 - Keep modules small for agent context safety:
   - target <= 300 LOC per implementation file when practical.
   - if a file grows past 500 LOC, plan/extract focused submodules before adding new behavior.
@@ -154,6 +155,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Testing Matrix
 - Docs/skills only: no tests required.
 - Non-TS, no behavior impact: no tests unless requested.
+- Keep tests behavioral; do not assert shapes or cases TypeScript already proves.
 - Any TS change: `pnpm typecheck` or `pnpm check:quick`.
 - Tooling/config change (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `.oxfmtrc.json`): `pnpm check:tooling`.
 - Daemon handler/shared module change: `pnpm check:unit`.

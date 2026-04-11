@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseArgs, toDaemonFlags, usage, usageForCommand } from '../args.ts';
+import { parseArgs, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
@@ -373,17 +373,6 @@ test('batch requires exactly one step source', () => {
     () => parseArgs(['batch', '--steps', '[]', '--on-error', 'continue'], { strictFlags: true }),
     /Invalid on-error: continue/,
   );
-});
-
-test('toDaemonFlags strips CLI-only flags', () => {
-  const parsed = parseArgs(['open', 'settings', '--json', '--session-lock', 'strip']);
-  const daemonFlags = toDaemonFlags(parsed.flags);
-  assert.equal(Object.hasOwn(daemonFlags, 'json'), false);
-  assert.equal(Object.hasOwn(daemonFlags, 'help'), false);
-  assert.equal(Object.hasOwn(daemonFlags, 'version'), false);
-  assert.equal(Object.hasOwn(daemonFlags, 'sessionLock'), false);
-  assert.equal(Object.hasOwn(daemonFlags, 'sessionLocked'), false);
-  assert.equal(Object.hasOwn(daemonFlags, 'sessionLockConflicts'), false);
 });
 
 test('parseArgs accepts --save-script with optional path value', () => {
