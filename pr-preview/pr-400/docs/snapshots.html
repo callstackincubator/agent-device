@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-400/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-400/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-400/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-400/static/js/index.f72043d903.js"></script>
+<script defer src="/agent-device/pr-preview/pr-400/static/js/index.7389708bc1.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -64,7 +64,7 @@ It does not automatically switch to AX.</p>
 <li>iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.</li>
 <li>Default to <code>snapshot -i</code> for agent loops.</li>
 <li>Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as <code>[off-screen below] 3 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;, &quot;About&quot;</code>.</li>
-<li>If a target only appears in an off-screen summary, use <code>scrollintoview &quot;&lt;label&gt;&quot;</code> or scroll and re-snapshot. Use <code>scrollintoview @ref</code> only with a known raw/current ref or after an explicit off-screen-ref failure.</li>
+<li>If a target only appears in an off-screen summary, use <code>scroll &lt;direction&gt;</code> and re-snapshot until the target becomes visible.</li>
 <li>When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example <code>[content above scroll-area hidden]</code> or <code>[content below list hidden]</code>.</li>
 <li>Those summaries intentionally show only a few labels for token efficiency. Use <code>snapshot --raw</code> when you need the full off-screen tree instead of the compact summary.</li>
 <li>Add <code>-s &quot;&lt;label&gt;&quot;</code> (or <code>-s @ref</code>) to keep results screen-local.</li>

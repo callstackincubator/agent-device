@@ -19,7 +19,7 @@ agent-device snapshot -i
 # 4. Interact using refs
 agent-device click @e2
 
-# 5. Re-snapshot before next interactions; if a target only appears in an off-screen summary, use scrollintoview with its label first
+# 5. Re-snapshot before next interactions; if a target only appears in an off-screen summary, scroll and re-snapshot first
 agent-device snapshot -i
 
 # 6. Optional: see structural changes since last baseline
