@@ -266,6 +266,8 @@ const client = createAgentDeviceClient({
   session: 'qa-ios',
   lockPolicy: 'reject',
   lockPlatform: 'ios',
+  // Optional: loads profile defaults for daemon-backed requests. Per-call options override it.
+  remoteConfig: './agent-device.remote.json',
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
@@ -289,6 +291,59 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 
 await client.sessions.close();
 ```
+
+## Command methods
+
+Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, client-level remote config defaults, normalized daemon errors, and remote artifact handling.
+
+Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.
+
+```ts
+await client.command.wait({
+  text: 'Continue',
+  timeoutMs: 5_000,
+});
+
+await client.command.keyboard({
+  action: 'dismiss',
+});
+
+await client.command.clipboard({
+  action: 'write',
+  text: 'hello from Node',
+});
+
+await client.command.back({
+  mode: 'system',
+});
+
+await client.command.appSwitcher();
+```
+
+Supported command methods:
+
+- `wait`
+- `appState`
+- `back`
+- `home`
+- `rotate`
+- `appSwitcher`
+- `keyboard`
+- `clipboard`
+- `alert`
+
+Additional CLI-backed methods are exposed on their domain groups with typed option objects so Node consumers do not need to build raw daemon requests:
+
+- `client.devices.boot()`
+- `client.apps.push()`
+- `client.apps.triggerEvent()`
+- `client.capture.diff()`
+- `client.interactions.click()`, `press()`, `longPress()`, `swipe()`, `focus()`, `type()`, `fill()`, `scroll()`, `scrollIntoView()`, `pinch()`, `get()`, `is()`, `find()`
+- `client.replay.run()` and `client.replay.test()`
+- `client.batch.run()`
+- `client.observability.perf()`, `logs()`, and `network()`
+- `client.recording.record()` and `client.recording.trace()`
+- `client.settings.update()`
 
 ## Android `installFromSource()`
 
