@@ -259,11 +259,11 @@ Public subpath API exposed for Node consumers:
 - `agent-device/selectors`
   - `parseSelectorChain(expression)`
   - `tryParseSelectorChain(expression)`
-  - `splitSelectorFromArgs(args, options)`
   - `resolveSelectorChain(nodes, chain, options)`
   - `findSelectorChainMatch(nodes, chain, options)`
   - `formatSelectorFailure(chain, diagnostics, options)`
   - `isNodeVisible(node)`
+  - `isSelectorToken(token)`
   - `isNodeEditable(node, platform)`
   - types: `Selector`, `SelectorChain`, `SelectorDiagnostics`, `SelectorResolution`
 
@@ -440,7 +440,7 @@ Use `agent-device/selectors` when a remote daemon or bridge needs to parse and m
 ```ts
 import { findSelectorChainMatch, parseSelectorChain } from 'agent-device/selectors';
 
-const chain = parseSelectorChain('label="Continue" visible=true');
+const chain = parseSelectorChain('role=button label="Continue" visible=true');
 
 const match = findSelectorChainMatch(snapshot.nodes, chain, {
   platform: 'android',
