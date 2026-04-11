@@ -36,6 +36,7 @@ const client = createAgentDeviceClient({
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
+const apps = await client.apps.list({ platform: 'ios', appsFilter: 'user-installed' });
 const ensured = await client.simulators.ensure({
   device: 'iPhone 16',
   boot: true,

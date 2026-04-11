@@ -54,7 +54,10 @@ test('remote config schema stays aligned with CLI option metadata', () => {
     assert.equal(definition.type, field.type);
     assert.equal(definition.min, 'min' in field ? field.min : undefined);
     assert.equal(definition.max, 'max' in field ? field.max : undefined);
-    assert.deepEqual(definition.enumValues ?? [], 'enumValues' in field ? field.enumValues ?? [] : []);
+    assert.deepEqual(
+      definition.enumValues ?? [],
+      'enumValues' in field ? (field.enumValues ?? []) : [],
+    );
   }
 });
 

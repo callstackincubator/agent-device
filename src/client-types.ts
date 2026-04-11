@@ -211,6 +211,11 @@ export type AppInstallFromSourceResult = {
   identifiers: AgentDeviceIdentifiers;
 };
 
+export type AppListOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    appsFilter?: 'all' | 'user-installed';
+  };
+
 export type MaterializationReleaseOptions = AgentDeviceRequestOverrides & {
   materializationId: string;
 };
@@ -295,6 +300,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     depth?: number;
     scope?: string;
     raw?: boolean;
+    appsFilter?: 'all' | 'user-installed';
     installSource?: DaemonInstallSource;
     retainMaterializedPaths?: boolean;
     materializedPathRetentionMs?: number;
@@ -322,6 +328,7 @@ export type AgentDeviceClient = {
     installFromSource: (
       options: AppInstallFromSourceOptions,
     ) => Promise<AppInstallFromSourceResult>;
+    list: (options?: AppListOptions) => Promise<string[]>;
     open: (options: AppOpenOptions) => Promise<AppOpenResult>;
     close: (options?: AppCloseOptions) => Promise<AppCloseResult>;
   };
