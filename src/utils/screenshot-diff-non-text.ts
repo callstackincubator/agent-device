@@ -8,12 +8,7 @@ export type ScreenshotNonTextDelta = {
   slot: 'leading' | 'trailing' | 'background' | 'separator' | 'unknown';
   likelyKind: 'icon' | 'toggle' | 'chevron' | 'separator' | 'card-or-background' | 'visual';
   rect: Rect;
-  normalizedRect: Rect;
-  differentPixels: number;
-  densityPercentage: number;
   nearestText?: string;
-  nearestTextDistancePx?: number;
-  evidence: string[];
 };
 
 const MAX_NON_TEXT_DELTAS = 12;
@@ -46,6 +41,10 @@ type MutableComponent = {
   differentPixels: number;
 };
 
+type ScoredNonTextDelta = Omit<ScreenshotNonTextDelta, 'index'> & {
+  score: number;
+};
+
 export function summarizeNonTextDiffDeltas(params: {
   diffMask: Uint8Array;
   width: number;
@@ -65,9 +64,9 @@ export function summarizeNonTextDiffDeltas(params: {
       // Status bars and top chrome tend to produce noisy residuals around time,
       // signal, and battery text; changed regions still report that area.
       .filter((delta) => delta.rect.y >= params.height * MIN_CONTENT_Y_RATIO)
-      .sort((left, right) => scoreNonTextDelta(right) - scoreNonTextDelta(left))
+      .sort((left, right) => right.score - left.score)
       .slice(0, Math.max(0, params.maxDeltas ?? MAX_NON_TEXT_DELTAS))
-      .map((delta, index) => ({ ...delta, index: index + 1 }))
+      .map((delta, index) => toPublicNonTextDelta(delta, index + 1))
   );
 }
 
@@ -169,33 +168,36 @@ function toNonTextDelta(
     regions: ScreenshotDiffRegion[];
   },
   textBlocks: ScreenshotOcrBlock[],
-): Omit<ScreenshotNonTextDelta, 'index'> {
+): ScoredNonTextDelta {
   const rect = componentToRect(component);
   const regionIndex = findContainingRegionIndex(rect, params.regions);
   const nearestText = findNearestText(rect, textBlocks);
   const slot = classifySlot(rect, nearestText?.block.rect, params.width);
   const likelyKind = classifyLikelyKind(rect, slot, component.differentPixels);
-  const evidence = buildEvidence(slot, likelyKind, nearestText?.block.text);
+  const scoreParams = {
+    ...(regionIndex ? { regionIndex } : {}),
+    slot,
+    likelyKind,
+    rect,
+  };
   return {
     ...(regionIndex ? { regionIndex } : {}),
     slot,
     likelyKind,
     rect,
-    normalizedRect: {
-      x: roundPercentage(rect.x / params.width),
-      y: roundPercentage(rect.y / params.height),
-      width: roundPercentage(rect.width / params.width),
-      height: roundPercentage(rect.height / params.height),
-    },
-    differentPixels: component.differentPixels,
-    densityPercentage: roundPercentage(component.differentPixels / (rect.width * rect.height)),
-    ...(nearestText
-      ? {
-          nearestText: nearestText.block.text,
-          nearestTextDistancePx: Math.round(nearestText.distance),
-        }
-      : {}),
-    evidence,
+    ...(nearestText ? { nearestText: nearestText.block.text } : {}),
+    score: scoreNonTextDelta(scoreParams, component.differentPixels),
+  };
+}
+
+function toPublicNonTextDelta(delta: ScoredNonTextDelta, index: number): ScreenshotNonTextDelta {
+  return {
+    index,
+    ...(delta.regionIndex ? { regionIndex: delta.regionIndex } : {}),
+    slot: delta.slot,
+    likelyKind: delta.likelyKind,
+    rect: delta.rect,
+    ...(delta.nearestText ? { nearestText: delta.nearestText } : {}),
   };
 }
 
@@ -233,7 +235,15 @@ function classifyLikelyKind(
   return 'visual';
 }
 
-function scoreNonTextDelta(delta: Omit<ScreenshotNonTextDelta, 'index'>): number {
+function scoreNonTextDelta(
+  delta: {
+    regionIndex?: number;
+    slot: ScreenshotNonTextDelta['slot'];
+    likelyKind: ScreenshotNonTextDelta['likelyKind'];
+    rect: Rect;
+  },
+  differentPixels: number,
+): number {
   const sizePenalty = delta.rect.width >= 300 || delta.rect.height >= 160 ? -35 : 0;
   const regionScore = delta.regionIndex ? 20 : 0;
   return (
@@ -241,20 +251,8 @@ function scoreNonTextDelta(delta: Omit<ScreenshotNonTextDelta, 'index'>): number
     SLOT_SCORE[delta.slot] +
     regionScore +
     sizePenalty +
-    Math.min(20, delta.differentPixels / 200)
+    Math.min(20, differentPixels / 200)
   );
-}
-
-function buildEvidence(
-  slot: ScreenshotNonTextDelta['slot'],
-  likelyKind: ScreenshotNonTextDelta['likelyKind'],
-  nearestText: string | undefined,
-): string[] {
-  const evidence = ['residual-diff-outside-ocr'];
-  if (nearestText) evidence.push(`nearest-text=${JSON.stringify(nearestText)}`);
-  if (slot !== 'unknown') evidence.push(`slot=${slot}`);
-  evidence.push(`shape=${likelyKind}`);
-  return evidence;
 }
 
 function findContainingRegionIndex(
@@ -361,8 +359,4 @@ function squaredDistance(left: { x: number; y: number }, right: { x: number; y: 
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
-}
-
-function roundPercentage(ratio: number): number {
-  return Math.round(ratio * 100 * 100) / 100;
 }

@@ -232,7 +232,7 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     const relativePath = toRelativePath(data.currentOverlayPath);
     const label = useColor ? colorize('Current overlay:', 'dim') : 'Current overlay:';
     const displayPath = useColor ? colorize(relativePath, 'green') : relativePath;
-    const refCount = Array.isArray(data.currentOverlayRefs) ? data.currentOverlayRefs.length : 0;
+    const refCount = toNumber(data.currentOverlayRefCount);
     const refSuffix = refCount > 0 ? ` (${refCount} refs)` : '';
     lines.push(`  ${label} ${displayPath}${refSuffix}`);
   }
@@ -300,13 +300,12 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     lines.push(
       `  Non-text visual deltas (showing ${shownNonTextDeltas.length}/${nonTextDeltas.length}; px):`,
     );
-    lines.push('    item | region | slot | kind | bboxCurrent | nearestText | evidence');
+    lines.push('    item | region | slot | kind | bboxCurrent | nearestText');
     for (const delta of shownNonTextDeltas) {
       lines.push(
         `    ${delta.index} | ${delta.regionIndex ? `r${delta.regionIndex}` : '-'} | ` +
           `${delta.slot} | ${delta.likelyKind} | ${formatRect(delta.rect)} | ` +
-          `${delta.nearestText ? JSON.stringify(delta.nearestText) : '-'} | ` +
-          `${delta.evidence.join(',')}`,
+          `${delta.nearestText ? JSON.stringify(delta.nearestText) : '-'}`,
       );
     }
   }

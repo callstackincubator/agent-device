@@ -14,7 +14,6 @@ import {
   type ScreenshotOcrSummary,
 } from './screenshot-diff-ocr.ts';
 import { summarizeDiffRegions, type ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
-import type { ScreenshotOverlayRef } from './snapshot.ts';
 
 export type ScreenshotDimensionMismatch = {
   expected: { width: number; height: number };
@@ -30,7 +29,7 @@ export type ScreenshotDiffResult = {
   dimensionMismatch?: ScreenshotDimensionMismatch;
   regions?: ScreenshotDiffRegion[];
   currentOverlayPath?: string;
-  currentOverlayRefs?: ScreenshotOverlayRef[];
+  currentOverlayRefCount?: number;
   ocr?: ScreenshotOcrSummary;
   nonTextDeltas?: ScreenshotNonTextDelta[];
 };

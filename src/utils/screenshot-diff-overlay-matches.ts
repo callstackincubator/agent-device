@@ -30,17 +30,26 @@ function findRegionOverlayMatches(
         ref: overlayRef.ref,
         ...(overlayRef.label ? { label: overlayRef.label } : {}),
         rect: overlayRect,
-        overlapPercentage: roundPercentage(overlapArea / rectArea(overlayRect)),
+        overlayCoveragePercentage: roundPercentage(overlapArea / rectArea(overlayRect)),
         regionCoveragePercentage: roundPercentage(overlapArea / regionArea),
       };
     })
-    .filter((match): match is ScreenshotDiffRegionOverlayMatch => match !== null)
+    .filter(
+      (match): match is ScreenshotDiffRegionOverlayMatch & { overlayCoveragePercentage: number } =>
+        match !== null,
+    )
     .sort((left, right) => {
       const coverageDelta = right.regionCoveragePercentage - left.regionCoveragePercentage;
       if (coverageDelta !== 0) return coverageDelta;
-      return right.overlapPercentage - left.overlapPercentage;
+      return right.overlayCoveragePercentage - left.overlayCoveragePercentage;
     })
-    .slice(0, MAX_MATCHES_PER_REGION);
+    .slice(0, MAX_MATCHES_PER_REGION)
+    .map((match) => ({
+      ref: match.ref,
+      ...(match.label ? { label: match.label } : {}),
+      rect: match.rect,
+      regionCoveragePercentage: match.regionCoveragePercentage,
+    }));
 }
 
 function intersectArea(left: Rect, right: Rect): number {

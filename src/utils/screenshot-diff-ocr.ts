@@ -12,14 +12,11 @@ export type ScreenshotOcrTextMatch = {
   text: string;
   baselineRect: Rect;
   currentRect: Rect;
-  baselineNormalizedRect: Rect;
-  currentNormalizedRect: Rect;
   delta: { x: number; y: number; width: number; height: number };
   confidence: number;
   widthRatio: number;
   heightRatio: number;
   possibleTextMetricMismatch: boolean;
-  description: string;
 };
 
 export type ScreenshotOcrSummary = {
@@ -266,45 +263,12 @@ function toOcrTextMatch(
     text: baselineBlock.text,
     baselineRect: baselineBlock.rect,
     currentRect: currentBlock.rect,
-    baselineNormalizedRect: baselineBlock.normalizedRect,
-    currentNormalizedRect: currentBlock.normalizedRect,
     delta,
     confidence: Math.round(Math.min(baselineBlock.confidence, currentBlock.confidence) * 100) / 100,
     widthRatio,
     heightRatio,
     possibleTextMetricMismatch,
-    description: describeOcrMatchDelta(baselineBlock.text, delta, possibleTextMetricMismatch),
   };
-}
-
-function describeOcrMatchDelta(
-  text: string,
-  delta: ScreenshotOcrTextMatch['delta'],
-  possibleTextMetricMismatch: boolean,
-): string {
-  const movement = [
-    describePixelDelta(delta.x, 'right', 'left'),
-    describePixelDelta(delta.y, 'down', 'up'),
-  ].filter((entry): entry is string => entry !== null);
-  const size = [
-    describePixelDelta(delta.width, 'wider', 'narrower'),
-    describePixelDelta(delta.height, 'taller', 'shorter'),
-  ].filter((entry): entry is string => entry !== null);
-  const parts = [
-    movement.length > 0 ? `moved ${movement.join(', ')}` : null,
-    size.length > 0 ? `text box is ${size.join(', ')}` : null,
-    possibleTextMetricMismatch ? 'possible font, weight, or text rendering mismatch' : null,
-  ].filter((entry): entry is string => entry !== null);
-  return `Text "${text}" ${parts.join('; ')}.`;
-}
-
-function describePixelDelta(
-  value: number,
-  positiveLabel: string,
-  negativeLabel: string,
-): string | null {
-  if (Math.abs(value) < MIN_MEANINGFUL_DELTA_PX) return null;
-  return `${Math.abs(Math.round(value))}px ${value > 0 ? positiveLabel : negativeLabel}`;
 }
 
 function hasMeaningfulOcrDelta(match: ScreenshotOcrTextMatch): boolean {

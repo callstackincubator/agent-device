@@ -141,10 +141,6 @@ test('changed pixels are summarized into nearby diff regions', async () => {
   assert.equal(result.regions?.[0]?.currentLuminance, 255);
   assert.equal(result.regions?.[0]?.location, 'top-left');
   assert.equal(result.regions?.[0]?.dominantChange, 'brighter');
-  assert.equal(
-    result.regions?.[0]?.description,
-    "large region (horizontal-band) in the top-left; 66.67% of this region's pixels differ; current is brighter.",
-  );
   assert.deepEqual(result.regions?.[1]?.rect, { x: 30, y: 15, width: 4, height: 4 });
 
   const diffPng = PNG.sync.read(fs.readFileSync(diffOut));

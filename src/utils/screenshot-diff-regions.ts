@@ -1,7 +1,7 @@
 import { PNG } from 'pngjs';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
 
-export type ScreenshotDiffColor = {
+type ScreenshotDiffColor = {
   r: number;
   g: number;
   b: number;
@@ -10,30 +10,24 @@ export type ScreenshotDiffColor = {
 export type ScreenshotDiffRegion = {
   index: number;
   rect: { x: number; y: number; width: number; height: number };
-  center: { x: number; y: number };
   normalizedRect: { x: number; y: number; width: number; height: number };
   differentPixels: number;
   shareOfDiffPercentage: number;
-  imagePercentage: number;
   densityPercentage: number;
   shape: 'compact' | 'horizontal-band' | 'vertical-band' | 'large-area';
   size: 'small' | 'medium' | 'large';
   location: string;
-  averageBaselineColor: ScreenshotDiffColor;
-  averageCurrentColor: ScreenshotDiffColor;
   averageBaselineColorHex: string;
   averageCurrentColorHex: string;
   baselineLuminance: number;
   currentLuminance: number;
   dominantChange: 'brighter' | 'darker' | 'color-shift' | 'mixed';
-  description: string;
   currentOverlayMatches?: ScreenshotDiffRegionOverlayMatch[];
 };
 
 export type ScreenshotDiffRegionOverlayMatch = {
   ref: string;
   label?: string;
-  overlapPercentage: number;
   regionCoveragePercentage: number;
   rect: { x: number; y: number; width: number; height: number };
 };
@@ -254,7 +248,6 @@ function toScreenshotDiffRegion(
   return {
     index,
     rect,
-    center,
     normalizedRect: {
       x: roundPercentage(rect.x / image.width),
       y: roundPercentage(rect.y / image.height),
@@ -263,22 +256,15 @@ function toScreenshotDiffRegion(
     },
     differentPixels: region.differentPixels,
     shareOfDiffPercentage: roundPercentage(region.differentPixels / image.differentPixels),
-    imagePercentage: roundPercentage(region.differentPixels / image.totalPixels),
     densityPercentage,
     shape,
     size,
     location,
-    averageBaselineColor,
-    averageCurrentColor,
     averageBaselineColorHex: toHexColor(averageBaselineColor),
     averageCurrentColorHex: toHexColor(averageCurrentColor),
     baselineLuminance,
     currentLuminance,
     dominantChange,
-    description:
-      `${size} region (${shape}) in the ${location}; ` +
-      `${densityPercentage}% of this region's pixels differ; ` +
-      `current is ${formatDominantChange(dominantChange)}.`,
   };
 }
 
@@ -340,19 +326,6 @@ function describeRegionSize(regionArea: number, totalPixels: number): Screenshot
   if (areaRatio >= 0.04) return 'large';
   if (areaRatio >= 0.01) return 'medium';
   return 'small';
-}
-
-function formatDominantChange(change: ScreenshotDiffRegion['dominantChange']): string {
-  switch (change) {
-    case 'brighter':
-      return 'brighter';
-    case 'darker':
-      return 'darker';
-    case 'color-shift':
-      return 'color-shifted';
-    default:
-      return 'mixed';
-  }
 }
 
 function luminance(color: ScreenshotDiffColor): number {

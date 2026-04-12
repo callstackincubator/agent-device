@@ -66,15 +66,9 @@ test('matchOcrBlocks reports movement and possible text metric mismatch', () => 
 
   assert.equal(matches.length, 1);
   assert.deepEqual(matches[0]?.delta, { x: 12, y: -8, width: 10, height: 0 });
-  assert.deepEqual(matches[0]?.baselineNormalizedRect, { x: 25, y: 25, width: 12.5, height: 2.5 });
-  assert.deepEqual(matches[0]?.currentNormalizedRect, { x: 28, y: 24, width: 15, height: 2.5 });
   assert.equal(matches[0]?.widthRatio, 1.2);
   assert.equal(matches[0]?.heightRatio, 1);
   assert.equal(matches[0]?.possibleTextMetricMismatch, true);
-  assert.equal(
-    matches[0]?.description,
-    'Text "Wi-Fi" moved 12px right, 8px up; text box is 10px wider; possible font, weight, or text rendering mismatch.',
-  );
 });
 
 test('summarizeScreenshotOcr returns undefined when tesseract exits non-zero', async () => {

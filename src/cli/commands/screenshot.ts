@@ -80,7 +80,9 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
       result = {
         ...result,
         currentOverlayPath: overlayResult.path,
-        ...(overlayResult.overlayRefs ? { currentOverlayRefs: overlayResult.overlayRefs } : {}),
+        ...(overlayResult.overlayRefs
+          ? { currentOverlayRefCount: overlayResult.overlayRefs.length }
+          : {}),
         ...(result.regions && overlayResult.overlayRefs
           ? {
               regions: attachCurrentOverlayMatches(result.regions, overlayResult.overlayRefs),

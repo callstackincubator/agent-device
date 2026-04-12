@@ -29,23 +29,18 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
       {
         index: 1,
         rect: { x: 0, y: 20, width: 180, height: 50 },
-        center: { x: 90, y: 45 },
         normalizedRect: { x: 0, y: 16.67, width: 81.82, height: 41.67 },
         differentPixels: 976,
         shareOfDiffPercentage: 100,
-        imagePercentage: 3.7,
         densityPercentage: 10.84,
         shape: 'horizontal-band',
         size: 'medium',
         location: 'center',
-        averageBaselineColor: { r: 0, g: 0, b: 0 },
-        averageCurrentColor: { r: 255, g: 255, b: 255 },
         averageBaselineColorHex: '#000000',
         averageCurrentColorHex: '#ffffff',
         baselineLuminance: 0,
         currentLuminance: 255,
         dominantChange: 'brighter',
-        description: 'test region',
       },
     ],
     ocr: {
@@ -71,10 +66,4 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
   assert.equal(deltas[0]?.likelyKind, 'icon');
   assert.deepEqual(deltas[0]?.rect, { x: 20, y: 30, width: 20, height: 20 });
   assert.equal(deltas[0]?.nearestText, 'Wi-Fi');
-  assert.deepEqual(deltas[0]?.evidence, [
-    'residual-diff-outside-ocr',
-    'nearest-text="Wi-Fi"',
-    'slot=leading',
-    'shape=icon',
-  ]);
 });

@@ -665,43 +665,28 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
       mismatchPercentage: 5,
       diffPath: '/tmp/test/diff.png',
       currentOverlayPath: '/tmp/test/diff.current-overlay.png',
-      currentOverlayRefs: [
-        {
-          ref: 'e1',
-          label: 'Continue',
-          rect: { x: 1, y: 2, width: 3, height: 4 },
-          overlayRect: { x: 1, y: 2, width: 3, height: 4 },
-          center: { x: 3, y: 4 },
-        },
-      ],
+      currentOverlayRefCount: 1,
       regions: [
         {
           index: 1,
           rect: { x: 10, y: 20, width: 100, height: 40 },
-          center: { x: 60, y: 40 },
           normalizedRect: { x: 10, y: 20, width: 100, height: 40 },
           differentPixels: 350,
           shareOfDiffPercentage: 70,
-          imagePercentage: 3.5,
           densityPercentage: 8.75,
           shape: 'horizontal-band',
           size: 'medium',
           location: 'top-left',
-          averageBaselineColor: { r: 20, g: 20, b: 20 },
-          averageCurrentColor: { r: 220, g: 220, b: 220 },
           averageBaselineColorHex: '#141414',
           averageCurrentColorHex: '#dcdcdc',
           baselineLuminance: 20,
           currentLuminance: 220,
           dominantChange: 'brighter',
-          description:
-            "medium region (horizontal-band) in the top-left; 8.75% of this region's pixels differ; current is brighter.",
           currentOverlayMatches: [
             {
               ref: 'e1',
               label: 'Continue',
               rect: { x: 1, y: 2, width: 3, height: 4 },
-              overlapPercentage: 100,
               regionCoveragePercentage: 12,
             },
           ],
@@ -716,15 +701,11 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
             text: 'Wi-Fi',
             baselineRect: { x: 120, y: 320, width: 60, height: 22 },
             currentRect: { x: 130, y: 332, width: 70, height: 22 },
-            baselineNormalizedRect: { x: 12, y: 32, width: 6, height: 2.2 },
-            currentNormalizedRect: { x: 13, y: 33.2, width: 7, height: 2.2 },
             delta: { x: 10, y: 12, width: 10, height: 0 },
             confidence: 94,
             widthRatio: 1.167,
             heightRatio: 1,
             possibleTextMetricMismatch: true,
-            description:
-              'Text "Wi-Fi" moved 10px right, 12px down; text box is 10px wider; possible font, weight, or text rendering mismatch.',
           },
         ],
       },
@@ -735,17 +716,7 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
           slot: 'leading',
           likelyKind: 'icon',
           rect: { x: 80, y: 318, width: 30, height: 30 },
-          normalizedRect: { x: 8, y: 31.8, width: 3, height: 3 },
-          differentPixels: 400,
-          densityPercentage: 44.44,
           nearestText: 'Wi-Fi',
-          nearestTextDistancePx: 45,
-          evidence: [
-            'residual-diff-outside-ocr',
-            'nearest-text="Wi-Fi"',
-            'slot=leading',
-            'shape=icon',
-          ],
         },
       ],
     }),
@@ -775,11 +746,8 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
     /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| w=1\.167 h=1 \| 94 \| possible-text-metric-mismatch/,
   );
   assert.match(text, /Non-text visual deltas \(showing 1\/1; px\):/);
-  assert.match(text, /item \| region \| slot \| kind \| bboxCurrent \| nearestText \| evidence/);
-  assert.match(
-    text,
-    /1 \| r1 \| leading \| icon \| x=80,y=318,w=30,h=30 \| "Wi-Fi" \| residual-diff-outside-ocr,nearest-text="Wi-Fi",slot=leading,shape=icon/,
-  );
+  assert.match(text, /item \| region \| slot \| kind \| bboxCurrent \| nearestText/);
+  assert.match(text, /1 \| r1 \| leading \| icon \| x=80,y=318,w=30,h=30 \| "Wi-Fi"/);
   assert.equal(text.includes('\x1b['), false);
 });
 

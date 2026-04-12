@@ -57,7 +57,7 @@ agent-device diff screenshot --baseline ./baseline.png --out /tmp/diff.png
 agent-device diff screenshot --baseline ./baseline.png --out /tmp/diff.png --overlay-refs
 ```
 
-- Text and JSON output include ranked changed regions with screen-space rectangles, normalized bounds, shape, size, density, average color, luminance, and short descriptions.
+- Text and JSON output include ranked changed regions with screen-space rectangles, normalized bounds, shape, size, density, average color, and luminance.
 - The diff PNG uses a light grayscale current-screen context with changed pixels tinted red and changed regions outlined.
 - Install `tesseract` when you want `diff screenshot` to add best-effort OCR text deltas such as moved labels and possible text metric mismatches. OCR improves the text/JSON descriptions only; it does not change the pixel comparison or the diff PNG.
 - When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the pixel diff and clustering the remaining residuals. Treat these as hints for icons, controls, separators, and card/background movement, not semantic icon recognition.
