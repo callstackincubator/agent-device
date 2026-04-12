@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-403/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-403/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-403/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-403/static/js/index.6b26f58229.js"></script>
+<script defer src="/agent-device/pr-preview/pr-403/static/js/index.cd44d2f300.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -497,7 +497,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li>Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.</li>
 <li><code>screenshot --overlay-refs</code> captures a fresh full snapshot and burns visible <code>@eN</code> refs plus their target rectangles into the saved PNG.</li>
 <li><code>diff screenshot</code> compares the current screenshot to <code>--baseline</code>, prints ranked changed regions with screen-space rectangles, shape, size, density, average color, and luminance, and writes a diff PNG with a light grayscale current-screen context, red-tinted changed pixels, and outlined changed regions when <code>--out</code> is provided. JSON also includes normalized bounds.</li>
-<li>If <code>tesseract</code> is installed, <code>diff screenshot</code> also adds best-effort OCR text deltas to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.</li>
+<li>If <code>tesseract</code> is installed, <code>diff screenshot</code> also adds best-effort OCR text deltas, movement clusters, added/removed text candidates, and bbox size-change hints to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.</li>
 <li>When OCR is available, <code>diff screenshot</code> also reports best-effort non-text visual deltas by masking OCR text boxes out of the diff and clustering remaining residuals. These are hints for icons, controls, and separators, not semantic icon recognition.</li>
 <li><code>diff screenshot --overlay-refs</code> additionally writes a separate current-screen overlay guide without using that annotated image for the pixel comparison. If current-screen refs intersect changed regions, the output lists the best ref matches under those regions.</li>
 <li>In <code>--json</code> mode, each overlay ref also includes a screenshot-space <code>center</code> point for coordinate fallback like <code>press &lt;x&gt; &lt;y&gt;</code>.</li>
