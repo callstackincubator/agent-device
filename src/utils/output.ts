@@ -218,7 +218,8 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     const indicator = useColor ? colorize('✗', 'red') : '✗';
     const pctLabel =
       mismatchPercentage === 0 && differentPixels > 0 ? '<0.01' : String(mismatchPercentage);
-    lines.push(`${indicator} ${pctLabel}% pixels differ`);
+    const summary = `${pctLabel}% pixels differ`;
+    lines.push(`${indicator} ${useColor ? colorize(summary, 'red') : summary}`);
   }
 
   if (diffPath && !match) {
@@ -244,13 +245,13 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
 
   const hints = !match && !dimensionMismatch ? formatScreenshotDiffHints(data) : [];
   if (hints.length > 0) {
-    lines.push('  Hints:');
+    lines.push(`  ${formatMuted('Hints:', useColor)}`);
     for (const hint of hints) lines.push(`    - ${hint}`);
   }
 
   const regions = Array.isArray(data.regions) ? data.regions : [];
   if (!match && !dimensionMismatch && regions.length > 0) {
-    lines.push('  Changed regions:');
+    lines.push(`  ${formatMuted('Changed regions:', useColor)}`);
     for (const region of regions.slice(0, 5)) {
       const share =
         region.shareOfDiffPercentage === 0 && region.differentPixels > 0
@@ -280,11 +281,17 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
   if (!match && !dimensionMismatch && ocrMatches.length > 0) {
     const shownOcrMatches = ocrMatches.slice(0, 8);
     lines.push(
-      `  OCR text deltas (${data.ocr?.provider}; baselineBlocks=${data.ocr?.baselineBlocks} ` +
-        `currentBlocks=${data.ocr?.currentBlocks}; showing ${shownOcrMatches.length}/${ocrMatches.length}; px):`,
+      `  ${formatMuted(
+        `OCR text deltas (${data.ocr?.provider}; baselineBlocks=${data.ocr?.baselineBlocks} ` +
+          `currentBlocks=${data.ocr?.currentBlocks}; showing ${shownOcrMatches.length}/${ocrMatches.length}; px):`,
+        useColor,
+      )}`,
     );
     lines.push(
-      '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | confidence | issueHint',
+      `    ${formatMuted(
+        'item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | confidence | issueHint',
+        useColor,
+      )}`,
     );
     for (const [index, ocrMatch] of shownOcrMatches.entries()) {
       const delta = ocrMatch.delta;
@@ -303,9 +310,14 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
   if (!match && !dimensionMismatch && nonTextDeltas.length > 0) {
     const shownNonTextDeltas = nonTextDeltas.slice(0, 8);
     lines.push(
-      `  Non-text visual deltas (showing ${shownNonTextDeltas.length}/${nonTextDeltas.length}; px):`,
+      `  ${formatMuted(
+        `Non-text visual deltas (showing ${shownNonTextDeltas.length}/${nonTextDeltas.length}; px):`,
+        useColor,
+      )}`,
     );
-    lines.push('    item | region | slot | kind | bboxCurrent | nearestText');
+    lines.push(
+      `    ${formatMuted('item | region | slot | kind | bboxCurrent | nearestText', useColor)}`,
+    );
     for (const delta of shownNonTextDeltas) {
       lines.push(
         `    ${delta.index} | ${delta.regionIndex ? `r${delta.regionIndex}` : '-'} | ` +
@@ -435,6 +447,10 @@ function supportsColor(): boolean {
 
 function colorize(text: string, format: Parameters<typeof styleText>[0]): string {
   return styleText(format, text);
+}
+
+function formatMuted(text: string, useColor: boolean): string {
+  return useColor ? colorize(text, 'dim') : text;
 }
 
 function buildSnapshotNotices(
