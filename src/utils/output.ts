@@ -253,8 +253,7 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
       const rect = region.rect;
       lines.push(
         `    ${region.index}. ${region.location} x=${rect.x} y=${rect.y} ` +
-          `${rect.width}x${rect.height}, ${share}% of diff, ` +
-          formatDominantScreenshotChange(region.dominantChange),
+          `${rect.width}x${rect.height}, ${share}% of diff, change=${region.dominantChange}`,
       );
       const detailLine = formatScreenshotRegionDetails(region);
       if (detailLine) {
@@ -279,7 +278,7 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
         `currentBlocks=${data.ocr?.currentBlocks}; showing ${shownOcrMatches.length}/${ocrMatches.length}; px):`,
     );
     lines.push(
-      '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | textRatio | confidence | issueHint',
+      '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | confidence | issueHint',
     );
     for (const [index, ocrMatch] of shownOcrMatches.entries()) {
       const delta = ocrMatch.delta;
@@ -288,7 +287,7 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
           `${formatSignedPixels(delta.x)},${formatSignedPixels(delta.y)} | ` +
           `${formatSignedPixels(delta.width)},${formatSignedPixels(delta.height)} | ` +
           `${formatRect(ocrMatch.baselineRect)} | ${formatRect(ocrMatch.currentRect)} | ` +
-          `w=${ocrMatch.widthRatio} h=${ocrMatch.heightRatio} | ${ocrMatch.confidence} | ` +
+          `${ocrMatch.confidence} | ` +
           `${ocrMatch.possibleTextMetricMismatch ? 'possible-text-metric-mismatch' : '-'}`,
       );
     }
@@ -321,28 +320,11 @@ function formatSignedPixels(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function formatDominantScreenshotChange(change: string | undefined): string {
-  switch (change) {
-    case 'brighter':
-      return 'current is brighter';
-    case 'darker':
-      return 'current is darker';
-    case 'color-shift':
-      return 'color shifted';
-    default:
-      return 'mixed change';
-  }
-}
-
 function formatScreenshotRegionDetails(region: ScreenshotDiffRegion): string | null {
-  const normalizedRect = region.normalizedRect;
   const details = [
     region.size ? `size=${region.size}` : null,
     region.shape ? `shape=${region.shape}` : null,
     typeof region.densityPercentage === 'number' ? `density=${region.densityPercentage}%` : null,
-    normalizedRect
-      ? `boundsPct=${normalizedRect.x},${normalizedRect.y},${normalizedRect.width},${normalizedRect.height}`
-      : null,
     region.averageBaselineColorHex && region.averageCurrentColorHex
       ? `avgColor=${region.averageBaselineColorHex}->${region.averageCurrentColorHex}`
       : null,

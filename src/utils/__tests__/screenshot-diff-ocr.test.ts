@@ -66,8 +66,6 @@ test('matchOcrBlocks reports movement and possible text metric mismatch', () => 
 
   assert.equal(matches.length, 1);
   assert.deepEqual(matches[0]?.delta, { x: 12, y: -8, width: 10, height: 0 });
-  assert.equal(matches[0]?.widthRatio, 1.2);
-  assert.equal(matches[0]?.heightRatio, 1);
   assert.equal(matches[0]?.possibleTextMetricMismatch, true);
 });
 

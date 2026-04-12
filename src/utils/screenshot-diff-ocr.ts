@@ -14,8 +14,6 @@ export type ScreenshotOcrTextMatch = {
   currentRect: Rect;
   delta: { x: number; y: number; width: number; height: number };
   confidence: number;
-  widthRatio: number;
-  heightRatio: number;
   possibleTextMetricMismatch: boolean;
 };
 
@@ -265,8 +263,6 @@ function toOcrTextMatch(
     currentRect: currentBlock.rect,
     delta,
     confidence: Math.round(Math.min(baselineBlock.confidence, currentBlock.confidence) * 100) / 100,
-    widthRatio,
-    heightRatio,
     possibleTextMetricMismatch,
   };
 }

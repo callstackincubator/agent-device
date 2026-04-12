@@ -378,7 +378,7 @@ describe('cli diff commands', () => {
       assert.match(result.stdout, /diff\.current-overlay\.png \(1 refs\)/);
       assert.match(
         result.stdout,
-        /size=large shape=large-area density=100% boundsPct=0,0,100,100 avgColor=#000000->#ffffff luminance=0->255/,
+        /size=large shape=large-area density=100% avgColor=#000000->#ffffff luminance=0->255/,
       );
       assert.match(result.stdout, /overlaps @e1 "Continue", 12% of region/);
     } finally {

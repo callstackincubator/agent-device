@@ -703,8 +703,6 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
             currentRect: { x: 130, y: 332, width: 70, height: 22 },
             delta: { x: 10, y: 12, width: 10, height: 0 },
             confidence: 94,
-            widthRatio: 1.167,
-            heightRatio: 1,
             possibleTextMetricMismatch: true,
           },
         ],
@@ -727,10 +725,10 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
   assert.match(text, /diff\.current-overlay\.png \(1 refs\)/);
   assert.match(text, /500 different \/ 10000 total pixels/);
   assert.match(text, /Changed regions:/);
-  assert.match(text, /1\. top-left x=10 y=20 100x40, 70% of diff, current is brighter/);
+  assert.match(text, /1\. top-left x=10 y=20 100x40, 70% of diff, change=brighter/);
   assert.match(
     text,
-    /size=medium shape=horizontal-band density=8\.75% boundsPct=10,20,100,40 avgColor=#141414->#dcdcdc luminance=20->220/,
+    /size=medium shape=horizontal-band density=8\.75% avgColor=#141414->#dcdcdc luminance=20->220/,
   );
   assert.match(text, /overlaps @e1 "Continue", 12% of region/);
   assert.match(
@@ -739,11 +737,11 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
   );
   assert.match(
     text,
-    /item \| text \| movePx \| sizeDeltaPx \| bboxBaseline \| bboxCurrent \| textRatio \| confidence \| issueHint/,
+    /item \| text \| movePx \| sizeDeltaPx \| bboxBaseline \| bboxCurrent \| confidence \| issueHint/,
   );
   assert.match(
     text,
-    /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| w=1\.167 h=1 \| 94 \| possible-text-metric-mismatch/,
+    /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| 94 \| possible-text-metric-mismatch/,
   );
   assert.match(text, /Non-text visual deltas \(showing 1\/1; px\):/);
   assert.match(text, /item \| region \| slot \| kind \| bboxCurrent \| nearestText/);

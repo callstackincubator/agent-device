@@ -6,10 +6,12 @@ export type ScreenshotNonTextDelta = {
   index: number;
   regionIndex?: number;
   slot: 'leading' | 'trailing' | 'background' | 'separator' | 'unknown';
-  likelyKind: 'icon' | 'toggle' | 'chevron' | 'separator' | 'card-or-background' | 'visual';
+  likelyKind: 'icon' | 'toggle' | 'chevron' | 'separator' | 'visual';
   rect: Rect;
   nearestText?: string;
 };
+
+type NonTextKind = ScreenshotNonTextDelta['likelyKind'] | 'background';
 
 const MAX_NON_TEXT_DELTAS = 12;
 const OCR_MASK_PADDING_PX = 8;
@@ -23,8 +25,8 @@ const KIND_SCORE = {
   chevron: 75,
   separator: 45,
   visual: 35,
-  'card-or-background': 10,
-} satisfies Record<ScreenshotNonTextDelta['likelyKind'], number>;
+  background: 10,
+} satisfies Record<NonTextKind, number>;
 const SLOT_SCORE = {
   leading: 20,
   trailing: 20,
@@ -41,7 +43,8 @@ type MutableComponent = {
   differentPixels: number;
 };
 
-type ScoredNonTextDelta = Omit<ScreenshotNonTextDelta, 'index'> & {
+type ScoredNonTextDelta = Omit<ScreenshotNonTextDelta, 'index' | 'likelyKind'> & {
+  likelyKind: NonTextKind;
   score: number;
 };
 
@@ -64,6 +67,7 @@ export function summarizeNonTextDiffDeltas(params: {
       // Status bars and top chrome tend to produce noisy residuals around time,
       // signal, and battery text; changed regions still report that area.
       .filter((delta) => delta.rect.y >= params.height * MIN_CONTENT_Y_RATIO)
+      .filter(hasAgentFacingKind)
       .sort((left, right) => right.score - left.score)
       .slice(0, Math.max(0, params.maxDeltas ?? MAX_NON_TEXT_DELTAS))
       .map((delta, index) => toPublicNonTextDelta(delta, index + 1))
@@ -190,7 +194,10 @@ function toNonTextDelta(
   };
 }
 
-function toPublicNonTextDelta(delta: ScoredNonTextDelta, index: number): ScreenshotNonTextDelta {
+function toPublicNonTextDelta(
+  delta: ScoredNonTextDelta & { likelyKind: ScreenshotNonTextDelta['likelyKind'] },
+  index: number,
+): ScreenshotNonTextDelta {
   return {
     index,
     ...(delta.regionIndex ? { regionIndex: delta.regionIndex } : {}),
@@ -223,23 +230,29 @@ function classifyLikelyKind(
   rect: Rect,
   slot: ScreenshotNonTextDelta['slot'],
   differentPixels: number,
-): ScreenshotNonTextDelta['likelyKind'] {
+): NonTextKind {
   const aspect = rect.width / rect.height;
   const density = differentPixels / (rect.width * rect.height);
   if (slot === 'separator') return 'separator';
-  if (slot === 'background') return 'card-or-background';
+  if (slot === 'background') return 'background';
   if (slot === 'trailing' && aspect >= 1.5 && aspect <= 3.8 && density >= 0.35) return 'toggle';
   if (slot === 'trailing' && rect.width <= 44 && rect.height <= 64) return 'chevron';
   if (slot === 'leading' && aspect >= 0.55 && aspect <= 1.8) return 'icon';
-  if (rect.width >= 300 || rect.height >= 160) return 'card-or-background';
+  if (rect.width >= 300 || rect.height >= 160) return 'background';
   return 'visual';
+}
+
+function hasAgentFacingKind(
+  delta: ScoredNonTextDelta,
+): delta is ScoredNonTextDelta & { likelyKind: ScreenshotNonTextDelta['likelyKind'] } {
+  return delta.likelyKind !== 'background';
 }
 
 function scoreNonTextDelta(
   delta: {
     regionIndex?: number;
     slot: ScreenshotNonTextDelta['slot'];
-    likelyKind: ScreenshotNonTextDelta['likelyKind'];
+    likelyKind: NonTextKind;
     rect: Rect;
   },
   differentPixels: number,

@@ -67,3 +67,36 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
   assert.deepEqual(deltas[0]?.rect, { x: 20, y: 30, width: 20, height: 20 });
   assert.equal(deltas[0]?.nearestText, 'Wi-Fi');
 });
+
+test('summarizeNonTextDiffDeltas omits broad background residuals', () => {
+  const width = 220;
+  const height = 120;
+  const diffMask = new Uint8Array(width * height);
+  paintMaskRect(diffMask, width, { x: 10, y: 30, width: 180, height: 40 });
+
+  const deltas = summarizeNonTextDiffDeltas({
+    diffMask,
+    width,
+    height,
+    regions: [
+      {
+        index: 1,
+        rect: { x: 10, y: 30, width: 180, height: 40 },
+        normalizedRect: { x: 4.55, y: 25, width: 81.82, height: 33.33 },
+        differentPixels: 7200,
+        shareOfDiffPercentage: 100,
+        densityPercentage: 100,
+        shape: 'large-area',
+        size: 'large',
+        location: 'center',
+        averageBaselineColorHex: '#000000',
+        averageCurrentColorHex: '#ffffff',
+        baselineLuminance: 0,
+        currentLuminance: 255,
+        dominantChange: 'brighter',
+      },
+    ],
+  });
+
+  assert.deepEqual(deltas, []);
+});
