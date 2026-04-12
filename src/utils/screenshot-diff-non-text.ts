@@ -19,6 +19,25 @@ const MIN_COMPONENT_PIXELS = 24;
 const MIN_COMPONENT_SIDE = 3;
 const MERGE_GAP_PX = 10;
 const MIN_CONTENT_Y_RATIO = 0.08;
+// Non-text hints classify residual geometry relative to the screenshot size.
+// Aspect/density checks describe common UI glyph shapes rather than app-specific elements.
+const SEPARATOR_MAX_THICKNESS_PX = 3;
+const SEPARATOR_MIN_WIDTH_RATIO = 0.12;
+const BACKGROUND_SLOT_WIDTH_RATIO = 0.4;
+const UNKNOWN_BACKGROUND_SLOT_WIDTH_RATIO = 0.35;
+const LARGE_RESIDUAL_WIDTH_RATIO = 0.25;
+const LARGE_RESIDUAL_HEIGHT_RATIO = 0.06;
+const TOGGLE_MIN_ASPECT_RATIO = 1.5;
+const TOGGLE_MAX_ASPECT_RATIO = 3.8;
+const TOGGLE_MIN_DENSITY_RATIO = 0.35;
+const CHEVRON_MAX_WIDTH_RATIO = 0.06;
+const CHEVRON_MAX_HEIGHT_RATIO = 0.04;
+const ICON_MIN_ASPECT_RATIO = 0.55;
+const ICON_MAX_ASPECT_RATIO = 1.8;
+const LARGE_RESIDUAL_SCORE_PENALTY = -35;
+const REGION_OVERLAP_SCORE = 20;
+const MAX_PIXEL_COUNT_SCORE = 20;
+const PIXELS_PER_SCORE_POINT = 200;
 const KIND_SCORE = {
   icon: 90,
   toggle: 90,
@@ -177,7 +196,7 @@ function toNonTextDelta(
   const regionIndex = findContainingRegionIndex(rect, params.regions);
   const nearestText = findNearestText(rect, textBlocks);
   const slot = classifySlot(rect, nearestText?.block.rect, params.width);
-  const likelyKind = classifyLikelyKind(rect, slot, component.differentPixels);
+  const likelyKind = classifyLikelyKind(rect, slot, component.differentPixels, params);
   const scoreParams = {
     ...(regionIndex ? { regionIndex } : {}),
     slot,
@@ -190,7 +209,7 @@ function toNonTextDelta(
     likelyKind,
     rect,
     ...(nearestText ? { nearestText: nearestText.block.text } : {}),
-    score: scoreNonTextDelta(scoreParams, component.differentPixels),
+    score: scoreNonTextDelta(scoreParams, component.differentPixels, params),
   };
 }
 
@@ -213,32 +232,53 @@ function classifySlot(
   nearestTextRect: Rect | undefined,
   imageWidth: number,
 ): ScreenshotNonTextDelta['slot'] {
-  if (rect.height <= 3 && rect.width >= 60) return 'separator';
+  if (
+    rect.height <= SEPARATOR_MAX_THICKNESS_PX &&
+    rect.width >= imageWidth * SEPARATOR_MIN_WIDTH_RATIO
+  ) {
+    return 'separator';
+  }
   if (!nearestTextRect) {
-    if (rect.width >= imageWidth * 0.4) return 'background';
+    if (rect.width >= imageWidth * BACKGROUND_SLOT_WIDTH_RATIO) return 'background';
     return 'unknown';
   }
-  if (rect.width >= imageWidth * 0.4) return 'background';
+  if (rect.width >= imageWidth * BACKGROUND_SLOT_WIDTH_RATIO) return 'background';
   const rectCenterX = rect.x + rect.width / 2;
   const textCenterX = nearestTextRect.x + nearestTextRect.width / 2;
   if (rectCenterX < textCenterX - nearestTextRect.width / 2) return 'leading';
   if (rectCenterX > textCenterX + nearestTextRect.width / 2) return 'trailing';
-  return rect.width >= imageWidth * 0.35 ? 'background' : 'unknown';
+  return rect.width >= imageWidth * UNKNOWN_BACKGROUND_SLOT_WIDTH_RATIO ? 'background' : 'unknown';
 }
 
 function classifyLikelyKind(
   rect: Rect,
   slot: ScreenshotNonTextDelta['slot'],
   differentPixels: number,
+  image: { width: number; height: number },
 ): NonTextKind {
   const aspect = rect.width / rect.height;
   const density = differentPixels / (rect.width * rect.height);
   if (slot === 'separator') return 'separator';
   if (slot === 'background') return 'background';
-  if (slot === 'trailing' && aspect >= 1.5 && aspect <= 3.8 && density >= 0.35) return 'toggle';
-  if (slot === 'trailing' && rect.width <= 44 && rect.height <= 64) return 'chevron';
-  if (slot === 'leading' && aspect >= 0.55 && aspect <= 1.8) return 'icon';
-  if (rect.width >= 300 || rect.height >= 160) return 'background';
+  if (
+    slot === 'trailing' &&
+    aspect >= TOGGLE_MIN_ASPECT_RATIO &&
+    aspect <= TOGGLE_MAX_ASPECT_RATIO &&
+    density >= TOGGLE_MIN_DENSITY_RATIO
+  ) {
+    return 'toggle';
+  }
+  if (
+    slot === 'trailing' &&
+    rect.width <= image.width * CHEVRON_MAX_WIDTH_RATIO &&
+    rect.height <= image.height * CHEVRON_MAX_HEIGHT_RATIO
+  ) {
+    return 'chevron';
+  }
+  if (slot === 'leading' && aspect >= ICON_MIN_ASPECT_RATIO && aspect <= ICON_MAX_ASPECT_RATIO) {
+    return 'icon';
+  }
+  if (isLargeResidual(rect, image)) return 'background';
   return 'visual';
 }
 
@@ -256,15 +296,23 @@ function scoreNonTextDelta(
     rect: Rect;
   },
   differentPixels: number,
+  image: { width: number; height: number },
 ): number {
-  const sizePenalty = delta.rect.width >= 300 || delta.rect.height >= 160 ? -35 : 0;
-  const regionScore = delta.regionIndex ? 20 : 0;
+  const sizePenalty = isLargeResidual(delta.rect, image) ? LARGE_RESIDUAL_SCORE_PENALTY : 0;
+  const regionScore = delta.regionIndex ? REGION_OVERLAP_SCORE : 0;
   return (
     KIND_SCORE[delta.likelyKind] +
     SLOT_SCORE[delta.slot] +
     regionScore +
     sizePenalty +
-    Math.min(20, differentPixels / 200)
+    Math.min(MAX_PIXEL_COUNT_SCORE, differentPixels / PIXELS_PER_SCORE_POINT)
+  );
+}
+
+function isLargeResidual(rect: Rect, image: { width: number; height: number }): boolean {
+  return (
+    rect.width >= image.width * LARGE_RESIDUAL_WIDTH_RATIO ||
+    rect.height >= image.height * LARGE_RESIDUAL_HEIGHT_RATIO
   );
 }
 

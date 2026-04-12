@@ -38,6 +38,8 @@ type TesseractWord = {
 
 const OCR_TIMEOUT_MS = 10_000;
 const MAX_OCR_MATCHES = 12;
+// OCR text matching uses small generic movement/shape thresholds; the fixed gap
+// is only a floor before falling back to word-height-relative spacing.
 const MIN_MEANINGFUL_DELTA_PX = 2;
 const MIN_SEGMENT_GAP_PX = 48;
 const TEXT_WIDTH_MISMATCH_RATIO = 0.08;

@@ -34,6 +34,15 @@ export type ScreenshotDiffRegionOverlayMatch = {
 
 const DEFAULT_MAX_DIFF_REGIONS = 8;
 const REGION_MERGE_GAP_PX = 12;
+const MAX_REGIONS_TO_MERGE = 2000;
+// These region labels are coarse, screen-relative buckets for agent guidance,
+// not tuned to a specific screenshot size or app layout.
+const DOMINANT_CHANGE_MIN_CHANNEL_DELTA = 12;
+const LARGE_AREA_MIN_WIDTH_RATIO = 0.55;
+const LARGE_AREA_MIN_HEIGHT_RATIO = 0.12;
+const BAND_MIN_ASPECT_RATIO = 2.5;
+const LARGE_REGION_MIN_AREA_RATIO = 0.04;
+const MEDIUM_REGION_MIN_AREA_RATIO = 0.01;
 
 export type MutableDiffRegion = {
   minX: number;
@@ -61,7 +70,9 @@ export function summarizeDiffRegions(params: {
   // Avoid quadratic nearby-merge work on extremely noisy diffs; the later ranking
   // still keeps the largest components, but tiny speckles may remain unmerged.
   const mergedRegions =
-    rawRegions.length <= 2000 ? mergeNearbyRegions(rawRegions, REGION_MERGE_GAP_PX) : rawRegions;
+    rawRegions.length <= MAX_REGIONS_TO_MERGE
+      ? mergeNearbyRegions(rawRegions, REGION_MERGE_GAP_PX)
+      : rawRegions;
   const splitRegions = splitLargeDiffRegions(mergedRegions, params);
   return splitRegions
     .sort((left, right) => {
@@ -300,14 +311,16 @@ function describeDominantChange(
   const baselineLuminance = luminance(baseline);
   const currentLuminance = luminance(current);
   const luminanceDelta = currentLuminance - baselineLuminance;
-  if (Math.abs(luminanceDelta) >= 12) return luminanceDelta > 0 ? 'brighter' : 'darker';
+  if (Math.abs(luminanceDelta) >= DOMINANT_CHANGE_MIN_CHANNEL_DELTA) {
+    return luminanceDelta > 0 ? 'brighter' : 'darker';
+  }
 
   const maxChannelDelta = Math.max(
     Math.abs(current.r - baseline.r),
     Math.abs(current.g - baseline.g),
     Math.abs(current.b - baseline.b),
   );
-  return maxChannelDelta >= 12 ? 'color-shift' : 'mixed';
+  return maxChannelDelta >= DOMINANT_CHANGE_MIN_CHANNEL_DELTA ? 'color-shift' : 'mixed';
 }
 
 function describeRegionShape(
@@ -315,16 +328,21 @@ function describeRegionShape(
   imageWidth: number,
   imageHeight: number,
 ): ScreenshotDiffRegion['shape'] {
-  if (rect.width >= imageWidth * 0.55 && rect.height >= imageHeight * 0.12) return 'large-area';
-  if (rect.width >= rect.height * 2.5) return 'horizontal-band';
-  if (rect.height >= rect.width * 2.5) return 'vertical-band';
+  if (
+    rect.width >= imageWidth * LARGE_AREA_MIN_WIDTH_RATIO &&
+    rect.height >= imageHeight * LARGE_AREA_MIN_HEIGHT_RATIO
+  ) {
+    return 'large-area';
+  }
+  if (rect.width >= rect.height * BAND_MIN_ASPECT_RATIO) return 'horizontal-band';
+  if (rect.height >= rect.width * BAND_MIN_ASPECT_RATIO) return 'vertical-band';
   return 'compact';
 }
 
 function describeRegionSize(regionArea: number, totalPixels: number): ScreenshotDiffRegion['size'] {
   const areaRatio = regionArea / totalPixels;
-  if (areaRatio >= 0.04) return 'large';
-  if (areaRatio >= 0.01) return 'medium';
+  if (areaRatio >= LARGE_REGION_MIN_AREA_RATIO) return 'large';
+  if (areaRatio >= MEDIUM_REGION_MIN_AREA_RATIO) return 'medium';
   return 'small';
 }
 

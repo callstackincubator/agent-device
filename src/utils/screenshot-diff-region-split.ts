@@ -1,9 +1,13 @@
 import { PNG } from 'pngjs';
 import type { MutableDiffRegion } from './screenshot-diff-regions.ts';
 
-const MIN_SPLIT_REGION_HEIGHT = 180;
+// Region splitting is based on screen-relative heights so it works on phone,
+// tablet, and desktop screenshots; the pixel floors only suppress tiny fixtures/noise.
+const MIN_SPLIT_REGION_HEIGHT_RATIO = 0.07;
+const MIN_SPLIT_REGION_HEIGHT_FLOOR_PX = 48;
 const MIN_SPLIT_REGION_WIDTH_RATIO = 0.35;
-const MIN_SPLIT_SEGMENT_HEIGHT = 80;
+const MIN_SPLIT_SEGMENT_HEIGHT_RATIO = 0.03;
+const MIN_SPLIT_SEGMENT_HEIGHT_FLOOR_PX = 24;
 const LOW_DENSITY_RATIO = 0.08;
 const MIN_LOW_DENSITY_BAND_HEIGHT = 6;
 const ROW_SMOOTHING_RADIUS = 3;
@@ -13,21 +17,33 @@ export function splitLargeDiffRegions(
   params: { diffMask: Uint8Array; baseline: PNG; current: PNG },
 ): MutableDiffRegion[] {
   return regions.flatMap((region) =>
-    shouldSplitRegion(region, params.baseline.width)
-      ? splitRegionByHorizontalDensity(region, params)
+    shouldSplitRegion(region, params.baseline.width, params.baseline.height)
+      ? splitRegionByHorizontalDensity(
+          region,
+          params,
+          minSplitSegmentHeight(params.baseline.height),
+        )
       : [region],
   );
 }
 
-function shouldSplitRegion(region: MutableDiffRegion, imageWidth: number): boolean {
+function shouldSplitRegion(
+  region: MutableDiffRegion,
+  imageWidth: number,
+  imageHeight: number,
+): boolean {
   const width = region.maxX - region.minX + 1;
   const height = region.maxY - region.minY + 1;
-  return height >= MIN_SPLIT_REGION_HEIGHT && width >= imageWidth * MIN_SPLIT_REGION_WIDTH_RATIO;
+  return (
+    height >= minSplitRegionHeight(imageHeight) &&
+    width >= imageWidth * MIN_SPLIT_REGION_WIDTH_RATIO
+  );
 }
 
 function splitRegionByHorizontalDensity(
   region: MutableDiffRegion,
   params: { diffMask: Uint8Array; baseline: PNG; current: PNG },
+  minSegmentHeight: number,
 ): MutableDiffRegion[] {
   const rowCounts = measureRowDiffCounts(region, params.diffMask, params.baseline.width);
   const smoothed = smoothCounts(rowCounts);
@@ -35,7 +51,7 @@ function splitRegionByHorizontalDensity(
     smoothed,
     Math.max(1, Math.round((region.maxX - region.minX + 1) * LOW_DENSITY_RATIO)),
   );
-  const ranges = buildSegmentRanges(region, lowDensityBands);
+  const ranges = buildSegmentRanges(region, lowDensityBands, minSegmentHeight);
   if (ranges.length <= 1) return [region];
 
   const splitRegions = ranges
@@ -96,15 +112,13 @@ function findLowDensityBands(counts: number[], threshold: number): Array<[number
 function buildSegmentRanges(
   region: MutableDiffRegion,
   lowDensityBands: Array<[number, number]>,
+  minSegmentHeight: number,
 ): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   let segmentStart = region.minY;
   for (const [relativeStart, relativeEnd] of lowDensityBands) {
     const cutY = region.minY + Math.round((relativeStart + relativeEnd) / 2);
-    if (
-      cutY - segmentStart + 1 < MIN_SPLIT_SEGMENT_HEIGHT ||
-      region.maxY - cutY < MIN_SPLIT_SEGMENT_HEIGHT
-    ) {
+    if (cutY - segmentStart + 1 < minSegmentHeight || region.maxY - cutY < minSegmentHeight) {
       continue;
     }
     ranges.push([segmentStart, cutY]);
@@ -112,6 +126,20 @@ function buildSegmentRanges(
   }
   ranges.push([segmentStart, region.maxY]);
   return ranges;
+}
+
+function minSplitRegionHeight(imageHeight: number): number {
+  return Math.max(
+    MIN_SPLIT_REGION_HEIGHT_FLOOR_PX,
+    Math.round(imageHeight * MIN_SPLIT_REGION_HEIGHT_RATIO),
+  );
+}
+
+function minSplitSegmentHeight(imageHeight: number): number {
+  return Math.max(
+    MIN_SPLIT_SEGMENT_HEIGHT_FLOOR_PX,
+    Math.round(imageHeight * MIN_SPLIT_SEGMENT_HEIGHT_RATIO),
+  );
 }
 
 function buildRegionSlice(
