@@ -4,6 +4,7 @@ import path from 'node:path';
 import { formatScreenshotDiffText, formatSnapshotDiffText } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from '../../utils/screenshot-diff.ts';
+import { attachCurrentOverlayMatches } from '../../utils/screenshot-diff-overlay-matches.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
@@ -71,6 +72,26 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
       threshold: thresholdNum,
       outputPath,
     });
+    if (flags.overlayRefs && !result.match && !result.dimensionMismatch) {
+      const overlayResult = await client.capture.screenshot({
+        path: outputPath ? deriveCurrentOverlayPath(outputPath) : undefined,
+        overlayRefs: true,
+      });
+      result = {
+        ...result,
+        currentOverlayPath: overlayResult.path,
+        ...(overlayResult.overlayRefs
+          ? { currentOverlayRefCount: overlayResult.overlayRefs.length }
+          : {}),
+        ...(result.regions && overlayResult.overlayRefs
+          ? {
+              regions: attachCurrentOverlayMatches(result.regions, overlayResult.overlayRefs),
+            }
+          : {}),
+      };
+    } else if (flags.overlayRefs && outputPath) {
+      removeStaleCurrentOverlay(outputPath);
+    }
   } finally {
     try {
       fs.unlinkSync(currentPath);
@@ -83,3 +104,21 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
   writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));
   return true;
 };
+
+function deriveCurrentOverlayPath(outputPath: string): string {
+  const extension = path.extname(outputPath);
+  const base = extension ? outputPath.slice(0, -extension.length) : outputPath;
+  return `${base}.current-overlay${extension || '.png'}`;
+}
+
+function removeStaleCurrentOverlay(outputPath: string): void {
+  try {
+    fs.unlinkSync(deriveCurrentOverlayPath(outputPath));
+  } catch (error) {
+    if (!isFsError(error, 'ENOENT')) throw error;
+  }
+}
+
+function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
+}

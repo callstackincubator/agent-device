@@ -4,6 +4,7 @@ import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.
 import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
+import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 import { styleText } from 'node:util';
 import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
 
@@ -227,12 +228,166 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     lines.push(`  ${label} ${displayPath}`);
   }
 
+  if (data.currentOverlayPath && !match) {
+    const relativePath = toRelativePath(data.currentOverlayPath);
+    const label = useColor ? colorize('Current overlay:', 'dim') : 'Current overlay:';
+    const displayPath = useColor ? colorize(relativePath, 'green') : relativePath;
+    const refCount = toNumber(data.currentOverlayRefCount);
+    const refSuffix = refCount > 0 ? ` (${refCount} refs)` : '';
+    lines.push(`  ${label} ${displayPath}${refSuffix}`);
+  }
+
   if (!match && !dimensionMismatch) {
     const diffCount = useColor ? colorize(String(differentPixels), 'red') : String(differentPixels);
     lines.push(`  ${diffCount} different / ${totalPixels} total pixels`);
   }
 
+  const hints = !match && !dimensionMismatch ? formatScreenshotDiffHints(data) : [];
+  if (hints.length > 0) {
+    lines.push('  Hints:');
+    for (const hint of hints) lines.push(`    - ${hint}`);
+  }
+
+  const regions = Array.isArray(data.regions) ? data.regions : [];
+  if (!match && !dimensionMismatch && regions.length > 0) {
+    lines.push('  Changed regions:');
+    for (const region of regions.slice(0, 5)) {
+      const share =
+        region.shareOfDiffPercentage === 0 && region.differentPixels > 0
+          ? '<0.01'
+          : String(region.shareOfDiffPercentage);
+      const rect = region.rect;
+      lines.push(
+        `    ${region.index}. ${region.location} x=${rect.x} y=${rect.y} ` +
+          `${rect.width}x${rect.height}, ${share}% of diff, change=${region.dominantChange}`,
+      );
+      const detailLine = formatScreenshotRegionDetails(region);
+      if (detailLine) {
+        lines.push(`       ${detailLine}`);
+      }
+      const bestMatch = region.currentOverlayMatches?.[0];
+      if (bestMatch) {
+        const label = bestMatch.label ? ` "${bestMatch.label}"` : '';
+        lines.push(
+          `       overlaps @${bestMatch.ref}${label}, ` +
+            `${bestMatch.regionCoveragePercentage}% of region`,
+        );
+      }
+    }
+  }
+
+  const ocrMatches = data.ocr?.matches ?? [];
+  if (!match && !dimensionMismatch && ocrMatches.length > 0) {
+    const shownOcrMatches = ocrMatches.slice(0, 8);
+    lines.push(
+      `  OCR text deltas (${data.ocr?.provider}; baselineBlocks=${data.ocr?.baselineBlocks} ` +
+        `currentBlocks=${data.ocr?.currentBlocks}; showing ${shownOcrMatches.length}/${ocrMatches.length}; px):`,
+    );
+    lines.push(
+      '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | confidence | issueHint',
+    );
+    for (const [index, ocrMatch] of shownOcrMatches.entries()) {
+      const delta = ocrMatch.delta;
+      lines.push(
+        `    ${index + 1} | ${JSON.stringify(ocrMatch.text)} | ` +
+          `${formatSignedPixels(delta.x)},${formatSignedPixels(delta.y)} | ` +
+          `${formatSignedPixels(delta.width)},${formatSignedPixels(delta.height)} | ` +
+          `${formatRect(ocrMatch.baselineRect)} | ${formatRect(ocrMatch.currentRect)} | ` +
+          `${ocrMatch.confidence} | ` +
+          `${ocrMatch.possibleTextMetricMismatch ? 'ocr-bbox-size-change' : '-'}`,
+      );
+    }
+  }
+
+  const nonTextDeltas = data.nonTextDeltas ?? [];
+  if (!match && !dimensionMismatch && nonTextDeltas.length > 0) {
+    const shownNonTextDeltas = nonTextDeltas.slice(0, 8);
+    lines.push(
+      `  Non-text visual deltas (showing ${shownNonTextDeltas.length}/${nonTextDeltas.length}; px):`,
+    );
+    lines.push('    item | region | slot | kind | bboxCurrent | nearestText');
+    for (const delta of shownNonTextDeltas) {
+      lines.push(
+        `    ${delta.index} | ${delta.regionIndex ? `r${delta.regionIndex}` : '-'} | ` +
+          `${delta.slot} | ${delta.likelyKind} | ${formatRect(delta.rect)} | ` +
+          `${delta.nearestText ? JSON.stringify(delta.nearestText) : '-'}`,
+      );
+    }
+  }
+
   return `${lines.join('\n')}\n`;
+}
+
+function formatRect(rect: { x: number; y: number; width: number; height: number }): string {
+  return `x=${rect.x},y=${rect.y},w=${rect.width},h=${rect.height}`;
+}
+
+function formatSignedPixels(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function formatScreenshotDiffHints(data: ScreenshotDiffResult): string[] {
+  const hints: string[] = [];
+  const clusters = data.ocr?.movementClusters ?? [];
+  for (const cluster of clusters.slice(0, 2)) {
+    hints.push(
+      `text movement cluster: ${formatQuotedList(cluster.texts)} dx=${formatRange(cluster.xRange)}px ` +
+        `dy=${formatRange(cluster.yRange)}px`,
+    );
+  }
+
+  const controlDeltas = (data.nonTextDeltas ?? [])
+    .filter((delta) => ['icon', 'toggle', 'chevron'].includes(delta.likelyKind))
+    .slice(0, 3);
+  if (controlDeltas.length > 0) {
+    hints.push(`non-text controls: ${controlDeltas.map(formatNonTextHint).join('; ')}`);
+  }
+
+  const boundaryDeltas = (data.nonTextDeltas ?? [])
+    .filter((delta) => delta.likelyKind === 'separator')
+    .slice(0, 2);
+  if (boundaryDeltas.length > 0) {
+    hints.push(`non-text boundaries: ${boundaryDeltas.map(formatNonTextHint).join('; ')}`);
+  }
+
+  return hints.slice(0, 6);
+}
+
+function formatNonTextHint(delta: {
+  likelyKind: string;
+  nearestText?: string;
+  regionIndex?: number;
+}): string {
+  const anchor = delta.nearestText ? ` near ${JSON.stringify(delta.nearestText)}` : '';
+  const region = delta.regionIndex ? ` r${delta.regionIndex}` : '';
+  return `${delta.likelyKind}${anchor}${region}`;
+}
+
+function formatRange(range: { min: number; max: number }): string {
+  return range.min === range.max
+    ? formatSignedPixels(range.min)
+    : `${formatSignedPixels(range.min)}..${formatSignedPixels(range.max)}`;
+}
+
+function formatQuotedList(values: string[]): string {
+  const shown = values.slice(0, 4).map((value) => JSON.stringify(value));
+  const suffix = values.length > shown.length ? ` +${values.length - shown.length} more` : '';
+  return `${shown.join(', ')}${suffix}`;
+}
+
+function formatScreenshotRegionDetails(region: ScreenshotDiffRegion): string | null {
+  const details = [
+    region.size ? `size=${region.size}` : null,
+    region.shape ? `shape=${region.shape}` : null,
+    typeof region.densityPercentage === 'number' ? `density=${region.densityPercentage}%` : null,
+    region.averageBaselineColorHex && region.averageCurrentColorHex
+      ? `avgColor=${region.averageBaselineColorHex}->${region.averageCurrentColorHex}`
+      : null,
+    typeof region.baselineLuminance === 'number' && typeof region.currentLuminance === 'number'
+      ? `luminance=${region.baselineLuminance}->${region.currentLuminance}`
+      : null,
+  ].filter((entry): entry is string => entry !== null);
+  return details.length > 0 ? details.join(' ') : null;
 }
 
 function toRelativePath(filePath: string): string {

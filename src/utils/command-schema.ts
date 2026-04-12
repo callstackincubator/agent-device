@@ -886,7 +886,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--overlay-refs',
     usageDescription:
-      'Screenshot: draw current snapshot refs and target rectangles onto the saved PNG',
+      'Screenshot: draw current snapshot refs and target rectangles onto the saved PNG; diff screenshot: also write a separate current-screen overlay guide',
   },
   {
     key: 'screenshotFullscreen',
@@ -993,11 +993,11 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   diff: {
     usageOverride:
-      'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>]',
+      'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
     helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
     summary: 'Diff snapshot or screenshot',
     positionalArgs: ['kind'],
-    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out'],
+    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
   },
   'ensure-simulator': {
     helpDescription: 'Ensure an iOS simulator exists in a device set (create if missing)',
