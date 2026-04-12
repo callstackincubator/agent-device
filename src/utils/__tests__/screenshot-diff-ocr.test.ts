@@ -7,6 +7,8 @@ import {
   matchOcrBlocks,
   parseTesseractTsv,
   summarizeScreenshotOcr,
+  summarizeOcrMovementClusters,
+  summarizeOcrTextChanges,
 } from '../screenshot-diff-ocr.ts';
 
 test('parseTesseractTsv groups word rows into text line blocks', () => {
@@ -44,7 +46,7 @@ test('parseTesseractTsv groups word rows into text line blocks', () => {
   });
 });
 
-test('matchOcrBlocks reports movement and possible text metric mismatch', () => {
+test('matchOcrBlocks reports movement and OCR bbox size change', () => {
   const matches = matchOcrBlocks(
     [
       {
@@ -67,6 +69,101 @@ test('matchOcrBlocks reports movement and possible text metric mismatch', () => 
   assert.equal(matches.length, 1);
   assert.deepEqual(matches[0]?.delta, { x: 12, y: -8, width: 10, height: 0 });
   assert.equal(matches[0]?.possibleTextMetricMismatch, true);
+});
+
+test('summarizeOcrTextChanges normalizes noisy OCR labels before reporting candidates', () => {
+  const changes = summarizeOcrTextChanges(
+    [
+      {
+        text: 'Airplane Mode',
+        confidence: 95,
+        rect: { x: 100, y: 200, width: 80, height: 20 },
+        normalizedRect: { x: 25, y: 25, width: 20, height: 2.5 },
+      },
+      {
+        text: '2) Personal Hotspot',
+        confidence: 90,
+        rect: { x: 100, y: 260, width: 160, height: 20 },
+        normalizedRect: { x: 25, y: 32.5, width: 40, height: 2.5 },
+      },
+      {
+        text: 'Removed Row',
+        confidence: 91,
+        rect: { x: 100, y: 320, width: 140, height: 20 },
+        normalizedRect: { x: 25, y: 40, width: 35, height: 2.5 },
+      },
+      {
+        text: '4:44',
+        confidence: 96,
+        rect: { x: 10, y: 20, width: 60, height: 20 },
+        normalizedRect: { x: 2.5, y: 2.5, width: 15, height: 2.5 },
+      },
+    ],
+    [
+      {
+        text: 'Airplane Mode @e~',
+        confidence: 91,
+        rect: { x: 120, y: 210, width: 120, height: 20 },
+        normalizedRect: { x: 30, y: 26.25, width: 30, height: 2.5 },
+      },
+      {
+        text: 'Personal Hotspot',
+        confidence: 92,
+        rect: { x: 120, y: 270, width: 140, height: 20 },
+        normalizedRect: { x: 30, y: 33.75, width: 35, height: 2.5 },
+      },
+      {
+        text: 'Added Row',
+        confidence: 93,
+        rect: { x: 120, y: 340, width: 110, height: 20 },
+        normalizedRect: { x: 30, y: 42.5, width: 27.5, height: 2.5 },
+      },
+    ],
+    800,
+  );
+
+  assert.deepEqual(
+    changes.addedText.map((change) => change.text),
+    ['Added Row'],
+  );
+  assert.deepEqual(
+    changes.removedText.map((change) => change.text),
+    ['Removed Row'],
+  );
+});
+
+test('summarizeOcrMovementClusters groups repeated x-axis text movement', () => {
+  const clusters = summarizeOcrMovementClusters([
+    {
+      text: 'Wi-Fi',
+      baselineRect: { x: 100, y: 200, width: 50, height: 20 },
+      currentRect: { x: 286, y: 120, width: 50, height: 20 },
+      delta: { x: 186, y: -80, width: 0, height: 0 },
+      confidence: 96,
+      possibleTextMetricMismatch: false,
+    },
+    {
+      text: 'Bluetooth',
+      baselineRect: { x: 100, y: 260, width: 90, height: 20 },
+      currentRect: { x: 284, y: 190, width: 90, height: 20 },
+      delta: { x: 184, y: -70, width: 0, height: 0 },
+      confidence: 90,
+      possibleTextMetricMismatch: false,
+    },
+    {
+      text: 'Search',
+      baselineRect: { x: 100, y: 500, width: 90, height: 20 },
+      currentRect: { x: 52, y: 560, width: 90, height: 20 },
+      delta: { x: -48, y: 60, width: 0, height: 0 },
+      confidence: 94,
+      possibleTextMetricMismatch: false,
+    },
+  ]);
+
+  assert.equal(clusters.length, 1);
+  assert.deepEqual(clusters[0]?.texts, ['Wi-Fi', 'Bluetooth']);
+  assert.deepEqual(clusters[0]?.xRange, { min: 184, max: 186 });
+  assert.deepEqual(clusters[0]?.yRange, { min: -80, max: -70 });
 });
 
 test('summarizeScreenshotOcr returns undefined when tesseract exits non-zero', async () => {

@@ -242,6 +242,12 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     lines.push(`  ${diffCount} different / ${totalPixels} total pixels`);
   }
 
+  const hints = !match && !dimensionMismatch ? formatScreenshotDiffHints(data) : [];
+  if (hints.length > 0) {
+    lines.push('  Hints:');
+    for (const hint of hints) lines.push(`    - ${hint}`);
+  }
+
   const regions = Array.isArray(data.regions) ? data.regions : [];
   if (!match && !dimensionMismatch && regions.length > 0) {
     lines.push('  Changed regions:');
@@ -288,7 +294,7 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
           `${formatSignedPixels(delta.width)},${formatSignedPixels(delta.height)} | ` +
           `${formatRect(ocrMatch.baselineRect)} | ${formatRect(ocrMatch.currentRect)} | ` +
           `${ocrMatch.confidence} | ` +
-          `${ocrMatch.possibleTextMetricMismatch ? 'possible-text-metric-mismatch' : '-'}`,
+          `${ocrMatch.possibleTextMetricMismatch ? 'ocr-bbox-size-change' : '-'}`,
       );
     }
   }
@@ -318,6 +324,75 @@ function formatRect(rect: { x: number; y: number; width: number; height: number 
 
 function formatSignedPixels(value: number): string {
   return value > 0 ? `+${value}` : String(value);
+}
+
+function formatScreenshotDiffHints(data: ScreenshotDiffResult): string[] {
+  const hints: string[] = [];
+  const clusters = data.ocr?.movementClusters ?? [];
+  for (const cluster of clusters.slice(0, 2)) {
+    hints.push(
+      `text movement cluster: ${formatQuotedList(cluster.texts)} dx=${formatRange(cluster.xRange)}px ` +
+        `dy=${formatRange(cluster.yRange)}px`,
+    );
+  }
+
+  const addedText = data.ocr?.addedText ?? [];
+  if (addedText.length > 0) {
+    hints.push(`added text candidates: ${formatTextChanges(addedText)}`);
+  }
+
+  const removedText = data.ocr?.removedText ?? [];
+  if (removedText.length > 0) {
+    hints.push(`removed text candidates: ${formatTextChanges(removedText)}`);
+  }
+
+  const controlDeltas = (data.nonTextDeltas ?? [])
+    .filter((delta) => ['icon', 'toggle', 'chevron', 'separator'].includes(delta.likelyKind))
+    .slice(0, 3);
+  if (controlDeltas.length > 0) {
+    hints.push(`non-text controls/boundaries: ${controlDeltas.map(formatNonTextHint).join('; ')}`);
+  }
+
+  const largestRegion = data.regions?.[0];
+  if (largestRegion) {
+    hints.push(
+      `largest changed region: r${largestRegion.index} ${largestRegion.location} ` +
+        `${largestRegion.shareOfDiffPercentage}% of diff, ${largestRegion.dominantChange}`,
+    );
+  }
+
+  return hints.slice(0, 6);
+}
+
+function formatTextChanges(
+  changes: Array<{ text: string; rect: { x: number; y: number; width: number; height: number } }>,
+): string {
+  return changes
+    .slice(0, 3)
+    .map((change) => `${JSON.stringify(change.text)} at x=${change.rect.x},y=${change.rect.y}`)
+    .join(', ');
+}
+
+function formatNonTextHint(delta: {
+  likelyKind: string;
+  nearestText?: string;
+  regionIndex?: number;
+}): string {
+  const anchor = delta.nearestText ? ` near ${JSON.stringify(delta.nearestText)}` : '';
+  const region = delta.regionIndex ? ` r${delta.regionIndex}` : '';
+  return `${delta.likelyKind}${anchor}${region}`;
+}
+
+function formatRange(range: { min: number; max: number }): string {
+  return range.min === range.max
+    ? formatSignedPixels(range.min)
+    : `${formatSignedPixels(range.min)}..${formatSignedPixels(range.max)}`;
+}
+
+function formatQuotedList(values: string[]): string {
+  const shown = values.slice(0, 4).map((value) => JSON.stringify(value));
+  const suffix = values.length > shown.length ? ` +${values.length - shown.length} more` : '';
+  return `${shown.join(', ')}${suffix}`;
 }
 
 function formatScreenshotRegionDetails(region: ScreenshotDiffRegion): string | null {

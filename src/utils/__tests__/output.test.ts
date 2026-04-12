@@ -706,6 +706,29 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
             possibleTextMetricMismatch: true,
           },
         ],
+        addedText: [
+          {
+            text: 'Accessibility',
+            rect: { x: 220, y: 2520, width: 220, height: 40 },
+            confidence: 93,
+          },
+        ],
+        removedText: [
+          {
+            text: 'VPN',
+            rect: { x: 120, y: 2100, width: 90, height: 36 },
+            confidence: 96,
+          },
+        ],
+        movementClusters: [
+          {
+            texts: ['Wi-Fi', 'Bluetooth'],
+            averageDelta: { x: 10, y: 12 },
+            xRange: { min: 10, max: 12 },
+            yRange: { min: 10, max: 14 },
+            confidence: 90,
+          },
+        ],
       },
       nonTextDeltas: [
         {
@@ -724,6 +747,15 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
   assert.match(text, /Current overlay:/);
   assert.match(text, /diff\.current-overlay\.png \(1 refs\)/);
   assert.match(text, /500 different \/ 10000 total pixels/);
+  assert.match(text, /Hints:/);
+  assert.match(
+    text,
+    /text movement cluster: "Wi-Fi", "Bluetooth" dx=\+10\.\.\+12px dy=\+10\.\.\+14px/,
+  );
+  assert.match(text, /added text candidates: "Accessibility" at x=220,y=2520/);
+  assert.match(text, /removed text candidates: "VPN" at x=120,y=2100/);
+  assert.match(text, /non-text controls\/boundaries: icon near "Wi-Fi" r1/);
+  assert.match(text, /largest changed region: r1 top-left 70% of diff, brighter/);
   assert.match(text, /Changed regions:/);
   assert.match(text, /1\. top-left x=10 y=20 100x40, 70% of diff, change=brighter/);
   assert.match(
@@ -741,7 +773,7 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
   );
   assert.match(
     text,
-    /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| 94 \| possible-text-metric-mismatch/,
+    /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| 94 \| ocr-bbox-size-change/,
   );
   assert.match(text, /Non-text visual deltas \(showing 1\/1; px\):/);
   assert.match(text, /item \| region \| slot \| kind \| bboxCurrent \| nearestText/);

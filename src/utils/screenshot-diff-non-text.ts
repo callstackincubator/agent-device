@@ -67,6 +67,11 @@ type ScoredNonTextDelta = Omit<ScreenshotNonTextDelta, 'index' | 'likelyKind'> &
   score: number;
 };
 
+type OcrRow = {
+  rect: Rect;
+  blocks: ScreenshotOcrBlock[];
+};
+
 export function summarizeNonTextDiffDeltas(params: {
   diffMask: Uint8Array;
   width: number;
@@ -78,11 +83,12 @@ export function summarizeNonTextDiffDeltas(params: {
   const maskedDiff = maskOcrText(params.diffMask, params.width, params.height, params.ocr);
   const rawComponents = findConnectedComponents(maskedDiff, params.width, params.height);
   const mergedComponents = mergeNearbyComponents(rawComponents, MERGE_GAP_PX);
-  const textBlocks = getOcrBlocks(params.ocr);
+  const currentRows = groupOcrRows(params.ocr?.currentBlocksRaw ?? []);
+  const fallbackTextBlocks = getOcrBlocks(params.ocr);
   return (
     mergedComponents
       .filter(hasUsefulComponentSize)
-      .map((component) => toNonTextDelta(component, params, textBlocks))
+      .map((component) => toNonTextDelta(component, params, currentRows, fallbackTextBlocks))
       // Status bars and top chrome tend to produce noisy residuals around time,
       // signal, and battery text; changed regions still report that area.
       .filter((delta) => delta.rect.y >= params.height * MIN_CONTENT_Y_RATIO)
@@ -190,12 +196,13 @@ function toNonTextDelta(
     height: number;
     regions: ScreenshotDiffRegion[];
   },
-  textBlocks: ScreenshotOcrBlock[],
+  currentRows: OcrRow[],
+  fallbackTextBlocks: ScreenshotOcrBlock[],
 ): ScoredNonTextDelta {
   const rect = componentToRect(component);
   const regionIndex = findContainingRegionIndex(rect, params.regions);
-  const nearestText = findNearestText(rect, textBlocks);
-  const slot = classifySlot(rect, nearestText?.block.rect, params.width);
+  const textAnchor = findTextAnchor(rect, currentRows, fallbackTextBlocks);
+  const slot = classifySlot(rect, textAnchor?.block.rect, params.width);
   const likelyKind = classifyLikelyKind(rect, slot, component.differentPixels, params);
   const scoreParams = {
     ...(regionIndex ? { regionIndex } : {}),
@@ -208,7 +215,7 @@ function toNonTextDelta(
     slot,
     likelyKind,
     rect,
-    ...(nearestText ? { nearestText: nearestText.block.text } : {}),
+    ...(textAnchor ? { nearestText: cleanOcrAnchorText(textAnchor.block.text) } : {}),
     score: scoreNonTextDelta(scoreParams, component.differentPixels, params),
   };
 }
@@ -331,6 +338,50 @@ function findContainingRegionIndex(
   return bestRegion?.index;
 }
 
+function findTextAnchor(
+  rect: Rect,
+  currentRows: OcrRow[],
+  fallbackTextBlocks: ScreenshotOcrBlock[],
+): { block: ScreenshotOcrBlock; distance: number } | undefined {
+  const row = findOverlappingRow(rect, currentRows);
+  if (row) return findNearestText(rect, row.blocks);
+  return findNearestText(rect, fallbackTextBlocks);
+}
+
+function findOverlappingRow(rect: Rect, rows: OcrRow[]): OcrRow | undefined {
+  let bestRow: OcrRow | undefined;
+  let bestOverlap = 0;
+  for (const row of rows) {
+    const overlap = verticalOverlap(rect, row.rect);
+    if (overlap <= bestOverlap) continue;
+    bestOverlap = overlap;
+    bestRow = row;
+  }
+  return bestRow;
+}
+
+function groupOcrRows(blocks: ScreenshotOcrBlock[]): OcrRow[] {
+  const rows: OcrRow[] = [];
+  for (const block of [...blocks].sort((left, right) => left.rect.y - right.rect.y)) {
+    const row = rows.find((candidate) => blocksShareRow(candidate.rect, block.rect));
+    if (!row) {
+      rows.push({ rect: block.rect, blocks: [block] });
+      continue;
+    }
+    row.blocks.push(block);
+    row.blocks.sort((left, right) => left.rect.x - right.rect.x);
+    row.rect = unionRects([row.rect, block.rect]);
+  }
+  return rows;
+}
+
+function blocksShareRow(left: Rect, right: Rect): boolean {
+  const overlap = verticalOverlap(left, right);
+  if (overlap > 0) return true;
+  const centerDistance = Math.abs(rectCenter(left).y - rectCenter(right).y);
+  return centerDistance <= Math.max(left.height, right.height) * 0.5;
+}
+
 function findNearestText(
   rect: Rect,
   textBlocks: ScreenshotOcrBlock[],
@@ -345,8 +396,29 @@ function findNearestText(
   return nearest;
 }
 
+function unionRects(rects: Rect[]): Rect {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const rect of rects) {
+    minX = Math.min(minX, rect.x);
+    minY = Math.min(minY, rect.y);
+    maxX = Math.max(maxX, rect.x + rect.width);
+    maxY = Math.max(maxY, rect.y + rect.height);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 function getOcrBlocks(ocr: ScreenshotOcrAnalysis | undefined): ScreenshotOcrBlock[] {
   return ocr ? [...ocr.baselineBlocksRaw, ...ocr.currentBlocksRaw] : [];
+}
+
+function cleanOcrAnchorText(text: string): string {
+  return text
+    .trim()
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .replace(/^\p{L}\s+/u, '');
 }
 
 function hasUsefulComponentSize(component: MutableComponent): boolean {
@@ -408,6 +480,13 @@ function intersectArea(left: Rect, right: Rect): number {
   const maxY = Math.min(left.y + left.height, right.y + right.height);
   if (maxX <= minX || maxY <= minY) return 0;
   return (maxX - minX) * (maxY - minY);
+}
+
+function verticalOverlap(left: Rect, right: Rect): number {
+  return Math.max(
+    0,
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
+  );
 }
 
 function rectCenter(rect: Rect): { x: number; y: number } {

@@ -17,11 +17,28 @@ export type ScreenshotOcrTextMatch = {
   possibleTextMetricMismatch: boolean;
 };
 
+export type ScreenshotOcrTextChange = {
+  text: string;
+  rect: Rect;
+  confidence: number;
+};
+
+export type ScreenshotOcrMovementCluster = {
+  texts: string[];
+  averageDelta: { x: number; y: number };
+  xRange: { min: number; max: number };
+  yRange: { min: number; max: number };
+  confidence: number;
+};
+
 export type ScreenshotOcrSummary = {
   provider: 'tesseract';
   baselineBlocks: number;
   currentBlocks: number;
   matches: ScreenshotOcrTextMatch[];
+  addedText?: ScreenshotOcrTextChange[];
+  removedText?: ScreenshotOcrTextChange[];
+  movementClusters?: ScreenshotOcrMovementCluster[];
 };
 
 export type ScreenshotOcrAnalysis = ScreenshotOcrSummary & {
@@ -38,6 +55,15 @@ type TesseractWord = {
 
 const OCR_TIMEOUT_MS = 10_000;
 const MAX_OCR_MATCHES = 12;
+const MAX_OCR_TEXT_CHANGES = 5;
+const MIN_OCR_TEXT_PRESENCE_CONFIDENCE = 50;
+const MIN_OCR_TEXT_CHANGE_CONFIDENCE = 80;
+const MIN_TEXT_CHANGE_CANONICAL_LENGTH = 3;
+const TOP_CHROME_TEXT_CHANGE_IGNORE_Y_RATIO = 0.08;
+const MAX_MOVEMENT_CLUSTERS = 4;
+const MIN_CLUSTERED_MATCHES = 2;
+const MOVEMENT_CLUSTER_MAX_X_SPREAD_PX = 32;
+const MOVEMENT_CLUSTER_MAX_Y_SPREAD_PX = 60;
 // OCR text matching uses small generic movement/shape thresholds; the fixed gap
 // is only a floor before falling back to word-height-relative spacing.
 const MIN_MEANINGFUL_DELTA_PX = 2;
@@ -63,6 +89,8 @@ export async function summarizeScreenshotOcr(params: {
     const baselineBlocks = parseTesseractTsv(baselineResult.stdout, params.width, params.height);
     const currentBlocks = parseTesseractTsv(currentResult.stdout, params.width, params.height);
     const matches = matchOcrBlocks(baselineBlocks, currentBlocks);
+    const textChanges = summarizeOcrTextChanges(baselineBlocks, currentBlocks, params.height);
+    const movementClusters = summarizeOcrMovementClusters(matches);
     if (baselineBlocks.length === 0 && currentBlocks.length === 0) return undefined;
 
     return {
@@ -72,6 +100,9 @@ export async function summarizeScreenshotOcr(params: {
       baselineBlocksRaw: baselineBlocks,
       currentBlocksRaw: currentBlocks,
       matches,
+      ...(textChanges.addedText.length > 0 ? { addedText: textChanges.addedText } : {}),
+      ...(textChanges.removedText.length > 0 ? { removedText: textChanges.removedText } : {}),
+      ...(movementClusters.length > 0 ? { movementClusters } : {}),
     };
   } catch {
     return undefined;
@@ -84,6 +115,9 @@ export function toScreenshotOcrSummary(analysis: ScreenshotOcrAnalysis): Screens
     baselineBlocks: analysis.baselineBlocks,
     currentBlocks: analysis.currentBlocks,
     matches: analysis.matches,
+    ...(analysis.addedText ? { addedText: analysis.addedText } : {}),
+    ...(analysis.removedText ? { removedText: analysis.removedText } : {}),
+    ...(analysis.movementClusters ? { movementClusters: analysis.movementClusters } : {}),
   };
 }
 
@@ -287,6 +321,100 @@ function scoreOcrMatch(match: ScreenshotOcrTextMatch): number {
     Math.abs(match.delta.height) +
     (match.possibleTextMetricMismatch ? 25 : 0)
   );
+}
+
+export function summarizeOcrTextChanges(
+  baselineBlocks: ScreenshotOcrBlock[],
+  currentBlocks: ScreenshotOcrBlock[],
+  imageHeight: number,
+): { addedText: ScreenshotOcrTextChange[]; removedText: ScreenshotOcrTextChange[] } {
+  const baselineCandidates = toTextChangeCandidates(baselineBlocks, imageHeight);
+  const currentCandidates = toTextChangeCandidates(currentBlocks, imageHeight);
+  const baselineKeys = new Set(baselineCandidates.map((candidate) => candidate.key));
+  const currentKeys = new Set(currentCandidates.map((candidate) => candidate.key));
+  return {
+    addedText: currentCandidates
+      .filter((candidate) => !baselineKeys.has(candidate.key))
+      .filter((candidate) => candidate.confidence >= MIN_OCR_TEXT_CHANGE_CONFIDENCE)
+      .map(toTextChange)
+      .slice(0, MAX_OCR_TEXT_CHANGES),
+    removedText: baselineCandidates
+      .filter((candidate) => !currentKeys.has(candidate.key))
+      .filter((candidate) => candidate.confidence >= MIN_OCR_TEXT_CHANGE_CONFIDENCE)
+      .map(toTextChange)
+      .slice(0, MAX_OCR_TEXT_CHANGES),
+  };
+}
+
+export function summarizeOcrMovementClusters(
+  matches: ScreenshotOcrTextMatch[],
+): ScreenshotOcrMovementCluster[] {
+  const clusters: ScreenshotOcrTextMatch[][] = [];
+  for (const match of [...matches].sort(
+    (left, right) => left.currentRect.y - right.currentRect.y,
+  )) {
+    const cluster = clusters.find(
+      (candidate) =>
+        Math.abs(match.delta.x - average(candidate.map((item) => item.delta.x))) <=
+        MOVEMENT_CLUSTER_MAX_X_SPREAD_PX,
+    );
+    if (cluster) cluster.push(match);
+    else clusters.push([match]);
+  }
+
+  return clusters
+    .filter((cluster) => cluster.length >= MIN_CLUSTERED_MATCHES)
+    .map(toMovementCluster)
+    .filter(
+      (cluster) => cluster.yRange.max - cluster.yRange.min <= MOVEMENT_CLUSTER_MAX_Y_SPREAD_PX,
+    )
+    .sort((left, right) => scoreMovementCluster(right) - scoreMovementCluster(left))
+    .slice(0, MAX_MOVEMENT_CLUSTERS);
+}
+
+function toMovementCluster(matches: ScreenshotOcrTextMatch[]): ScreenshotOcrMovementCluster {
+  const xDeltas = matches.map((match) => match.delta.x);
+  const yDeltas = matches.map((match) => match.delta.y);
+  return {
+    texts: matches.map((match) => match.text),
+    averageDelta: { x: Math.round(average(xDeltas)), y: Math.round(average(yDeltas)) },
+    xRange: { min: Math.min(...xDeltas), max: Math.max(...xDeltas) },
+    yRange: { min: Math.min(...yDeltas), max: Math.max(...yDeltas) },
+    confidence: Math.round(Math.min(...matches.map((match) => match.confidence)) * 100) / 100,
+  };
+}
+
+function toTextChangeCandidates(
+  blocks: ScreenshotOcrBlock[],
+  imageHeight: number,
+): Array<ScreenshotOcrTextChange & { key: string }> {
+  return blocks
+    .filter(
+      (block) =>
+        block.confidence >= MIN_OCR_TEXT_PRESENCE_CONFIDENCE &&
+        block.rect.y >= imageHeight * TOP_CHROME_TEXT_CHANGE_IGNORE_Y_RATIO,
+    )
+    .map((block) => ({ ...block, key: canonicalTextChangeKey(block.text) }))
+    .filter((block) => block.key.length >= MIN_TEXT_CHANGE_CANONICAL_LENGTH)
+    .sort((left, right) => left.rect.y - right.rect.y || left.rect.x - right.rect.x);
+}
+
+function toTextChange(
+  candidate: ScreenshotOcrTextChange & { key: string },
+): ScreenshotOcrTextChange {
+  return { text: candidate.text, rect: candidate.rect, confidence: candidate.confidence };
+}
+
+function scoreMovementCluster(cluster: ScreenshotOcrMovementCluster): number {
+  return Math.abs(cluster.averageDelta.x) * 2 + Math.abs(cluster.averageDelta.y);
+}
+
+function canonicalTextChangeKey(text: string): string {
+  const tokens = text
+    .toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu)
+    ?.filter((token) => /[\p{L}]/u.test(token) && token.length > 1);
+  return tokens?.join(' ') ?? '';
 }
 
 function unionRects(rects: Rect[]): Rect {

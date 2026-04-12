@@ -149,7 +149,9 @@ export async function compareScreenshots(
         })
       : undefined;
   const ocr =
-    ocrAnalysis && ocrAnalysis.matches.length > 0 ? toScreenshotOcrSummary(ocrAnalysis) : undefined;
+    ocrAnalysis && hasScreenshotOcrSummary(ocrAnalysis)
+      ? toScreenshotOcrSummary(ocrAnalysis)
+      : undefined;
   const nonTextDeltas =
     differentPixels > 0 && ocrAnalysis
       ? summarizeNonTextDiffDeltas({
@@ -176,6 +178,17 @@ export async function compareScreenshots(
     mismatchPercentage,
     match: differentPixels === 0,
   };
+}
+
+function hasScreenshotOcrSummary(
+  ocr: NonNullable<Awaited<ReturnType<typeof summarizeScreenshotOcr>>>,
+): boolean {
+  return (
+    ocr.matches.length > 0 ||
+    (ocr.addedText?.length ?? 0) > 0 ||
+    (ocr.removedText?.length ?? 0) > 0 ||
+    (ocr.movementClusters?.length ?? 0) > 0
+  );
 }
 
 async function validateFileExists(filePath: string, errorMessage: string): Promise<void> {
