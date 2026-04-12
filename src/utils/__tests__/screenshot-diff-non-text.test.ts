@@ -47,6 +47,42 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
       provider: 'tesseract',
       baselineBlocks: 1,
       currentBlocks: 1,
+      baselineBlocksRaw: [],
+      currentBlocksRaw: [
+        {
+          text: 'Wi-Fi',
+          confidence: 90,
+          rect: { x: 68, y: 28, width: 60, height: 24 },
+          normalizedRect: { x: 30.91, y: 23.33, width: 27.27, height: 20 },
+        },
+      ],
+      matches: [],
+    },
+  });
+
+  assert.equal(deltas.length, 1);
+  assert.equal(deltas[0]?.regionIndex, 1);
+  assert.equal(deltas[0]?.slot, 'leading');
+  assert.equal(deltas[0]?.likelyKind, 'icon');
+  assert.deepEqual(deltas[0]?.rect, { x: 20, y: 30, width: 20, height: 20 });
+  assert.equal(deltas[0]?.nearestText, 'Wi-Fi');
+});
+
+test('summarizeNonTextDiffDeltas uses overlapping baseline text when current OCR misses a row', () => {
+  const width = 220;
+  const height = 120;
+  const diffMask = new Uint8Array(width * height);
+  paintMaskRect(diffMask, width, { x: 20, y: 30, width: 20, height: 20 });
+
+  const deltas = summarizeNonTextDiffDeltas({
+    diffMask,
+    width,
+    height,
+    regions: [],
+    ocr: {
+      provider: 'tesseract',
+      baselineBlocks: 1,
+      currentBlocks: 0,
       baselineBlocksRaw: [
         {
           text: 'Wi-Fi',
@@ -61,10 +97,8 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
   });
 
   assert.equal(deltas.length, 1);
-  assert.equal(deltas[0]?.regionIndex, 1);
   assert.equal(deltas[0]?.slot, 'leading');
   assert.equal(deltas[0]?.likelyKind, 'icon');
-  assert.deepEqual(deltas[0]?.rect, { x: 20, y: 30, width: 20, height: 20 });
   assert.equal(deltas[0]?.nearestText, 'Wi-Fi');
 });
 

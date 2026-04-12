@@ -8,11 +8,7 @@ import {
   summarizeNonTextDiffDeltas,
   type ScreenshotNonTextDelta,
 } from './screenshot-diff-non-text.ts';
-import {
-  summarizeScreenshotOcr,
-  toScreenshotOcrSummary,
-  type ScreenshotOcrSummary,
-} from './screenshot-diff-ocr.ts';
+import { summarizeScreenshotOcr, type ScreenshotOcrSummary } from './screenshot-diff-ocr.ts';
 import { summarizeDiffRegions, type ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 
 export type ScreenshotDimensionMismatch = {
@@ -148,10 +144,18 @@ export async function compareScreenshots(
           height: baseline.height,
         })
       : undefined;
-  const ocr =
-    ocrAnalysis && hasScreenshotOcrSummary(ocrAnalysis)
-      ? toScreenshotOcrSummary(ocrAnalysis)
-      : undefined;
+  const shouldIncludeOcr =
+    ocrAnalysis &&
+    (ocrAnalysis.matches.length > 0 || (ocrAnalysis.movementClusters?.length ?? 0) > 0);
+  const ocr = shouldIncludeOcr
+    ? {
+        provider: ocrAnalysis.provider,
+        baselineBlocks: ocrAnalysis.baselineBlocks,
+        currentBlocks: ocrAnalysis.currentBlocks,
+        matches: ocrAnalysis.matches,
+        ...(ocrAnalysis.movementClusters ? { movementClusters: ocrAnalysis.movementClusters } : {}),
+      }
+    : undefined;
   const nonTextDeltas =
     differentPixels > 0 && ocrAnalysis
       ? summarizeNonTextDiffDeltas({
@@ -178,17 +182,6 @@ export async function compareScreenshots(
     mismatchPercentage,
     match: differentPixels === 0,
   };
-}
-
-function hasScreenshotOcrSummary(
-  ocr: NonNullable<Awaited<ReturnType<typeof summarizeScreenshotOcr>>>,
-): boolean {
-  return (
-    ocr.matches.length > 0 ||
-    (ocr.addedText?.length ?? 0) > 0 ||
-    (ocr.removedText?.length ?? 0) > 0 ||
-    (ocr.movementClusters?.length ?? 0) > 0
-  );
 }
 
 async function validateFileExists(filePath: string, errorMessage: string): Promise<void> {

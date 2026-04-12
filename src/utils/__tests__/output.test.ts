@@ -706,27 +706,11 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
             possibleTextMetricMismatch: true,
           },
         ],
-        addedText: [
-          {
-            text: 'Accessibility',
-            rect: { x: 220, y: 2520, width: 220, height: 40 },
-            confidence: 93,
-          },
-        ],
-        removedText: [
-          {
-            text: 'VPN',
-            rect: { x: 120, y: 2100, width: 90, height: 36 },
-            confidence: 96,
-          },
-        ],
         movementClusters: [
           {
             texts: ['Wi-Fi', 'Bluetooth'],
-            averageDelta: { x: 10, y: 12 },
             xRange: { min: 10, max: 12 },
             yRange: { min: 10, max: 14 },
-            confidence: 90,
           },
         ],
       },
@@ -738,6 +722,13 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
           likelyKind: 'icon',
           rect: { x: 80, y: 318, width: 30, height: 30 },
           nearestText: 'Wi-Fi',
+        },
+        {
+          index: 2,
+          regionIndex: 1,
+          slot: 'separator',
+          likelyKind: 'separator',
+          rect: { x: 90, y: 360, width: 120, height: 2 },
         },
       ],
     }),
@@ -752,10 +743,8 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
     text,
     /text movement cluster: "Wi-Fi", "Bluetooth" dx=\+10\.\.\+12px dy=\+10\.\.\+14px/,
   );
-  assert.match(text, /added text candidates: "Accessibility" at x=220,y=2520/);
-  assert.match(text, /removed text candidates: "VPN" at x=120,y=2100/);
-  assert.match(text, /non-text controls\/boundaries: icon near "Wi-Fi" r1/);
-  assert.match(text, /largest changed region: r1 top-left 70% of diff, brighter/);
+  assert.match(text, /non-text controls: icon near "Wi-Fi" r1/);
+  assert.match(text, /non-text boundaries: separator r1/);
   assert.match(text, /Changed regions:/);
   assert.match(text, /1\. top-left x=10 y=20 100x40, 70% of diff, change=brighter/);
   assert.match(
@@ -775,9 +764,10 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
     text,
     /1 \| "Wi-Fi" \| \+10,\+12 \| \+10,0 \| x=120,y=320,w=60,h=22 \| x=130,y=332,w=70,h=22 \| 94 \| ocr-bbox-size-change/,
   );
-  assert.match(text, /Non-text visual deltas \(showing 1\/1; px\):/);
+  assert.match(text, /Non-text visual deltas \(showing 2\/2; px\):/);
   assert.match(text, /item \| region \| slot \| kind \| bboxCurrent \| nearestText/);
   assert.match(text, /1 \| r1 \| leading \| icon \| x=80,y=318,w=30,h=30 \| "Wi-Fi"/);
+  assert.match(text, /2 \| r1 \| separator \| separator \| x=90,y=360,w=120,h=2 \| -/);
   assert.equal(text.includes('\x1b['), false);
 });
 

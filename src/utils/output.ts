@@ -336,41 +336,21 @@ function formatScreenshotDiffHints(data: ScreenshotDiffResult): string[] {
     );
   }
 
-  const addedText = data.ocr?.addedText ?? [];
-  if (addedText.length > 0) {
-    hints.push(`added text candidates: ${formatTextChanges(addedText)}`);
-  }
-
-  const removedText = data.ocr?.removedText ?? [];
-  if (removedText.length > 0) {
-    hints.push(`removed text candidates: ${formatTextChanges(removedText)}`);
-  }
-
   const controlDeltas = (data.nonTextDeltas ?? [])
-    .filter((delta) => ['icon', 'toggle', 'chevron', 'separator'].includes(delta.likelyKind))
+    .filter((delta) => ['icon', 'toggle', 'chevron'].includes(delta.likelyKind))
     .slice(0, 3);
   if (controlDeltas.length > 0) {
-    hints.push(`non-text controls/boundaries: ${controlDeltas.map(formatNonTextHint).join('; ')}`);
+    hints.push(`non-text controls: ${controlDeltas.map(formatNonTextHint).join('; ')}`);
   }
 
-  const largestRegion = data.regions?.[0];
-  if (largestRegion) {
-    hints.push(
-      `largest changed region: r${largestRegion.index} ${largestRegion.location} ` +
-        `${largestRegion.shareOfDiffPercentage}% of diff, ${largestRegion.dominantChange}`,
-    );
+  const boundaryDeltas = (data.nonTextDeltas ?? [])
+    .filter((delta) => delta.likelyKind === 'separator')
+    .slice(0, 2);
+  if (boundaryDeltas.length > 0) {
+    hints.push(`non-text boundaries: ${boundaryDeltas.map(formatNonTextHint).join('; ')}`);
   }
 
   return hints.slice(0, 6);
-}
-
-function formatTextChanges(
-  changes: Array<{ text: string; rect: { x: number; y: number; width: number; height: number } }>,
-): string {
-  return changes
-    .slice(0, 3)
-    .map((change) => `${JSON.stringify(change.text)} at x=${change.rect.x},y=${change.rect.y}`)
-    .join(', ');
 }
 
 function formatNonTextHint(delta: {
