@@ -92,7 +92,25 @@ async function runCliCapture(
         fs.mkdirSync(path.dirname(outPath), { recursive: true });
         fs.writeFileSync(outPath, solidPngBuffer(10, 10, { r: 255, g: 255, b: 255 }));
       }
-      return { ok: true, data: { path: outPath } };
+      return {
+        ok: true,
+        data: {
+          path: outPath,
+          ...(req.flags?.overlayRefs
+            ? {
+                overlayRefs: [
+                  {
+                    ref: 'e1',
+                    label: 'Continue',
+                    rect: { x: 1, y: 2, width: 3, height: 4 },
+                    overlayRect: { x: 1, y: 2, width: 3, height: 4 },
+                    center: { x: 3, y: 4 },
+                  },
+                ],
+              }
+            : {}),
+        },
+      };
     }
     return {
       ok: true,
@@ -249,11 +267,13 @@ describe('cli diff commands', () => {
         'screenshot',
         '--baseline',
         baseline,
+        '--overlay-refs',
         '--threshold',
         '0.2',
       ]);
       assert.equal(result.code, null);
       // The client-backed command captures a screenshot via the daemon client
+      // and skips a second overlay capture when there is no diff to map.
       assert.equal(result.calls.length, 1);
       const call = result.calls[0]!;
       assert.equal(call.command, 'screenshot');
@@ -319,6 +339,45 @@ describe('cli diff commands', () => {
       if (typeof originalHome === 'string') process.env.HOME = originalHome;
       else delete process.env.HOME;
       fs.rmSync(fakeHome, { recursive: true, force: true });
+    }
+  });
+
+  test('diff screenshot --overlay-refs writes a separate current overlay guide', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-diff-test-'));
+    const baseline = path.join(dir, 'baseline.png');
+    const diffOut = path.join(dir, 'diff.png');
+    const overlayOut = path.join(dir, 'diff.current-overlay.png');
+    fs.writeFileSync(baseline, solidPngBuffer(10, 10, { r: 0, g: 0, b: 0 }));
+
+    try {
+      const result = await runCliCapture([
+        'diff',
+        'screenshot',
+        '--baseline',
+        baseline,
+        '--out',
+        diffOut,
+        '--overlay-refs',
+        '--threshold',
+        '0',
+      ]);
+      assert.equal(result.code, null);
+      assert.equal(result.calls.length, 2);
+      assert.equal(result.calls[0]?.command, 'screenshot');
+      assert.equal(result.calls[0]?.flags?.overlayRefs, undefined);
+      assert.equal(result.calls[1]?.command, 'screenshot');
+      assert.equal(result.calls[1]?.flags?.overlayRefs, true);
+      assert.equal(result.calls[1]?.positionals?.[0], overlayOut);
+      assert.match(result.stdout, /Diff image:/);
+      assert.match(result.stdout, /Current overlay:/);
+      assert.match(result.stdout, /diff\.current-overlay\.png \(1 refs\)/);
+      assert.match(
+        result.stdout,
+        /size=large shape=large-area density=100% boundsPct=0,0,100,100 avgColor=#000000->#ffffff luminance=0->255/,
+      );
+      assert.match(result.stdout, /overlaps @e1 "Continue", 12% of region/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });

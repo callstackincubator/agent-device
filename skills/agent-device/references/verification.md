@@ -46,6 +46,10 @@ agent-device diff snapshot -i
 Use `screenshot` when the proof needs a rendered image instead of a structural tree.
 
 - Add `--overlay-refs` when you want the saved PNG to show fresh `@eN` refs burned into the screenshot.
+- Use `diff screenshot --baseline <path> --out <diff.png>` when comparing against a saved visual baseline. The text and JSON output include ranked changed regions with screen-space rectangles, normalized bounds, shape, size, density, average color, luminance, and a short description so an implementation agent can focus on the biggest visual mismatches instead of a single global pixel percentage. The diff PNG uses a light grayscale current-screen context with changed pixels tinted red and changed regions outlined.
+- Install `tesseract` when you want `diff screenshot` to add best-effort OCR text deltas such as moved labels and possible text metric mismatches. OCR improves the text/JSON descriptions only; it does not change the pixel comparison or the diff PNG.
+- When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the pixel diff and clustering the remaining residuals. Treat these as hints for icons, controls, separators, and card/background movement, not semantic icon recognition.
+- Add `--overlay-refs` to `diff screenshot` when you also want a separate current-screen overlay guide. The raw screenshot is still used for pixel comparison; the overlay guide is only context for non-text controls, icons, and tappable regions. When overlay refs intersect changed regions, the output lists the best current-screen ref matches under the affected region.
 
 ## Session recording
 

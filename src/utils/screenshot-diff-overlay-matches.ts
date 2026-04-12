@@ -1,0 +1,61 @@
+import type {
+  ScreenshotDiffRegion,
+  ScreenshotDiffRegionOverlayMatch,
+} from './screenshot-diff-regions.ts';
+import type { Rect, ScreenshotOverlayRef } from './snapshot.ts';
+
+const MAX_MATCHES_PER_REGION = 3;
+
+export function attachCurrentOverlayMatches(
+  regions: ScreenshotDiffRegion[],
+  overlayRefs: ScreenshotOverlayRef[],
+): ScreenshotDiffRegion[] {
+  return regions.map((region) => {
+    const matches = findRegionOverlayMatches(region, overlayRefs);
+    return matches.length > 0 ? { ...region, currentOverlayMatches: matches } : region;
+  });
+}
+
+function findRegionOverlayMatches(
+  region: ScreenshotDiffRegion,
+  overlayRefs: ScreenshotOverlayRef[],
+): ScreenshotDiffRegionOverlayMatch[] {
+  const regionArea = rectArea(region.rect);
+  return overlayRefs
+    .map((overlayRef) => {
+      const overlayRect = overlayRef.overlayRect;
+      const overlapArea = intersectArea(region.rect, overlayRect);
+      if (overlapArea <= 0) return null;
+      return {
+        ref: overlayRef.ref,
+        ...(overlayRef.label ? { label: overlayRef.label } : {}),
+        rect: overlayRect,
+        overlapPercentage: roundPercentage(overlapArea / rectArea(overlayRect)),
+        regionCoveragePercentage: roundPercentage(overlapArea / regionArea),
+      };
+    })
+    .filter((match): match is ScreenshotDiffRegionOverlayMatch => match !== null)
+    .sort((left, right) => {
+      const coverageDelta = right.regionCoveragePercentage - left.regionCoveragePercentage;
+      if (coverageDelta !== 0) return coverageDelta;
+      return right.overlapPercentage - left.overlapPercentage;
+    })
+    .slice(0, MAX_MATCHES_PER_REGION);
+}
+
+function intersectArea(left: Rect, right: Rect): number {
+  const minX = Math.max(left.x, right.x);
+  const minY = Math.max(left.y, right.y);
+  const maxX = Math.min(left.x + left.width, right.x + right.width);
+  const maxY = Math.min(left.y + left.height, right.y + right.height);
+  if (maxX <= minX || maxY <= minY) return 0;
+  return (maxX - minX) * (maxY - minY);
+}
+
+function rectArea(rect: Rect): number {
+  return rect.width * rect.height;
+}
+
+function roundPercentage(ratio: number): number {
+  return Math.round(ratio * 100 * 100) / 100;
+}

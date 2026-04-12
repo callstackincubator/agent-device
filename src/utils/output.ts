@@ -4,6 +4,7 @@ import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.
 import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
+import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 import { styleText } from 'node:util';
 import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
 
@@ -227,12 +228,130 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     lines.push(`  ${label} ${displayPath}`);
   }
 
+  if (data.currentOverlayPath && !match) {
+    const relativePath = toRelativePath(data.currentOverlayPath);
+    const label = useColor ? colorize('Current overlay:', 'dim') : 'Current overlay:';
+    const displayPath = useColor ? colorize(relativePath, 'green') : relativePath;
+    const refCount = Array.isArray(data.currentOverlayRefs) ? data.currentOverlayRefs.length : 0;
+    const refSuffix = refCount > 0 ? ` (${refCount} refs)` : '';
+    lines.push(`  ${label} ${displayPath}${refSuffix}`);
+  }
+
   if (!match && !dimensionMismatch) {
     const diffCount = useColor ? colorize(String(differentPixels), 'red') : String(differentPixels);
     lines.push(`  ${diffCount} different / ${totalPixels} total pixels`);
   }
 
+  const regions = Array.isArray(data.regions) ? data.regions : [];
+  if (!match && !dimensionMismatch && regions.length > 0) {
+    lines.push('  Changed regions:');
+    for (const region of regions.slice(0, 5)) {
+      const share =
+        region.shareOfDiffPercentage === 0 && region.differentPixels > 0
+          ? '<0.01'
+          : String(region.shareOfDiffPercentage);
+      const rect = region.rect;
+      lines.push(
+        `    ${region.index}. ${region.location} x=${rect.x} y=${rect.y} ` +
+          `${rect.width}x${rect.height}, ${share}% of diff, ` +
+          formatDominantScreenshotChange(region.dominantChange),
+      );
+      const detailLine = formatScreenshotRegionDetails(region);
+      if (detailLine) {
+        lines.push(`       ${detailLine}`);
+      }
+      const bestMatch = region.currentOverlayMatches?.[0];
+      if (bestMatch) {
+        const label = bestMatch.label ? ` "${bestMatch.label}"` : '';
+        lines.push(
+          `       overlaps @${bestMatch.ref}${label}, ` +
+            `${bestMatch.regionCoveragePercentage}% of region`,
+        );
+      }
+    }
+  }
+
+  const ocrMatches = data.ocr?.matches ?? [];
+  if (!match && !dimensionMismatch && ocrMatches.length > 0) {
+    const shownOcrMatches = ocrMatches.slice(0, 8);
+    lines.push(
+      `  OCR text deltas (${data.ocr?.provider}; baselineBlocks=${data.ocr?.baselineBlocks} ` +
+        `currentBlocks=${data.ocr?.currentBlocks}; showing ${shownOcrMatches.length}/${ocrMatches.length}; px):`,
+    );
+    lines.push(
+      '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | textRatio | confidence | issueHint',
+    );
+    for (const [index, match] of shownOcrMatches.entries()) {
+      const delta = match.delta;
+      lines.push(
+        `    ${index + 1} | ${JSON.stringify(match.text)} | ` +
+          `${formatSignedPixels(delta.x)},${formatSignedPixels(delta.y)} | ` +
+          `${formatSignedPixels(delta.width)},${formatSignedPixels(delta.height)} | ` +
+          `${formatRect(match.baselineRect)} | ${formatRect(match.currentRect)} | ` +
+          `w=${match.widthRatio} h=${match.heightRatio} | ${match.confidence} | ` +
+          `${match.possibleTextMetricMismatch ? 'possible-text-metric-mismatch' : '-'}`,
+      );
+    }
+  }
+
+  const nonTextDeltas = data.nonTextDeltas ?? [];
+  if (!match && !dimensionMismatch && nonTextDeltas.length > 0) {
+    const shownNonTextDeltas = nonTextDeltas.slice(0, 8);
+    lines.push(
+      `  Non-text visual deltas (showing ${shownNonTextDeltas.length}/${nonTextDeltas.length}; px):`,
+    );
+    lines.push('    item | region | slot | kind | bboxCurrent | nearestText | evidence');
+    for (const delta of shownNonTextDeltas) {
+      lines.push(
+        `    ${delta.index} | ${delta.regionIndex ? `r${delta.regionIndex}` : '-'} | ` +
+          `${delta.slot} | ${delta.likelyKind} | ${formatRect(delta.rect)} | ` +
+          `${delta.nearestText ? JSON.stringify(delta.nearestText) : '-'} | ` +
+          `${delta.evidence.join(',')}`,
+      );
+    }
+  }
+
   return `${lines.join('\n')}\n`;
+}
+
+function formatRect(rect: { x: number; y: number; width: number; height: number }): string {
+  return `x=${rect.x},y=${rect.y},w=${rect.width},h=${rect.height}`;
+}
+
+function formatSignedPixels(value: number): string {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function formatDominantScreenshotChange(change: string | undefined): string {
+  switch (change) {
+    case 'brighter':
+      return 'current is brighter';
+    case 'darker':
+      return 'current is darker';
+    case 'color-shift':
+      return 'color shifted';
+    default:
+      return 'mixed change';
+  }
+}
+
+function formatScreenshotRegionDetails(region: ScreenshotDiffRegion): string | null {
+  const normalizedRect = region.normalizedRect;
+  const details = [
+    region.size ? `size=${region.size}` : null,
+    region.shape ? `shape=${region.shape}` : null,
+    typeof region.densityPercentage === 'number' ? `density=${region.densityPercentage}%` : null,
+    normalizedRect
+      ? `boundsPct=${normalizedRect.x},${normalizedRect.y},${normalizedRect.width},${normalizedRect.height}`
+      : null,
+    region.averageBaselineColorHex && region.averageCurrentColorHex
+      ? `avgColor=${region.averageBaselineColorHex}->${region.averageCurrentColorHex}`
+      : null,
+    typeof region.baselineLuminance === 'number' && typeof region.currentLuminance === 'number'
+      ? `luminance=${region.baselineLuminance}->${region.currentLuminance}`
+      : null,
+  ].filter((entry): entry is string => entry !== null);
+  return details.length > 0 ? details.join(' ') : null;
 }
 
 function toRelativePath(filePath: string): string {
