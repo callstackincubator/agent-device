@@ -52,6 +52,13 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
 
   const baselinePath = resolveUserPath(baselineRaw);
   const outputPath = typeof flags.out === 'string' ? resolveUserPath(flags.out) : undefined;
+  const currentRaw = positionals[1];
+  if (positionals.length > 2) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'diff screenshot accepts at most one current screenshot path',
+    );
+  }
 
   let thresholdNum = 0.1;
   if (flags.threshold != null && flags.threshold !== '') {
@@ -59,6 +66,21 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     if (Number.isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 1) {
       throw new AppError('INVALID_ARGS', '--threshold must be a number between 0 and 1');
     }
+  }
+
+  if (currentRaw) {
+    if (flags.overlayRefs) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'diff screenshot <current.png> cannot use --overlay-refs because saved-image comparisons have no live accessibility refs',
+      );
+    }
+    const result = await compareScreenshots(baselinePath, resolveUserPath(currentRaw), {
+      threshold: thresholdNum,
+      outputPath,
+    });
+    writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));
+    return true;
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-diff-current-'));

@@ -993,10 +993,10 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   diff: {
     usageOverride:
-      'diff snapshot | diff screenshot --baseline <path> [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
+      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
     helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
     summary: 'Diff snapshot or screenshot',
-    positionalArgs: ['kind'],
+    positionalArgs: ['kind', 'current?'],
     allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
   },
   'ensure-simulator': {
