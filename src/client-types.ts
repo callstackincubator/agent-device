@@ -4,6 +4,7 @@ import type {
   DaemonLockPolicy,
   DaemonRequest,
   DaemonResponse,
+  LeaseBackend,
   SessionRuntimeHints,
 } from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
@@ -23,7 +24,6 @@ export type AgentDeviceClientConfig = {
   lockPolicy?: DaemonLockPolicy;
   lockPlatform?: PlatformSelector;
   requestId?: string;
-  remoteConfig?: string;
   stateDir?: string;
   daemonBaseUrl?: string;
   daemonAuthToken?: string;
@@ -33,6 +33,8 @@ export type AgentDeviceClientConfig = {
   sessionIsolation?: SessionIsolationMode;
   runId?: string;
   leaseId?: string;
+  leaseBackend?: LeaseBackend;
+  runtime?: SessionRuntimeHints;
   cwd?: string;
   debug?: boolean;
 };
@@ -43,10 +45,15 @@ export type AgentDeviceRequestOverrides = Pick<
   | 'lockPolicy'
   | 'lockPlatform'
   | 'requestId'
+  | 'daemonBaseUrl'
+  | 'daemonAuthToken'
+  | 'daemonTransport'
+  | 'daemonServerMode'
   | 'tenant'
   | 'sessionIsolation'
   | 'runId'
   | 'leaseId'
+  | 'leaseBackend'
   | 'cwd'
   | 'debug'
 >;
@@ -226,6 +233,32 @@ export type MaterializationReleaseResult = {
   released: boolean;
   materializationId: string;
   identifiers: AgentDeviceIdentifiers;
+};
+
+export type Lease = {
+  leaseId: string;
+  tenantId: string;
+  runId: string;
+  backend: LeaseBackend;
+  createdAt?: number;
+  heartbeatAt?: number;
+  expiresAt?: number;
+};
+
+export type LeaseOptions = AgentDeviceRequestOverrides & {
+  ttlMs?: number;
+};
+
+export type LeaseAllocateOptions = LeaseOptions & {
+  tenant: string;
+  runId: string;
+  leaseBackend?: LeaseBackend;
+};
+
+export type LeaseScopedOptions = LeaseOptions & {
+  tenant?: string;
+  runId?: string;
+  leaseId: string;
 };
 
 export type MetroPrepareOptions = {
@@ -732,6 +765,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     retainMaterializedPaths?: boolean;
     materializedPathRetentionMs?: number;
     materializationId?: string;
+    leaseTtlMs?: number;
   };
 
 export type CommandRequestResult = DaemonResponseData;
@@ -767,6 +801,11 @@ export type AgentDeviceClient = {
   };
   materializations: {
     release: (options: MaterializationReleaseOptions) => Promise<MaterializationReleaseResult>;
+  };
+  leases: {
+    allocate: (options: LeaseAllocateOptions) => Promise<Lease>;
+    heartbeat: (options: LeaseScopedOptions) => Promise<Lease>;
+    release: (options: LeaseScopedOptions) => Promise<{ released: boolean }>;
   };
   metro: {
     prepare: (options: MetroPrepareOptions) => Promise<MetroPrepareResult>;

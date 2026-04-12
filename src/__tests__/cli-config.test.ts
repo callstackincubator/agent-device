@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../cli.ts';
+import { hashRemoteConfigFile, readRemoteConnectionState } from '../remote-connection-state.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
 
 class ExitSignal extends Error {
@@ -228,9 +229,11 @@ test('AGENT_DEVICE_CONFIG loads an explicit config path', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('remote config defaults override generic config and env for remote workflow bindings', async () => {
+test('active remote connection defaults override generic config and env for remote commands', async () => {
   const { root, home, project } = makeTempWorkspace();
   fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });
+  const stateDir = path.join(root, 'state');
+  fs.mkdirSync(path.join(stateDir, 'remote-connections'), { recursive: true });
   fs.writeFileSync(
     path.join(project, 'agent-device.json'),
     JSON.stringify({ session: 'project-session', platform: 'ios' }),
@@ -246,8 +249,25 @@ test('remote config defaults override generic config and env for remote workflow
     }),
     'utf8',
   );
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', 'env-session.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'env-session',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      tenant: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-123',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    'utf8',
+  );
 
-  const result = await runCliCapture(['snapshot', '--remote-config', remoteConfig, '--json'], {
+  const result = await runCliCapture(['snapshot', '--state-dir', stateDir, '--json'], {
     cwd: project,
     env: {
       HOME: home,
@@ -258,18 +278,22 @@ test('remote config defaults override generic config and env for remote workflow
 
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
-  assert.equal(result.calls[0]?.session, 'remote-session');
+  assert.equal(result.calls[0]?.session, 'env-session');
   assert.equal(result.calls[0]?.flags?.platform, 'android');
   assert.equal(
     result.calls[0]?.flags?.daemonBaseUrl,
     'http://remote-mac.example.test:9124/agent-device',
   );
+  assert.equal(result.calls[0]?.meta?.tenantId, 'acme');
+  assert.equal(result.calls[0]?.meta?.leaseId, 'lease-123');
 
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('install-from-source forwards remote-config run id with explicit lease binding', async () => {
+test('install-from-source uses active remote connection lease binding', async () => {
   const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  fs.mkdirSync(path.join(stateDir, 'remote-connections'), { recursive: true });
   const remoteConfig = path.join(project, 'agent-device.remote.json');
   fs.writeFileSync(
     remoteConfig,
@@ -282,18 +306,27 @@ test('install-from-source forwards remote-config run id with explicit lease bind
     }),
     'utf8',
   );
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', 'default.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'default',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      tenant: 'micha-pierzcha-a',
+      runId: 'demo-run-001',
+      leaseId: 'lease-demo-001',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    'utf8',
+  );
 
   const calls: Array<Omit<DaemonRequest, 'token'>> = [];
   const result = await runCliCapture(
-    [
-      'install-from-source',
-      'https://example.com/app.apk',
-      '--remote-config',
-      remoteConfig,
-      '--lease-id',
-      'lease-demo-001',
-      '--json',
-    ],
+    ['install-from-source', 'https://example.com/app.apk', '--state-dir', stateDir, '--json'],
     {
       cwd: project,
       env: { HOME: home },
@@ -330,7 +363,7 @@ test('install-from-source forwards remote-config run id with explicit lease bind
 test('missing explicit remote config path returns parse error before daemon dispatch', async () => {
   const { root, home, project } = makeTempWorkspace();
 
-  const result = await runCliCapture(['snapshot', '--remote-config', './missing.remote.json'], {
+  const result = await runCliCapture(['connect', '--remote-config', './missing.remote.json'], {
     cwd: project,
     env: { HOME: home },
   });
@@ -338,6 +371,165 @@ test('missing explicit remote config path returns parse error before daemon disp
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Remote config file not found/);
   assert.equal(result.calls.length, 0);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('normal commands reject direct remote-config usage', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({ daemonBaseUrl: 'http://127.0.0.1:9124' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(['snapshot', '--remote-config', remoteConfig], {
+    cwd: project,
+    env: { HOME: home },
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /--remote-config is only supported by connect and metro prepare/);
+  assert.equal(result.calls.length, 0);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('remote config hash drift blocks normal commands but not disconnect cleanup', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  fs.mkdirSync(path.join(stateDir, 'remote-connections'), { recursive: true });
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+  const originalHash = hashRemoteConfigFile(remoteConfig);
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', 'default.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'default',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: originalHash,
+      daemon: {
+        baseUrl: 'http://remote-mac.example.test:9124/agent-device',
+        transport: 'http',
+      },
+      tenant: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-123',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    'utf8',
+  );
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      platform: 'android',
+      metroPublicBaseUrl: 'http://127.0.0.1:8081',
+    }),
+    'utf8',
+  );
+
+  const blocked = await runCliCapture(['snapshot', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+  assert.equal(blocked.code, 1);
+  assert.match(blocked.stdout, /Active remote connection config changed/);
+
+  const disconnected = await runCliCapture(['disconnect', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+  assert.equal(disconnected.code, null);
+  assert.equal(disconnected.calls.at(-1)?.command, 'lease_release');
+  assert.equal(readRemoteConnectionState({ stateDir, session: 'default' }), null);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('disconnect cleans connection state when remote config file is gone', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  fs.mkdirSync(path.join(stateDir, 'remote-connections'), { recursive: true });
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', 'default.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'default',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      daemon: {
+        baseUrl: 'http://remote-mac.example.test:9124/agent-device',
+        transport: 'http',
+      },
+      tenant: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-123',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    'utf8',
+  );
+  fs.rmSync(remoteConfig, { force: true });
+
+  const disconnected = await runCliCapture(['disconnect', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+
+  assert.equal(disconnected.code, null);
+  assert.equal(disconnected.calls.at(-1)?.command, 'lease_release');
+  assert.equal(
+    disconnected.calls.at(-1)?.flags?.daemonBaseUrl,
+    'http://remote-mac.example.test:9124/agent-device',
+  );
+  assert.equal(readRemoteConnectionState({ stateDir, session: 'default' }), null);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('disconnect removes malformed connection state', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const connectionsDir = path.join(stateDir, 'remote-connections');
+  const statePath = path.join(connectionsDir, 'default.json');
+  const activePath = path.join(connectionsDir, '.active-session.json');
+  fs.mkdirSync(connectionsDir, { recursive: true });
+  fs.writeFileSync(statePath, '{not json', 'utf8');
+  fs.writeFileSync(activePath, JSON.stringify({ session: 'default' }), 'utf8');
+
+  const disconnected = await runCliCapture(['disconnect', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+  });
+
+  assert.equal(disconnected.code, null);
+  assert.equal(disconnected.calls.length, 0);
+  assert.equal(fs.existsSync(statePath), false);
+  assert.equal(fs.existsSync(activePath), false);
 
   fs.rmSync(root, { recursive: true, force: true });
 });

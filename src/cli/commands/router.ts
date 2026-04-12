@@ -8,6 +8,7 @@ import { metroCommand } from './metro.ts';
 import { appsCommand } from './apps.ts';
 import { installCommand, reinstallCommand, installFromSourceCommand } from './install.ts';
 import { openCommand, closeCommand } from './open.ts';
+import { connectCommand, connectionCommand, disconnectCommand } from './connection.ts';
 import { snapshotCommand } from './snapshot.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
 import { clientCommandMethodHandlers } from './client-command.ts';
@@ -31,6 +32,9 @@ const dedicatedClientApiHandlers = {
   install: installCommand,
   reinstall: reinstallCommand,
   'install-from-source': installFromSourceCommand,
+  connect: connectCommand,
+  disconnect: disconnectCommand,
+  connection: connectionCommand,
   open: openCommand,
   close: closeCommand,
   [CLIENT_COMMANDS.snapshot]: snapshotCommand,

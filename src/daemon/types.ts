@@ -4,6 +4,7 @@ import type {
   DaemonRequestMeta as PublicDaemonRequestMeta,
   DaemonResponse as PublicDaemonResponse,
   DaemonResponseData as PublicDaemonResponseData,
+  LeaseBackend,
   SessionRuntimeHints as PublicSessionRuntimeHints,
 } from '../contracts.ts';
 export type { DaemonLockPolicy } from '../contracts.ts';
@@ -24,7 +25,7 @@ export type DaemonResponseData = PublicDaemonResponseData;
 type DaemonRequestMeta = Omit<PublicDaemonRequestMeta, 'installSource' | 'lockPlatform'> & {
   installSource?: DaemonInstallSource;
   lockPlatform?: PlatformSelector;
-  leaseBackend?: 'ios-simulator';
+  leaseBackend?: LeaseBackend;
 };
 
 export type DaemonRequest = Omit<PublicDaemonRequest, 'token' | 'session' | 'flags' | 'meta'> & {

@@ -64,6 +64,7 @@ Common keys include:
 - `sessionIsolation`
 - `runId`
 - `leaseId`
+- `leaseBackend`
 - `sessionLock`
 - `sessionLocked`
 - `sessionLockConflicts`

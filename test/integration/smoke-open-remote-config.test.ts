@@ -7,8 +7,8 @@ import http from 'node:http';
 import net from 'node:net';
 import { runCli } from '../../src/cli.ts';
 
-// Smoke coverage for the repo-local remote host flow: resolve a remote profile,
-// prepare Metro through the host bridge, and forward inline runtime hints on open.
+// Smoke coverage for the repo-local remote host flow: connect to a remote profile,
+// prepare Metro through the host bridge, and reuse connection runtime hints on open.
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -131,7 +131,7 @@ async function readJsonBody(req: http.IncomingMessage): Promise<any> {
   return body ? JSON.parse(body) : {};
 }
 
-test('open --remote-config prepares Metro and sends bridged runtime to remote daemon', async (t) => {
+test('connect prepares Metro and open reuses bridged runtime for remote daemon', async (t) => {
   if (!(await supportsLoopbackBind())) {
     t.skip('loopback listeners are not permitted in this environment');
     return;
@@ -173,7 +173,7 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
   });
 
   let capturedBridgeRequest: any;
-  let capturedRpcRequest: any;
+  let capturedOpenRpcRequest: any;
   const sharedToken = 'test-token';
   let hostPort = 0;
   const hostServer = http.createServer(async (req, res) => {
@@ -235,12 +235,40 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
     }
 
     if (req.method === 'POST' && req.url === '/agent-device/rpc') {
-      capturedRpcRequest = {
+      const rpcRequest = {
         authorization: req.headers.authorization,
         token: req.headers['x-agent-device-token'],
         body: await readJsonBody(req),
       };
-      const runtime = capturedRpcRequest.body?.params?.runtime;
+      if (rpcRequest.body?.method === 'agent_device.lease.allocate') {
+        res.writeHead(200, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpcRequest.body?.id ?? 'remote-connect-smoke',
+            result: {
+              ok: true,
+              data: {
+                lease: {
+                  leaseId: 'abc123abc123abc1',
+                  tenantId: rpcRequest.body?.params?.tenantId,
+                  runId: rpcRequest.body?.params?.runId,
+                  backend: rpcRequest.body?.params?.backend,
+                  createdAt: Date.now(),
+                  heartbeatAt: Date.now(),
+                  expiresAt: Date.now() + 60_000,
+                },
+              },
+            },
+          }),
+        );
+        return;
+      }
+      capturedOpenRpcRequest = rpcRequest;
+      const runtime = capturedOpenRpcRequest.body?.params?.runtime;
       res.writeHead(200, {
         'content-type': 'application/json',
         connection: 'close',
@@ -248,7 +276,7 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
       res.end(
         JSON.stringify({
           jsonrpc: '2.0',
-          id: capturedRpcRequest.body?.id ?? 'remote-open-smoke',
+          id: capturedOpenRpcRequest.body?.id ?? 'remote-open-smoke',
           result: {
             ok: true,
             data: {
@@ -278,6 +306,7 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
   });
 
   const remoteConfigPath = path.join(configDir, 'agent-device.remote.json');
+  const stateDir = path.join(root, 'state');
   fs.writeFileSync(
     remoteConfigPath,
     JSON.stringify({
@@ -292,7 +321,29 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
     'utf8',
   );
 
-  const result = await runCliJson(['open', 'Demo', '--remote-config', remoteConfigPath, '--json'], {
+  const connectResult = await runCliJson(
+    [
+      'connect',
+      '--remote-config',
+      remoteConfigPath,
+      '--tenant',
+      'acme',
+      '--run-id',
+      'run-123',
+      '--state-dir',
+      stateDir,
+      '--json',
+    ],
+    {
+      AGENT_DEVICE_DAEMON_AUTH_TOKEN: sharedToken,
+      AGENT_DEVICE_PROXY_TOKEN: sharedToken,
+    },
+  );
+
+  assert.equal(connectResult.code, null, `${connectResult.stderr}\n${connectResult.stdout}`);
+  assert.equal(connectResult.json?.success, true, JSON.stringify(connectResult.json));
+
+  const result = await runCliJson(['open', 'Demo', '--state-dir', stateDir, '--json'], {
     AGENT_DEVICE_DAEMON_AUTH_TOKEN: sharedToken,
     AGENT_DEVICE_PROXY_TOKEN: sharedToken,
   });
@@ -301,12 +352,13 @@ test('open --remote-config prepares Metro and sends bridged runtime to remote da
   assert.equal(result.json?.success, true, JSON.stringify(result.json));
 
   assert.equal(capturedBridgeRequest?.authorization, `Bearer ${sharedToken}`);
-  assert.equal(capturedRpcRequest?.authorization, `Bearer ${sharedToken}`);
-  assert.equal(capturedRpcRequest?.body?.method, 'agent_device.command');
-  assert.equal(capturedRpcRequest?.body?.params?.session, 'qa-android');
-  assert.equal(capturedRpcRequest?.body?.params?.command, 'open');
-  assert.deepEqual(capturedRpcRequest?.body?.params?.positionals, ['Demo']);
-  assert.deepEqual(capturedRpcRequest?.body?.params?.runtime, {
+  assert.equal(capturedOpenRpcRequest?.authorization, `Bearer ${sharedToken}`);
+  assert.equal(capturedOpenRpcRequest?.body?.method, 'agent_device.command');
+  assert.equal(capturedOpenRpcRequest?.body?.params?.session, 'qa-android');
+  assert.equal(capturedOpenRpcRequest?.body?.params?.command, 'open');
+  assert.deepEqual(capturedOpenRpcRequest?.body?.params?.positionals, ['Demo']);
+  assert.equal(capturedOpenRpcRequest?.body?.params?.meta?.leaseId, 'abc123abc123abc1');
+  assert.deepEqual(capturedOpenRpcRequest?.body?.params?.runtime, {
     platform: 'android',
     metroHost: '10.0.2.2',
     metroPort: metroPort,

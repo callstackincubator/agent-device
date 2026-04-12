@@ -219,6 +219,151 @@ test('sendToDaemon uses explicit remote daemon base URL and auth token', async (
   }
 });
 
+test('sendToDaemon sends lease helpers as top-level JSON-RPC methods over HTTP', async () => {
+  const rpcRequests: Record<string, unknown>[] = [];
+  const originalHttpRequest = http.request;
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
+    const req = new EventEmitter() as EventEmitter & {
+      write: (chunk: string) => void;
+      end: () => void;
+      destroy: () => void;
+    };
+    let body = '';
+    req.write = (chunk: string) => {
+      body += chunk;
+    };
+    req.destroy = () => {
+      req.emit('close');
+    };
+    req.end = () => {
+      const res = new EventEmitter() as EventEmitter & {
+        statusCode?: number;
+        resume: () => void;
+        setEncoding: (_encoding: string) => void;
+      };
+      res.statusCode = 200;
+      res.resume = () => {};
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        callback(res);
+        if (options.method === 'GET') {
+          res.emit('end');
+          return;
+        }
+        const rpcRequest = JSON.parse(body) as Record<string, any>;
+        rpcRequests.push(rpcRequest);
+        res.emit(
+          'data',
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: rpcRequest.id,
+            result: {
+              ok: true,
+              data: {
+                lease:
+                  rpcRequest.method === 'agent_device.lease.release'
+                    ? undefined
+                    : {
+                        leaseId: 'lease-new',
+                        tenantId: rpcRequest.params?.tenantId,
+                        runId: rpcRequest.params?.runId,
+                        backend: rpcRequest.params?.backend,
+                      },
+                released: rpcRequest.method === 'agent_device.lease.release' ? true : undefined,
+              },
+            },
+          }),
+        );
+        res.emit('end');
+      });
+    };
+    return req as any;
+  }) as typeof http.request;
+
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
+
+  try {
+    const allocateResponse = await sendToDaemon({
+      session: 'qa-android',
+      command: 'lease_allocate',
+      positionals: [],
+      flags: {},
+      meta: {
+        requestId: 'lease-req',
+        tenantId: 'acme',
+        runId: 'run-123',
+        leaseBackend: 'android-instance',
+        leaseTtlMs: 30_000,
+      },
+    });
+    const heartbeatResponse = await sendToDaemon({
+      session: 'qa-android',
+      command: 'lease_heartbeat',
+      positionals: [],
+      flags: {},
+      meta: {
+        requestId: 'heartbeat-req',
+        tenantId: 'acme',
+        runId: 'run-123',
+        leaseId: 'lease-new',
+        leaseTtlMs: 15_000,
+      },
+    });
+    const releaseResponse = await sendToDaemon({
+      session: 'qa-android',
+      command: 'lease_release',
+      positionals: [],
+      flags: {},
+      meta: {
+        requestId: 'release-req',
+        tenantId: 'acme',
+        runId: 'run-123',
+        leaseId: 'lease-new',
+      },
+    });
+
+    assert.equal(allocateResponse.ok, true);
+    assert.equal(heartbeatResponse.ok, true);
+    assert.equal(releaseResponse.ok, true);
+    assert.equal(rpcRequests.length, 3);
+    assert.equal(rpcRequests[0]?.method, 'agent_device.lease.allocate');
+    assert.deepEqual(rpcRequests[0]?.params, {
+      session: 'qa-android',
+      tenantId: 'acme',
+      runId: 'run-123',
+      ttlMs: 30_000,
+      backend: 'android-instance',
+    });
+    assert.equal(rpcRequests[1]?.method, 'agent_device.lease.heartbeat');
+    assert.deepEqual(rpcRequests[1]?.params, {
+      session: 'qa-android',
+      tenantId: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-new',
+      ttlMs: 15_000,
+    });
+    assert.equal(rpcRequests[2]?.method, 'agent_device.lease.release');
+    assert.deepEqual(rpcRequests[2]?.params, {
+      session: 'qa-android',
+      tenantId: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-new',
+    });
+  } finally {
+    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+});
+
 test('openApp forwards typed runtime hints on open requests', async () => {
   let rpcRequest: Record<string, unknown> | null = null;
   const originalHttpRequest = http.request;

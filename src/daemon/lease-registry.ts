@@ -1,8 +1,7 @@
 import crypto from 'node:crypto';
 import { AppError } from '../utils/errors.ts';
 import { normalizeTenantId } from './config.ts';
-
-export type LeaseBackend = 'ios-simulator';
+import type { LeaseBackend } from '../contracts.ts';
 
 export type SimulatorLease = {
   leaseId: string;
@@ -72,6 +71,7 @@ function normalizeLeaseId(raw: string | undefined): string | undefined {
 function normalizeLeaseBackend(raw: string | undefined): LeaseBackend {
   const value = (raw ?? '').trim().toLowerCase();
   if (!value || value === 'ios-simulator') return 'ios-simulator';
+  if (value === 'ios-instance' || value === 'android-instance') return value;
   throw new AppError('INVALID_ARGS', `Unsupported lease backend: ${raw ?? ''}`);
 }
 

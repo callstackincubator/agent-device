@@ -10,6 +10,7 @@ export type RemoteConfigProfile = {
   sessionIsolation?: 'none' | 'tenant';
   runId?: string;
   leaseId?: string;
+  leaseBackend?: 'ios-simulator' | 'ios-instance' | 'android-instance';
   platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
   target?: 'mobile' | 'tv' | 'desktop';
   device?: string;
@@ -64,6 +65,11 @@ export const REMOTE_CONFIG_FIELD_SPECS = [
   { key: 'sessionIsolation', type: 'enum', enumValues: ['none', 'tenant'] },
   { key: 'runId', type: 'string' },
   { key: 'leaseId', type: 'string' },
+  {
+    key: 'leaseBackend',
+    type: 'enum',
+    enumValues: ['ios-simulator', 'ios-instance', 'android-instance'],
+  },
   { key: 'platform', type: 'enum', enumValues: ['ios', 'macos', 'android', 'linux', 'apple'] },
   { key: 'target', type: 'enum', enumValues: ['mobile', 'tv', 'desktop'] },
   { key: 'device', type: 'string' },
@@ -99,27 +105,6 @@ export const REMOTE_CONFIG_FIELD_SPECS = [
   { key: 'metroNoReuseExisting', type: 'boolean' },
   { key: 'metroNoInstallDeps', type: 'boolean' },
 ] as const satisfies readonly RemoteConfigFieldSpec[];
-
-export const REMOTE_OPEN_PROFILE_KEYS = [
-  'session',
-  'platform',
-  'daemonBaseUrl',
-  'daemonAuthToken',
-  'daemonTransport',
-  'metroProjectRoot',
-  'metroKind',
-  'metroPublicBaseUrl',
-  'metroProxyBaseUrl',
-  'metroBearerToken',
-  'metroPreparePort',
-  'metroListenHost',
-  'metroStatusHost',
-  'metroStartupTimeoutMs',
-  'metroProbeTimeoutMs',
-  'metroRuntimeFile',
-  'metroNoReuseExisting',
-  'metroNoInstallDeps',
-] as const satisfies readonly (keyof RemoteConfigProfile)[];
 
 const remoteConfigFieldSpecByKey = new Map(
   REMOTE_CONFIG_FIELD_SPECS.map((spec) => [spec.key, spec]),

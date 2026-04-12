@@ -242,13 +242,21 @@ test('parseArgs accepts metro prepare arguments', () => {
 
 test('parseArgs accepts remote workflow profile flag', () => {
   const parsed = parseArgs(
-    ['open', 'com.example.app', '--remote-config', './agent-device.remote.json'],
+    [
+      'connect',
+      '--remote-config',
+      './agent-device.remote.json',
+      '--tenant',
+      'acme',
+      '--run-id',
+      'run-1',
+    ],
     {
       strictFlags: true,
     },
   );
-  assert.equal(parsed.command, 'open');
-  assert.deepEqual(parsed.positionals, ['com.example.app']);
+  assert.equal(parsed.command, 'connect');
+  assert.deepEqual(parsed.positionals, []);
   assert.equal(parsed.flags.remoteConfig, './agent-device.remote.json');
 });
 
@@ -321,6 +329,28 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
   assert.equal(parsed.flags.sessionIsolation, 'tenant');
   assert.equal(parsed.flags.runId, 'run_42');
   assert.equal(parsed.flags.leaseId, 'abcd1234ef567890');
+});
+
+test('parseArgs recognizes connect lease backend and force flags', () => {
+  const parsed = parseArgs(
+    [
+      'connect',
+      '--remote-config',
+      './remote.json',
+      '--tenant',
+      'acme',
+      '--run-id',
+      'run-123',
+      '--lease-backend',
+      'android-instance',
+      '--force',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'connect');
+  assert.equal(parsed.flags.remoteConfig, './remote.json');
+  assert.equal(parsed.flags.leaseBackend, 'android-instance');
+  assert.equal(parsed.flags.force, true);
 });
 
 test('parseArgs recognizes explicit config file flag', () => {
@@ -622,6 +652,7 @@ test('usage includes only global flags in the top-level flags section', () => {
   assert.match(usageText, /--session-isolation none\|tenant/);
   assert.match(usageText, /--run-id <id>/);
   assert.match(usageText, /--lease-id <id>/);
+  assert.match(usageText, /--lease-backend ios-simulator\|ios-instance\|android-instance/);
   assert.doesNotMatch(usageText, /--relaunch/);
   assert.doesNotMatch(usageText, /--header <name:value>/);
   assert.doesNotMatch(usageText, /--restart/);

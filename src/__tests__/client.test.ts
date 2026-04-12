@@ -1,8 +1,5 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
 import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 import { AppError } from '../utils/errors.ts';
@@ -401,58 +398,42 @@ test('client.command.wait prepares selector options and rejects invalid selector
   assert.equal(setup.calls.length, 1);
 });
 
-test('remote-config defaults apply across daemon-backed client methods', async () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-client-remote-scope-'));
-  try {
-    const remoteConfig = path.join(tempRoot, 'remote.json');
-    fs.writeFileSync(
-      remoteConfig,
-      JSON.stringify({
-        session: 'remote-session',
-        platform: 'android',
-        daemonBaseUrl: 'http://127.0.0.1:9124/agent-device',
-        tenant: 'remote-tenant',
-        sessionIsolation: 'tenant',
-        runId: 'remote-run',
-        leaseId: 'remote-lease',
-      }),
-    );
-    const setup = createTransport(async () => ({
-      ok: true,
-      data: {},
-    }));
-    const client = createAgentDeviceClient(
-      {
-        remoteConfig,
-        cwd: tempRoot,
-      },
-      { transport: setup.transport },
-    );
-    fs.writeFileSync(remoteConfig, '{');
+test('lease helpers forward scope through daemon-backed client methods', async () => {
+  const setup = createTransport(async (req) => ({
+    ok: true,
+    data:
+      req.command === 'lease_release'
+        ? { released: true }
+        : {
+            lease: {
+              leaseId: req.meta?.leaseId ?? 'lease-new',
+              tenantId: req.meta?.tenantId,
+              runId: req.meta?.runId,
+              backend: req.meta?.leaseBackend,
+            },
+          },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
 
-    await client.devices.list();
-    await client.command.home();
-    const snapshot = await client.capture.snapshot();
+  const allocated = await client.leases.allocate({
+    tenant: 'remote-tenant',
+    runId: 'remote-run',
+    leaseBackend: 'android-instance',
+  });
+  const released = await client.leases.release({
+    tenant: 'remote-tenant',
+    runId: 'remote-run',
+    leaseId: allocated.leaseId,
+  });
 
-    assert.equal(setup.calls[0]?.session, 'remote-session');
-    assert.equal(setup.calls[0]?.command, 'devices');
-    assert.equal(setup.calls[0]?.flags?.platform, 'android');
-    assert.equal(setup.calls[0]?.flags?.daemonBaseUrl, 'http://127.0.0.1:9124/agent-device');
-    assert.equal(setup.calls[0]?.meta?.tenantId, 'remote-tenant');
-    assert.equal(setup.calls[1]?.session, 'remote-session');
-    assert.equal(setup.calls[1]?.command, 'home');
-    assert.equal(setup.calls[1]?.flags?.platform, 'android');
-    assert.equal(setup.calls[1]?.flags?.daemonBaseUrl, 'http://127.0.0.1:9124/agent-device');
-    assert.equal(setup.calls[1]?.meta?.tenantId, 'remote-tenant');
-    assert.equal(setup.calls[1]?.meta?.runId, 'remote-run');
-    assert.equal(setup.calls[1]?.meta?.leaseId, 'remote-lease');
-    assert.equal(setup.calls[2]?.session, 'remote-session');
-    assert.equal(setup.calls[2]?.command, 'snapshot');
-    assert.equal(setup.calls[2]?.flags?.platform, 'android');
-    assert.equal(snapshot.identifiers.session, 'remote-session');
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
+  assert.equal(setup.calls[0]?.command, 'lease_allocate');
+  assert.equal(setup.calls[0]?.meta?.tenantId, 'remote-tenant');
+  assert.equal(setup.calls[0]?.meta?.runId, 'remote-run');
+  assert.equal(setup.calls[0]?.meta?.leaseBackend, 'android-instance');
+  assert.equal(allocated.leaseId, 'lease-new');
+  assert.equal(setup.calls[1]?.command, 'lease_release');
+  assert.equal(setup.calls[1]?.meta?.leaseId, 'lease-new');
+  assert.equal(released.released, true);
 });
 
 test('client capture.snapshot preserves visibility metadata from daemon responses', async () => {
