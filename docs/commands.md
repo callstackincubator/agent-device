@@ -539,6 +539,8 @@ agent-device screenshot page.png --overlay-refs  # Draw current @eN refs and tar
 agent-device screenshot textedit.png    # App-session window capture on macOS
 agent-device screenshot --fullscreen    # Force full-screen capture on macOS app sessions
 agent-device open --platform macos --surface desktop && agent-device screenshot desktop.png
+agent-device diff screenshot --baseline baseline.png --out diff.png
+agent-device diff screenshot --baseline baseline.png --out diff.png --overlay-refs
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
@@ -547,6 +549,10 @@ agent-device record stop                # Stop active recording
 
 - Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
 - `screenshot --overlay-refs` captures a fresh full snapshot and burns visible `@eN` refs plus their target rectangles into the saved PNG.
+- `diff screenshot` compares the current screenshot to `--baseline`, prints ranked changed regions with screen-space rectangles, shape, size, density, average color, and luminance, and writes a diff PNG with a light grayscale current-screen context, red-tinted changed pixels, and outlined changed regions when `--out` is provided. JSON also includes normalized bounds.
+- If `tesseract` is installed, `diff screenshot` also adds best-effort OCR text deltas, movement clusters, and bbox size-change hints to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.
+- When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the diff and clustering remaining residuals. These are hints for icons, controls, and separators, not semantic icon recognition.
+- `diff screenshot --overlay-refs` additionally writes a separate current-screen overlay guide without using that annotated image for the pixel comparison. If current-screen refs intersect changed regions, the output lists the best ref matches under those regions.
 - In `--json` mode, each overlay ref also includes a screenshot-space `center` point for coordinate fallback like `press <x> <y>`.
 - Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
 - On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
