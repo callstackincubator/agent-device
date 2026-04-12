@@ -55,8 +55,6 @@ const client = createAgentDeviceClient({
   session: 'qa-ios',
   lockPolicy: 'reject',
   lockPlatform: 'ios',
-  // Optional: loads profile defaults for daemon-backed requests. Per-call options override it.
-  remoteConfig: './agent-device.remote.json',
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
