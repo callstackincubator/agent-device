@@ -186,6 +186,34 @@ test('large connected diff regions are split at horizontal low-density bands', a
   ]);
 });
 
+test('large connected diff regions are not split at short low-density bands', async () => {
+  const dir = tmpDir();
+  const baseline = path.join(dir, 'baseline.png');
+  const current = path.join(dir, 'current.png');
+
+  writeSolidPng(baseline, 100, 220, { r: 0, g: 0, b: 0 });
+
+  const currentPng = new PNG({ width: 100, height: 220 });
+  for (let i = 0; i < currentPng.data.length; i += 4) {
+    currentPng.data[i] = 0;
+    currentPng.data[i + 1] = 0;
+    currentPng.data[i + 2] = 0;
+    currentPng.data[i + 3] = 255;
+  }
+  paintRect(currentPng, { x: 0, y: 0, width: 100, height: 80 }, { r: 255, g: 255, b: 255 });
+  paintRect(currentPng, { x: 50, y: 80, width: 1, height: 4 }, { r: 255, g: 255, b: 255 });
+  paintRect(currentPng, { x: 0, y: 84, width: 100, height: 136 }, { r: 255, g: 255, b: 255 });
+  fs.writeFileSync(current, PNG.sync.write(currentPng));
+
+  const result = await compareScreenshots(baseline, current, {
+    outputPath: path.join(dir, 'diff.png'),
+    threshold: 0,
+  });
+
+  assert.equal(result.regions?.length, 1);
+  assert.deepEqual(result.regions?.[0]?.rect, { x: 0, y: 0, width: 100, height: 220 });
+});
+
 test('no diff path is persisted when outputPath is omitted', async () => {
   const dir = tmpDir();
   const baseline = path.join(dir, 'baseline.png');
@@ -269,6 +297,9 @@ test('dimension mismatch returns expected vs actual sizes', async () => {
   assert.equal(result.match, false);
   assert.equal(result.mismatchPercentage, 100);
   assert.equal(result.diffPath, undefined, 'diffPath should not be set for dimension mismatch');
+  assert.equal(result.regions, undefined);
+  assert.equal(result.ocr, undefined);
+  assert.equal(result.nonTextDeltas, undefined);
   assert.deepEqual(result.dimensionMismatch, {
     expected: { width: 10, height: 20 },
     actual: { width: 15, height: 25 },

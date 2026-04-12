@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'vitest';
-import { matchOcrBlocks, parseTesseractTsv } from '../screenshot-diff-ocr.ts';
+import {
+  matchOcrBlocks,
+  parseTesseractTsv,
+  summarizeScreenshotOcr,
+} from '../screenshot-diff-ocr.ts';
 
 test('parseTesseractTsv groups word rows into text line blocks', () => {
   const blocks = parseTesseractTsv(
@@ -68,4 +75,29 @@ test('matchOcrBlocks reports movement and possible text metric mismatch', () => 
     matches[0]?.description,
     'Text "Wi-Fi" moved 12px right, 8px up; text box is 10px wider; possible font, weight, or text rendering mismatch.',
   );
+});
+
+test('summarizeScreenshotOcr returns undefined when tesseract exits non-zero', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocr-test-'));
+  const binDir = path.join(dir, 'bin');
+  const fakeTesseract = path.join(binDir, 'tesseract');
+  const originalPath = process.env.PATH;
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(fakeTesseract, '#!/bin/sh\nexit 2\n');
+  fs.chmodSync(fakeTesseract, 0o755);
+  process.env.PATH = `${binDir}${path.delimiter}${originalPath ?? ''}`;
+
+  try {
+    const result = await summarizeScreenshotOcr({
+      baselinePath: path.join(dir, 'baseline.png'),
+      currentPath: path.join(dir, 'current.png'),
+      width: 100,
+      height: 100,
+    });
+    assert.equal(result, undefined);
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

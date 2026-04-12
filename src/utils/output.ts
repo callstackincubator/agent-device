@@ -281,15 +281,15 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
     lines.push(
       '    item | text | movePx | sizeDeltaPx | bboxBaseline | bboxCurrent | textRatio | confidence | issueHint',
     );
-    for (const [index, match] of shownOcrMatches.entries()) {
-      const delta = match.delta;
+    for (const [index, ocrMatch] of shownOcrMatches.entries()) {
+      const delta = ocrMatch.delta;
       lines.push(
-        `    ${index + 1} | ${JSON.stringify(match.text)} | ` +
+        `    ${index + 1} | ${JSON.stringify(ocrMatch.text)} | ` +
           `${formatSignedPixels(delta.x)},${formatSignedPixels(delta.y)} | ` +
           `${formatSignedPixels(delta.width)},${formatSignedPixels(delta.height)} | ` +
-          `${formatRect(match.baselineRect)} | ${formatRect(match.currentRect)} | ` +
-          `w=${match.widthRatio} h=${match.heightRatio} | ${match.confidence} | ` +
-          `${match.possibleTextMetricMismatch ? 'possible-text-metric-mismatch' : '-'}`,
+          `${formatRect(ocrMatch.baselineRect)} | ${formatRect(ocrMatch.currentRect)} | ` +
+          `w=${ocrMatch.widthRatio} h=${ocrMatch.heightRatio} | ${ocrMatch.confidence} | ` +
+          `${ocrMatch.possibleTextMetricMismatch ? 'possible-text-metric-mismatch' : '-'}`,
       );
     }
   }

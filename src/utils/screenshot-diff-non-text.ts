@@ -58,13 +58,17 @@ export function summarizeNonTextDiffDeltas(params: {
   const rawComponents = findConnectedComponents(maskedDiff, params.width, params.height);
   const mergedComponents = mergeNearbyComponents(rawComponents, MERGE_GAP_PX);
   const textBlocks = getOcrBlocks(params.ocr);
-  return mergedComponents
-    .filter(hasUsefulComponentSize)
-    .map((component) => toNonTextDelta(component, params, textBlocks))
-    .filter((delta) => delta.rect.y >= params.height * MIN_CONTENT_Y_RATIO)
-    .sort((left, right) => scoreNonTextDelta(right) - scoreNonTextDelta(left))
-    .slice(0, Math.max(0, params.maxDeltas ?? MAX_NON_TEXT_DELTAS))
-    .map((delta, index) => ({ ...delta, index: index + 1 }));
+  return (
+    mergedComponents
+      .filter(hasUsefulComponentSize)
+      .map((component) => toNonTextDelta(component, params, textBlocks))
+      // Status bars and top chrome tend to produce noisy residuals around time,
+      // signal, and battery text; changed regions still report that area.
+      .filter((delta) => delta.rect.y >= params.height * MIN_CONTENT_Y_RATIO)
+      .sort((left, right) => scoreNonTextDelta(right) - scoreNonTextDelta(left))
+      .slice(0, Math.max(0, params.maxDeltas ?? MAX_NON_TEXT_DELTAS))
+      .map((delta, index) => ({ ...delta, index: index + 1 }))
+  );
 }
 
 function maskOcrText(

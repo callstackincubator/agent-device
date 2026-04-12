@@ -64,6 +64,8 @@ export function summarizeDiffRegions(params: {
   maxRegions?: number;
 }): ScreenshotDiffRegion[] {
   const rawRegions = findConnectedDiffRegions(params);
+  // Avoid quadratic nearby-merge work on extremely noisy diffs; the later ranking
+  // still keeps the largest components, but tiny speckles may remain unmerged.
   const mergedRegions =
     rawRegions.length <= 2000 ? mergeNearbyRegions(rawRegions, REGION_MERGE_GAP_PX) : rawRegions;
   const splitRegions = splitLargeDiffRegions(mergedRegions, params);

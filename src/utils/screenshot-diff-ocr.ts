@@ -107,6 +107,7 @@ export function parseTesseractTsv(
     const level = readTsvNumber(values, indexByName, 'level');
     const rawText = readTsvString(values, indexByName, 'text').trim();
     const confidence = readTsvNumber(values, indexByName, 'conf');
+    // Tesseract TSV uses level=5 for word rows; higher-level rows are page/block/line containers.
     if (level !== 5 || !isMeaningfulText(rawText) || confidence < 0) continue;
 
     const left = readTsvNumber(values, indexByName, 'left');
@@ -327,10 +328,16 @@ function scoreOcrMatch(match: ScreenshotOcrTextMatch): number {
 }
 
 function unionRects(rects: Rect[]): Rect {
-  const minX = Math.min(...rects.map((rect) => rect.x));
-  const minY = Math.min(...rects.map((rect) => rect.y));
-  const maxX = Math.max(...rects.map((rect) => rect.x + rect.width));
-  const maxY = Math.max(...rects.map((rect) => rect.y + rect.height));
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const rect of rects) {
+    minX = Math.min(minX, rect.x);
+    minY = Math.min(minY, rect.y);
+    maxX = Math.max(maxX, rect.x + rect.width);
+    maxY = Math.max(maxY, rect.y + rect.height);
+  }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 

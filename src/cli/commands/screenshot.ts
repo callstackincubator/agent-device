@@ -87,6 +87,8 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
             }
           : {}),
       };
+    } else if (flags.overlayRefs && outputPath) {
+      removeStaleCurrentOverlay(outputPath);
     }
   } finally {
     try {
@@ -105,4 +107,16 @@ function deriveCurrentOverlayPath(outputPath: string): string {
   const extension = path.extname(outputPath);
   const base = extension ? outputPath.slice(0, -extension.length) : outputPath;
   return `${base}.current-overlay${extension || '.png'}`;
+}
+
+function removeStaleCurrentOverlay(outputPath: string): void {
+  try {
+    fs.unlinkSync(deriveCurrentOverlayPath(outputPath));
+  } catch (error) {
+    if (!isFsError(error, 'ENOENT')) throw error;
+  }
+}
+
+function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
 }

@@ -307,12 +307,15 @@ describe('cli diff commands', () => {
     const originalHome = process.env.HOME;
     const baselineRelative = path.join('fixtures', 'baseline.png');
     const diffRelative = path.join('fixtures', 'diff.png');
+    const overlayRelative = path.join('fixtures', 'diff.current-overlay.png');
     const baseline = path.join(fakeHome, baselineRelative);
     const diffOut = path.join(fakeHome, diffRelative);
+    const overlayOut = path.join(fakeHome, overlayRelative);
 
     fs.mkdirSync(path.dirname(baseline), { recursive: true });
     fs.writeFileSync(baseline, solidPngBuffer(10, 10, { r: 255, g: 255, b: 255 }));
     fs.writeFileSync(diffOut, 'stale diff');
+    fs.writeFileSync(overlayOut, 'stale overlay');
     process.env.HOME = fakeHome;
 
     try {
@@ -324,6 +327,7 @@ describe('cli diff commands', () => {
           `~/${baselineRelative}`,
           '--out',
           `~/${diffRelative}`,
+          '--overlay-refs',
           '--json',
         ],
         { preserveHome: true },
@@ -335,6 +339,7 @@ describe('cli diff commands', () => {
       assert.equal(payload.success, true);
       assert.equal(payload.data.match, true);
       assert.equal(fs.existsSync(diffOut), false);
+      assert.equal(fs.existsSync(overlayOut), false);
     } finally {
       if (typeof originalHome === 'string') process.env.HOME = originalHome;
       else delete process.env.HOME;

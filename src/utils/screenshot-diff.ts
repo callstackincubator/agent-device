@@ -105,18 +105,18 @@ export async function compareScreenshots(
     if (colorDistance > maxColorDistance) {
       differentPixels += 1;
       diffMask[pixelIndex] = 1;
-      const context = renderDiffContextPixel(current, index);
-      diff.data[index] = tintChannel(context.r, DIFF_CHANGE_COLOR.r, DIFF_CHANGE_TINT_RATIO);
-      diff.data[index + 1] = tintChannel(context.g, DIFF_CHANGE_COLOR.g, DIFF_CHANGE_TINT_RATIO);
-      diff.data[index + 2] = tintChannel(context.b, DIFF_CHANGE_COLOR.b, DIFF_CHANGE_TINT_RATIO);
+      const context = renderDiffContextChannel(current, index);
+      diff.data[index] = tintChannel(context, DIFF_CHANGE_COLOR.r, DIFF_CHANGE_TINT_RATIO);
+      diff.data[index + 1] = tintChannel(context, DIFF_CHANGE_COLOR.g, DIFF_CHANGE_TINT_RATIO);
+      diff.data[index + 2] = tintChannel(context, DIFF_CHANGE_COLOR.b, DIFF_CHANGE_TINT_RATIO);
       diff.data[index + 3] = 255;
       continue;
     }
 
-    const context = renderDiffContextPixel(current, index);
-    diff.data[index] = context.r;
-    diff.data[index + 1] = context.g;
-    diff.data[index + 2] = context.b;
+    const context = renderDiffContextChannel(current, index);
+    diff.data[index] = context;
+    diff.data[index + 1] = context;
+    diff.data[index + 2] = context;
     diff.data[index + 3] = 255;
   }
 
@@ -152,7 +152,7 @@ export async function compareScreenshots(
   const ocr =
     ocrAnalysis && ocrAnalysis.matches.length > 0 ? toScreenshotOcrSummary(ocrAnalysis) : undefined;
   const nonTextDeltas =
-    differentPixels > 0
+    differentPixels > 0 && ocrAnalysis
       ? summarizeNonTextDiffDeltas({
           diffMask,
           width: baseline.width,
@@ -200,12 +200,11 @@ function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
 }
 
-function renderDiffContextPixel(source: PNG, index: number): { r: number; g: number; b: number } {
+function renderDiffContextChannel(source: PNG, index: number): number {
   const gray = Math.round(
     source.data[index]! * 0.299 + source.data[index + 1]! * 0.587 + source.data[index + 2]! * 0.114,
   );
-  const channel = tintChannel(gray, 255, DIFF_CONTEXT_LIGHTEN_RATIO);
-  return { r: channel, g: channel, b: channel };
+  return tintChannel(gray, 255, DIFF_CONTEXT_LIGHTEN_RATIO);
 }
 
 function tintChannel(base: number, tint: number, ratio: number): number {
