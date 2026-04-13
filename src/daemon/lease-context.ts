@@ -1,11 +1,12 @@
 import type { DaemonRequest } from './types.ts';
+import type { LeaseBackend } from '../contracts.ts';
 
 export type LeaseScope = {
   tenantId?: string;
   runId?: string;
   leaseId?: string;
   leaseTtlMs?: number;
-  leaseBackend?: 'ios-simulator';
+  leaseBackend?: LeaseBackend;
 };
 
 export function resolveLeaseScope(req: Pick<DaemonRequest, 'flags' | 'meta'>): LeaseScope {

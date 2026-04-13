@@ -69,5 +69,5 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Need logs, network, alerts, permissions, or failure triage: [references/debugging.md](references/debugging.md)
 - Need screenshots, diff, recording, replay maintenance, or perf data: [references/verification.md](references/verification.md)
 - Need desktop surfaces, menu bar behavior, or macOS-specific interaction rules: [references/macos-desktop.md](references/macos-desktop.md)
-- Need remote HTTP transport, `--remote-config` launches, or tenant leases on a remote macOS host: [references/remote-tenancy.md](references/remote-tenancy.md)
+- Need remote HTTP transport, `connect --remote-config`, or tenant leases on a remote macOS host: [references/remote-tenancy.md](references/remote-tenancy.md)
   This includes remote React Native runs where `agent-device` now prepares Metro locally and manages the local Metro companion tunnel automatically.

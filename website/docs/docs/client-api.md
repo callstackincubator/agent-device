@@ -59,8 +59,6 @@ const client = createAgentDeviceClient({
   session: 'qa-ios',
   lockPolicy: 'reject',
   lockPlatform: 'ios',
-  // Optional: loads profile defaults for daemon-backed requests. Per-call options override it.
-  remoteConfig: './agent-device.remote.json',
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
@@ -87,7 +85,7 @@ await client.sessions.close();
 
 ## Command methods
 
-Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, client-level remote config defaults, normalized daemon errors, and remote artifact handling.
+Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, normalized daemon errors, and remote artifact handling.
 
 Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.
 

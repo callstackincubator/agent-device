@@ -185,7 +185,11 @@ function toLeaseDaemonRequest(
       runId: readStringParam(params, 'runId'),
       leaseId: readStringParam(params, 'leaseId'),
       leaseTtlMs: readIntParam(params, 'ttlMs'),
-      leaseBackend: readStringParam(params, 'backend') as 'ios-simulator' | undefined,
+      leaseBackend: readStringParam(params, 'backend') as
+        | 'ios-simulator'
+        | 'ios-instance'
+        | 'android-instance'
+        | undefined,
     },
   };
 }

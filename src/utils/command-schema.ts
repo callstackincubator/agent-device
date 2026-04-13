@@ -14,6 +14,8 @@ export type CliFlags = {
   sessionIsolation?: 'none' | 'tenant';
   runId?: string;
   leaseId?: string;
+  leaseBackend?: 'ios-simulator' | 'ios-instance' | 'android-instance';
+  force?: boolean;
   sessionLock?: 'reject' | 'strip';
   sessionLocked?: boolean;
   sessionLockConflicts?: 'reject' | 'strip';
@@ -254,6 +256,21 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--lease-id <id>',
     usageDescription: 'Lease identifier bound to tenant/run admission scope',
+  },
+  {
+    key: 'leaseBackend',
+    names: ['--lease-backend'],
+    type: 'enum',
+    enumValues: ['ios-simulator', 'ios-instance', 'android-instance'],
+    usageLabel: '--lease-backend ios-simulator|ios-instance|android-instance',
+    usageDescription: 'Lease backend for remote tenant connection admission',
+  },
+  {
+    key: 'force',
+    names: ['--force'],
+    type: 'boolean',
+    usageLabel: '--force',
+    usageDescription: 'Force connection state replacement when reconnecting',
   },
   {
     key: 'sessionLock',
@@ -924,6 +941,7 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
   'sessionIsolation',
   'runId',
   'leaseId',
+  'leaseBackend',
   'sessionLock',
   'sessionLocked',
   'sessionLockConflicts',
@@ -954,6 +972,48 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
     allowedFlags: ['activity', 'saveScript', 'relaunch', 'surface'],
+  },
+  connect: {
+    usageOverride:
+      'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force]',
+    helpDescription: 'Connect to a remote daemon, allocate a tenant lease, and prepare Metro',
+    summary: 'Connect to remote daemon',
+    positionalArgs: [],
+    allowedFlags: [
+      'force',
+      'metroProjectRoot',
+      'metroKind',
+      'metroPublicBaseUrl',
+      'metroProxyBaseUrl',
+      'metroBearerToken',
+      'metroPreparePort',
+      'metroListenHost',
+      'metroStatusHost',
+      'metroStartupTimeoutMs',
+      'metroProbeTimeoutMs',
+      'metroRuntimeFile',
+      'metroNoReuseExisting',
+      'metroNoInstallDeps',
+      'launchUrl',
+    ],
+    skipCapabilityCheck: true,
+  },
+  disconnect: {
+    helpDescription:
+      'Disconnect remote daemon state, stop owned Metro companion, and release lease',
+    summary: 'Disconnect remote daemon',
+    positionalArgs: [],
+    allowedFlags: ['shutdown'],
+    skipCapabilityCheck: true,
+  },
+  connection: {
+    usageOverride: 'connection status',
+    listUsageOverride: 'connection status',
+    helpDescription: 'Inspect active remote connection state',
+    summary: 'Inspect remote connection',
+    positionalArgs: ['status'],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   close: {
     helpDescription: 'Close app or just end session',

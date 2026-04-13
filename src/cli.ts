@@ -24,6 +24,9 @@ import { resolveDaemonPaths } from './daemon/config.ts';
 import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/session-binding.ts';
 import { resolveCliOptions } from './utils/cli-options.ts';
 import { maybeRunUpgradeNotifier } from './utils/update-check.ts';
+import { resolveRemoteConnectionDefaults } from './remote-connection-state.ts';
+import type { CliFlags, FlagKey } from './utils/command-schema.ts';
+import type { SessionRuntimeHints } from './contracts.ts';
 
 type CliDeps = {
   sendToDaemon: typeof sendToDaemon;
@@ -112,48 +115,86 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       const { command, positionals } = parsed;
-      const binding = resolveBindingSettings({
-        policyOverrides: parsed.flags,
-        configuredPlatform: parsed.flags.platform,
-        configuredSession: parsed.flags.session,
-      });
-      const flags = binding.lockPolicy
-        ? { ...parsed.flags }
-        : applyDefaultPlatformBinding(parsed.flags, {
-            policyOverrides: parsed.flags,
-            configuredPlatform: parsed.flags.platform,
-            configuredSession: parsed.flags.session,
-          });
-      const daemonPaths = resolveDaemonPaths(flags.stateDir);
-      const sessionName = flags.session ?? 'default';
+      let binding: ReturnType<typeof resolveBindingSettings>;
+      let flags: typeof parsed.flags;
+      let daemonPaths: ReturnType<typeof resolveDaemonPaths>;
+      let sessionName: string;
+      let connectionDefaults: ReturnType<typeof resolveActiveConnectionDefaults>;
+      let effectiveFlags: typeof parsed.flags;
+      const explicitFlagKeys = new Set(parsed.providedFlags.map((entry) => entry.key));
+      try {
+        if (parsed.flags.remoteConfig && command !== 'connect' && command !== 'metro') {
+          throw new AppError(
+            'INVALID_ARGS',
+            '--remote-config is only supported by connect and metro prepare. Run agent-device connect first, then use normal commands.',
+          );
+        }
+        binding = resolveBindingSettings({
+          policyOverrides: parsed.flags,
+          configuredPlatform: parsed.flags.platform,
+          configuredSession: parsed.flags.session,
+        });
+        flags = binding.lockPolicy
+          ? { ...parsed.flags }
+          : applyDefaultPlatformBinding(parsed.flags, {
+              policyOverrides: parsed.flags,
+              configuredPlatform: parsed.flags.platform,
+              configuredSession: parsed.flags.session,
+            });
+        daemonPaths = resolveDaemonPaths(flags.stateDir);
+        sessionName = flags.session ?? 'default';
+        connectionDefaults = resolveActiveConnectionDefaults({
+          command,
+          explicitFlagKeys,
+          stateDir: daemonPaths.baseDir,
+          session: sessionName,
+        });
+        effectiveFlags = connectionDefaults
+          ? mergeConnectionFlags(flags, connectionDefaults.flags, explicitFlagKeys)
+          : flags;
+      } catch (err) {
+        const appErr = asAppError(err);
+        const normalized = normalizeError(appErr, {
+          diagnosticId: getDiagnosticsMeta().diagnosticId,
+          logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
+        });
+        if (parsed.flags.json) {
+          printJson({ success: false, error: normalized });
+        } else {
+          printHumanError(normalized, { showDetails: parsed.flags.verbose });
+        }
+        process.exit(1);
+        return;
+      }
       maybeRunUpgradeNotifier({
         command,
         currentVersion: version,
         stateDir: daemonPaths.baseDir,
-        flags,
+        flags: effectiveFlags,
       });
-      const remoteDaemonBaseUrl = flags.daemonBaseUrl;
+      const remoteDaemonBaseUrl = effectiveFlags.daemonBaseUrl;
       const logTailStopper =
-        flags.verbose && !flags.json && !remoteDaemonBaseUrl
+        effectiveFlags.verbose && !effectiveFlags.json && !remoteDaemonBaseUrl
           ? startDaemonLogTail(daemonPaths.logPath)
           : null;
       const clientConfig: AgentDeviceClientConfig = {
-        session: sessionName,
+        session: effectiveFlags.session ?? sessionName,
         requestId,
-        stateDir: flags.stateDir,
-        daemonBaseUrl: flags.daemonBaseUrl,
-        daemonAuthToken: flags.daemonAuthToken,
-        daemonTransport: flags.daemonTransport,
-        daemonServerMode: flags.daemonServerMode,
-        remoteConfig: flags.remoteConfig,
-        tenant: flags.tenant,
-        sessionIsolation: flags.sessionIsolation,
-        runId: flags.runId,
-        leaseId: flags.leaseId,
+        stateDir: effectiveFlags.stateDir,
+        daemonBaseUrl: effectiveFlags.daemonBaseUrl,
+        daemonAuthToken: effectiveFlags.daemonAuthToken,
+        daemonTransport: effectiveFlags.daemonTransport,
+        daemonServerMode: effectiveFlags.daemonServerMode,
+        tenant: effectiveFlags.tenant,
+        sessionIsolation: effectiveFlags.sessionIsolation,
+        runId: effectiveFlags.runId,
+        leaseId: effectiveFlags.leaseId,
+        leaseBackend: effectiveFlags.leaseBackend,
+        runtime: connectionDefaults?.runtime,
         lockPolicy: binding.lockPolicy,
         lockPlatform: binding.defaultPlatform,
         cwd: process.cwd(),
-        debug: Boolean(flags.verbose),
+        debug: Boolean(effectiveFlags.verbose),
       };
       const client = createAgentDeviceClient(clientConfig, {
         transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
@@ -169,17 +210,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
               binding.lockPolicy && flags.platform === undefined
                 ? { ...((step.flags ?? {}) as Partial<typeof flags>) }
                 : applyDefaultPlatformBinding((step.flags ?? {}) as Partial<typeof flags>, {
-                    policyOverrides: flags,
-                    configuredPlatform: flags.platform,
-                    configuredSession: flags.session,
-                    inheritedPlatform: flags.platform,
+                    policyOverrides: effectiveFlags,
+                    configuredPlatform: effectiveFlags.platform,
+                    configuredSession: effectiveFlags.session,
+                    inheritedPlatform: effectiveFlags.platform,
                   }),
           }));
           if (
             await tryRunClientBackedCommand({
               command,
               positionals,
-              flags: { ...flags, batchSteps },
+              flags: { ...effectiveFlags, batchSteps },
               client,
             })
           ) {
@@ -188,9 +229,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         } else if (command === 'runtime') {
           throw new AppError(
             'INVALID_ARGS',
-            'runtime command was removed. Use open --remote-config <path> --relaunch for remote Metro launches, or metro prepare --remote-config <path> for inspection.',
+            'runtime command was removed. Use connect --remote-config <path> for remote runs, or metro prepare --remote-config <path> for inspection.',
           );
-        } else if (await tryRunClientBackedCommand({ command, positionals, flags, client })) {
+        } else if (
+          await tryRunClientBackedCommand({ command, positionals, flags: effectiveFlags, client })
+        ) {
           return;
         }
 
@@ -202,19 +245,19 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
         });
         if (command === 'close' && isDaemonStartupFailure(appErr)) {
-          if (flags.json) {
+          if (effectiveFlags.json) {
             printJson({ success: true, data: { closed: 'session', source: 'no-daemon' } });
           }
           return;
         }
-        if (flags.json) {
+        if (effectiveFlags.json) {
           printJson({
             success: false,
             error: normalized,
           });
         } else {
-          printHumanError(normalized, { showDetails: flags.verbose });
-          if (flags.verbose) {
+          printHumanError(normalized, { showDetails: effectiveFlags.verbose });
+          if (effectiveFlags.verbose) {
             try {
               const logPath = daemonPaths.logPath;
               if (fs.existsSync(logPath)) {
@@ -262,6 +305,42 @@ function isDaemonStartupFailure(error: AppError): boolean {
   if (error.details?.kind === 'daemon_startup_failed') return true;
   if (!error.message.toLowerCase().includes('failed to start daemon')) return false;
   return typeof error.details?.infoPath === 'string' || typeof error.details?.lockPath === 'string';
+}
+
+function resolveActiveConnectionDefaults(options: {
+  command: string;
+  explicitFlagKeys: Set<FlagKey>;
+  stateDir: string;
+  session: string;
+}): {
+  flags: Partial<CliFlags>;
+  runtime?: SessionRuntimeHints;
+} | null {
+  if (options.command === 'connect' || options.command === 'connection') return null;
+  if (options.explicitFlagKeys.has('remoteConfig')) return null;
+  const defaults = resolveRemoteConnectionDefaults({
+    stateDir: options.stateDir,
+    session: options.session,
+    cwd: process.cwd(),
+    env: process.env,
+    allowActiveFallback: !options.explicitFlagKeys.has('session'),
+    validateRemoteConfigHash: options.command !== 'disconnect',
+  });
+  return defaults;
+}
+
+function mergeConnectionFlags(
+  flags: CliFlags,
+  defaults: Partial<CliFlags>,
+  explicitFlagKeys: Set<FlagKey>,
+): CliFlags {
+  const merged = { ...flags };
+  for (const [key, value] of Object.entries(defaults) as Array<[FlagKey, unknown]>) {
+    if (value === undefined) continue;
+    if (explicitFlagKeys.has(key)) continue;
+    (merged as Record<string, unknown>)[key] = value;
+  }
+  return merged;
 }
 
 function guessSessionFromArgv(argv: string[]): string | null {

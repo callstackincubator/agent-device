@@ -3,7 +3,6 @@ import { prepareMetroRuntime } from './client-metro.ts';
 import { CLIENT_COMMANDS } from './client-command-registry.ts';
 import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
 import { throwDaemonError } from './daemon-error.ts';
-import { resolveRemoteConfigDefaults } from './utils/remote-config.ts';
 import {
   buildFlags,
   buildMeta,
@@ -42,6 +41,7 @@ import type {
   FindOptions,
   InteractionTarget,
   InternalRequestOptions,
+  Lease,
   MaterializationReleaseOptions,
   MetroPrepareOptions,
   NetworkOptions,
@@ -52,14 +52,13 @@ export function createAgentDeviceClient(
   deps: { transport?: AgentDeviceDaemonTransport } = {},
 ): AgentDeviceClient {
   const transport = deps.transport ?? sendToDaemon;
-  const remoteConfigDefaults = resolveClientRemoteConfigDefaults(config);
 
   const execute = async (
     command: string,
     positionals: string[] = [],
     options: InternalRequestOptions = {},
   ): Promise<Record<string, unknown>> => {
-    const merged = mergeClientOptions(config, remoteConfigDefaults, options);
+    const merged = mergeClientOptions(config, options);
     const response = await transport({
       session: resolveSessionName(merged.session),
       command,
@@ -91,7 +90,7 @@ export function createAgentDeviceClient(
     (await execute(command, positionals, options)) as CommandRequestResult;
 
   const resolveRequestSession = (options: InternalRequestOptions = {}) =>
-    resolveSessionName(mergeClientOptions(config, remoteConfigDefaults, options).session);
+    resolveSessionName(mergeClientOptions(config, options).session);
 
   return {
     command: createAgentDeviceCommandClient(executePreparedCommand),
@@ -235,6 +234,27 @@ export function createAgentDeviceClient(
             materializationId: options.materializationId,
           }),
         ),
+    },
+    leases: {
+      allocate: async (options) =>
+        normalizeLease(
+          await execute('lease_allocate', [], {
+            ...options,
+            leaseId: undefined,
+            leaseTtlMs: options.ttlMs,
+          }),
+        ),
+      heartbeat: async (options) =>
+        normalizeLease(
+          await execute('lease_heartbeat', [], {
+            ...options,
+            leaseTtlMs: options.ttlMs,
+          }),
+        ),
+      release: async (options) => {
+        const data = await execute('lease_release', [], options);
+        return { released: data.released === true };
+      },
     },
     metro: {
       prepare: async (options: MetroPrepareOptions) =>
@@ -501,31 +521,26 @@ function optionalNumber(value: number | undefined): string[] {
 
 function mergeClientOptions(
   config: AgentDeviceClientConfig,
-  remoteConfigDefaults: InternalRequestOptions,
   options: InternalRequestOptions,
 ): InternalRequestOptions {
-  if (options.remoteConfig && options.remoteConfig !== config.remoteConfig) {
-    return {
-      ...resolveClientRemoteConfigDefaults({ ...config, ...options }),
-      ...config,
-      ...options,
-    };
-  }
-  return { ...remoteConfigDefaults, ...config, ...options };
+  return { ...config, ...options };
 }
 
-function resolveClientRemoteConfigDefaults(
-  config: AgentDeviceClientConfig,
-): InternalRequestOptions {
-  if (!config.remoteConfig) return {};
-
-  const remoteDefaults = resolveRemoteConfigDefaults({
-    remoteConfig: config.remoteConfig,
-    cwd: config.cwd ?? process.cwd(),
-    env: process.env,
-  });
-  const { runtime: _cliRuntime, ...clientDefaults } = remoteDefaults;
-  return clientDefaults;
+function normalizeLease(data: Record<string, unknown>): Lease {
+  const rawLease = data.lease;
+  if (!rawLease || typeof rawLease !== 'object' || Array.isArray(rawLease)) {
+    throw new Error('Invalid lease response from daemon');
+  }
+  const lease = rawLease as Record<string, unknown>;
+  return {
+    leaseId: readRequiredString(lease, 'leaseId'),
+    tenantId: readRequiredString(lease, 'tenantId'),
+    runId: readRequiredString(lease, 'runId'),
+    backend: readRequiredString(lease, 'backend') as Lease['backend'],
+    createdAt: typeof lease.createdAt === 'number' ? lease.createdAt : undefined,
+    heartbeatAt: typeof lease.heartbeatAt === 'number' ? lease.heartbeatAt : undefined,
+    expiresAt: typeof lease.expiresAt === 'number' ? lease.expiresAt : undefined,
+  };
 }
 
 export type {
@@ -584,6 +599,10 @@ export type {
   InteractionTarget,
   KeyboardCommandOptions,
   KeyboardCommandResult,
+  Lease,
+  LeaseAllocateOptions,
+  LeaseOptions,
+  LeaseScopedOptions,
   LogsOptions,
   LongPressOptions,
   MaterializationReleaseOptions,

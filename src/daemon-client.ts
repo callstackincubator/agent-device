@@ -933,12 +933,7 @@ async function sendHttpRequest(
       ? new URL(`http://127.0.0.1:${info.httpPort}/rpc`)
       : null;
   if (!rpcUrl) throw new AppError('COMMAND_FAILED', 'Daemon HTTP endpoint is unavailable');
-  const rpcPayload = JSON.stringify({
-    jsonrpc: '2.0',
-    id: req.meta?.requestId ?? createRequestId(),
-    method: 'agent_device.command',
-    params: req,
-  });
+  const rpcPayload = JSON.stringify(buildHttpRpcPayload(req, { includeTokenParam: !info.baseUrl }));
   const headers: Record<string, string | number> = {
     'content-type': 'application/json',
     'content-length': Buffer.byteLength(rpcPayload),
@@ -1053,6 +1048,83 @@ async function sendHttpRequest(
     request.write(rpcPayload);
     request.end();
   });
+}
+
+function buildHttpRpcPayload(
+  req: DaemonRequest,
+  options: { includeTokenParam: boolean },
+): {
+  jsonrpc: '2.0';
+  id: string;
+  method: string;
+  params: DaemonRequest | Record<string, unknown>;
+} {
+  const id = req.meta?.requestId ?? createRequestId();
+  if (!isLeaseRpcCommand(req.command)) {
+    return {
+      jsonrpc: '2.0',
+      id,
+      method: 'agent_device.command',
+      params: req,
+    };
+  }
+  return {
+    jsonrpc: '2.0',
+    id,
+    method: leaseRpcMethodForCommand(req.command),
+    params: buildLeaseRpcParams(req, req.command, options),
+  };
+}
+
+type LeaseRpcCommand = 'lease_allocate' | 'lease_heartbeat' | 'lease_release';
+
+function isLeaseRpcCommand(command: string): command is LeaseRpcCommand {
+  return (
+    command === 'lease_allocate' || command === 'lease_heartbeat' || command === 'lease_release'
+  );
+}
+
+function leaseRpcMethodForCommand(command: LeaseRpcCommand): string {
+  switch (command) {
+    case 'lease_allocate':
+      return 'agent_device.lease.allocate';
+    case 'lease_heartbeat':
+      return 'agent_device.lease.heartbeat';
+    case 'lease_release':
+      return 'agent_device.lease.release';
+  }
+}
+
+function buildLeaseRpcParams(
+  req: DaemonRequest,
+  command: LeaseRpcCommand,
+  options: { includeTokenParam: boolean },
+): Record<string, unknown> {
+  const common = {
+    ...(options.includeTokenParam ? { token: req.token } : {}),
+    session: req.session,
+    tenantId: req.meta?.tenantId,
+    runId: req.meta?.runId,
+  };
+  switch (command) {
+    case 'lease_allocate':
+      return {
+        ...common,
+        ttlMs: req.meta?.leaseTtlMs,
+        backend: req.meta?.leaseBackend,
+      };
+    case 'lease_heartbeat':
+      return {
+        ...common,
+        leaseId: req.meta?.leaseId,
+        ttlMs: req.meta?.leaseTtlMs,
+      };
+    case 'lease_release':
+      return {
+        ...common,
+        leaseId: req.meta?.leaseId,
+      };
+  }
 }
 
 function cleanupTimedOutIosRunnerBuilds(): { terminated: number; error?: string } {
