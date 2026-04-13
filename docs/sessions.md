@@ -30,7 +30,7 @@ Notes:
 - `open <app> <url>` in iOS sessions opens deep links.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
-- `open --remote-config <path> --relaunch` is the recommended remote Metro-backed session flow. It prepares Metro locally when needed, auto-starts the local Metro companion tunnel when the remote bridge needs it, forwards the effective runtime hints inline on `open`, and keeps the session launch state internal.
+- For remote `connect --remote-config` sessions, see [Commands](/agent-device/docs/commands.md#remote-metro-workflow).
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
