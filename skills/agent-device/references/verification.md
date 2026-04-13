@@ -9,6 +9,8 @@ Open this file when the task needs evidence, regression checks, replay maintenan
 - `screenshot`
 - `diff snapshot`
 - `diff screenshot`
+- `diff frames`
+- `diff video`
 - `record`
 - `replay -u`
 - `perf`
@@ -64,6 +66,23 @@ agent-device diff screenshot --baseline ./baseline.png --out /tmp/diff.png --ove
 - Install `tesseract` when you want `diff screenshot` to add best-effort OCR text deltas, movement clusters, and bbox size-change hints. OCR improves the text/JSON descriptions only; it does not change the pixel comparison or the diff PNG.
 - When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the pixel diff and clustering the remaining residuals. Treat these as hints for icons, controls, and separators, not semantic icon recognition.
 - Add `--overlay-refs` to `diff screenshot` when you also want a separate current-screen overlay guide for a live capture. The raw screenshot is still used for pixel comparison; the overlay guide is only context for non-text controls, icons, and tappable regions. When overlay refs intersect changed regions, the output lists the best current-screen ref matches under the affected region. Saved-image comparisons do not have live accessibility refs, so omit `--overlay-refs` when passing a current image path.
+
+## Transition summaries with diff frames/video
+
+Use `diff frames` or `diff video` when a screenshot pair is too static and you need a compact timeline for a transition, animation, or recorded interaction.
+
+```bash
+agent-device diff frames ./frames --out /tmp/settings-transition
+agent-device diff frames ./frame-001.png ./frame-002.png ./frame-003.png --out /tmp/settings-transition
+agent-device diff video ./recordings/settings.mov --out /tmp/settings-transition --telemetry ./recordings/settings.gesture-telemetry.json
+agent-device diff video ./recordings/settings.mov --sample-fps 8 --max-frames 120 --json
+```
+
+- `diff frames` accepts a directory of PNG frames or explicit PNG paths. It works without external video tools.
+- `diff video` requires `ffmpeg` and `ffprobe` in `PATH`; it samples the recording into PNG frames, then runs the same transition summarizer.
+- Add `--telemetry <path>` with a recording gesture sidecar when available. The output can then anchor transitions to events such as `after tap` or `during up scroll`.
+- The text output stays capped to the top transitions, keyframes, changed-region summaries, and optional OCR movement hints. Use `--json` when you need the structured metrics.
+- Install `tesseract` for OCR movement hints on selected transition boundaries. OCR is optional and is not run for every sampled frame.
 
 ## Session recording
 

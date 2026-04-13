@@ -5,6 +5,7 @@ import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
+import type { TransitionSummaryResult } from './transition-summary.ts';
 import { styleText } from 'node:util';
 import { buildMobileSnapshotPresentation } from './mobile-snapshot-semantics.ts';
 
@@ -330,6 +331,66 @@ export function formatScreenshotDiffText(data: ScreenshotDiffResult): string {
   return `${lines.join('\n')}\n`;
 }
 
+export function formatTransitionSummaryText(data: TransitionSummaryResult): string {
+  const useColor = supportsColor();
+  const lines: string[] = [];
+  const inputLabel =
+    data.input.kind === 'video' ? 'Video transition summary' : 'Frame transition summary';
+  const duration = data.input.durationMs ? ` from ${formatMs(data.input.durationMs)}` : '';
+  const sampleFps = data.input.sampleFps ? ` at ${roundTwo(data.input.sampleFps)} fps` : '';
+  lines.push(
+    `${inputLabel}: ${data.transitions.length} transition${data.transitions.length === 1 ? '' : 's'}, ` +
+      `sampled ${data.input.sampledFrameCount} frame${data.input.sampledFrameCount === 1 ? '' : 's'}${duration}${sampleFps}`,
+  );
+  if (data.outputDir) {
+    lines.push(`  ${formatMuted('Artifacts:', useColor)} ${toRelativePath(data.outputDir)}`);
+  }
+  if (data.omittedTransitions > 0) {
+    lines.push(
+      `  ${formatMuted(`Omitted ${data.omittedTransitions} lower-ranked transition(s).`, useColor)}`,
+    );
+  }
+  if (data.transitions.length === 0) {
+    lines.push('  No significant frame-to-frame transitions detected.');
+    return `${lines.join('\n')}\n`;
+  }
+
+  for (const transition of data.transitions) {
+    const timing = `${formatMs(transition.startMs)}-${formatMs(transition.endMs)}`;
+    const trigger = transition.trigger ? ` ${transition.trigger}` : '';
+    lines.push(`\n${transition.index}. ${timing}${trigger}`);
+    lines.push(`   ${transition.summary}`);
+    lines.push(
+      `   peak=${transition.peakMismatchPercentage}% avg=${transition.averageMismatchPercentage}% ` +
+        `duration=${formatMs(transition.durationMs)}`,
+    );
+    const region = transition.regions?.[0];
+    if (region) {
+      lines.push(
+        `   changed: ${region.size} ${region.location} ${region.shape}, ` +
+          `${region.shareOfDiffPercentage}% of diff, ${region.dominantChange}`,
+      );
+    }
+    const cluster = transition.ocr?.movementClusters?.[0];
+    if (cluster) {
+      lines.push(
+        `   text: ${formatQuotedList(cluster.texts)} dx=${formatRange(cluster.xRange)}px ` +
+          `dy=${formatRange(cluster.yRange)}px`,
+      );
+    }
+    lines.push(
+      `   keyframes: before=${toRelativePath(transition.keyframes.before)} ` +
+        `mid=${toRelativePath(transition.keyframes.mid)} ` +
+        `after=${toRelativePath(transition.keyframes.after)}`,
+    );
+    if (transition.keyframes.diff) {
+      lines.push(`   diff: ${toRelativePath(transition.keyframes.diff)}`);
+    }
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
 function formatRect(rect: { x: number; y: number; width: number; height: number }): string {
   return `x=${rect.x},y=${rect.y},w=${rect.width},h=${rect.height}`;
 }
@@ -413,6 +474,15 @@ function toRelativePath(filePath: string): string {
 
 function toNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function formatMs(value: number): string {
+  if (value >= 1_000) return `${roundTwo(value / 1_000)}s`;
+  return `${Math.round(value)}ms`;
+}
+
+function roundTwo(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function applyContextWindow(lines: SnapshotDiffLine[], contextWindow: number): SnapshotDiffLine[] {

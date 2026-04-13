@@ -60,6 +60,9 @@ export type CliFlags = {
   screenshotFullscreen?: boolean;
   baseline?: string;
   threshold?: string;
+  sampleFps?: number;
+  maxFrames?: number;
+  telemetry?: string;
   appsFilter?: 'user-installed' | 'all';
   count?: number;
   fps?: number;
@@ -924,7 +927,32 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--threshold'],
     type: 'string',
     usageLabel: '--threshold <0-1>',
-    usageDescription: 'Diff screenshot: color distance threshold (default 0.1)',
+    usageDescription: 'Diff screenshot/frames/video: color distance threshold (default 0.1)',
+  },
+  {
+    key: 'sampleFps',
+    names: ['--sample-fps'],
+    type: 'int',
+    min: 1,
+    max: 60,
+    usageLabel: '--sample-fps <n>',
+    usageDescription: 'Diff video: frames per second to sample before transition analysis',
+  },
+  {
+    key: 'maxFrames',
+    names: ['--max-frames'],
+    type: 'int',
+    min: 2,
+    max: 500,
+    usageLabel: '--max-frames <n>',
+    usageDescription: 'Diff video: maximum sampled frames to extract',
+  },
+  {
+    key: 'telemetry',
+    names: ['--telemetry'],
+    type: 'string',
+    usageLabel: '--telemetry <path>',
+    usageDescription: 'Diff frames/video: gesture telemetry JSON sidecar for transition labels',
   },
 ];
 
@@ -1053,11 +1081,21 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   diff: {
     usageOverride:
-      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
-    helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
-    summary: 'Diff snapshot or screenshot',
-    positionalArgs: ['kind', 'current?'],
-    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
+      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] | diff frames <frame-or-dir...> [--out <dir>] | diff video <recording.mp4> [--out <dir>]',
+    helpDescription: 'Diff accessibility snapshots, screenshots, frame sequences, or videos',
+    summary: 'Diff snapshots, screenshots, frames, or videos',
+    positionalArgs: ['kind', 'input?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [
+      ...SNAPSHOT_FLAGS,
+      'baseline',
+      'threshold',
+      'out',
+      'overlayRefs',
+      'sampleFps',
+      'maxFrames',
+      'telemetry',
+    ],
   },
   'ensure-simulator': {
     helpDescription: 'Ensure an iOS simulator exists in a device set (create if missing)',
