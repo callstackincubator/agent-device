@@ -20,6 +20,12 @@ export type MetroPrepareKind = 'auto' | 'react-native' | 'expo';
 type ResolvedMetroKind = Exclude<MetroPrepareKind, 'auto'>;
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
+export type MetroBridgeScope = {
+  tenantId: string;
+  runId: string;
+  leaseId: string;
+};
+
 type PackageJsonShape = {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -43,6 +49,7 @@ export type PrepareMetroRuntimeOptions = {
   publicBaseUrl?: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
+  bridgeScope?: MetroBridgeScope;
   launchUrl?: string;
   companionProfileKey?: string;
   companionConsumerKey?: string;
@@ -74,6 +81,7 @@ export type PrepareMetroRuntimeResult = {
 type ProxyBridgeRequestOptions = {
   baseUrl: string;
   bearerToken: string;
+  scope: MetroBridgeScope;
   runtime: MetroBridgeRuntimePayload;
   timeoutMs: number;
 };
@@ -359,6 +367,7 @@ async function configureMetroBridge(input: ProxyBridgeRequestOptions): Promise<M
       method: 'POST',
       headers: createProxyHeaders(input.baseUrl, input.bearerToken),
       body: JSON.stringify({
+        ...input.scope,
         ios_runtime: input.runtime,
         timeout_ms: input.timeoutMs,
       }),
@@ -515,6 +524,16 @@ function resolveProxySettings(
   };
 }
 
+function requireBridgeScope(scope: MetroBridgeScope | undefined): MetroBridgeScope {
+  if (!scope?.tenantId || !scope.runId || !scope.leaseId) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'metro prepare with proxy requires tenantId, runId, and leaseId bridge scope.',
+    );
+  }
+  return scope;
+}
+
 async function waitForMetroReady(
   statusUrl: string,
   startupTimeoutMs: number,
@@ -538,6 +557,7 @@ async function waitForMetroReady(
 async function configureMetroBridgeUntilReady(options: {
   baseUrl: string;
   bearerToken: string;
+  scope: MetroBridgeScope;
   runtime: MetroBridgeRuntimePayload;
   probeTimeoutMs: number;
   startupTimeoutMs: number;
@@ -553,6 +573,7 @@ async function configureMetroBridgeUntilReady(options: {
       const bridge = await configureMetroBridge({
         baseUrl: options.baseUrl,
         bearerToken: options.bearerToken,
+        scope: options.scope,
         runtime: options.runtime,
         timeoutMs: options.probeTimeoutMs,
       });
@@ -625,6 +646,7 @@ export async function prepareMetroRuntime(
     normalizeOptionalBaseUrl(input.proxyBaseUrl),
     normalizeOptionalString(input.proxyBearerToken) ?? '',
   );
+  const bridgeScope = proxyEnabled ? requireBridgeScope(input.bridgeScope) : null;
 
   const dependencyInstall = installProjectDeps
     ? installDependenciesIfNeeded(projectRoot, env)
@@ -662,28 +684,33 @@ export async function prepareMetroRuntime(
   let bridge: MetroBridgeResult | null = null;
   let initialBridgeError: string | null = null;
 
-  if (proxyEnabled) {
+  if (bridgeScope) {
     try {
       bridge = await configureMetroBridge({
         baseUrl: proxyBaseUrl,
         bearerToken: proxyBearerToken,
+        scope: bridgeScope,
         runtime: {
           metro_bundle_url: publicIosRuntime.bundleUrl,
         },
         timeoutMs: probeTimeoutMs,
       });
     } catch (error) {
+      if (!isRetryableBridgeError(error)) {
+        throw error;
+      }
       initialBridgeError = error instanceof Error ? error.message : String(error);
     }
   }
 
-  if (proxyEnabled && (!bridge || bridge.probe.reachable === false)) {
+  if (bridgeScope && (!bridge || bridge.probe.reachable === false)) {
     let companionLogPath: string | undefined;
     try {
       const companion = await ensureMetroCompanion({
         projectRoot,
         serverBaseUrl: proxyBaseUrl,
         bearerToken: proxyBearerToken,
+        bridgeScope,
         localBaseUrl: `http://${statusHost}:${metroPort}`,
         launchUrl: normalizeOptionalString(input.launchUrl),
         profileKey: normalizeOptionalString(input.companionProfileKey),
@@ -705,6 +732,7 @@ export async function prepareMetroRuntime(
       bridge = await configureMetroBridgeUntilReady({
         baseUrl: proxyBaseUrl,
         bearerToken: proxyBearerToken,
+        scope: bridgeScope,
         runtime: {
           metro_bundle_url: publicIosRuntime.bundleUrl,
         },

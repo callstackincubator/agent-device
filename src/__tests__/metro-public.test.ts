@@ -25,6 +25,12 @@ import {
   stopMetroTunnel,
 } from '../metro.ts';
 
+const TEST_BRIDGE_SCOPE = {
+  tenantId: 'tenant-1',
+  runId: 'run-1',
+  leaseId: 'lease-1',
+};
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -66,6 +72,7 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
     publicBaseUrl: 'https://public.example.test',
     proxyBaseUrl: 'https://proxy.example.test',
     proxyBearerToken: 'token',
+    bridgeScope: TEST_BRIDGE_SCOPE,
     profileKey: '/tmp/profile.remote.json',
     consumerKey: 'session-a',
     port: 8081,
@@ -75,6 +82,7 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
     serverBaseUrl: 'https://proxy.example.test',
     bearerToken: 'token',
     localBaseUrl: 'http://127.0.0.1:8081',
+    bridgeScope: TEST_BRIDGE_SCOPE,
   });
   await stopMetroTunnel({
     projectRoot: '/tmp/project',
@@ -90,6 +98,7 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
     publicBaseUrl: 'https://public.example.test',
     proxyBaseUrl: 'https://proxy.example.test',
     proxyBearerToken: 'token',
+    bridgeScope: TEST_BRIDGE_SCOPE,
     launchUrl: undefined,
     companionProfileKey: '/tmp/profile.remote.json',
     companionConsumerKey: 'session-a',

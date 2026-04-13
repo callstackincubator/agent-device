@@ -7,9 +7,13 @@ import {
   ENV_LAUNCH_URL,
   ENV_LOCAL_BASE_URL,
   ENV_SERVER_BASE_URL,
+  ENV_SCOPE_LEASE_ID,
+  ENV_SCOPE_RUN_ID,
+  ENV_SCOPE_TENANT_ID,
   ENV_STATE_PATH,
   METRO_COMPANION_RUN_ARG,
 } from './client-metro-companion-contract.ts';
+import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
 import { runCmdDetached } from './utils/exec.ts';
 import {
@@ -32,6 +36,7 @@ type CompanionState = {
   serverBaseUrl: string;
   localBaseUrl: string;
   launchUrl?: string;
+  bridgeScope?: MetroBridgeScope;
   tokenHash: string;
   consumers: string[];
 };
@@ -41,6 +46,7 @@ export type EnsureMetroCompanionOptions = {
   serverBaseUrl: string;
   bearerToken: string;
   localBaseUrl: string;
+  bridgeScope: MetroBridgeScope;
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
@@ -66,6 +72,27 @@ function hashString(token: string): string {
 
 function normalizeOptionalString(input: string | undefined): string | undefined {
   return input?.trim() ? input.trim() : undefined;
+}
+
+function readCompanionScope(input: unknown): MetroBridgeScope | undefined {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
+  const record = input as Partial<MetroBridgeScope>;
+  if (
+    typeof record.tenantId !== 'string' ||
+    typeof record.runId !== 'string' ||
+    typeof record.leaseId !== 'string'
+  ) {
+    return undefined;
+  }
+  return {
+    tenantId: record.tenantId,
+    runId: record.runId,
+    leaseId: record.leaseId,
+  };
+}
+
+function areCompanionScopesEqual(a: MetroBridgeScope, b: MetroBridgeScope): boolean {
+  return a.tenantId === b.tenantId && a.runId === b.runId && a.leaseId === b.leaseId;
 }
 
 function resolveCompanionPaths(
@@ -109,6 +136,7 @@ function readCompanionState(statePath: string): CompanionState | null {
       launchUrl: normalizeOptionalString(
         typeof parsed.launchUrl === 'string' ? parsed.launchUrl : undefined,
       ),
+      bridgeScope: readCompanionScope(parsed.bridgeScope),
       tokenHash: parsed.tokenHash,
       consumers,
     };
@@ -178,10 +206,12 @@ function shouldReuseCompanion(
   }
   const command = readProcessCommand(state.pid);
   if (!command || !isMetroCompanionCommand(command)) return false;
+  if (!state.bridgeScope) return false;
   return (
     state.serverBaseUrl === normalizeBaseUrl(options.serverBaseUrl) &&
     state.localBaseUrl === normalizeBaseUrl(options.localBaseUrl) &&
     state.launchUrl === normalizeOptionalString(options.launchUrl) &&
+    areCompanionScopesEqual(state.bridgeScope, options.bridgeScope) &&
     state.tokenHash === hashString(options.bearerToken)
   );
 }
@@ -250,6 +280,9 @@ function buildCompanionEnv(
     [ENV_LOCAL_BASE_URL]: normalizeBaseUrl(options.localBaseUrl),
     [ENV_STATE_PATH]: resolveCompanionPaths(options.projectRoot, options.profileKey).statePath,
   };
+  nextEnv[ENV_SCOPE_TENANT_ID] = options.bridgeScope.tenantId;
+  nextEnv[ENV_SCOPE_RUN_ID] = options.bridgeScope.runId;
+  nextEnv[ENV_SCOPE_LEASE_ID] = options.bridgeScope.leaseId;
   if (options.launchUrl?.trim()) {
     nextEnv[ENV_LAUNCH_URL] = options.launchUrl.trim();
   } else {
@@ -297,6 +330,7 @@ function spawnCompanionProcess(
     serverBaseUrl: normalizeBaseUrl(options.serverBaseUrl),
     localBaseUrl: normalizeBaseUrl(options.localBaseUrl),
     launchUrl: normalizeOptionalString(options.launchUrl),
+    bridgeScope: options.bridgeScope,
     tokenHash: hashString(options.bearerToken),
     consumers: [],
   };

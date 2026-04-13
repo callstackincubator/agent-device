@@ -267,6 +267,11 @@ export type MetroPrepareOptions = {
   publicBaseUrl: string;
   proxyBaseUrl?: string;
   bearerToken?: string;
+  bridgeScope?: {
+    tenantId: string;
+    runId: string;
+    leaseId: string;
+  };
   launchUrl?: string;
   companionProfileKey?: string;
   companionConsumerKey?: string;

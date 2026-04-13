@@ -24,6 +24,12 @@ import {
 } from '../utils/process-identity.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from '../client-metro-companion.ts';
 
+const TEST_BRIDGE_SCOPE = {
+  tenantId: 'tenant-1',
+  runId: 'run-1',
+  leaseId: 'lease-1',
+};
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
@@ -59,6 +65,7 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
       serverBaseUrl: 'https://bridge.example.test',
       bearerToken: 'token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       launchUrl: 'myapp://staging',
       profileKey: '/tmp/staging.json',
       consumerKey: 'session-a',
@@ -68,6 +75,7 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
       serverBaseUrl: 'https://bridge.example.test',
       bearerToken: 'token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       launchUrl: 'myapp://staging',
       profileKey: '/tmp/staging.json',
       consumerKey: 'session-b',
@@ -77,6 +85,7 @@ test('companion ownership is profile-scoped and consumer-counted', async () => {
       serverBaseUrl: 'https://bridge.example.test',
       bearerToken: 'token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       launchUrl: 'myapp://prod',
       profileKey: '/tmp/prod.json',
       consumerKey: 'session-prod',
@@ -155,6 +164,7 @@ test('launchUrl changes force a companion respawn for the same profile', async (
       serverBaseUrl: 'https://bridge.example.test',
       bearerToken: 'token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       launchUrl: 'myapp://first',
       profileKey: '/tmp/profile.json',
       consumerKey: 'session-a',
@@ -164,6 +174,7 @@ test('launchUrl changes force a companion respawn for the same profile', async (
       serverBaseUrl: 'https://bridge.example.test',
       bearerToken: 'token',
       localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       launchUrl: 'myapp://second',
       profileKey: '/tmp/profile.json',
       consumerKey: 'session-a',
@@ -180,6 +191,57 @@ test('launchUrl changes force a companion respawn for the same profile', async (
       launchUrl?: string;
     };
     assert.equal(state.launchUrl, 'myapp://second');
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('legacy state without bridge scope is stopped before respawn', async () => {
+  const projectRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-metro-companion-legacy-'),
+  );
+  const statePath = path.join(projectRoot, '.agent-device', 'metro-companion.json');
+  try {
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(
+      statePath,
+      `${JSON.stringify({
+        pid: 555,
+        startTime: 'start-555',
+        command: `${process.execPath} src/metro-companion.ts --agent-device-run-metro-companion`,
+        serverBaseUrl: 'https://bridge.example.test',
+        localBaseUrl: 'http://127.0.0.1:8081',
+        tokenHash: 'legacy-token-hash',
+        consumers: ['session-a'],
+      })}\n`,
+    );
+
+    vi.mocked(runCmdDetached).mockReturnValueOnce(666);
+    vi.mocked(isProcessAlive).mockReturnValue(true);
+    vi.mocked(readProcessStartTime).mockReturnValue('start-555');
+    vi.mocked(readProcessCommand).mockReturnValue(
+      `${process.execPath} src/metro-companion.ts --agent-device-run-metro-companion`,
+    );
+    vi.mocked(waitForProcessExit).mockResolvedValue(true);
+    const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    const spawned = await ensureMetroCompanion({
+      projectRoot,
+      serverBaseUrl: 'https://bridge.example.test',
+      bearerToken: 'token',
+      localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
+      consumerKey: 'session-a',
+    });
+
+    assert.equal(spawned.spawned, true);
+    assert.equal(spawned.pid, 666);
+    assert.equal(vi.mocked(runCmdDetached).mock.calls.length, 1);
+    assert.deepEqual(killSpy.mock.calls[0], [555, 'SIGTERM']);
+    const state = JSON.parse(fs.readFileSync(spawned.statePath, 'utf8')) as {
+      bridgeScope?: unknown;
+    };
+    assert.deepEqual(state.bridgeScope, TEST_BRIDGE_SCOPE);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

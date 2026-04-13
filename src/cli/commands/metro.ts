@@ -20,6 +20,14 @@ export const metroCommand: ClientCommandHandler = async ({ positionals, flags, c
     publicBaseUrl: flags.metroPublicBaseUrl,
     proxyBaseUrl: flags.metroProxyBaseUrl,
     bearerToken: flags.metroBearerToken,
+    bridgeScope:
+      flags.tenant && flags.runId && flags.leaseId
+        ? {
+            tenantId: flags.tenant,
+            runId: flags.runId,
+            leaseId: flags.leaseId,
+          }
+        : undefined,
     startupTimeoutMs: flags.metroStartupTimeoutMs,
     probeTimeoutMs: flags.metroProbeTimeoutMs,
     reuseExisting: flags.metroNoReuseExisting ? false : undefined,

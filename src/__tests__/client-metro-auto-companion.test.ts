@@ -11,6 +11,12 @@ vi.mock('../client-metro-companion.ts', () => ({
 import { ensureMetroCompanion } from '../client-metro-companion.ts';
 import { prepareMetroRuntime } from '../client-metro.ts';
 
+const TEST_BRIDGE_SCOPE = {
+  tenantId: 'tenant-1',
+  runId: 'run-1',
+  leaseId: 'lease-1',
+};
+
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -96,6 +102,7 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
       publicBaseUrl: 'https://public.example.test',
       proxyBaseUrl: 'https://proxy.example.test',
       proxyBearerToken: 'shared-token',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       metroPort: 8081,
       reuseExisting: true,
       installDependenciesIfNeeded: false,
@@ -117,6 +124,7 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
       projectRoot,
       serverBaseUrl: 'https://proxy.example.test',
       bearerToken: 'shared-token',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       localBaseUrl: 'http://127.0.0.1:8081',
       launchUrl: undefined,
       profileKey: undefined,
@@ -126,6 +134,26 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
     assert.equal(fetchMock.mock.calls.length, 3);
     assert.equal(fetchMock.mock.calls[1]?.[0], 'https://proxy.example.test/api/metro/bridge');
     assert.equal(fetchMock.mock.calls[2]?.[0], 'https://proxy.example.test/api/metro/bridge');
+    assert.deepEqual(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)), {
+      tenantId: 'tenant-1',
+      runId: 'run-1',
+      leaseId: 'lease-1',
+      ios_runtime: {
+        metro_bundle_url:
+          'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+      },
+      timeout_ms: 10000,
+    });
+    assert.deepEqual(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)), {
+      tenantId: 'tenant-1',
+      runId: 'run-1',
+      leaseId: 'lease-1',
+      ios_runtime: {
+        metro_bundle_url:
+          'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+      },
+      timeout_ms: 10000,
+    });
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -165,6 +193,7 @@ test('prepareMetroRuntime preserves the initial bridge error if companion startu
           publicBaseUrl: 'https://public.example.test',
           proxyBaseUrl: 'https://proxy.example.test',
           proxyBearerToken: 'shared-token',
+          bridgeScope: TEST_BRIDGE_SCOPE,
           metroPort: 8081,
           reuseExisting: true,
           installDependenciesIfNeeded: false,
@@ -178,6 +207,57 @@ test('prepareMetroRuntime preserves the initial bridge error if companion startu
         return true;
       },
     );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareMetroRuntime fails fast when initial bridge failure is non-retryable', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-401-'));
+  const projectRoot = path.join(tempRoot, 'project');
+  fs.mkdirSync(path.join(projectRoot, 'node_modules'), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({
+      name: 'metro-initial-bridge-non-retryable-test',
+      private: true,
+      dependencies: {
+        'react-native': '0.0.0-test',
+      },
+    }),
+  );
+
+  const fetchMock = vi.fn();
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => 'packager-status:running',
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status: 401,
+    text: async () => JSON.stringify({ ok: false, error: 'invalid scope' }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+
+  try {
+    await assert.rejects(
+      () =>
+        prepareMetroRuntime({
+          projectRoot,
+          publicBaseUrl: 'https://public.example.test',
+          proxyBaseUrl: 'https://proxy.example.test',
+          proxyBearerToken: 'shared-token',
+          bridgeScope: TEST_BRIDGE_SCOPE,
+          metroPort: 8081,
+          reuseExisting: true,
+          installDependenciesIfNeeded: false,
+          probeTimeoutMs: 10,
+        }),
+      /\/api\/metro\/bridge failed \(401\)/,
+    );
+    assert.equal(vi.mocked(ensureMetroCompanion).mock.calls.length, 0);
+    assert.equal(fetchMock.mock.calls.length, 2);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -231,6 +311,7 @@ test('prepareMetroRuntime fails fast on non-retryable bridge errors after compan
       publicBaseUrl: 'https://public.example.test',
       proxyBaseUrl: 'https://proxy.example.test',
       proxyBearerToken: 'shared-token',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       metroPort: 8081,
       reuseExisting: true,
       installDependenciesIfNeeded: false,
@@ -335,6 +416,7 @@ test('prepareMetroRuntime retries malformed retryable bridge responses after com
       publicBaseUrl: 'https://public.example.test',
       proxyBaseUrl: 'https://proxy.example.test',
       proxyBearerToken: 'shared-token',
+      bridgeScope: TEST_BRIDGE_SCOPE,
       metroPort: 8081,
       reuseExisting: true,
       installDependenciesIfNeeded: false,

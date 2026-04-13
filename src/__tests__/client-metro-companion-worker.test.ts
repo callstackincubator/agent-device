@@ -178,6 +178,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   const upstreamMessage = createDeferred<string>();
   const bridgePong = createDeferred<void>();
   const bridgeSocketReady = createDeferred<NodeJS.WritableStream>();
+  const registrationBody = createDeferred<Record<string, unknown>>();
   const bridgeOpen = createDeferred<void>();
   const bridgeFrame = createDeferred<string>();
   const bridgeClose = createDeferred<CloseFrame>();
@@ -233,8 +234,12 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   const bridgeServer = http.createServer((req, res) => {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
     if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
-      req.resume();
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
       req.on('end', () => {
+        registrationBody.resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify({
@@ -325,6 +330,9 @@ test('metro companion worker proxies websocket frames to the local upstream serv
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -349,6 +357,12 @@ test('metro companion worker proxies websocket frames to the local upstream serv
     waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection'),
     earlyExit,
   ]);
+  assert.deepEqual(await waitFor(registrationBody.promise, 5_000, 'companion registration'), {
+    tenantId: 'tenant-1',
+    runId: 'run-1',
+    leaseId: 'lease-1',
+    local_base_url: `http://127.0.0.1:${upstreamPort}`,
+  });
   await Promise.race([waitFor(bridgePong.promise, 5_000, 'bridge pong'), earlyExit]);
   await Promise.race([waitFor(bridgeOpen.promise, 5_000, 'bridge ws-open-result'), earlyExit]);
   bridgeSocket.write(
@@ -467,6 +481,9 @@ test('metro companion worker reconnects after the bridge closes immediately afte
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -571,6 +588,9 @@ test('metro companion worker exits after its state file is removed', async () =>
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
         AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -615,6 +635,9 @@ test('metro companion worker exits immediately when its state file is already mi
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: 'http://127.0.0.1:1',
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
         AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],

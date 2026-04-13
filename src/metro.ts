@@ -149,6 +149,11 @@ export type PrepareRemoteMetroOptions = {
   publicBaseUrl: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
+  bridgeScope?: {
+    tenantId: string;
+    runId: string;
+    leaseId: string;
+  };
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
@@ -178,6 +183,11 @@ export type EnsureMetroTunnelOptions = {
   serverBaseUrl: string;
   bearerToken: string;
   localBaseUrl: string;
+  bridgeScope: {
+    tenantId: string;
+    runId: string;
+    leaseId: string;
+  };
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
@@ -205,6 +215,7 @@ export async function prepareRemoteMetro(
     publicBaseUrl: options.publicBaseUrl,
     proxyBaseUrl: options.proxyBaseUrl,
     proxyBearerToken: options.proxyBearerToken,
+    bridgeScope: options.bridgeScope,
     launchUrl: options.launchUrl,
     companionProfileKey: options.profileKey,
     companionConsumerKey: options.consumerKey,

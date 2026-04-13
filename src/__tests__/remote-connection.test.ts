@@ -177,6 +177,11 @@ test('connect allocates a lease, prepares Metro, and writes connection state', a
   const state = readRemoteConnectionState({ stateDir, session: 'adc-android' });
   assert.equal(observedBackend, 'android-instance');
   assert.equal(observedPrepare?.companionProfileKey, remoteConfigPath);
+  assert.deepEqual(observedPrepare?.bridgeScope, {
+    tenantId: 'acme',
+    runId: 'run-123',
+    leaseId: 'lease-1',
+  });
   assert.equal(state?.leaseId, 'lease-1');
   assert.equal(state?.remoteConfigHash, hashRemoteConfigFile(remoteConfigPath));
   assert.deepEqual(state?.daemon, {

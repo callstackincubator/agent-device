@@ -50,8 +50,14 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+      tenantId?: string;
+      runId?: string;
+      leaseId?: string;
       ios_runtime?: { metro_bundle_url?: string };
     };
+    assert.equal(body.tenantId, 'tenant-1');
+    assert.equal(body.runId, 'run-1');
+    assert.equal(body.leaseId, 'lease-1');
     assert.match(body.ios_runtime?.metro_bundle_url ?? '', /index\.bundle\?platform=ios/);
 
     res.statusCode = 200;
@@ -114,6 +120,11 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
       publicBaseUrl: `http://127.0.0.1:${metroPort}`,
       proxyBaseUrl: `http://127.0.0.1:${proxyPort}`,
       proxyBearerToken: TEST_TOKEN,
+      bridgeScope: {
+        tenantId: 'tenant-1',
+        runId: 'run-1',
+        leaseId: 'lease-1',
+      },
       metroPort,
       reuseExisting: false,
       installDependenciesIfNeeded: false,
@@ -171,6 +182,19 @@ test('prepareMetroRuntime rejects incomplete proxy configuration', async () => {
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
       error.message.includes('AGENT_DEVICE_PROXY_TOKEN'),
+  );
+
+  await assert.rejects(
+    () =>
+      prepareMetroRuntime({
+        publicBaseUrl: 'https://sandbox.example.test',
+        proxyBaseUrl: 'https://proxy.example.test',
+        proxyBearerToken: TEST_TOKEN,
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('tenantId, runId, and leaseId bridge scope'),
   );
 });
 

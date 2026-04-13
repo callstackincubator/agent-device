@@ -369,6 +369,9 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
     capturedBridgeRequest?.body?.ios_runtime?.metro_bundle_url,
     'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
   );
+  assert.equal(capturedBridgeRequest?.body?.tenantId, 'acme');
+  assert.equal(capturedBridgeRequest?.body?.runId, 'run-123');
+  assert.equal(capturedBridgeRequest?.body?.leaseId, 'abc123abc123abc1');
   assert.deepEqual(result.json?.data?.runtime, {
     platform: 'android',
     metroHost: '10.0.2.2',

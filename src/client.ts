@@ -264,6 +264,7 @@ export function createAgentDeviceClient(
           publicBaseUrl: options.publicBaseUrl,
           proxyBaseUrl: options.proxyBaseUrl,
           proxyBearerToken: options.bearerToken,
+          bridgeScope: options.bridgeScope,
           launchUrl: options.launchUrl,
           companionProfileKey: options.companionProfileKey,
           companionConsumerKey: options.companionConsumerKey,

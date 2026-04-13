@@ -5,6 +5,9 @@ import {
   ENV_LAUNCH_URL,
   ENV_LOCAL_BASE_URL,
   ENV_SERVER_BASE_URL,
+  ENV_SCOPE_LEASE_ID,
+  ENV_SCOPE_RUN_ID,
+  ENV_SCOPE_TENANT_ID,
   ENV_STATE_PATH,
   METRO_COMPANION_LEASE_CHECK_INTERVAL_MS,
   METRO_COMPANION_RECONNECT_DELAY_MS,
@@ -29,6 +32,7 @@ async function registerCompanion(options: CompanionOptions): Promise<{ wsUrl: st
       method: 'POST',
       headers: createHeaders(options.serverBaseUrl, options.bearerToken),
       body: JSON.stringify({
+        ...options.bridgeScope,
         local_base_url: normalizeBaseUrl(options.localBaseUrl),
         ...(options.launchUrl ? { launch_url: options.launchUrl } : {}),
       }),
@@ -315,10 +319,21 @@ function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOpt
   if (!serverBaseUrl || !bearerToken || !localBaseUrl) {
     throw new Error('Metro companion worker is missing required environment configuration.');
   }
+  const tenantId = env[ENV_SCOPE_TENANT_ID]?.trim();
+  const runId = env[ENV_SCOPE_RUN_ID]?.trim();
+  const leaseId = env[ENV_SCOPE_LEASE_ID]?.trim();
+  if (!tenantId || !runId || !leaseId) {
+    throw new Error('Metro companion worker is missing required bridge scope configuration.');
+  }
   return {
     serverBaseUrl,
     bearerToken,
     localBaseUrl,
+    bridgeScope: {
+      tenantId,
+      runId,
+      leaseId,
+    },
     launchUrl: env[ENV_LAUNCH_URL]?.trim() || undefined,
     statePath: env[ENV_STATE_PATH]?.trim() || undefined,
   };

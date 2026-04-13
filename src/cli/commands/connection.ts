@@ -86,7 +86,11 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
       allocatedForThisCommand = true;
     }
 
-    const metro = await prepareConnectedMetro(flags, client, remoteConfig.resolvedPath, session);
+    const metro = await prepareConnectedMetro(flags, client, remoteConfig.resolvedPath, session, {
+      tenantId: lease.tenantId,
+      runId: lease.runId,
+      leaseId: lease.leaseId,
+    });
     metroCleanup = metro.cleanup;
     const now = new Date().toISOString();
     const state: RemoteConnectionState = {
@@ -243,6 +247,11 @@ async function prepareConnectedMetro(
   client: AgentDeviceClient,
   remoteConfigPath: string,
   session: string,
+  bridgeScope: {
+    tenantId: string;
+    runId: string;
+    leaseId: string;
+  },
 ): Promise<{
   runtime?: SessionRuntimeHints;
   cleanup?: NonNullable<RemoteConnectionState['metro']>;
@@ -265,6 +274,7 @@ async function prepareConnectedMetro(
     publicBaseUrl: flags.metroPublicBaseUrl,
     proxyBaseUrl: flags.metroProxyBaseUrl,
     bearerToken: flags.metroBearerToken,
+    bridgeScope,
     launchUrl: flags.launchUrl,
     companionProfileKey: remoteConfigPath,
     companionConsumerKey: session,
