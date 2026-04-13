@@ -237,6 +237,7 @@ const SANITIZED_FLAG_KEYS = [
   'saveScript',
   'noRecord',
   'fps',
+  'quality',
   'hideTouches',
   'count',
   'intervalMs',

@@ -274,6 +274,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     out: options.out,
     count: options.count,
     fps: options.fps,
+    quality: options.quality,
     hideTouches: options.hideTouches,
     intervalMs: options.intervalMs,
     delayMs: options.delayMs,

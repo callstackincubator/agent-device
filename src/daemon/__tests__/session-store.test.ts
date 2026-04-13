@@ -167,7 +167,7 @@ test('writeSessionLog persists record --hide-touches flags in script output', ()
   store.recordAction(session, {
     command: 'record',
     positionals: ['start', './capture.mp4'],
-    flags: { platform: 'ios', fps: 30, hideTouches: true },
+    flags: { platform: 'ios', fps: 30, quality: 8, hideTouches: true },
     result: { action: 'start', showTouches: false },
   });
 
@@ -175,7 +175,7 @@ test('writeSessionLog persists record --hide-touches flags in script output', ()
   const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
   assert.ok(scriptFile);
   const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
-  assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --hide-touches/);
+  assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --quality 8 --hide-touches/);
 });
 
 test('writeSessionLog persists screenshot --fullscreen in script output', () => {

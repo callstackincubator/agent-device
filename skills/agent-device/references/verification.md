@@ -82,6 +82,7 @@ agent-device record stop
 - On iOS, recording is a wrapper around `simctl` for simulators and the corresponding device capture path for physical devices.
 - On Android, recording is a wrapper around `adb`.
 - Recording writes a video artifact and a gesture-telemetry sidecar JSON.
+- Use `record start <path> --quality 5` when a smaller video is easier to inspect or share. The scale is 5-10, where 10 is native resolution; omit it to preserve native/current resolution.
 - On macOS hosts, touch overlay burn-in is available for supported recordings.
 - On non-macOS hosts, recording still succeeds but the video stays raw and `record stop` can return an `overlayWarning`.
 - If the agent already knows the interaction sequence and wants a more lifelike, uninterrupted recording, drive the flow with `batch` while recording instead of replanning between each step.

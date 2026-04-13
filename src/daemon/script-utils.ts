@@ -130,6 +130,9 @@ export function appendRecordActionScriptArgs(parts: string[], action: SessionAct
   if (typeof action.flags?.fps === 'number') {
     parts.push('--fps', String(action.flags.fps));
   }
+  if (typeof action.flags?.quality === 'number') {
+    parts.push('--quality', String(action.flags.quality));
+  }
   if (action.flags?.hideTouches) {
     parts.push('--hide-touches');
   }

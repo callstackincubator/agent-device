@@ -205,6 +205,7 @@ export const genericClientCommandHandlers = {
         action: readStartStop(positionals[0], 'record'),
         path: positionals[1],
         fps: flags.fps,
+        quality: flags.quality as 5 | 6 | 7 | 8 | 9 | 10 | undefined,
         hideTouches: flags.hideTouches,
       }),
   ),

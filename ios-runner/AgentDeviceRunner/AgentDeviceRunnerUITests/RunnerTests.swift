@@ -48,6 +48,8 @@ final class RunnerTests: XCTestCase {
   let tvRemoteDoublePressDelayDefault: TimeInterval = 0.0
   let minRecordingFps = 1
   let maxRecordingFps = 120
+  let minRecordingQuality = 5
+  let maxRecordingQuality = 10
   var needsPostSnapshotInteractionDelay = false
   var needsFirstInteractionDelay = false
   var activeRecording: ScreenRecorder?

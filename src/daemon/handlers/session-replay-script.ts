@@ -243,6 +243,14 @@ function parseReplayScriptLine(line: string): SessionAction | null {
         index += 1;
         continue;
       }
+      if (token === '--quality' && index + 1 < args.length) {
+        const parsedQuality = Number(args[index + 1]);
+        if (Number.isFinite(parsedQuality)) {
+          action.flags.quality = Math.floor(parsedQuality);
+        }
+        index += 1;
+        continue;
+      }
       positionals.push(token);
     }
     action.positionals = positionals;

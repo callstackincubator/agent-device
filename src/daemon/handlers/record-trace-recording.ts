@@ -15,7 +15,11 @@ import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
-import { overlayRecordingTouches, trimRecordingStart } from '../../recording/overlay.ts';
+import {
+  overlayRecordingTouches,
+  resizeRecording,
+  trimRecordingStart,
+} from '../../recording/overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
@@ -32,6 +36,8 @@ import {
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
+const RECORDING_MIN_QUALITY = 5;
+const RECORDING_MAX_QUALITY = 10;
 const LOCAL_RECORDING_READY_POLL_MS = 250;
 const LOCAL_RECORDING_READY_SETTLE_POLLS = 2;
 
@@ -42,6 +48,7 @@ export type RecordTraceDeps = {
   waitForStableFile: typeof waitForStableFile;
   isPlayableVideo: typeof isPlayableVideo;
   trimRecordingStart: typeof trimRecordingStart;
+  resizeRecording: typeof resizeRecording;
   overlayRecordingTouches: typeof overlayRecordingTouches;
 };
 
@@ -49,6 +56,7 @@ export type RecordingBase = {
   outPath: string;
   clientOutPath?: string;
   startedAt: number;
+  quality?: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
 };
@@ -61,6 +69,7 @@ export function buildRecordTraceDeps(): RecordTraceDeps {
     waitForStableFile,
     isPlayableVideo,
     trimRecordingStart,
+    resizeRecording,
     overlayRecordingTouches,
   };
 }
@@ -70,6 +79,7 @@ function buildRecordingBase(req: DaemonRequest, outPath: string): RecordingBase 
     outPath,
     clientOutPath: req.meta?.clientArtifactPaths?.outPath,
     startedAt: Date.now(),
+    quality: req.flags?.quality,
     showTouches: req.flags?.hideTouches !== true,
     gestureEvents: [],
   };
@@ -180,6 +190,7 @@ async function startRecording(params: {
   }
 
   const fpsFlag = req.flags?.fps;
+  const qualityFlag = req.flags?.quality;
   if (
     fpsFlag !== undefined &&
     (!Number.isInteger(fpsFlag) ||
@@ -189,6 +200,17 @@ async function startRecording(params: {
     return errorResponse(
       'INVALID_ARGS',
       `fps must be an integer between ${IOS_DEVICE_RECORD_MIN_FPS} and ${IOS_DEVICE_RECORD_MAX_FPS}`,
+    );
+  }
+  if (
+    qualityFlag !== undefined &&
+    (!Number.isInteger(qualityFlag) ||
+      qualityFlag < RECORDING_MIN_QUALITY ||
+      qualityFlag > RECORDING_MAX_QUALITY)
+  ) {
+    return errorResponse(
+      'INVALID_ARGS',
+      `quality must be an integer between ${RECORDING_MIN_QUALITY} and ${RECORDING_MAX_QUALITY}`,
     );
   }
 
@@ -297,6 +319,14 @@ async function stopNonRunnerRecording(params: {
       'COMMAND_FAILED',
       `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'simctl recordVideo')}`,
     );
+  }
+
+  if (recording.quality !== undefined && recording.quality < RECORDING_MAX_QUALITY) {
+    await deps.resizeRecording({
+      videoPath: recording.outPath,
+      quality: recording.quality,
+      targetLabel: 'iOS recording',
+    });
   }
 
   await finalizeRecordingOverlay({
