@@ -21,6 +21,7 @@ export default defineConfig({
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
           'install-source': 'src/install-source.ts',
+          'android-apps': 'src/android-apps.ts',
           contracts: 'src/contracts.ts',
           selectors: 'src/selectors.ts',
           finders: 'src/finders.ts',

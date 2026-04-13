@@ -9,6 +9,19 @@ import { waitForAndroidBoot } from './devices.ts';
 import { adbArgs } from './adb.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
+import {
+  parseAndroidForegroundApp,
+  parseAndroidLaunchablePackages,
+  parseAndroidUserInstalledPackages,
+  type AndroidForegroundApp,
+} from './app-parsers.ts';
+
+export {
+  parseAndroidForegroundApp,
+  parseAndroidLaunchablePackages,
+  parseAndroidUserInstalledPackages,
+  type AndroidForegroundApp,
+} from './app-parsers.ts';
 
 const ALIASES: Record<string, { type: 'intent' | 'package'; value: string }> = {
   settings: { type: 'intent', value: 'android.settings.SETTINGS' },
@@ -93,12 +106,8 @@ async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<st
     if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
       continue;
     }
-    for (const line of result.stdout.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      const firstToken = trimmed.split(/\s+/)[0];
-      const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
-      if (pkg) packages.add(pkg);
+    for (const pkg of parseAndroidLaunchablePackages(result.stdout)) {
+      packages.add(pkg);
     }
   }
   return packages;
@@ -126,10 +135,7 @@ function resolveAndroidLaunchCategories(
 
 async function listAndroidUserInstalledPackages(device: DeviceInfo): Promise<string[]> {
   const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages', '-3']));
-  return result.stdout
-    .split('\n')
-    .map((line: string) => line.replace('package:', '').trim())
-    .filter(Boolean);
+  return parseAndroidUserInstalledPackages(result.stdout);
 }
 
 export function inferAndroidAppName(packageName: string): string {
@@ -165,9 +171,7 @@ export function inferAndroidAppName(packageName: string): string {
     .join(' ');
 }
 
-export async function getAndroidAppState(
-  device: DeviceInfo,
-): Promise<{ package?: string; activity?: string }> {
+export async function getAndroidAppState(device: DeviceInfo): Promise<AndroidForegroundApp> {
   const windowFocus = await readAndroidFocus(device, [
     ['shell', 'dumpsys', 'window', 'windows'],
     ['shell', 'dumpsys', 'window'],
@@ -185,28 +189,12 @@ export async function getAndroidAppState(
 async function readAndroidFocus(
   device: DeviceInfo,
   commands: string[][],
-): Promise<{ package?: string; activity?: string } | null> {
+): Promise<AndroidForegroundApp | null> {
   for (const args of commands) {
     const result = await runCmd('adb', adbArgs(device, args), { allowFailure: true });
     const text = result.stdout ?? '';
-    const parsed = parseAndroidFocus(text);
+    const parsed = parseAndroidForegroundApp(text);
     if (parsed) return parsed;
-  }
-  return null;
-}
-
-function parseAndroidFocus(text: string): { package?: string; activity?: string } | null {
-  const patterns = [
-    /mCurrentFocus=Window\{[^}]*\s([\w.]+)\/([\w.$]+)/,
-    /mFocusedApp=AppWindowToken\{[^}]*\s([\w.]+)\/([\w.$]+)/,
-    /mResumedActivity:.*?\s([\w.]+)\/([\w.$]+)/,
-    /ResumedActivity:.*?\s([\w.]+)\/([\w.$]+)/,
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(text);
-    if (match) {
-      return { package: match[1], activity: match[2] };
-    }
   }
   return null;
 }
