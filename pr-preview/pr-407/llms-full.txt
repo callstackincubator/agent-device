@@ -524,9 +524,7 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
-- `connect --remote-config <path>` is the canonical remote flow for sandbox agents. The remote profile supplies host, tenant/run scope, session, platform, lease backend, and Metro settings; `connect` allocates the lease, prepares Metro locally when needed, and stores non-secret connection state for normal follow-up commands.
-- Command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
-- `metro prepare --remote-config <path>` remains available for advanced inspection and debugging. It prints JSON runtime hints to stdout, `--json` wraps them in the standard `{ success, data }` envelope, and `--runtime-file <path>` persists the same payload when callers need an artifact.
+- For remote `connect --remote-config` flows, see [Remote Metro workflow](#remote-metro-workflow).
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
 
@@ -535,7 +533,6 @@ agent-device open "https://example.com" --platform ios           # open link in 
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 agent-device back --platform ios                                 # tap visible app back UI only
 agent-device back --system --platform ios                        # use edge-swipe or remote back action
-agent-device connect --remote-config ./agent-device.remote.json
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
 agent-device open com.example.myapp --platform android --serial emulator-5554 --session my-session --relaunch
 ```
@@ -1744,7 +1741,7 @@ Notes:
 - `open <app> <url>` in iOS sessions opens deep links.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
-- `connect --remote-config <path>` is the recommended remote Metro-backed session flow when the remote profile includes tenant/run scope, session, platform, and lease backend. It prepares Metro locally when needed, auto-starts the local Metro companion tunnel when the remote bridge needs it, and stores effective runtime hints for later `open`.
+- For remote `connect --remote-config` sessions, see [Commands](/agent-device/pr-preview/pr-407/docs/commands.md#remote-metro-workflow).
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-407/docs/replay-e2e.md).
