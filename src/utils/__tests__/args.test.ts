@@ -539,6 +539,17 @@ test('parseArgs recognizes record --quality flag', () => {
   assert.equal(parsed.flags.quality, 7);
 });
 
+test('parseArgs accepts record --quality boundaries', () => {
+  const parsedMin = parseArgs(['record', 'start', './capture.mp4', '--quality', '5'], {
+    strictFlags: true,
+  });
+  assert.equal(parsedMin.flags.quality, 5);
+  const parsedMax = parseArgs(['record', 'start', './capture.mp4', '--quality', '10'], {
+    strictFlags: true,
+  });
+  assert.equal(parsedMax.flags.quality, 10);
+});
+
 test('parseArgs recognizes record --hide-touches flag', () => {
   const parsed = parseArgs(['record', 'start', './capture.mp4', '--hide-touches'], {
     strictFlags: true,

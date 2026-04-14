@@ -790,6 +790,42 @@ test('record stop resizes iOS simulator recording when quality is explicit', asy
   });
 });
 
+test('record stop skips iOS simulator resize when quality is 10', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-quality-max';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-max.mp4'],
+    flags: { quality: 10 },
+  });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(responseStop?.ok).toBe(true);
+  expect(mockResizeRecording).not.toHaveBeenCalled();
+});
+
 test('record stop keeps iOS simulator video when overlay export fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-overlay-warning';
@@ -828,6 +864,46 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
   expect((responseStop as any).data?.overlayWarning).toBe(
     overlaySupportWarning ?? 'failed to overlay recording touches: swift export failed',
   );
+});
+
+test('record stop keeps iOS simulator video when resize export fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-resize-fail';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+
+  mockResizeRecording.mockImplementation(async () => {
+    throw new Error('resize failed');
+  });
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-resize-fail.mp4'],
+    flags: { quality: 6 },
+  });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(responseStop?.ok).toBe(true);
+  expect((responseStop as any).data?.overlayWarning ?? '').toMatch(/failed to resize recording/i);
 });
 
 test('record start does not fail when iOS simulator runner warm-up fails', async () => {
@@ -1000,6 +1076,83 @@ test('record start passes scaled Android screenrecord size when quality is expli
   expect(response?.ok).toBe(true);
   expect(adbCommands).toContain('-s emulator-5554 shell wm size');
   expect(sessionStore.get(sessionName)?.recording?.quality).toBe(7);
+});
+
+test('record start rejects Android quality when wm size is unparseable', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-quality-unparseable';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (command === '-s emulator-5554 shell wm size') {
+      return { stdout: 'w=oops\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android.mp4'],
+    flags: { quality: 7 },
+  });
+
+  expect(response?.ok).toBe(false);
+  expect((response as any).error?.code).toBe('COMMAND_FAILED');
+});
+
+test('record start does not scale Android screenrecord when quality is 10', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-quality-max';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  const adbCommands: string[] = [];
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    adbCommands.push(command);
+    if (
+      /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+        command,
+      )
+    ) {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '1024\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android-max.mp4'],
+    flags: { quality: 10 },
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(adbCommands).not.toContain('-s emulator-5554 shell wm size');
 });
 
 test('record start scales Android screenrecord from override size when present', async () => {

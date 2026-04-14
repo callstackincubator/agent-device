@@ -21,7 +21,7 @@ import {
   trimRecordingStart,
 } from '../../recording/overlay.ts';
 import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
-import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
@@ -322,11 +322,15 @@ async function stopNonRunnerRecording(params: {
   }
 
   if (recording.quality !== undefined && recording.quality < RECORDING_MAX_QUALITY) {
-    await deps.resizeRecording({
-      videoPath: recording.outPath,
-      quality: recording.quality,
-      targetLabel: 'iOS recording',
-    });
+    try {
+      await deps.resizeRecording({
+        videoPath: recording.outPath,
+        quality: recording.quality,
+        targetLabel: 'iOS recording',
+      });
+    } catch (error) {
+      recording.overlayWarning = `failed to resize recording: ${formatRecordTraceError(error)}`;
+    }
   }
 
   await finalizeRecordingOverlay({

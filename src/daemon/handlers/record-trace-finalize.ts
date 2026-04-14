@@ -29,7 +29,7 @@ export async function finalizeRecordingOverlay(
   if (recording.showTouches) {
     const overlaySupportWarning = getRecordingOverlaySupportWarning();
     if (overlaySupportWarning) {
-      recording.overlayWarning = overlaySupportWarning;
+      recording.overlayWarning ??= overlaySupportWarning;
     } else {
       try {
         await deps.overlayRecordingTouches({
@@ -38,7 +38,7 @@ export async function finalizeRecordingOverlay(
           targetLabel,
         });
       } catch (error) {
-        recording.overlayWarning = `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
+        recording.overlayWarning ??= `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
       }
     }
   }
