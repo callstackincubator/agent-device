@@ -15,15 +15,17 @@ export type FrameSample = {
 
 export type TransitionTelemetryEvent = RecordingGestureEvent;
 
-export type TransitionSummaryInput = {
-  kind: 'frames' | 'video';
-  path?: string;
+type BaseTransitionSummaryInput = {
   frameCount: number;
   sampledFrameCount: number;
   durationMs?: number;
   sampleFps?: number;
   telemetryPath?: string;
 };
+
+export type TransitionSummaryInput =
+  | ({ kind: 'frames' } & BaseTransitionSummaryInput)
+  | ({ kind: 'video'; path: string } & BaseTransitionSummaryInput);
 
 export type TransitionSummaryEvent = {
   index: number;
@@ -165,7 +167,10 @@ export async function summarizeFrameTransitions(params: {
   };
 }
 
-export async function collectFrameInputs(inputs: string[]): Promise<FrameSample[]> {
+export async function collectFrameInputs(
+  inputs: string[],
+  options: { frameIntervalMs?: number } = {},
+): Promise<FrameSample[]> {
   if (inputs.length === 0) {
     throw new AppError('INVALID_ARGS', 'diff frames requires a frame path or directory');
   }
@@ -193,10 +198,11 @@ export async function collectFrameInputs(inputs: string[]): Promise<FrameSample[
     throw new AppError('INVALID_ARGS', 'diff frames requires at least two PNG frames');
   }
 
+  const frameIntervalMs = options.frameIntervalMs ?? 100;
   return framePaths.map((framePath, index) => ({
     index,
     path: framePath,
-    timestampMs: index * 100,
+    timestampMs: index * frameIntervalMs,
   }));
 }
 
@@ -272,6 +278,8 @@ function findTrigger(
     const durationMs =
       'durationMs' in event && typeof event.durationMs === 'number' ? event.durationMs : 0;
     const eventEndMs = event.tMs + durationMs;
+    // Continuous gestures should attach while overlapping the transition; discrete taps
+    // often land just before the first changed frame because UI animations start after input.
     const overlaps = event.tMs <= endMs + 250 && eventEndMs >= startMs - 250;
     const before = event.tMs <= startMs && startMs - event.tMs <= 1_000;
     if (!overlaps && !before) continue;

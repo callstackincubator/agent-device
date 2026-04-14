@@ -50,9 +50,15 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
   }
 
   if (positionals[0] === 'frames') {
-    rejectUnsupportedDiffFlags(flags, ['overlayRefs', 'sampleFps', 'maxFrames'], 'diff frames');
+    rejectUnsupportedDiffFlags(
+      flags,
+      ['baseline', 'overlayRefs', 'sampleFps', 'maxFrames'],
+      'diff frames',
+    );
     const outputDir = resolveTransitionOutputDir(flags.out);
-    const frames = await collectFrameInputs(positionals.slice(1));
+    const frames = await collectFrameInputs(positionals.slice(1), {
+      frameIntervalMs: flags.frameIntervalMs,
+    });
     const result = await summarizeFrameTransitions({
       frames,
       input: {
@@ -72,7 +78,7 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
   }
 
   if (positionals[0] === 'video') {
-    rejectUnsupportedDiffFlags(flags, ['overlayRefs'], 'diff video');
+    rejectUnsupportedDiffFlags(flags, ['baseline', 'frameIntervalMs', 'overlayRefs'], 'diff video');
     const videoRaw = positionals[1];
     if (!videoRaw || positionals.length > 2) {
       throw new AppError('INVALID_ARGS', 'diff video requires exactly one video path');
@@ -108,7 +114,11 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
   }
 
   if (positionals[0] !== 'screenshot') return false;
-  rejectUnsupportedDiffFlags(flags, ['sampleFps', 'maxFrames', 'telemetry'], 'diff screenshot');
+  rejectUnsupportedDiffFlags(
+    flags,
+    ['sampleFps', 'maxFrames', 'frameIntervalMs', 'telemetry'],
+    'diff screenshot',
+  );
 
   const baselineRaw = flags.baseline;
   if (!baselineRaw || typeof baselineRaw !== 'string') {

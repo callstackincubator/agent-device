@@ -78,7 +78,7 @@ agent-device diff video ./recordings/settings.mov --out /tmp/settings-transition
 agent-device diff video ./recordings/settings.mov --sample-fps 8 --max-frames 120 --json
 ```
 
-- `diff frames` accepts a directory of PNG frames or explicit PNG paths. It works without external video tools.
+- `diff frames` accepts a directory of PNG frames or explicit PNG paths. It works without external video tools. Use `--frame-interval-ms <n>` when recording telemetry timestamps need to line up with a known frame cadence; otherwise frames are spaced at `100ms`.
 - `diff video` requires `ffmpeg` and `ffprobe` in `PATH`; it samples the recording into PNG frames, then runs the same transition summarizer.
 - Add `--telemetry <path>` with a recording gesture sidecar when available. The output can then anchor transitions to events such as `after tap` or `during up scroll`.
 - The text output stays capped to the top transitions, keyframes, changed-region summaries, and optional OCR movement hints. Use `--json` when you need the structured metrics.

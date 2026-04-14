@@ -62,6 +62,7 @@ export type CliFlags = {
   threshold?: string;
   sampleFps?: number;
   maxFrames?: number;
+  frameIntervalMs?: number;
   telemetry?: string;
   appsFilter?: 'user-installed' | 'all';
   count?: number;
@@ -948,6 +949,16 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Diff video: maximum sampled frames to extract',
   },
   {
+    key: 'frameIntervalMs',
+    names: ['--frame-interval-ms'],
+    type: 'int',
+    min: 1,
+    max: 60_000,
+    usageLabel: '--frame-interval-ms <ms>',
+    usageDescription:
+      'Diff frames: timestamp spacing for frame sequences when aligning telemetry (default 100)',
+  },
+  {
     key: 'telemetry',
     names: ['--telemetry'],
     type: 'string',
@@ -1094,6 +1105,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'overlayRefs',
       'sampleFps',
       'maxFrames',
+      'frameIntervalMs',
       'telemetry',
     ],
   },

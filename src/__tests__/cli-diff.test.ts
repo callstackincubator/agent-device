@@ -485,12 +485,15 @@ describe('cli diff commands', () => {
         outputDir,
         '--telemetry',
         telemetryPath,
+        '--frame-interval-ms',
+        '250',
         '--threshold',
         '0',
       ]);
       assert.equal(result.code, null);
       assert.equal(result.calls.length, 0);
       assert.match(result.stdout, /Frame transition summary: 1 transition/);
+      assert.match(result.stdout, /0ms-500ms after tap x=20 y=20/);
       assert.match(result.stdout, /after tap x=20 y=20/);
       assert.match(result.stdout, /keyframes:/);
       assert.equal(fs.existsSync(path.join(outputDir, 'transition-1.diff.png')), true);
@@ -511,5 +514,42 @@ describe('cli diff commands', () => {
     assert.equal(result.code, 1);
     assert.equal(result.calls.length, 0);
     assert.match(result.stderr, /diff frames does not support --overlay-refs/);
+  });
+
+  test('diff frames rejects screenshot-only baseline flag', async () => {
+    const result = await runCliCapture([
+      'diff',
+      'frames',
+      './frame-1.png',
+      './frame-2.png',
+      '--baseline',
+      './baseline.png',
+    ]);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff frames does not support --baseline/);
+  });
+
+  test('diff video rejects extra positional paths before probing ffmpeg', async () => {
+    const result = await runCliCapture(['diff', 'video', './one.mp4', './two.mp4']);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff video requires exactly one video path/);
+  });
+
+  test('diff video rejects screenshot-only baseline flag before probing ffmpeg', async () => {
+    const result = await runCliCapture([
+      'diff',
+      'video',
+      './session.mp4',
+      '--baseline',
+      './baseline.png',
+    ]);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff video does not support --baseline/);
   });
 });

@@ -27,7 +27,8 @@ export async function extractVideoFrames(params: {
   sampleFps?: number;
   maxFrames?: number;
 }): Promise<ExtractedVideoFrames> {
-  if (!(await whichCmd('ffmpeg')) || !(await whichCmd('ffprobe'))) {
+  const [hasFfmpeg, hasFfprobe] = await Promise.all([whichCmd('ffmpeg'), whichCmd('ffprobe')]);
+  if (!hasFfmpeg || !hasFfprobe) {
     throw new AppError('TOOL_MISSING', 'diff video requires ffmpeg and ffprobe in PATH', {
       hint: 'Install FFmpeg, then retry diff video.',
     });
@@ -39,7 +40,7 @@ export async function extractVideoFrames(params: {
   const durationMs = await probeVideoDurationMs(params.videoPath);
   const sampleFps =
     durationMs && durationMs > 0
-      ? Math.min(requestedFps, Math.max(1 / (durationMs / 1_000), maxFrames / (durationMs / 1_000)))
+      ? Math.min(requestedFps, maxFrames / (durationMs / 1_000))
       : requestedFps;
   const pattern = path.join(params.outputDir, 'frame-%06d.png');
   const result = await runCmd(
@@ -54,8 +55,6 @@ export async function extractVideoFrames(params: {
       `fps=${formatFps(sampleFps)},showinfo`,
       '-frames:v',
       String(maxFrames),
-      '-vsync',
-      '0',
       pattern,
     ],
     { allowFailure: true, timeoutMs: VIDEO_EXTRACT_TIMEOUT_MS },
