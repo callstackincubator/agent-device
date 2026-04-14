@@ -68,10 +68,8 @@ func run() throws {
   let instruction = AVMutableVideoCompositionInstruction()
   instruction.timeRange = fullRange
   let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
-  // Keep rotation/translation from the source track, then scale into the smaller render canvas.
-  let scaledTransform = sourceVideoTrack.preferredTransform.concatenating(
-    CGAffineTransform(scaleX: scale, y: scale)
-  )
+  // Scale the full preferred transform (including translation) to match the smaller render canvas.
+  let scaledTransform = scaledPreferredTransform(sourceVideoTrack.preferredTransform, scale: scale)
   layerInstruction.setTransform(scaledTransform, at: .zero)
   instruction.layerInstructions = [layerInstruction]
   videoComposition.instructions = [instruction]
@@ -170,4 +168,15 @@ func resolvedFrameDuration(for track: AVAssetTrack) -> CMTime {
   }
 
   return CMTime(value: 1, timescale: 60)
+}
+
+func scaledPreferredTransform(_ transform: CGAffineTransform, scale: CGFloat) -> CGAffineTransform {
+  CGAffineTransform(
+    a: transform.a * scale,
+    b: transform.b * scale,
+    c: transform.c * scale,
+    d: transform.d * scale,
+    tx: transform.tx * scale,
+    ty: transform.ty * scale
+  )
 }
