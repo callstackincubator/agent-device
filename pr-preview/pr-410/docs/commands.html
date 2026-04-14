@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-410/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-410/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-410/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-410/static/js/index.39494cfa2b.js"></script>
+<script defer src="/agent-device/pr-preview/pr-410/static/js/index.852672e16f.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -501,7 +501,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li>If <code>tesseract</code> is installed, <code>diff screenshot</code> also adds best-effort OCR text deltas, movement clusters, and bbox size-change hints to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.</li>
 <li>When OCR is available, <code>diff screenshot</code> also reports best-effort non-text visual deltas by masking OCR text boxes out of the diff and clustering remaining residuals. These are hints for icons, controls, and separators, not semantic icon recognition.</li>
 <li><code>diff screenshot --overlay-refs</code> additionally writes a separate current-screen overlay guide for live captures without using that annotated image for the pixel comparison. If current-screen refs intersect changed regions, the output lists the best ref matches under those regions. Saved-image comparisons do not have live accessibility refs, so <code>--overlay-refs</code> is unavailable when a <code>current.png</code> path is provided.</li>
-<li><code>diff frames</code> summarizes transitions from a PNG frame directory or explicit PNG frame list. It prints a capped timeline with transition timing, keyframes, changed-region summaries, and optional OCR movement hints.</li>
+<li><code>diff frames</code> summarizes transitions from a PNG frame directory or explicit PNG frame list. It prints a capped timeline with transition timing, keyframes, changed-region summaries, and optional OCR movement hints. Use <code>--frame-interval-ms &lt;n&gt;</code> when aligning frame sequences with recording telemetry; the default is <code>100</code>.</li>
 <li><code>diff video</code> requires <code>ffmpeg</code> and <code>ffprobe</code> in <code>PATH</code>; it samples a recording into frames under the <code>--out</code> directory and runs the same transition summarizer. Use <code>--sample-fps &lt;n&gt;</code> and <code>--max-frames &lt;n&gt;</code> to tune extraction cost.</li>
 <li>Add <code>--telemetry &lt;path&gt;</code> to <code>diff frames</code> or <code>diff video</code> when you have a recording gesture sidecar. Transition labels can then include anchors such as <code>after tap</code> or <code>during up scroll</code>.</li>
 <li>In <code>--json</code> mode, each overlay ref also includes a screenshot-space <code>center</code> point for coordinate fallback like <code>press &lt;x&gt; &lt;y&gt;</code>.</li>
