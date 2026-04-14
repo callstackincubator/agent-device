@@ -35,6 +35,7 @@ export async function extractVideoFrames(params: {
   }
 
   await fs.mkdir(params.outputDir, { recursive: true });
+  await removeStaleFrames(params.outputDir);
   const maxFrames = params.maxFrames ?? DEFAULT_MAX_FRAMES;
   const requestedFps = params.sampleFps ?? DEFAULT_SAMPLE_FPS;
   const durationMs = await probeVideoDurationMs(params.videoPath);
@@ -78,6 +79,18 @@ export async function extractVideoFrames(params: {
     ...(durationMs ? { durationMs } : {}),
     sampleFps,
   };
+}
+
+async function removeStaleFrames(outputDir: string): Promise<void> {
+  const entries = await fs.readdir(outputDir);
+  const stale = entries.filter((entry) => /^frame-\d+\.png$/i.test(entry));
+  await Promise.all(
+    stale.map((entry) =>
+      fs.rm(path.join(outputDir, entry), {
+        force: true,
+      }),
+    ),
+  );
 }
 
 async function probeVideoDurationMs(videoPath: string): Promise<number | undefined> {
