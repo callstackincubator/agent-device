@@ -97,8 +97,8 @@ async function dispatchPressViaRuntime(
   }
 
   return await dispatchRuntimeInteraction(params, {
-    run: async (runtime) =>
-      await runtime.interactions.press(parsedTarget.target, {
+    run: async (runtime) => {
+      const options = {
         session: sessionName,
         requestId: req.meta?.requestId,
         button: clickButton,
@@ -107,7 +107,11 @@ async function dispatchPressViaRuntime(
         holdMs: req.flags?.holdMs,
         jitterPx: req.flags?.jitterPx,
         doubleTap: req.flags?.doubleTap,
-      }),
+      };
+      return commandLabel === 'click'
+        ? await runtime.interactions.click(parsedTarget.target, options)
+        : await runtime.interactions.press(parsedTarget.target, options);
+    },
     afterRun: async (result) => {
       await assertAndroidPressStayedInApp(
         session,

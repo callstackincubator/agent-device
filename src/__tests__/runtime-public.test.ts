@@ -196,14 +196,71 @@ test('named backend capabilities require backend support and policy allowance', 
 });
 
 test('memory session store does not expose mutable record references', async () => {
-  const store = createMemorySessionStore([{ name: 'default', appName: 'Demo' }]);
+  const store = createMemorySessionStore([
+    {
+      name: 'default',
+      appName: 'Demo',
+      snapshot: {
+        nodes: [{ ref: 'e1', index: 0, depth: 0, label: 'Initial' }],
+        createdAt: 1,
+      },
+    },
+  ]);
   const record = await store.get('default');
   assert.equal(record?.appName, 'Demo');
 
-  if (record) record.appName = 'Mutated';
+  if (record) {
+    record.appName = 'Mutated';
+    if (record.snapshot) record.snapshot.nodes[0]!.label = 'Mutated';
+  }
 
   assert.equal((await store.get('default'))?.appName, 'Demo');
-  assert.deepEqual(await store.list?.(), [{ name: 'default', appName: 'Demo' }]);
+  assert.equal((await store.get('default'))?.snapshot?.nodes[0]?.label, 'Initial');
+
+  const next = {
+    name: 'default',
+    snapshot: {
+      nodes: [{ ref: 'e1', index: 0, depth: 0, label: 'Stored' }],
+      createdAt: 2,
+    },
+  };
+  await store.set(next);
+  next.snapshot.nodes[0]!.label = 'Mutated after set';
+
+  assert.equal((await store.get('default'))?.snapshot?.nodes[0]?.label, 'Stored');
+  const list = await store.list?.();
+  if (list?.[0]?.snapshot) list[0].snapshot.nodes[0]!.label = 'Mutated from list';
+  assert.equal((await store.get('default'))?.snapshot?.nodes[0]?.label, 'Stored');
+});
+
+test('runtime commands work with async command session stores', async () => {
+  const records = new Map<string, Awaited<ReturnType<CommandSessionStore['get']>>>();
+  records.set('default', { name: 'default' });
+  const asyncStore = {
+    get: async (name) => records.get(name),
+    set: async (record) => {
+      records.set(record.name, record);
+    },
+  } satisfies CommandSessionStore;
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      captureSnapshot: async () => ({
+        snapshot: {
+          nodes: [{ ref: 'e1', index: 0, depth: 0, label: 'Ready' }],
+          createdAt: 1,
+        },
+      }),
+    },
+    artifacts,
+    sessions: asyncStore,
+    policy: localCommandPolicy(),
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.equal(result.nodes[0]?.label, 'Ready');
+  assert.equal(records.get('default')?.snapshot?.nodes[0]?.label, 'Ready');
 });
 
 test('public backend, commands, io, and conformance subpaths are importable', () => {
@@ -297,4 +354,11 @@ test('command router dispatches implemented runtime commands and normalizes erro
   });
   assert.equal(typed.ok, true);
   assert.equal(typed.ok && 'text' in typed.data ? typed.data.text : undefined, 'hello');
+
+  const planned = await router.dispatch({
+    command: 'alert',
+    options: {},
+  } as never);
+  assert.equal(planned.ok, false);
+  assert.equal(planned.ok ? undefined : planned.error.code, 'NOT_IMPLEMENTED');
 });

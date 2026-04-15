@@ -1,5 +1,5 @@
 import type { AgentDeviceRuntime } from '../runtime.ts';
-import { normalizeAgentDeviceError, type NormalizedError } from '../utils/errors.ts';
+import { AppError, normalizeAgentDeviceError, type NormalizedError } from '../utils/errors.ts';
 import { screenshotCommand, type ScreenshotCommandResult } from './capture-screenshot.ts';
 import {
   diffScreenshotCommand,
@@ -44,6 +44,7 @@ import type {
   ScreenshotCommandOptions,
   SnapshotCommandOptions,
 } from './index.ts';
+import { commandCatalog } from './catalog.ts';
 
 export type CommandRouterRequest<TContext = unknown> =
   | {
@@ -148,6 +149,7 @@ export function createCommandRouter<TContext = unknown>(
   return {
     dispatch: async (request) => {
       try {
+        assertRouterCommandImplemented(request);
         await config.beforeDispatch?.(request);
         const runtime = await config.createRuntime(request);
         return { ok: true, data: await dispatchRuntimeCommand(runtime, request) };
@@ -159,6 +161,36 @@ export function createCommandRouter<TContext = unknown>(
       }
     },
   };
+}
+
+const implementedRouterCommands = new Set<string>([
+  'capture.screenshot',
+  'capture.diffScreenshot',
+  'capture.snapshot',
+  'capture.diffSnapshot',
+  'selectors.find',
+  'selectors.get',
+  'selectors.is',
+  'selectors.wait',
+  'interactions.click',
+  'interactions.press',
+  'interactions.fill',
+  'interactions.typeText',
+]);
+
+function assertRouterCommandImplemented(request: { command: string }): void {
+  if (implementedRouterCommands.has(request.command)) return;
+  const catalogEntry = commandCatalog.find((entry) => entry.command === request.command);
+  if (catalogEntry?.status === 'planned') {
+    throw new AppError(
+      'NOT_IMPLEMENTED',
+      `Command ${request.command} is planned but not implemented in the runtime router yet`,
+      { command: request.command },
+    );
+  }
+  throw new AppError('UNSUPPORTED_OPERATION', `Unknown runtime command: ${request.command}`, {
+    command: request.command,
+  });
 }
 
 async function dispatchRuntimeCommand<TContext>(

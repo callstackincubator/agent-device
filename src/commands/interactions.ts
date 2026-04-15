@@ -36,13 +36,29 @@ export type PressCommandOptions = CommandContext & {
 
 export type ClickCommandOptions = PressCommandOptions;
 
-export type PressCommandResult = {
-  kind: 'point' | 'ref' | 'selector';
-  point: Point;
-  target?: ResolvedTarget;
-  node?: SnapshotNode;
-  selectorChain?: string[];
-  refLabel?: string;
+type ResolvedInteractionTarget =
+  | {
+      kind: 'point';
+      point: Point;
+    }
+  | {
+      kind: 'ref';
+      point: Point;
+      target: Extract<ResolvedTarget, { kind: 'ref' }>;
+      node: SnapshotNode;
+      selectorChain: string[];
+      refLabel?: string;
+    }
+  | {
+      kind: 'selector';
+      point: Point;
+      target: Extract<ResolvedTarget, { kind: 'selector' }>;
+      node: SnapshotNode;
+      selectorChain: string[];
+      refLabel?: string;
+    };
+
+export type PressCommandResult = ResolvedInteractionTarget & {
   backendResult?: Record<string, unknown>;
 };
 
@@ -52,14 +68,8 @@ export type FillCommandOptions = CommandContext & {
   delayMs?: number;
 };
 
-export type FillCommandResult = {
-  kind: 'point' | 'ref' | 'selector';
-  point: Point;
+export type FillCommandResult = ResolvedInteractionTarget & {
   text: string;
-  target?: ResolvedTarget;
-  node?: SnapshotNode;
-  selectorChain?: string[];
-  refLabel?: string;
   warning?: string;
   backendResult?: Record<string, unknown>;
 };
@@ -84,9 +94,20 @@ type CapturedSnapshot = {
 export const pressCommand: RuntimeCommand<PressCommandOptions, PressCommandResult> = async (
   runtime,
   options,
-): Promise<PressCommandResult> => {
+): Promise<PressCommandResult> => await tapCommand(runtime, options, 'press');
+
+export const clickCommand: RuntimeCommand<ClickCommandOptions, PressCommandResult> = async (
+  runtime,
+  options,
+): Promise<PressCommandResult> => await tapCommand(runtime, options, 'click');
+
+async function tapCommand(
+  runtime: AgentDeviceRuntime,
+  options: PressCommandOptions,
+  action: 'click' | 'press',
+): Promise<PressCommandResult> {
   const resolved = await resolveInteractionTarget(runtime, options, {
-    action: 'click',
+    action,
     requireInteractive: true,
     promoteToHittableAncestor: true,
   });
@@ -109,12 +130,7 @@ export const pressCommand: RuntimeCommand<PressCommandOptions, PressCommandResul
     ...resolved,
     ...(toBackendResult(backendResult) ? { backendResult: toBackendResult(backendResult) } : {}),
   };
-};
-
-export const clickCommand = pressCommand satisfies RuntimeCommand<
-  ClickCommandOptions,
-  PressCommandResult
->;
+}
 
 export const fillCommand: RuntimeCommand<FillCommandOptions, FillCommandResult> = async (
   runtime,
@@ -135,7 +151,7 @@ export const fillCommand: RuntimeCommand<FillCommandOptions, FillCommandResult> 
     options.text,
     { delayMs: options.delayMs },
   );
-  const nodeType = resolved.node?.type ?? '';
+  const nodeType = 'node' in resolved ? (resolved.node.type ?? '') : '';
   const warning =
     nodeType && !isFillableType(nodeType, runtime.backend.platform)
       ? `fill target ${formatTargetForWarning(resolved)} resolved to "${nodeType}", attempting fill anyway.`
@@ -185,11 +201,13 @@ async function resolveInteractionTarget(
   runtime: AgentDeviceRuntime,
   options: CommandContext & { target: InteractionTarget },
   params: {
-    action: 'click' | 'fill';
+    action: 'click' | 'press' | 'fill';
     requireInteractive: boolean;
     promoteToHittableAncestor: boolean;
   },
-): Promise<Omit<PressCommandResult, 'backendResult'>> {
+): Promise<ResolvedInteractionTarget> {
+  await assertSupportedInteractionSurface(runtime, options, params.action);
+
   if (options.target.kind === 'point') {
     return {
       kind: 'point',
@@ -214,7 +232,7 @@ async function resolveInteractionTarget(
       target: { kind: 'ref', ref: `@${resolved.ref}` },
       node,
       selectorChain: buildSelectorChainForNode(node, runtime.backend.platform, {
-        action: params.action,
+        action: params.action === 'fill' ? 'fill' : 'click',
       }),
       refLabel: resolveRefLabel(node, capture.snapshot.nodes),
     };
@@ -247,10 +265,35 @@ async function resolveInteractionTarget(
     target: { kind: 'selector', selector: resolved.selector.raw },
     node,
     selectorChain: buildSelectorChainForNode(node, runtime.backend.platform, {
-      action: params.action,
+      action: params.action === 'fill' ? 'fill' : 'click',
     }),
     refLabel: resolveRefLabel(node, capture.snapshot.nodes),
   };
+}
+
+async function assertSupportedInteractionSurface(
+  runtime: AgentDeviceRuntime,
+  options: CommandContext,
+  action: 'click' | 'press' | 'fill',
+): Promise<void> {
+  if (runtime.backend.platform !== 'macos') return;
+  const surface = await resolveInteractionSurface(runtime, options);
+  if (surface !== 'desktop' && surface !== 'menubar') return;
+  if (surface === 'menubar' && (action === 'click' || action === 'press')) return;
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    `${action} is not supported on macOS ${surface} sessions yet. Open an app session to act, or use the ${surface} surface to inspect.`,
+  );
+}
+
+async function resolveInteractionSurface(
+  runtime: AgentDeviceRuntime,
+  options: CommandContext,
+): Promise<unknown> {
+  const metadataSurface = options.metadata?.surface;
+  if (metadataSurface) return metadataSurface;
+  const session = await runtime.sessions.get(options.session ?? 'default');
+  return session?.metadata?.surface;
 }
 
 async function captureInteractionSnapshot(
@@ -302,13 +345,14 @@ async function resolveSnapshotForRef(
   }
 
   const capture = await captureInteractionSnapshot(runtime, options, true);
-  return {
-    ...capture,
-    resolved: resolveRefNode(capture.snapshot.nodes, target.ref, {
-      fallbackLabel,
-      requireRect: true,
-    }),
-  };
+  const refreshed = tryResolveRefNode(capture.snapshot.nodes, target.ref, {
+    fallbackLabel,
+    requireRect: true,
+  });
+  if (!refreshed) {
+    throw new AppError('COMMAND_FAILED', `Ref ${target.ref} not found or has no bounds`);
+  }
+  return { ...capture, resolved: refreshed };
 }
 
 function tryResolveRefNode(
@@ -329,21 +373,6 @@ function tryResolveRefNode(
     return { ref, node: fallbackNode };
   }
   return null;
-}
-
-function resolveRefNode(
-  nodes: SnapshotState['nodes'],
-  refInput: string,
-  options: {
-    fallbackLabel: string;
-    requireRect: boolean;
-  },
-): { ref: string; node: SnapshotNode } {
-  const resolved = tryResolveRefNode(nodes, refInput, options);
-  if (!resolved) {
-    throw new AppError('COMMAND_FAILED', `Ref ${refInput} not found or has no bounds`);
-  }
-  return resolved;
 }
 
 function resolveNodeCenter(node: SnapshotNode, message: string): Point {
@@ -381,7 +410,7 @@ function assertVisibleRefTarget(
   node: SnapshotNode,
   nodes: SnapshotState['nodes'],
   refInput: string,
-  action: 'click' | 'fill',
+  action: 'click' | 'press' | 'fill',
 ): void {
   const viewport = node.rect ? resolveEffectiveViewportRect(node, nodes) : null;
   if (!node.rect || !viewport || isNodeVisibleInEffectiveViewport(node, nodes)) return;
@@ -398,7 +427,10 @@ function toBackendResult(result: unknown): Record<string, unknown> | undefined {
   return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
 }
 
-function formatTargetForWarning(result: Pick<FillCommandResult, 'kind' | 'target'>): string {
+function formatTargetForWarning(result: {
+  kind: FillCommandResult['kind'];
+  target?: ResolvedTarget;
+}): string {
   if (result.target?.kind === 'ref') return result.target.ref;
   if (result.target?.kind === 'selector') return result.target.selector;
   return 'point';

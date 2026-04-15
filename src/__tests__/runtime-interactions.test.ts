@@ -90,6 +90,76 @@ test('runtime fill resolves refs and forwards text to the backend primitive', as
   assert.equal(result.warning, undefined);
 });
 
+test('runtime interactions reject unsupported macOS desktop and menubar surfaces', async () => {
+  const desktop = createInteractionDevice(selectorSnapshot(), {
+    platform: 'macos',
+    sessionMetadata: { surface: 'desktop' },
+    tap: async () => {
+      throw new Error('desktop click should be rejected before backend tap');
+    },
+  });
+  await assert.rejects(
+    () => desktop.interactions.click({ kind: 'point', x: 1, y: 2 }, { session: 'default' }),
+    /click is not supported on macOS desktop sessions yet/,
+  );
+
+  const menubar = createInteractionDevice(fillableSnapshot(), {
+    platform: 'macos',
+    sessionMetadata: { surface: 'menubar' },
+    fill: async () => {
+      throw new Error('menubar fill should be rejected before backend fill');
+    },
+  });
+  await assert.rejects(
+    () => menubar.interactions.fill(ref('@e1'), 'hello', { session: 'default' }),
+    /fill is not supported on macOS menubar sessions yet/,
+  );
+
+  let pressed = false;
+  const menubarPress = createInteractionDevice(fillableSnapshot(), {
+    platform: 'macos',
+    sessionMetadata: { surface: 'menubar' },
+    tap: async () => {
+      pressed = true;
+    },
+  });
+
+  await menubarPress.interactions.press(ref('@e1'), { session: 'default' });
+
+  assert.equal(pressed, true);
+});
+
+test('runtime ref interactions refresh the snapshot when a stored ref has no usable rect', async () => {
+  const staleSnapshot = makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'Button',
+      label: 'Continue',
+      hittable: true,
+    },
+  ]);
+  const freshSnapshot = selectorSnapshot();
+  const calls: Point[] = [];
+  let captures = 0;
+  const device = createInteractionDevice(staleSnapshot, {
+    captureSnapshot: async () => {
+      captures += 1;
+      return { snapshot: freshSnapshot };
+    },
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const result = await device.interactions.click(ref('@e1'), { session: 'default' });
+
+  assert.equal(captures, 1);
+  assert.deepEqual(calls, [{ x: 60, y: 40 }]);
+  assert.equal(result.kind, 'ref');
+  assert.equal(result.node?.rect?.width, 100);
+});
+
 test('runtime typeText validates refs and forwards text to the backend primitive', async () => {
   const calls: Array<{ text: string; delayMs?: number }> = [];
   const device = createInteractionDevice(selectorSnapshot(), {
@@ -157,13 +227,14 @@ function fillableSnapshot(): SnapshotState {
 
 function createInteractionDevice(
   snapshot: SnapshotState,
-  overrides: Partial<
-    Pick<AgentDeviceBackend, 'captureSnapshot' | 'tap' | 'fill' | 'typeText'>
-  > = {},
+  overrides: Partial<Pick<AgentDeviceBackend, 'captureSnapshot' | 'tap' | 'fill' | 'typeText'>> & {
+    platform?: AgentDeviceBackend['platform'];
+    sessionMetadata?: Record<string, unknown>;
+  } = {},
 ) {
   return createAgentDevice({
     backend: {
-      platform: 'ios',
+      platform: overrides.platform ?? 'ios',
       captureSnapshot: async (...args) =>
         overrides.captureSnapshot ? await overrides.captureSnapshot(...args) : { snapshot },
       tap: async (...args) => await overrides.tap?.(...args),
@@ -171,7 +242,9 @@ function createInteractionDevice(
       typeText: async (...args) => await overrides.typeText?.(...args),
     } satisfies AgentDeviceBackend,
     artifacts: createLocalArtifactAdapter(),
-    sessions: createMemorySessionStore([{ name: 'default', snapshot }]),
+    sessions: createMemorySessionStore([
+      { name: 'default', snapshot, metadata: overrides.sessionMetadata },
+    ]),
     policy: localCommandPolicy(),
   });
 }

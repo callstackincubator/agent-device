@@ -771,6 +771,71 @@ test('press @ref resolves snapshot node and records press action', async () => {
   expect(Array.isArray(result.selectorChain)).toBe(true);
 });
 
+test('press @ref refreshes stale stored refs and syncs the daemon session snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'stale-ref-refresh';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'snapshot') {
+      return {
+        nodes: [
+          {
+            index: 0,
+            type: 'XCUIElementTypeButton',
+            label: 'Continue',
+            rect: { x: 10, y: 20, width: 100, height: 40 },
+            enabled: true,
+            hittable: true,
+          },
+        ],
+        backend: 'xctest',
+      };
+    }
+    return { pressed: true };
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e1'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.x).toBe(60);
+    expect(response.data?.y).toBe(40);
+  }
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press']);
+  expect(sessionStore.get(sessionName)?.snapshot?.nodes[0]?.rect).toEqual({
+    x: 10,
+    y: 20,
+    width: 100,
+    height: 40,
+  });
+});
+
 test('press @ref fails when Android tap escapes to launcher', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-escape';
