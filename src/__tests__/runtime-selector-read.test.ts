@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AgentDeviceBackend, BackendSnapshotResult } from '../backend.ts';
+import type {
+  AgentDeviceBackend,
+  BackendSnapshotOptions,
+  BackendSnapshotResult,
+} from '../backend.ts';
 import { createLocalArtifactAdapter } from '../io.ts';
 import {
   createAgentDevice,
@@ -109,6 +113,40 @@ test('runtime selectors pass runtime signal to backend snapshot capture', async 
 
   assert.equal(result.kind, 'attrs');
   assert.equal(signal, controller.signal);
+});
+
+test('runtime selectors forward public snapshot options to backend capture', async () => {
+  const snapshot = selectorSnapshot();
+  let captureOptions: BackendSnapshotOptions | undefined;
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      captureSnapshot: async (_context, options) => {
+        captureOptions = options;
+        return { snapshot };
+      },
+    } satisfies AgentDeviceBackend,
+    artifacts: createLocalArtifactAdapter(),
+    sessions: createMemorySessionStore([{ name: 'default', snapshot }]),
+    policy: localCommandPolicy(),
+  });
+
+  await device.selectors.is({
+    session: 'default',
+    predicate: 'exists',
+    selector: 'label=Continue',
+    depth: 2,
+    scope: 'Login',
+    raw: true,
+  });
+
+  assert.deepEqual(captureOptions, {
+    interactiveOnly: false,
+    compact: false,
+    depth: 2,
+    scope: 'Login',
+    raw: true,
+  });
 });
 
 test('runtime is validates selector predicates', async () => {

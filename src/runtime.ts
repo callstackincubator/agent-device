@@ -26,6 +26,9 @@ export type CommandSessionRecord = {
   metadata?: Record<string, unknown>;
 };
 
+// Runtime commands can read and then write the same session. CommandSessionStore
+// implementations that are shared across concurrent callers should serialize
+// per-session updates, or route commands through a transport that already does.
 export type CommandSessionStore = {
   get(name: string): CommandSessionRecord | undefined | Promise<CommandSessionRecord | undefined>;
   set(record: CommandSessionRecord): void | Promise<void>;

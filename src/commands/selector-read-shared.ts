@@ -11,6 +11,12 @@ export type CapturedSnapshot = {
   snapshot: SnapshotState;
 };
 
+export type SelectorSnapshotOptions = {
+  depth?: number;
+  scope?: string;
+  raw?: boolean;
+};
+
 export async function requireSnapshotSession(
   runtime: AgentDeviceRuntime,
   requestedName: string | undefined,
@@ -26,7 +32,7 @@ export async function requireSnapshotSession(
 
 export async function captureSelectorSnapshot(
   runtime: AgentDeviceRuntime,
-  options: CommandContext,
+  options: CommandContext & SelectorSnapshotOptions,
   captureOptions: { updateSession: boolean; scope?: string } = { updateSession: true },
 ): Promise<CapturedSnapshot> {
   if (!runtime.backend.captureSnapshot) {
@@ -37,7 +43,9 @@ export async function captureSelectorSnapshot(
   const result = await runtime.backend.captureSnapshot(toBackendContext(runtime, options), {
     interactiveOnly: false,
     compact: false,
-    scope: captureOptions.scope,
+    depth: options.depth,
+    scope: captureOptions.scope ?? options.scope,
+    raw: options.raw,
   });
   const snapshot =
     result.snapshot ??

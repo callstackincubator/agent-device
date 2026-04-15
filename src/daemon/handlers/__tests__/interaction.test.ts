@@ -461,7 +461,11 @@ test('press coordinates appends touch-visualization events while recording', asy
   };
   sessionStore.set(sessionName, session);
 
-  mockDispatch.mockResolvedValue({ ok: true });
+  mockDispatch.mockResolvedValue({
+    ok: true,
+    videoPath: '/tmp/demo.mp4',
+    artifactUri: 'agent-device://artifacts/demo.mp4',
+  });
 
   const response = await handleInteractionCommands({
     req: {
@@ -485,6 +489,13 @@ test('press coordinates appends touch-visualization events while recording', asy
   expect(recorded?.gestureEvents[0]?.y).toBe(200);
   expect(recorded?.gestureEvents[0]?.referenceWidth).toBe(402);
   expect(recorded?.gestureEvents[0]?.referenceHeight).toBe(874);
+  const actionResult = sessionStore.get(sessionName)?.actions[0]?.result;
+  expect(actionResult?.videoPath).toBe('/tmp/demo.mp4');
+  expect(actionResult?.artifactUri).toBe('agent-device://artifacts/demo.mp4');
+  if (response?.ok) {
+    expect(response.data?.videoPath).toBe('/tmp/demo.mp4');
+    expect(response.data?.artifactUri).toBe('agent-device://artifacts/demo.mp4');
+  }
 });
 
 test('press coordinates on Android recording uses physical screen size when no snapshot exists', async () => {
@@ -879,6 +890,7 @@ test('press @ref fails when Android tap escapes to launcher', async () => {
     code: 'COMMAND_FAILED',
     message: expect.stringContaining('tap likely escaped the app'),
   });
+  expect(sessionStore.get(sessionName)?.actions).toEqual([]);
 });
 
 test('press @ref fails when Android tap escapes to Settings', async () => {

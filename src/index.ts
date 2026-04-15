@@ -73,6 +73,7 @@ export type {
   CommandRouterResponse,
   CommandRouterResult,
   RuntimeCommand,
+  SelectorSnapshotOptions,
   TypeTextCommandOptions,
   TypeTextCommandResult,
 } from './commands/index.ts';

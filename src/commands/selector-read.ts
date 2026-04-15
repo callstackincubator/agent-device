@@ -15,6 +15,7 @@ import { evaluateIsPredicate, isSupportedPredicate } from '../utils/selector-is-
 import type { RuntimeCommand } from './index.ts';
 import {
   type CapturedSnapshot,
+  type SelectorSnapshotOptions,
   captureSelectorSnapshot,
   readText,
   requireSnapshotSession,
@@ -29,12 +30,14 @@ import {
   toBackendContext,
 } from './selector-read-utils.ts';
 
+export type { SelectorSnapshotOptions } from './selector-read-shared.ts';
+
 export type FindReadCommandOptions = CommandContext & {
   locator?: FindLocator;
   query: string;
   action: Extract<FindAction['kind'], 'exists' | 'wait' | 'get_text' | 'get_attrs'>;
   timeoutMs?: number;
-};
+} & SelectorSnapshotOptions;
 
 export type FindReadCommandResult =
   | { kind: 'found'; found: true; waitedMs?: number }
@@ -64,10 +67,11 @@ export type ResolvedTarget =
       ref: string;
     };
 
-export type GetCommandOptions = CommandContext & {
-  property: 'text' | 'attrs';
-  target: ElementTarget;
-};
+export type GetCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    property: 'text' | 'attrs';
+    target: ElementTarget;
+  };
 
 export type GetCommandResult =
   | {
@@ -84,19 +88,22 @@ export type GetCommandResult =
       selectorChain?: string[];
     };
 
-export type GetTextCommandOptions = CommandContext & {
-  target: ElementTarget;
-};
+export type GetTextCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    target: ElementTarget;
+  };
 
-export type GetAttrsCommandOptions = CommandContext & {
-  target: ElementTarget;
-};
+export type GetAttrsCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    target: ElementTarget;
+  };
 
-export type IsCommandOptions = CommandContext & {
-  predicate: 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
-  selector: string;
-  expectedText?: string;
-};
+export type IsCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    predicate: 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
+    selector: string;
+    expectedText?: string;
+  };
 
 export type IsCommandResult = {
   predicate: IsCommandOptions['predicate'];
@@ -107,27 +114,30 @@ export type IsCommandResult = {
   selectorChain?: string[];
 };
 
-export type WaitCommandOptions = CommandContext & {
-  target:
-    | { kind: 'sleep'; durationMs: number }
-    | { kind: 'text'; text: string; timeoutMs?: number | null }
-    | { kind: 'ref'; ref: string; timeoutMs?: number | null }
-    | { kind: 'selector'; selector: string; timeoutMs?: number | null };
-};
+export type WaitCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    target:
+      | { kind: 'sleep'; durationMs: number }
+      | { kind: 'text'; text: string; timeoutMs?: number | null }
+      | { kind: 'ref'; ref: string; timeoutMs?: number | null }
+      | { kind: 'selector'; selector: string; timeoutMs?: number | null };
+  };
 
 export type WaitCommandResult =
   | { kind: 'sleep'; waitedMs: number }
   | { kind: 'text'; waitedMs: number; text: string }
   | { kind: 'selector'; waitedMs: number; selector: string };
 
-export type WaitForTextCommandOptions = CommandContext & {
-  text: string;
-  timeoutMs?: number | null;
-};
+export type WaitForTextCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    text: string;
+    timeoutMs?: number | null;
+  };
 
-export type IsSelectorCommandOptions = CommandContext & {
-  target: SelectorTarget;
-};
+export type IsSelectorCommandOptions = CommandContext &
+  SelectorSnapshotOptions & {
+    target: SelectorTarget;
+  };
 
 export function selector(expression: string): SelectorTarget {
   return { kind: 'selector', selector: expression };

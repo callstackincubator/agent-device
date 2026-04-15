@@ -78,6 +78,7 @@ export type {
   RefTarget,
   ResolvedTarget,
   SelectorTarget,
+  SelectorSnapshotOptions,
   WaitCommandOptions,
   WaitCommandResult,
   WaitForTextCommandOptions,
