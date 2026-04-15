@@ -49,9 +49,16 @@ async function execFileText(
   options: { cwd: string },
 ): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
-    execFile(file, args, { ...options, encoding: 'utf8' }, (error, stdout) => {
+    execFile(file, args, { ...options, encoding: 'utf8' }, (error, stdout, stderr) => {
       if (error) {
-        reject(error);
+        reject(
+          new Error(
+            [error.message, stdout ? `stdout:\n${stdout}` : '', stderr ? `stderr:\n${stderr}` : '']
+              .filter(Boolean)
+              .join('\n'),
+            { cause: error },
+          ),
+        );
         return;
       }
       resolve(stdout);
@@ -274,6 +281,9 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
         metroPublicBaseUrl: 'https://public.example.test',
         metroProxyBaseUrl: `http://127.0.0.1:${bridgePort}`,
         metroBearerToken: bridgeToken,
+        tenant: 'tenant-1',
+        runId: 'run-1',
+        leaseId: 'lease-1',
         metroPreparePort: metroPort,
         metroStatusHost: '127.0.0.1',
       }),
@@ -284,13 +294,30 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
       consumerRoot,
       ['--input-type=module', '-e'],
       `
+        import { createAgentDevice, createMemorySessionStore, restrictedCommandPolicy } from 'agent-device';
         import 'agent-device/contracts';
         import { daemonCommandRequestSchema } from 'agent-device/contracts';
+        import { BACKEND_CAPABILITY_NAMES } from 'agent-device/backend';
+        import { commandCatalog, commands, selector } from 'agent-device/commands';
+        import { createLocalArtifactAdapter } from 'agent-device/io';
         import { buildBundleUrl, buildIosRuntimeHints, normalizeBaseUrl } from 'agent-device/metro';
         import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
+        import { commandConformanceSuites } from 'agent-device/testing/conformance';
         const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
+        const device = createAgentDevice({
+          backend: { platform: 'ios' },
+          artifacts: createLocalArtifactAdapter({ cwd: process.cwd() }),
+          sessions: createMemorySessionStore(),
+          policy: restrictedCommandPolicy()
+        });
         console.log(JSON.stringify({
+          backendCapabilityCount: BACKEND_CAPABILITY_NAMES.length,
           bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
+          catalogEntries: commandCatalog.length,
+          conformanceSuites: commandConformanceSuites.length,
+          hasBoundScreenshot: typeof device.capture.screenshot,
+          hasCommandsScreenshot: typeof commands.capture.screenshot,
+          selectorKind: selector('label=Continue').kind,
           normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
           protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
           parsedCommand: daemonCommandRequestSchema.parse({
@@ -306,6 +333,12 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
       imports.bundleUrl,
       'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
     );
+    assert.equal(imports.backendCapabilityCount > 0, true);
+    assert.equal(imports.catalogEntries > 0, true);
+    assert.equal(imports.conformanceSuites > 0, true);
+    assert.equal(imports.hasBoundScreenshot, 'function');
+    assert.equal(imports.hasCommandsScreenshot, 'function');
+    assert.equal(imports.selectorKind, 'selector');
     assert.equal(imports.normalizedBaseUrl, 'https://public.example.test');
     assert.equal(
       imports.protocolBundleUrl,
