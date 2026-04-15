@@ -77,6 +77,7 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     ...(outputPath ? { out: { kind: 'path', path: outputPath } } : {}),
     threshold: parseCliThreshold(flags.threshold),
     overlayRefs: flags.overlayRefs,
+    surface: flags.surface,
   });
 
   writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import { PNG } from 'pngjs';
 import { tryRunClientBackedCommand } from '../cli/commands/router.ts';
 import type {
   AgentDeviceClient,
@@ -202,6 +203,59 @@ test('screenshot forwards --overlay-refs to the client capture API', async () =>
     path: '/tmp/screenshot.png',
     overlayRefs: true,
   });
+});
+
+test('diff screenshot forwards --surface to live client screenshot capture', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-diff-surface-'));
+  const baseline = path.join(dir, 'baseline.png');
+  const out = path.join(dir, 'diff.png');
+  fs.writeFileSync(baseline, solidPngBuffer(4, 4, { r: 0, g: 0, b: 0 }));
+  let observed: Parameters<AgentDeviceClient['capture']['screenshot']>[0] | undefined;
+
+  try {
+    const client = createStubClient({
+      installFromSource: async () => {
+        throw new Error('unexpected install call');
+      },
+      screenshot: async (options) => {
+        if (!options?.path) {
+          throw new Error('expected runtime to request a live screenshot path');
+        }
+        observed = options;
+        fs.writeFileSync(options.path, solidPngBuffer(4, 4, { r: 255, g: 255, b: 255 }));
+        return {
+          path: options.path,
+          identifiers: { session: options.session ?? 'default' },
+        };
+      },
+    });
+
+    await captureStdout(async () => {
+      const handled = await tryRunClientBackedCommand({
+        command: 'diff',
+        positionals: ['screenshot'],
+        flags: {
+          json: true,
+          help: false,
+          version: false,
+          baseline,
+          out,
+          platform: 'macos',
+          session: 'surface-session',
+          surface: 'menubar',
+          threshold: '0',
+        },
+        client,
+      });
+      assert.equal(handled, true);
+    });
+
+    assert.equal(observed?.session, 'surface-session');
+    assert.equal(observed?.surface, 'menubar');
+    assert.equal(fs.existsSync(out), true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('open forwards macOS surface to the client apps API', async () => {
@@ -629,4 +683,19 @@ function createThrowingMethodGroup<T extends object>(): T {
   return new Proxy({} as Partial<T>, {
     get: (target, property) => target[property as keyof T] ?? unexpectedCommandCall,
   }) as T;
+}
+
+function solidPngBuffer(
+  width: number,
+  height: number,
+  color: { r: number; g: number; b: number },
+): Buffer {
+  const png = new PNG({ width, height });
+  for (let i = 0; i < png.data.length; i += 4) {
+    png.data[i] = color.r;
+    png.data[i + 1] = color.g;
+    png.data[i + 2] = color.b;
+    png.data[i + 3] = 255;
+  }
+  return PNG.sync.write(png);
 }

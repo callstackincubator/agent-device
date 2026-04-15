@@ -132,9 +132,9 @@ test('runtime snapshot stale-drop warning uses the runtime clock', async () => {
   session.snapshot.createdAt = 1_000;
   const device = createAgentDevice({
     backend: createSnapshotBackend(() => ({
-      snapshot: makeSnapshotState([{ index: 0, depth: 0, type: 'Text', label: 'After' }], {
-        backend: 'android',
-      }),
+      nodes: [{ ref: 'e1', index: 0, depth: 0, type: 'Text', label: 'After' }],
+      truncated: false,
+      backend: 'android',
     })),
     artifacts: createLocalArtifactAdapter(),
     sessions: {
@@ -146,6 +146,52 @@ test('runtime snapshot stale-drop warning uses the runtime clock', async () => {
     policy: localCommandPolicy(),
     clock: {
       now: () => 1_500,
+      sleep: async () => {},
+    },
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.deepEqual(result.warnings, [
+    'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.',
+  ]);
+});
+
+test('runtime snapshot stale-drop warning uses backend snapshot timestamps when supplied', async () => {
+  const session = {
+    name: 'default',
+    snapshot: makeSnapshotState(
+      Array.from({ length: 20 }, (_, index) => ({
+        index,
+        depth: 0,
+        type: 'Text',
+        label: `Before ${index}`,
+      })),
+      { backend: 'android' },
+    ),
+  };
+  session.snapshot.createdAt = 10_000;
+  const currentSnapshot = makeSnapshotState(
+    [{ index: 0, depth: 0, type: 'Text', label: 'After' }],
+    {
+      backend: 'android',
+    },
+  );
+  currentSnapshot.createdAt = 11_500;
+  const device = createAgentDevice({
+    backend: createSnapshotBackend(() => ({
+      snapshot: currentSnapshot,
+    })),
+    artifacts: createLocalArtifactAdapter(),
+    sessions: {
+      get: () => session,
+      set: (record) => {
+        session.snapshot = record.snapshot!;
+      },
+    },
+    policy: localCommandPolicy(),
+    clock: {
+      now: () => 1_000_000,
       sleep: async () => {},
     },
   });
