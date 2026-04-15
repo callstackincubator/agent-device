@@ -30,11 +30,14 @@ import {
   clickCommand,
   fillCommand,
   pressCommand,
+  typeTextCommand,
   type ClickCommandOptions,
   type FillCommandOptions,
   type FillCommandResult,
   type PressCommandOptions,
   type PressCommandResult,
+  type TypeTextCommandOptions,
+  type TypeTextCommandResult,
 } from './interactions.ts';
 import type {
   DiffSnapshotCommandOptions,
@@ -97,6 +100,11 @@ export type CommandRouterRequest<TContext = unknown> =
       command: 'interactions.fill';
       options: FillCommandOptions;
       context?: TContext;
+    }
+  | {
+      command: 'interactions.typeText';
+      options: TypeTextCommandOptions;
+      context?: TContext;
     };
 
 export type CommandRouterResult =
@@ -109,7 +117,8 @@ export type CommandRouterResult =
   | IsCommandResult
   | WaitCommandResult
   | PressCommandResult
-  | FillCommandResult;
+  | FillCommandResult
+  | TypeTextCommandResult;
 
 export type CommandRouterResponse =
   | {
@@ -179,5 +188,7 @@ async function dispatchRuntimeCommand<TContext>(
       return await pressCommand(runtime, request.options);
     case 'interactions.fill':
       return await fillCommand(runtime, request.options);
+    case 'interactions.typeText':
+      return await typeTextCommand(runtime, request.options);
   }
 }

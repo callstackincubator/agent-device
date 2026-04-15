@@ -25,7 +25,7 @@ export const commandCatalog: readonly CommandCatalogEntry[] = [
   { command: 'longpress', category: 'portable-runtime', status: 'planned' },
   { command: 'swipe', category: 'portable-runtime', status: 'planned' },
   { command: 'focus', category: 'portable-runtime', status: 'planned' },
-  { command: 'type', category: 'portable-runtime', status: 'planned' },
+  { command: 'type', category: 'portable-runtime', status: 'implemented' },
   { command: 'scroll', category: 'portable-runtime', status: 'planned' },
   { command: 'pinch', category: 'portable-runtime', status: 'planned' },
   { command: 'open', category: 'portable-runtime', status: 'planned' },

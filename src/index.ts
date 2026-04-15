@@ -1,4 +1,5 @@
 export {
+  assertBackendCapabilityAllowed,
   createAgentDevice,
   createMemorySessionStore,
   localCommandPolicy,
@@ -29,11 +30,13 @@ export type {
   BackendCapabilityName,
   BackendCapabilitySet,
   BackendCommandContext,
+  BackendEscapeHatches,
   BackendFillOptions,
   BackendInstallTarget,
   BackendFindTextResult,
   BackendOpenTarget,
   BackendReadTextResult,
+  BackendRunnerCommand,
   BackendSnapshotAnalysis,
   BackendSnapshotFreshness,
   BackendSnapshotOptions,
@@ -51,6 +54,7 @@ export type {
   FileInputRef,
   FileOutputRef,
   LocalArtifactAdapterOptions,
+  OutputVisibility,
   ReserveOutputOptions,
   ReservedOutputFile,
   ResolveInputOptions,
@@ -69,6 +73,8 @@ export type {
   CommandRouterResponse,
   CommandRouterResult,
   RuntimeCommand,
+  TypeTextCommandOptions,
+  TypeTextCommandResult,
 } from './commands/index.ts';
 
 export type { AppErrorCode, NormalizedError } from './utils/errors.ts';

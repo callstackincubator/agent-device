@@ -1,6 +1,12 @@
-import type { AgentDeviceBackend, BackendCapabilityName } from './backend.ts';
+import {
+  hasBackendEscapeHatch,
+  hasBackendCapability,
+  type AgentDeviceBackend,
+  type BackendCapabilityName,
+} from './backend.ts';
 import type { ArtifactAdapter } from './io.ts';
 import type { SnapshotState } from './utils/snapshot.ts';
+import { AppError } from './utils/errors.ts';
 import { bindCommands, type BoundAgentDeviceCommands } from './commands/index.ts';
 
 export type CommandPolicy = {
@@ -126,4 +132,31 @@ export function restrictedCommandPolicy(overrides: Partial<CommandPolicy> = {}):
     allowNamedBackendCapabilities: [],
     ...overrides,
   };
+}
+
+export function assertBackendCapabilityAllowed(
+  runtime: Pick<AgentDeviceRuntime, 'backend' | 'policy'>,
+  capability: BackendCapabilityName,
+): void {
+  if (!hasBackendCapability(runtime.backend, capability)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `Backend capability ${capability} is not supported by this backend`,
+      { capability },
+    );
+  }
+  if (!runtime.policy.allowNamedBackendCapabilities.includes(capability)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `Backend capability ${capability} is not allowed by command policy`,
+      { capability },
+    );
+  }
+  if (!hasBackendEscapeHatch(runtime.backend, capability)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `Backend capability ${capability} does not implement its escape hatch method`,
+      { capability },
+    );
+  }
 }

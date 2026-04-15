@@ -40,6 +40,7 @@ export async function reserveCommandOutput(
   try {
     return await runtime.artifacts.reserveOutput(ref, {
       ...options,
+      visibility: options.visibility ?? 'client-visible',
       requestedClientPath:
         ref?.kind === 'downloadableArtifact'
           ? (ref.clientPath ?? options.requestedClientPath)

@@ -1,7 +1,7 @@
 import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 import { centerOfRect } from '../utils/snapshot.ts';
 import { containsPoint, pickLargestRect } from '../utils/rect-visibility.ts';
-import { findNearestHittableAncestor } from '../daemon/snapshot-processing.ts';
+import { findNearestHittableAncestor } from '../utils/snapshot-processing.ts';
 
 export function resolveActionableTouchNode(
   nodes: SnapshotNode[],

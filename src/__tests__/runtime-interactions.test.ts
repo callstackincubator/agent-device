@@ -30,6 +30,7 @@ test('runtime interactions pass runtime signal to backend primitives', async () 
       tap: async (context) => {
         signal = context.signal;
       },
+      typeText: async () => {},
     } satisfies AgentDeviceBackend,
     artifacts: createLocalArtifactAdapter(),
     policy: localCommandPolicy(),
@@ -89,6 +90,31 @@ test('runtime fill resolves refs and forwards text to the backend primitive', as
   assert.equal(result.warning, undefined);
 });
 
+test('runtime typeText validates refs and forwards text to the backend primitive', async () => {
+  const calls: Array<{ text: string; delayMs?: number }> = [];
+  const device = createInteractionDevice(selectorSnapshot(), {
+    typeText: async (_context, text, options) => {
+      calls.push({ text, delayMs: options?.delayMs });
+    },
+  });
+
+  const result = await device.interactions.typeText('hello', {
+    session: 'default',
+    delayMs: 25,
+  });
+
+  assert.deepEqual(calls, [{ text: 'hello', delayMs: 25 }]);
+  assert.equal(result.kind, 'text');
+  assert.equal(result.text, 'hello');
+  assert.equal(result.delayMs, 25);
+  assert.equal(result.message, 'Typed 5 chars');
+
+  await assert.rejects(
+    () => device.interactions.typeText('@e1 hello', { session: 'default' }),
+    /type does not accept a target ref/,
+  );
+});
+
 test('runtime interaction commands are available from the command namespace', async () => {
   const device = createInteractionDevice(selectorSnapshot(), {
     tap: async () => {},
@@ -131,7 +157,9 @@ function fillableSnapshot(): SnapshotState {
 
 function createInteractionDevice(
   snapshot: SnapshotState,
-  overrides: Partial<Pick<AgentDeviceBackend, 'captureSnapshot' | 'tap' | 'fill'>> = {},
+  overrides: Partial<
+    Pick<AgentDeviceBackend, 'captureSnapshot' | 'tap' | 'fill' | 'typeText'>
+  > = {},
 ) {
   return createAgentDevice({
     backend: {
@@ -140,6 +168,7 @@ function createInteractionDevice(
         overrides.captureSnapshot ? await overrides.captureSnapshot(...args) : { snapshot },
       tap: async (...args) => await overrides.tap?.(...args),
       fill: async (...args) => await overrides.fill?.(...args),
+      typeText: async (...args) => await overrides.typeText?.(...args),
     } satisfies AgentDeviceBackend,
     artifacts: createLocalArtifactAdapter(),
     sessions: createMemorySessionStore([{ name: 'default', snapshot }]),

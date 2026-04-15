@@ -42,6 +42,8 @@ export type ArtifactDescriptor =
       metadata?: Record<string, unknown>;
     };
 
+export type OutputVisibility = 'client-visible' | 'internal';
+
 export type ResolvedInputFile = {
   path: string;
   cleanup?: () => Promise<void>;
@@ -49,12 +51,14 @@ export type ResolvedInputFile = {
 
 export type ReservedOutputFile = {
   path: string;
+  visibility: OutputVisibility;
   publish: () => Promise<ArtifactDescriptor | undefined>;
   cleanup?: () => Promise<void>;
 };
 
 export type TemporaryFile = {
   path: string;
+  visibility: 'internal';
   cleanup: () => Promise<void>;
 };
 
@@ -67,6 +71,7 @@ export type ReserveOutputOptions = {
   field: string;
   ext: string;
   requestedClientPath?: string;
+  visibility?: OutputVisibility;
 };
 
 export type CreateTempFileOptions = {
@@ -106,6 +111,7 @@ export function createLocalArtifactAdapter(
     },
     reserveOutput: async (ref, outputOptions) => {
       let tempRoot: string | undefined;
+      const visibility = outputOptions.visibility ?? 'client-visible';
       const outputPath =
         ref?.kind === 'path'
           ? resolveLocalPath(ref.path, cwd)
@@ -118,6 +124,7 @@ export function createLocalArtifactAdapter(
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       return {
         path: outputPath,
+        visibility,
         ...(tempRoot
           ? {
               cleanup: async () => {
@@ -140,6 +147,7 @@ export function createLocalArtifactAdapter(
       const root = await fs.mkdtemp(path.join(tempDir, `${tempOptions.prefix}-`));
       return {
         path: path.join(root, `file${tempOptions.ext}`),
+        visibility: 'internal',
         cleanup: async () => {
           await fs.rm(root, { recursive: true, force: true });
         },

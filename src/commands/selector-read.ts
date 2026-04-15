@@ -10,8 +10,8 @@ import {
   parseSelectorChain,
   resolveSelectorChain,
 } from '../selectors.ts';
-import { buildSelectorChainForNode } from '../daemon/selectors-build.ts';
-import { evaluateIsPredicate, isSupportedPredicate } from '../daemon/is-predicates.ts';
+import { buildSelectorChainForNode } from '../utils/selector-build.ts';
+import { evaluateIsPredicate, isSupportedPredicate } from '../utils/selector-is-predicates.ts';
 import type { RuntimeCommand } from './index.ts';
 import {
   captureSelectorSnapshot,

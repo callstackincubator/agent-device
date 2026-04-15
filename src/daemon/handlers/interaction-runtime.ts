@@ -97,6 +97,16 @@ function createInteractionBackend(
           params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
         ),
       ),
+    typeText: async (_context, text): Promise<BackendActionResult> =>
+      toBackendActionResult(
+        await dispatchCommand(
+          session.device,
+          'type',
+          [text],
+          req.flags?.out,
+          params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        ),
+      ),
   };
 }
 

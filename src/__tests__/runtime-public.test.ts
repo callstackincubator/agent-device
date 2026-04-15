@@ -5,6 +5,7 @@ import {
   createMemorySessionStore,
   createLocalArtifactAdapter,
   commands as rootCommands,
+  assertBackendCapabilityAllowed,
   localCommandPolicy,
   restrictedCommandPolicy,
   selector as rootSelector,
@@ -23,11 +24,16 @@ import {
   type ScreenshotCommandOptions,
 } from '../commands/index.ts';
 import type { ArtifactAdapter, FileInputRef, FileOutputRef } from '../io.ts';
-import { commandConformanceSuites, type CommandConformanceTarget } from '../testing/conformance.ts';
+import {
+  commandConformanceSuites,
+  runCommandConformance,
+  type CommandConformanceTarget,
+} from '../testing/conformance.ts';
 
 const backend = {
   platform: 'ios',
   captureScreenshot: async () => {},
+  typeText: async () => {},
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -36,10 +42,12 @@ const artifacts = {
   }),
   reserveOutput: async (ref: FileOutputRef | undefined, options) => ({
     path: ref?.kind === 'path' ? ref.path : `/tmp/${options.field}${options.ext}`,
+    visibility: options.visibility ?? 'client-visible',
     publish: async () => undefined,
   }),
   createTempFile: async (options) => ({
     path: `/tmp/${options.prefix}${options.ext}`,
+    visibility: 'internal',
     cleanup: async () => {},
   }),
 } satisfies ArtifactAdapter;
@@ -120,6 +128,73 @@ test('public runtime policy helpers expose local and restricted defaults', async
   assert.equal((await store.get('default'))?.name, 'default');
 });
 
+test('local artifact adapter marks command outputs and temp files by visibility', async () => {
+  const adapter = createLocalArtifactAdapter();
+  const output = await adapter.reserveOutput(undefined, {
+    field: 'path',
+    ext: '.png',
+    visibility: 'client-visible',
+  });
+  const temp = await adapter.createTempFile({
+    prefix: 'agent-device-test',
+    ext: '.txt',
+  });
+
+  assert.equal(output.visibility, 'client-visible');
+  assert.equal(temp.visibility, 'internal');
+
+  await output.cleanup?.();
+  await temp.cleanup();
+});
+
+test('named backend capabilities require backend support and policy allowance', () => {
+  const supportedRuntime = createAgentDevice({
+    backend: {
+      platform: 'android',
+      capabilities: ['android.shell'],
+      escapeHatches: {
+        androidShell: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      },
+    },
+    artifacts,
+    policy: restrictedCommandPolicy({ allowNamedBackendCapabilities: ['android.shell'] }),
+  });
+
+  assert.doesNotThrow(() => assertBackendCapabilityAllowed(supportedRuntime, 'android.shell'));
+
+  const policyBlockedRuntime = createAgentDevice({
+    backend: {
+      platform: 'android',
+      capabilities: ['android.shell'],
+      escapeHatches: {
+        androidShell: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      },
+    },
+    artifacts,
+  });
+
+  assert.throws(
+    () => assertBackendCapabilityAllowed(policyBlockedRuntime, 'android.shell'),
+    /not allowed by command policy/,
+  );
+
+  assert.throws(
+    () => assertBackendCapabilityAllowed(supportedRuntime, 'ios.runnerCommand'),
+    /not supported by this backend/,
+  );
+
+  const missingMethodRuntime = createAgentDevice({
+    backend: { platform: 'android', capabilities: ['android.shell'] },
+    artifacts,
+    policy: restrictedCommandPolicy({ allowNamedBackendCapabilities: ['android.shell'] }),
+  });
+
+  assert.throws(
+    () => assertBackendCapabilityAllowed(missingMethodRuntime, 'android.shell'),
+    /does not implement its escape hatch method/,
+  );
+});
+
 test('memory session store does not expose mutable record references', async () => {
   const store = createMemorySessionStore([{ name: 'default', appName: 'Demo' }]);
   const record = await store.get('default');
@@ -166,11 +241,13 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
   assert.equal(typeof commands.interactions.click, 'function');
   assert.equal(typeof commands.interactions.press, 'function');
   assert.equal(typeof commands.interactions.fill, 'function');
+  assert.equal(typeof commands.interactions.typeText, 'function');
   assert.equal(
     commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
     true,
   );
-  assert.equal(commandConformanceSuites.length, 0);
+  assert.equal(commandConformanceSuites.length, 3);
+  assert.equal(typeof runCommandConformance, 'function');
   assert.equal(target.name, 'fake');
 });
 
@@ -211,4 +288,13 @@ test('command router dispatches implemented runtime commands and normalizes erro
     unsupportedInteraction.ok ? undefined : unsupportedInteraction.error.code,
     'UNSUPPORTED_OPERATION',
   );
+
+  const typed = await router.dispatch({
+    command: 'interactions.typeText',
+    options: {
+      text: 'hello',
+    },
+  });
+  assert.equal(typed.ok, true);
+  assert.equal(typed.ok && 'text' in typed.data ? typed.data.text : undefined, 'hello');
 });

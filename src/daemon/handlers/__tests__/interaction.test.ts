@@ -266,6 +266,37 @@ test('press coordinates dispatches press and records as press', async () => {
   expect(session?.actions[0]?.positionals).toEqual(['100', '200']);
 });
 
+test('type dispatches through runtime and records as type', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatch.mockResolvedValue({ ok: true, message: 'Typed 5 chars' });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'type',
+      positionals: ['hello'],
+      flags: { delayMs: 3 },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('type');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['hello']);
+  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
+  expect(context?.delayMs).toBe(3);
+  const session = sessionStore.get(sessionName);
+  expect(session?.actions.at(-1)?.command).toBe('type');
+  expect(session?.actions.at(-1)?.positionals).toEqual(['hello']);
+});
+
 test('click rejects macOS desktop surface interactions until helper routing exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-click';

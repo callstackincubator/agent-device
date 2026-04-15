@@ -17,7 +17,7 @@ Public subpath API exposed for Node consumers:
 - `agent-device/io`
   - artifact adapter types, file input refs, and file output refs
 - `agent-device/testing/conformance`
-  - conformance test-kit placeholders for backend/runtime parity suites
+  - conformance suites for backend/runtime parity across capture, selectors, and interactions
 - `agent-device/metro`
   - `prepareRemoteMetro(options)`
   - `ensureMetroTunnel(options)`
@@ -129,10 +129,14 @@ Implemented runtime namespaces are currently:
 
 - `capture`: `screenshot`, `diffScreenshot`, `snapshot`, `diffSnapshot`
 - `selectors`: `find`, `get`, `getText`, `getAttrs`, `is`, `isVisible`, `isHidden`, `wait`, `waitForText`
-- `interactions`: `click`, `press`, `fill`
+- `interactions`: `click`, `press`, `fill`, `typeText`
 
 Commands that have not migrated are tracked in `commandCatalog` instead of being
 exposed as throwing methods.
+
+Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
+`agent-device/testing/conformance` to verify capture, selector, and interaction
+semantics against a prepared fixture app or test backend.
 
 ## Command methods
 

@@ -100,6 +100,7 @@ function createDaemonScreenshotArtifactAdapter(): ArtifactAdapter {
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       return {
         path: outputPath,
+        visibility: 'client-visible',
         publish: async () => undefined,
       };
     },
@@ -107,6 +108,7 @@ function createDaemonScreenshotArtifactAdapter(): ArtifactAdapter {
       const root = await fs.mkdtemp(path.join(os.tmpdir(), `${options.prefix}-`));
       return {
         path: path.join(root, `file${options.ext}`),
+        visibility: 'internal',
         cleanup: async () => {
           await fs.rm(root, { recursive: true, force: true });
         },

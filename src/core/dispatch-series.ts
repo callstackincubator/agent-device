@@ -1,5 +1,5 @@
-import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
+export { requireIntInRange } from '../utils/validation.ts';
 
 const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
@@ -12,13 +12,6 @@ const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
   [1, -1],
   [-1, -1],
 ];
-
-export function requireIntInRange(value: number, name: string, min: number, max: number): number {
-  if (!Number.isFinite(value) || !Number.isInteger(value) || value < min || value > max) {
-    throw new AppError('INVALID_ARGS', `${name} must be an integer between ${min} and ${max}`);
-  }
-  return value;
-}
 
 export function clampIosSwipeDuration(durationMs: number): number {
   // Keep iOS swipes stable while allowing explicit fast durations for scroll-heavy flows.

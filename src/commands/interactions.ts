@@ -3,12 +3,14 @@ import type { Point, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { centerOfRect, findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
 import { formatSelectorFailure, parseSelectorChain, resolveSelectorChain } from '../selectors.ts';
-import { buildSelectorChainForNode } from '../daemon/selectors-build.ts';
-import { findNodeByLabel, isFillableType, resolveRefLabel } from '../daemon/snapshot-processing.ts';
+import { buildSelectorChainForNode } from '../utils/selector-build.ts';
+import { findNodeByLabel, isFillableType, resolveRefLabel } from '../utils/snapshot-processing.ts';
+import { requireIntInRange } from '../utils/validation.ts';
 import {
   isNodeVisibleInEffectiveViewport,
   resolveEffectiveViewportRect,
 } from '../utils/mobile-snapshot-semantics.ts';
+import { successText } from '../utils/success-text.ts';
 import { resolveActionableTouchNode } from './interaction-targeting.ts';
 import type { ElementTarget, ResolvedTarget } from './selector-read.ts';
 import { now, toBackendContext } from './selector-read-utils.ts';
@@ -60,6 +62,19 @@ export type FillCommandResult = {
   refLabel?: string;
   warning?: string;
   backendResult?: Record<string, unknown>;
+};
+
+export type TypeTextCommandOptions = CommandContext & {
+  text: string;
+  delayMs?: number;
+};
+
+export type TypeTextCommandResult = {
+  kind: 'text';
+  text: string;
+  delayMs: number;
+  backendResult?: Record<string, unknown>;
+  message?: string;
 };
 
 type CapturedSnapshot = {
@@ -130,6 +145,39 @@ export const fillCommand: RuntimeCommand<FillCommandOptions, FillCommandResult> 
     text: options.text,
     ...(warning ? { warning } : {}),
     ...(toBackendResult(backendResult) ? { backendResult: toBackendResult(backendResult) } : {}),
+  };
+};
+
+export const typeTextCommand: RuntimeCommand<
+  TypeTextCommandOptions,
+  TypeTextCommandResult
+> = async (runtime, options): Promise<TypeTextCommandResult> => {
+  const text = options.text;
+  if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
+  const mistargetedRef = findMistargetedTypeRef(text);
+  if (mistargetedRef) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `type does not accept a target ref like "${mistargetedRef}"`,
+      {
+        hint: `Use fill ${mistargetedRef} "text" to target that field, or press ${mistargetedRef} then type "text" to append.`,
+      },
+    );
+  }
+  if (!runtime.backend.typeText) {
+    throw new AppError('UNSUPPORTED_OPERATION', 'type is not supported by this backend');
+  }
+  const delayMs = requireIntInRange(options.delayMs ?? 0, 'delay-ms', 0, 10_000);
+  const backendResult = await runtime.backend.typeText(toBackendContext(runtime, options), text, {
+    delayMs,
+  });
+  const message = formatTextLengthMessage('Typed', text);
+  return {
+    kind: 'text',
+    text,
+    delayMs,
+    ...(toBackendResult(backendResult) ? { backendResult: toBackendResult(backendResult) } : {}),
+    ...successText(message),
   };
 };
 
@@ -354,4 +402,20 @@ function formatTargetForWarning(result: Pick<FillCommandResult, 'kind' | 'target
   if (result.target?.kind === 'ref') return result.target.ref;
   if (result.target?.kind === 'selector') return result.target.selector;
   return 'point';
+}
+
+function findMistargetedTypeRef(text: string): string | null {
+  const first = text.trim().split(/\s+/, 1)[0];
+  if (!first || !first.startsWith('@') || first.length < 3) {
+    return null;
+  }
+  const body = first.slice(1);
+  if (/^[A-Za-z_-]*\d[\w-]*$/i.test(body) || /^(?:ref|node|element|el)[\w-]*$/i.test(body)) {
+    return first;
+  }
+  return null;
+}
+
+function formatTextLengthMessage(action: 'Typed' | 'Filled', text: string): string {
+  return `${action} ${Array.from(text).length} chars`;
 }

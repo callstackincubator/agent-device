@@ -58,6 +58,7 @@ Their semantics should live in `agent-device/commands` as they migrate.
   daemon press dispatch calls the runtime.
 - `fill`: runtime command implemented for point, ref, and selector targets; the
   daemon fill dispatch calls the runtime.
+- `type`: runtime command implemented; daemon type dispatch calls the runtime.
 
 ## Boundary Requirements
 
@@ -75,6 +76,11 @@ Their semantics should live in `agent-device/commands` as they migrate.
 - Command options should carry `session`, `requestId`, `signal`, and `metadata`
   through `CommandContext` so hosted adapters can enforce request scope,
   cancellation, and audit correlation consistently.
+- Runtime command modules should depend on shared `src/utils/*` helpers, not
+  daemon-only modules. Keep daemon paths as compatibility shims when older
+  handlers still import them.
+- New backend adapters should run `agent-device/testing/conformance` suites for
+  the command families they claim to support.
 
 ## Backend And Admin Capabilities
 

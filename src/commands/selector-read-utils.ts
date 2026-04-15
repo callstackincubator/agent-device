@@ -1,7 +1,7 @@
 import type { BackendCommandContext } from '../backend.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
 
-export { findNodeByLabel, resolveRefLabel } from '../daemon/snapshot-processing.ts';
+export { findNodeByLabel, resolveRefLabel } from '../utils/snapshot-processing.ts';
 
 export function shouldScopeFind(locator: string): boolean {
   return locator === 'text' || locator === 'label' || locator === 'any';

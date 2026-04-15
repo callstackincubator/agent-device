@@ -1,8 +1,11 @@
 import type { Platform } from '../utils/device.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
-import { extractNodeText, isFillableType, normalizeType } from './snapshot-processing.ts';
+import { isNodeEditable, isNodeVisible } from '../utils/selector-node.ts';
+import { extractNodeText, normalizeType } from '../utils/snapshot-processing.ts';
 import { normalizeText } from '../utils/finders.ts';
 import type { Selector, SelectorTerm } from './selectors-parse.ts';
+
+export { isNodeEditable, isNodeVisible } from '../utils/selector-node.ts';
 
 export function matchesSelector(
   node: SnapshotNode,
@@ -10,16 +13,6 @@ export function matchesSelector(
   platform: Platform,
 ): boolean {
   return selector.terms.every((term) => matchesTerm(node, term, platform));
-}
-
-export function isNodeVisible(node: SnapshotNode): boolean {
-  if (node.hittable === true) return true;
-  if (!node.rect) return false;
-  return node.rect.width > 0 && node.rect.height > 0;
-}
-
-export function isNodeEditable(node: SnapshotNode, platform: Platform): boolean {
-  return isFillableType(node.type ?? '', platform) && node.enabled !== false;
 }
 
 function matchesTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform): boolean {

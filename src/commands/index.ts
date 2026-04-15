@@ -41,12 +41,15 @@ import {
   clickCommand,
   fillCommand,
   pressCommand,
+  typeTextCommand,
   type ClickCommandOptions,
   type FillCommandOptions,
   type FillCommandResult,
   type InteractionTarget,
   type PressCommandOptions,
   type PressCommandResult,
+  type TypeTextCommandOptions,
+  type TypeTextCommandResult,
 } from './interactions.ts';
 
 export type { ScreenshotCommandResult } from './capture-screenshot.ts';
@@ -87,6 +90,8 @@ export type {
   PointTarget,
   PressCommandOptions,
   PressCommandResult,
+  TypeTextCommandOptions,
+  TypeTextCommandResult,
 } from './interactions.ts';
 export { ref, selector } from './selector-read.ts';
 export { commandCatalog } from './catalog.ts';
@@ -153,6 +158,7 @@ export type AgentDeviceCommands = {
     click: RuntimeCommand<ClickCommandOptions, PressCommandResult>;
     press: RuntimeCommand<PressCommandOptions, PressCommandResult>;
     fill: RuntimeCommand<FillCommandOptions, FillCommandResult>;
+    typeText: RuntimeCommand<TypeTextCommandOptions, TypeTextCommandResult>;
   };
 };
 
@@ -203,6 +209,10 @@ export type BoundAgentDeviceCommands = {
       text: string,
       options?: Omit<FillCommandOptions, 'target' | 'text'>,
     ) => Promise<FillCommandResult>;
+    typeText: (
+      text: string,
+      options?: Omit<TypeTextCommandOptions, 'text'>,
+    ) => Promise<TypeTextCommandResult>;
   };
 };
 
@@ -228,6 +238,7 @@ export const commands: AgentDeviceCommands = {
     click: clickCommand,
     press: pressCommand,
     fill: fillCommand,
+    typeText: typeTextCommand,
   },
 };
 
@@ -260,6 +271,8 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
       press: (target, options = {}) => commands.interactions.press(runtime, { ...options, target }),
       fill: (target, text, options = {}) =>
         commands.interactions.fill(runtime, { ...options, target, text }),
+      typeText: (text, options = {}) =>
+        commands.interactions.typeText(runtime, { ...options, text }),
     },
   };
 }

@@ -106,9 +106,38 @@ export type BackendShellResult = {
   stderr: string;
 };
 
+export type BackendRunnerCommand = {
+  command: string;
+  args?: readonly string[];
+  payload?: Record<string, unknown>;
+};
+
+export type BackendEscapeHatches = {
+  androidShell?(
+    context: BackendCommandContext,
+    args: readonly string[],
+  ): Promise<BackendShellResult>;
+  iosRunnerCommand?(
+    context: BackendCommandContext,
+    command: BackendRunnerCommand,
+  ): Promise<BackendActionResult>;
+  macosDesktopScreenshot?(
+    context: BackendCommandContext,
+    outPath: string,
+    options?: BackendScreenshotOptions,
+  ): Promise<BackendScreenshotResult | void>;
+};
+
+export const BACKEND_CAPABILITY_ESCAPE_HATCH_METHODS = {
+  'android.shell': 'androidShell',
+  'ios.runnerCommand': 'iosRunnerCommand',
+  'macos.desktopScreenshot': 'macosDesktopScreenshot',
+} as const satisfies Record<BackendCapabilityName, keyof BackendEscapeHatches>;
+
 export type AgentDeviceBackend = {
   platform: AgentDeviceBackendPlatform;
   capabilities?: BackendCapabilitySet;
+  escapeHatches?: BackendEscapeHatches;
   captureSnapshot?(
     context: BackendCommandContext,
     options?: BackendSnapshotOptions,
@@ -135,7 +164,7 @@ export type AgentDeviceBackend = {
     context: BackendCommandContext,
     text: string,
     options?: { delayMs?: number },
-  ): Promise<void>;
+  ): Promise<BackendActionResult>;
   pressKey?(
     context: BackendCommandContext,
     key: string,
@@ -154,4 +183,12 @@ export function hasBackendCapability(
   capability: BackendCapabilityName,
 ): boolean {
   return backend.capabilities?.includes(capability) ?? false;
+}
+
+export function hasBackendEscapeHatch(
+  backend: Pick<AgentDeviceBackend, 'escapeHatches'>,
+  capability: BackendCapabilityName,
+): boolean {
+  const method = BACKEND_CAPABILITY_ESCAPE_HATCH_METHODS[capability];
+  return typeof backend.escapeHatches?.[method] === 'function';
 }

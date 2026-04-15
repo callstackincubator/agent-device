@@ -1,0 +1,13 @@
+import type { Platform } from './device.ts';
+import type { SnapshotNode } from './snapshot.ts';
+import { isFillableType } from './snapshot-processing.ts';
+
+export function isNodeVisible(node: SnapshotNode): boolean {
+  if (node.hittable === true) return true;
+  if (!node.rect) return false;
+  return node.rect.width > 0 && node.rect.height > 0;
+}
+
+export function isNodeEditable(node: SnapshotNode, platform: Platform): boolean {
+  return isFillableType(node.type ?? '', platform) && node.enabled !== false;
+}
