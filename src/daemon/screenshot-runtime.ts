@@ -90,18 +90,26 @@ function createDaemonScreenshotArtifactAdapter(): ArtifactAdapter {
       throw new AppError('UNSUPPORTED_OPERATION', 'screenshot does not resolve input artifacts');
     },
     reserveOutput: async (ref) => {
-      const outputPath =
-        ref?.kind === 'path'
-          ? ref.path
-          : path.join(
-              await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-screenshot-')),
-              'screenshot.png',
-            );
+      let tempRoot: string | undefined;
+      let outputPath: string;
+      if (ref?.kind === 'path') {
+        outputPath = ref.path;
+      } else {
+        tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-screenshot-'));
+        outputPath = path.join(tempRoot, 'screenshot.png');
+      }
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       return {
         path: outputPath,
         visibility: 'client-visible',
         publish: async () => undefined,
+        ...(tempRoot
+          ? {
+              cleanup: async () => {
+                await fs.rm(tempRoot, { recursive: true, force: true });
+              },
+            }
+          : {}),
       };
     },
     createTempFile: async (options) => {

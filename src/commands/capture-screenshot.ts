@@ -23,6 +23,7 @@ export const screenshotCommand: RuntimeCommand<
     ext: '.png',
   });
 
+  let artifact: ArtifactDescriptor | undefined;
   try {
     await runtime.backend.captureScreenshot(
       {
@@ -40,12 +41,12 @@ export const screenshotCommand: RuntimeCommand<
         surface: options.surface,
       },
     );
+    artifact = await reserved.publish();
   } catch (error) {
     await reserved.cleanup?.();
     throw error;
   }
 
-  const artifact = await reserved.publish();
   return {
     path: reserved.path,
     ...(artifact ? { artifacts: [artifact] } : {}),

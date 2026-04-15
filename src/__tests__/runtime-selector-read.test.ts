@@ -35,6 +35,34 @@ test('runtime get reads text from a selector target', async () => {
   ]);
 });
 
+test('runtime get selector target captures fresh snapshot without a stored session snapshot', async () => {
+  const snapshot = selectorSnapshot();
+  const sessions = createMemorySessionStore([{ name: 'default' }]);
+  let captures = 0;
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      captureSnapshot: async () => {
+        captures += 1;
+        return { snapshot };
+      },
+      readText: async () => ({ text: 'Fresh text' }),
+    } satisfies AgentDeviceBackend,
+    artifacts: createLocalArtifactAdapter(),
+    sessions,
+    policy: localCommandPolicy(),
+  });
+
+  const result = await device.selectors.getText(selector('label=Continue'), {
+    session: 'default',
+  });
+
+  assert.equal(result.kind, 'text');
+  assert.equal(result.text, 'Fresh text');
+  assert.equal(captures, 1);
+  assert.equal((await sessions.get('default'))?.snapshot?.nodes[0]?.label, 'Continue');
+});
+
 test('runtime get returns attrs for a ref target without recapturing', async () => {
   const snapshot = selectorSnapshot();
   let captures = 0;

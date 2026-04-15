@@ -14,6 +14,7 @@ import { buildSelectorChainForNode } from '../utils/selector-build.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../utils/selector-is-predicates.ts';
 import type { RuntimeCommand } from './index.ts';
 import {
+  type CapturedSnapshot,
   captureSelectorSnapshot,
   readText,
   requireSnapshotSession,
@@ -177,8 +178,8 @@ export const getCommand: RuntimeCommand<GetCommandOptions, GetCommandResult> = a
   runtime,
   options,
 ): Promise<GetCommandResult> => {
-  const capture = await requireSnapshotSession(runtime, options.session);
   if (options.target.kind === 'ref') {
+    const capture = await requireSnapshotSession(runtime, options.session);
     const resolved = resolveRefNode(capture.snapshot.nodes, options.target.ref, {
       fallbackLabel: options.target.fallbackLabel ?? '',
       invalidRefMessage: 'get text requires a ref like @e2',
@@ -195,7 +196,7 @@ export const getCommand: RuntimeCommand<GetCommandOptions, GetCommandResult> = a
     return { kind: 'text', target, text, node: resolved.node, selectorChain };
   }
 
-  const resolved = await resolveSelectorNode(runtime, options, capture.sessionName, {
+  const resolved = await resolveSelectorNode(runtime, options, options.session ?? 'default', {
     selector: options.target.selector,
     disambiguateAmbiguous: options.property === 'text',
   });
@@ -213,7 +214,7 @@ export const getCommand: RuntimeCommand<GetCommandOptions, GetCommandResult> = a
     };
   }
 
-  const text = await readText(runtime, capture, resolved.node);
+  const text = await readText(runtime, resolved.capture, resolved.node);
   return {
     kind: 'text',
     target: { kind: 'selector', selector: resolved.selector },
@@ -455,7 +456,7 @@ async function resolveSelectorNode(
   options: GetCommandOptions,
   sessionName: string,
   params: { selector: string; disambiguateAmbiguous: boolean },
-): Promise<{ node: SnapshotNode; selector: string; ref: string }> {
+): Promise<{ capture: CapturedSnapshot; node: SnapshotNode; selector: string; ref: string }> {
   const capture = await captureSelectorSnapshot(
     runtime,
     { ...options, session: sessionName },
@@ -473,5 +474,10 @@ async function resolveSelectorNode(
   if (!resolved) {
     throw new AppError('COMMAND_FAILED', formatSelectorFailure(chain, [], { unique: true }));
   }
-  return { node: resolved.node, selector: resolved.selector.raw, ref: `@${resolved.node.ref}` };
+  return {
+    capture,
+    node: resolved.node,
+    selector: resolved.selector.raw,
+    ref: `@${resolved.node.ref}`,
+  };
 }

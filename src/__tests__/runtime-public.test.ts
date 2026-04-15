@@ -113,6 +113,35 @@ test('runtime screenshot command reserves output and calls backend primitive', a
   });
 });
 
+test('runtime screenshot command cleans reserved output when publish fails', async () => {
+  let cleanupCalled = false;
+  const device = createAgentDevice({
+    backend,
+    artifacts: {
+      ...artifacts,
+      reserveOutput: async (ref: FileOutputRef | undefined, options) => ({
+        path: ref?.kind === 'path' ? ref.path : `/tmp/${options.field}${options.ext}`,
+        visibility: options.visibility ?? 'client-visible',
+        publish: async () => {
+          throw new Error('publish failed');
+        },
+        cleanup: async () => {
+          cleanupCalled = true;
+        },
+      }),
+    },
+    sessions,
+    policy: localCommandPolicy(),
+  });
+
+  await assert.rejects(
+    () => device.capture.screenshot({ out: { kind: 'path', path: '/tmp/screen.png' } }),
+    /publish failed/,
+  );
+
+  assert.equal(cleanupCalled, true);
+});
+
 test('public runtime policy helpers expose local and restricted defaults', async () => {
   assert.equal(typeof createLocalArtifactAdapter, 'function');
   assert.equal(rootCommands.capture.screenshot, commands.capture.screenshot);
