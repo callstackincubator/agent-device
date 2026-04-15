@@ -95,6 +95,7 @@ function createClientScreenshotBackend(
         session: context.session,
         overlayRefs: options?.overlayRefs,
         fullscreen: options?.fullscreen,
+        surface: options?.surface,
       });
       return {
         path: result.path,

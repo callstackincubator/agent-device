@@ -132,6 +132,7 @@ async function captureRuntimeSnapshot(
     },
   );
   const snapshot = normalizeBackendSnapshot(result, runtime);
+  const warningTime = now(runtime);
   return {
     snapshot,
     result,
@@ -141,6 +142,7 @@ async function captureRuntimeSnapshot(
       snapshot,
       options,
       session,
+      now: warningTime,
     }),
   };
 }
@@ -154,7 +156,7 @@ function normalizeBackendSnapshot(
     nodes: result.nodes ?? [],
     truncated: result.truncated,
     backend: result.backend as SnapshotState['backend'],
-    createdAt: runtime.clock?.now() ?? Date.now(),
+    createdAt: now(runtime),
   };
 }
 
@@ -189,6 +191,7 @@ function buildSnapshotWarnings(params: {
   snapshot: SnapshotState;
   options: SnapshotCommandOptions;
   session: CommandSessionRecord | undefined;
+  now: number;
 }): string[] {
   const warnings = [...(params.result.warnings ?? [])];
   const interactiveOnly = params.options.interactiveOnly === true;
@@ -219,7 +222,7 @@ function buildSnapshotWarnings(params: {
   if (
     !params.result.freshness &&
     previousSnapshot &&
-    Date.now() - previousSnapshot.createdAt <= 2_000 &&
+    params.now - previousSnapshot.createdAt <= 2_000 &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, params.snapshot.nodes.length)
   ) {
     warnings.push(
@@ -246,6 +249,10 @@ function buildSnapshotWarnings(params: {
 function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
   if (previousCount < 12) return false;
   return currentCount <= Math.floor(previousCount * 0.2);
+}
+
+function now(runtime: AgentDeviceRuntime): number {
+  return runtime.clock?.now() ?? Date.now();
 }
 
 function uniqueStrings(values: string[]): string[] {

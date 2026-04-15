@@ -279,6 +279,7 @@ async function assertSupportedInteractionSurface(
   if (runtime.backend.platform !== 'macos') return;
   const surface = await resolveInteractionSurface(runtime, options);
   if (surface !== 'desktop' && surface !== 'menubar') return;
+  // Menu bar button activation is supported by the existing daemon path; text entry is not.
   if (surface === 'menubar' && (action === 'click' || action === 'press')) return;
   throw new AppError(
     'UNSUPPORTED_OPERATION',
@@ -290,8 +291,6 @@ async function resolveInteractionSurface(
   runtime: AgentDeviceRuntime,
   options: CommandContext,
 ): Promise<unknown> {
-  const metadataSurface = options.metadata?.surface;
-  if (metadataSurface) return metadataSurface;
   const session = await runtime.sessions.get(options.session ?? 'default');
   return session?.metadata?.surface;
 }

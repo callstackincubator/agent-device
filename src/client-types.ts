@@ -311,6 +311,7 @@ export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {
   path?: string;
   overlayRefs?: boolean;
   fullscreen?: boolean;
+  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
 };
 
 export type CaptureScreenshotResult = {

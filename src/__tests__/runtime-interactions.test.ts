@@ -102,6 +102,14 @@ test('runtime interactions reject unsupported macOS desktop and menubar surfaces
     () => desktop.interactions.click({ kind: 'point', x: 1, y: 2 }, { session: 'default' }),
     /click is not supported on macOS desktop sessions yet/,
   );
+  await assert.rejects(
+    () =>
+      desktop.interactions.click(
+        { kind: 'point', x: 1, y: 2 },
+        { session: 'default', metadata: { surface: 'app' } },
+      ),
+    /click is not supported on macOS desktop sessions yet/,
+  );
 
   const menubar = createInteractionDevice(fillableSnapshot(), {
     platform: 'macos',

@@ -22,13 +22,15 @@ test('runtime diff screenshot captures live current image and cleans temporary c
   const baseline = path.join(dir, 'baseline.png');
   const diffOut = path.join(dir, 'diff.png');
   let capturedCurrentPath: string | undefined;
+  let capturedOptions: BackendScreenshotOptions | undefined;
 
   fs.writeFileSync(baseline, solidPngBuffer(10, 10, { r: 0, g: 0, b: 0 }));
 
   try {
     const device = createAgentDevice({
-      backend: createScreenshotBackend((outPath) => {
+      backend: createScreenshotBackend((outPath, options) => {
         capturedCurrentPath = outPath;
+        capturedOptions = options;
         fs.writeFileSync(outPath, solidPngBuffer(10, 10, { r: 255, g: 255, b: 255 }));
         return { path: outPath };
       }),
@@ -42,6 +44,7 @@ test('runtime diff screenshot captures live current image and cleans temporary c
       current: { kind: 'live' },
       out: { kind: 'path', path: diffOut },
       threshold: 0,
+      surface: 'menubar',
     });
 
     assert.equal(result.match, false);
@@ -50,6 +53,7 @@ test('runtime diff screenshot captures live current image and cleans temporary c
     assert.equal(fs.existsSync(diffOut), true);
     assert.equal(typeof capturedCurrentPath, 'string');
     assert.equal(fs.existsSync(capturedCurrentPath!), false);
+    assert.equal(capturedOptions?.surface, 'menubar');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

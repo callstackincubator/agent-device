@@ -26,6 +26,7 @@ export type DiffScreenshotCommandOptions = CommandContext & {
   currentOverlayOut?: FileOutputRef;
   threshold?: number;
   overlayRefs?: boolean;
+  surface?: BackendScreenshotOptions['surface'];
 };
 
 export type DiffScreenshotCommandResult = ScreenshotDiffResult & {
@@ -119,14 +120,14 @@ function normalizeThreshold(threshold: unknown): number {
 
 async function captureLiveCurrentScreenshot(
   runtime: AgentDeviceRuntime,
-  options: CommandContext,
+  options: DiffScreenshotCommandOptions,
 ): Promise<ResolvedInputFile> {
   const temp = await createCommandTempFile(runtime, {
     prefix: 'agent-device-diff-current',
     ext: '.png',
   });
   try {
-    await captureScreenshot(runtime, options, temp.path);
+    await captureScreenshot(runtime, options, temp.path, screenshotSurfaceOptions(options));
   } catch (error) {
     await temp.cleanup();
     throw error;
@@ -156,6 +157,7 @@ async function maybeAttachCurrentOverlay(
   try {
     const overlayResult = await captureScreenshot(runtime, options, overlayOutput.path, {
       overlayRefs: true,
+      ...screenshotSurfaceOptions(options),
     });
     const overlayArtifact = await overlayOutput.publish();
     if (overlayArtifact) artifacts.push(overlayArtifact);
@@ -199,6 +201,12 @@ async function captureScreenshot(
       screenshotOptions,
     )) ?? {}
   );
+}
+
+function screenshotSurfaceOptions(
+  options: Pick<DiffScreenshotCommandOptions, 'surface'>,
+): BackendScreenshotOptions {
+  return options.surface ? { surface: options.surface } : {};
 }
 
 function resolveCurrentOverlayOutputRef(
