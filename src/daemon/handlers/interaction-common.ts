@@ -18,6 +18,7 @@ export type ContextFromFlags = (
 export type InteractionHandlerParams = {
   req: DaemonRequest;
   sessionName: string;
+  logPath?: string;
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
 };
@@ -148,7 +149,7 @@ async function dispatchInteractionCommand(params: {
   return { data, actionStartedAt, actionFinishedAt };
 }
 
-function finalizeTouchInteraction(params: {
+export function finalizeTouchInteraction(params: {
   session: SessionState;
   sessionStore: SessionStore;
   command: string;

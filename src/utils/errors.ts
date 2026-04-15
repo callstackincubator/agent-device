@@ -48,6 +48,17 @@ export function asAppError(err: unknown): AppError {
   return new AppError('UNKNOWN', 'Unknown error', { err });
 }
 
+export function isAgentDeviceError(err: unknown): err is AppError {
+  return err instanceof AppError;
+}
+
+export function normalizeAgentDeviceError(
+  err: unknown,
+  context: { diagnosticId?: string; logPath?: string } = {},
+): NormalizedError {
+  return normalizeError(err, context);
+}
+
 export function normalizeError(
   err: unknown,
   context: { diagnosticId?: string; logPath?: string } = {},

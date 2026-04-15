@@ -34,6 +34,7 @@ export type ScreenshotDiffOptions = {
   threshold?: number;
   outputPath?: string;
   maxRegions?: number;
+  maxPixels?: number;
 };
 
 // Each pixel is a point in 3D RGB space (R, G, B each 0–255).
@@ -63,6 +64,8 @@ export async function compareScreenshots(
 
   const baseline = decodePng(baselineBuffer, 'baseline screenshot');
   const current = decodePng(currentBuffer, 'current screenshot');
+  validateMaxPixels(baseline.width, baseline.height, 'baseline screenshot', options.maxPixels);
+  validateMaxPixels(current.width, current.height, 'current screenshot', options.maxPixels);
 
   const threshold = options.threshold ?? 0.1;
 
@@ -190,6 +193,21 @@ async function validateFileExists(filePath: string, errorMessage: string): Promi
   } catch {
     throw new AppError('INVALID_ARGS', `${errorMessage}: ${filePath}`);
   }
+}
+
+function validateMaxPixels(
+  width: number,
+  height: number,
+  label: string,
+  maxPixels: number | undefined,
+): void {
+  if (maxPixels == null || maxPixels <= 0) return;
+  const totalPixels = width * height;
+  if (totalPixels <= maxPixels) return;
+  throw new AppError(
+    'INVALID_ARGS',
+    `${label} is ${totalPixels} pixels, which exceeds the configured maxImagePixels limit of ${maxPixels}`,
+  );
 }
 
 async function removeStaleDiffOutput(outputPath: string | undefined): Promise<void> {

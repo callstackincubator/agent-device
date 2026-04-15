@@ -38,6 +38,10 @@ import {
   augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
+import {
+  dispatchScreenshotViaRuntime,
+  type ScreenshotOutputPlacement,
+} from './screenshot-runtime.ts';
 import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
 import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
 import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
@@ -340,6 +344,7 @@ async function runHandlerChain(params: {
   const interactionResponse = await handleInteractionCommands({
     req,
     sessionName,
+    logPath,
     sessionStore,
     contextFromFlags,
   });
@@ -393,9 +398,18 @@ async function dispatchGenericCommand(params: {
     ...contextFromFlags(logPath, req.flags, session.appBundleId, session.trace?.outPath),
     surface: session.surface,
   };
-  const data = await dispatchCommand(session.device, command, resolvedPositionals, resolvedOut, {
-    ...dispatchContext,
-  });
+  const data =
+    command === 'screenshot'
+      ? await dispatchScreenshotViaRuntime({
+          session,
+          sessionName: params.sessionName,
+          outPath: resolvedPositionals[0] ?? resolvedOut,
+          outputPlacement: resolveScreenshotOutputPlacement(req),
+          dispatchContext,
+        })
+      : await dispatchCommand(session.device, command, resolvedPositionals, resolvedOut, {
+          ...dispatchContext,
+        });
 
   if (command === 'screenshot' && req.flags?.overlayRefs && typeof data?.path === 'string') {
     await applyScreenshotOverlay(session, data, logPath);
@@ -420,6 +434,13 @@ async function dispatchGenericCommand(params: {
   }
 
   return { ok: true, data: data ?? {} };
+}
+
+function resolveScreenshotOutputPlacement(req: DaemonRequest): ScreenshotOutputPlacement {
+  if (req.command !== 'screenshot') return 'default';
+  if ((req.positionals ?? [])[0]) return 'positional';
+  if (req.flags?.out) return 'out';
+  return 'default';
 }
 
 function resolveCommandPositionals(req: DaemonRequest): {

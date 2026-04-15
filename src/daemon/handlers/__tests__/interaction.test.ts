@@ -1013,6 +1013,43 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
   expect(event?.y).toBe(40);
 });
 
+test('fill coordinates dispatches point fill and records the action', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatch.mockResolvedValue({ filled: true });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['25', '75', 'hello world'],
+      flags: { delayMs: 40 },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.filled).toBe(true);
+    expect(response.data?.x).toBe(25);
+    expect(response.data?.y).toBe(75);
+    expect(response.data?.text).toBe('hello world');
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('fill');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['25', '75', 'hello world']);
+  expect((mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined)?.delayMs).toBe(
+    40,
+  );
+  expect(sessionStore.get(sessionName)?.actions.length).toBe(1);
+});
+
 test('fill @ref keeps the original editable node when its parent is the hittable ancestor', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';

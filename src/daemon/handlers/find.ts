@@ -10,6 +10,7 @@ import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
+import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
 
 export { parseFindArgs } from '../../utils/finders.ts';
 
@@ -56,6 +57,13 @@ export async function handleFindCommands(params: {
   if (req.flags?.findFirst && req.flags?.findLast) {
     return errorResponse('INVALID_ARGS', 'find accepts only one of --first or --last');
   }
+  const runtimeResponse = await dispatchFindReadOnlyViaRuntime({
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+  });
+  if (runtimeResponse) return runtimeResponse;
   const session = sessionStore.get(sessionName);
   const isReadOnly =
     action === 'exists' || action === 'wait' || action === 'get_text' || action === 'get_attrs';

@@ -1,11 +1,11 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { formatScreenshotDiffText, formatSnapshotDiffText } from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
-import { compareScreenshots, type ScreenshotDiffResult } from '../../utils/screenshot-diff.ts';
-import { attachCurrentOverlayMatches } from '../../utils/screenshot-diff-overlay-matches.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
+import type { AgentDeviceBackend } from '../../backend.ts';
+import type { AgentDeviceClient } from '../../client.ts';
+import { createLocalArtifactAdapter } from '../../io.ts';
+import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
+import type { CliFlags } from '../../utils/command-schema.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
@@ -60,87 +60,64 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     );
   }
 
-  let thresholdNum = 0.1;
-  if (flags.threshold != null && flags.threshold !== '') {
-    thresholdNum = Number(flags.threshold);
-    if (Number.isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 1) {
-      throw new AppError('INVALID_ARGS', '--threshold must be a number between 0 and 1');
-    }
-  }
+  const runtime = createAgentDevice({
+    backend: createClientScreenshotBackend(client, flags),
+    artifacts: createLocalArtifactAdapter(),
+    sessions: {
+      get: (name) => ({ name }),
+      set: () => {},
+    },
+    policy: localCommandPolicy(),
+  });
 
-  if (currentRaw) {
-    if (flags.overlayRefs) {
-      throw new AppError(
-        'INVALID_ARGS',
-        'diff screenshot <current.png> cannot use --overlay-refs because saved-image comparisons have no live accessibility refs',
-      );
-    }
-    const result = await compareScreenshots(baselinePath, resolveUserPath(currentRaw), {
-      threshold: thresholdNum,
-      outputPath,
-    });
-    writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));
-    return true;
-  }
-
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-diff-current-'));
-  const tmpScreenshotPath = path.join(tmpDir, `current-${Date.now()}.png`);
-  const screenshotResult = await client.capture.screenshot({ path: tmpScreenshotPath });
-  const currentPath = screenshotResult.path;
-
-  let result: ScreenshotDiffResult;
-  try {
-    result = await compareScreenshots(baselinePath, currentPath, {
-      threshold: thresholdNum,
-      outputPath,
-    });
-    if (flags.overlayRefs && !result.match && !result.dimensionMismatch) {
-      const overlayResult = await client.capture.screenshot({
-        path: outputPath ? deriveCurrentOverlayPath(outputPath) : undefined,
-        overlayRefs: true,
-      });
-      result = {
-        ...result,
-        currentOverlayPath: overlayResult.path,
-        ...(overlayResult.overlayRefs
-          ? { currentOverlayRefCount: overlayResult.overlayRefs.length }
-          : {}),
-        ...(result.regions && overlayResult.overlayRefs
-          ? {
-              regions: attachCurrentOverlayMatches(result.regions, overlayResult.overlayRefs),
-            }
-          : {}),
-      };
-    } else if (flags.overlayRefs && outputPath) {
-      removeStaleCurrentOverlay(outputPath);
-    }
-  } finally {
-    try {
-      fs.unlinkSync(currentPath);
-    } catch {}
-    try {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch {}
-  }
+  const result = await runtime.capture.diffScreenshot({
+    session: flags.session,
+    baseline: { kind: 'path', path: baselinePath },
+    current: currentRaw ? { kind: 'path', path: resolveUserPath(currentRaw) } : { kind: 'live' },
+    ...(outputPath ? { out: { kind: 'path', path: outputPath } } : {}),
+    threshold: parseCliThreshold(flags.threshold),
+    overlayRefs: flags.overlayRefs,
+  });
 
   writeCommandOutput(flags, result, () => formatScreenshotDiffText(result));
   return true;
 };
 
-function deriveCurrentOverlayPath(outputPath: string): string {
-  const extension = path.extname(outputPath);
-  const base = extension ? outputPath.slice(0, -extension.length) : outputPath;
-  return `${base}.current-overlay${extension || '.png'}`;
+function createClientScreenshotBackend(
+  client: AgentDeviceClient,
+  flags: CliFlags,
+): AgentDeviceBackend {
+  return {
+    platform: resolveClientBackendPlatform(flags),
+    captureScreenshot: async (context, outPath, options) => {
+      const result = await client.capture.screenshot({
+        path: outPath,
+        session: context.session,
+        overlayRefs: options?.overlayRefs,
+        fullscreen: options?.fullscreen,
+      });
+      return {
+        path: result.path,
+        ...(result.overlayRefs ? { overlayRefs: result.overlayRefs } : {}),
+      };
+    },
+  };
 }
 
-function removeStaleCurrentOverlay(outputPath: string): void {
-  try {
-    fs.unlinkSync(deriveCurrentOverlayPath(outputPath));
-  } catch (error) {
-    if (!isFsError(error, 'ENOENT')) throw error;
+function resolveClientBackendPlatform(flags: CliFlags): AgentDeviceBackend['platform'] {
+  switch (flags.platform) {
+    case 'android':
+    case 'linux':
+    case 'macos':
+      return flags.platform;
+    case 'ios':
+    case 'apple':
+    default:
+      return 'ios';
   }
 }
 
-function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
+function parseCliThreshold(threshold: string | undefined): number | undefined {
+  if (threshold == null || threshold === '') return undefined;
+  return Number(threshold);
 }

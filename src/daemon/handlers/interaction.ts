@@ -1,11 +1,9 @@
 import type { DaemonResponse } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { handleTouchInteractionCommands } from './interaction-touch.ts';
-import { handleGetCommand } from './interaction-get.ts';
-import { handleIsCommand } from './interaction-is.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
-import { resolveRefTarget } from './interaction-targeting.ts';
 import { refSnapshotFlagGuardResponse } from './interaction-flags.ts';
+import { dispatchGetViaRuntime, dispatchIsViaRuntime } from '../selector-runtime.ts';
 
 export { unsupportedRefSnapshotFlags } from './interaction-flags.ts';
 
@@ -15,7 +13,6 @@ export async function handleInteractionCommands(
   const touchResponse = await handleTouchInteractionCommands({
     ...params,
     captureSnapshotForSession,
-    resolveRefTarget,
     refSnapshotFlagGuardResponse,
   });
   if (touchResponse) {
@@ -24,9 +21,9 @@ export async function handleInteractionCommands(
 
   switch (params.req.command) {
     case 'get':
-      return await handleGetCommand(params);
+      return await dispatchGetViaRuntime(params);
     case 'is':
-      return await handleIsCommand(params);
+      return await dispatchIsViaRuntime(params);
     default:
       return null;
   }

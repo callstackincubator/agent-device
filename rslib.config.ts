@@ -17,6 +17,10 @@ export default defineConfig({
       source: {
         entry: {
           index: 'src/index.ts',
+          'commands/index': 'src/commands/index.ts',
+          backend: 'src/backend.ts',
+          io: 'src/io.ts',
+          'testing/conformance': 'src/testing/conformance.ts',
           artifacts: 'src/artifacts.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',

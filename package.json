@@ -12,6 +12,22 @@
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
     },
+    "./commands": {
+      "import": "./dist/src/commands/index.js",
+      "types": "./dist/src/commands/index.d.ts"
+    },
+    "./backend": {
+      "import": "./dist/src/backend.js",
+      "types": "./dist/src/backend.d.ts"
+    },
+    "./io": {
+      "import": "./dist/src/io.js",
+      "types": "./dist/src/io.d.ts"
+    },
+    "./testing/conformance": {
+      "import": "./dist/src/testing/conformance.js",
+      "types": "./dist/src/testing/conformance.d.ts"
+    },
     "./artifacts": {
       "import": "./dist/src/artifacts.js",
       "types": "./dist/src/artifacts.d.ts"
