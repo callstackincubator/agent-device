@@ -530,6 +530,26 @@ test('parseArgs recognizes record --fps flag', () => {
   assert.equal(parsed.flags.fps, 30);
 });
 
+test('parseArgs recognizes record --quality flag', () => {
+  const parsed = parseArgs(['record', 'start', './capture.mp4', '--quality', '7'], {
+    strictFlags: true,
+  });
+  assert.equal(parsed.command, 'record');
+  assert.deepEqual(parsed.positionals, ['start', './capture.mp4']);
+  assert.equal(parsed.flags.quality, 7);
+});
+
+test('parseArgs accepts record --quality boundaries', () => {
+  const parsedMin = parseArgs(['record', 'start', './capture.mp4', '--quality', '5'], {
+    strictFlags: true,
+  });
+  assert.equal(parsedMin.flags.quality, 5);
+  const parsedMax = parseArgs(['record', 'start', './capture.mp4', '--quality', '10'], {
+    strictFlags: true,
+  });
+  assert.equal(parsedMax.flags.quality, 10);
+});
+
 test('parseArgs recognizes record --hide-touches flag', () => {
   const parsed = parseArgs(['record', 'start', './capture.mp4', '--hide-touches'], {
     strictFlags: true,
@@ -553,6 +573,16 @@ test('parseArgs rejects invalid record --fps range', () => {
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
       error.message === 'Invalid fps: 0',
+  );
+});
+
+test('parseArgs rejects invalid record --quality range', () => {
+  assert.throws(
+    () => parseArgs(['record', 'start', './capture.mp4', '--quality', '4'], { strictFlags: true }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message === 'Invalid quality: 4',
   );
 });
 
@@ -657,6 +687,7 @@ test('usage includes only global flags in the top-level flags section', () => {
   assert.doesNotMatch(usageText, /--header <name:value>/);
   assert.doesNotMatch(usageText, /--restart/);
   assert.doesNotMatch(usageText, /--fps <n>/);
+  assert.doesNotMatch(usageText, /--quality <5-10>/);
   assert.doesNotMatch(usageText, /--save-script \[path\]/);
   assert.doesNotMatch(usageText, /--metadata/);
 });
@@ -943,7 +974,11 @@ test('open command usage documents macOS desktop surface flags', () => {
 test('command usage shows record touch-overlay opt-out flag', () => {
   const help = usageForCommand('record');
   if (help === null) throw new Error('Expected command help text');
-  assert.match(help, /record start \[path\] \[--fps <n>\] \[--hide-touches\] \| record stop/);
+  assert.match(
+    help,
+    /record start \[path\] \[--fps <n>\] \[--quality <5-10>\] \[--hide-touches\] \| record stop/,
+  );
+  assert.match(help, /--quality <5-10>/);
   assert.match(help, /--hide-touches/);
 });
 

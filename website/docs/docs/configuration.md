@@ -79,7 +79,7 @@ Common keys include:
 - `verbose`
 - `json`
 
-Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `stepsFile`, or `saveScript`.
+Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `quality`, `stepsFile`, or `saveScript`.
 
 Bound-session defaults use the same config and env mapping too:
 - `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`

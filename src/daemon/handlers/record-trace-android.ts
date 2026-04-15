@@ -20,7 +20,13 @@ type AndroidDevice = SessionState['device'];
 type AndroidRecording = Extract<NonNullable<SessionState['recording']>, { platform: 'android' }>;
 type AndroidRecordingBase = Pick<
   AndroidRecording,
-  'outPath' | 'clientOutPath' | 'telemetryPath' | 'startedAt' | 'showTouches' | 'gestureEvents'
+  | 'outPath'
+  | 'clientOutPath'
+  | 'telemetryPath'
+  | 'startedAt'
+  | 'quality'
+  | 'showTouches'
+  | 'gestureEvents'
 >;
 
 function parseAndroidRemotePid(stdout: string): string | undefined {
@@ -205,6 +211,50 @@ function androidRemoteRecordingPaths(timestamp: number): string[] {
   return [`/sdcard/${fileName}`, `/data/local/tmp/${fileName}`];
 }
 
+async function resolveAndroidRecordingSize(params: {
+  deps: RecordTraceDeps;
+  deviceId: string;
+  quality: number | undefined;
+}): Promise<{ width: number; height: number } | undefined> {
+  const { deps, deviceId, quality } = params;
+  if (quality === undefined || quality >= 10) {
+    return undefined;
+  }
+
+  const sizeResult = await deps.runCmd('adb', ['-s', deviceId, 'shell', 'wm', 'size'], {
+    allowFailure: true,
+  });
+  const match =
+    sizeResult.stdout.match(/Override size:\s*(\d+)x(\d+)/) ??
+    sizeResult.stdout.match(/Physical size:\s*(\d+)x(\d+)/);
+  if (sizeResult.exitCode !== 0 || !match) {
+    throw new Error(
+      `failed to resolve Android screen size for recording quality: ${formatRecordTraceExecFailure(sizeResult, 'adb shell wm size')}`,
+    );
+  }
+
+  return {
+    width: scaledEvenDimension(Number(match[1]), quality),
+    height: scaledEvenDimension(Number(match[2]), quality),
+  };
+}
+
+function scaledEvenDimension(value: number, quality: number): number {
+  return Math.max(2, Math.round((value * quality) / 10 / 2) * 2);
+}
+
+function buildAndroidScreenrecordCommand(
+  remotePath: string,
+  size: { width: number; height: number } | undefined,
+): string {
+  const screenrecordArgs = ['screenrecord'];
+  if (size) {
+    screenrecordArgs.push('--size', `${size.width}x${size.height}`);
+  }
+  screenrecordArgs.push(remotePath);
+  return `${screenrecordArgs.join(' ')} >/dev/null 2>&1 & echo $!`;
+}
+
 async function cleanupAndroidRemoteRecording(
   deps: RecordTraceDeps,
   deviceId: string,
@@ -248,11 +298,21 @@ export async function startAndroidRecording(params: {
   const { deps, device, recordingBase } = params;
   let lastStartError =
     'failed to start recording: Android screenrecord did not begin producing frames';
+  let recordingSize: { width: number; height: number } | undefined;
+  try {
+    recordingSize = await resolveAndroidRecordingSize({
+      deps,
+      deviceId: device.id,
+      quality: recordingBase.quality,
+    });
+  } catch (error) {
+    return errorResponse('COMMAND_FAILED', error instanceof Error ? error.message : String(error));
+  }
 
   for (const remotePath of androidRemoteRecordingPaths(Date.now())) {
     const startResult = await deps.runCmd(
       'adb',
-      ['-s', device.id, 'shell', `screenrecord ${remotePath} >/dev/null 2>&1 & echo $!`],
+      ['-s', device.id, 'shell', buildAndroidScreenrecordCommand(remotePath, recordingSize)],
       {
         allowFailure: true,
       },

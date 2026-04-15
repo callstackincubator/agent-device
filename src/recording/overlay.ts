@@ -30,6 +30,7 @@ function resolveScriptPath(scriptName: string): string {
 
 let overlayScriptPath: string | undefined;
 let trimScriptPath: string | undefined;
+let resizeScriptPath: string | undefined;
 
 export function getRecordingOverlaySupportWarning(
   hostPlatform: NodeJS.Platform = process.platform,
@@ -48,6 +49,11 @@ function getOverlayScriptPath(): string {
 function getTrimScriptPath(): string {
   trimScriptPath ??= resolveScriptPath('recording-trim.swift');
   return trimScriptPath;
+}
+
+function getResizeScriptPath(): string {
+  resizeScriptPath ??= resolveScriptPath('recording-resize.swift');
+  return resizeScriptPath;
 }
 
 async function exportProcessedVideo(params: {
@@ -138,5 +144,19 @@ export async function overlayRecordingTouches(params: {
     scriptPath: getOverlayScriptPath(),
     scriptArgs: ['--events', telemetryPath],
     commandDescription: `Failed to add touch overlays to the ${targetLabel}`,
+  });
+}
+
+export async function resizeRecording(params: {
+  videoPath: string;
+  quality: number;
+  targetLabel?: string;
+}): Promise<void> {
+  const { videoPath, quality, targetLabel = 'recording' } = params;
+  await exportProcessedVideo({
+    videoPath,
+    scriptPath: getResizeScriptPath(),
+    scriptArgs: ['--quality', String(quality)],
+    commandDescription: `Failed to resize the ${targetLabel}`,
   });
 }

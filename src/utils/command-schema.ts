@@ -63,6 +63,7 @@ export type CliFlags = {
   appsFilter?: 'user-installed' | 'all';
   count?: number;
   fps?: number;
+  quality?: number;
   hideTouches?: boolean;
   intervalMs?: number;
   delayMs?: number;
@@ -550,6 +551,16 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 120,
     usageLabel: '--fps <n>',
     usageDescription: 'Record: target frames per second (iOS physical device runner)',
+  },
+  {
+    key: 'quality',
+    names: ['--quality'],
+    type: 'int',
+    min: 5,
+    max: 10,
+    usageLabel: '--quality <5-10>',
+    usageDescription:
+      'Record: scale recording resolution from 5 (50%) through 10 (native resolution)',
   },
   {
     key: 'hideTouches',
@@ -1298,12 +1309,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   record: {
-    usageOverride: 'record start [path] [--fps <n>] [--hide-touches] | record stop',
+    usageOverride:
+      'record start [path] [--fps <n>] [--quality <5-10>] [--hide-touches] | record stop',
     listUsageOverride: 'record start [path] | record stop',
     helpDescription: 'Start/stop screen recording',
     summary: 'Start or stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
-    allowedFlags: ['fps', 'hideTouches'],
+    allowedFlags: ['fps', 'quality', 'hideTouches'],
   },
   trace: {
     usageOverride: 'trace start [path] | trace stop [path]',

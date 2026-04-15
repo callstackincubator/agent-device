@@ -53,6 +53,7 @@ export type RunnerCommand = {
   scale?: number;
   outPath?: string;
   fps?: number;
+  quality?: number;
   interactiveOnly?: boolean;
   compact?: boolean;
   depth?: number;

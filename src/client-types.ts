@@ -651,10 +651,13 @@ export type NetworkOptions = AgentDeviceRequestOverrides & {
   include?: 'summary' | 'headers' | 'body' | 'all';
 };
 
+type RecordingQuality = 5 | 6 | 7 | 8 | 9 | 10;
+
 export type RecordOptions = AgentDeviceRequestOverrides & {
   action: 'start' | 'stop';
   path?: string;
   fps?: number;
+  quality?: RecordingQuality;
   hideTouches?: boolean;
 };
 
@@ -716,6 +719,7 @@ type CommandExecutionOptions = {
   screenshotFullscreen?: boolean;
   count?: number;
   fps?: number;
+  quality?: RecordingQuality;
   hideTouches?: boolean;
   intervalMs?: number;
   delayMs?: number;

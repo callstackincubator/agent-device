@@ -136,6 +136,7 @@ type SessionRecordingBase = {
   telemetryPath?: string;
   overlayWarning?: string;
   startedAt: number;
+  quality?: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
   touchReferenceFrame?: {

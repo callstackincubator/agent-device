@@ -35,6 +35,14 @@ test('recording trim Swift script typechecks', async (t) => {
   await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-trim.swift'));
 });
 
+test('recording resize Swift script typechecks', async (t) => {
+  if (process.platform !== 'darwin') {
+    t.skip('Swift recording scripts are only validated on macOS');
+  }
+
+  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-resize.swift'));
+});
+
 test('recording inspect Swift script typechecks', async (t) => {
   if (process.platform !== 'darwin') {
     t.skip('Swift recording scripts are only validated on macOS');

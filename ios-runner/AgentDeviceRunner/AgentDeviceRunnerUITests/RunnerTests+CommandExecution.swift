@@ -183,16 +183,25 @@ extension RunnerTests {
       if let requestedFps = command.fps, (requestedFps < minRecordingFps || requestedFps > maxRecordingFps) {
         return Response(ok: false, error: ErrorPayload(message: "recordStart fps must be between \(minRecordingFps) and \(maxRecordingFps)"))
       }
+      if let requestedQuality = command.quality, (requestedQuality < minRecordingQuality || requestedQuality > maxRecordingQuality) {
+        return Response(ok: false, error: ErrorPayload(message: "recordStart quality must be between \(minRecordingQuality) and \(maxRecordingQuality)"))
+      }
       do {
         let resolvedOutPath = resolveRecordingOutPath(requestedOutPath)
         let fpsLabel = command.fps.map(String.init) ?? String(RunnerTests.defaultRecordingFps)
+        let qualityLabel = command.quality.map(String.init) ?? "native"
         NSLog(
-          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%@",
+          "AGENT_DEVICE_RUNNER_RECORD_START requestedOutPath=%@ resolvedOutPath=%@ fps=%@ quality=%@",
           requestedOutPath,
           resolvedOutPath,
-          fpsLabel
+          fpsLabel,
+          qualityLabel
         )
-        let recorder = ScreenRecorder(outputPath: resolvedOutPath, fps: command.fps.map { Int32($0) })
+        let recorder = ScreenRecorder(
+          outputPath: resolvedOutPath,
+          fps: command.fps.map { Int32($0) },
+          quality: command.quality
+        )
         try recorder.start { [weak self] in
           return self?.captureRunnerFrame()
         }

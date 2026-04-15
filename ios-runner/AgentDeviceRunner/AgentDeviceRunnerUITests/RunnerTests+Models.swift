@@ -52,6 +52,7 @@ struct Command: Codable {
   let scale: Double?
   let outPath: String?
   let fps: Int?
+  let quality: Int?
   let interactiveOnly: Bool?
   let compact: Bool?
   let depth: Int?

@@ -7,6 +7,7 @@ extension RunnerTests {
   final class ScreenRecorder {
     private let outputPath: String
     private let fps: Int32?
+    private let quality: Int?
     private var effectiveFps: Int32 {
       max(1, fps ?? RunnerTests.defaultRecordingFps)
     }
@@ -25,9 +26,10 @@ extension RunnerTests {
     private var startedSession = false
     private var startError: Error?
 
-    init(outputPath: String, fps: Int32?) {
+    init(outputPath: String, fps: Int32?, quality: Int?) {
       self.outputPath = outputPath
       self.fps = fps
+      self.quality = quality
     }
 
     func start(captureFrame: @escaping () -> RunnerImage?) throws {
@@ -48,7 +50,7 @@ extension RunnerTests {
       while Date() < bootstrapDeadline {
         if let image = captureFrame(), let cgImage = runnerCGImage(from: image) {
           bootstrapImage = image
-          dimensions = CGSize(width: cgImage.width, height: cgImage.height)
+          dimensions = scaledDimensions(width: cgImage.width, height: cgImage.height)
           break
         }
         Thread.sleep(forTimeInterval: 0.05)
@@ -240,11 +242,13 @@ extension RunnerTests {
 
       CVPixelBufferLockBaseAddress(pixelBuffer, [])
       defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+      let width = CVPixelBufferGetWidth(pixelBuffer)
+      let height = CVPixelBufferGetHeight(pixelBuffer)
       guard
         let context = CGContext(
           data: CVPixelBufferGetBaseAddress(pixelBuffer),
-          width: image.width,
-          height: image.height,
+          width: width,
+          height: height,
           bitsPerComponent: 8,
           bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
           space: CGColorSpaceCreateDeviceRGB(),
@@ -253,8 +257,23 @@ extension RunnerTests {
       else {
         return nil
       }
-      context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+      context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
       return pixelBuffer
+    }
+
+    private func scaledDimensions(width: Int, height: Int) -> CGSize {
+      guard let quality, quality < 10 else {
+        return CGSize(width: width, height: height)
+      }
+      let scale = Double(quality) / 10.0
+      return CGSize(
+        width: scaledEvenDimension(width, scale: scale),
+        height: scaledEvenDimension(height, scale: scale)
+      )
+    }
+
+    private func scaledEvenDimension(_ value: Int, scale: Double) -> Int {
+      max(2, Int((Double(value) * scale / 2.0).rounded()) * 2)
     }
   }
 }
