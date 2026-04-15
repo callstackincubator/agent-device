@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.95d68ddefa.js"></script>
+<script defer src="/agent-device/static/js/index.367f7e1c29.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -163,6 +163,7 @@
 <li><code>client.recording.record()</code> and <code>client.recording.trace()</code></li>
 <li><code>client.settings.update()</code></li>
 </ul>
+<p><code>client.recording.record({ action: &#x27;start&#x27;, path, quality: 5 })</code> starts a smaller 50% resolution video; omit <code>quality</code> to keep native/current resolution.</p>
 <h2 class="rp-toc-include" id="android-installfromsource"><a href="#android-installfromsource" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Android <code>installFromSource()</code></h2>
 <div class="rp-codeblock language-ts"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="ts"><code><span class="line"><span style="color:var(--shiki-token-keyword)">const</span><span style="color:var(--shiki-token-constant)"> androidClient</span><span style="color:var(--shiki-token-keyword)"> =</span><span style="color:var(--shiki-token-function)"> createAgentDeviceClient</span><span style="color:var(--shiki-foreground)">({ session</span><span style="color:var(--shiki-token-keyword)">:</span><span style="color:var(--shiki-token-string-expression)"> &#x27;qa-android&#x27;</span><span style="color:var(--shiki-foreground)"> });</span></span>
 <span class="line"></span>

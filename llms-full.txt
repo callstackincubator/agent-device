@@ -31,6 +31,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to 15 FPS and supports `--fps` caps.
+  - `record start --quality <5-10>` scales recording resolution from 50% through native resolution; omitting it keeps native/current resolution.
 - Android supports the same core interaction set, plus `rotate`, `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss`.
 - iOS supports `keyboard dismiss` through the XCTest runner when the on-screen keyboard is visible.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
@@ -368,6 +369,8 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.observability.perf()`, `logs()`, and `network()`
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
+
+`client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
 
 ## Android `installFromSource()`
 
@@ -1017,6 +1020,7 @@ agent-device diff screenshot --baseline baseline.png --out diff.png --overlay-re
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
+agent-device record start session.mp4 --quality 7 # Scale recording resolution to 70%
 agent-device record stop                # Stop active recording
 ```
 
@@ -1093,6 +1097,8 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Physical-device capture defaults to 15 FPS.
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
+
+- `--quality <5-10>` scales recording resolution from 50% through native resolution without changing FPS. Omitting it preserves the platform's current/native recording resolution.
 
 ## Tracing
 
@@ -1252,7 +1258,7 @@ Common keys include:
 - `verbose`
 - `json`
 
-Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `stepsFile`, or `saveScript`.
+Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `quality`, `stepsFile`, or `saveScript`.
 
 Bound-session defaults use the same config and env mapping too:
 

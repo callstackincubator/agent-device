@@ -543,6 +543,7 @@ agent-device diff screenshot --baseline baseline.png --out diff.png --overlay-re
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
+agent-device record start session.mp4 --quality 7 # Scale recording resolution to 70%
 agent-device record stop                # Stop active recording
 ```
 
@@ -619,6 +620,8 @@ tail -50 ~/.agent-device/sessions/default/app.log
 - Physical-device capture defaults to 15 FPS.
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
+
+- `--quality <5-10>` scales recording resolution from 50% through native resolution without changing FPS. Omitting it preserves the platform's current/native recording resolution.
 
 ## Tracing
 

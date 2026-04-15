@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.95d68ddefa.js"></script>
+<script defer src="/agent-device/static/js/index.367f7e1c29.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -49,6 +49,7 @@ For exploratory QA and bug-hunting workflows, see <code>skills/dogfood/SKILL.md<
 <li>Physical devices use runner screenshot capture (<code>XCUIScreen.main.screenshot()</code> frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with <code>--fps 60</code>).</li>
 <li>Physical-device recording requires an active app session context (<code>open &lt;app&gt;</code> first).</li>
 <li>Physical-device recording defaults to 15 FPS and supports <code>--fps</code> caps.</li>
+<li><code>record start --quality &lt;5-10&gt;</code> scales recording resolution from 50% through native resolution; omitting it keeps native/current resolution.</li>
 </ul>
 </li>
 <li>Android supports the same core interaction set, plus <code>rotate</code>, <code>push</code> notification simulation, <code>clipboard read/write</code>, and <code>keyboard status|get|dismiss</code>.</li>
