@@ -6,7 +6,7 @@ appstate
 snapshot -i
 screenshot "./test/screenshots/replays/android-deep-nav-root.png"
 
-click @e16
+click "label=Notifications"
 wait 1000
 snapshot -i
 find text "Notification history" exists
