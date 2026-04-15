@@ -5,6 +5,7 @@ import type {
   FindOptions,
   IsOptions,
   PermissionTarget,
+  RecordOptions,
   SettingsUpdateOptions,
 } from '../../client-types.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
@@ -205,7 +206,7 @@ export const genericClientCommandHandlers = {
         action: readStartStop(positionals[0], 'record'),
         path: positionals[1],
         fps: flags.fps,
-        quality: flags.quality as 5 | 6 | 7 | 8 | 9 | 10 | undefined,
+        quality: readRecordingQuality(flags.quality),
         hideTouches: flags.hideTouches,
       }),
   ),
@@ -345,6 +346,12 @@ function readScrollDirection(value: string | undefined): 'up' | 'down' | 'left' 
 function readStartStop(value: string | undefined, command: string): 'start' | 'stop' {
   if (value === 'start' || value === 'stop') return value;
   throw new AppError('INVALID_ARGS', `${command} requires start|stop`);
+}
+
+function readRecordingQuality(value: number | undefined): RecordOptions['quality'] {
+  if (value === undefined) return undefined;
+  if ([5, 6, 7, 8, 9, 10].includes(value)) return value as RecordOptions['quality'];
+  throw new AppError('INVALID_ARGS', `Invalid quality: ${value}`);
 }
 
 function readLogsAction(
