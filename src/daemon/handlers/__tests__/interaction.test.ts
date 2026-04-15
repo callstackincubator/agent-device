@@ -1707,6 +1707,62 @@ test('is visible captures one snapshot before evaluating selector predicate', as
   }
 });
 
+test('is visible preserves CLI snapshot flags during runtime snapshot capture', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'snapshot-flags';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+    return {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'XCUIElementTypeWindow',
+          label: 'Login',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'XCUIElementTypeButton',
+          label: 'Continue',
+          identifier: 'auth_continue',
+          rect: { x: 10, y: 20, width: 100, height: 40 },
+          enabled: true,
+          hittable: true,
+          visible: true,
+        },
+      ],
+      backend: 'xctest',
+    };
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['visible', 'id=auth_continue'],
+      flags: { snapshotDepth: 2, snapshotScope: 'Login', snapshotRaw: true },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch.mock.calls[0]?.[4]).toMatchObject({
+    snapshotDepth: 2,
+    snapshotScope: 'Login',
+    snapshotRaw: true,
+    snapshotInteractiveOnly: false,
+    snapshotCompact: false,
+  });
+});
+
 test('is visible passes for list text that inherits viewport visibility from an ancestor', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'visible-list-item';

@@ -1,7 +1,11 @@
-import type { AgentDeviceBackend, BackendSnapshotResult } from '../backend.ts';
+import type {
+  AgentDeviceBackend,
+  BackendSnapshotOptions,
+  BackendSnapshotResult,
+} from '../backend.ts';
 import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
-import { resolveTargetDevice } from '../core/dispatch.ts';
+import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import { isApplePlatform } from '../utils/device.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
@@ -43,6 +47,17 @@ type SelectorRuntimeParams = {
   sessionStore: SessionStore;
   contextFromFlags?: ContextFromFlags;
 };
+
+type SnapshotFlagOverrides = Partial<
+  Pick<
+    CommandFlags,
+    | 'snapshotInteractiveOnly'
+    | 'snapshotCompact'
+    | 'snapshotScope'
+    | 'snapshotDepth'
+    | 'snapshotRaw'
+  >
+>;
 
 export async function dispatchFindReadOnlyViaRuntime(
   params: SelectorRuntimeParams,
@@ -284,20 +299,18 @@ function createSelectorBackend(params: {
   return {
     platform: device.platform,
     captureSnapshot: async (_context, options): Promise<BackendSnapshotResult> => {
+      const flags = {
+        ...req.flags,
+        ...snapshotFlagOverrides(options),
+      };
+      const snapshotScope = options?.scope ?? req.flags?.snapshotScope;
       const capture = await captureSnapshot({
         device,
         session,
-        flags: {
-          ...req.flags,
-          snapshotInteractiveOnly: options?.interactiveOnly,
-          snapshotCompact: options?.compact,
-          snapshotScope: options?.scope,
-          snapshotDepth: options?.depth,
-          snapshotRaw: options?.raw,
-        },
+        flags,
         outPath: req.flags?.out,
         logPath: logPath ?? '',
-        snapshotScope: options?.scope,
+        snapshotScope,
       });
       if (session) {
         session.snapshot = capture.snapshot;
@@ -323,6 +336,17 @@ function createSelectorBackend(params: {
       found: await findText(params, text),
     }),
   };
+}
+
+function snapshotFlagOverrides(options: BackendSnapshotOptions | undefined): SnapshotFlagOverrides {
+  const flags: SnapshotFlagOverrides = {};
+  if (options?.interactiveOnly !== undefined)
+    flags.snapshotInteractiveOnly = options.interactiveOnly;
+  if (options?.compact !== undefined) flags.snapshotCompact = options.compact;
+  if (options?.scope !== undefined) flags.snapshotScope = options.scope;
+  if (options?.depth !== undefined) flags.snapshotDepth = options.depth;
+  if (options?.raw !== undefined) flags.snapshotRaw = options.raw;
+  return flags;
 }
 
 async function findText(
