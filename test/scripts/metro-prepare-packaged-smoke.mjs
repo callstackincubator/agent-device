@@ -168,6 +168,11 @@ async function main() {
   const configDir = path.join(root, 'config');
   const packRoot = path.join(root, 'pack');
   const installRoot = path.join(root, 'install');
+  const bridgeScope = {
+    tenant: 'tenant-1',
+    runId: 'run-1',
+    leaseId: 'lease-1',
+  };
   fs.mkdirSync(projectRoot, { recursive: true });
   fs.mkdirSync(configDir, { recursive: true });
   fs.mkdirSync(packRoot, { recursive: true });
@@ -332,6 +337,7 @@ async function main() {
         metroPublicBaseUrl: 'https://public.example.test',
         metroProxyBaseUrl: `http://127.0.0.1:${hostPort}`,
         metroBearerToken: 'shared-token',
+        ...bridgeScope,
         metroPreparePort: metroPort,
         metroStartupTimeoutMs: 30_000,
         metroProbeTimeoutMs: 1_000,
@@ -405,11 +411,20 @@ async function main() {
     assert.equal(registerCalls > 0, true, 'expected companion registration request');
     assert.equal(bridgeCalls >= 2, true, 'expected bridge retry before success');
     assert.equal(bridgeSucceeded, true, 'expected bridge success after registration');
+    assert.equal(registerBody.tenantId, bridgeScope.tenant);
+    assert.equal(registerBody.runId, bridgeScope.runId);
+    assert.equal(registerBody.leaseId, bridgeScope.leaseId);
     assert.equal(registerBody.local_base_url, `http://127.0.0.1:${metroPort}`);
+    assert.equal(bridgeBodies[0]?.tenantId, bridgeScope.tenant);
+    assert.equal(bridgeBodies[0]?.runId, bridgeScope.runId);
+    assert.equal(bridgeBodies[0]?.leaseId, bridgeScope.leaseId);
     assert.equal(
       bridgeBodies[0]?.ios_runtime?.metro_bundle_url,
       'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
     );
+    assert.equal(bridgeBodies.at(-1)?.tenantId, bridgeScope.tenant);
+    assert.equal(bridgeBodies.at(-1)?.runId, bridgeScope.runId);
+    assert.equal(bridgeBodies.at(-1)?.leaseId, bridgeScope.leaseId);
     assert.equal(
       bridgeBodies.at(-1)?.ios_runtime?.metro_bundle_url,
       'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
