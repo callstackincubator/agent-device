@@ -34,6 +34,9 @@ async function runCliCapture(
   const originalExit = process.exit;
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const originalStateDir = process.env.AGENT_DEVICE_STATE_DIR;
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-batch-'));
+  process.env.AGENT_DEVICE_STATE_DIR = stateDir;
 
   (process as any).exit = ((nextCode?: number) => {
     throw new ExitSignal(nextCode ?? 0);
@@ -61,6 +64,9 @@ async function runCliCapture(
     if (error instanceof ExitSignal) code = error.code;
     else throw error;
   } finally {
+    if (originalStateDir === undefined) delete process.env.AGENT_DEVICE_STATE_DIR;
+    else process.env.AGENT_DEVICE_STATE_DIR = originalStateDir;
+    fs.rmSync(stateDir, { recursive: true, force: true });
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
