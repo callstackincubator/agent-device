@@ -13,7 +13,7 @@ Public subpath API exposed for Node consumers:
 - `agent-device/io`
   - artifact adapter types, file input refs, and file output refs
 - `agent-device/testing/conformance`
-  - conformance suites for backend/runtime parity across capture, selectors, and interactions
+  - conformance suites for backend/runtime parity across capture, selectors, interactions, and apps
 - `agent-device/metro`
   - `prepareRemoteMetro(options)`
   - `ensureMetroTunnel(options)`
@@ -119,6 +119,7 @@ await device.capture.screenshot({
 
 await device.selectors.waitForText('Ready', { session: 'default', timeoutMs: 5_000 });
 await device.interactions.click(selector('label=Continue'), { session: 'default' });
+await device.apps.open({ session: 'default', app: 'com.example' });
 ```
 
 Implemented runtime namespaces are currently:
@@ -126,13 +127,19 @@ Implemented runtime namespaces are currently:
 - `capture`: `screenshot`, `diffScreenshot`, `snapshot`, `diffSnapshot`
 - `selectors`: `find`, `get`, `getText`, `getAttrs`, `is`, `isVisible`, `isHidden`, `wait`, `waitForText`
 - `interactions`: `click`, `press`, `fill`, `typeText`
+- `apps`: `open`, `close`, `list`, `state`, `push`, `triggerEvent`
 
 Commands that have not migrated are tracked in `commandCatalog` instead of being
 exposed as throwing methods.
 
 Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
-`agent-device/testing/conformance` to verify capture, selector, and interaction
+`agent-device/testing/conformance` to verify capture, selector, interaction, and app
 semantics against a prepared fixture app or test backend.
+
+Use `createCommandRouter()` from `agent-device/commands` as the recommended
+transport boundary for hosted adapters. The router applies command dispatch,
+error normalization, and per-request runtime construction without exposing
+daemon internals.
 
 ## Command methods
 
