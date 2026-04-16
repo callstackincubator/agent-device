@@ -13,7 +13,7 @@ OUTPUT_DIR="$3"
 DERIVED_PATH="${AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH:-$HOME/.agent-device/ios-runner/derived}"
 PRODUCTS_DIR="$DERIVED_PATH/Build/Products"
 EXPECTED_RUNNER_BUNDLE_ID="${AGENT_DEVICE_IOS_RUNNER_RELEASE_BUNDLE_ID:-com.callstack.agentdevice.runner.uitests.xctrunner}"
-ARCHIVE_BASENAME="agent-device-ios-runner-$VERSION.app.zip"
+ARCHIVE_BASENAME="agent-device-ios-runner-$VERSION.app.tar.gz"
 CHECKSUM_BASENAME="$ARCHIVE_BASENAME.sha256"
 MANIFEST_BASENAME="agent-device-ios-runner-$VERSION.manifest.json"
 GITHUB_SERVER="${GITHUB_SERVER_URL:-https://github.com}"
@@ -74,7 +74,7 @@ ditto "$RUNNER_APP_PATH" "$STAGED_APP_PATH"
 rm -f "$ARCHIVE_PATH"
 (
   cd "$STAGE_DIR"
-  COPYFILE_DISABLE=1 zip -qry "$ARCHIVE_PATH" "$(basename "$STAGED_APP_PATH")"
+  COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" "$(basename "$STAGED_APP_PATH")"
 )
 
 SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
@@ -101,7 +101,7 @@ fi
   printf '  "bundle_id": "%s",\n' "$RUNNER_BUNDLE_ID"
   printf '  "bundle_name": "%s",\n' "$APP_NAME"
   printf '  "platform_target": "iphonesimulator",\n'
-  printf '  "archive_format": "zip"\n'
+  printf '  "archive_format": "tar.gz"\n'
   printf '}\n'
 } > "$MANIFEST_PATH"
 
