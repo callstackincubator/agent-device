@@ -12,6 +12,7 @@ import {
   type AgentDeviceClientConfig,
   type AgentDeviceDaemonTransport,
 } from './client.ts';
+import { materializeRemoteConnectionForCommand } from './cli/commands/connection-runtime.ts';
 import { tryRunClientBackedCommand } from './cli/commands/router.ts';
 import {
   createRequestId,
@@ -35,6 +36,23 @@ type CliDeps = {
 const DEFAULT_CLI_DEPS: CliDeps = {
   sendToDaemon,
 };
+
+const METRO_RUNTIME_OVERRIDE_FLAG_KEYS = new Set<FlagKey>([
+  'launchUrl',
+  'metroBearerToken',
+  'metroKind',
+  'metroListenHost',
+  'metroNoInstallDeps',
+  'metroNoReuseExisting',
+  'metroPreparePort',
+  'metroProbeTimeoutMs',
+  'metroProjectRoot',
+  'metroProxyBaseUrl',
+  'metroPublicBaseUrl',
+  'metroRuntimeFile',
+  'metroStartupTimeoutMs',
+  'metroStatusHost',
+]);
 
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
@@ -166,45 +184,76 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         process.exit(1);
         return;
       }
-      maybeRunUpgradeNotifier({
-        command,
-        currentVersion: version,
-        stateDir: daemonPaths.baseDir,
-        flags: effectiveFlags,
-      });
-      const remoteDaemonBaseUrl = effectiveFlags.daemonBaseUrl;
-      const logTailStopper =
-        effectiveFlags.verbose && !effectiveFlags.json && !remoteDaemonBaseUrl
-          ? startDaemonLogTail(daemonPaths.logPath)
-          : null;
-      const clientConfig: AgentDeviceClientConfig = {
-        session: effectiveFlags.session ?? sessionName,
-        requestId,
-        stateDir: effectiveFlags.stateDir,
-        daemonBaseUrl: effectiveFlags.daemonBaseUrl,
-        daemonAuthToken: effectiveFlags.daemonAuthToken,
-        daemonTransport: effectiveFlags.daemonTransport,
-        daemonServerMode: effectiveFlags.daemonServerMode,
-        tenant: effectiveFlags.tenant,
-        sessionIsolation: effectiveFlags.sessionIsolation,
-        runId: effectiveFlags.runId,
-        leaseId: effectiveFlags.leaseId,
-        leaseBackend: effectiveFlags.leaseBackend,
-        runtime: connectionDefaults?.runtime,
-        lockPolicy: binding.lockPolicy,
-        lockPlatform: binding.defaultPlatform,
-        cwd: process.cwd(),
-        debug: Boolean(effectiveFlags.verbose),
-      };
-      const client = createAgentDeviceClient(clientConfig, {
-        transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
-      });
+      let logTailStopper: (() => void) | null = null;
       try {
+        maybeRunUpgradeNotifier({
+          command,
+          currentVersion: version,
+          stateDir: daemonPaths.baseDir,
+          flags: effectiveFlags,
+        });
+        let resolvedRuntime = connectionDefaults?.runtime;
+        const buildClientConfig = (
+          currentFlags: CliFlags,
+          runtime: SessionRuntimeHints | undefined,
+        ): AgentDeviceClientConfig => ({
+          session: currentFlags.session ?? sessionName,
+          requestId,
+          stateDir: currentFlags.stateDir,
+          daemonBaseUrl: currentFlags.daemonBaseUrl,
+          daemonAuthToken: currentFlags.daemonAuthToken,
+          daemonTransport: currentFlags.daemonTransport,
+          daemonServerMode: currentFlags.daemonServerMode,
+          tenant: currentFlags.tenant,
+          sessionIsolation: currentFlags.sessionIsolation,
+          runId: currentFlags.runId,
+          leaseId: currentFlags.leaseId,
+          leaseBackend: currentFlags.leaseBackend,
+          runtime,
+          lockPolicy: binding.lockPolicy,
+          lockPlatform: binding.defaultPlatform,
+          cwd: process.cwd(),
+          debug: Boolean(currentFlags.verbose),
+        });
+        let parsedBatchSteps: BatchStep[] | undefined;
         if (command === 'batch') {
           if (positionals.length > 0) {
             throw new AppError('INVALID_ARGS', 'batch does not accept positional arguments.');
           }
-          const batchSteps = readBatchSteps(flags).map((step, _index) => ({
+          parsedBatchSteps = readBatchSteps(flags);
+        }
+
+        if (connectionDefaults && command !== 'connect' && command !== 'connection') {
+          const materializationClient = createAgentDeviceClient(
+            buildClientConfig(effectiveFlags, resolvedRuntime),
+            {
+              transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
+            },
+          );
+          const materialized = await materializeRemoteConnectionForCommand({
+            command,
+            flags: effectiveFlags,
+            client: materializationClient,
+            runtime: resolvedRuntime,
+            batchSteps: parsedBatchSteps,
+            forceRuntimePrepare: hasExplicitMetroRuntimeOverrides(explicitFlagKeys),
+          });
+          effectiveFlags = materialized.flags;
+          resolvedRuntime = materialized.runtime;
+        }
+        const remoteDaemonBaseUrl = effectiveFlags.daemonBaseUrl;
+        logTailStopper =
+          effectiveFlags.verbose && !effectiveFlags.json && !remoteDaemonBaseUrl
+            ? startDaemonLogTail(daemonPaths.logPath)
+            : null;
+        const client = createAgentDeviceClient(buildClientConfig(effectiveFlags, resolvedRuntime), {
+          transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
+        });
+        if (command === 'batch') {
+          if (!parsedBatchSteps) {
+            throw new AppError('INVALID_ARGS', 'batch requires --steps or --steps-file.');
+          }
+          const batchSteps = parsedBatchSteps.map((step, _index) => ({
             ...step,
             flags:
               binding.lockPolicy && flags.platform === undefined
@@ -341,6 +390,15 @@ function mergeConnectionFlags(
     (merged as Record<string, unknown>)[key] = value;
   }
   return merged;
+}
+
+function hasExplicitMetroRuntimeOverrides(explicitFlagKeys: Set<FlagKey>): boolean {
+  for (const key of METRO_RUNTIME_OVERRIDE_FLAG_KEYS) {
+    if (explicitFlagKeys.has(key)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function guessSessionFromArgv(argv: string[]): string | null {

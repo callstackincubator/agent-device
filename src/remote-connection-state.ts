@@ -19,8 +19,8 @@ export type RemoteConnectionState = {
   };
   tenant: string;
   runId: string;
-  leaseId: string;
-  leaseBackend: LeaseBackend;
+  leaseId?: string;
+  leaseBackend?: LeaseBackend;
   platform?: CliFlags['platform'];
   target?: CliFlags['target'];
   runtime?: SessionRuntimeHints;
@@ -244,8 +244,8 @@ function isRemoteConnectionState(value: unknown): value is RemoteConnectionState
         !Array.isArray(record.daemon))) &&
     typeof record.tenant === 'string' &&
     typeof record.runId === 'string' &&
-    typeof record.leaseId === 'string' &&
-    typeof record.leaseBackend === 'string' &&
+    (record.leaseId === undefined || typeof record.leaseId === 'string') &&
+    (record.leaseBackend === undefined || typeof record.leaseBackend === 'string') &&
     typeof record.connectedAt === 'string' &&
     typeof record.updatedAt === 'string'
   );

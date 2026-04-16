@@ -6,6 +6,7 @@ import path from 'node:path';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
 import { resolveDaemonPaths } from '../daemon/config.ts';
+import { installIsolatedCliTestEnv } from './cli-test-env.ts';
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -26,6 +27,9 @@ type RunResult = {
 async function runCliCapture(
   argv: string[],
   responder: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>,
+  options?: {
+    env?: Record<string, string | undefined>;
+  },
 ): Promise<RunResult> {
   let stdout = '';
   let stderr = '';
@@ -35,9 +39,11 @@ async function runCliCapture(
   const originalExit = process.exit;
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const originalStateDir = process.env.AGENT_DEVICE_STATE_DIR;
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-diagnostics-'));
-  process.env.AGENT_DEVICE_STATE_DIR = stateDir;
+  const restoreEnv = installIsolatedCliTestEnv({
+    ...(options?.env ?? {}),
+    AGENT_DEVICE_STATE_DIR: stateDir,
+  });
 
   (process as any).exit = ((nextCode?: number) => {
     throw new ExitSignal(nextCode ?? 0);
@@ -62,8 +68,7 @@ async function runCliCapture(
     if (error instanceof ExitSignal) code = error.code;
     else throw error;
   } finally {
-    if (originalStateDir === undefined) delete process.env.AGENT_DEVICE_STATE_DIR;
-    else process.env.AGENT_DEVICE_STATE_DIR = originalStateDir;
+    restoreEnv();
     fs.rmSync(stateDir, { recursive: true, force: true });
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
@@ -99,11 +104,6 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
   fs.mkdirSync(path.dirname(daemonPaths.logPath), { recursive: true });
   fs.writeFileSync(daemonPaths.logPath, 'REMOTE_TAIL_SENTINEL\n', 'utf8');
 
-  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
-  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
-
   try {
     const result = await runCliCapture(
       ['clipboard', 'write', 'hello', '--debug', '--state-dir', stateDir],
@@ -114,15 +114,17 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
           data: { action: 'write', message: 'Clipboard updated' },
         };
       },
+      {
+        env: {
+          AGENT_DEVICE_DAEMON_BASE_URL: 'http://remote-mac.example.test:7777/agent-device',
+          AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'remote-secret',
+        },
+      },
     );
     assert.equal(result.code, null);
     assert.equal(result.stdout.includes('REMOTE_TAIL_SENTINEL'), false);
     assert.match(result.stdout, /Clipboard updated/);
   } finally {
-    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
-    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
@@ -206,10 +208,9 @@ test('cli preserves --out for client-backed screenshot', async () => {
 });
 
 test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => {
-  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
-  process.env.AGENT_DEVICE_PLATFORM = 'android';
-  try {
-    const result = await runCliCapture(['open', 'com.example.app', '--json'], async () => ({
+  const result = await runCliCapture(
+    ['open', 'com.example.app', '--json'],
+    async () => ({
       ok: true,
       data: {
         app: 'com.example.app',
@@ -218,13 +219,11 @@ test('cli applies AGENT_DEVICE_PLATFORM to client-backed commands', async () => 
         device: 'Pixel 9',
         id: 'emulator-5554',
       },
-    }));
-    assert.equal(result.code, null);
-    assert.equal(result.calls[0]?.flags?.platform, 'android');
-  } finally {
-    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
-    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
-  }
+    }),
+    { env: { AGENT_DEVICE_PLATFORM: 'android' } },
+  );
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.flags?.platform, 'android');
 });
 
 test('cli prints success acknowledgment for client-backed open in human mode', async () => {
@@ -263,27 +262,20 @@ test('cli prints success acknowledgment for daemon-backed mutating commands in h
 });
 
 test('cli forwards bound-session lock policy when session defaults are configured', async () => {
-  const previousSession = process.env.AGENT_DEVICE_SESSION;
-  const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
-  process.env.AGENT_DEVICE_SESSION = 'qa-ios';
-  process.env.AGENT_DEVICE_PLATFORM = 'ios';
-  try {
-    const result = await runCliCapture(['snapshot', '--device', 'Pixel 9', '--json'], async () => ({
+  const result = await runCliCapture(
+    ['snapshot', '--device', 'Pixel 9', '--json'],
+    async () => ({
       ok: true,
       data: {},
-    }));
-    assert.equal(result.code, null);
-    assert.equal(result.calls.length, 1);
-    assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
-    assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
-    assert.equal(result.calls[0]?.flags?.platform, 'ios');
-    assert.equal(result.calls[0]?.flags?.device, 'Pixel 9');
-  } finally {
-    if (previousSession === undefined) delete process.env.AGENT_DEVICE_SESSION;
-    else process.env.AGENT_DEVICE_SESSION = previousSession;
-    if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
-    else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
-  }
+    }),
+    { env: { AGENT_DEVICE_SESSION: 'qa-ios', AGENT_DEVICE_PLATFORM: 'ios' } },
+  );
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.meta?.lockPolicy, 'reject');
+  assert.equal(result.calls[0]?.meta?.lockPlatform, 'ios');
+  assert.equal(result.calls[0]?.flags?.platform, 'ios');
+  assert.equal(result.calls[0]?.flags?.device, 'Pixel 9');
 });
 
 test('cli session lock flag overrides environment for a single invocation', async () => {

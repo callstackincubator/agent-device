@@ -4,8 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../cli.ts';
-import { hashRemoteConfigFile, readRemoteConnectionState } from '../remote-connection-state.ts';
+import {
+  hashRemoteConfigFile,
+  readActiveConnectionState,
+  readRemoteConnectionState,
+} from '../remote-connection-state.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
+import { installIsolatedCliTestEnv } from './cli-test-env.ts';
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -40,15 +45,10 @@ async function runCliCapture(
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
   const originalCwd = process.cwd();
-  const previousEnv = new Map<string, string | undefined>();
+  const restoreEnv = installIsolatedCliTestEnv(options?.env ?? {});
 
   if (options?.cwd) {
     process.chdir(options.cwd);
-  }
-  for (const [key, value] of Object.entries(options?.env ?? {})) {
-    previousEnv.set(key, process.env[key]);
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
   }
 
   (process as any).exit = ((nextCode?: number) => {
@@ -63,12 +63,13 @@ async function runCliCapture(
     return true;
   }) as typeof process.stderr.write;
 
-  const sendToDaemon =
-    options?.sendToDaemon ??
-    (async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-      calls.push(req);
-      return { ok: true, data: {} };
-    });
+  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
+    calls.push(req);
+    if (options?.sendToDaemon) {
+      return await options.sendToDaemon(req);
+    }
+    return { ok: true, data: {} };
+  };
 
   try {
     await runCli(argv, { sendToDaemon });
@@ -76,14 +77,11 @@ async function runCliCapture(
     if (error instanceof ExitSignal) code = error.code;
     else throw error;
   } finally {
+    restoreEnv();
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;
     process.chdir(originalCwd);
-    for (const [key, value] of previousEnv.entries()) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
   }
 
   return { code, stdout, stderr, calls };
@@ -274,18 +272,37 @@ test('active remote connection defaults override generic config and env for remo
       AGENT_DEVICE_SESSION: 'env-session',
       AGENT_DEVICE_PLATFORM: 'ios',
     },
+    sendToDaemon: async (req) => {
+      if (req.command === 'lease_heartbeat') {
+        return {
+          ok: true,
+          data: {
+            lease: {
+              leaseId: 'lease-123',
+              tenantId: 'acme',
+              runId: 'run-123',
+              backend: 'android-instance',
+            },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
   });
 
   assert.equal(result.code, null);
-  assert.equal(result.calls.length, 1);
-  assert.equal(result.calls[0]?.session, 'env-session');
-  assert.equal(result.calls[0]?.flags?.platform, 'android');
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'lease_heartbeat');
+  assert.equal(result.calls[1]?.session, 'env-session');
+  assert.equal(result.calls[1]?.flags?.platform, 'android');
   assert.equal(
-    result.calls[0]?.flags?.daemonBaseUrl,
+    result.calls[1]?.flags?.daemonBaseUrl,
     'http://remote-mac.example.test:9124/agent-device',
   );
   assert.equal(result.calls[0]?.meta?.tenantId, 'acme');
   assert.equal(result.calls[0]?.meta?.leaseId, 'lease-123');
+  assert.equal(result.calls[1]?.meta?.tenantId, 'acme');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-123');
 
   fs.rmSync(root, { recursive: true, force: true });
 });
@@ -332,6 +349,19 @@ test('install-from-source uses active remote connection lease binding', async ()
       env: { HOME: home },
       sendToDaemon: async (req) => {
         calls.push(req);
+        if (req.command === 'lease_heartbeat') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-demo-001',
+                tenantId: 'micha-pierzcha-a',
+                runId: 'demo-run-001',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
         return {
           ok: true,
           data: {
@@ -348,14 +378,92 @@ test('install-from-source uses active remote connection lease binding', async ()
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.success, true);
   assert.equal(payload.data.launchTarget, 'com.example.demo');
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0]?.meta?.tenantId, 'micha-pierzcha-a');
-  assert.equal(calls[0]?.meta?.runId, 'demo-run-001');
-  assert.equal(calls[0]?.meta?.leaseId, 'lease-demo-001');
-  assert.equal(calls[0]?.flags?.tenant, 'micha-pierzcha-a');
-  assert.equal(calls[0]?.flags?.runId, 'demo-run-001');
-  assert.equal(calls[0]?.flags?.leaseId, 'lease-demo-001');
-  assert.deepEqual(calls[0]?.positionals, []);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.command, 'lease_heartbeat');
+  assert.equal(calls[1]?.meta?.tenantId, 'micha-pierzcha-a');
+  assert.equal(calls[1]?.meta?.runId, 'demo-run-001');
+  assert.equal(calls[1]?.meta?.leaseId, 'lease-demo-001');
+  assert.equal(calls[1]?.flags?.tenant, 'micha-pierzcha-a');
+  assert.equal(calls[1]?.flags?.runId, 'demo-run-001');
+  assert.equal(calls[1]?.flags?.leaseId, 'lease-demo-001');
+  assert.deepEqual(calls[1]?.positionals, []);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('minimal remote connect defers lease allocation until a platform-bound command runs', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      sessionIsolation: 'tenant',
+      runId: 'run-123',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+
+  const connectResult = await runCliCapture(
+    ['connect', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home },
+    },
+  );
+
+  assert.equal(connectResult.code, null);
+  assert.equal(connectResult.calls.length, 0);
+  const connected = readActiveConnectionState({ stateDir });
+  assert.match(connected?.session ?? '', /^adc-[a-z0-9]+$/);
+  assert.equal(connected?.leaseId, undefined);
+  assert.equal(connected?.leaseBackend, 'android-instance');
+
+  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
+  const appsResult = await runCliCapture(['apps', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+    sendToDaemon: async (req) => {
+      calls.push(req);
+      if (req.command === 'lease_allocate') {
+        return {
+          ok: true,
+          data: {
+            lease: {
+              leaseId: 'lease-123',
+              tenantId: 'acme',
+              runId: 'run-123',
+              backend: 'android-instance',
+            },
+          },
+        };
+      }
+      if (req.command === 'apps') {
+        return {
+          ok: true,
+          data: {
+            apps: ['com.example.demo'],
+          },
+        };
+      }
+      throw new Error(`unexpected daemon command: ${req.command}`);
+    },
+  });
+
+  assert.equal(appsResult.code, null);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.command, 'lease_allocate');
+  assert.equal(calls[0]?.meta?.tenantId, 'acme');
+  assert.equal(calls[0]?.meta?.runId, 'run-123');
+  assert.equal(calls[0]?.meta?.leaseBackend, 'android-instance');
+  assert.equal(calls[1]?.command, 'apps');
+  assert.equal(calls[1]?.flags?.leaseId, 'lease-123');
+  assert.equal(calls[1]?.meta?.leaseId, 'lease-123');
+  assert.equal(calls[1]?.flags?.platform, 'android');
+  assert.equal(readActiveConnectionState({ stateDir })?.leaseId, 'lease-123');
 
   fs.rmSync(root, { recursive: true, force: true });
 });

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
+import { installIsolatedCliTestEnv } from './cli-test-env.ts';
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -34,6 +35,7 @@ async function runCliCapture(
   const originalExit = process.exit;
   const originalStdoutWrite = process.stdout.write.bind(process.stdout);
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const restoreEnv = installIsolatedCliTestEnv();
 
   (process as any).exit = ((nextCode?: number) => {
     throw new ExitSignal(nextCode ?? 0);
@@ -58,6 +60,7 @@ async function runCliCapture(
     if (error instanceof ExitSignal) code = error.code;
     else throw error;
   } finally {
+    restoreEnv();
     process.exit = originalExit;
     process.stdout.write = originalStdoutWrite;
     process.stderr.write = originalStderrWrite;

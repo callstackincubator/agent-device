@@ -6,6 +6,7 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import { runCli } from '../cli.ts';
 import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
+import { installIsolatedCliTestEnv } from './cli-test-env.ts';
 
 class ExitSignal extends Error {
   public readonly code: number;
@@ -57,15 +58,14 @@ async function runCliCapture(
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
   const originalForceColor = process.env.FORCE_COLOR;
   const originalNoColor = process.env.NO_COLOR;
-  const originalHome = process.env.HOME;
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-diff-home-'));
+  const restoreEnv = installIsolatedCliTestEnv(
+    options.preserveHome ? { HOME: process.env.HOME } : { HOME: tempHome },
+  );
 
   // Disable ANSI colors so assertions can match plain text
   process.env.FORCE_COLOR = '0';
   delete process.env.NO_COLOR;
-  if (!options.preserveHome) {
-    process.env.HOME = tempHome;
-  }
 
   (process as any).exit = ((nextCode?: number) => {
     throw new ExitSignal(nextCode ?? 0);
@@ -140,8 +140,7 @@ async function runCliCapture(
     else delete process.env.FORCE_COLOR;
     if (typeof originalNoColor === 'string') process.env.NO_COLOR = originalNoColor;
     else delete process.env.NO_COLOR;
-    if (typeof originalHome === 'string') process.env.HOME = originalHome;
-    else delete process.env.HOME;
+    restoreEnv();
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
 

@@ -515,6 +515,58 @@ test('batch step forwards typed runtime payload', async () => {
   ]);
 });
 
+test('batch step inherits parent runtime unless the step overrides it', async () => {
+  const sessionStore = makeSessionStore();
+  const seenRuntimes: Array<DaemonRequest['runtime']> = [];
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'batch',
+      positionals: [],
+      runtime: {
+        platform: 'android',
+        bundleUrl: 'https://bundle.example.test',
+      },
+      flags: {
+        batchSteps: [
+          {
+            command: 'open',
+            positionals: ['Demo'],
+          },
+          {
+            command: 'open',
+            positionals: ['Demo'],
+            runtime: {
+              metroHost: '10.0.0.10',
+              metroPort: 8081,
+            },
+          },
+        ],
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (stepReq) => {
+      seenRuntimes.push(stepReq.runtime);
+      return { ok: true, data: {} };
+    },
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(seenRuntimes).toEqual([
+    {
+      platform: 'android',
+      bundleUrl: 'https://bundle.example.test',
+    },
+    {
+      metroHost: '10.0.0.10',
+      metroPort: 8081,
+    },
+  ]);
+});
+
 test('batch step pins nested requests to the resolved session', async () => {
   const sessionStore = makeSessionStore();
   const seenSessions: Array<{ session: string; flagSession: string | undefined }> = [];
