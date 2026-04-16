@@ -1,4 +1,8 @@
 export type CommandCatalogEntry = {
+  /**
+   * CLI command names track daemon compatibility migration. Namespaced entries
+   * track runtime router/API commands that are available independently.
+   */
   command: string;
   category:
     | 'portable-runtime'
@@ -32,6 +36,12 @@ export const commandCatalog: readonly CommandCatalogEntry[] = [
   { command: 'close', category: 'portable-runtime', status: 'planned' },
   { command: 'apps', category: 'portable-runtime', status: 'planned' },
   { command: 'appstate', category: 'portable-runtime', status: 'planned' },
+  { command: 'apps.open', category: 'portable-runtime', status: 'implemented' },
+  { command: 'apps.close', category: 'portable-runtime', status: 'implemented' },
+  { command: 'apps.list', category: 'portable-runtime', status: 'implemented' },
+  { command: 'apps.state', category: 'portable-runtime', status: 'implemented' },
+  { command: 'apps.push', category: 'portable-runtime', status: 'implemented' },
+  { command: 'apps.triggerEvent', category: 'portable-runtime', status: 'implemented' },
   { command: 'back', category: 'portable-runtime', status: 'planned' },
   { command: 'home', category: 'portable-runtime', status: 'planned' },
   { command: 'rotate', category: 'portable-runtime', status: 'planned' },

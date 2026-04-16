@@ -31,6 +31,12 @@ test('command conformance suites run against a fixture backend', async () => {
   assert.equal(calls.includes('tap'), true);
   assert.equal(calls.includes('fill'), true);
   assert.equal(calls.includes('typeText'), true);
+  assert.equal(calls.includes('openApp'), true);
+  assert.equal(calls.includes('closeApp'), true);
+  assert.equal(calls.includes('listApps'), true);
+  assert.equal(calls.includes('getAppState'), true);
+  assert.equal(calls.includes('pushFile'), true);
+  assert.equal(calls.includes('triggerAppEvent'), true);
 });
 
 test('assertCommandConformance throws when a suite fails', async () => {
@@ -71,6 +77,26 @@ function createFixtureBackend(calls: string[]): AgentDeviceBackend {
     },
     typeText: async () => {
       calls.push('typeText');
+    },
+    openApp: async () => {
+      calls.push('openApp');
+    },
+    closeApp: async () => {
+      calls.push('closeApp');
+    },
+    listApps: async () => {
+      calls.push('listApps');
+      return [{ id: 'com.example.app', name: 'Example', bundleId: 'com.example.app' }];
+    },
+    getAppState: async (_context, app) => {
+      calls.push('getAppState');
+      return { bundleId: app, state: 'foreground' };
+    },
+    pushFile: async () => {
+      calls.push('pushFile');
+    },
+    triggerAppEvent: async () => {
+      calls.push('triggerAppEvent');
     },
   };
 }

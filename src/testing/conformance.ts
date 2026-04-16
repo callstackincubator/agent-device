@@ -7,6 +7,9 @@ export type ConformanceRuntimeFactory = () => AgentDeviceRuntime | Promise<Agent
 
 export type CommandConformanceFixtures = {
   session: string;
+  app: string;
+  appEventName: string;
+  appPushPayload: Record<string, unknown>;
   visibleSelector: string;
   visibleText: string;
   editableTarget: InteractionTarget;
@@ -64,6 +67,9 @@ export type CommandConformanceSuite = {
 
 export const defaultCommandConformanceFixtures: CommandConformanceFixtures = {
   session: 'default',
+  app: 'com.example.app',
+  appEventName: 'example.ready',
+  appPushPayload: { aps: { alert: 'hello' } },
   visibleSelector: 'label=Continue',
   visibleText: 'Continue',
   editableTarget: selector('label=Email'),
@@ -204,10 +210,87 @@ export const interactionConformanceSuite = createCommandConformanceSuite({
   ],
 });
 
+export const appsConformanceSuite = createCommandConformanceSuite({
+  name: 'apps',
+  cases: [
+    {
+      name: 'opens apps by id',
+      command: 'apps.open',
+      run: async (runtime, fixtures) => {
+        const result = await commands.apps.open(runtime, {
+          session: fixtures.session,
+          app: fixtures.app,
+        });
+        assert.equal(result.kind, 'appOpened');
+        assert.equal(result.target.app, fixtures.app);
+      },
+    },
+    {
+      name: 'closes apps by id',
+      command: 'apps.close',
+      run: async (runtime, fixtures) => {
+        const result = await commands.apps.close(runtime, {
+          session: fixtures.session,
+          app: fixtures.app,
+        });
+        assert.equal(result.kind, 'appClosed');
+        assert.equal(result.app, fixtures.app);
+      },
+    },
+    {
+      name: 'lists apps',
+      command: 'apps.list',
+      run: async (runtime) => {
+        const result = await commands.apps.list(runtime, { filter: 'all' });
+        assert.equal(result.kind, 'appsList');
+        assert.ok(Array.isArray(result.apps));
+      },
+    },
+    {
+      name: 'reads app state',
+      command: 'apps.state',
+      run: async (runtime, fixtures) => {
+        const result = await commands.apps.state(runtime, {
+          session: fixtures.session,
+          app: fixtures.app,
+        });
+        assert.equal(result.kind, 'appState');
+        assert.equal(result.app, fixtures.app);
+      },
+    },
+    {
+      name: 'pushes app payloads',
+      command: 'apps.push',
+      run: async (runtime, fixtures) => {
+        const result = await commands.apps.push(runtime, {
+          session: fixtures.session,
+          app: fixtures.app,
+          input: { kind: 'json', payload: fixtures.appPushPayload },
+        });
+        assert.equal(result.kind, 'appPushed');
+        assert.equal(result.inputKind, 'json');
+      },
+    },
+    {
+      name: 'triggers app events',
+      command: 'apps.triggerEvent',
+      run: async (runtime, fixtures) => {
+        const result = await commands.apps.triggerEvent(runtime, {
+          session: fixtures.session,
+          name: fixtures.appEventName,
+        });
+        assert.equal(result.kind, 'appEventTriggered');
+        assert.equal(result.name, fixtures.appEventName);
+      },
+    },
+  ],
+});
+
 export const commandConformanceSuites: readonly CommandConformanceSuite[] = [
   captureConformanceSuite,
   selectorConformanceSuite,
   interactionConformanceSuite,
+  appsConformanceSuite,
 ];
 
 export async function runCommandConformance(

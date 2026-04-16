@@ -39,6 +39,26 @@ import {
   type TypeTextCommandOptions,
   type TypeTextCommandResult,
 } from './interactions.ts';
+import {
+  closeAppCommand,
+  getAppStateCommand,
+  listAppsCommand,
+  openAppCommand,
+  pushAppCommand,
+  triggerAppEventCommand,
+  type CloseAppCommandOptions,
+  type CloseAppCommandResult,
+  type GetAppStateCommandOptions,
+  type GetAppStateCommandResult,
+  type ListAppsCommandOptions,
+  type ListAppsCommandResult,
+  type OpenAppCommandOptions,
+  type OpenAppCommandResult,
+  type PushAppCommandOptions,
+  type PushAppCommandResult,
+  type TriggerAppEventCommandOptions,
+  type TriggerAppEventCommandResult,
+} from './apps.ts';
 import type {
   DiffSnapshotCommandOptions,
   ScreenshotCommandOptions,
@@ -106,6 +126,36 @@ export type CommandRouterRequest<TContext = unknown> =
       command: 'interactions.typeText';
       options: TypeTextCommandOptions;
       context?: TContext;
+    }
+  | {
+      command: 'apps.open';
+      options: OpenAppCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'apps.close';
+      options?: CloseAppCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'apps.list';
+      options?: ListAppsCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'apps.state';
+      options: GetAppStateCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'apps.push';
+      options: PushAppCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'apps.triggerEvent';
+      options: TriggerAppEventCommandOptions;
+      context?: TContext;
     };
 
 export type CommandRouterResult =
@@ -119,7 +169,13 @@ export type CommandRouterResult =
   | WaitCommandResult
   | PressCommandResult
   | FillCommandResult
-  | TypeTextCommandResult;
+  | TypeTextCommandResult
+  | OpenAppCommandResult
+  | CloseAppCommandResult
+  | ListAppsCommandResult
+  | GetAppStateCommandResult
+  | PushAppCommandResult
+  | TriggerAppEventCommandResult;
 
 export type CommandRouterResponse =
   | {
@@ -176,6 +232,12 @@ const implementedRouterCommands = new Set<string>([
   'interactions.press',
   'interactions.fill',
   'interactions.typeText',
+  'apps.open',
+  'apps.close',
+  'apps.list',
+  'apps.state',
+  'apps.push',
+  'apps.triggerEvent',
 ]);
 
 function assertRouterCommandImplemented(request: { command: string }): void {
@@ -222,5 +284,17 @@ async function dispatchRuntimeCommand<TContext>(
       return await fillCommand(runtime, request.options);
     case 'interactions.typeText':
       return await typeTextCommand(runtime, request.options);
+    case 'apps.open':
+      return await openAppCommand(runtime, request.options);
+    case 'apps.close':
+      return await closeAppCommand(runtime, request.options);
+    case 'apps.list':
+      return await listAppsCommand(runtime, request.options);
+    case 'apps.state':
+      return await getAppStateCommand(runtime, request.options);
+    case 'apps.push':
+      return await pushAppCommand(runtime, request.options);
+    case 'apps.triggerEvent':
+      return await triggerAppEventCommand(runtime, request.options);
   }
 }

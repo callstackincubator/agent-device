@@ -37,6 +37,12 @@ const backend = {
   platform: 'ios',
   captureScreenshot: async () => {},
   typeText: async () => {},
+  openApp: async () => {},
+  closeApp: async () => {},
+  listApps: async () => [{ id: 'com.example.app', name: 'Example', bundleId: 'com.example.app' }],
+  getAppState: async (_context, app: string) => ({ bundleId: app, state: 'foreground' as const }),
+  pushFile: async () => {},
+  triggerAppEvent: async () => {},
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -70,7 +76,7 @@ test('package root exposes command runtime skeleton', async () => {
   assert.equal(device.policy.allowLocalInputPaths, false);
   assert.equal(typeof device.capture.screenshot, 'function');
   assert.equal(typeof device.interactions.click, 'function');
-  assert.equal('apps' in device, false);
+  assert.equal(typeof device.apps.open, 'function');
   const result = await device.capture.screenshot({});
   assert.equal(result.path, '/tmp/path.png');
 });
@@ -363,7 +369,7 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
     commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
     true,
   );
-  assert.equal(commandConformanceSuites.length, 3);
+  assert.equal(commandConformanceSuites.length, 4);
   assert.equal(typeof runCommandConformance, 'function');
   assert.equal(target.name, 'fake');
 });
@@ -414,6 +420,33 @@ test('command router dispatches implemented runtime commands and normalizes erro
   });
   assert.equal(typed.ok, true);
   assert.equal(typed.ok && 'text' in typed.data ? typed.data.text : undefined, 'hello');
+
+  const opened = await router.dispatch({
+    command: 'apps.open',
+    options: {
+      app: 'com.example.app',
+      relaunch: true,
+    },
+  });
+  assert.equal(opened.ok, true);
+  assert.equal(
+    opened.ok && 'kind' in opened.data && opened.data.kind === 'appOpened'
+      ? opened.data.relaunch
+      : false,
+    true,
+  );
+
+  const listed = await router.dispatch({
+    command: 'apps.list',
+    options: { filter: 'user-installed' },
+  });
+  assert.equal(listed.ok, true);
+  assert.equal(
+    listed.ok && 'kind' in listed.data && listed.data.kind === 'appsList'
+      ? listed.data.apps.length
+      : 0,
+    1,
+  );
 
   const planned = await router.dispatch({
     command: 'alert',

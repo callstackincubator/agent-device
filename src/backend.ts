@@ -90,9 +90,61 @@ export type BackendFillOptions = {
 };
 
 export type BackendOpenTarget = {
+  /**
+   * Generic app identifier accepted by the backend. Hosted adapters should
+   * prefer structured appId, bundleId, or packageName when available.
+   */
   app?: string;
+  appId?: string;
+  bundleId?: string;
+  packageName?: string;
+  /**
+   * URL may be used by itself for a deep link or with an app identifier when
+   * the backend supports opening a URL in a specific app context.
+   */
   url?: string;
+  /**
+   * Platform-specific activity override, primarily for Android app launches.
+   */
   activity?: string;
+};
+
+export type BackendOpenOptions = {
+  relaunch?: boolean;
+};
+
+export type BackendAppListFilter = 'all' | 'user-installed';
+
+export type BackendAppInfo = {
+  id: string;
+  name?: string;
+  bundleId?: string;
+  packageName?: string;
+  activity?: string;
+};
+
+export type BackendAppState = {
+  appId?: string;
+  bundleId?: string;
+  packageName?: string;
+  activity?: string;
+  state?: 'unknown' | 'notRunning' | 'running' | 'foreground' | 'background';
+  details?: Record<string, unknown>;
+};
+
+export type BackendPushInput =
+  | {
+      kind: 'json';
+      payload: Record<string, unknown>;
+    }
+  | {
+      kind: 'file';
+      path: string;
+    };
+
+export type BackendAppEvent = {
+  name: string;
+  payload?: Record<string, unknown>;
 };
 
 export type BackendInstallTarget = {
@@ -170,8 +222,26 @@ export type AgentDeviceBackend = {
     key: string,
     options?: { modifiers?: string[] },
   ): Promise<BackendActionResult>;
-  openApp?(context: BackendCommandContext, target: BackendOpenTarget): Promise<BackendActionResult>;
+  openApp?(
+    context: BackendCommandContext,
+    target: BackendOpenTarget,
+    options?: BackendOpenOptions,
+  ): Promise<BackendActionResult>;
   closeApp?(context: BackendCommandContext, app?: string): Promise<BackendActionResult>;
+  listApps?(
+    context: BackendCommandContext,
+    filter?: BackendAppListFilter,
+  ): Promise<readonly BackendAppInfo[]>;
+  getAppState?(context: BackendCommandContext, app: string): Promise<BackendAppState>;
+  pushFile?(
+    context: BackendCommandContext,
+    input: BackendPushInput,
+    target: string,
+  ): Promise<BackendActionResult>;
+  triggerAppEvent?(
+    context: BackendCommandContext,
+    event: BackendAppEvent,
+  ): Promise<BackendActionResult>;
   installApp?(
     context: BackendCommandContext,
     target: BackendInstallTarget,

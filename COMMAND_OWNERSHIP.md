@@ -59,6 +59,16 @@ Their semantics should live in `agent-device/commands` as they migrate.
 - `fill`: runtime command implemented for point, ref, and selector targets; the
   daemon fill dispatch calls the runtime.
 - `type`: runtime command implemented; daemon type dispatch calls the runtime.
+- `open`: runtime `apps.open` implemented for typed app, bundle/package,
+  activity, URL, and relaunch targets.
+- `close`: runtime `apps.close` implemented for optional app targets.
+- `apps`: runtime `apps.list` implemented with typed app list filters.
+- `appstate`: runtime `apps.state` implemented against backend state
+  primitives.
+- `push`: runtime `apps.push` implemented with JSON and artifact/file inputs;
+  local file inputs remain command-policy gated.
+- `trigger-app-event`: runtime `apps.triggerEvent` implemented with event name
+  and JSON payload validation.
 
 ## Boundary Requirements
 

@@ -51,6 +51,26 @@ import {
   type TypeTextCommandOptions,
   type TypeTextCommandResult,
 } from './interactions.ts';
+import {
+  closeAppCommand,
+  getAppStateCommand,
+  listAppsCommand,
+  openAppCommand,
+  pushAppCommand,
+  triggerAppEventCommand,
+  type CloseAppCommandOptions,
+  type CloseAppCommandResult,
+  type GetAppStateCommandOptions,
+  type GetAppStateCommandResult,
+  type ListAppsCommandOptions,
+  type ListAppsCommandResult,
+  type OpenAppCommandOptions,
+  type OpenAppCommandResult,
+  type PushAppCommandOptions,
+  type PushAppCommandResult,
+  type TriggerAppEventCommandOptions,
+  type TriggerAppEventCommandResult,
+} from './apps.ts';
 
 export type { ScreenshotCommandResult } from './capture-screenshot.ts';
 export type {
@@ -94,6 +114,21 @@ export type {
   TypeTextCommandOptions,
   TypeTextCommandResult,
 } from './interactions.ts';
+export type {
+  AppPushInput,
+  CloseAppCommandOptions,
+  CloseAppCommandResult,
+  GetAppStateCommandOptions,
+  GetAppStateCommandResult,
+  ListAppsCommandOptions,
+  ListAppsCommandResult,
+  OpenAppCommandOptions,
+  OpenAppCommandResult,
+  PushAppCommandOptions,
+  PushAppCommandResult,
+  TriggerAppEventCommandOptions,
+  TriggerAppEventCommandResult,
+} from './apps.ts';
 export { ref, selector } from './selector-read.ts';
 export { commandCatalog } from './catalog.ts';
 export type { CommandCatalogEntry } from './catalog.ts';
@@ -161,6 +196,14 @@ export type AgentDeviceCommands = {
     fill: RuntimeCommand<FillCommandOptions, FillCommandResult>;
     typeText: RuntimeCommand<TypeTextCommandOptions, TypeTextCommandResult>;
   };
+  apps: {
+    open: RuntimeCommand<OpenAppCommandOptions, OpenAppCommandResult>;
+    close: RuntimeCommand<CloseAppCommandOptions | undefined, CloseAppCommandResult>;
+    list: RuntimeCommand<ListAppsCommandOptions | undefined, ListAppsCommandResult>;
+    state: RuntimeCommand<GetAppStateCommandOptions, GetAppStateCommandResult>;
+    push: RuntimeCommand<PushAppCommandOptions, PushAppCommandResult>;
+    triggerEvent: RuntimeCommand<TriggerAppEventCommandOptions, TriggerAppEventCommandResult>;
+  };
 };
 
 export type BoundAgentDeviceCommands = {
@@ -215,6 +258,14 @@ export type BoundAgentDeviceCommands = {
       options?: Omit<TypeTextCommandOptions, 'text'>,
     ) => Promise<TypeTextCommandResult>;
   };
+  apps: {
+    open: BoundRuntimeCommand<OpenAppCommandOptions, OpenAppCommandResult>;
+    close: (options?: CloseAppCommandOptions) => Promise<CloseAppCommandResult>;
+    list: (options?: ListAppsCommandOptions) => Promise<ListAppsCommandResult>;
+    state: BoundRuntimeCommand<GetAppStateCommandOptions, GetAppStateCommandResult>;
+    push: BoundRuntimeCommand<PushAppCommandOptions, PushAppCommandResult>;
+    triggerEvent: BoundRuntimeCommand<TriggerAppEventCommandOptions, TriggerAppEventCommandResult>;
+  };
 };
 
 export const commands: AgentDeviceCommands = {
@@ -240,6 +291,14 @@ export const commands: AgentDeviceCommands = {
     press: pressCommand,
     fill: fillCommand,
     typeText: typeTextCommand,
+  },
+  apps: {
+    open: openAppCommand,
+    close: closeAppCommand,
+    list: listAppsCommand,
+    state: getAppStateCommand,
+    push: pushAppCommand,
+    triggerEvent: triggerAppEventCommand,
   },
 };
 
@@ -274,6 +333,14 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
         commands.interactions.fill(runtime, { ...options, target, text }),
       typeText: (text, options = {}) =>
         commands.interactions.typeText(runtime, { ...options, text }),
+    },
+    apps: {
+      open: (options) => commands.apps.open(runtime, options),
+      close: (options) => commands.apps.close(runtime, options),
+      list: (options) => commands.apps.list(runtime, options),
+      state: (options) => commands.apps.state(runtime, options),
+      push: (options) => commands.apps.push(runtime, options),
+      triggerEvent: (options) => commands.apps.triggerEvent(runtime, options),
     },
   };
 }
