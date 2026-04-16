@@ -16,7 +16,7 @@ type UploadArtifactOptions = {
   localPath: string;
   baseUrl: string;
   token: string;
-  platform?: 'ios' | 'android';
+  platform?: string;
 };
 
 type PreparedUploadArtifact = {
@@ -35,13 +35,7 @@ type UploadResponse = {
   uploadId: string;
 };
 
-type UploadPreflightCacheHitResponse = {
-  ok: boolean;
-  cacheHit: boolean;
-  uploadId?: string;
-};
-
-type UploadPreflightDirectResponse = {
+type UploadPreflightResponse = {
   ok: boolean;
   cacheHit?: boolean;
   uploadId?: string;
@@ -98,12 +92,13 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
 
 async function prepareUploadArtifact(
   localPath: string,
-  requestedPlatform: 'ios' | 'android' | undefined,
+  requestedPlatform: string | undefined,
 ): Promise<PreparedUploadArtifact> {
   const stat = fs.statSync(localPath);
   const fileName = path.basename(localPath);
   const isDirectory = stat.isDirectory();
-  const platform = requestedPlatform ?? inferArtifactPlatform(localPath, stat);
+  const platform =
+    normalizeUploadPlatform(requestedPlatform) ?? inferArtifactPlatform(localPath, stat);
   const cleanupPaths: string[] = [];
   try {
     const payloadPath = isDirectory
@@ -152,6 +147,10 @@ function inferArtifactPlatform(
   return undefined;
 }
 
+function normalizeUploadPlatform(value: string | undefined): 'ios' | 'android' | undefined {
+  return value === 'ios' || value === 'android' ? value : undefined;
+}
+
 function cleanupUploadPaths(cleanupPaths: string[]): void {
   for (const cleanupPath of cleanupPaths) {
     fs.rmSync(cleanupPath, { recursive: true, force: true });
@@ -164,9 +163,7 @@ async function uploadLegacyArtifact(options: {
   artifact: PreparedUploadArtifact;
 }): Promise<string> {
   const { normalizedBase, token, artifact } = options;
-
   const uploadUrl = new URL('upload', normalizedBase);
-  const transport = uploadUrl.protocol === 'https:' ? https : http;
 
   const headers: Record<string, string> = {
     'content-type': artifact.contentType,
@@ -181,67 +178,27 @@ async function uploadLegacyArtifact(options: {
     headers['x-agent-device-token'] = token;
   }
 
-  return new Promise((resolve, reject) => {
-    const req = transport.request(
-      {
-        protocol: uploadUrl.protocol,
-        host: uploadUrl.hostname,
-        port: uploadUrl.port,
-        method: 'POST',
-        path: uploadUrl.pathname + uploadUrl.search,
-        headers,
-      },
-      (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          body += chunk;
-        });
-        res.on('end', () => {
-          clearTimeout(timeout);
-          try {
-            const parsed = JSON.parse(body) as UploadResponse;
-            if (!parsed.ok || !parsed.uploadId) {
-              reject(new AppError('COMMAND_FAILED', `Upload failed: ${body}`));
-              return;
-            }
-            resolve(parsed.uploadId);
-          } catch {
-            reject(new AppError('COMMAND_FAILED', `Invalid upload response: ${body}`));
-          }
-        });
-      },
-    );
-
-    const timeout = setTimeout(() => {
-      req.destroy();
-      reject(
-        new AppError('COMMAND_FAILED', 'Artifact upload timed out', {
-          timeoutMs: UPLOAD_TIMEOUT_MS,
-          hint: 'The upload to the remote daemon exceeded the 5-minute timeout.',
-        }),
-      );
-    }, UPLOAD_TIMEOUT_MS);
-
-    req.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(
-        new AppError(
-          'COMMAND_FAILED',
-          'Failed to upload artifact to remote daemon',
-          { hint: 'Verify the remote daemon is reachable and supports artifact uploads.' },
-          err,
-        ),
-      );
-    });
-
-    const fileStream = fs.createReadStream(artifact.payloadPath);
-    fileStream.pipe(req);
-    fileStream.on('error', (err) => {
-      req.destroy();
-      reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err));
-    });
+  const response = await streamFileToHttpRequest({
+    url: uploadUrl,
+    method: 'POST',
+    headers,
+    payloadPath: artifact.payloadPath,
+    timeoutMessage: 'Artifact upload timed out',
+    timeoutHint: 'The upload to the remote daemon exceeded the 5-minute timeout.',
+    errorMessage: 'Failed to upload artifact to remote daemon',
+    errorHint: 'Verify the remote daemon is reachable and supports artifact uploads.',
   });
+
+  try {
+    const parsed = JSON.parse(response.body) as UploadResponse;
+    if (!parsed.ok || !parsed.uploadId) {
+      throw new AppError('COMMAND_FAILED', `Upload failed: ${response.body}`);
+    }
+    return parsed.uploadId;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('COMMAND_FAILED', `Invalid upload response: ${response.body}`);
+  }
 }
 
 async function requestUploadPreflight(options: {
@@ -276,55 +233,38 @@ async function requestUploadPreflight(options: {
     return undefined;
   }
 
-  const parsed = (await response.json().catch(() => undefined)) as unknown;
-  if (isUploadPreflightHit(parsed)) {
+  return parseUploadPreflightResult(await response.json().catch(() => undefined));
+}
+
+function parseUploadPreflightResult(value: unknown): UploadPreflightResult | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const preflight = value as UploadPreflightResponse;
+  if (preflight.ok !== true || typeof preflight.uploadId !== 'string') {
+    return undefined;
+  }
+  if (preflight.cacheHit === true) {
     return {
       kind: 'cache-hit',
-      uploadId: parsed.uploadId,
+      uploadId: preflight.uploadId,
     };
   }
-  if (isUploadPreflightDirectUpload(parsed)) {
-    return {
-      kind: 'direct-upload',
-      uploadId: parsed.uploadId,
-      url: parsed.upload.url,
-      headers: parsed.upload.headers,
-    };
-  }
-  return undefined;
-}
 
-function isUploadPreflightHit(value: unknown): value is Required<UploadPreflightCacheHitResponse> {
-  if (!value || typeof value !== 'object') {
-    return false;
+  const upload = preflight.upload;
+  if (!upload || typeof upload.url !== 'string') {
+    return undefined;
   }
-  const preflight = value as UploadPreflightCacheHitResponse;
-  return (
-    preflight.ok === true && preflight.cacheHit === true && typeof preflight.uploadId === 'string'
-  );
-}
-
-function isUploadPreflightDirectUpload(
-  value: unknown,
-): value is Required<UploadPreflightDirectResponse> & {
-  upload: { url: string; headers: Record<string, string> };
-} {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const preflight = value as UploadPreflightDirectResponse;
-  if (preflight.ok !== true || typeof preflight.uploadId !== 'string') {
-    return false;
-  }
-  if (!preflight.upload || typeof preflight.upload.url !== 'string') {
-    return false;
-  }
-  const headers = preflight.upload.headers ?? {};
+  const headers = upload.headers ?? {};
   if (!isStringRecord(headers)) {
-    return false;
+    return undefined;
   }
-  preflight.upload.headers = headers;
-  return true;
+  return {
+    kind: 'direct-upload',
+    uploadId: preflight.uploadId,
+    url: upload.url,
+    headers,
+  };
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -338,33 +278,59 @@ async function uploadDirectArtifact(
   payloadPath: string,
   ticket: Extract<UploadPreflightResult, { kind: 'direct-upload' }>,
 ): Promise<void> {
-  const uploadUrl = new URL(ticket.url);
-  const transport = uploadUrl.protocol === 'https:' ? https : http;
+  const response = await streamFileToHttpRequest({
+    url: new URL(ticket.url),
+    method: 'PUT',
+    headers: ticket.headers,
+    payloadPath,
+    timeoutMessage: 'Direct artifact upload timed out',
+    timeoutHint: 'The direct upload ticket did not accept the artifact within the timeout.',
+    errorMessage: 'Failed to upload artifact with direct upload ticket',
+  });
 
-  await new Promise<void>((resolve, reject) => {
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new AppError('COMMAND_FAILED', 'Direct artifact upload failed', {
+      statusCode: response.statusCode,
+      statusMessage: response.statusMessage,
+    });
+  }
+}
+
+async function streamFileToHttpRequest(options: {
+  url: URL;
+  method: 'POST' | 'PUT';
+  headers: Record<string, string>;
+  payloadPath: string;
+  timeoutMessage: string;
+  timeoutHint?: string;
+  errorMessage: string;
+  errorHint?: string;
+}): Promise<{ statusCode: number; statusMessage?: string; body: string }> {
+  const transport = options.url.protocol === 'https:' ? https : http;
+
+  return await new Promise((resolve, reject) => {
     const req = transport.request(
       {
-        protocol: uploadUrl.protocol,
-        host: uploadUrl.hostname,
-        port: uploadUrl.port,
-        method: 'PUT',
-        path: uploadUrl.pathname + uploadUrl.search,
-        headers: ticket.headers,
+        protocol: options.url.protocol,
+        host: options.url.hostname,
+        port: options.url.port,
+        method: options.method,
+        path: options.url.pathname + options.url.search,
+        headers: options.headers,
       },
       (res) => {
-        res.resume();
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
         res.on('end', () => {
-          const statusCode = res.statusCode ?? 500;
-          if (statusCode < 200 || statusCode >= 300) {
-            reject(
-              new AppError('COMMAND_FAILED', 'Direct artifact upload failed', {
-                statusCode,
-                statusMessage: res.statusMessage,
-              }),
-            );
-            return;
-          }
-          resolve();
+          clearTimeout(timeout);
+          resolve({
+            statusCode: res.statusCode ?? 500,
+            statusMessage: res.statusMessage,
+            body,
+          });
         });
       },
     );
@@ -372,9 +338,9 @@ async function uploadDirectArtifact(
     const timeout = setTimeout(() => {
       req.destroy();
       reject(
-        new AppError('COMMAND_FAILED', 'Direct artifact upload timed out', {
+        new AppError('COMMAND_FAILED', options.timeoutMessage, {
           timeoutMs: UPLOAD_TIMEOUT_MS,
-          hint: 'The direct upload ticket did not accept the artifact within the timeout.',
+          ...(options.timeoutHint ? { hint: options.timeoutHint } : {}),
         }),
       );
     }, UPLOAD_TIMEOUT_MS);
@@ -384,15 +350,15 @@ async function uploadDirectArtifact(
       reject(
         new AppError(
           'COMMAND_FAILED',
-          'Failed to upload artifact with direct upload ticket',
-          {},
+          options.errorMessage,
+          options.errorHint ? { hint: options.errorHint } : {},
           err,
         ),
       );
     });
     req.on('close', () => clearTimeout(timeout));
 
-    const fileStream = fs.createReadStream(payloadPath);
+    const fileStream = fs.createReadStream(options.payloadPath);
     fileStream.pipe(req);
     fileStream.on('error', (err) => {
       req.destroy();

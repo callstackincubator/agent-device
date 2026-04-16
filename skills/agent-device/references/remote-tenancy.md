@@ -49,7 +49,7 @@ agent-device install-from-source https://api.github.com/repos/acme/app/actions/a
 
 - Use `install` or `reinstall` for local paths; remote daemons upload local artifacts automatically.
 - Use `install-from-source` for artifact URLs the remote daemon can reach.
-- Do not download CI artifacts locally, repackage them, or publish temporary release assets just to install them.
+- For local-path versus URL artifact rules, follow [bootstrap-install.md](bootstrap-install.md).
 
 Use `agent-device connection status --session adc-android` to inspect the active connection without reading JSON state manually. Status output must not include auth tokens.
 
