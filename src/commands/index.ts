@@ -112,6 +112,32 @@ import {
   type TriggerAppEventCommandOptions,
   type TriggerAppEventCommandResult,
 } from './apps.ts';
+import {
+  bootCommand,
+  devicesCommand,
+  ensureSimulatorCommand,
+  installCommand,
+  installFromSourceCommand,
+  reinstallCommand,
+  type AdminBootCommandOptions,
+  type AdminBootCommandResult,
+  type AdminDevicesCommandOptions,
+  type AdminDevicesCommandResult,
+  type AdminEnsureSimulatorCommandOptions,
+  type AdminEnsureSimulatorCommandResult,
+  type AdminInstallCommandOptions,
+  type AdminInstallCommandResult,
+  type AdminInstallFromSourceCommandOptions,
+  type AdminReinstallCommandOptions,
+} from './admin.ts';
+import {
+  recordCommand,
+  traceCommand,
+  type RecordingRecordCommandOptions,
+  type RecordingRecordCommandResult,
+  type RecordingTraceCommandOptions,
+  type RecordingTraceCommandResult,
+} from './recording.ts';
 
 export type { ScreenshotCommandResult } from './capture-screenshot.ts';
 export type {
@@ -201,16 +227,43 @@ export type {
   TriggerAppEventCommandOptions,
   TriggerAppEventCommandResult,
 } from './apps.ts';
+export type {
+  AdminBootCommandOptions,
+  AdminBootCommandResult,
+  AdminDevicesCommandOptions,
+  AdminDevicesCommandResult,
+  AdminEnsureSimulatorCommandOptions,
+  AdminEnsureSimulatorCommandResult,
+  AdminInstallCommandOptions,
+  AdminInstallCommandResult,
+  AdminInstallFromSourceCommandOptions,
+  AdminReinstallCommandOptions,
+} from './admin.ts';
+export type {
+  RecordingRecordCommandOptions,
+  RecordingRecordCommandResult,
+  RecordingTraceCommandOptions,
+  RecordingTraceCommandResult,
+} from './recording.ts';
 export { ref, selector } from './selector-read.ts';
 export { commandCatalog } from './catalog.ts';
 export type { CommandCatalogEntry } from './catalog.ts';
 export { createCommandRouter } from './router.ts';
 export type {
+  BatchCommandOptions,
+  BatchCommandResult,
+  BatchCommandStepResult,
   CommandRouter,
   CommandRouterConfig,
   CommandRouterRequest,
   CommandRouterResponse,
   CommandRouterResult,
+  ReplayCommandOptions,
+  ReplayCommandResult,
+  ReplayTestCase,
+  ReplayTestCaseResult,
+  ReplayTestCommandOptions,
+  ReplayTestCommandResult,
 } from './router.ts';
 
 export type CommandResult = Record<string, unknown>;
@@ -293,6 +346,24 @@ export type AgentDeviceCommands = {
     state: RuntimeCommand<GetAppStateCommandOptions, GetAppStateCommandResult>;
     push: RuntimeCommand<PushAppCommandOptions, PushAppCommandResult>;
     triggerEvent: RuntimeCommand<TriggerAppEventCommandOptions, TriggerAppEventCommandResult>;
+  };
+  admin: {
+    devices: RuntimeCommand<AdminDevicesCommandOptions | undefined, AdminDevicesCommandResult>;
+    boot: RuntimeCommand<AdminBootCommandOptions | undefined, AdminBootCommandResult>;
+    ensureSimulator: RuntimeCommand<
+      AdminEnsureSimulatorCommandOptions,
+      AdminEnsureSimulatorCommandResult
+    >;
+    install: RuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
+    reinstall: RuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
+    installFromSource: RuntimeCommand<
+      AdminInstallFromSourceCommandOptions,
+      AdminInstallCommandResult
+    >;
+  };
+  recording: {
+    record: RuntimeCommand<RecordingRecordCommandOptions, RecordingRecordCommandResult>;
+    trace: RuntimeCommand<RecordingTraceCommandOptions, RecordingTraceCommandResult>;
   };
 };
 
@@ -379,6 +450,24 @@ export type BoundAgentDeviceCommands = {
     push: BoundRuntimeCommand<PushAppCommandOptions, PushAppCommandResult>;
     triggerEvent: BoundRuntimeCommand<TriggerAppEventCommandOptions, TriggerAppEventCommandResult>;
   };
+  admin: {
+    devices: (options?: AdminDevicesCommandOptions) => Promise<AdminDevicesCommandResult>;
+    boot: (options?: AdminBootCommandOptions) => Promise<AdminBootCommandResult>;
+    ensureSimulator: BoundRuntimeCommand<
+      AdminEnsureSimulatorCommandOptions,
+      AdminEnsureSimulatorCommandResult
+    >;
+    install: BoundRuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
+    reinstall: BoundRuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
+    installFromSource: BoundRuntimeCommand<
+      AdminInstallFromSourceCommandOptions,
+      AdminInstallCommandResult
+    >;
+  };
+  recording: {
+    record: BoundRuntimeCommand<RecordingRecordCommandOptions, RecordingRecordCommandResult>;
+    trace: BoundRuntimeCommand<RecordingTraceCommandOptions, RecordingTraceCommandResult>;
+  };
 };
 
 export const commands: AgentDeviceCommands = {
@@ -427,6 +516,18 @@ export const commands: AgentDeviceCommands = {
     state: getAppStateCommand,
     push: pushAppCommand,
     triggerEvent: triggerAppEventCommand,
+  },
+  admin: {
+    devices: devicesCommand,
+    boot: bootCommand,
+    ensureSimulator: ensureSimulatorCommand,
+    install: installCommand,
+    reinstall: reinstallCommand,
+    installFromSource: installFromSourceCommand,
+  },
+  recording: {
+    record: recordCommand,
+    trace: traceCommand,
   },
 };
 
@@ -485,6 +586,18 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
       state: (options) => commands.apps.state(runtime, options),
       push: (options) => commands.apps.push(runtime, options),
       triggerEvent: (options) => commands.apps.triggerEvent(runtime, options),
+    },
+    admin: {
+      devices: (options) => commands.admin.devices(runtime, options),
+      boot: (options) => commands.admin.boot(runtime, options),
+      ensureSimulator: (options) => commands.admin.ensureSimulator(runtime, options),
+      install: (options) => commands.admin.install(runtime, options),
+      reinstall: (options) => commands.admin.reinstall(runtime, options),
+      installFromSource: (options) => commands.admin.installFromSource(runtime, options),
+    },
+    recording: {
+      record: (options) => commands.recording.record(runtime, options),
+      trace: (options) => commands.recording.trace(runtime, options),
     },
   };
 }

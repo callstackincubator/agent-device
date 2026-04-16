@@ -1,31 +1,9 @@
 import type { AgentDeviceRuntime } from '../runtime.ts';
-import { AppError, normalizeAgentDeviceError, type NormalizedError } from '../utils/errors.ts';
-import { screenshotCommand, type ScreenshotCommandResult } from './capture-screenshot.ts';
-import {
-  diffScreenshotCommand,
-  type DiffScreenshotCommandOptions,
-  type DiffScreenshotCommandResult,
-} from './capture-diff-screenshot.ts';
-import {
-  diffSnapshotCommand,
-  snapshotCommand,
-  type DiffSnapshotCommandResult,
-  type SnapshotCommandResult,
-} from './capture-snapshot.ts';
-import {
-  findCommand,
-  getCommand,
-  isCommand,
-  waitCommand,
-  type FindReadCommandOptions,
-  type FindReadCommandResult,
-  type GetCommandOptions,
-  type GetCommandResult,
-  type IsCommandOptions,
-  type IsCommandResult,
-  type WaitCommandOptions,
-  type WaitCommandResult,
-} from './selector-read.ts';
+import { AppError, normalizeAgentDeviceError } from '../utils/errors.ts';
+import { screenshotCommand } from './capture-screenshot.ts';
+import { diffScreenshotCommand } from './capture-diff-screenshot.ts';
+import { diffSnapshotCommand, snapshotCommand } from './capture-snapshot.ts';
+import { findCommand, getCommand, isCommand, waitCommand } from './selector-read.ts';
 import {
   clickCommand,
   fillCommand,
@@ -36,23 +14,6 @@ import {
   scrollCommand,
   swipeCommand,
   typeTextCommand,
-  type ClickCommandOptions,
-  type FillCommandOptions,
-  type FillCommandResult,
-  type FocusCommandOptions,
-  type FocusCommandResult,
-  type LongPressCommandOptions,
-  type LongPressCommandResult,
-  type PinchCommandOptions,
-  type PinchCommandResult,
-  type PressCommandOptions,
-  type PressCommandResult,
-  type ScrollCommandOptions,
-  type ScrollCommandResult,
-  type SwipeCommandOptions,
-  type SwipeCommandResult,
-  type TypeTextCommandOptions,
-  type TypeTextCommandResult,
 } from './interactions.ts';
 import {
   alertCommand,
@@ -63,22 +24,6 @@ import {
   keyboardCommand,
   rotateCommand,
   settingsCommand,
-  type SystemAlertCommandOptions,
-  type SystemAlertCommandResult,
-  type SystemAppSwitcherCommandOptions,
-  type SystemAppSwitcherCommandResult,
-  type SystemBackCommandOptions,
-  type SystemBackCommandResult,
-  type SystemClipboardCommandOptions,
-  type SystemClipboardCommandResult,
-  type SystemHomeCommandOptions,
-  type SystemHomeCommandResult,
-  type SystemKeyboardCommandOptions,
-  type SystemKeyboardCommandResult,
-  type SystemRotateCommandOptions,
-  type SystemRotateCommandResult,
-  type SystemSettingsCommandOptions,
-  type SystemSettingsCommandResult,
 } from './system.ts';
 import {
   closeAppCommand,
@@ -87,254 +32,88 @@ import {
   openAppCommand,
   pushAppCommand,
   triggerAppEventCommand,
-  type CloseAppCommandOptions,
-  type CloseAppCommandResult,
-  type GetAppStateCommandOptions,
-  type GetAppStateCommandResult,
-  type ListAppsCommandOptions,
-  type ListAppsCommandResult,
-  type OpenAppCommandOptions,
-  type OpenAppCommandResult,
-  type PushAppCommandOptions,
-  type PushAppCommandResult,
-  type TriggerAppEventCommandOptions,
-  type TriggerAppEventCommandResult,
 } from './apps.ts';
-import type {
-  DiffSnapshotCommandOptions,
-  ScreenshotCommandOptions,
-  SnapshotCommandOptions,
-} from './index.ts';
+import {
+  bootCommand,
+  devicesCommand,
+  ensureSimulatorCommand,
+  installCommand,
+  installFromSourceCommand,
+  reinstallCommand,
+} from './admin.ts';
+import { recordCommand, traceCommand } from './recording.ts';
 import { commandCatalog } from './catalog.ts';
+import {
+  dispatchBatchCommand,
+  dispatchReplayCommand,
+  dispatchReplayTestCommand,
+} from './router-orchestration.ts';
+import type {
+  CommandRouter,
+  CommandRouterConfig,
+  CommandRouterRequest,
+  CommandRouterResponse,
+  CommandRouterResult,
+} from './router-types.ts';
 
-export type CommandRouterRequest<TContext = unknown> =
-  | {
-      command: 'capture.screenshot';
-      options: ScreenshotCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'capture.diffScreenshot';
-      options: DiffScreenshotCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'capture.snapshot';
-      options: SnapshotCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'capture.diffSnapshot';
-      options: DiffSnapshotCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'selectors.find';
-      options: FindReadCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'selectors.get';
-      options: GetCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'selectors.is';
-      options: IsCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'selectors.wait';
-      options: WaitCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.click';
-      options: ClickCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.press';
-      options: PressCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.fill';
-      options: FillCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.typeText';
-      options: TypeTextCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.focus';
-      options: FocusCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.longPress';
-      options: LongPressCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.swipe';
-      options: SwipeCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.scroll';
-      options: ScrollCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'interactions.pinch';
-      options: PinchCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.back';
-      options?: SystemBackCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.home';
-      options?: SystemHomeCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.rotate';
-      options: SystemRotateCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.keyboard';
-      options?: SystemKeyboardCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.clipboard';
-      options: SystemClipboardCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.settings';
-      options?: SystemSettingsCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.alert';
-      options?: SystemAlertCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'system.appSwitcher';
-      options?: SystemAppSwitcherCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.open';
-      options: OpenAppCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.close';
-      options?: CloseAppCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.list';
-      options?: ListAppsCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.state';
-      options: GetAppStateCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.push';
-      options: PushAppCommandOptions;
-      context?: TContext;
-    }
-  | {
-      command: 'apps.triggerEvent';
-      options: TriggerAppEventCommandOptions;
-      context?: TContext;
-    };
-
-export type CommandRouterResult =
-  | ScreenshotCommandResult
-  | DiffScreenshotCommandResult
-  | SnapshotCommandResult
-  | DiffSnapshotCommandResult
-  | FindReadCommandResult
-  | GetCommandResult
-  | IsCommandResult
-  | WaitCommandResult
-  | PressCommandResult
-  | FillCommandResult
-  | TypeTextCommandResult
-  | FocusCommandResult
-  | LongPressCommandResult
-  | SwipeCommandResult
-  | ScrollCommandResult
-  | PinchCommandResult
-  | SystemBackCommandResult
-  | SystemHomeCommandResult
-  | SystemRotateCommandResult
-  | SystemKeyboardCommandResult
-  | SystemClipboardCommandResult
-  | SystemSettingsCommandResult
-  | SystemAlertCommandResult
-  | SystemAppSwitcherCommandResult
-  | OpenAppCommandResult
-  | CloseAppCommandResult
-  | ListAppsCommandResult
-  | GetAppStateCommandResult
-  | PushAppCommandResult
-  | TriggerAppEventCommandResult;
-
-export type CommandRouterResponse =
-  | {
-      ok: true;
-      data: CommandRouterResult;
-    }
-  | {
-      ok: false;
-      error: NormalizedError;
-    };
-
-export type CommandRouter<TContext = unknown> = {
-  dispatch(request: CommandRouterRequest<TContext>): Promise<CommandRouterResponse>;
-};
-
-export type CommandRouterConfig<TContext = unknown> = {
-  createRuntime(
-    request: CommandRouterRequest<TContext>,
-  ): AgentDeviceRuntime | Promise<AgentDeviceRuntime>;
-  beforeDispatch?(request: CommandRouterRequest<TContext>): void | Promise<void>;
-  formatError?(error: unknown, request: CommandRouterRequest<TContext>): NormalizedError;
-};
+export type {
+  CommandRouter,
+  CommandRouterConfig,
+  CommandRouterRequest,
+  CommandRouterResponse,
+  CommandRouterResult,
+} from './router-types.ts';
+export type {
+  BatchCommandOptions,
+  BatchCommandResult,
+  BatchCommandStepResult,
+  ReplayCommandOptions,
+  ReplayCommandResult,
+  ReplayTestCase,
+  ReplayTestCaseResult,
+  ReplayTestCommandOptions,
+  ReplayTestCommandResult,
+} from './router-orchestration.ts';
 
 export function createCommandRouter<TContext = unknown>(
   config: CommandRouterConfig<TContext>,
 ): CommandRouter<TContext> {
-  return {
-    dispatch: async (request) => {
-      try {
-        assertRouterCommandImplemented(request);
-        await config.beforeDispatch?.(request);
-        const runtime = await config.createRuntime(request);
-        return { ok: true, data: await dispatchRuntimeCommand(runtime, request) };
-      } catch (error) {
+  const dispatch = async (
+    request: CommandRouterRequest<TContext>,
+  ): Promise<CommandRouterResponse> => {
+    try {
+      assertRouterCommandImplemented(request);
+      await config.beforeDispatch?.(request);
+      if (request.command === 'batch') {
         return {
-          ok: false,
-          error: config.formatError?.(error, request) ?? normalizeAgentDeviceError(error),
+          ok: true,
+          data: await dispatchBatchCommand(request, dispatch),
         };
       }
-    },
+      if (request.command === 'replay') {
+        return {
+          ok: true,
+          data: await dispatchReplayCommand(request, dispatch),
+        };
+      }
+      if (request.command === 'test') {
+        return {
+          ok: true,
+          data: await dispatchReplayTestCommand(request, dispatch),
+        };
+      }
+      const runtime = await config.createRuntime(request);
+      return { ok: true, data: await dispatchRuntimeCommand(runtime, request) };
+    } catch (error) {
+      return {
+        ok: false,
+        error: config.formatError?.(error, request) ?? normalizeAgentDeviceError(error),
+      };
+    }
+  };
+
+  return {
+    dispatch,
   };
 }
 
@@ -370,6 +149,17 @@ const implementedRouterCommands = new Set<string>([
   'apps.state',
   'apps.push',
   'apps.triggerEvent',
+  'admin.devices',
+  'admin.boot',
+  'admin.ensureSimulator',
+  'admin.install',
+  'admin.reinstall',
+  'admin.installFromSource',
+  'record',
+  'trace',
+  'batch',
+  'replay',
+  'test',
 ]);
 
 function assertRouterCommandImplemented(request: { command: string }): void {
@@ -454,5 +244,25 @@ async function dispatchRuntimeCommand<TContext>(
       return await pushAppCommand(runtime, request.options);
     case 'apps.triggerEvent':
       return await triggerAppEventCommand(runtime, request.options);
+    case 'admin.devices':
+      return await devicesCommand(runtime, request.options);
+    case 'admin.boot':
+      return await bootCommand(runtime, request.options);
+    case 'admin.ensureSimulator':
+      return await ensureSimulatorCommand(runtime, request.options);
+    case 'admin.install':
+      return await installCommand(runtime, request.options);
+    case 'admin.reinstall':
+      return await reinstallCommand(runtime, request.options);
+    case 'admin.installFromSource':
+      return await installFromSourceCommand(runtime, request.options);
+    case 'record':
+      return await recordCommand(runtime, request.options);
+    case 'trace':
+      return await traceCommand(runtime, request.options);
   }
+  throw new AppError(
+    'UNSUPPORTED_OPERATION',
+    `Router command ${request.command} is not a runtime command`,
+  );
 }

@@ -92,6 +92,28 @@ Their semantics should live in `agent-device/commands` as they migrate.
   and selector targets.
 - `pinch`: runtime `interactions.pinch` implemented behind the typed backend
   primitive.
+- `devices`: runtime `admin.devices` implemented through typed backend
+  inventory primitives.
+- `boot`: runtime `admin.boot` implemented through a typed backend boot
+  primitive.
+- `ensure-simulator`: runtime `admin.ensureSimulator` implemented with typed
+  simulator options and result shape.
+- `install`: runtime `admin.install` implemented with structured install
+  sources and local path policy enforcement.
+- `reinstall`: runtime `admin.reinstall` implemented with structured install
+  sources and local path policy enforcement.
+- `install-from-source`: runtime `admin.installFromSource` implemented with the
+  same structured source resolver used by install/reinstall.
+- `batch`: runtime router command implemented; nested steps are dispatched
+  through `createCommandRouter()` so policy and error formatting run per step.
+- `record`: runtime `record` router/API command implemented with typed record
+  start/stop result unions.
+- `trace`: runtime `trace` router/API command implemented with typed trace
+  start/stop result unions.
+- `replay`: runtime router command implemented for replay scripts or router
+  steps, executing each step through `createCommandRouter()`.
+- `test`: runtime router command implemented for replay test cases with retries
+  and fail-fast handling.
 
 ## Boundary Requirements
 
@@ -150,14 +172,9 @@ the portable command runtime.
 These commands should migrate only after the runtime, backend capability, and IO
 contracts are established for their behavior.
 
-- `batch`
 - `logs`
 - `network`
 - `perf`
-- `record`
-- `replay`
-- `test`
-- `trace`
 
 ## Compatibility Helper Subpaths
 

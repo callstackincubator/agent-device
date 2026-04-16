@@ -230,9 +230,94 @@ export type BackendAppEvent = {
   payload?: Record<string, unknown>;
 };
 
+export type BackendDeviceFilter = {
+  platform?: AgentDeviceBackendPlatform | 'apple';
+  target?: 'mobile' | 'tv' | 'desktop';
+  kind?: 'simulator' | 'emulator' | 'device' | 'desktop';
+};
+
+export type BackendDeviceInfo = {
+  id: string;
+  name: string;
+  platform: AgentDeviceBackendPlatform;
+  target?: 'mobile' | 'tv' | 'desktop';
+  kind?: 'simulator' | 'emulator' | 'device' | 'desktop';
+  booted?: boolean;
+  details?: Record<string, unknown>;
+};
+
+export type BackendDeviceTarget = {
+  id?: string;
+  name?: string;
+  platform?: AgentDeviceBackendPlatform;
+  target?: 'mobile' | 'tv' | 'desktop';
+  headless?: boolean;
+};
+
+export type BackendEnsureSimulatorOptions = {
+  device: string;
+  runtime?: string;
+  boot?: boolean;
+  reuseExisting?: boolean;
+};
+
+export type BackendEnsureSimulatorResult = {
+  udid: string;
+  device: string;
+  runtime: string;
+  created: boolean;
+  booted: boolean;
+  simulatorSetPath?: string | null;
+};
+
+export type BackendInstallSource =
+  | {
+      kind: 'path';
+      path: string;
+    }
+  | {
+      kind: 'uploadedArtifact';
+      id: string;
+    }
+  | {
+      kind: 'url';
+      url: string;
+    };
+
 export type BackendInstallTarget = {
-  app: string;
-  artifactPath: string;
+  app?: string;
+  source: BackendInstallSource;
+};
+
+export type BackendInstallResult = Record<string, unknown> & {
+  appId?: string;
+  appName?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget?: string;
+  installablePath?: string;
+  archivePath?: string;
+};
+
+export type BackendRecordingOptions = {
+  outPath?: string;
+  fps?: number;
+  quality?: number;
+  showTouches?: boolean;
+};
+
+export type BackendRecordingResult = Record<string, unknown> & {
+  path?: string;
+  telemetryPath?: string;
+  warning?: string;
+};
+
+export type BackendTraceOptions = {
+  outPath?: string;
+};
+
+export type BackendTraceResult = Record<string, unknown> & {
+  outPath?: string;
 };
 
 export type BackendShellResult = {
@@ -368,10 +453,46 @@ export type AgentDeviceBackend = {
     context: BackendCommandContext,
     event: BackendAppEvent,
   ): Promise<BackendActionResult>;
+  listDevices?(
+    context: BackendCommandContext,
+    filter?: BackendDeviceFilter,
+  ): Promise<readonly BackendDeviceInfo[]>;
+  bootDevice?(
+    context: BackendCommandContext,
+    target?: BackendDeviceTarget,
+  ): Promise<BackendActionResult>;
+  ensureSimulator?(
+    context: BackendCommandContext,
+    options: BackendEnsureSimulatorOptions,
+  ): Promise<BackendEnsureSimulatorResult>;
+  resolveInstallSource?(
+    context: BackendCommandContext,
+    source: BackendInstallSource,
+  ): Promise<BackendInstallSource>;
   installApp?(
     context: BackendCommandContext,
     target: BackendInstallTarget,
-  ): Promise<BackendActionResult>;
+  ): Promise<BackendInstallResult>;
+  reinstallApp?(
+    context: BackendCommandContext,
+    target: BackendInstallTarget,
+  ): Promise<BackendInstallResult>;
+  startRecording?(
+    context: BackendCommandContext,
+    options?: BackendRecordingOptions,
+  ): Promise<BackendRecordingResult>;
+  stopRecording?(
+    context: BackendCommandContext,
+    options?: BackendRecordingOptions,
+  ): Promise<BackendRecordingResult>;
+  startTrace?(
+    context: BackendCommandContext,
+    options?: BackendTraceOptions,
+  ): Promise<BackendTraceResult>;
+  stopTrace?(
+    context: BackendCommandContext,
+    options?: BackendTraceOptions,
+  ): Promise<BackendTraceResult>;
 };
 
 export function hasBackendCapability(

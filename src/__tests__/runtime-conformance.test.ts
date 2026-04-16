@@ -50,6 +50,13 @@ test('command conformance suites run against a fixture backend', async () => {
   assert.equal(calls.includes('getAppState'), true);
   assert.equal(calls.includes('pushFile'), true);
   assert.equal(calls.includes('triggerAppEvent'), true);
+  assert.equal(calls.includes('listDevices'), true);
+  assert.equal(calls.includes('bootDevice'), true);
+  assert.equal(calls.includes('ensureSimulator'), true);
+  assert.equal(calls.includes('installApp'), true);
+  assert.equal(calls.includes('reinstallApp'), true);
+  assert.equal(calls.includes('startRecording'), true);
+  assert.equal(calls.includes('stopTrace'), true);
 });
 
 test('assertCommandConformance throws when a suite fails', async () => {
@@ -152,6 +159,39 @@ function createFixtureBackend(calls: string[]): AgentDeviceBackend {
     },
     triggerAppEvent: async () => {
       calls.push('triggerAppEvent');
+    },
+    listDevices: async () => {
+      calls.push('listDevices');
+      return [{ id: 'SIM-1', name: 'iPhone 16', platform: 'ios', kind: 'simulator' }];
+    },
+    bootDevice: async () => {
+      calls.push('bootDevice');
+    },
+    ensureSimulator: async (_context, options) => {
+      calls.push('ensureSimulator');
+      return {
+        udid: 'SIM-1',
+        device: options.device,
+        runtime: options.runtime ?? 'iOS 18',
+        created: false,
+        booted: true,
+      };
+    },
+    installApp: async () => {
+      calls.push('installApp');
+      return { bundleId: 'com.example.app' };
+    },
+    reinstallApp: async () => {
+      calls.push('reinstallApp');
+      return { bundleId: 'com.example.app' };
+    },
+    startRecording: async () => {
+      calls.push('startRecording');
+      return { path: '/tmp/recording.mp4' };
+    },
+    stopTrace: async () => {
+      calls.push('stopTrace');
+      return { outPath: '/tmp/trace.log' };
     },
   };
 }

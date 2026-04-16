@@ -8,6 +8,7 @@ export type ConformanceRuntimeFactory = () => AgentDeviceRuntime | Promise<Agent
 export type CommandConformanceFixtures = {
   session: string;
   app: string;
+  installSourcePath: string;
   appEventName: string;
   appPushPayload: Record<string, unknown>;
   visibleSelector: string;
@@ -69,6 +70,7 @@ export type CommandConformanceSuite = {
 export const defaultCommandConformanceFixtures: CommandConformanceFixtures = {
   session: 'default',
   app: 'com.example.app',
+  installSourcePath: '/tmp/example.app',
   appEventName: 'example.ready',
   appPushPayload: { aps: { alert: 'hello' } },
   visibleSelector: 'label=Continue',
@@ -434,12 +436,92 @@ export const appsConformanceSuite = createCommandConformanceSuite({
   ],
 });
 
+export const adminConformanceSuite = createCommandConformanceSuite({
+  name: 'admin',
+  cases: [
+    {
+      name: 'lists devices',
+      command: 'admin.devices',
+      run: async (runtime) => {
+        const result = await commands.admin.devices(runtime, {});
+        assert.equal(result.kind, 'adminDevices');
+        assert.ok(Array.isArray(result.devices));
+      },
+    },
+    {
+      name: 'boots devices',
+      command: 'admin.boot',
+      run: async (runtime) => {
+        const result = await commands.admin.boot(runtime, {});
+        assert.equal(result.kind, 'deviceBooted');
+      },
+    },
+    {
+      name: 'ensures simulators',
+      command: 'admin.ensureSimulator',
+      run: async (runtime) => {
+        const result = await commands.admin.ensureSimulator(runtime, {
+          device: 'iPhone 16',
+          runtime: 'iOS 18',
+        });
+        assert.equal(result.kind, 'simulatorEnsured');
+      },
+    },
+    {
+      name: 'installs apps from structured sources',
+      command: 'admin.install',
+      run: async (runtime, fixtures) => {
+        const result = await commands.admin.install(runtime, {
+          app: fixtures.app,
+          source: { kind: 'path', path: fixtures.installSourcePath },
+        });
+        assert.equal(result.kind, 'appInstalled');
+      },
+    },
+    {
+      name: 'reinstalls apps from structured sources',
+      command: 'admin.reinstall',
+      run: async (runtime, fixtures) => {
+        const result = await commands.admin.reinstall(runtime, {
+          app: fixtures.app,
+          source: { kind: 'path', path: fixtures.installSourcePath },
+        });
+        assert.equal(result.kind, 'appReinstalled');
+      },
+    },
+  ],
+});
+
+export const recordingConformanceSuite = createCommandConformanceSuite({
+  name: 'recording',
+  cases: [
+    {
+      name: 'starts recording',
+      command: 'record',
+      run: async (runtime) => {
+        const result = await commands.recording.record(runtime, { action: 'start' });
+        assert.equal(result.kind, 'recordingStarted');
+      },
+    },
+    {
+      name: 'stops traces',
+      command: 'trace',
+      run: async (runtime) => {
+        const result = await commands.recording.trace(runtime, { action: 'stop' });
+        assert.equal(result.kind, 'traceStopped');
+      },
+    },
+  ],
+});
+
 export const commandConformanceSuites: readonly CommandConformanceSuite[] = [
   captureConformanceSuite,
   selectorConformanceSuite,
   interactionConformanceSuite,
   systemConformanceSuite,
   appsConformanceSuite,
+  adminConformanceSuite,
+  recordingConformanceSuite,
 ];
 
 export async function runCommandConformance(

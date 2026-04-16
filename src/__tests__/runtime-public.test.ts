@@ -79,6 +79,8 @@ test('package root exposes command runtime skeleton', async () => {
   assert.equal(typeof device.interactions.click, 'function');
   assert.equal(typeof device.system.back, 'function');
   assert.equal(typeof device.apps.open, 'function');
+  assert.equal(typeof device.admin.install, 'function');
+  assert.equal(typeof device.recording.record, 'function');
   const result = await device.capture.screenshot({});
   assert.equal(result.path, '/tmp/path.png');
 });
@@ -380,11 +382,15 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
   assert.equal(typeof commands.system.settings, 'function');
   assert.equal(typeof commands.system.alert, 'function');
   assert.equal(typeof commands.system.appSwitcher, 'function');
+  assert.equal(typeof commands.admin.devices, 'function');
+  assert.equal(typeof commands.admin.install, 'function');
+  assert.equal(typeof commands.recording.record, 'function');
+  assert.equal(typeof commands.recording.trace, 'function');
   assert.equal(
     commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
     true,
   );
-  assert.equal(commandConformanceSuites.length, 5);
+  assert.equal(commandConformanceSuites.length, 7);
   assert.equal(typeof runCommandConformance, 'function');
   assert.equal(target.name, 'fake');
 });
@@ -470,8 +476,17 @@ test('command router dispatches implemented runtime commands and normalizes erro
     1,
   );
 
+  const batch = await router.dispatch({
+    command: 'batch',
+    options: {
+      steps: [{ command: 'apps.open', options: { app: 'com.example.app' } }],
+    },
+  });
+  assert.equal(batch.ok, true);
+  assert.equal(batch.ok && 'kind' in batch.data ? batch.data.kind : undefined, 'batch');
+
   const planned = await router.dispatch({
-    command: 'alert',
+    command: 'logs',
     options: {},
   } as never);
   assert.equal(planned.ok, false);

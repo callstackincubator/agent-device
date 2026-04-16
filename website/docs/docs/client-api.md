@@ -130,20 +130,24 @@ Implemented runtime namespaces are currently:
 
 - `capture`: `screenshot`, `diffScreenshot`, `snapshot`, `diffSnapshot`
 - `selectors`: `find`, `get`, `getText`, `getAttrs`, `is`, `isVisible`, `isHidden`, `wait`, `waitForText`
-- `interactions`: `click`, `press`, `fill`, `typeText`
+- `interactions`: `click`, `press`, `fill`, `typeText`, `focus`, `longPress`, `swipe`, `scroll`, `pinch`
 - `apps`: `open`, `close`, `list`, `state`, `push`, `triggerEvent`
+- `admin`: `devices`, `boot`, `ensureSimulator`, `install`, `reinstall`, `installFromSource`
+- `recording`: `record`, `trace`
 
 Commands that have not migrated are tracked in `commandCatalog` instead of being
 exposed as throwing methods.
 
 Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
-`agent-device/testing/conformance` to verify capture, selector, interaction, and app
-semantics against a prepared fixture app or test backend.
+`agent-device/testing/conformance` to verify capture, selector, interaction, app,
+admin, and recording semantics against a prepared fixture app or test backend.
 
 Use `createCommandRouter()` from `agent-device/commands` as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,
 error normalization, and per-request runtime construction without exposing
-daemon internals.
+daemon internals. Router-level `batch`, `replay`, and `test` commands dispatch
+their nested steps through the same router path so command policy and error
+formatting still run for each step.
 
 ## Command methods
 
