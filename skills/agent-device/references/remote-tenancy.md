@@ -43,7 +43,6 @@ Remote install examples:
 ```bash
 agent-device install com.example.app ./app.apk
 agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios
 agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
 ```
 

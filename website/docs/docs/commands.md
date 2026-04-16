@@ -374,7 +374,6 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios --header "authorization: Bearer TOKEN"
 agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
 ```
 
