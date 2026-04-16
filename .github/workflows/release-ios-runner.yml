@@ -17,8 +17,6 @@ jobs:
       AGENT_DEVICE_XCUITEST_PLATFORM: ios
       AGENT_DEVICE_XCUITEST_DESTINATION: generic/platform=iOS Simulator
       AGENT_DEVICE_IOS_CLEAN_DERIVED: "1"
-      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ runner.temp }}/ios-runner-derived
-      RELEASE_ASSET_DIR: ${{ runner.temp }}/release-assets
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -44,11 +42,16 @@ jobs:
         shell: bash
 
       - name: Build iOS simulator runner
+        env:
+          AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
         run: sh ./scripts/build-xcuitest-apple.sh
         shell: bash
 
       - name: Package iOS simulator runner
         id: package
+        env:
+          AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
+          RELEASE_ASSET_DIR: ${{ github.workspace }}/.tmp/release-assets
         run: |
           set -euo pipefail
           mkdir -p "${RELEASE_ASSET_DIR}"
