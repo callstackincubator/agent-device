@@ -143,6 +143,7 @@ async function captureRuntimeSnapshot(
       options,
       session,
       capturedAt: snapshot.createdAt ?? warningTime,
+      runtimeNow: warningTime,
     }),
   };
 }
@@ -192,6 +193,7 @@ function buildSnapshotWarnings(params: {
   options: SnapshotCommandOptions;
   session: CommandSessionRecord | undefined;
   capturedAt: number;
+  runtimeNow: number;
 }): string[] {
   const warnings = [...(params.result.warnings ?? [])];
   const interactiveOnly = params.options.interactiveOnly === true;
@@ -219,14 +221,16 @@ function buildSnapshotWarnings(params: {
   }
 
   const previousSnapshot = params.session?.snapshot;
-  const elapsedSincePreviousSnapshot = previousSnapshot
-    ? params.capturedAt - previousSnapshot.createdAt
-    : Number.POSITIVE_INFINITY;
+  const isRecentSnapshot = previousSnapshot
+    ? [params.capturedAt, params.runtimeNow].some((timestamp) => {
+        const elapsed = timestamp - previousSnapshot.createdAt;
+        return elapsed >= 0 && elapsed <= 2_000;
+      })
+    : false;
   if (
     !params.result.freshness &&
     previousSnapshot &&
-    elapsedSincePreviousSnapshot >= 0 &&
-    elapsedSincePreviousSnapshot <= 2_000 &&
+    isRecentSnapshot &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, params.snapshot.nodes.length)
   ) {
     warnings.push(

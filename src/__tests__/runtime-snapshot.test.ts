@@ -203,6 +203,52 @@ test('runtime snapshot stale-drop warning uses backend snapshot timestamps when 
   ]);
 });
 
+test('runtime snapshot stale-drop warning falls back to runtime clock on backend clock skew', async () => {
+  const session = {
+    name: 'default',
+    snapshot: makeSnapshotState(
+      Array.from({ length: 20 }, (_, index) => ({
+        index,
+        depth: 0,
+        type: 'Text',
+        label: `Before ${index}`,
+      })),
+      { backend: 'android' },
+    ),
+  };
+  session.snapshot.createdAt = 10_000;
+  const currentSnapshot = makeSnapshotState(
+    [{ index: 0, depth: 0, type: 'Text', label: 'After' }],
+    {
+      backend: 'android',
+    },
+  );
+  currentSnapshot.createdAt = 8_500;
+  const device = createAgentDevice({
+    backend: createSnapshotBackend(() => ({
+      snapshot: currentSnapshot,
+    })),
+    artifacts: createLocalArtifactAdapter(),
+    sessions: {
+      get: () => session,
+      set: (record) => {
+        session.snapshot = record.snapshot!;
+      },
+    },
+    policy: localCommandPolicy(),
+    clock: {
+      now: () => 11_500,
+      sleep: async () => {},
+    },
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.deepEqual(result.warnings, [
+    'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.',
+  ]);
+});
+
 function createSnapshotBackend(
   captureSnapshot: () => BackendSnapshotResult | Promise<BackendSnapshotResult>,
 ): AgentDeviceBackend {

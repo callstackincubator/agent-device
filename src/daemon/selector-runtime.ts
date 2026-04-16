@@ -30,6 +30,7 @@ import { refSnapshotFlagGuardResponse } from './handlers/interaction-flags.ts';
 import type { IsCommandOptions } from '../commands/selector-read.ts';
 import { isSupportedPredicate } from './is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
+import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import {
   buildFindRecordResult,
   buildGetRecordResult,
@@ -296,6 +297,8 @@ function createSelectorBackend(params: {
   device: SessionState['device'];
 }): AgentDeviceBackend {
   const { req, session, device, logPath, sessionName, sessionStore } = params;
+  let lastSnapshotAt = 0;
+  let lastSnapshotResult: BackendSnapshotResult | undefined;
   return {
     platform: device.platform,
     captureSnapshot: async (_context, options): Promise<BackendSnapshotResult> => {
@@ -304,6 +307,14 @@ function createSelectorBackend(params: {
         ...snapshotFlagOverrides(options),
       };
       const snapshotScope = options?.scope ?? req.flags?.snapshotScope;
+      const timestamp = Date.now();
+      if (
+        lastSnapshotResult &&
+        timestamp - lastSnapshotAt < 750 &&
+        !getActiveAndroidSnapshotFreshness(session)
+      ) {
+        return lastSnapshotResult;
+      }
       const capture = await captureSnapshot({
         device,
         session,
@@ -316,7 +327,9 @@ function createSelectorBackend(params: {
         session.snapshot = capture.snapshot;
         sessionStore.set(sessionName, session);
       }
-      return { snapshot: capture.snapshot };
+      lastSnapshotAt = timestamp;
+      lastSnapshotResult = { snapshot: capture.snapshot };
+      return lastSnapshotResult;
     },
     readText: async (_context, node: SnapshotNode) => ({
       text: await readTextForNode({

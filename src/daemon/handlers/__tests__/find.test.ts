@@ -334,6 +334,19 @@ test('handleFindCommands wait bypasses snapshot cache while Android freshness re
   expect(mockDispatch).toHaveBeenCalledTimes(2);
 });
 
+test('handleFindCommands wait reuses rapid selector snapshots', async () => {
+  const { response } = await runFindClickScenario({
+    positionals: ['text', 'Never appears', 'wait', '350'],
+    nodes: [{ index: 0, depth: 0, type: 'StaticText', label: 'Other text' }],
+  });
+
+  expect(response.ok).toBe(false);
+  if (!response.ok) {
+    expect(response.error.message).toContain('find wait timed out');
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+});
+
 test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions', async () => {
   await withMockedMacOsHelper(
     [

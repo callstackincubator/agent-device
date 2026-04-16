@@ -91,6 +91,7 @@ export type ArtifactAdapter = {
 export type LocalArtifactAdapterOptions = {
   cwd?: string;
   tempDir?: string;
+  rootDir?: string;
 };
 
 export function createLocalArtifactAdapter(
@@ -98,6 +99,7 @@ export function createLocalArtifactAdapter(
 ): ArtifactAdapter {
   const cwd = options.cwd ?? process.cwd();
   const tempDir = options.tempDir ?? os.tmpdir();
+  const rootDir = options.rootDir ? resolveLocalPath(options.rootDir, cwd) : undefined;
 
   return {
     resolveInput: async (ref) => {
@@ -107,14 +109,14 @@ export function createLocalArtifactAdapter(
           'Uploaded artifact inputs require a custom artifact adapter',
         );
       }
-      return { path: resolveLocalPath(ref.path, cwd) };
+      return { path: resolveLocalPath(ref.path, cwd, rootDir) };
     },
     reserveOutput: async (ref, outputOptions) => {
       let tempRoot: string | undefined;
       const visibility = outputOptions.visibility ?? 'client-visible';
       const outputPath =
         ref?.kind === 'path'
-          ? resolveLocalPath(ref.path, cwd)
+          ? resolveLocalPath(ref.path, cwd, rootDir)
           : path.join(
               (tempRoot = await fs.mkdtemp(
                 path.join(tempDir, `agent-device-${outputOptions.field}-`),
@@ -156,6 +158,18 @@ export function createLocalArtifactAdapter(
   };
 }
 
-function resolveLocalPath(filePath: string, cwd: string): string {
-  return path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
+function resolveLocalPath(filePath: string, cwd: string, rootDir?: string): string {
+  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
+  if (rootDir && !isPathInside(resolvedPath, rootDir)) {
+    throw new AppError('INVALID_ARGS', 'Local path is outside the artifact adapter root', {
+      path: resolvedPath,
+      rootDir,
+    });
+  }
+  return resolvedPath;
+}
+
+function isPathInside(filePath: string, rootDir: string): boolean {
+  const relative = path.relative(rootDir, filePath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
