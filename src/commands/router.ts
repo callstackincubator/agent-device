@@ -164,10 +164,6 @@ const runtimeRouterDispatchers = {
   [K in RuntimeRouterCommandName]: RuntimeRouterDispatcher<K>;
 };
 
-export const runtimeRouterCommandNames = Object.freeze(
-  Object.keys(runtimeRouterDispatchers) as RuntimeRouterCommandName[],
-);
-
 function isRuntimeRouterCommandName(command: string): command is RuntimeRouterCommandName {
   return Object.hasOwn(runtimeRouterDispatchers, command);
 }

@@ -9,6 +9,7 @@ import type {
   RuntimeCommand,
   SnapshotCommandOptions,
 } from './index.ts';
+import { now } from './selector-read-utils.ts';
 
 export type SnapshotCommandResult = {
   nodes: SnapshotNode[];
@@ -251,18 +252,10 @@ function buildSnapshotWarnings(params: {
     }
   }
 
-  return uniqueStrings(warnings);
+  return Array.from(new Set(warnings));
 }
 
 function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
   if (previousCount < 12) return false;
   return currentCount <= Math.floor(previousCount * 0.2);
-}
-
-function now(runtime: AgentDeviceRuntime): number {
-  return runtime.clock?.now() ?? Date.now();
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return Array.from(new Set(values));
 }

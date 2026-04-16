@@ -141,16 +141,16 @@ function formatRecordingResult(
   result: BackendRecordingResult,
   artifact: ArtifactDescriptor | undefined,
 ): RecordingRecordCommandResult {
-  const backendResult = toBackendResult(result);
   return {
-    kind: action === 'start' ? 'recordingStarted' : 'recordingStopped',
-    action,
     ...(typeof result.path === 'string' ? { path: result.path } : {}),
     ...(typeof result.telemetryPath === 'string' ? { telemetryPath: result.telemetryPath } : {}),
     ...(typeof result.warning === 'string' ? { warning: result.warning } : {}),
-    ...(artifact ? { artifact } : {}),
-    ...(backendResult ? { backendResult } : {}),
-    ...successText(action === 'start' ? 'Recording started' : 'Recording stopped'),
+    ...formatLifecycleResult(action, result, artifact, {
+      startKind: 'recordingStarted',
+      stopKind: 'recordingStopped',
+      startMessage: 'Recording started',
+      stopMessage: 'Recording stopped',
+    }),
   };
 }
 
@@ -159,17 +159,41 @@ function formatTraceResult(
   result: BackendTraceResult,
   artifact: ArtifactDescriptor | undefined,
 ): RecordingTraceCommandResult {
-  const backendResult = toBackendResult(result);
   return {
-    kind: action === 'start' ? 'traceStarted' : 'traceStopped',
-    action,
     ...(typeof result.outPath === 'string' ? { outPath: result.outPath } : {}),
-    ...(artifact ? { artifact } : {}),
-    ...(backendResult ? { backendResult } : {}),
-    ...successText(action === 'start' ? 'Trace started' : 'Trace stopped'),
+    ...formatLifecycleResult(action, result, artifact, {
+      startKind: 'traceStarted',
+      stopKind: 'traceStopped',
+      startMessage: 'Trace started',
+      stopMessage: 'Trace stopped',
+    }),
   };
 }
 
-function toBackendResult(result: Record<string, unknown>): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? result : undefined;
+function formatLifecycleResult<
+  TKind extends RecordingRecordCommandResult['kind'] | RecordingTraceCommandResult['kind'],
+>(
+  action: 'start' | 'stop',
+  result: Record<string, unknown>,
+  artifact: ArtifactDescriptor | undefined,
+  options: {
+    startKind: TKind;
+    stopKind: TKind;
+    startMessage: string;
+    stopMessage: string;
+  },
+): {
+  kind: TKind;
+  action: 'start' | 'stop';
+  artifact?: ArtifactDescriptor;
+  backendResult: Record<string, unknown>;
+  message?: string;
+} {
+  return {
+    kind: action === 'start' ? options.startKind : options.stopKind,
+    action,
+    ...(artifact ? { artifact } : {}),
+    backendResult: result,
+    ...successText(action === 'start' ? options.startMessage : options.stopMessage),
+  };
 }

@@ -91,12 +91,6 @@ function contextFromFlags(
   };
 }
 
-function normalizeAliasedCommands(req: DaemonRequest): DaemonRequest {
-  // Keep this hook for future daemon-level aliases. click is intentionally preserved
-  // as-is so handlers can distinguish it from press-only behavior such as --button.
-  return req;
-}
-
 function scopeRequestSession(req: DaemonRequest): DaemonRequest {
   const isolation = resolveSessionIsolationMode(
     req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
@@ -556,24 +550,23 @@ export function createRequestHandler(
   const { logPath, token, sessionStore, leaseRegistry, trackDownloadableArtifact } = deps;
 
   async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
-    const normalizedReq = normalizeAliasedCommands(req);
-    const debug = Boolean(normalizedReq.meta?.debug || normalizedReq.flags?.verbose);
+    const debug = Boolean(req.meta?.debug || req.flags?.verbose);
     return await withDiagnosticsScope(
       {
-        session: normalizedReq.session,
-        requestId: normalizedReq.meta?.requestId,
-        command: normalizedReq.command,
+        session: req.session,
+        requestId: req.meta?.requestId,
+        command: req.command,
         debug,
         logPath,
       },
       async () => {
-        if (normalizedReq.token !== token) {
+        if (req.token !== token) {
           const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
           return { ok: false, error: unauthorizedError };
         }
 
         try {
-          const scopedReq = scopeRequestSession(normalizedReq);
+          const scopedReq = scopeRequestSession(req);
           emitDiagnostic({
             level: 'info',
             phase: 'request_start',

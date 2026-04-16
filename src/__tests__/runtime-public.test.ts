@@ -26,7 +26,6 @@ import {
   createCommandRouter,
   type ScreenshotCommandOptions,
 } from '../commands/index.ts';
-import { runtimeRouterCommandNames } from '../commands/router.ts';
 import type { ArtifactAdapter, FileInputRef, FileOutputRef } from '../io.ts';
 import {
   commandConformanceSuites,
@@ -48,6 +47,44 @@ const backend = {
   readLogs: async () => ({ entries: [{ message: 'ready' }] }),
   dumpNetwork: async () => ({ entries: [{ method: 'GET', url: 'https://example.test' }] }),
   measurePerf: async () => ({ metrics: [{ name: 'cpu', value: 1, unit: '%' }] }),
+} satisfies AgentDeviceBackend;
+
+const routerAlignmentBackend = {
+  ...backend,
+  captureSnapshot: async () => ({ nodes: [] }),
+  tap: async () => {},
+  fill: async () => {},
+  focus: async () => {},
+  longPress: async () => {},
+  swipe: async () => {},
+  scroll: async () => {},
+  pinch: async () => {},
+  pressBack: async () => {},
+  rotate: async () => {},
+  setKeyboard: async () => ({ visible: true }),
+  getClipboard: async () => ({ text: '' }),
+  setClipboard: async () => {},
+  openSettings: async () => {},
+  handleAlert: async () => ({ kind: 'alertStatus', alert: null }),
+  openAppSwitcher: async () => {},
+  listDevices: async () => [],
+  bootDevice: async () => {},
+  ensureSimulator: async () => ({
+    udid: 'SIM-1',
+    device: 'iPhone 16',
+    runtime: 'iOS 18',
+    created: false,
+    booted: true,
+  }),
+  installApp: async () => ({}),
+  reinstallApp: async () => ({}),
+  startRecording: async () => ({}),
+  stopRecording: async () => ({}),
+  startTrace: async () => ({}),
+  stopTrace: async () => ({}),
+  readLogs: async () => ({ entries: [] }),
+  dumpNetwork: async () => ({ entries: [] }),
+  measurePerf: async () => ({ metrics: [] }),
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -175,17 +212,27 @@ test('public runtime policy helpers expose local and restricted defaults', async
   assert.equal((await store.get('default'))?.name, 'default');
 });
 
-test('runtime router command map stays aligned with implemented catalog entries', () => {
+test('runtime router command map stays aligned with implemented catalog entries', async () => {
   const catalogRuntimeCommands = commandCatalog
     .filter(
       (entry) =>
         entry.status === 'implemented' &&
         (entry.command.includes('.') || entry.command === 'record' || entry.command === 'trace'),
     )
-    .map((entry) => entry.command)
-    .sort();
-
-  assert.deepEqual([...runtimeRouterCommandNames].sort(), catalogRuntimeCommands);
+    .map((entry) => entry.command);
+  const router = createCommandRouter({
+    createRuntime: () =>
+      createAgentDevice({
+        backend: routerAlignmentBackend,
+        artifacts,
+        policy: localCommandPolicy(),
+      }),
+  });
+  for (const command of catalogRuntimeCommands) {
+    const result = await router.dispatch({ command, options: {} } as never);
+    assert.notEqual(result.ok ? undefined : result.error.code, 'NOT_IMPLEMENTED', command);
+    assert.notEqual(result.ok ? undefined : result.error.code, 'UNSUPPORTED_OPERATION', command);
+  }
   assert.equal(
     commandCatalog.some((entry) => entry.command === 'batch' && entry.status === 'implemented'),
     true,

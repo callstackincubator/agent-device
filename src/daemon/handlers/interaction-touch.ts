@@ -26,11 +26,10 @@ import {
 } from './interaction-android-escape.ts';
 import { createInteractionRuntime } from './interaction-runtime.ts';
 import {
-  fillResultExtra,
   formatPressTargetLabel,
+  interactionResultExtra,
   parseFillTarget,
   parsePressTarget,
-  pressResultExtra,
   stripAtPrefix,
 } from './interaction-touch-targets.ts';
 
@@ -135,7 +134,7 @@ async function dispatchPressViaRuntime(
         fallbackY: result.point.y,
         referenceFrame,
         extra: {
-          ...pressResultExtra(result),
+          ...interactionResultExtra(result),
           ...resultButtonTag,
         },
       });
@@ -186,7 +185,7 @@ async function dispatchFillViaRuntime(
         fallbackY: result.point.y,
         referenceFrame,
         extra: {
-          ...fillResultExtra(result),
+          ...interactionResultExtra(result),
           text: parsedTarget.text,
         },
       });

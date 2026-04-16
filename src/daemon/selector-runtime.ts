@@ -30,6 +30,7 @@ import { refSnapshotFlagGuardResponse } from './handlers/interaction-flags.ts';
 import type { IsCommandOptions } from '../commands/selector-read.ts';
 import { isSupportedPredicate } from './is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
+import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import {
   buildFindRecordResult,
@@ -220,26 +221,7 @@ function createSelectorRuntimeForDevice(params: {
 }) {
   return createAgentDevice({
     backend: createSelectorBackend(params),
-    artifacts: {
-      resolveInput: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'selector commands do not resolve input artifacts',
-        );
-      },
-      reserveOutput: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'selector commands do not reserve output artifacts',
-        );
-      },
-      createTempFile: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'selector commands do not create temporary files',
-        );
-      },
-    },
+    artifacts: createUnsupportedArtifactAdapter('selector commands', { plural: true }),
     sessions: {
       get: (name) => (name === params.sessionName ? toCommandSession(params.session) : undefined),
       set: (record) => {

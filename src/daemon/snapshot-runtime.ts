@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
 import { SessionStore } from './session-store.ts';
 import { errorResponse } from './handlers/response.ts';
+import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
 import { captureSnapshot, resolveSnapshotScope } from './handlers/snapshot-capture.ts';
 import {
   buildSnapshotSession,
@@ -128,17 +129,7 @@ function createSnapshotRuntime(params: {
       device,
       snapshotScope,
     }),
-    artifacts: {
-      resolveInput: async () => {
-        throw new AppError('UNSUPPORTED_OPERATION', 'snapshot does not resolve input artifacts');
-      },
-      reserveOutput: async () => {
-        throw new AppError('UNSUPPORTED_OPERATION', 'snapshot does not reserve output artifacts');
-      },
-      createTempFile: async () => {
-        throw new AppError('UNSUPPORTED_OPERATION', 'snapshot does not create temporary files');
-      },
-    },
+    artifacts: createUnsupportedArtifactAdapter('snapshot'),
     sessions: {
       get: (name) =>
         name === sessionName ? toCommandSessionRecord(sessionStore.get(sessionName)) : undefined,

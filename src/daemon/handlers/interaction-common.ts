@@ -1,4 +1,4 @@
-import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -61,92 +61,6 @@ function buildTouchMessage(
     return `Tapped @${ref} (${x}, ${y})`;
   }
   return undefined;
-}
-
-export async function dispatchRecordedTouchInteraction(params: {
-  session: SessionState;
-  sessionStore: SessionStore;
-  requestCommand: string;
-  requestPositionals: string[];
-  flags: CommandFlags | undefined;
-  contextFromFlags: ContextFromFlags;
-  interactionCommand: string;
-  interactionPositionals: string[];
-  outPath: string | undefined;
-  afterDispatch?: (data: Record<string, unknown> | undefined) => void | Promise<void>;
-  buildPayloads: (data: Record<string, unknown> | undefined) =>
-    | {
-        result: Record<string, unknown>;
-        responseData?: Record<string, unknown>;
-      }
-    | Promise<{
-        result: Record<string, unknown>;
-        responseData?: Record<string, unknown>;
-      }>;
-}): Promise<DaemonResponse> {
-  const {
-    session,
-    sessionStore,
-    requestCommand,
-    requestPositionals,
-    flags,
-    contextFromFlags,
-    interactionCommand,
-    interactionPositionals,
-    outPath,
-    afterDispatch,
-    buildPayloads,
-  } = params;
-  const interaction = await dispatchInteractionCommand({
-    session,
-    flags,
-    contextFromFlags,
-    command: interactionCommand,
-    positionals: interactionPositionals,
-    outPath,
-  });
-  await afterDispatch?.(interaction.data);
-  const { result, responseData = result } = await buildPayloads(interaction.data);
-  return finalizeTouchInteraction({
-    session,
-    sessionStore,
-    command: requestCommand,
-    positionals: requestPositionals,
-    flags,
-    result,
-    responseData,
-    actionStartedAt: interaction.actionStartedAt,
-    actionFinishedAt: interaction.actionFinishedAt,
-  });
-}
-
-async function dispatchInteractionCommand(params: {
-  session: SessionState;
-  flags: CommandFlags | undefined;
-  contextFromFlags: ContextFromFlags;
-  command: string;
-  positionals: string[];
-  outPath: string | undefined;
-}): Promise<{
-  data: Record<string, unknown> | undefined;
-  actionStartedAt: number;
-  actionFinishedAt: number;
-}> {
-  const { session, flags, contextFromFlags, command, positionals, outPath } = params;
-  const actionStartedAt = Date.now();
-  const dispatchContext = {
-    ...contextFromFlags(flags, session.appBundleId, session.trace?.outPath),
-  };
-  const rawData = await dispatchCommand(
-    session.device,
-    command,
-    positionals,
-    outPath,
-    dispatchContext,
-  );
-  const actionFinishedAt = Date.now();
-  const data = rawData && typeof rawData === 'object' ? rawData : undefined;
-  return { data, actionStartedAt, actionFinishedAt };
 }
 
 export function finalizeTouchInteraction(params: {

@@ -7,6 +7,7 @@ import type {
 import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { SessionState } from '../types.ts';
+import { createUnsupportedArtifactAdapter } from '../runtime-artifacts.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 
@@ -19,26 +20,7 @@ export function createInteractionRuntime(
   if (!session) throw new AppError('SESSION_NOT_FOUND', 'No active session. Run open first.');
   return createAgentDevice({
     backend: createInteractionBackend({ ...params, session }),
-    artifacts: {
-      resolveInput: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'interaction commands do not resolve input artifacts',
-        );
-      },
-      reserveOutput: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'interaction commands do not reserve output artifacts',
-        );
-      },
-      createTempFile: async () => {
-        throw new AppError(
-          'UNSUPPORTED_OPERATION',
-          'interaction commands do not create temporary files',
-        );
-      },
-    },
+    artifacts: createUnsupportedArtifactAdapter('interaction commands', { plural: true }),
     sessions: {
       get: (name) =>
         name === params.sessionName

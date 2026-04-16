@@ -98,9 +98,7 @@ export function createAgentDevice(config: AgentDeviceRuntimeConfig): AgentDevice
 export function createMemorySessionStore(
   records: readonly CommandSessionRecord[] = [],
 ): CommandSessionStore {
-  const sessions = new Map(
-    records.map((record) => [record.name, cloneDefinedSessionRecord(record)]),
-  );
+  const sessions = new Map(records.map((record) => [record.name, cloneSessionRecord(record)]));
   return {
     get: (name) => cloneSessionRecord(sessions.get(name)),
     set: (record) => {
@@ -109,12 +107,8 @@ export function createMemorySessionStore(
     delete: (name) => {
       sessions.delete(name);
     },
-    list: () => Array.from(sessions.values(), cloneDefinedSessionRecord),
+    list: () => Array.from(sessions.values(), (record) => cloneSessionRecord(record)),
   };
-}
-
-function cloneDefinedSessionRecord(record: CommandSessionRecord): CommandSessionRecord {
-  return cloneSessionRecord(record);
 }
 
 function cloneSessionRecord(record: CommandSessionRecord): CommandSessionRecord;

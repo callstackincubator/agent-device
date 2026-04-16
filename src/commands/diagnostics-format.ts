@@ -156,7 +156,7 @@ function redactPayload(value: string | undefined): { value?: string; redacted: b
 function redactJsonPayload(value: string): { value?: string; redacted: boolean } | undefined {
   try {
     const parsed = JSON.parse(value);
-    const result = redactStructured(parsed);
+    const result = redactValue(parsed, redactText);
     return truncateRedacted(JSON.stringify(result.value), PAYLOAD_MAX_CHARS, result.redacted);
   } catch {
     return undefined;
@@ -164,41 +164,20 @@ function redactJsonPayload(value: string): { value?: string; redacted: boolean }
 }
 
 function redactUnknown(value: unknown): { value?: unknown; redacted: boolean } {
-  if (value === undefined) return { redacted: false };
-  if (typeof value === 'string') return redactAndTruncate(value, PAYLOAD_MAX_CHARS);
-  if (!value || typeof value !== 'object') return { value, redacted: false };
-  if (Array.isArray(value)) {
-    let redacted = false;
-    const next = value.map((entry) => {
-      const result = redactUnknown(entry);
-      redacted ||= result.redacted;
-      return result.value;
-    });
-    return { value: next, redacted };
-  }
-  let redacted = false;
-  const next: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (SECRET_KEY_PATTERN.test(key)) {
-      next[key] = '[REDACTED]';
-      redacted = true;
-      continue;
-    }
-    const result = redactUnknown(entry);
-    next[key] = result.value;
-    redacted ||= result.redacted;
-  }
-  return { value: next, redacted };
+  return redactValue(value, (entry) => redactAndTruncate(entry, PAYLOAD_MAX_CHARS));
 }
 
-function redactStructured(value: unknown): { value?: unknown; redacted: boolean } {
+function redactValue(
+  value: unknown,
+  redactString: (value: string) => { value?: string; redacted: boolean },
+): { value?: unknown; redacted: boolean } {
   if (value === undefined) return { redacted: false };
-  if (typeof value === 'string') return redactText(value);
+  if (typeof value === 'string') return redactString(value);
   if (!value || typeof value !== 'object') return { value, redacted: false };
   if (Array.isArray(value)) {
     let redacted = false;
     const next = value.map((entry) => {
-      const result = redactStructured(entry);
+      const result = redactValue(entry, redactString);
       redacted ||= result.redacted;
       return result.value;
     });
@@ -212,7 +191,7 @@ function redactStructured(value: unknown): { value?: unknown; redacted: boolean 
       redacted = true;
       continue;
     }
-    const result = redactStructured(entry);
+    const result = redactValue(entry, redactString);
     next[key] = result.value;
     redacted ||= result.redacted;
   }

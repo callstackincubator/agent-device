@@ -99,25 +99,9 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
   };
 }
 
-export function pressResultExtra(result: PressCommandResult): Record<string, unknown> {
-  if (result.kind === 'ref') {
-    return {
-      ref: stripAtPrefix(result.target?.kind === 'ref' ? result.target.ref : undefined),
-      refLabel: result.refLabel,
-      selectorChain: result.selectorChain,
-    };
-  }
-  if (result.kind === 'selector') {
-    return {
-      selector: result.target?.kind === 'selector' ? result.target.selector : undefined,
-      selectorChain: result.selectorChain,
-      refLabel: result.refLabel,
-    };
-  }
-  return {};
-}
-
-export function fillResultExtra(result: FillCommandResult): Record<string, unknown> {
+export function interactionResultExtra(
+  result: PressCommandResult | FillCommandResult,
+): Record<string, unknown> {
   if (result.kind === 'ref') {
     return {
       ref: stripAtPrefix(result.target?.kind === 'ref' ? result.target.ref : undefined),

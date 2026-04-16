@@ -33,9 +33,7 @@ export type BatchCommandResult = {
   results: readonly BatchCommandStepResult[];
 };
 
-const ROUTER_BATCH_DEFAULT_MAX_STEPS = 50;
-const ROUTER_BATCH_HARD_MAX_STEPS = 50;
-const ROUTER_BATCH_BLOCKED_COMMANDS = new Set(['batch']);
+const ROUTER_BATCH_MAX_STEPS = 50;
 
 export async function dispatchBatchCommand<TContext>(
   request: Extract<CommandRouterRequest<TContext>, { command: 'batch' }>,
@@ -82,11 +80,11 @@ function normalizeRouterSteps<TContext>(
   steps: readonly CommandRouterRequest<TContext>[] | undefined,
   maxStepsOption: number | undefined,
 ): readonly CommandRouterRequest<TContext>[] {
-  const maxSteps = maxStepsOption ?? ROUTER_BATCH_DEFAULT_MAX_STEPS;
-  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > ROUTER_BATCH_HARD_MAX_STEPS) {
+  const maxSteps = maxStepsOption ?? ROUTER_BATCH_MAX_STEPS;
+  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > ROUTER_BATCH_MAX_STEPS) {
     throw new AppError(
       'INVALID_ARGS',
-      `batch maxSteps must be an integer between 1 and ${ROUTER_BATCH_HARD_MAX_STEPS}`,
+      `batch maxSteps must be an integer between 1 and ${ROUTER_BATCH_MAX_STEPS}`,
     );
   }
   if (!Array.isArray(steps) || steps.length === 0) {
@@ -103,7 +101,7 @@ function normalizeRouterSteps<TContext>(
     if (!step || typeof step !== 'object' || typeof step.command !== 'string') {
       throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}`);
     }
-    if (ROUTER_BATCH_BLOCKED_COMMANDS.has(step.command)) {
+    if (step.command === 'batch') {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} cannot run ${step.command}`);
     }
   }
