@@ -544,6 +544,8 @@ agent-device open --platform macos --surface desktop && agent-device screenshot 
 agent-device diff screenshot --baseline baseline.png --out diff.png
 agent-device diff screenshot --baseline baseline.png current.png --out diff.png
 agent-device diff screenshot --baseline baseline.png --out diff.png --overlay-refs
+agent-device diff frames ./frames --out transition-summary
+agent-device diff video session.mp4 --out transition-summary --telemetry session.gesture-telemetry.json
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
@@ -557,6 +559,9 @@ agent-device record stop                # Stop active recording
 - If `tesseract` is installed, `diff screenshot` also adds best-effort OCR text deltas, movement clusters, and bbox size-change hints to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.
 - When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the diff and clustering remaining residuals. These are hints for icons, controls, and separators, not semantic icon recognition.
 - `diff screenshot --overlay-refs` additionally writes a separate current-screen overlay guide for live captures without using that annotated image for the pixel comparison. If current-screen refs intersect changed regions, the output lists the best ref matches under those regions. Saved-image comparisons do not have live accessibility refs, so `--overlay-refs` is unavailable when a `current.png` path is provided.
+- `diff frames` summarizes transitions from a PNG frame directory or explicit PNG frame list. It prints a capped timeline with transition timing, keyframes, changed-region summaries, and optional OCR movement hints. Use `--frame-interval-ms <n>` when aligning frame sequences with recording telemetry; the default is `100`.
+- `diff video` requires `ffmpeg` and `ffprobe` in `PATH`; it samples a recording into frames under the `--out` directory and runs the same transition summarizer. Use `--sample-fps <n>` and `--max-frames <n>` to tune extraction cost.
+- Add `--telemetry <path>` to `diff frames` or `diff video` when you have a recording gesture sidecar. Transition labels can then include anchors such as `after tap` or `during up scroll`.
 - In `--json` mode, each overlay ref also includes a screenshot-space `center` point for coordinate fallback like `press <x> <y>`.
 - Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
 - On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.

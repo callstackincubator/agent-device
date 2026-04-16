@@ -43,6 +43,26 @@ function solidPngBuffer(
   return PNG.sync.write(png);
 }
 
+function movingBlockPngBuffer(offset: number): Buffer {
+  const png = new PNG({ width: 40, height: 40 });
+  for (let i = 0; i < png.data.length; i += 4) {
+    png.data[i] = 240;
+    png.data[i + 1] = 240;
+    png.data[i + 2] = 240;
+    png.data[i + 3] = 255;
+  }
+  for (let y = 12; y < 28; y += 1) {
+    for (let x = 8 + offset; x < 24 + offset; x += 1) {
+      const index = (y * png.width + x) * 4;
+      png.data[index] = 30;
+      png.data[index + 1] = 30;
+      png.data[index + 2] = 30;
+      png.data[index + 3] = 255;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
 async function runCliCapture(
   argv: string[],
   options: RunCliCaptureOptions = {},
@@ -435,5 +455,101 @@ describe('cli diff commands', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test('diff frames summarizes a local PNG frame sequence without daemon calls', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-diff-frames-test-'));
+    const outputDir = path.join(dir, 'out');
+    const telemetryPath = path.join(dir, 'capture.gesture-telemetry.json');
+    for (const [index, offset] of [0, 6, 12, 12].entries()) {
+      fs.writeFileSync(path.join(dir, `frame-${index}.png`), movingBlockPngBuffer(offset));
+    }
+    fs.writeFileSync(
+      telemetryPath,
+      JSON.stringify({
+        version: 1,
+        generatedAt: new Date(0).toISOString(),
+        events: [{ kind: 'tap', tMs: 10, x: 20, y: 20 }],
+      }),
+    );
+
+    try {
+      const result = await runCliCapture([
+        'diff',
+        'frames',
+        path.join(dir, 'frame-0.png'),
+        path.join(dir, 'frame-1.png'),
+        path.join(dir, 'frame-2.png'),
+        path.join(dir, 'frame-3.png'),
+        '--out',
+        outputDir,
+        '--telemetry',
+        telemetryPath,
+        '--frame-interval-ms',
+        '250',
+        '--threshold',
+        '0',
+      ]);
+      assert.equal(result.code, null);
+      assert.equal(result.calls.length, 0);
+      assert.match(result.stdout, /Frame transition summary: 1 transition/);
+      assert.match(result.stdout, /0ms-500ms after tap x=20 y=20/);
+      assert.match(result.stdout, /after tap x=20 y=20/);
+      assert.match(result.stdout, /keyframes:/);
+      assert.equal(fs.existsSync(path.join(outputDir, 'transition-1.diff.png')), true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('diff frames rejects screenshot-only overlay refs flag', async () => {
+    const result = await runCliCapture([
+      'diff',
+      'frames',
+      './frame-1.png',
+      './frame-2.png',
+      '--overlay-refs',
+    ]);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff frames does not support --overlay-refs/);
+  });
+
+  test('diff frames rejects screenshot-only baseline flag', async () => {
+    const result = await runCliCapture([
+      'diff',
+      'frames',
+      './frame-1.png',
+      './frame-2.png',
+      '--baseline',
+      './baseline.png',
+    ]);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff frames does not support --baseline/);
+  });
+
+  test('diff video rejects extra positional paths before probing ffmpeg', async () => {
+    const result = await runCliCapture(['diff', 'video', './one.mp4', './two.mp4']);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff video requires exactly one video path/);
+  });
+
+  test('diff video rejects screenshot-only baseline flag before probing ffmpeg', async () => {
+    const result = await runCliCapture([
+      'diff',
+      'video',
+      './session.mp4',
+      '--baseline',
+      './baseline.png',
+    ]);
+
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /diff video does not support --baseline/);
   });
 });

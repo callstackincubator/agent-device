@@ -1,11 +1,17 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { formatScreenshotDiffText, formatSnapshotDiffText } from '../../utils/output.ts';
+import {
+  formatScreenshotDiffText,
+  formatSnapshotDiffText,
+  formatTransitionSummaryText,
+} from '../../utils/output.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compareScreenshots, type ScreenshotDiffResult } from '../../utils/screenshot-diff.ts';
 import { attachCurrentOverlayMatches } from '../../utils/screenshot-diff-overlay-matches.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
+import { collectFrameInputs, summarizeFrameTransitions } from '../../utils/transition-summary.ts';
+import { extractVideoFrames } from '../../utils/video-frames.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router.ts';
 
@@ -43,7 +49,76 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     return true;
   }
 
+  if (positionals[0] === 'frames') {
+    rejectUnsupportedDiffFlags(
+      flags,
+      ['baseline', 'overlayRefs', 'sampleFps', 'maxFrames'],
+      'diff frames',
+    );
+    const outputDir = resolveTransitionOutputDir(flags.out);
+    const frames = await collectFrameInputs(positionals.slice(1), {
+      frameIntervalMs: flags.frameIntervalMs,
+    });
+    const result = await summarizeFrameTransitions({
+      frames,
+      input: {
+        kind: 'frames',
+        frameCount: frames.length,
+        sampledFrameCount: frames.length,
+        ...(flags.telemetry ? { telemetryPath: resolveUserPath(flags.telemetry) } : {}),
+      },
+      options: {
+        threshold: readDiffThreshold(flags.threshold),
+        outputDir,
+        ...(flags.telemetry ? { telemetryPath: flags.telemetry } : {}),
+      },
+    });
+    writeCommandOutput(flags, result, () => formatTransitionSummaryText(result));
+    return true;
+  }
+
+  if (positionals[0] === 'video') {
+    rejectUnsupportedDiffFlags(flags, ['baseline', 'frameIntervalMs', 'overlayRefs'], 'diff video');
+    const videoRaw = positionals[1];
+    if (!videoRaw || positionals.length > 2) {
+      throw new AppError('INVALID_ARGS', 'diff video requires exactly one video path');
+    }
+    const videoPath = resolveUserPath(videoRaw);
+    const outputDir = resolveTransitionOutputDir(flags.out);
+    const framesDir = path.join(outputDir, 'frames');
+    const extracted = await extractVideoFrames({
+      videoPath,
+      outputDir: framesDir,
+      sampleFps: flags.sampleFps,
+      maxFrames: flags.maxFrames,
+    });
+    const result = await summarizeFrameTransitions({
+      frames: extracted.frames,
+      input: {
+        kind: 'video',
+        path: videoPath,
+        frameCount: extracted.frames.length,
+        sampledFrameCount: extracted.frames.length,
+        sampleFps: extracted.sampleFps,
+        ...(extracted.durationMs ? { durationMs: extracted.durationMs } : {}),
+        ...(flags.telemetry ? { telemetryPath: resolveUserPath(flags.telemetry) } : {}),
+      },
+      options: {
+        threshold: readDiffThreshold(flags.threshold),
+        outputDir,
+        ...(flags.telemetry ? { telemetryPath: flags.telemetry } : {}),
+      },
+    });
+    writeCommandOutput(flags, result, () => formatTransitionSummaryText(result));
+    return true;
+  }
+
   if (positionals[0] !== 'screenshot') return false;
+  rejectUnsupportedDiffFlags(
+    flags,
+    ['sampleFps', 'maxFrames', 'frameIntervalMs', 'telemetry'],
+    'diff screenshot',
+  );
 
   const baselineRaw = flags.baseline;
   if (!baselineRaw || typeof baselineRaw !== 'string') {
@@ -60,13 +135,7 @@ export const diffCommand: ClientCommandHandler = async ({ positionals, flags, cl
     );
   }
 
-  let thresholdNum = 0.1;
-  if (flags.threshold != null && flags.threshold !== '') {
-    thresholdNum = Number(flags.threshold);
-    if (Number.isNaN(thresholdNum) || thresholdNum < 0 || thresholdNum > 1) {
-      throw new AppError('INVALID_ARGS', '--threshold must be a number between 0 and 1');
-    }
-  }
+  const thresholdNum = readDiffThreshold(flags.threshold);
 
   if (currentRaw) {
     if (flags.overlayRefs) {
@@ -143,4 +212,39 @@ function removeStaleCurrentOverlay(outputPath: string): void {
 
 function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
+}
+
+function readDiffThreshold(rawThreshold: unknown): number {
+  if (rawThreshold == null || rawThreshold === '') return 0.1;
+  const threshold = Number(rawThreshold);
+  if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
+    throw new AppError('INVALID_ARGS', '--threshold must be a number between 0 and 1');
+  }
+  return threshold;
+}
+
+function resolveTransitionOutputDir(rawOut: unknown): string {
+  const outputDir =
+    typeof rawOut === 'string'
+      ? resolveUserPath(rawOut)
+      : fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-transition-diff-'));
+  fs.mkdirSync(outputDir, { recursive: true });
+  return outputDir;
+}
+
+function rejectUnsupportedDiffFlags(
+  flags: Record<string, unknown>,
+  flagKeys: string[],
+  commandLabel: string,
+): void {
+  const unsupported = flagKeys.filter((key) => flags[key] !== undefined);
+  if (unsupported.length === 0) return;
+  throw new AppError(
+    'INVALID_ARGS',
+    `${commandLabel} does not support ${unsupported.map((key) => `--${toKebabCase(key)}`).join(', ')}`,
+  );
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
 }

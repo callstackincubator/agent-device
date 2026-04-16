@@ -34,6 +34,7 @@ export type ScreenshotDiffOptions = {
   threshold?: number;
   outputPath?: string;
   maxRegions?: number;
+  includeOcr?: boolean;
 };
 
 // Each pixel is a point in 3D RGB space (R, G, B each 0–255).
@@ -136,7 +137,7 @@ export async function compareScreenshots(
   }
 
   const ocrAnalysis =
-    differentPixels > 0
+    differentPixels > 0 && options.includeOcr !== false
       ? await summarizeScreenshotOcr({
           baselinePath,
           currentPath,
