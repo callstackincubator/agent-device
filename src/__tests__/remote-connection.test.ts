@@ -13,15 +13,16 @@ import {
   connectionCommand,
   disconnectCommand,
 } from '../cli/commands/connection.ts';
+import { materializeRemoteConnectionForCommand } from '../cli/commands/connection-runtime.ts';
 import { stopMetroCompanion } from '../client-metro-companion.ts';
 import { AppError } from '../utils/errors.ts';
 import {
   hashRemoteConfigFile,
+  readActiveConnectionState,
   readRemoteConnectionState,
   writeRemoteConnectionState,
 } from '../remote-connection-state.ts';
-import type { AgentDeviceClient, MetroPrepareOptions } from '../client.ts';
-import type { LeaseBackend } from '../contracts.ts';
+import type { AgentDeviceClient } from '../client.ts';
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -112,7 +113,7 @@ function createTestClient(
   };
 }
 
-test('connect allocates a lease, prepares Metro, and writes connection state', async () => {
+test('connect auto-generates a local session and writes minimal remote state', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-'));
   const stateDir = path.join(tempRoot, '.state');
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
@@ -120,8 +121,6 @@ test('connect allocates a lease, prepares Metro, and writes connection state', a
     remoteConfigPath,
     JSON.stringify({ daemonBaseUrl: 'https://daemon.example.test' }),
   );
-  let observedBackend: LeaseBackend | undefined;
-  let observedPrepare: MetroPrepareOptions | undefined;
 
   await captureStdout(async () => {
     await connectCommand({
@@ -137,61 +136,69 @@ test('connect allocates a lease, prepares Metro, and writes connection state', a
         tenant: 'acme',
         sessionIsolation: 'tenant',
         runId: 'run-123',
-        session: 'adc-android',
-        platform: 'android',
-        metroPublicBaseUrl: 'https://sandbox.example.test',
-        metroProxyBaseUrl: 'https://proxy.example.test',
       },
-      client: createTestClient({
-        allocate: async (request) => {
-          observedBackend = request.leaseBackend;
-          return {
-            leaseId: 'lease-1',
-            tenantId: request.tenant,
-            runId: request.runId,
-            backend: request.leaseBackend ?? 'android-instance',
-          };
-        },
-        prepare: async (options) => {
-          observedPrepare = options;
-          return {
-            projectRoot: '/tmp/project',
-            kind: 'react-native',
-            dependenciesInstalled: false,
-            packageManager: null,
-            started: false,
-            reused: true,
-            pid: 0,
-            logPath: '/tmp/project/.agent-device/metro.log',
-            statusUrl: 'http://127.0.0.1:8081/status',
-            runtimeFilePath: null,
-            iosRuntime: { platform: 'ios' },
-            androidRuntime: { platform: 'android', bundleUrl: 'https://bundle.example.test' },
-            bridge: null,
-          };
-        },
-      }),
+      client: createTestClient(),
     });
   });
 
-  const state = readRemoteConnectionState({ stateDir, session: 'adc-android' });
-  assert.equal(observedBackend, 'android-instance');
-  assert.equal(observedPrepare?.companionProfileKey, remoteConfigPath);
-  assert.deepEqual(observedPrepare?.bridgeScope, {
-    tenantId: 'acme',
-    runId: 'run-123',
-    leaseId: 'lease-1',
-  });
-  assert.equal(state?.leaseId, 'lease-1');
+  const state = readActiveConnectionState({ stateDir });
+  assert.match(state?.session ?? '', /^adc-[a-z0-9]+$/);
+  assert.equal(state?.leaseId, undefined);
+  assert.equal(state?.leaseBackend, undefined);
   assert.equal(state?.remoteConfigHash, hashRemoteConfigFile(remoteConfigPath));
   assert.deepEqual(state?.daemon, {
     baseUrl: 'https://daemon.example.test/agent-device?tenant=acme',
   });
-  assert.equal(state?.metro?.projectRoot, '/tmp/project');
-  assert.deepEqual(state?.runtime, {
-    platform: 'android',
-    bundleUrl: 'https://bundle.example.test',
+  assert.equal(state?.metro, undefined);
+  assert.equal(state?.runtime, undefined);
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('connect without a session reuses the active generated connection', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-idempotent-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({ daemonBaseUrl: 'https://daemon.example.test' }),
+  );
+
+  const connectFlags = {
+    json: true,
+    help: false,
+    version: false,
+    stateDir,
+    remoteConfig: remoteConfigPath,
+    daemonBaseUrl: 'https://daemon.example.test',
+    tenant: 'acme',
+    sessionIsolation: 'tenant' as const,
+    runId: 'run-123',
+  };
+
+  await captureStdout(async () => {
+    await connectCommand({
+      positionals: [],
+      flags: connectFlags,
+      client: createTestClient(),
+    });
   });
+  const firstState = readActiveConnectionState({ stateDir });
+
+  await captureStdout(async () => {
+    await connectCommand({
+      positionals: [],
+      flags: connectFlags,
+      client: createTestClient(),
+    });
+  });
+  const secondState = readActiveConnectionState({ stateDir });
+  const storedSessions = fs
+    .readdirSync(path.join(stateDir, 'remote-connections'))
+    .filter((entry) => entry.endsWith('.json') && entry !== '.active-session.json');
+
+  assert.equal(secondState?.session, firstState?.session);
+  assert.equal(storedSessions.length, 1);
+
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
@@ -241,7 +248,245 @@ test('connect missing scope errors mention remote config or flags', async () => 
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
-test('connect reuses an active compatible lease by heartbeat', async () => {
+test('deferred materialization allocates lease and prepares Metro for open', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-open-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  let observedBridgeScope: { tenantId: string; runId: string; leaseId: string } | undefined;
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'open',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+    },
+    client: createTestClient({
+      allocate: async (request) => ({
+        leaseId: 'lease-new',
+        tenantId: request.tenant,
+        runId: request.runId,
+        backend: request.leaseBackend ?? 'android-instance',
+      }),
+      prepare: async (options) => {
+        observedBridgeScope = options.bridgeScope;
+        return {
+          projectRoot: '/tmp/project',
+          kind: 'react-native',
+          dependenciesInstalled: false,
+          packageManager: null,
+          started: false,
+          reused: true,
+          pid: 0,
+          logPath: '/tmp/project/.agent-device/metro.log',
+          statusUrl: 'http://127.0.0.1:8081/status',
+          runtimeFilePath: null,
+          iosRuntime: { platform: 'ios' },
+          androidRuntime: { platform: 'android', bundleUrl: 'https://bundle.example.test' },
+          bridge: null,
+        };
+      },
+    }),
+  });
+
+  assert.equal(materialized.flags.leaseId, 'lease-new');
+  assert.equal(materialized.flags.leaseBackend, 'android-instance');
+  assert.deepEqual(materialized.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://bundle.example.test',
+  });
+  assert.deepEqual(observedBridgeScope, {
+    tenantId: 'acme',
+    runId: 'run-123',
+    leaseId: 'lease-new',
+  });
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'adc-android' })?.leaseId,
+    'lease-new',
+  );
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization prepares Metro for batch when a step opens an app', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-batch-open-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'batch',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+    },
+    batchSteps: [{ command: 'open', positionals: ['com.example.demo'] }],
+    client: createTestClient(),
+  });
+
+  assert.equal(materialized.flags.leaseId, 'lease-1');
+  assert.deepEqual(materialized.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+  });
+  assert.deepEqual(readRemoteConnectionState({ stateDir, session: 'adc-android' })?.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+  });
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization re-prepares runtime when explicit Metro overrides are provided', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-runtime-override-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-existing',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      runtime: {
+        platform: 'android',
+        bundleUrl: 'https://old-bundle.example.test',
+      },
+      metro: {
+        projectRoot: '/tmp/project-old',
+        profileKey: remoteConfigPath,
+        consumerKey: 'adc-android',
+      },
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  let prepareRequest: Parameters<AgentDeviceClient['metro']['prepare']>[0] | undefined;
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'open',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+      metroProjectRoot: '/tmp/project-new',
+      metroKind: 'expo',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+      launchUrl: 'myapp://open',
+    },
+    client: createTestClient({
+      prepare: async (options) => {
+        prepareRequest = options;
+        return {
+          projectRoot: '/tmp/project-new',
+          kind: 'expo',
+          dependenciesInstalled: false,
+          packageManager: null,
+          started: false,
+          reused: false,
+          pid: 0,
+          logPath: '/tmp/project-new/.agent-device/metro.log',
+          statusUrl: 'http://127.0.0.1:8081/status',
+          runtimeFilePath: null,
+          iosRuntime: { platform: 'ios' },
+          androidRuntime: {
+            platform: 'android',
+            bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android&dev=true',
+          },
+          bridge: null,
+        };
+      },
+    }),
+    forceRuntimePrepare: true,
+  });
+
+  assert.equal(prepareRequest?.projectRoot, '/tmp/project-new');
+  assert.equal(prepareRequest?.kind, 'expo');
+  assert.equal(prepareRequest?.publicBaseUrl, 'https://sandbox.example.test');
+  assert.equal(prepareRequest?.proxyBaseUrl, 'https://proxy.example.test');
+  assert.equal(prepareRequest?.launchUrl, 'myapp://open');
+  assert.deepEqual(materialized.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android&dev=true',
+  });
+  assert.deepEqual(readRemoteConnectionState({ stateDir, session: 'adc-android' })?.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android&dev=true',
+  });
+  assert.deepEqual(vi.mocked(stopMetroCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/project-old',
+    profileKey: remoteConfigPath,
+    consumerKey: 'adc-android',
+  });
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization heartbeats an existing lease before dispatch', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-heartbeat-'));
   const stateDir = path.join(tempRoot, '.state');
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
@@ -256,7 +501,7 @@ test('connect reuses an active compatible lease by heartbeat', async () => {
       daemon: { baseUrl: 'https://daemon.example' },
       tenant: 'acme',
       runId: 'run-123',
-      leaseId: 'lease-old',
+      leaseId: 'lease-existing',
       leaseBackend: 'android-instance',
       platform: 'android',
       connectedAt: new Date().toISOString(),
@@ -264,48 +509,56 @@ test('connect reuses an active compatible lease by heartbeat', async () => {
     },
   });
   let heartbeatCount = 0;
+  let allocateCount = 0;
 
-  await captureStdout(async () => {
-    await connectCommand({
-      positionals: [],
-      flags: {
-        json: true,
-        help: false,
-        version: false,
-        stateDir,
-        remoteConfig: remoteConfigPath,
-        daemonBaseUrl: 'https://daemon.example',
-        tenant: 'acme',
-        runId: 'run-123',
-        session: 'adc-android',
-        platform: 'android',
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'apps',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+    },
+    client: createTestClient({
+      heartbeat: async (request) => {
+        heartbeatCount += 1;
+        return {
+          leaseId: request.leaseId,
+          tenantId: request.tenant ?? 'acme',
+          runId: request.runId ?? 'run-123',
+          backend: request.leaseBackend ?? 'android-instance',
+        };
       },
-      client: createTestClient({
-        heartbeat: async (request) => {
-          heartbeatCount += 1;
-          return {
-            leaseId: request.leaseId,
-            tenantId: request.tenant ?? 'acme',
-            runId: request.runId ?? 'run-123',
-            backend: 'android-instance',
-          };
-        },
-        allocate: async () => {
-          throw new Error('allocate should not run');
-        },
-      }),
-    });
+      allocate: async (request) => {
+        allocateCount += 1;
+        return {
+          leaseId: 'lease-new',
+          tenantId: request.tenant,
+          runId: request.runId,
+          backend: request.leaseBackend ?? 'android-instance',
+        };
+      },
+    }),
   });
 
   assert.equal(heartbeatCount, 1);
+  assert.equal(allocateCount, 0);
+  assert.equal(materialized.flags.leaseId, 'lease-existing');
   assert.equal(
     readRemoteConnectionState({ stateDir, session: 'adc-android' })?.leaseId,
-    'lease-old',
+    'lease-existing',
   );
+
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
-test('connect allocates a new lease when cloud reports the stored lease is inactive', async () => {
+test('deferred materialization reallocates when the persisted lease is inactive', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-stale-lease-'));
   const stateDir = path.join(tempRoot, '.state');
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
@@ -320,58 +573,53 @@ test('connect allocates a new lease when cloud reports the stored lease is inact
       daemon: { baseUrl: 'https://daemon.example' },
       tenant: 'acme',
       runId: 'run-123',
-      leaseId: 'lease-old',
+      leaseId: 'lease-existing',
       leaseBackend: 'android-instance',
       platform: 'android',
       connectedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
   });
-  let allocateCount = 0;
 
-  await captureStdout(async () => {
-    await connectCommand({
-      positionals: [],
-      flags: {
-        json: true,
-        help: false,
-        version: false,
-        stateDir,
-        remoteConfig: remoteConfigPath,
-        daemonBaseUrl: 'https://daemon.example',
-        tenant: 'acme',
-        runId: 'run-123',
-        session: 'adc-android',
-        platform: 'android',
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'apps',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+    },
+    client: createTestClient({
+      heartbeat: async () => {
+        throw new AppError('UNAUTHORIZED', 'Lease is not active', {
+          reason: 'LEASE_NOT_FOUND',
+        });
       },
-      client: createTestClient({
-        heartbeat: async () => {
-          throw new AppError('UNAUTHORIZED', 'Lease is not active', {
-            reason: 'LEASE_NOT_FOUND',
-          });
-        },
-        allocate: async (request) => {
-          allocateCount += 1;
-          return {
-            leaseId: 'lease-new',
-            tenantId: request.tenant,
-            runId: request.runId,
-            backend: request.leaseBackend ?? 'android-instance',
-          };
-        },
+      allocate: async (request) => ({
+        leaseId: 'lease-new',
+        tenantId: request.tenant,
+        runId: request.runId,
+        backend: request.leaseBackend ?? 'android-instance',
       }),
-    });
+    }),
   });
 
-  assert.equal(allocateCount, 1);
+  assert.equal(materialized.flags.leaseId, 'lease-new');
   assert.equal(
     readRemoteConnectionState({ stateDir, session: 'adc-android' })?.leaseId,
     'lease-new',
   );
+
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
-test('connect does not allocate when heartbeat fails for auth or scope reasons', async () => {
+test('deferred materialization preserves auth failures from lease allocation', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-auth-'));
   const stateDir = path.join(tempRoot, '.state');
   const remoteConfigPath = path.join(tempRoot, 'remote.json');
@@ -386,8 +634,6 @@ test('connect does not allocate when heartbeat fails for auth or scope reasons',
       daemon: { baseUrl: 'https://daemon.example' },
       tenant: 'acme',
       runId: 'run-123',
-      leaseId: 'lease-old',
-      leaseBackend: 'android-instance',
       platform: 'android',
       connectedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -396,8 +642,8 @@ test('connect does not allocate when heartbeat fails for auth or scope reasons',
 
   await assert.rejects(
     async () =>
-      await connectCommand({
-        positionals: [],
+      await materializeRemoteConnectionForCommand({
+        command: 'apps',
         flags: {
           json: true,
           help: false,
@@ -411,18 +657,137 @@ test('connect does not allocate when heartbeat fails for auth or scope reasons',
           platform: 'android',
         },
         client: createTestClient({
-          heartbeat: async () => {
-            throw new AppError('UNAUTHORIZED', 'Request rejected by auth hook', {
+          allocate: async () => {
+            throw new AppError('UNAUTHORIZED', 'Request rejected by auth hook.', {
               reason: 'AUTH_FAILED',
             });
-          },
-          allocate: async () => {
-            throw new Error('allocate should not run');
           },
         }),
       }),
     /Request rejected by auth hook/,
   );
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization does not require a lease backend for close', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-close-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'close',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+    },
+    client: createTestClient({
+      allocate: async () => {
+        throw new Error('close should not allocate a lease');
+      },
+      heartbeat: async () => {
+        throw new Error('close should not heartbeat a lease');
+      },
+    }),
+  });
+
+  assert.equal(materialized.flags.leaseId, undefined);
+  assert.equal(materialized.flags.leaseBackend, undefined);
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization stops the new Metro companion if state persistence fails', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-write-fail-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+      metro: {
+        projectRoot: '/tmp/old-project',
+        profileKey: remoteConfigPath,
+        consumerKey: 'adc-android',
+      },
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+
+  const originalWriteFileSync = fs.writeFileSync.bind(fs);
+  const writeFailure = new Error('state write failed');
+  vi.spyOn(fs, 'writeFileSync').mockImplementation((file, data, options) => {
+    if (String(file).endsWith(path.join('remote-connections', 'adc-android.json'))) {
+      throw writeFailure;
+    }
+    return originalWriteFileSync(
+      file as Parameters<typeof fs.writeFileSync>[0],
+      data as Parameters<typeof fs.writeFileSync>[1],
+      options as Parameters<typeof fs.writeFileSync>[2],
+    );
+  });
+
+  await assert.rejects(
+    async () =>
+      await materializeRemoteConnectionForCommand({
+        command: 'open',
+        flags: {
+          json: true,
+          help: false,
+          version: false,
+          stateDir,
+          remoteConfig: remoteConfigPath,
+          daemonBaseUrl: 'https://daemon.example',
+          tenant: 'acme',
+          runId: 'run-123',
+          session: 'adc-android',
+          platform: 'android',
+          metroPublicBaseUrl: 'https://sandbox.example.test',
+          metroProxyBaseUrl: 'https://proxy.example.test',
+        },
+        client: createTestClient(),
+      }),
+    writeFailure,
+  );
+
+  assert.equal(vi.mocked(stopMetroCompanion).mock.calls.length, 1);
+  assert.deepEqual(vi.mocked(stopMetroCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/project',
+    profileKey: remoteConfigPath,
+    consumerKey: 'adc-android',
+  });
+
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
@@ -566,8 +931,6 @@ test('connect --force stops replaced Metro companion after state is updated', as
         runId: 'run-new',
         session: 'adc-android',
         platform: 'android',
-        metroPublicBaseUrl: 'https://sandbox.example.test',
-        metroProxyBaseUrl: 'https://proxy.example.test',
       },
       client: createTestClient({
         release: async (request) => {
@@ -590,46 +953,79 @@ test('connect --force stops replaced Metro companion after state is updated', as
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
-test('connect cleans up prepared Metro companion if state write fails', async () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-fail-'));
-  const stateDir = path.join(tempRoot, 'state-file');
-  const remoteConfigPath = path.join(tempRoot, 'remote.json');
-  fs.writeFileSync(stateDir, 'not a directory');
-  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
-  let releaseCount = 0;
-
-  await assert.rejects(
-    async () =>
-      await connectCommand({
-        positionals: [],
-        flags: {
-          json: true,
-          help: false,
-          version: false,
-          stateDir,
-          remoteConfig: remoteConfigPath,
-          daemonBaseUrl: 'https://daemon.example',
-          tenant: 'acme',
-          runId: 'run-123',
-          platform: 'android',
-          metroPublicBaseUrl: 'https://sandbox.example.test',
-          metroProxyBaseUrl: 'https://proxy.example.test',
-        },
-        client: createTestClient({
-          release: async () => {
-            releaseCount += 1;
-            return { released: true };
-          },
-        }),
-      }),
-  );
-
-  assert.equal(releaseCount, 1);
-  assert.deepEqual(vi.mocked(stopMetroCompanion).mock.calls[0]?.[0], {
-    projectRoot: '/tmp/project',
-    profileKey: remoteConfigPath,
-    consumerKey: 'default',
+test('connect --force without a session replaces the active generated connection', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-force-active-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const oldRemoteConfigPath = path.join(tempRoot, 'old-remote.json');
+  const newRemoteConfigPath = path.join(tempRoot, 'new-remote.json');
+  fs.writeFileSync(oldRemoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://old.example' }));
+  fs.writeFileSync(newRemoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://new.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-7f3a2c',
+      remoteConfigPath: oldRemoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(oldRemoteConfigPath),
+      tenant: 'acme',
+      runId: 'run-old',
+      leaseId: 'lease-old',
+      leaseBackend: 'android-instance',
+      daemon: {
+        baseUrl: 'https://old.example',
+        transport: 'http',
+      },
+      metro: {
+        projectRoot: '/tmp/old-project',
+        profileKey: oldRemoteConfigPath,
+        consumerKey: 'adc-7f3a2c',
+      },
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
   });
+  let releaseRequest: Parameters<AgentDeviceClient['leases']['release']>[0] | undefined;
+
+  await captureStdout(async () => {
+    await connectCommand({
+      positionals: [],
+      flags: {
+        json: true,
+        help: false,
+        version: false,
+        force: true,
+        stateDir,
+        remoteConfig: newRemoteConfigPath,
+        daemonBaseUrl: 'https://new.example',
+        tenant: 'acme',
+        runId: 'run-new',
+        platform: 'android',
+      },
+      client: createTestClient({
+        release: async (request) => {
+          releaseRequest = request;
+          return { released: true };
+        },
+      }),
+    });
+  });
+
+  const activeState = readActiveConnectionState({ stateDir });
+  const storedSessions = fs
+    .readdirSync(path.join(stateDir, 'remote-connections'))
+    .filter((entry) => entry.endsWith('.json') && entry !== '.active-session.json');
+
+  assert.equal(activeState?.session, 'adc-7f3a2c');
+  assert.equal(activeState?.runId, 'run-new');
+  assert.equal(activeState?.remoteConfigPath, newRemoteConfigPath);
+  assert.equal(releaseRequest?.leaseId, 'lease-old');
+  assert.deepEqual(vi.mocked(stopMetroCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/old-project',
+    profileKey: oldRemoteConfigPath,
+    consumerKey: 'adc-7f3a2c',
+  });
+  assert.equal(storedSessions.length, 1);
+
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 

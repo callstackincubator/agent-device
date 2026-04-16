@@ -1,0 +1,377 @@
+import { resolveDaemonPaths } from '../../daemon/config.ts';
+import { stopMetroTunnel } from '../../metro.ts';
+import {
+  readRemoteConnectionState,
+  writeRemoteConnectionState,
+  type RemoteConnectionState,
+} from '../../remote-connection-state.ts';
+import type { BatchStep } from '../../core/dispatch.ts';
+import { AppError } from '../../utils/errors.ts';
+import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
+import type { CliFlags } from '../../utils/command-schema.ts';
+import type { AgentDeviceClient, Lease } from '../../client.ts';
+
+const leaseDeferredCommands = new Set([
+  'connect',
+  'connection',
+  'close',
+  'devices',
+  'disconnect',
+  'ensure-simulator',
+  'metro',
+  'session',
+]);
+const runtimeDeferredCommands = new Set(['open']);
+
+export async function materializeRemoteConnectionForCommand(options: {
+  command: string;
+  flags: CliFlags;
+  client: AgentDeviceClient;
+  runtime?: SessionRuntimeHints;
+  batchSteps?: BatchStep[];
+  forceRuntimePrepare?: boolean;
+}): Promise<{ flags: CliFlags; runtime?: SessionRuntimeHints }> {
+  const { command, flags, client } = options;
+  if (!flags.remoteConfig) {
+    return { flags, runtime: options.runtime };
+  }
+
+  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
+  const state = readRemoteConnectionState({ stateDir, session: flags.session ?? 'default' });
+  if (!state) {
+    return { flags, runtime: options.runtime };
+  }
+
+  const nextFlags = { ...flags };
+  let nextRuntime = selectCompatibleRuntime(state.runtime, flags.platform) ?? options.runtime;
+  let nextState = state;
+  let changed = false;
+  let metroCleanupToStop: RemoteConnectionState['metro'] | undefined;
+  let preparedMetroCleanupOnFailure: RemoteConnectionState['metro'] | undefined;
+
+  if (shouldAllocateLeaseForCommand(command)) {
+    const leaseBackend = state.leaseBackend ?? requireRequestedLeaseBackend(flags, command);
+    assertRequestedConnectionScope(state, flags, leaseBackend);
+    const lease = await allocateOrReuseLease(client, nextState, leaseBackend);
+    nextFlags.leaseId = lease.leaseId;
+    nextFlags.leaseBackend = leaseBackend;
+    nextFlags.platform = nextState.platform ?? nextFlags.platform;
+    nextFlags.target = nextState.target ?? nextFlags.target;
+    if (nextState.leaseId !== lease.leaseId || nextState.leaseBackend !== leaseBackend) {
+      nextState = {
+        ...nextState,
+        leaseId: lease.leaseId,
+        leaseBackend,
+        platform: nextState.platform ?? flags.platform,
+        target: nextState.target ?? flags.target,
+        updatedAt: new Date().toISOString(),
+      };
+      changed = true;
+    }
+  }
+
+  if (
+    shouldPrepareRuntimeForCommand(command, options.batchSteps) &&
+    hasDeferredMetroConfig(flags)
+  ) {
+    if (!nextState.leaseId && nextFlags.leaseId) {
+      nextState = {
+        ...nextState,
+        leaseId: nextFlags.leaseId,
+        leaseBackend: nextFlags.leaseBackend,
+      };
+    }
+    const requiresPreparedRuntime =
+      options.forceRuntimePrepare ||
+      !nextRuntime ||
+      !isRuntimeCompatibleWithPlatform(nextRuntime, nextFlags.platform);
+    if (requiresPreparedRuntime) {
+      if (!nextState.leaseId) {
+        throw new AppError(
+          'INVALID_ARGS',
+          `${command} requires a resolved remote lease before Metro runtime can be prepared.`,
+        );
+      }
+      const prepared = await prepareConnectedMetro(
+        nextFlags,
+        client,
+        state.remoteConfigPath,
+        state.session,
+        {
+          tenantId: state.tenant,
+          runId: state.runId,
+          leaseId: nextState.leaseId,
+        },
+      );
+      nextRuntime = prepared.runtime;
+      const replacesExistingMetroCleanup = !isSameMetroCleanup(nextState.metro, prepared.cleanup);
+      metroCleanupToStop = replacesExistingMetroCleanup ? nextState.metro : undefined;
+      preparedMetroCleanupOnFailure = replacesExistingMetroCleanup ? prepared.cleanup : undefined;
+      nextState = {
+        ...nextState,
+        runtime: prepared.runtime,
+        metro: prepared.cleanup,
+        updatedAt: new Date().toISOString(),
+      };
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    try {
+      writeRemoteConnectionState({ stateDir, state: nextState });
+    } catch (error) {
+      await stopMetroCleanup(preparedMetroCleanupOnFailure);
+      throw error;
+    }
+  }
+  await stopMetroCleanup(metroCleanupToStop);
+
+  return {
+    flags: {
+      ...nextFlags,
+      session: nextState.session,
+      leaseId: nextState.leaseId,
+      leaseBackend: nextState.leaseBackend,
+      platform: nextState.platform ?? nextFlags.platform,
+      target: nextState.target ?? nextFlags.target,
+    },
+    runtime: nextRuntime,
+  };
+}
+
+export async function prepareConnectedMetro(
+  flags: CliFlags,
+  client: AgentDeviceClient,
+  remoteConfigPath: string,
+  session: string,
+  bridgeScope: {
+    tenantId: string;
+    runId: string;
+    leaseId: string;
+  },
+): Promise<{
+  runtime?: SessionRuntimeHints;
+  cleanup?: NonNullable<RemoteConnectionState['metro']>;
+}> {
+  if (!flags.metroProjectRoot && !flags.metroPublicBaseUrl && !flags.metroProxyBaseUrl) {
+    return {};
+  }
+  if (flags.platform !== 'ios' && flags.platform !== 'android') {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Deferred Metro preparation requires platform "ios" or "android".',
+    );
+  }
+  if (!flags.metroPublicBaseUrl) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Deferred Metro preparation requires metroPublicBaseUrl when Metro settings are provided.',
+    );
+  }
+  const prepared = await client.metro.prepare({
+    projectRoot: flags.metroProjectRoot,
+    kind: flags.metroKind,
+    publicBaseUrl: flags.metroPublicBaseUrl,
+    proxyBaseUrl: flags.metroProxyBaseUrl,
+    bearerToken: flags.metroBearerToken,
+    bridgeScope,
+    launchUrl: flags.launchUrl,
+    companionProfileKey: remoteConfigPath,
+    companionConsumerKey: session,
+    port: flags.metroPreparePort,
+    listenHost: flags.metroListenHost,
+    statusHost: flags.metroStatusHost,
+    startupTimeoutMs: flags.metroStartupTimeoutMs,
+    probeTimeoutMs: flags.metroProbeTimeoutMs,
+    reuseExisting: flags.metroNoReuseExisting ? false : undefined,
+    installDependenciesIfNeeded: flags.metroNoInstallDeps ? false : undefined,
+    runtimeFilePath: flags.metroRuntimeFile,
+  });
+  return {
+    runtime: flags.platform === 'ios' ? prepared.iosRuntime : prepared.androidRuntime,
+    cleanup: flags.metroProxyBaseUrl
+      ? {
+          projectRoot: prepared.projectRoot,
+          profileKey: remoteConfigPath,
+          consumerKey: session,
+        }
+      : undefined,
+  };
+}
+
+export async function stopMetroCleanup(
+  cleanup: RemoteConnectionState['metro'] | undefined,
+): Promise<void> {
+  if (!cleanup) return;
+  try {
+    await stopMetroTunnel(cleanup);
+  } catch {
+    // Connection lifecycle cleanup must stay best-effort.
+  }
+}
+
+export async function releasePreviousLease(
+  client: AgentDeviceClient,
+  previous: RemoteConnectionState,
+): Promise<void> {
+  if (!previous.leaseId) return;
+  try {
+    await client.leases.release({
+      tenant: previous.tenant,
+      runId: previous.runId,
+      leaseId: previous.leaseId,
+      daemonBaseUrl: previous.daemon?.baseUrl,
+      daemonTransport: previous.daemon?.transport,
+      daemonServerMode: previous.daemon?.serverMode,
+    });
+  } catch {
+    // Reconnect must succeed even if the old lease was already released.
+  }
+}
+
+export function resolveRequestedLeaseBackend(flags: CliFlags): LeaseBackend | undefined {
+  if (flags.leaseBackend) return flags.leaseBackend;
+  if (flags.platform === 'android') return 'android-instance';
+  if (flags.platform === 'ios') return 'ios-instance';
+  return undefined;
+}
+
+function requireRequestedLeaseBackend(flags: CliFlags, command: string): LeaseBackend {
+  const leaseBackend = resolveRequestedLeaseBackend(flags);
+  if (leaseBackend) return leaseBackend;
+  throw new AppError(
+    'INVALID_ARGS',
+    `${command} requires --platform ios|android or --lease-backend when the remote connection has not resolved a lease yet.`,
+  );
+}
+
+function shouldAllocateLeaseForCommand(command: string): boolean {
+  return !leaseDeferredCommands.has(command);
+}
+
+function shouldPrepareRuntimeForCommand(command: string, batchSteps?: BatchStep[]): boolean {
+  if (runtimeDeferredCommands.has(command)) {
+    return true;
+  }
+  if (command !== 'batch' || !batchSteps) {
+    return false;
+  }
+  return batchSteps.some((step) => {
+    const stepCommand = step.command.trim().toLowerCase();
+    return runtimeDeferredCommands.has(stepCommand) && step.runtime === undefined;
+  });
+}
+
+function hasDeferredMetroConfig(flags: CliFlags): boolean {
+  return Boolean(
+    flags.metroPublicBaseUrl ||
+    flags.metroProxyBaseUrl ||
+    flags.metroProjectRoot ||
+    flags.metroKind,
+  );
+}
+
+function isRuntimeCompatibleWithPlatform(
+  runtime: SessionRuntimeHints,
+  platform: CliFlags['platform'],
+): boolean {
+  if (!runtime.platform || !platform || (platform !== 'ios' && platform !== 'android')) {
+    return true;
+  }
+  return runtime.platform === platform;
+}
+
+function isSameMetroCleanup(
+  left: RemoteConnectionState['metro'] | undefined,
+  right: RemoteConnectionState['metro'] | undefined,
+): boolean {
+  return (
+    left?.projectRoot === right?.projectRoot &&
+    left?.profileKey === right?.profileKey &&
+    left?.consumerKey === right?.consumerKey
+  );
+}
+
+function selectCompatibleRuntime(
+  runtime: SessionRuntimeHints | undefined,
+  platform: CliFlags['platform'],
+): SessionRuntimeHints | undefined {
+  if (!runtime) return undefined;
+  return isRuntimeCompatibleWithPlatform(runtime, platform) ? runtime : undefined;
+}
+
+async function allocateOrReuseLease(
+  client: AgentDeviceClient,
+  state: RemoteConnectionState,
+  leaseBackend: LeaseBackend,
+): Promise<Lease> {
+  if (state.leaseId && state.leaseBackend === leaseBackend) {
+    const existing = await heartbeatOrAllocateLease(client, state.leaseId, {
+      tenant: state.tenant,
+      runId: state.runId,
+      leaseBackend,
+    });
+    if (existing) return existing;
+  }
+  return await client.leases.allocate({
+    tenant: state.tenant,
+    runId: state.runId,
+    leaseBackend,
+  });
+}
+
+function assertRequestedConnectionScope(
+  state: RemoteConnectionState,
+  flags: CliFlags,
+  requestedLeaseBackend: LeaseBackend,
+): void {
+  if (state.leaseBackend && state.leaseBackend !== requestedLeaseBackend) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Active remote connection is already bound to a different lease backend. Re-run connect --force to replace it.',
+      { session: state.session, leaseBackend: state.leaseBackend },
+    );
+  }
+  if (state.platform && flags.platform && state.platform !== flags.platform) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Active remote connection is already bound to a different platform. Re-run connect --force to replace it.',
+      { session: state.session, platform: state.platform },
+    );
+  }
+  if (state.target && flags.target && state.target !== flags.target) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Active remote connection is already bound to a different target. Re-run connect --force to replace it.',
+      { session: state.session, target: state.target },
+    );
+  }
+}
+
+async function heartbeatOrAllocateLease(
+  client: AgentDeviceClient,
+  leaseId: string,
+  scope: { tenant: string; runId: string; leaseBackend: LeaseBackend },
+): Promise<Lease | undefined> {
+  try {
+    return await client.leases.heartbeat({
+      tenant: scope.tenant,
+      runId: scope.runId,
+      leaseId,
+      leaseBackend: scope.leaseBackend,
+    });
+  } catch (error) {
+    if (isInactiveLeaseError(error)) return undefined;
+    throw error;
+  }
+}
+
+function isInactiveLeaseError(error: unknown): boolean {
+  if (!(error instanceof AppError) || error.code !== 'UNAUTHORIZED') return false;
+  return (
+    error.details?.reason === 'LEASE_NOT_FOUND' ||
+    error.details?.reason === 'LEASE_EXPIRED' ||
+    error.details?.reason === 'LEASE_REVOKED'
+  );
+}

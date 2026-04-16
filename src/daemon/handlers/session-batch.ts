@@ -103,7 +103,7 @@ async function runBatchStep(
     command: step.command,
     positionals: step.positionals,
     flags: stepFlags,
-    runtime: step.runtime as DaemonRequest['runtime'],
+    runtime: (step.runtime === undefined ? req.runtime : step.runtime) as DaemonRequest['runtime'],
     meta: req.meta,
   });
   const durationMs = Date.now() - stepStartedAt;
