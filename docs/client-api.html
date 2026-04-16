@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.99fbb5822f.js"></script>
+<script defer src="/agent-device/static/js/index.f393e78171.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -169,18 +169,26 @@ provided, the runtime uses an isolated in-memory store.</p>
 <ul>
 <li><code>capture</code>: <code>screenshot</code>, <code>diffScreenshot</code>, <code>snapshot</code>, <code>diffSnapshot</code></li>
 <li><code>selectors</code>: <code>find</code>, <code>get</code>, <code>getText</code>, <code>getAttrs</code>, <code>is</code>, <code>isVisible</code>, <code>isHidden</code>, <code>wait</code>, <code>waitForText</code></li>
-<li><code>interactions</code>: <code>click</code>, <code>press</code>, <code>fill</code>, <code>typeText</code></li>
+<li><code>interactions</code>: <code>click</code>, <code>press</code>, <code>fill</code>, <code>typeText</code>, <code>focus</code>, <code>longPress</code>, <code>swipe</code>, <code>scroll</code>, <code>pinch</code></li>
 <li><code>apps</code>: <code>open</code>, <code>close</code>, <code>list</code>, <code>state</code>, <code>push</code>, <code>triggerEvent</code></li>
+<li><code>admin</code>: <code>devices</code>, <code>boot</code>, <code>ensureSimulator</code>, <code>install</code>, <code>reinstall</code>, <code>installFromSource</code></li>
+<li><code>recording</code>: <code>record</code>, <code>trace</code></li>
+<li><code>observability</code>: <code>logs</code>, <code>network</code>, <code>perf</code> (<code>createCommandRouter()</code> dispatches these as <code>diagnostics.logs</code>, <code>diagnostics.network</code>, and <code>diagnostics.perf</code>)</li>
 </ul>
 <p>Commands that have not migrated are tracked in <code>commandCatalog</code> instead of being
 exposed as throwing methods.</p>
 <p>Backend authors can use <code>runCommandConformance()</code> or <code>assertCommandConformance()</code> from
-<code>agent-device/testing/conformance</code> to verify capture, selector, interaction, and app
-semantics against a prepared fixture app or test backend.</p>
+<code>agent-device/testing/conformance</code> to verify capture, selector, interaction, app,
+admin, recording, and diagnostics semantics against a prepared fixture app or
+test backend.</p>
 <p>Use <code>createCommandRouter()</code> from <code>agent-device/commands</code> as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,
 error normalization, and per-request runtime construction without exposing
-daemon internals.</p>
+daemon internals. Router-level <code>batch</code> dispatches its nested steps through the
+same router path so command policy and error formatting still run for each step.
+Diagnostics payload redaction is best-effort: structured JSON bodies are
+redacted recursively, and non-JSON payloads are sanitized with string-pattern
+fallbacks before truncation.</p>
 <h2 class="rp-toc-include" id="command-methods"><a href="#command-methods" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Command methods</h2>
 <p>Use <code>client.command.&lt;method&gt;()</code> for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, normalized daemon errors, and remote artifact handling.</p>
 <p>Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.</p>
