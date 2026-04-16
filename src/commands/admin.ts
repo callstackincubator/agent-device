@@ -184,13 +184,24 @@ async function resolveInstallSource(
 ): Promise<{ source: BackendInstallSource; cleanup?: () => Promise<void> }> {
   const normalized = normalizeInstallSource(source);
   const localResolved = await resolveLocalInstallSource(runtime, normalized);
-  const backendResolved = runtime.backend.resolveInstallSource
-    ? await runtime.backend.resolveInstallSource(context, localResolved.source)
-    : localResolved.source;
-  return {
-    source: normalizeInstallSource(backendResolved),
-    ...(localResolved.cleanup ? { cleanup: localResolved.cleanup } : {}),
-  };
+  try {
+    const backendResolved = runtime.backend.resolveInstallSource
+      ? await runtime.backend.resolveInstallSource(context, localResolved.source)
+      : localResolved.source;
+    return {
+      source: normalizeInstallSource(backendResolved),
+      ...(localResolved.cleanup ? { cleanup: localResolved.cleanup } : {}),
+    };
+  } catch (error) {
+    if (localResolved.cleanup) {
+      try {
+        await localResolved.cleanup();
+      } catch {
+        // Best-effort cleanup; preserve the original install source resolution failure.
+      }
+    }
+    throw error;
+  }
 }
 
 async function resolveLocalInstallSource(

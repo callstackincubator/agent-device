@@ -101,6 +101,48 @@ test('admin install blocks local paths under restricted policy but accepts uploa
   assert.deepEqual(sourceSeen, { kind: 'path', path: '/tmp/uploaded/artifact-1.app' });
 });
 
+test('admin install cleans materialized input when backend source resolution fails', async () => {
+  let cleanupCalled = false;
+  let installCalled = false;
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      resolveInstallSource: async () => {
+        throw new Error('backend source resolution failed');
+      },
+      installApp: async () => {
+        installCalled = true;
+        return {};
+      },
+    },
+    artifacts: {
+      ...artifacts,
+      resolveInput: async (ref: FileInputRef) => ({
+        path: ref.kind === 'path' ? ref.path : `/tmp/uploaded/${ref.id}.app`,
+        cleanup:
+          ref.kind === 'uploadedArtifact'
+            ? async () => {
+                cleanupCalled = true;
+              }
+            : undefined,
+      }),
+    },
+    policy: restrictedCommandPolicy(),
+  });
+
+  await assert.rejects(
+    () =>
+      device.admin.install({
+        app: 'com.example.app',
+        source: { kind: 'uploadedArtifact', id: 'artifact-1' },
+      }),
+    /backend source resolution failed/,
+  );
+
+  assert.equal(cleanupCalled, true);
+  assert.equal(installCalled, false);
+});
+
 test('router batch preserves per-step failures and enforces per-command policy', async () => {
   const router = createCommandRouter({
     createRuntime: () =>
