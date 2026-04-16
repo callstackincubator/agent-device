@@ -369,12 +369,16 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk --platform android
-agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios --header "authorization: Bearer TOKEN"
+agent-device install-from-source https://example.com/builds/app.aab --platform android
+agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
 ```
 
 - `install-from-source <url>` installs from a URL source through the normal daemon artifact flow.
 - Repeat `--header <name:value>` for authenticated or signed artifact requests.
 - Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
+- Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths; use `install-from-source` when the artifact already exists at a URL reachable by the daemon.
+- Direct Android URL sources may be `.apk` or `.aab`.
+- Trusted artifact service URLs, currently GitHub Actions and EAS, may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
 - URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
 
