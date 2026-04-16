@@ -668,8 +668,9 @@ agent-device snapshot -i
 agent-device disconnect
 ```
 
-- `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, session, platform, lease backend, and Metro settings for `connect`.
-- `connect --remote-config ...` is the main agent flow. It allocates or refreshes a tenant lease, prepares Metro locally, auto-manages the local Metro companion when the bridge needs it, and stores runtime hints for later `open`.
+- `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
+- `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Deferred Metro preparation also applies to `batch` when any step opens an app and the batch does not provide its own per-step runtime.
 - After `connect`, `snapshot`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Explicit command-line flags override those connected defaults.
 - `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 - The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
