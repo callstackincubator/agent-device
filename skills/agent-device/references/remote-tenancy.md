@@ -27,6 +27,7 @@ agent-device connect \
   --remote-config ./remote-config.json
 
 agent-device install com.example.app ./app.apk
+agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device open com.example.app --relaunch
 agent-device snapshot -i
 agent-device fill @e3 "test@example.com"
@@ -34,6 +35,21 @@ agent-device disconnect
 ```
 
 `connect` resolves the remote profile, verifies daemon reachability through the normal client path, allocates or refreshes the tenant lease, prepares local Metro when the profile has Metro fields, starts the local Metro companion when the bridge needs it, and writes local non-secret connection state for later commands. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease, and removes local connection state.
+
+After `connect`, normal `agent-device` commands use the active remote connection. Do not repeat `--remote-config` on every command.
+
+Remote install examples:
+
+```bash
+agent-device install com.example.app ./app.apk
+agent-device install-from-source https://example.com/builds/app.aab --platform android
+agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios
+agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+```
+
+- Use `install` or `reinstall` for local paths; remote daemons upload local artifacts automatically.
+- Use `install-from-source` for artifact URLs the remote daemon can reach.
+- Do not download CI artifacts locally, repackage them, or publish temporary release assets just to install them.
 
 Use `agent-device connection status --session adc-android` to inspect the active connection without reading JSON state manually. Status output must not include auth tokens.
 

@@ -179,9 +179,10 @@ If the daemon cannot determine installed app identity, the request fails instead
 
 - Private and loopback hosts are blocked by default.
 - Archive-backed URL installs are only supported for trusted artifact services, currently GitHub Actions and EAS.
-- For other hosts, prefer `source: { kind: 'path', path: ... }` so the client downloads/uploads the artifact explicitly.
+- For existing reachable artifact URLs, use `source: { kind: 'url', url: ... }`; do not download, repackage, or publish artifacts elsewhere just to reshape the URL.
+- For local artifacts, use `source: { kind: 'path', path: ... }` or the CLI `install`/`reinstall` commands.
 
-Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact.
+Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact. Trusted GitHub Actions and EAS archive URLs may contain one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
 
 ## Remote Metro helpers
 

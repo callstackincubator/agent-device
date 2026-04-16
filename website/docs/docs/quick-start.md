@@ -59,6 +59,7 @@ agent-device get text @e1                # Get text content
 agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
 agent-device install-from-source https://example.com/builds/app.apk --platform android
+agent-device install-from-source https://example.com/builds/app.aab --platform android
 agent-device reinstall com.example.app ./build/app.apk   # Fresh-state uninstall + install
 agent-device close
 ```
@@ -69,6 +70,8 @@ agent-device close
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
+
+Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths. Use `install-from-source` when the artifact already exists at a URL reachable by the daemon, including direct Android `.apk`/`.aab` URLs and trusted GitHub Actions or EAS artifact archives with one installable artifact. Do not create temporary releases, re-zip artifacts, or publish replacement assets just to install a CI artifact.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.

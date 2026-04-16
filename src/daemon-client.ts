@@ -272,6 +272,7 @@ async function prepareRemoteRequest(
     localPath,
     baseUrl: info.baseUrl!,
     token: info.token,
+    platform: resolveUploadPlatform(req.flags?.platform),
   });
   return {
     positionals,
@@ -323,6 +324,7 @@ async function prepareRemoteInstallSource(
     localPath,
     baseUrl: info.baseUrl!,
     token: info.token,
+    platform: resolveUploadPlatform(req.flags?.platform),
   });
   return {
     installSource: {
@@ -390,6 +392,12 @@ function buildRemoteTempArtifactPath(prefix: string, extension: string): string 
     '/tmp',
     `agent-device-${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeExtension}`,
   );
+}
+
+function resolveUploadPlatform(
+  platform: NonNullable<DaemonRequest['flags']>['platform'] | undefined,
+): 'ios' | 'android' | undefined {
+  return platform === 'ios' || platform === 'android' ? platform : undefined;
 }
 
 function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {

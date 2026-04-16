@@ -17,6 +17,7 @@ Use this exact order when you are not sure about the installed app identifier. O
 ## Install path
 
 - `install` or `reinstall`
+- `install-from-source` when the artifact already exists at a URL the daemon can reach
 
 ## Most common mistake to avoid
 
@@ -60,14 +61,26 @@ agent-device install com.example.app ./build/app.apk --platform android --serial
 agent-device install com.example.app ./build/MyApp.app --platform ios --device "iPhone 17 Pro"
 ```
 
+```bash
+agent-device install-from-source https://example.com/builds/app.aab --platform android
+agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+```
+
 ## Install guidance
 
 - Use `install <app> <path>` when the app may already be installed and you do not need a fresh-state reset.
 - Use `reinstall <app> <path>` when you explicitly need uninstall plus install as one deterministic step.
+- Use `install-from-source <url>` when an existing artifact URL is already reachable by the daemon.
+- Local `.apk`, `.aab`, `.app`, and `.ipa` paths go through `install` or `reinstall`; existing reachable URLs go through `install-from-source`.
+- Do not download, re-zip, publish temporary GitHub releases, or move CI artifacts elsewhere just to make an install command work.
 - Keep install and open as separate phases. Do not turn them into one default command flow.
 - Supported binary formats:
   - Android: `.apk` and `.aab`
   - iOS: `.app` and `.ipa`
+- Android URL sources can be direct `.apk` or `.aab` files.
+- Trusted artifact service URLs, currently GitHub Actions and EAS, may point at archive-backed downloads that contain one installable artifact. This includes GitHub Actions artifact ZIPs whose URL path does not end in `.zip` and ZIPs containing one nested `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
+- If a trusted artifact archive contains multiple installables, stop and ask for the intended artifact instead of guessing.
+- `.aab` still requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`, when the daemon installs the materialized artifact.
 - For iOS `.ipa` files, `<app>` is used as the bundle id or bundle name hint when the archive contains multiple app bundles.
 - After install or reinstall, later use `open <app>` with the exact discovered or known package/bundle identifier, not the artifact path.
 
