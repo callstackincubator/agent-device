@@ -75,7 +75,7 @@ Use `snapshot --raw --platform macos` only when debugging AX structure or collec
 Things not to rely on:
 
 - Mobile-only helpers such as `install`, `reinstall`, or `push`.
-- Desktop-global click or fill parity from `desktop` or `menubar` sessions.
+- Desktop-global click, fill, or gesture parity from `desktop` or `menubar` sessions.
 - Raw coordinate assumptions across runs.
 
 Troubleshooting:

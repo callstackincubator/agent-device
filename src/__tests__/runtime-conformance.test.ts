@@ -31,6 +31,19 @@ test('command conformance suites run against a fixture backend', async () => {
   assert.equal(calls.includes('tap'), true);
   assert.equal(calls.includes('fill'), true);
   assert.equal(calls.includes('typeText'), true);
+  assert.equal(calls.includes('focus'), true);
+  assert.equal(calls.includes('longPress'), true);
+  assert.equal(calls.includes('swipe'), true);
+  assert.equal(calls.includes('scroll'), true);
+  assert.equal(calls.includes('pinch'), true);
+  assert.equal(calls.includes('pressBack'), true);
+  assert.equal(calls.includes('pressHome'), true);
+  assert.equal(calls.includes('rotate'), true);
+  assert.equal(calls.includes('setKeyboard'), true);
+  assert.equal(calls.includes('getClipboard'), true);
+  assert.equal(calls.includes('openSettings'), true);
+  assert.equal(calls.includes('handleAlert'), true);
+  assert.equal(calls.includes('openAppSwitcher'), true);
   assert.equal(calls.includes('openApp'), true);
   assert.equal(calls.includes('closeApp'), true);
   assert.equal(calls.includes('listApps'), true);
@@ -77,6 +90,48 @@ function createFixtureBackend(calls: string[]): AgentDeviceBackend {
     },
     typeText: async () => {
       calls.push('typeText');
+    },
+    focus: async () => {
+      calls.push('focus');
+    },
+    longPress: async () => {
+      calls.push('longPress');
+    },
+    swipe: async () => {
+      calls.push('swipe');
+    },
+    scroll: async () => {
+      calls.push('scroll');
+    },
+    pinch: async () => {
+      calls.push('pinch');
+    },
+    pressBack: async () => {
+      calls.push('pressBack');
+    },
+    pressHome: async () => {
+      calls.push('pressHome');
+    },
+    rotate: async () => {
+      calls.push('rotate');
+    },
+    setKeyboard: async (_context, options) => {
+      calls.push('setKeyboard');
+      return { action: options.action, visible: false };
+    },
+    getClipboard: async () => {
+      calls.push('getClipboard');
+      return { text: 'copied' };
+    },
+    openSettings: async () => {
+      calls.push('openSettings');
+    },
+    handleAlert: async () => {
+      calls.push('handleAlert');
+      return { kind: 'alertStatus', alert: null };
+    },
+    openAppSwitcher: async () => {
+      calls.push('openAppSwitcher');
     },
     openApp: async () => {
       calls.push('openApp');

@@ -15,6 +15,7 @@ export type CommandConformanceFixtures = {
   editableTarget: InteractionTarget;
   fillText: string;
   point: Point;
+  swipeTo: Point;
 };
 
 export type CommandConformanceTarget = {
@@ -75,6 +76,7 @@ export const defaultCommandConformanceFixtures: CommandConformanceFixtures = {
   editableTarget: selector('label=Email'),
   fillText: 'hello@example.com',
   point: { x: 4, y: 8 },
+  swipeTo: { x: 24, y: 28 },
 };
 
 export const captureConformanceSuite = createCommandConformanceSuite({
@@ -207,6 +209,152 @@ export const interactionConformanceSuite = createCommandConformanceSuite({
         assert.equal(result.text, fixtures.fillText);
       },
     },
+    {
+      name: 'focuses selector targets',
+      command: 'interactions.focus',
+      run: async (runtime, fixtures) => {
+        const result = await commands.interactions.focus(runtime, {
+          session: fixtures.session,
+          target: selector(fixtures.visibleSelector),
+        });
+        assert.equal(result.kind, 'selector');
+      },
+    },
+    {
+      name: 'long presses selector targets',
+      command: 'interactions.longPress',
+      run: async (runtime, fixtures) => {
+        const result = await commands.interactions.longPress(runtime, {
+          session: fixtures.session,
+          target: selector(fixtures.visibleSelector),
+          durationMs: 500,
+        });
+        assert.equal(result.kind, 'selector');
+      },
+    },
+    {
+      name: 'swipes explicit points',
+      command: 'interactions.swipe',
+      run: async (runtime, fixtures) => {
+        const result = await commands.interactions.swipe(runtime, {
+          session: fixtures.session,
+          from: fixtures.point,
+          to: fixtures.swipeTo,
+        });
+        assert.deepEqual(result.from, fixtures.point);
+      },
+    },
+    {
+      name: 'scrolls viewport targets',
+      command: 'interactions.scroll',
+      run: async (runtime, fixtures) => {
+        const result = await commands.interactions.scroll(runtime, {
+          session: fixtures.session,
+          target: { kind: 'viewport' },
+          direction: 'down',
+        });
+        assert.equal(result.kind, 'viewport');
+      },
+    },
+    {
+      name: 'pinches through the backend primitive',
+      command: 'interactions.pinch',
+      run: async (runtime) => {
+        const result = await commands.interactions.pinch(runtime, {
+          scale: 1.1,
+        });
+        assert.equal(result.kind, 'pinch');
+      },
+    },
+  ],
+});
+
+export const systemConformanceSuite = createCommandConformanceSuite({
+  name: 'system',
+  cases: [
+    {
+      name: 'presses back',
+      command: 'system.back',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.back(runtime, {
+          session: fixtures.session,
+          mode: 'in-app',
+        });
+        assert.equal(result.kind, 'systemBack');
+      },
+    },
+    {
+      name: 'presses home',
+      command: 'system.home',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.home(runtime, { session: fixtures.session });
+        assert.equal(result.kind, 'systemHome');
+      },
+    },
+    {
+      name: 'rotates devices',
+      command: 'system.rotate',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.rotate(runtime, {
+          session: fixtures.session,
+          orientation: 'portrait',
+        });
+        assert.equal(result.orientation, 'portrait');
+      },
+    },
+    {
+      name: 'reads keyboard state',
+      command: 'system.keyboard',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.keyboard(runtime, {
+          session: fixtures.session,
+          action: 'status',
+        });
+        assert.equal(result.kind, 'keyboardState');
+      },
+    },
+    {
+      name: 'reads clipboard text',
+      command: 'system.clipboard',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.clipboard(runtime, {
+          session: fixtures.session,
+          action: 'read',
+        });
+        assert.equal(result.kind, 'clipboardText');
+      },
+    },
+    {
+      name: 'opens settings',
+      command: 'system.settings',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.settings(runtime, {
+          session: fixtures.session,
+        });
+        assert.equal(result.kind, 'settingsOpened');
+      },
+    },
+    {
+      name: 'reads alert state',
+      command: 'system.alert',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.alert(runtime, {
+          session: fixtures.session,
+          action: 'get',
+        });
+        assert.equal(result.kind, 'alertStatus');
+      },
+    },
+    {
+      name: 'opens app switcher',
+      command: 'system.appSwitcher',
+      run: async (runtime, fixtures) => {
+        const result = await commands.system.appSwitcher(runtime, {
+          session: fixtures.session,
+        });
+        assert.equal(result.kind, 'appSwitcherOpened');
+      },
+    },
   ],
 });
 
@@ -290,6 +438,7 @@ export const commandConformanceSuites: readonly CommandConformanceSuite[] = [
   captureConformanceSuite,
   selectorConformanceSuite,
   interactionConformanceSuite,
+  systemConformanceSuite,
   appsConformanceSuite,
 ];
 

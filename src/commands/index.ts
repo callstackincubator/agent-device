@@ -40,17 +40,58 @@ import {
 import {
   clickCommand,
   fillCommand,
+  focusCommand,
+  longPressCommand,
+  pinchCommand,
   pressCommand,
+  scrollCommand,
+  swipeCommand,
   typeTextCommand,
   type ClickCommandOptions,
   type FillCommandOptions,
   type FillCommandResult,
+  type FocusCommandOptions,
+  type FocusCommandResult,
   type InteractionTarget,
+  type LongPressCommandOptions,
+  type LongPressCommandResult,
+  type PinchCommandOptions,
+  type PinchCommandResult,
   type PressCommandOptions,
   type PressCommandResult,
+  type ScrollCommandOptions,
+  type ScrollCommandResult,
+  type SwipeCommandOptions,
+  type SwipeCommandResult,
   type TypeTextCommandOptions,
   type TypeTextCommandResult,
 } from './interactions.ts';
+import {
+  alertCommand,
+  appSwitcherCommand,
+  backCommand,
+  clipboardCommand,
+  homeCommand,
+  keyboardCommand,
+  rotateCommand,
+  settingsCommand,
+  type SystemAlertCommandOptions,
+  type SystemAlertCommandResult,
+  type SystemAppSwitcherCommandOptions,
+  type SystemAppSwitcherCommandResult,
+  type SystemBackCommandOptions,
+  type SystemBackCommandResult,
+  type SystemClipboardCommandOptions,
+  type SystemClipboardCommandResult,
+  type SystemHomeCommandOptions,
+  type SystemHomeCommandResult,
+  type SystemKeyboardCommandOptions,
+  type SystemKeyboardCommandResult,
+  type SystemRotateCommandOptions,
+  type SystemRotateCommandResult,
+  type SystemSettingsCommandOptions,
+  type SystemSettingsCommandResult,
+} from './system.ts';
 import {
   closeAppCommand,
   getAppStateCommand,
@@ -107,13 +148,44 @@ export type {
   ClickCommandOptions,
   FillCommandOptions,
   FillCommandResult,
+  FocusCommandOptions,
+  FocusCommandResult,
   InteractionTarget,
+  LongPressCommandOptions,
+  LongPressCommandResult,
+  PinchCommandOptions,
+  PinchCommandResult,
   PointTarget,
   PressCommandOptions,
   PressCommandResult,
+  ResolvedInteractionTarget,
+  ScrollCommandOptions,
+  ScrollCommandResult,
+  ScrollTarget,
+  SwipeCommandOptions,
+  SwipeCommandResult,
+  SwipeOptions,
   TypeTextCommandOptions,
   TypeTextCommandResult,
 } from './interactions.ts';
+export type {
+  SystemAlertCommandOptions,
+  SystemAlertCommandResult,
+  SystemAppSwitcherCommandOptions,
+  SystemAppSwitcherCommandResult,
+  SystemBackCommandOptions,
+  SystemBackCommandResult,
+  SystemClipboardCommandOptions,
+  SystemClipboardCommandResult,
+  SystemHomeCommandOptions,
+  SystemHomeCommandResult,
+  SystemKeyboardCommandOptions,
+  SystemKeyboardCommandResult,
+  SystemRotateCommandOptions,
+  SystemRotateCommandResult,
+  SystemSettingsCommandOptions,
+  SystemSettingsCommandResult,
+} from './system.ts';
 export type {
   AppPushInput,
   CloseAppCommandOptions,
@@ -195,6 +267,24 @@ export type AgentDeviceCommands = {
     press: RuntimeCommand<PressCommandOptions, PressCommandResult>;
     fill: RuntimeCommand<FillCommandOptions, FillCommandResult>;
     typeText: RuntimeCommand<TypeTextCommandOptions, TypeTextCommandResult>;
+    focus: RuntimeCommand<FocusCommandOptions, FocusCommandResult>;
+    longPress: RuntimeCommand<LongPressCommandOptions, LongPressCommandResult>;
+    swipe: RuntimeCommand<SwipeCommandOptions, SwipeCommandResult>;
+    scroll: RuntimeCommand<ScrollCommandOptions, ScrollCommandResult>;
+    pinch: RuntimeCommand<PinchCommandOptions, PinchCommandResult>;
+  };
+  system: {
+    back: RuntimeCommand<SystemBackCommandOptions | undefined, SystemBackCommandResult>;
+    home: RuntimeCommand<SystemHomeCommandOptions | undefined, SystemHomeCommandResult>;
+    rotate: RuntimeCommand<SystemRotateCommandOptions, SystemRotateCommandResult>;
+    keyboard: RuntimeCommand<SystemKeyboardCommandOptions | undefined, SystemKeyboardCommandResult>;
+    clipboard: RuntimeCommand<SystemClipboardCommandOptions, SystemClipboardCommandResult>;
+    settings: RuntimeCommand<SystemSettingsCommandOptions | undefined, SystemSettingsCommandResult>;
+    alert: RuntimeCommand<SystemAlertCommandOptions | undefined, SystemAlertCommandResult>;
+    appSwitcher: RuntimeCommand<
+      SystemAppSwitcherCommandOptions | undefined,
+      SystemAppSwitcherCommandResult
+    >;
   };
   apps: {
     open: RuntimeCommand<OpenAppCommandOptions, OpenAppCommandResult>;
@@ -257,6 +347,29 @@ export type BoundAgentDeviceCommands = {
       text: string,
       options?: Omit<TypeTextCommandOptions, 'text'>,
     ) => Promise<TypeTextCommandResult>;
+    focus: (
+      target: InteractionTarget,
+      options?: Omit<FocusCommandOptions, 'target'>,
+    ) => Promise<FocusCommandResult>;
+    longPress: (
+      target: InteractionTarget,
+      options?: Omit<LongPressCommandOptions, 'target'>,
+    ) => Promise<LongPressCommandResult>;
+    swipe: BoundRuntimeCommand<SwipeCommandOptions, SwipeCommandResult>;
+    scroll: BoundRuntimeCommand<ScrollCommandOptions, ScrollCommandResult>;
+    pinch: BoundRuntimeCommand<PinchCommandOptions, PinchCommandResult>;
+  };
+  system: {
+    back: (options?: SystemBackCommandOptions) => Promise<SystemBackCommandResult>;
+    home: (options?: SystemHomeCommandOptions) => Promise<SystemHomeCommandResult>;
+    rotate: BoundRuntimeCommand<SystemRotateCommandOptions, SystemRotateCommandResult>;
+    keyboard: (options?: SystemKeyboardCommandOptions) => Promise<SystemKeyboardCommandResult>;
+    clipboard: BoundRuntimeCommand<SystemClipboardCommandOptions, SystemClipboardCommandResult>;
+    settings: (options?: SystemSettingsCommandOptions) => Promise<SystemSettingsCommandResult>;
+    alert: (options?: SystemAlertCommandOptions) => Promise<SystemAlertCommandResult>;
+    appSwitcher: (
+      options?: SystemAppSwitcherCommandOptions,
+    ) => Promise<SystemAppSwitcherCommandResult>;
   };
   apps: {
     open: BoundRuntimeCommand<OpenAppCommandOptions, OpenAppCommandResult>;
@@ -291,6 +404,21 @@ export const commands: AgentDeviceCommands = {
     press: pressCommand,
     fill: fillCommand,
     typeText: typeTextCommand,
+    focus: focusCommand,
+    longPress: longPressCommand,
+    swipe: swipeCommand,
+    scroll: scrollCommand,
+    pinch: pinchCommand,
+  },
+  system: {
+    back: backCommand,
+    home: homeCommand,
+    rotate: rotateCommand,
+    keyboard: keyboardCommand,
+    clipboard: clipboardCommand,
+    settings: settingsCommand,
+    alert: alertCommand,
+    appSwitcher: appSwitcherCommand,
   },
   apps: {
     open: openAppCommand,
@@ -333,6 +461,22 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
         commands.interactions.fill(runtime, { ...options, target, text }),
       typeText: (text, options = {}) =>
         commands.interactions.typeText(runtime, { ...options, text }),
+      focus: (target, options = {}) => commands.interactions.focus(runtime, { ...options, target }),
+      longPress: (target, options = {}) =>
+        commands.interactions.longPress(runtime, { ...options, target }),
+      swipe: (options) => commands.interactions.swipe(runtime, options),
+      scroll: (options) => commands.interactions.scroll(runtime, options),
+      pinch: (options) => commands.interactions.pinch(runtime, options),
+    },
+    system: {
+      back: (options) => commands.system.back(runtime, options),
+      home: (options) => commands.system.home(runtime, options),
+      rotate: (options) => commands.system.rotate(runtime, options),
+      keyboard: (options) => commands.system.keyboard(runtime, options),
+      clipboard: (options) => commands.system.clipboard(runtime, options),
+      settings: (options) => commands.system.settings(runtime, options),
+      alert: (options) => commands.system.alert(runtime, options),
+      appSwitcher: (options) => commands.system.appSwitcher(runtime, options),
     },
     apps: {
       open: (options) => commands.apps.open(runtime, options),

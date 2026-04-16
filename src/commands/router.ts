@@ -29,16 +29,57 @@ import {
 import {
   clickCommand,
   fillCommand,
+  focusCommand,
+  longPressCommand,
+  pinchCommand,
   pressCommand,
+  scrollCommand,
+  swipeCommand,
   typeTextCommand,
   type ClickCommandOptions,
   type FillCommandOptions,
   type FillCommandResult,
+  type FocusCommandOptions,
+  type FocusCommandResult,
+  type LongPressCommandOptions,
+  type LongPressCommandResult,
+  type PinchCommandOptions,
+  type PinchCommandResult,
   type PressCommandOptions,
   type PressCommandResult,
+  type ScrollCommandOptions,
+  type ScrollCommandResult,
+  type SwipeCommandOptions,
+  type SwipeCommandResult,
   type TypeTextCommandOptions,
   type TypeTextCommandResult,
 } from './interactions.ts';
+import {
+  alertCommand,
+  appSwitcherCommand,
+  backCommand,
+  clipboardCommand,
+  homeCommand,
+  keyboardCommand,
+  rotateCommand,
+  settingsCommand,
+  type SystemAlertCommandOptions,
+  type SystemAlertCommandResult,
+  type SystemAppSwitcherCommandOptions,
+  type SystemAppSwitcherCommandResult,
+  type SystemBackCommandOptions,
+  type SystemBackCommandResult,
+  type SystemClipboardCommandOptions,
+  type SystemClipboardCommandResult,
+  type SystemHomeCommandOptions,
+  type SystemHomeCommandResult,
+  type SystemKeyboardCommandOptions,
+  type SystemKeyboardCommandResult,
+  type SystemRotateCommandOptions,
+  type SystemRotateCommandResult,
+  type SystemSettingsCommandOptions,
+  type SystemSettingsCommandResult,
+} from './system.ts';
 import {
   closeAppCommand,
   getAppStateCommand,
@@ -128,6 +169,71 @@ export type CommandRouterRequest<TContext = unknown> =
       context?: TContext;
     }
   | {
+      command: 'interactions.focus';
+      options: FocusCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'interactions.longPress';
+      options: LongPressCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'interactions.swipe';
+      options: SwipeCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'interactions.scroll';
+      options: ScrollCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'interactions.pinch';
+      options: PinchCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.back';
+      options?: SystemBackCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.home';
+      options?: SystemHomeCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.rotate';
+      options: SystemRotateCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.keyboard';
+      options?: SystemKeyboardCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.clipboard';
+      options: SystemClipboardCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.settings';
+      options?: SystemSettingsCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.alert';
+      options?: SystemAlertCommandOptions;
+      context?: TContext;
+    }
+  | {
+      command: 'system.appSwitcher';
+      options?: SystemAppSwitcherCommandOptions;
+      context?: TContext;
+    }
+  | {
       command: 'apps.open';
       options: OpenAppCommandOptions;
       context?: TContext;
@@ -170,6 +276,19 @@ export type CommandRouterResult =
   | PressCommandResult
   | FillCommandResult
   | TypeTextCommandResult
+  | FocusCommandResult
+  | LongPressCommandResult
+  | SwipeCommandResult
+  | ScrollCommandResult
+  | PinchCommandResult
+  | SystemBackCommandResult
+  | SystemHomeCommandResult
+  | SystemRotateCommandResult
+  | SystemKeyboardCommandResult
+  | SystemClipboardCommandResult
+  | SystemSettingsCommandResult
+  | SystemAlertCommandResult
+  | SystemAppSwitcherCommandResult
   | OpenAppCommandResult
   | CloseAppCommandResult
   | ListAppsCommandResult
@@ -232,6 +351,19 @@ const implementedRouterCommands = new Set<string>([
   'interactions.press',
   'interactions.fill',
   'interactions.typeText',
+  'interactions.focus',
+  'interactions.longPress',
+  'interactions.swipe',
+  'interactions.scroll',
+  'interactions.pinch',
+  'system.back',
+  'system.home',
+  'system.rotate',
+  'system.keyboard',
+  'system.clipboard',
+  'system.settings',
+  'system.alert',
+  'system.appSwitcher',
   'apps.open',
   'apps.close',
   'apps.list',
@@ -284,6 +416,32 @@ async function dispatchRuntimeCommand<TContext>(
       return await fillCommand(runtime, request.options);
     case 'interactions.typeText':
       return await typeTextCommand(runtime, request.options);
+    case 'interactions.focus':
+      return await focusCommand(runtime, request.options);
+    case 'interactions.longPress':
+      return await longPressCommand(runtime, request.options);
+    case 'interactions.swipe':
+      return await swipeCommand(runtime, request.options);
+    case 'interactions.scroll':
+      return await scrollCommand(runtime, request.options);
+    case 'interactions.pinch':
+      return await pinchCommand(runtime, request.options);
+    case 'system.back':
+      return await backCommand(runtime, request.options);
+    case 'system.home':
+      return await homeCommand(runtime, request.options);
+    case 'system.rotate':
+      return await rotateCommand(runtime, request.options);
+    case 'system.keyboard':
+      return await keyboardCommand(runtime, request.options);
+    case 'system.clipboard':
+      return await clipboardCommand(runtime, request.options);
+    case 'system.settings':
+      return await settingsCommand(runtime, request.options);
+    case 'system.alert':
+      return await alertCommand(runtime, request.options);
+    case 'system.appSwitcher':
+      return await appSwitcherCommand(runtime, request.options);
     case 'apps.open':
       return await openAppCommand(runtime, request.options);
     case 'apps.close':

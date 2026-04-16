@@ -43,6 +43,7 @@ const backend = {
   getAppState: async (_context, app: string) => ({ bundleId: app, state: 'foreground' as const }),
   pushFile: async () => {},
   triggerAppEvent: async () => {},
+  pressHome: async () => {},
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -76,6 +77,7 @@ test('package root exposes command runtime skeleton', async () => {
   assert.equal(device.policy.allowLocalInputPaths, false);
   assert.equal(typeof device.capture.screenshot, 'function');
   assert.equal(typeof device.interactions.click, 'function');
+  assert.equal(typeof device.system.back, 'function');
   assert.equal(typeof device.apps.open, 'function');
   const result = await device.capture.screenshot({});
   assert.equal(result.path, '/tmp/path.png');
@@ -365,11 +367,24 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
   assert.equal(typeof commands.interactions.press, 'function');
   assert.equal(typeof commands.interactions.fill, 'function');
   assert.equal(typeof commands.interactions.typeText, 'function');
+  assert.equal(typeof commands.interactions.focus, 'function');
+  assert.equal(typeof commands.interactions.longPress, 'function');
+  assert.equal(typeof commands.interactions.swipe, 'function');
+  assert.equal(typeof commands.interactions.scroll, 'function');
+  assert.equal(typeof commands.interactions.pinch, 'function');
+  assert.equal(typeof commands.system.back, 'function');
+  assert.equal(typeof commands.system.home, 'function');
+  assert.equal(typeof commands.system.rotate, 'function');
+  assert.equal(typeof commands.system.keyboard, 'function');
+  assert.equal(typeof commands.system.clipboard, 'function');
+  assert.equal(typeof commands.system.settings, 'function');
+  assert.equal(typeof commands.system.alert, 'function');
+  assert.equal(typeof commands.system.appSwitcher, 'function');
   assert.equal(
     commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
     true,
   );
-  assert.equal(commandConformanceSuites.length, 4);
+  assert.equal(commandConformanceSuites.length, 5);
   assert.equal(typeof runCommandConformance, 'function');
   assert.equal(target.name, 'fake');
 });
@@ -420,6 +435,13 @@ test('command router dispatches implemented runtime commands and normalizes erro
   });
   assert.equal(typed.ok, true);
   assert.equal(typed.ok && 'text' in typed.data ? typed.data.text : undefined, 'hello');
+
+  const home = await router.dispatch({
+    command: 'system.home',
+    options: {},
+  });
+  assert.equal(home.ok, true);
+  assert.equal(home.ok && 'kind' in home.data ? home.data.kind : undefined, 'systemHome');
 
   const opened = await router.dispatch({
     command: 'apps.open',

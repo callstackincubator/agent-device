@@ -491,6 +491,7 @@ agent-device clipboard write ""   # clear clipboard
 ```
 
 - `clipboard read` returns clipboard text for the selected target.
+- Treat `clipboard read` output as sensitive data; it can include secrets copied by the user or app.
 - `clipboard write <text>` updates clipboard text on the selected target.
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - Supported on macOS, Android emulator/device, and iOS simulator.

@@ -193,6 +193,195 @@ test('runtime typeText validates refs and forwards text to the backend primitive
   );
 });
 
+test('runtime focus and longPress share selector/ref target resolution', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(selectorSnapshot(), {
+    focus: async (_context, point) => {
+      calls.push({ command: 'focus', point });
+      return { focused: true };
+    },
+    longPress: async (_context, point, options) => {
+      calls.push({ command: 'longPress', point, durationMs: options?.durationMs });
+    },
+  });
+
+  const focused = await device.interactions.focus(selector('label=Continue'), {
+    session: 'default',
+  });
+  const longPressed = await device.interactions.longPress(ref('@e1'), {
+    session: 'default',
+    durationMs: 750,
+  });
+
+  assert.equal(focused.kind, 'selector');
+  assert.deepEqual(focused.backendResult, { focused: true });
+  assert.equal(longPressed.kind, 'ref');
+  assert.deepEqual(calls, [
+    { command: 'focus', point: { x: 60, y: 40 } },
+    { command: 'longPress', point: { x: 60, y: 40 }, durationMs: 750 },
+  ]);
+});
+
+test('runtime scroll resolves selector targets before calling the backend primitive', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(selectorSnapshot(), {
+    scroll: async (_context, target, options) => {
+      calls.push({ target, options });
+      return { scrolled: true };
+    },
+  });
+
+  const selectorResult = await device.interactions.scroll({
+    session: 'default',
+    target: selector('label=Continue'),
+    direction: 'down',
+    pixels: 120,
+  });
+  const viewportResult = await device.interactions.scroll({
+    direction: 'up',
+    amount: 0.5,
+  });
+
+  assert.equal(selectorResult.kind, 'selector');
+  assert.equal(viewportResult.kind, 'viewport');
+  assert.deepEqual(calls, [
+    {
+      target: { kind: 'point', point: { x: 60, y: 40 } },
+      options: { direction: 'down', pixels: 120 },
+    },
+    {
+      target: { kind: 'viewport' },
+      options: { direction: 'up', amount: 0.5 },
+    },
+  ]);
+});
+
+test('runtime swipe supports explicit and viewport-derived targets', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(selectorSnapshot(), {
+    swipe: async (_context, from, to, options) => {
+      calls.push({ from, to, durationMs: options?.durationMs });
+    },
+  });
+
+  const explicit = await device.interactions.swipe({
+    from: selector('label=Continue'),
+    to: { x: 200, y: 40 },
+    durationMs: 300,
+    session: 'default',
+  });
+  const directional = await device.interactions.swipe({
+    direction: 'left',
+    distance: 25,
+    session: 'default',
+  });
+
+  assert.deepEqual(explicit.from, { x: 60, y: 40 });
+  assert.deepEqual(directional.from, { x: 60, y: 40 });
+  assert.deepEqual(directional.to, { x: 35, y: 40 });
+  assert.deepEqual(calls, [
+    { from: { x: 60, y: 40 }, to: { x: 200, y: 40 }, durationMs: 300 },
+    { from: { x: 60, y: 40 }, to: { x: 35, y: 40 }, durationMs: undefined },
+  ]);
+});
+
+test('runtime directional swipe uses the visible viewport instead of off-screen content bounds', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(snapshotWithOffscreenContent(), {
+    swipe: async (_context, from, to) => {
+      calls.push({ from, to });
+    },
+  });
+
+  const result = await device.interactions.swipe({
+    direction: 'left',
+    distance: 25,
+    session: 'default',
+  });
+
+  assert.deepEqual(result.from, { x: 50, y: 50 });
+  assert.deepEqual(result.to, { x: 25, y: 50 });
+  assert.deepEqual(calls, [{ from: { x: 50, y: 50 }, to: { x: 25, y: 50 } }]);
+});
+
+test('runtime viewport gestures reject inspect-only macOS surfaces', async () => {
+  for (const surface of ['desktop', 'menubar'] as const) {
+    const device = createInteractionDevice(selectorSnapshot(), {
+      platform: 'macos',
+      sessionMetadata: { surface },
+      scroll: async () => {
+        throw new Error(`${surface} scroll should be rejected before backend call`);
+      },
+      swipe: async () => {
+        throw new Error(`${surface} swipe should be rejected before backend call`);
+      },
+      pinch: async () => {
+        throw new Error(`${surface} pinch should be rejected before backend call`);
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        device.interactions.scroll({
+          direction: 'down',
+          target: { kind: 'viewport' },
+          session: 'default',
+        }),
+      new RegExp(`scroll is not supported on macOS ${surface}`),
+    );
+    await assert.rejects(
+      () =>
+        device.interactions.swipe({
+          direction: 'left',
+          session: 'default',
+        }),
+      new RegExp(`swipe is not supported on macOS ${surface}`),
+    );
+    await assert.rejects(
+      () =>
+        device.interactions.swipe({
+          from: { x: 10, y: 20 },
+          to: { x: 30, y: 20 },
+          session: 'default',
+        }),
+      new RegExp(`swipe is not supported on macOS ${surface}`),
+    );
+    await assert.rejects(
+      () =>
+        device.interactions.pinch({
+          scale: 1.2,
+          session: 'default',
+        }),
+      new RegExp(`pinch is not supported on macOS ${surface}`),
+    );
+  }
+});
+
+test('runtime pinch is backend-gated and resolves optional center targets', async () => {
+  const calls: unknown[] = [];
+  const unsupported = createInteractionDevice(selectorSnapshot());
+  await assert.rejects(
+    () => unsupported.interactions.pinch({ scale: 1.2 }),
+    /pinch is not supported/,
+  );
+
+  const device = createInteractionDevice(selectorSnapshot(), {
+    pinch: async (_context, options) => {
+      calls.push(options);
+    },
+  });
+
+  const result = await device.interactions.pinch({
+    scale: 0.8,
+    center: ref('@e1'),
+    session: 'default',
+  });
+
+  assert.equal(result.kind, 'pinch');
+  assert.deepEqual(result.center, { x: 60, y: 40 });
+  assert.deepEqual(calls, [{ scale: 0.8, center: { x: 60, y: 40 } }]);
+});
+
 test('runtime interaction commands are available from the command namespace', async () => {
   const device = createInteractionDevice(selectorSnapshot(), {
     tap: async () => {},
@@ -233,9 +422,52 @@ function fillableSnapshot(): SnapshotState {
   ]);
 }
 
+function snapshotWithOffscreenContent(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'Application',
+      label: 'Example',
+      rect: { x: 0, y: 0, width: 100, height: 100 },
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Button',
+      label: 'Visible',
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+      hittable: true,
+    },
+    {
+      index: 2,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Button',
+      label: 'Offscreen',
+      rect: { x: 10, y: 900, width: 20, height: 20 },
+      hittable: true,
+    },
+  ]);
+}
+
 function createInteractionDevice(
   snapshot: SnapshotState,
-  overrides: Partial<Pick<AgentDeviceBackend, 'captureSnapshot' | 'tap' | 'fill' | 'typeText'>> & {
+  overrides: Partial<
+    Pick<
+      AgentDeviceBackend,
+      | 'captureSnapshot'
+      | 'tap'
+      | 'fill'
+      | 'typeText'
+      | 'focus'
+      | 'longPress'
+      | 'scroll'
+      | 'swipe'
+      | 'pinch'
+    >
+  > & {
     platform?: AgentDeviceBackend['platform'];
     sessionMetadata?: Record<string, unknown>;
   } = {},
@@ -248,6 +480,13 @@ function createInteractionDevice(
       tap: async (...args) => await overrides.tap?.(...args),
       fill: async (...args) => await overrides.fill?.(...args),
       typeText: async (...args) => await overrides.typeText?.(...args),
+      focus: overrides.focus ? async (...args) => await overrides.focus?.(...args) : undefined,
+      longPress: overrides.longPress
+        ? async (...args) => await overrides.longPress?.(...args)
+        : undefined,
+      scroll: overrides.scroll ? async (...args) => await overrides.scroll?.(...args) : undefined,
+      swipe: overrides.swipe ? async (...args) => await overrides.swipe?.(...args) : undefined,
+      pinch: overrides.pinch ? async (...args) => await overrides.pinch?.(...args) : undefined,
     } satisfies AgentDeviceBackend,
     artifacts: createLocalArtifactAdapter(),
     sessions: createMemorySessionStore([

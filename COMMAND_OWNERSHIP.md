@@ -69,6 +69,29 @@ Their semantics should live in `agent-device/commands` as they migrate.
   local file inputs remain command-policy gated.
 - `trigger-app-event`: runtime `apps.triggerEvent` implemented with event name
   and JSON payload validation.
+- `back`: runtime `system.back` implemented with typed in-app/system modes.
+- `home`: runtime `system.home` implemented.
+- `rotate`: runtime `system.rotate` implemented with explicit orientation
+  validation.
+- `keyboard`: runtime `system.keyboard` implemented with explicit status/get
+  and dismiss result shapes.
+- `clipboard`: runtime `system.clipboard` implemented with read/write result
+  unions.
+- `settings`: runtime `system.settings` implemented as a typed settings-open
+  primitive.
+- `alert`: runtime `system.alert` implemented with explicit status, handled,
+  and wait result unions.
+- `app-switcher`: runtime `system.appSwitcher` implemented.
+- `focus`: runtime `interactions.focus` implemented for point, ref, and
+  selector targets.
+- `longpress`: runtime `interactions.longPress` implemented for point, ref, and
+  selector targets.
+- `swipe`: runtime `interactions.swipe` implemented with point, ref, selector,
+  and viewport-derived directional starts.
+- `scroll`: runtime `interactions.scroll` implemented with viewport, point, ref,
+  and selector targets.
+- `pinch`: runtime `interactions.pinch` implemented behind the typed backend
+  primitive.
 
 ## Boundary Requirements
 

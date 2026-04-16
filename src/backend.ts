@@ -76,6 +76,61 @@ export type BackendScreenshotResult = {
 
 export type BackendActionResult = Record<string, unknown> | void;
 
+export type BackendDeviceOrientation =
+  | 'portrait'
+  | 'portrait-upside-down'
+  | 'landscape-left'
+  | 'landscape-right';
+
+export type BackendBackOptions = {
+  mode?: 'in-app' | 'system';
+};
+
+export type BackendKeyboardOptions = {
+  action: 'status' | 'get' | 'dismiss';
+};
+
+export type BackendKeyboardResult = {
+  platform?: 'android' | 'ios' | 'macos' | 'linux';
+  action?: BackendKeyboardOptions['action'];
+  visible?: boolean;
+  inputType?: string | null;
+  type?: string | null;
+  wasVisible?: boolean;
+  dismissed?: boolean;
+  attempts?: number;
+};
+
+export type BackendClipboardTextResult = {
+  text: string;
+};
+
+export type BackendAlertAction = 'get' | 'accept' | 'dismiss' | 'wait';
+
+export type BackendAlertInfo = {
+  title?: string;
+  message?: string;
+  buttons?: string[];
+};
+
+export type BackendAlertResult =
+  | {
+      kind: 'alertStatus';
+      alert: BackendAlertInfo | null;
+    }
+  | {
+      kind: 'alertHandled';
+      handled: boolean;
+      alert?: BackendAlertInfo;
+      button?: string;
+    }
+  | {
+      kind: 'alertWait';
+      alert: BackendAlertInfo | null;
+      waitedMs?: number;
+      timedOut?: boolean;
+    };
+
 export type BackendTapOptions = {
   button?: 'primary' | 'secondary' | 'middle';
   count?: number;
@@ -87,6 +142,34 @@ export type BackendTapOptions = {
 
 export type BackendFillOptions = {
   delayMs?: number;
+};
+
+export type BackendLongPressOptions = {
+  durationMs?: number;
+};
+
+export type BackendSwipeOptions = {
+  durationMs?: number;
+};
+
+export type BackendScrollTarget =
+  | {
+      kind: 'viewport';
+    }
+  | {
+      kind: 'point';
+      point: Point;
+    };
+
+export type BackendScrollOptions = {
+  direction: 'up' | 'down' | 'left' | 'right';
+  amount?: number;
+  pixels?: number;
+};
+
+export type BackendPinchOptions = {
+  scale: number;
+  center?: Point;
 };
 
 export type BackendOpenTarget = {
@@ -217,11 +300,54 @@ export type AgentDeviceBackend = {
     text: string,
     options?: { delayMs?: number },
   ): Promise<BackendActionResult>;
+  focus?(context: BackendCommandContext, point: Point): Promise<BackendActionResult>;
+  longPress?(
+    context: BackendCommandContext,
+    point: Point,
+    options?: BackendLongPressOptions,
+  ): Promise<BackendActionResult>;
+  swipe?(
+    context: BackendCommandContext,
+    from: Point,
+    to: Point,
+    options?: BackendSwipeOptions,
+  ): Promise<BackendActionResult>;
+  scroll?(
+    context: BackendCommandContext,
+    target: BackendScrollTarget,
+    options: BackendScrollOptions,
+  ): Promise<BackendActionResult>;
+  pinch?(
+    context: BackendCommandContext,
+    options: BackendPinchOptions,
+  ): Promise<BackendActionResult>;
   pressKey?(
     context: BackendCommandContext,
     key: string,
     options?: { modifiers?: string[] },
   ): Promise<BackendActionResult>;
+  pressBack?(
+    context: BackendCommandContext,
+    options?: BackendBackOptions,
+  ): Promise<BackendActionResult>;
+  pressHome?(context: BackendCommandContext): Promise<BackendActionResult>;
+  rotate?(
+    context: BackendCommandContext,
+    orientation: BackendDeviceOrientation,
+  ): Promise<BackendActionResult>;
+  setKeyboard?(
+    context: BackendCommandContext,
+    options: BackendKeyboardOptions,
+  ): Promise<BackendKeyboardResult | BackendActionResult>;
+  getClipboard?(context: BackendCommandContext): Promise<string | BackendClipboardTextResult>;
+  setClipboard?(context: BackendCommandContext, text: string): Promise<BackendActionResult>;
+  openSettings?(context: BackendCommandContext, target?: string): Promise<BackendActionResult>;
+  handleAlert?(
+    context: BackendCommandContext,
+    action: BackendAlertAction,
+    options?: { timeoutMs?: number },
+  ): Promise<BackendAlertResult>;
+  openAppSwitcher?(context: BackendCommandContext): Promise<BackendActionResult>;
   openApp?(
     context: BackendCommandContext,
     target: BackendOpenTarget,
