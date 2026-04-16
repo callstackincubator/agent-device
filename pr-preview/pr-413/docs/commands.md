@@ -378,7 +378,6 @@ agent-device install-from-source https://api.github.com/repos/acme/app/actions/a
 - Repeat `--header <name:value>` for authenticated or signed artifact requests.
 - Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
 - Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths; use `install-from-source` when the artifact already exists at a URL reachable by the daemon.
-- Do not download, repackage, or publish artifacts elsewhere just to reshape a trusted CI artifact URL.
 - Direct Android URL sources may be `.apk` or `.aab`.
 - Trusted artifact service URLs, currently GitHub Actions and EAS, may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
