@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-416/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-416/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-416/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-416/static/js/index.d33d244b91.js"></script>
+<script defer src="/agent-device/pr-preview/pr-416/static/js/index.759faa5c3d.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -184,9 +184,11 @@ test backend.</p>
 <p>Use <code>createCommandRouter()</code> from <code>agent-device/commands</code> as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,
 error normalization, and per-request runtime construction without exposing
-daemon internals. Router-level <code>batch</code>, <code>replay</code>, and <code>test</code> commands dispatch
-their nested steps through the same router path so command policy and error
-formatting still run for each step.</p>
+daemon internals. Router-level <code>batch</code> dispatches its nested steps through the
+same router path so command policy and error formatting still run for each step.
+Diagnostics payload redaction is best-effort: structured JSON bodies are
+redacted recursively, and non-JSON payloads are sanitized with string-pattern
+fallbacks before truncation.</p>
 <h2 class="rp-toc-include" id="command-methods"><a href="#command-methods" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Command methods</h2>
 <p>Use <code>client.command.&lt;method&gt;()</code> for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, normalized daemon errors, and remote artifact handling.</p>
 <p>Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.</p>
