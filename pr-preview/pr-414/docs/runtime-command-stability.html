@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-414/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-414/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-414/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-414/static/js/index.14f3433e03.js"></script>
+<script defer src="/agent-device/pr-preview/pr-414/static/js/index.41c9acaaa2.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -41,6 +41,8 @@ audit scope.</li>
 <code>run(command, args)</code> escape hatches for portable command behavior.</li>
 <li>File input, file output, named backend capabilities, and local path access
 must stay policy-gated.</li>
+<li>Runtime JSON payloads must serialize to a JSON string and stay within the
+command&#x27;s byte limit before reaching backend adapters.</li>
 </ul>
 <h2 class="rp-toc-include" id="deprecation-rules"><a href="#deprecation-rules" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Deprecation rules</h2>
 <ul>

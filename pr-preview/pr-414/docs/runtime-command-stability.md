@@ -20,6 +20,8 @@ adapters, daemon compatibility shims, and direct Node integrations.
   `run(command, args)` escape hatches for portable command behavior.
 - File input, file output, named backend capabilities, and local path access
   must stay policy-gated.
+- Runtime JSON payloads must serialize to a JSON string and stay within the
+  command's byte limit before reaching backend adapters.
 
 ## Deprecation rules
 
