@@ -368,13 +368,15 @@ Implemented runtime namespaces are currently:
 - `apps`: `open`, `close`, `list`, `state`, `push`, `triggerEvent`
 - `admin`: `devices`, `boot`, `ensureSimulator`, `install`, `reinstall`, `installFromSource`
 - `recording`: `record`, `trace`
+- `observability`: `logs`, `network`, `perf` (`createCommandRouter()` dispatches these as `diagnostics.logs`, `diagnostics.network`, and `diagnostics.perf`)
 
 Commands that have not migrated are tracked in `commandCatalog` instead of being
 exposed as throwing methods.
 
 Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
 `agent-device/testing/conformance` to verify capture, selector, interaction, app,
-admin, and recording semantics against a prepared fixture app or test backend.
+admin, recording, and diagnostics semantics against a prepared fixture app or
+test backend.
 
 Use `createCommandRouter()` from `agent-device/commands` as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,

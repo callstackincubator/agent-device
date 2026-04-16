@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-416/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-416/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-416/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-416/static/js/index.ae57fafe27.js"></script>
+<script defer src="/agent-device/pr-preview/pr-416/static/js/index.d33d244b91.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -173,12 +173,14 @@ provided, the runtime uses an isolated in-memory store.</p>
 <li><code>apps</code>: <code>open</code>, <code>close</code>, <code>list</code>, <code>state</code>, <code>push</code>, <code>triggerEvent</code></li>
 <li><code>admin</code>: <code>devices</code>, <code>boot</code>, <code>ensureSimulator</code>, <code>install</code>, <code>reinstall</code>, <code>installFromSource</code></li>
 <li><code>recording</code>: <code>record</code>, <code>trace</code></li>
+<li><code>observability</code>: <code>logs</code>, <code>network</code>, <code>perf</code> (<code>createCommandRouter()</code> dispatches these as <code>diagnostics.logs</code>, <code>diagnostics.network</code>, and <code>diagnostics.perf</code>)</li>
 </ul>
 <p>Commands that have not migrated are tracked in <code>commandCatalog</code> instead of being
 exposed as throwing methods.</p>
 <p>Backend authors can use <code>runCommandConformance()</code> or <code>assertCommandConformance()</code> from
 <code>agent-device/testing/conformance</code> to verify capture, selector, interaction, app,
-admin, and recording semantics against a prepared fixture app or test backend.</p>
+admin, recording, and diagnostics semantics against a prepared fixture app or
+test backend.</p>
 <p>Use <code>createCommandRouter()</code> from <code>agent-device/commands</code> as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,
 error normalization, and per-request runtime construction without exposing
