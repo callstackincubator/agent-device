@@ -54,7 +54,20 @@ test('diagnostics runtime commands call typed backend primitives and redact sens
   assert.equal(network.redacted, true);
   assert.match(network.entries[0]?.url ?? '', /token=%5BREDACTED%5D/);
   assert.equal(network.entries[0]?.requestHeaders?.Authorization, '[REDACTED]');
-  assert.match(network.entries[0]?.requestBody ?? '', /password=\[REDACTED\]/);
+  assert.deepEqual(JSON.parse(network.entries[0]?.requestBody ?? '{}'), {
+    token: '[REDACTED]',
+    nested: {
+      apiKey: '[REDACTED]',
+      items: [{ password: '[REDACTED]' }],
+    },
+  });
+  assert.deepEqual(JSON.parse(network.entries[0]?.responseBody ?? '{}'), {
+    ok: true,
+    session: {
+      authorization: '[REDACTED]',
+    },
+    items: [{ secret: '[REDACTED]' }],
+  });
 
   const perf = await device.observability.perf({ session: 'default', sampleMs: 100 });
   assert.equal(perf.kind, 'diagnosticsPerf');
@@ -128,8 +141,10 @@ function createDiagnosticsBackend(contexts: BackendCommandContext[]): AgentDevic
             status: 200,
             requestHeaders: { Authorization: 'Bearer secret' },
             responseHeaders: { 'content-type': 'application/json' },
-            requestBody: 'password=secret',
-            responseBody: '{"ok":true}',
+            requestBody:
+              '{"token":"secret","nested":{"apiKey":"top-secret","items":[{"password":"hidden"}]}}',
+            responseBody:
+              '{"ok":true,"session":{"authorization":"Bearer secret"},"items":[{"secret":"classified"}]}',
           },
         ],
       };

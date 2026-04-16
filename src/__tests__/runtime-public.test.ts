@@ -26,6 +26,7 @@ import {
   createCommandRouter,
   type ScreenshotCommandOptions,
 } from '../commands/index.ts';
+import { runtimeRouterCommandNames } from '../commands/router.ts';
 import type { ArtifactAdapter, FileInputRef, FileOutputRef } from '../io.ts';
 import {
   commandConformanceSuites,
@@ -172,6 +173,31 @@ test('public runtime policy helpers expose local and restricted defaults', async
   assert.equal(restrictedCommandPolicy({ allowLocalInputPaths: true }).allowLocalInputPaths, true);
   const store = createMemorySessionStore([{ name: 'default' }]);
   assert.equal((await store.get('default'))?.name, 'default');
+});
+
+test('runtime router command map stays aligned with implemented catalog entries', () => {
+  const catalogRuntimeCommands = commandCatalog
+    .filter(
+      (entry) =>
+        entry.status === 'implemented' &&
+        (entry.command.includes('.') || entry.command === 'record' || entry.command === 'trace'),
+    )
+    .map((entry) => entry.command)
+    .sort();
+
+  assert.deepEqual([...runtimeRouterCommandNames].sort(), catalogRuntimeCommands);
+  assert.equal(
+    commandCatalog.some((entry) => entry.command === 'batch' && entry.status === 'implemented'),
+    true,
+  );
+  assert.equal(
+    commandCatalog.some((entry) => entry.command === 'replay' && entry.status === 'planned'),
+    true,
+  );
+  assert.equal(
+    commandCatalog.some((entry) => entry.command === 'test' && entry.status === 'planned'),
+    true,
+  );
 });
 
 test('local artifact adapter marks command outputs and temp files by visibility', async () => {

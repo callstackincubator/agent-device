@@ -98,14 +98,7 @@ import type {
   ScreenshotCommandOptions,
   SnapshotCommandOptions,
 } from './index.ts';
-import type {
-  BatchCommandOptions,
-  BatchCommandResult,
-  ReplayCommandOptions,
-  ReplayCommandResult,
-  ReplayTestCommandOptions,
-  ReplayTestCommandResult,
-} from './router-orchestration.ts';
+import type { BatchCommandOptions, BatchCommandResult } from './router-orchestration.ts';
 
 export type CommandRouterRequest<TContext = unknown> =
   | { command: 'capture.screenshot'; options: ScreenshotCommandOptions; context?: TContext }
@@ -174,9 +167,7 @@ export type CommandRouterRequest<TContext = unknown> =
       context?: TContext;
     }
   | { command: 'diagnostics.perf'; options?: DiagnosticsPerfCommandOptions; context?: TContext }
-  | { command: 'batch'; options: BatchCommandOptions<TContext>; context?: TContext }
-  | { command: 'replay'; options: ReplayCommandOptions<TContext>; context?: TContext }
-  | { command: 'test'; options: ReplayTestCommandOptions<TContext>; context?: TContext };
+  | { command: 'batch'; options: BatchCommandOptions<TContext>; context?: TContext };
 
 export type CommandRouterResult =
   | ScreenshotCommandResult
@@ -218,9 +209,7 @@ export type CommandRouterResult =
   | DiagnosticsLogsCommandResult
   | DiagnosticsNetworkCommandResult
   | DiagnosticsPerfCommandResult
-  | BatchCommandResult
-  | ReplayCommandResult
-  | ReplayTestCommandResult;
+  | BatchCommandResult;
 
 export type CommandRouterResponse =
   | {

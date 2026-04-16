@@ -140,7 +140,7 @@ test('router batch preserves per-step failures and enforces per-command policy',
   const nested = await router.dispatch({
     command: 'batch',
     options: {
-      steps: [{ command: 'replay', options: { steps: [] } }],
+      steps: [{ command: 'batch', options: { steps: [] } }],
     },
   });
   assert.equal(nested.ok, false);
@@ -284,49 +284,7 @@ test('record keeps successful reserved outputs available after publish', async (
   assert.equal(cleanupCalled, false);
 });
 
-test('router replay and test execute parsed router scripts through nested dispatch', async () => {
-  const opened: string[] = [];
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend: {
-          platform: 'ios',
-          openApp: async (_context, target) => {
-            if (target.app) opened.push(target.app);
-          },
-        },
-        artifacts,
-        policy: restrictedCommandPolicy(),
-      }),
-  });
-
-  const replay = await router.dispatch({
-    command: 'replay',
-    options: {
-      script: 'apps.open {"app":"com.example.app"}\napps.open {"app":"com.example.other"}',
-    },
-  });
-
-  assert.equal(replay.ok, true);
-  assert.equal(replay.ok && isResultKind(replay.data, 'replay') ? replay.data.failed : 1, 0);
-
-  const suite = await router.dispatch({
-    command: 'test',
-    options: {
-      tests: [{ name: 'opens app', steps: [{ command: 'apps.open', options: { app: 'suite' } }] }],
-    },
-  });
-
-  assert.equal(suite.ok, true);
-  assert.equal(suite.ok && isResultKind(suite.data, 'replayTest') ? suite.data.passed : 0, 1);
-  assert.equal(
-    suite.ok && isResultKind(suite.data, 'replayTest') ? suite.data.tests[0]?.attempts : 0,
-    1,
-  );
-  assert.deepEqual(opened, ['com.example.app', 'com.example.other', 'suite']);
-});
-
-test('router replay update fails explicitly until healing is implemented', async () => {
+test('router replay and test stay planned until phase 7 migration is complete', async () => {
   const router = createCommandRouter({
     createRuntime: () =>
       createAgentDevice({
@@ -336,16 +294,21 @@ test('router replay update fails explicitly until healing is implemented', async
       }),
   });
 
-  const response = await router.dispatch({
+  const replay = await router.dispatch({
     command: 'replay',
-    options: {
-      update: true,
-      steps: [{ command: 'apps.open', options: { app: 'com.example.app' } }],
-    },
-  });
+    options: { steps: [{ command: 'apps.open', options: { app: 'com.example.app' } }] },
+  } as never);
+  assert.equal(replay.ok, false);
+  assert.equal(replay.ok ? undefined : replay.error.code, 'NOT_IMPLEMENTED');
 
-  assert.equal(response.ok, false);
-  assert.equal(response.ok ? undefined : response.error.code, 'NOT_IMPLEMENTED');
+  const suite = await router.dispatch({
+    command: 'test',
+    options: {
+      tests: [{ name: 'opens app', steps: [{ command: 'apps.open', options: { app: 'suite' } }] }],
+    },
+  } as never);
+  assert.equal(suite.ok, false);
+  assert.equal(suite.ok ? undefined : suite.error.code, 'NOT_IMPLEMENTED');
 });
 
 function isResultKind<TKind extends string>(

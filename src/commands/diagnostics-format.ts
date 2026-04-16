@@ -51,13 +51,9 @@ export function formatNetworkResult(
     const responseHeaders =
       include === 'headers' || include === 'all' ? redactHeaders(entry.responseHeaders) : undefined;
     const requestBody =
-      include === 'body' || include === 'all'
-        ? redactAndTruncate(entry.requestBody, PAYLOAD_MAX_CHARS)
-        : undefined;
+      include === 'body' || include === 'all' ? redactPayload(entry.requestBody) : undefined;
     const responseBody =
-      include === 'body' || include === 'all'
-        ? redactAndTruncate(entry.responseBody, PAYLOAD_MAX_CHARS)
-        : undefined;
+      include === 'body' || include === 'all' ? redactPayload(entry.responseBody) : undefined;
     const metadata = redactUnknown(entry.metadata);
     redacted ||=
       (url?.redacted ?? false) ||
@@ -151,6 +147,22 @@ function redactUrl(url: string): { value: string; redacted: boolean } {
   }
 }
 
+function redactPayload(value: string | undefined): { value?: string; redacted: boolean } {
+  if (value === undefined) return { redacted: false };
+  const structured = redactJsonPayload(value);
+  return structured ?? redactAndTruncate(value, PAYLOAD_MAX_CHARS);
+}
+
+function redactJsonPayload(value: string): { value?: string; redacted: boolean } | undefined {
+  try {
+    const parsed = JSON.parse(value);
+    const result = redactStructured(parsed);
+    return truncateRedacted(JSON.stringify(result.value), PAYLOAD_MAX_CHARS, result.redacted);
+  } catch {
+    return undefined;
+  }
+}
+
 function redactUnknown(value: unknown): { value?: unknown; redacted: boolean } {
   if (value === undefined) return { redacted: false };
   if (typeof value === 'string') return redactAndTruncate(value, PAYLOAD_MAX_CHARS);
@@ -179,11 +191,44 @@ function redactUnknown(value: unknown): { value?: unknown; redacted: boolean } {
   return { value: next, redacted };
 }
 
+function redactStructured(value: unknown): { value?: unknown; redacted: boolean } {
+  if (value === undefined) return { redacted: false };
+  if (typeof value === 'string') return redactText(value);
+  if (!value || typeof value !== 'object') return { value, redacted: false };
+  if (Array.isArray(value)) {
+    let redacted = false;
+    const next = value.map((entry) => {
+      const result = redactStructured(entry);
+      redacted ||= result.redacted;
+      return result.value;
+    });
+    return { value: next, redacted };
+  }
+  let redacted = false;
+  const next: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (SECRET_KEY_PATTERN.test(key)) {
+      next[key] = '[REDACTED]';
+      redacted = true;
+      continue;
+    }
+    const result = redactStructured(entry);
+    next[key] = result.value;
+    redacted ||= result.redacted;
+  }
+  return { value: next, redacted };
+}
+
 function redactAndTruncate(
   value: string | undefined,
   maxChars: number,
 ): { value?: string; redacted: boolean } {
   if (value === undefined) return { redacted: false };
+  const result = redactText(value);
+  return truncateRedacted(result.value, maxChars, result.redacted);
+}
+
+function redactText(value: string): { value: string; redacted: boolean } {
   let redacted = false;
   let next = value.replaceAll(
     /(authorization|token|secret|password|passwd|api[-_]?key)=([^&\s]+)/gi,
@@ -192,6 +237,34 @@ function redactAndTruncate(
       return `${String(key)}=[REDACTED]`;
     },
   );
+  next = next.replaceAll(
+    /("(?:authorization|cookie|token|secret|password|passwd|api[-_]?key)"\s*:\s*")([^"]*)(")/gi,
+    (_match, prefix, _value, suffix) => {
+      redacted = true;
+      return `${String(prefix)}[REDACTED]${String(suffix)}`;
+    },
+  );
+  next = next.replaceAll(/\b(Bearer\s+)([^\s",;]+)/gi, (_match, prefix) => {
+    redacted = true;
+    return `${String(prefix)}[REDACTED]`;
+  });
+  next = next.replaceAll(
+    /((?:authorization|cookie|token|secret|password|passwd|api[-_]?key)\s*[:=]\s*)([^\s,;]+)/gi,
+    (_match, prefix) => {
+      redacted = true;
+      return `${String(prefix)}[REDACTED]`;
+    },
+  );
+  return { value: next, redacted };
+}
+
+function truncateRedacted(
+  value: string | undefined,
+  maxChars: number,
+  redacted: boolean,
+): { value?: string; redacted: boolean } {
+  if (value === undefined) return { redacted };
+  let next = value;
   if (next.length > maxChars) {
     next = `${next.slice(0, maxChars)}...[truncated]`;
     redacted = true;

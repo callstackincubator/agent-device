@@ -111,14 +111,14 @@ Their semantics should live in `agent-device/commands` as they migrate.
 - `trace`: runtime `trace` router/API command implemented with typed trace
   start/stop result unions.
 - `logs`: runtime `diagnostics.logs` implemented with bounded, paginated,
-  redacted log entries.
+  best-effort redacted log entries.
 - `network`: runtime `diagnostics.network` implemented with bounded,
-  structured, redacted network entries.
+  structured, best-effort redacted network entries.
 - `perf`: runtime `diagnostics.perf` implemented with typed metric entries.
-- `replay`: runtime router command implemented for replay scripts or router
-  steps, executing each step through `createCommandRouter()`.
-- `test`: runtime router command implemented for replay test cases with retries
-  and fail-fast handling.
+- `replay`: still daemon/CLI owned; runtime router migration is deferred until
+  it can reuse the real `.ad` parser and healing semantics.
+- `test`: still daemon/CLI owned; runtime router migration is deferred until it
+  can share daemon replay-suite semantics end to end.
 
 ## Boundary Requirements
 

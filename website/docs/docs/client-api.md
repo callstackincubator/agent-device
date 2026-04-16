@@ -147,9 +147,11 @@ test backend.
 Use `createCommandRouter()` from `agent-device/commands` as the recommended
 transport boundary for hosted adapters. The router applies command dispatch,
 error normalization, and per-request runtime construction without exposing
-daemon internals. Router-level `batch`, `replay`, and `test` commands dispatch
-their nested steps through the same router path so command policy and error
-formatting still run for each step.
+daemon internals. Router-level `batch` dispatches its nested steps through the
+same router path so command policy and error formatting still run for each step.
+Diagnostics payload redaction is best-effort: structured JSON bodies are
+redacted recursively, and non-JSON payloads are sanitized with string-pattern
+fallbacks before truncation.
 
 ## Command methods
 

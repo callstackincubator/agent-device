@@ -277,12 +277,6 @@ export type {
   CommandRouterRequest,
   CommandRouterResponse,
   CommandRouterResult,
-  ReplayCommandOptions,
-  ReplayCommandResult,
-  ReplayTestCase,
-  ReplayTestCaseResult,
-  ReplayTestCommandOptions,
-  ReplayTestCommandResult,
 } from './router.ts';
 
 export type CommandResult = Record<string, unknown>;
