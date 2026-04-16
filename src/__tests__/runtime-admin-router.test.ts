@@ -60,12 +60,18 @@ test('admin runtime commands call typed backend primitives', async () => {
   });
   assert.equal(reinstalled.kind, 'appReinstalled');
 
+  const installedFromSource = await device.admin.installFromSource({
+    source: { kind: 'url', url: 'https://example.test/Other.app.zip' },
+  });
+  assert.equal(installedFromSource.kind, 'appInstalledFromSource');
+
   assert.deepEqual(calls, [
     'listDevices',
     'bootDevice',
     'ensureSimulator',
     'installApp',
     'reinstallApp',
+    'installApp',
   ]);
 });
 
@@ -139,6 +145,46 @@ test('router batch preserves per-step failures and enforces per-command policy',
   });
   assert.equal(nested.ok, false);
   assert.equal(nested.ok ? undefined : nested.error.code, 'INVALID_ARGS');
+});
+
+test('router batch can continue after failure and inherits command context', async () => {
+  const sessionsSeen: unknown[] = [];
+  const appsOpened: string[] = [];
+  const router = createCommandRouter({
+    createRuntime: (request) => {
+      sessionsSeen.push(request.options?.session);
+      return createAgentDevice({
+        backend: {
+          platform: 'ios',
+          openApp: async (_context, target) => {
+            if (target.app === 'bad') throw new Error('open failed');
+            if (target.app) appsOpened.push(target.app);
+          },
+        },
+        artifacts,
+        policy: restrictedCommandPolicy(),
+      });
+    },
+  });
+
+  const response = await router.dispatch({
+    command: 'batch',
+    options: {
+      session: 'parent-session',
+      stopOnError: false,
+      maxSteps: 2,
+      steps: [
+        { command: 'apps.open', options: { app: 'bad' } },
+        { command: 'apps.open', options: { app: 'good' } },
+      ],
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.executed : 0, 2);
+  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.failed : 0, 1);
+  assert.deepEqual(appsOpened, ['good']);
+  assert.deepEqual(sessionsSeen, ['parent-session', 'parent-session']);
 });
 
 test('record and trace runtime commands call typed backend lifecycle primitives', async () => {

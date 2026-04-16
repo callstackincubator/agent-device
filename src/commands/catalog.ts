@@ -86,7 +86,10 @@ export const commandCatalog: readonly CommandCatalogEntry[] = [
   { command: 'replay', category: 'capability-gated', status: 'implemented' },
   { command: 'test', category: 'capability-gated', status: 'implemented' },
   { command: 'batch', category: 'capability-gated', status: 'implemented' },
-  { command: 'logs', category: 'capability-gated', status: 'planned' },
-  { command: 'network', category: 'capability-gated', status: 'planned' },
-  { command: 'perf', category: 'capability-gated', status: 'planned' },
+  { command: 'logs', category: 'capability-gated', status: 'implemented' },
+  { command: 'network', category: 'capability-gated', status: 'implemented' },
+  { command: 'perf', category: 'capability-gated', status: 'implemented' },
+  { command: 'diagnostics.logs', category: 'capability-gated', status: 'implemented' },
+  { command: 'diagnostics.network', category: 'capability-gated', status: 'implemented' },
+  { command: 'diagnostics.perf', category: 'capability-gated', status: 'implemented' },
 ];

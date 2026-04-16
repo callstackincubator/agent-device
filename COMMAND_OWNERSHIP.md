@@ -110,6 +110,11 @@ Their semantics should live in `agent-device/commands` as they migrate.
   start/stop result unions.
 - `trace`: runtime `trace` router/API command implemented with typed trace
   start/stop result unions.
+- `logs`: runtime `diagnostics.logs` implemented with bounded, paginated,
+  redacted log entries.
+- `network`: runtime `diagnostics.network` implemented with bounded,
+  structured, redacted network entries.
+- `perf`: runtime `diagnostics.perf` implemented with typed metric entries.
 - `replay`: runtime router command implemented for replay scripts or router
   steps, executing each step through `createCommandRouter()`.
 - `test`: runtime router command implemented for replay test cases with retries
@@ -169,12 +174,9 @@ the portable command runtime.
 
 ## Later Capability-Gated Runtime Commands
 
-These commands should migrate only after the runtime, backend capability, and IO
-contracts are established for their behavior.
-
-- `logs`
-- `network`
-- `perf`
+All currently identified capability-gated diagnostics have runtime command
+contracts. New diagnostics should follow the `diagnostics.*` namespace with
+bounded result windows and backend-specific support.
 
 ## Compatibility Helper Subpaths
 

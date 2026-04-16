@@ -57,6 +57,9 @@ test('command conformance suites run against a fixture backend', async () => {
   assert.equal(calls.includes('reinstallApp'), true);
   assert.equal(calls.includes('startRecording'), true);
   assert.equal(calls.includes('stopTrace'), true);
+  assert.equal(calls.includes('readLogs'), true);
+  assert.equal(calls.includes('dumpNetwork'), true);
+  assert.equal(calls.includes('measurePerf'), true);
 });
 
 test('assertCommandConformance throws when a suite fails', async () => {
@@ -192,6 +195,24 @@ function createFixtureBackend(calls: string[]): AgentDeviceBackend {
     stopTrace: async () => {
       calls.push('stopTrace');
       return { outPath: '/tmp/trace.log' };
+    },
+    readLogs: async () => {
+      calls.push('readLogs');
+      return {
+        entries: [{ timestamp: '2026-04-16T00:00:00.000Z', level: 'info', message: 'ready' }],
+      };
+    },
+    dumpNetwork: async () => {
+      calls.push('dumpNetwork');
+      return {
+        entries: [{ method: 'GET', url: 'https://example.test/health', status: 200 }],
+      };
+    },
+    measurePerf: async () => {
+      calls.push('measurePerf');
+      return {
+        metrics: [{ name: 'cpu', value: 3.5, unit: '%' }],
+      };
     },
   };
 }

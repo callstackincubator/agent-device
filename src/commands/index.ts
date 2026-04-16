@@ -138,6 +138,17 @@ import {
   type RecordingTraceCommandOptions,
   type RecordingTraceCommandResult,
 } from './recording.ts';
+import {
+  logsCommand,
+  networkCommand,
+  perfCommand,
+  type DiagnosticsLogsCommandOptions,
+  type DiagnosticsLogsCommandResult,
+  type DiagnosticsNetworkCommandOptions,
+  type DiagnosticsNetworkCommandResult,
+  type DiagnosticsPerfCommandOptions,
+  type DiagnosticsPerfCommandResult,
+} from './diagnostics.ts';
 
 export type { ScreenshotCommandResult } from './capture-screenshot.ts';
 export type {
@@ -245,6 +256,14 @@ export type {
   RecordingTraceCommandOptions,
   RecordingTraceCommandResult,
 } from './recording.ts';
+export type {
+  DiagnosticsLogsCommandOptions,
+  DiagnosticsLogsCommandResult,
+  DiagnosticsNetworkCommandOptions,
+  DiagnosticsNetworkCommandResult,
+  DiagnosticsPerfCommandOptions,
+  DiagnosticsPerfCommandResult,
+} from './diagnostics.ts';
 export { ref, selector } from './selector-read.ts';
 export { commandCatalog } from './catalog.ts';
 export type { CommandCatalogEntry } from './catalog.ts';
@@ -365,6 +384,14 @@ export type AgentDeviceCommands = {
     record: RuntimeCommand<RecordingRecordCommandOptions, RecordingRecordCommandResult>;
     trace: RuntimeCommand<RecordingTraceCommandOptions, RecordingTraceCommandResult>;
   };
+  diagnostics: {
+    logs: RuntimeCommand<DiagnosticsLogsCommandOptions | undefined, DiagnosticsLogsCommandResult>;
+    network: RuntimeCommand<
+      DiagnosticsNetworkCommandOptions | undefined,
+      DiagnosticsNetworkCommandResult
+    >;
+    perf: RuntimeCommand<DiagnosticsPerfCommandOptions | undefined, DiagnosticsPerfCommandResult>;
+  };
 };
 
 export type BoundAgentDeviceCommands = {
@@ -468,6 +495,13 @@ export type BoundAgentDeviceCommands = {
     record: BoundRuntimeCommand<RecordingRecordCommandOptions, RecordingRecordCommandResult>;
     trace: BoundRuntimeCommand<RecordingTraceCommandOptions, RecordingTraceCommandResult>;
   };
+  observability: {
+    logs: (options?: DiagnosticsLogsCommandOptions) => Promise<DiagnosticsLogsCommandResult>;
+    network: (
+      options?: DiagnosticsNetworkCommandOptions,
+    ) => Promise<DiagnosticsNetworkCommandResult>;
+    perf: (options?: DiagnosticsPerfCommandOptions) => Promise<DiagnosticsPerfCommandResult>;
+  };
 };
 
 export const commands: AgentDeviceCommands = {
@@ -528,6 +562,11 @@ export const commands: AgentDeviceCommands = {
   recording: {
     record: recordCommand,
     trace: traceCommand,
+  },
+  diagnostics: {
+    logs: logsCommand,
+    network: networkCommand,
+    perf: perfCommand,
   },
 };
 
@@ -598,6 +637,11 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
     recording: {
       record: (options) => commands.recording.record(runtime, options),
       trace: (options) => commands.recording.trace(runtime, options),
+    },
+    observability: {
+      logs: (options) => commands.diagnostics.logs(runtime, options),
+      network: (options) => commands.diagnostics.network(runtime, options),
+      perf: (options) => commands.diagnostics.perf(runtime, options),
     },
   };
 }

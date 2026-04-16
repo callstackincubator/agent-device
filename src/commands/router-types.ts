@@ -86,6 +86,14 @@ import type {
   RecordingTraceCommandResult,
 } from './recording.ts';
 import type {
+  DiagnosticsLogsCommandOptions,
+  DiagnosticsLogsCommandResult,
+  DiagnosticsNetworkCommandOptions,
+  DiagnosticsNetworkCommandResult,
+  DiagnosticsPerfCommandOptions,
+  DiagnosticsPerfCommandResult,
+} from './diagnostics.ts';
+import type {
   DiffSnapshotCommandOptions,
   ScreenshotCommandOptions,
   SnapshotCommandOptions,
@@ -159,6 +167,13 @@ export type CommandRouterRequest<TContext = unknown> =
     }
   | { command: 'record'; options: RecordingRecordCommandOptions; context?: TContext }
   | { command: 'trace'; options: RecordingTraceCommandOptions; context?: TContext }
+  | { command: 'diagnostics.logs'; options?: DiagnosticsLogsCommandOptions; context?: TContext }
+  | {
+      command: 'diagnostics.network';
+      options?: DiagnosticsNetworkCommandOptions;
+      context?: TContext;
+    }
+  | { command: 'diagnostics.perf'; options?: DiagnosticsPerfCommandOptions; context?: TContext }
   | { command: 'batch'; options: BatchCommandOptions<TContext>; context?: TContext }
   | { command: 'replay'; options: ReplayCommandOptions<TContext>; context?: TContext }
   | { command: 'test'; options: ReplayTestCommandOptions<TContext>; context?: TContext };
@@ -200,6 +215,9 @@ export type CommandRouterResult =
   | AdminInstallCommandResult
   | RecordingRecordCommandResult
   | RecordingTraceCommandResult
+  | DiagnosticsLogsCommandResult
+  | DiagnosticsNetworkCommandResult
+  | DiagnosticsPerfCommandResult
   | BatchCommandResult
   | ReplayCommandResult
   | ReplayTestCommandResult;

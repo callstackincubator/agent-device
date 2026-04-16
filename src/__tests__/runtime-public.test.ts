@@ -44,6 +44,9 @@ const backend = {
   pushFile: async () => {},
   triggerAppEvent: async () => {},
   pressHome: async () => {},
+  readLogs: async () => ({ entries: [{ message: 'ready' }] }),
+  dumpNetwork: async () => ({ entries: [{ method: 'GET', url: 'https://example.test' }] }),
+  measurePerf: async () => ({ metrics: [{ name: 'cpu', value: 1, unit: '%' }] }),
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -81,6 +84,7 @@ test('package root exposes command runtime skeleton', async () => {
   assert.equal(typeof device.apps.open, 'function');
   assert.equal(typeof device.admin.install, 'function');
   assert.equal(typeof device.recording.record, 'function');
+  assert.equal(typeof device.observability.logs, 'function');
   const result = await device.capture.screenshot({});
   assert.equal(result.path, '/tmp/path.png');
 });
@@ -386,11 +390,14 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
   assert.equal(typeof commands.admin.install, 'function');
   assert.equal(typeof commands.recording.record, 'function');
   assert.equal(typeof commands.recording.trace, 'function');
+  assert.equal(typeof commands.diagnostics.logs, 'function');
+  assert.equal(typeof commands.diagnostics.network, 'function');
+  assert.equal(typeof commands.diagnostics.perf, 'function');
   assert.equal(
     commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
     true,
   );
-  assert.equal(commandConformanceSuites.length, 7);
+  assert.equal(commandConformanceSuites.length, 8);
   assert.equal(typeof runCommandConformance, 'function');
   assert.equal(target.name, 'fake');
 });
@@ -485,8 +492,15 @@ test('command router dispatches implemented runtime commands and normalizes erro
   assert.equal(batch.ok, true);
   assert.equal(batch.ok && 'kind' in batch.data ? batch.data.kind : undefined, 'batch');
 
+  const logs = await router.dispatch({
+    command: 'diagnostics.logs',
+    options: { limit: 10 },
+  });
+  assert.equal(logs.ok, true);
+  assert.equal(logs.ok && 'kind' in logs.data ? logs.data.kind : undefined, 'diagnosticsLogs');
+
   const planned = await router.dispatch({
-    command: 'logs',
+    command: 'session',
     options: {},
   } as never);
   assert.equal(planned.ok, false);

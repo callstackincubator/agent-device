@@ -42,6 +42,7 @@ import {
   reinstallCommand,
 } from './admin.ts';
 import { recordCommand, traceCommand } from './recording.ts';
+import { logsCommand, networkCommand, perfCommand } from './diagnostics.ts';
 import { commandCatalog } from './catalog.ts';
 import {
   dispatchBatchCommand,
@@ -157,6 +158,9 @@ const implementedRouterCommands = new Set<string>([
   'admin.installFromSource',
   'record',
   'trace',
+  'diagnostics.logs',
+  'diagnostics.network',
+  'diagnostics.perf',
   'batch',
   'replay',
   'test',
@@ -260,6 +264,12 @@ async function dispatchRuntimeCommand<TContext>(
       return await recordCommand(runtime, request.options);
     case 'trace':
       return await traceCommand(runtime, request.options);
+    case 'diagnostics.logs':
+      return await logsCommand(runtime, request.options);
+    case 'diagnostics.network':
+      return await networkCommand(runtime, request.options);
+    case 'diagnostics.perf':
+      return await perfCommand(runtime, request.options);
   }
   throw new AppError(
     'UNSUPPORTED_OPERATION',

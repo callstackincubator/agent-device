@@ -489,6 +489,16 @@ export const adminConformanceSuite = createCommandConformanceSuite({
         assert.equal(result.kind, 'appReinstalled');
       },
     },
+    {
+      name: 'installs apps from source resolver',
+      command: 'admin.installFromSource',
+      run: async (runtime, fixtures) => {
+        const result = await commands.admin.installFromSource(runtime, {
+          source: { kind: 'path', path: fixtures.installSourcePath },
+        });
+        assert.equal(result.kind, 'appInstalledFromSource');
+      },
+    },
   ],
 });
 
@@ -514,6 +524,42 @@ export const recordingConformanceSuite = createCommandConformanceSuite({
   ],
 });
 
+export const diagnosticsConformanceSuite = createCommandConformanceSuite({
+  name: 'diagnostics',
+  cases: [
+    {
+      name: 'reads paginated logs',
+      command: 'diagnostics.logs',
+      run: async (runtime) => {
+        const result = await commands.diagnostics.logs(runtime, { limit: 10 });
+        assert.equal(result.kind, 'diagnosticsLogs');
+        assert.ok(Array.isArray(result.entries));
+      },
+    },
+    {
+      name: 'dumps structured network entries',
+      command: 'diagnostics.network',
+      run: async (runtime) => {
+        const result = await commands.diagnostics.network(runtime, {
+          limit: 10,
+          include: 'summary',
+        });
+        assert.equal(result.kind, 'diagnosticsNetwork');
+        assert.ok(Array.isArray(result.entries));
+      },
+    },
+    {
+      name: 'measures perf metrics',
+      command: 'diagnostics.perf',
+      run: async (runtime) => {
+        const result = await commands.diagnostics.perf(runtime, { sampleMs: 100 });
+        assert.equal(result.kind, 'diagnosticsPerf');
+        assert.ok(Array.isArray(result.metrics));
+      },
+    },
+  ],
+});
+
 export const commandConformanceSuites: readonly CommandConformanceSuite[] = [
   captureConformanceSuite,
   selectorConformanceSuite,
@@ -522,6 +568,7 @@ export const commandConformanceSuites: readonly CommandConformanceSuite[] = [
   appsConformanceSuite,
   adminConformanceSuite,
   recordingConformanceSuite,
+  diagnosticsConformanceSuite,
 ];
 
 export async function runCommandConformance(
