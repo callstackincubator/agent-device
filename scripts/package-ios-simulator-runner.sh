@@ -12,7 +12,7 @@ OUTPUT_DIR="$3"
 
 DERIVED_PATH="${AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH:-$HOME/.agent-device/ios-runner/derived}"
 PRODUCTS_DIR="$DERIVED_PATH/Build/Products"
-EXPECTED_RUNNER_BUNDLE_ID="${AGENT_DEVICE_IOS_RUNNER_RELEASE_BUNDLE_ID:-com.callstack.agentdevice.runner.uitests.xctrunner}"
+EXPECTED_RUNNER_BUNDLE_ID="${AGENT_DEVICE_IOS_RUNNER_RELEASE_BUNDLE_ID:-}"
 ARCHIVE_BASENAME="agent-device-ios-runner-$VERSION.app.tar.gz"
 CHECKSUM_BASENAME="$ARCHIVE_BASENAME.sha256"
 MANIFEST_BASENAME="agent-device-ios-runner-$VERSION.manifest.json"
@@ -36,19 +36,36 @@ write_github_output() {
   fi
 }
 
-resolve_runner_app_path() {
-  find "$PRODUCTS_DIR" -type d -name '*.app' | sort | while IFS= read -r app_path; do
-    bundle_id="$(read_plist_value "$app_path/Info.plist" CFBundleIdentifier)"
-    if [ "$bundle_id" = "$EXPECTED_RUNNER_BUNDLE_ID" ]; then
-      printf '%s\n' "$app_path"
-      exit 0
-    fi
-  done
+resolve_runner_xctestrun_path() {
+  find "$PRODUCTS_DIR" -maxdepth 1 -name '*iphonesimulator*.xctestrun' | sort | head -n 1
 }
 
-RUNNER_APP_PATH="$(resolve_runner_app_path)"
-if [ -z "$RUNNER_APP_PATH" ]; then
-  echo "Unable to locate simulator runner app with bundle id $EXPECTED_RUNNER_BUNDLE_ID under $PRODUCTS_DIR" >&2
+resolve_xctestrun_runner_app_path() {
+  xctestrun_path="$1"
+  test_host_path="$(
+    read_plist_value "$xctestrun_path" \
+      'TestConfigurations:0:TestTargets:0:TestHostPath'
+  )"
+
+  case "$test_host_path" in
+    __TESTROOT__/*)
+      printf '%s\n' "$PRODUCTS_DIR/${test_host_path#__TESTROOT__/}"
+      ;;
+    *)
+      printf '%s\n' "$test_host_path"
+      ;;
+  esac
+}
+
+RUNNER_XCTESTRUN_PATH="$(resolve_runner_xctestrun_path)"
+if [ -z "$RUNNER_XCTESTRUN_PATH" ]; then
+  echo "Unable to locate iphonesimulator xctestrun under $PRODUCTS_DIR" >&2
+  exit 1
+fi
+
+RUNNER_APP_PATH="$(resolve_xctestrun_runner_app_path "$RUNNER_XCTESTRUN_PATH")"
+if [ ! -d "$RUNNER_APP_PATH" ]; then
+  echo "Unable to locate simulator runner app referenced by $RUNNER_XCTESTRUN_PATH" >&2
   exit 1
 fi
 
@@ -68,6 +85,10 @@ RUNNER_BUNDLE_ID="$(read_plist_value "$RUNNER_APP_PATH/Info.plist" CFBundleIdent
 APP_NAME="$(read_plist_value "$RUNNER_APP_PATH/Info.plist" CFBundleName)"
 if [ -z "$APP_NAME" ]; then
   APP_NAME="$(basename "$RUNNER_APP_PATH" .app)"
+fi
+if [ -n "$EXPECTED_RUNNER_BUNDLE_ID" ] && [ "$RUNNER_BUNDLE_ID" != "$EXPECTED_RUNNER_BUNDLE_ID" ]; then
+  echo "Runner bundle id $RUNNER_BUNDLE_ID did not match expected $EXPECTED_RUNNER_BUNDLE_ID" >&2
+  exit 1
 fi
 
 ditto "$RUNNER_APP_PATH" "$STAGED_APP_PATH"
@@ -106,6 +127,7 @@ fi
 } > "$MANIFEST_PATH"
 
 write_github_output "runner_app_path=$RUNNER_APP_PATH"
+write_github_output "xctestrun_path=$RUNNER_XCTESTRUN_PATH"
 write_github_output "archive_path=$ARCHIVE_PATH"
 write_github_output "checksum_path=$CHECKSUM_PATH"
 write_github_output "manifest_path=$MANIFEST_PATH"
