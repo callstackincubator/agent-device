@@ -263,6 +263,83 @@ test('uploadArtifact uses direct upload ticket and finalize flow', async () => {
   }
 });
 
+test.each([
+  {
+    name: 'direct upload failure',
+    failDirectUpload: true,
+    expectedRequests: ['POST /upload/preflight', 'PUT /signed-upload', 'POST /upload'],
+  },
+  {
+    name: 'finalize failure',
+    failDirectUpload: false,
+    expectedRequests: [
+      'POST /upload/preflight',
+      'PUT /signed-upload',
+      'POST /upload/finalize',
+      'POST /upload',
+    ],
+  },
+])(
+  'uploadArtifact falls back to legacy upload after $name',
+  async ({ failDirectUpload, expectedRequests }) => {
+    const content = `${failDirectUpload ? 'direct' : 'finalize'}-fallback-apk`;
+    const artifactPath = createTempFile('app.apk', content);
+    const requests: string[] = [];
+    let legacyUploadBody = '';
+
+    const server = await startServer(async (req, res) => {
+      requests.push(`${req.method} ${req.url}`);
+      if (req.method === 'POST' && req.url === '/upload/preflight') {
+        await readRequestBody(req);
+        sendJson(res, {
+          ok: true,
+          cacheHit: false,
+          uploadId: 'direct-ticket',
+          upload: {
+            url: `${server.baseUrl}/signed-upload`,
+            headers: { 'x-signed-ticket': 'ticket-header' },
+          },
+        });
+        return;
+      }
+      if (req.method === 'PUT' && req.url === '/signed-upload') {
+        await readRequestBody(req);
+        res.statusCode = failDirectUpload ? 503 : 200;
+        res.end(failDirectUpload ? 'storage unavailable' : 'ok');
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/upload/finalize') {
+        await readRequestBody(req);
+        res.statusCode = 503;
+        res.end('finalize unavailable');
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/upload') {
+        assert.equal(req.headers['x-artifact-type'], 'file');
+        assert.equal(req.headers['x-artifact-filename'], 'app.apk');
+        legacyUploadBody = (await readRequestBody(req)).toString('utf8');
+        sendJson(res, { ok: true, uploadId: 'legacy-fallback' });
+        return;
+      }
+      res.statusCode = 404;
+      res.end('not found');
+    });
+
+    try {
+      const uploadId = await uploadArtifact({
+        localPath: artifactPath,
+        baseUrl: server.baseUrl,
+        token: TEST_TOKEN,
+      });
+      assert.equal(uploadId, 'legacy-fallback');
+      assert.equal(legacyUploadBody, content);
+      assert.deepEqual(requests, expectedRequests);
+    } finally {
+      await server.close();
+    }
+  },
+);
+
 test('uploadArtifact preflights and legacy-uploads compressed app bundle directories', async () => {
   const tempRoot = createTempDir();
   const appPath = path.join(tempRoot, 'Sample.app');

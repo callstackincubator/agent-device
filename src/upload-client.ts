@@ -72,12 +72,20 @@ export async function uploadArtifact(options: UploadArtifactOptions): Promise<st
       return preflight.uploadId;
     }
     if (preflight?.kind === 'direct-upload') {
-      await uploadDirectArtifact(prepared.payloadPath, preflight);
-      return await finalizeDirectUpload({
-        normalizedBase,
-        token: options.token,
-        uploadId: preflight.uploadId,
-      });
+      try {
+        await uploadDirectArtifact(prepared.payloadPath, preflight);
+        return await finalizeDirectUpload({
+          normalizedBase,
+          token: options.token,
+          uploadId: preflight.uploadId,
+        });
+      } catch {
+        return await uploadLegacyArtifact({
+          normalizedBase,
+          token: options.token,
+          artifact: prepared,
+        });
+      }
     }
 
     return await uploadLegacyArtifact({
