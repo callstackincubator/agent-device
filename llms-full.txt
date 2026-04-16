@@ -244,6 +244,14 @@ For remote Metro-backed flows, import the reusable Node APIs instead of spawning
 
 Public subpath API exposed for Node consumers:
 
+- `agent-device/commands`
+  - runtime command namespaces for command semantics as they migrate out of the daemon and CLI layers
+- `agent-device/backend`
+  - backend primitive and policy-gated capability types for local and hosted adapters
+- `agent-device/io`
+  - artifact adapter types, file input refs, and file output refs
+- `agent-device/testing/conformance`
+  - conformance suites for backend/runtime parity across capture, selectors, and interactions
 - `agent-device/metro`
   - `prepareRemoteMetro(options)`
   - `ensureMetroTunnel(options)`
@@ -284,6 +292,8 @@ Public subpath API exposed for Node consumers:
 - `agent-device/artifacts`
   - `resolveAndroidArchivePackageName(archivePath)`
 
+The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, and `remote-config` subpaths remain available for compatibility. New command-level integrations should prefer the runtime boundary: `agent-device/commands`, `agent-device/backend`, and `agent-device/io`.
+
 ## Basic usage
 
 ```ts
@@ -316,6 +326,51 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 
 await client.sessions.close();
 ```
+
+## Runtime command API
+
+Use `createAgentDevice()` when you want command semantics without the daemon RPC
+client. The runtime takes an explicit backend and IO adapter, so service code can
+avoid accidental local filesystem or local device access. If no session store is
+provided, the runtime uses an isolated in-memory store.
+
+```ts
+import {
+  createAgentDevice,
+  createLocalArtifactAdapter,
+  createMemorySessionStore,
+  localCommandPolicy,
+  selector,
+} from 'agent-device';
+
+const device = createAgentDevice({
+  backend,
+  artifacts: createLocalArtifactAdapter(),
+  sessions: createMemorySessionStore([{ name: 'default' }]),
+  policy: localCommandPolicy(),
+});
+
+await device.capture.screenshot({
+  session: 'default',
+  out: { kind: 'path', path: './screen.png' },
+});
+
+await device.selectors.waitForText('Ready', { session: 'default', timeoutMs: 5_000 });
+await device.interactions.click(selector('label=Continue'), { session: 'default' });
+```
+
+Implemented runtime namespaces are currently:
+
+- `capture`: `screenshot`, `diffScreenshot`, `snapshot`, `diffSnapshot`
+- `selectors`: `find`, `get`, `getText`, `getAttrs`, `is`, `isVisible`, `isHidden`, `wait`, `waitForText`
+- `interactions`: `click`, `press`, `fill`, `typeText`
+
+Commands that have not migrated are tracked in `commandCatalog` instead of being
+exposed as throwing methods.
+
+Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
+`agent-device/testing/conformance` to verify capture, selector, and interaction
+semantics against a prepared fixture app or test backend.
 
 ## Command methods
 
