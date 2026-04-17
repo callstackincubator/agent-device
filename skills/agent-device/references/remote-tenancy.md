@@ -9,26 +9,30 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 - `agent-device connect --remote-config <path>`
 - `agent-device install-from-source <url> --remote-config <path> --platform android`
 - `agent-device open <package> --remote-config <path> --relaunch`
+- `agent-device snapshot --remote-config <path> -i`
+- `agent-device disconnect --remote-config <path>`
 - `agent-device connection status`
-- `agent-device disconnect`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
 
 ## Most common mistake to avoid
 
-Do not mix an arbitrary `--session` plus ad-hoc daemon/tenant flags when a remote connection is already active. That can bypass saved Metro runtime hints. Prefer `connect --remote-config <path>` once, then normal commands. If a command must be self-contained, pass the same `--remote-config <path>` on that command so the CLI can merge the remote profile and persist any lease/runtime state it prepares.
+Do not mix an arbitrary `--session` plus ad-hoc daemon, tenant, run, or lease flags. That can bypass saved Metro runtime hints. Use one of these patterns instead:
 
-## Preferred remote flow
+- Interactive flow: run `connect --remote-config <path>` once, then normal commands, then `disconnect`.
+- Script flow: pass the same `--remote-config <path>` to every command, including `disconnect`.
 
-Use this when the agent needs the simplest remote control flow: a Linux sandbox agent talks over HTTP to `agent-device` on a remote macOS host and launches the target app through a checked-in `--remote-config` profile.
+## Choose one flow
+
+### Interactive flow
+
+Use this when the agent will run several commands in one session.
 
 ```bash
 export AGENT_DEVICE_DAEMON_AUTH_TOKEN="YOUR_TOKEN"
 export AGENT_DEVICE_PROXY_TOKEN="$AGENT_DEVICE_DAEMON_AUTH_TOKEN"
 
-agent-device connect \
-  --remote-config ./remote-config.json
+agent-device connect --remote-config ./remote-config.json
 
-agent-device install com.example.app ./app.apk
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device open com.example.app --relaunch
 agent-device snapshot -i
@@ -36,11 +40,11 @@ agent-device fill @e3 "test@example.com"
 agent-device disconnect
 ```
 
-`connect` resolves the remote profile, generates a local session name when the profile omits one, stores local non-secret connection state, and defers tenant lease allocation plus Metro preparation until a later command needs them. When a command such as `open`, `install`, `apps`, or `snapshot` needs a lease, the client allocates or refreshes it from the connected scope. When a command needs Metro runtime hints, the client prepares Metro locally at that point and starts the local Metro companion when the bridge needs it, including `batch` runs whose steps open an app. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease when one was allocated, and removes local connection state.
+After `connect`, normal commands use the active remote connection. End with `disconnect` to release the lease and stop the owned Metro companion.
 
-After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch. End self-contained remote scripts with `agent-device disconnect --remote-config <path>` or `agent-device disconnect` to release the lease and stop the owned Metro companion.
+### Self-contained script flow
 
-For self-contained React Native scripts, pass the same `--remote-config` to each step so the CLI can propagate daemon, lease, and Metro runtime state:
+Use this when each command must be explicit and repeatable. Pass the same `--remote-config` to each step.
 
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk \
@@ -59,7 +63,15 @@ agent-device disconnect \
   --remote-config ./remote-config.json
 ```
 
-Use this explicit sequence instead of mixing ad-hoc `--session`, daemon, tenant, or lease flags. The first command that needs a lease or Metro runtime prepares and persists it for the later steps.
+The first command that needs a lease or Metro runtime prepares and persists it. Later commands with the same `--remote-config` reuse that state. End with `disconnect --remote-config <path>` to release the lease and stop the owned Metro companion.
+
+## Behavior summary
+
+- `connect` stores local non-secret connection state and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Commands such as `install-from-source`, `open`, `snapshot`, and `apps` allocate or refresh the lease when needed.
+- `open` prepares Metro runtime hints when the remote profile has Metro fields and no compatible runtime is already saved.
+- `batch` also prepares Metro when any step opens an app and that step does not provide its own runtime.
+- `disconnect` closes the session when possible, stops the Metro companion owned by the connection, releases the lease when one was allocated, and removes local connection state.
 
 Remote install examples:
 
