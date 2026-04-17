@@ -14,8 +14,11 @@ import {
   METRO_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
 } from './client-metro-companion-contract.ts';
-import type { CompanionOptions, MetroCompanionRequest } from './client-metro-companion-contract.ts';
-import type { MetroTunnelResponseMessage } from './metro.ts';
+import type { CompanionOptions } from './client-metro-companion-contract.ts';
+import type {
+  MetroTunnelRequestMessage as MetroCompanionRequest,
+  MetroTunnelResponseMessage,
+} from './metro.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
 
 function createHeaders(serverBaseUrl: string, token: string): Record<string, string> {

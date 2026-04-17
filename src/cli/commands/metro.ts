@@ -1,6 +1,6 @@
 import { AppError } from '../../utils/errors.ts';
 import { writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const metroCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const action = (positionals[0] ?? '').toLowerCase();

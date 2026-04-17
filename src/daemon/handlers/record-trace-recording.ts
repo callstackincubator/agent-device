@@ -4,13 +4,7 @@ import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { SessionStore } from '../session-store.ts';
-import type {
-  DaemonArtifact,
-  DaemonRequest,
-  DaemonResponse,
-  RecordingGestureEvent,
-  SessionState,
-} from '../types.ts';
+import type { DaemonArtifact, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
@@ -41,25 +35,9 @@ const RECORDING_MAX_QUALITY = 10;
 const LOCAL_RECORDING_READY_POLL_MS = 250;
 const LOCAL_RECORDING_READY_SETTLE_POLLS = 2;
 
-export type RecordTraceDeps = {
-  runCmd: typeof runCmd;
-  runCmdBackground: typeof runCmdBackground;
-  runIosRunnerCommand: typeof runIosRunnerCommand;
-  waitForStableFile: typeof waitForStableFile;
-  isPlayableVideo: typeof isPlayableVideo;
-  trimRecordingStart: typeof trimRecordingStart;
-  resizeRecording: typeof resizeRecording;
-  overlayRecordingTouches: typeof overlayRecordingTouches;
-};
+import type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
-export type RecordingBase = {
-  outPath: string;
-  clientOutPath?: string;
-  startedAt: number;
-  quality?: number;
-  showTouches: boolean;
-  gestureEvents: RecordingGestureEvent[];
-};
+export type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
 export function buildRecordTraceDeps(): RecordTraceDeps {
   return {

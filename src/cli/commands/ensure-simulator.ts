@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import { serializeEnsureSimulatorResult } from '../../client-shared.ts';
 import { writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const ensureSimulatorCommand: ClientCommandHandler = async ({ flags, client }) => {
   if (!flags.device) {

@@ -16,7 +16,7 @@ import {
   shouldRetryRunnerConnectError,
   type RunnerCommand,
 } from './runner-contract.ts';
-import type { RunnerSession } from './runner-session.ts';
+import type { RunnerSession } from './runner-session-types.ts';
 
 export const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,

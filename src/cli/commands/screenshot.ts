@@ -7,7 +7,7 @@ import { createLocalArtifactAdapter } from '../../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await client.capture.screenshot({

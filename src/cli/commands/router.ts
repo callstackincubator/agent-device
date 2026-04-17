@@ -13,15 +13,16 @@ import { snapshotCommand } from './snapshot.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
 import { clientCommandMethodHandlers } from './client-command.ts';
 import { genericClientCommandHandlers } from './generic.ts';
+import type {
+  ClientCommandHandler,
+  ClientCommandHandlerMap,
+} from './router-types.ts';
 
-export type ClientCommandParams = {
-  positionals: string[];
-  flags: CliFlags;
-  client: AgentDeviceClient;
-};
-
-export type ClientCommandHandler = (params: ClientCommandParams) => Promise<boolean>;
-export type ClientCommandHandlerMap = Partial<Record<string, ClientCommandHandler>>;
+export type {
+  ClientCommandHandler,
+  ClientCommandHandlerMap,
+  ClientCommandParams,
+} from './router-types.ts';
 
 const dedicatedClientApiHandlers = {
   session: sessionCommand,

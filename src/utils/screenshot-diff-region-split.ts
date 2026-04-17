@@ -1,5 +1,5 @@
 import { PNG } from 'pngjs';
-import type { MutableDiffRegion } from './screenshot-diff-regions.ts';
+import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
 
 // Region splitting is based on screen-relative heights so it works on phone,
 // tablet, and desktop screenshots; the pixel floors only suppress tiny fixtures/noise.

@@ -14,7 +14,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
-import type { ClientCommandHandler, ClientCommandHandlerMap } from './router.ts';
+import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
 
 type GenericClientCommandRunner = (params: {
   client: AgentDeviceClient;

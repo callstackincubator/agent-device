@@ -1,5 +1,5 @@
 import type { BackendSnapshotResult } from '../backend.ts';
-import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
 import type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
@@ -9,7 +9,7 @@ import type {
   DiffSnapshotCommandOptions,
   RuntimeCommand,
   SnapshotCommandOptions,
-} from './index.ts';
+} from './runtime-types.ts';
 import { now } from './selector-read-utils.ts';
 
 export type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';

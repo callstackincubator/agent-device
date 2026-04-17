@@ -3,7 +3,7 @@ import { serializeDeployResult, serializeInstallFromSourceResult } from '../../c
 import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient, AppDeployResult } from '../../client.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const installCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await runDeployCommand('install', positionals, flags, client);

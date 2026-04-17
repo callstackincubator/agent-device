@@ -1,11 +1,11 @@
 import { AppError } from '../utils/errors.ts';
 import type { Point, Rect, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { centerOfRect } from '../utils/snapshot.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
 import { isNodeVisibleInEffectiveViewport } from '../utils/mobile-snapshot-semantics.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import {
   assertSupportedInteractionSurface,
   captureInteractionSnapshot,

@@ -1,12 +1,12 @@
 import { AppError } from '../utils/errors.ts';
 import type { ClickButton } from '../core/click-button.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { isFillableType } from '../utils/snapshot-processing.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
 import type { ResolvedTarget } from './selector-read.ts';
 import { toBackendContext } from './selector-read-utils.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import {
   type InteractionTarget,
   type ResolvedInteractionTarget,

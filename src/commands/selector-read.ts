@@ -2,7 +2,7 @@ import type { FindAction, FindLocator } from '../utils/finders.ts';
 import { findBestMatchesByLocator } from '../utils/finders.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import {
   findSelectorChainMatch,
@@ -12,7 +12,7 @@ import {
 } from '../selectors.ts';
 import { buildSelectorChainForNode } from '../utils/selector-build.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../utils/selector-is-predicates.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import {
   type CapturedSnapshot,
   type SelectorSnapshotOptions,

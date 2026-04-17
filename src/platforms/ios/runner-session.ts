@@ -27,19 +27,9 @@ import {
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
 import type { RunnerCommand } from './runner-contract.ts';
+import type { RunnerSession } from './runner-session-types.ts';
 
-export type RunnerSession = {
-  sessionId: string;
-  device: DeviceInfo;
-  deviceId: string;
-  port: number;
-  xctestrunPath: string;
-  jsonPath: string;
-  testPromise: Promise<ExecResult>;
-  child: ExecBackgroundResult['child'];
-  ready: boolean;
-  simulatorSetRedirect?: { release: () => Promise<void> };
-};
+export type { RunnerSession } from './runner-session-types.ts';
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();

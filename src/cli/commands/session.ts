@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import { serializeSessionListEntry } from '../../client-shared.ts';
 import { writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const sessionCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const sub = positionals[0] ?? 'list';

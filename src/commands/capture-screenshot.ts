@@ -1,7 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import type { ArtifactDescriptor } from '../io.ts';
-import type { RuntimeCommand, ScreenshotCommandOptions } from './index.ts';
+import type { RuntimeCommand, ScreenshotCommandOptions } from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';
 
 export type ScreenshotCommandResult = {

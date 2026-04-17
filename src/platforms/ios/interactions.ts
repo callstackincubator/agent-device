@@ -2,7 +2,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
-import type { BackMode, Interactor, RunnerContext } from '../../core/interactors.ts';
+import type { BackMode, Interactor, RunnerContext } from '../../core/interactor-types.ts';
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type RunIosRunnerCommand = typeof runIosRunnerCommand;

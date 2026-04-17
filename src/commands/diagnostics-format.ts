@@ -8,7 +8,7 @@ import type {
   DiagnosticsLogsCommandResult,
   DiagnosticsNetworkCommandResult,
   DiagnosticsPerfCommandResult,
-} from './diagnostics.ts';
+} from './diagnostics-types.ts';
 
 const PAYLOAD_MAX_CHARS = 2048;
 const MESSAGE_MAX_CHARS = 4096;

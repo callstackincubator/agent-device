@@ -3,7 +3,7 @@ import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
-import type { RunnerSession } from './runner-session.ts';
+import type { RunnerSession } from './runner-session-types.ts';
 
 export type RunnerCommand = {
   command:

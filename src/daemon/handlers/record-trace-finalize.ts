@@ -1,7 +1,7 @@
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
-import type { RecordTraceDeps } from './record-trace-recording.ts';
+import type { RecordTraceDeps } from './record-trace-types.ts';
 
 type FinalizeRecordingOverlayParams = {
   recording: {

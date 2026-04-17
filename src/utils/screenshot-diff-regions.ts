@@ -1,5 +1,8 @@
 import { PNG } from 'pngjs';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
+import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
+
+export type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
 
 type ScreenshotDiffColor = {
   r: number;
@@ -43,20 +46,6 @@ const LARGE_AREA_MIN_HEIGHT_RATIO = 0.12;
 const BAND_MIN_ASPECT_RATIO = 2.5;
 const LARGE_REGION_MIN_AREA_RATIO = 0.04;
 const MEDIUM_REGION_MIN_AREA_RATIO = 0.01;
-
-export type MutableDiffRegion = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  differentPixels: number;
-  baselineRed: number;
-  baselineGreen: number;
-  baselineBlue: number;
-  currentRed: number;
-  currentGreen: number;
-  currentBlue: number;
-};
 
 export function summarizeDiffRegions(params: {
   diffMask: Uint8Array;

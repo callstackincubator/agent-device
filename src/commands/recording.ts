@@ -5,11 +5,11 @@ import type {
   BackendTraceResult,
 } from '../backend.ts';
 import type { ArtifactDescriptor, FileOutputRef } from '../io.ts';
-import type { CommandContext } from '../runtime.ts';
+import type { CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 

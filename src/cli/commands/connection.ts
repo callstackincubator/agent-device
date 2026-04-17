@@ -21,7 +21,7 @@ import {
 import { writeCommandOutput } from './shared.ts';
 import type { LeaseBackend } from '../../contracts.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const connectCommand: ClientCommandHandler = async ({ flags, client }) => {
   if (!flags.remoteConfig) {

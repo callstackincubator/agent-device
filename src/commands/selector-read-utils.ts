@@ -1,5 +1,5 @@
 import type { BackendCommandContext } from '../backend.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 
 export { findNodeByLabel, resolveRefLabel } from '../utils/snapshot-processing.ts';
 

@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureMetroCompanion } from './client-metro-companion.ts';
+import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 import type {
   MetroBridgeDescriptor,
   MetroBridgeResult,
   MetroBridgeRuntimePayload,
   MetroRuntimeHints,
-} from './metro.ts';
+} from './metro-types.ts';
 import { AppError } from './utils/errors.ts';
 import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
@@ -20,11 +21,7 @@ export type MetroPrepareKind = 'auto' | 'react-native' | 'expo';
 type ResolvedMetroKind = Exclude<MetroPrepareKind, 'auto'>;
 type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
-export type MetroBridgeScope = {
-  tenantId: string;
-  runId: string;
-  leaseId: string;
-};
+export type { MetroBridgeScope };
 
 type PackageJsonShape = {
   dependencies?: Record<string, string>;

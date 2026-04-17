@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
-import type { RecordTraceDeps } from './record-trace-recording.ts';
+import type { RecordTraceDeps } from './record-trace-types.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 
