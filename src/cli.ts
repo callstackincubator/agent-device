@@ -393,7 +393,9 @@ function resolveActiveConnectionDefaults(options: {
     remoteConfig: options.remoteConfig,
     cwd: process.cwd(),
     env: process.env,
-    allowActiveFallback: !options.explicitFlagKeys.has('session'),
+    allowActiveFallback:
+      !options.explicitFlagKeys.has('session') &&
+      (!options.remoteConfig || options.command === 'disconnect'),
     validateRemoteConfigHash: options.command !== 'disconnect',
   });
   return defaults;

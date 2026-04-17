@@ -540,6 +540,91 @@ test('normal commands accept direct remote-config usage', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('direct remote-config command does not fall back to unrelated active session', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-profile',
+      session: 'profile-session',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+  fs.mkdirSync(path.join(stateDir, 'remote-connections'), { recursive: true });
+  const now = new Date().toISOString();
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', 'active-session.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'active-session',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      tenant: 'acme',
+      runId: 'run-active',
+      leaseId: 'lease-active',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: now,
+      updatedAt: now,
+    }),
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(stateDir, 'remote-connections', '.active-session.json'),
+    JSON.stringify({ session: 'active-session' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(
+    ['snapshot', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_heartbeat') {
+          throw new Error('should not reuse active-session lease');
+        }
+        if (req.command === 'lease_allocate') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-profile',
+                tenantId: 'acme',
+                runId: 'run-profile',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return { ok: true, data: { nodes: [], truncated: false } };
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'lease_allocate');
+  assert.equal(result.calls[1]?.command, 'snapshot');
+  assert.equal(result.calls[1]?.session, 'profile-session');
+  assert.equal(result.calls[1]?.meta?.runId, 'run-profile');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-profile');
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'profile-session' })?.leaseId,
+    'lease-profile',
+  );
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'active-session' })?.leaseId,
+    'lease-active',
+  );
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('install-from-source --remote-config writes and reuses lease state', async () => {
   const { root, home, project } = makeTempWorkspace();
   const stateDir = path.join(root, 'state');
