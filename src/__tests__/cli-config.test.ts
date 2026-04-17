@@ -540,6 +540,116 @@ test('normal commands accept direct remote-config usage', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('install-from-source --remote-config writes and reuses lease state', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+
+  const first = await runCliCapture(
+    [
+      'install-from-source',
+      'https://example.com/app.apk',
+      '--remote-config',
+      remoteConfig,
+      '--state-dir',
+      stateDir,
+      '--json',
+    ],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_allocate') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-install-source-001',
+                tenantId: 'acme',
+                runId: 'run-123',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return {
+          ok: true,
+          data: {
+            launchTarget: 'com.example.demo',
+            packageName: 'com.example.demo',
+          },
+        };
+      },
+    },
+  );
+
+  assert.equal(first.code, null);
+  assert.equal(first.calls.length, 2);
+  assert.equal(first.calls[0]?.command, 'lease_allocate');
+  assert.equal(first.calls[1]?.command, 'install_source');
+  assert.equal(first.calls[1]?.meta?.leaseId, 'lease-install-source-001');
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'default' })?.leaseId,
+    'lease-install-source-001',
+  );
+
+  const second = await runCliCapture(
+    [
+      'install-from-source',
+      'https://example.com/app.apk',
+      '--remote-config',
+      remoteConfig,
+      '--state-dir',
+      stateDir,
+      '--json',
+    ],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_heartbeat') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-install-source-001',
+                tenantId: 'acme',
+                runId: 'run-123',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return {
+          ok: true,
+          data: {
+            launchTarget: 'com.example.demo',
+            packageName: 'com.example.demo',
+          },
+        };
+      },
+    },
+  );
+
+  assert.equal(second.code, null);
+  assert.equal(second.calls.length, 2);
+  assert.equal(second.calls[0]?.command, 'lease_heartbeat');
+  assert.equal(second.calls[1]?.command, 'install_source');
+  assert.equal(second.calls[1]?.meta?.leaseId, 'lease-install-source-001');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('run-react-native uses positional platform for remote lease and install/open flow', async () => {
   const { root, home, project } = makeTempWorkspace();
   const stateDir = path.join(root, 'state');

@@ -37,7 +37,7 @@ agent-device disconnect
 
 `connect` resolves the remote profile, generates a local session name when the profile omits one, stores local non-secret connection state, and defers tenant lease allocation plus Metro preparation until a later command needs them. When a command such as `open`, `install`, `apps`, or `snapshot` needs a lease, the client allocates or refreshes it from the connected scope. When a command needs Metro runtime hints, the client prepares Metro locally at that point and starts the local Metro companion when the bridge needs it, including `batch` runs whose steps open an app. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease when one was allocated, and removes local connection state.
 
-After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch.
+After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch. End self-contained remote scripts with `agent-device disconnect --remote-config <path>` or `agent-device disconnect` to release the lease and stop the owned Metro companion.
 
 For the React Native happy path, prefer a single ordered command when the app artifact is already available by URL:
 
