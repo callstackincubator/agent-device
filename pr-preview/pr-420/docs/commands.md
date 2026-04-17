@@ -668,10 +668,21 @@ agent-device snapshot -i
 agent-device disconnect
 ```
 
+For self-contained scripts, pass the same profile to each step:
+
+```bash
+agent-device install-from-source https://example.com/builds/app.apk --remote-config ./agent-device.remote.json --platform android
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+agent-device snapshot --remote-config ./agent-device.remote.json -i
+agent-device disconnect --remote-config ./agent-device.remote.json
+```
+
 - `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
 - `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
 - Deferred Metro preparation also applies to `batch` when any step opens an app and the batch does not provide its own per-step runtime.
-- After `connect`, `snapshot`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Explicit command-line flags override those connected defaults.
+- After `connect`, `snapshot`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Passing the same `--remote-config` to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.
+- Self-contained remote scripts should end with `disconnect --remote-config <path>` or `disconnect` to release the lease and stop the owned Metro companion.
+- Explicit command-line flags override connected defaults. When `open` uses explicit remote daemon or tenant flags without saved runtime hints, the CLI warns because React Native apps may launch without Metro bundle/runtime hints.
 - `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 - The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
 
