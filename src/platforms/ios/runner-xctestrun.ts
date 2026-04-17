@@ -680,9 +680,31 @@ export async function prepareXctestrunWithEnv(
     });
   }
 
-  let parsed: Record<string, any>;
+  type EnvMap = Record<string, string>;
+  type XctestrunTarget = {
+    TestBundlePath?: unknown;
+    EnvironmentVariables?: EnvMap;
+    UITestEnvironmentVariables?: EnvMap;
+    UITargetAppEnvironmentVariables?: EnvMap;
+    TestingEnvironmentVariables?: EnvMap;
+    [key: string]: unknown;
+  };
+  type XctestrunConfig = {
+    TestTargets?: unknown;
+    [key: string]: unknown;
+  };
+  type XctestrunPlist = {
+    TestConfigurations?: unknown;
+    [key: string]: unknown;
+  };
+
+  let parsed: XctestrunPlist;
   try {
-    parsed = JSON.parse(jsonResult.stdout) as Record<string, any>;
+    const raw: unknown = JSON.parse(jsonResult.stdout);
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('Root must be an object');
+    }
+    parsed = raw as XctestrunPlist;
   } catch (err) {
     throw new AppError('COMMAND_FAILED', 'Failed to parse xctestrun JSON', {
       xctestrunPath,
@@ -690,7 +712,7 @@ export async function prepareXctestrunWithEnv(
     });
   }
 
-  const applyEnvToTarget = (target: Record<string, any>) => {
+  const applyEnvToTarget = (target: XctestrunTarget) => {
     target.EnvironmentVariables = { ...(target.EnvironmentVariables ?? {}), ...envVars };
     target.UITestEnvironmentVariables = {
       ...(target.UITestEnvironmentVariables ?? {}),
@@ -708,11 +730,11 @@ export async function prepareXctestrunWithEnv(
 
   const configs = parsed.TestConfigurations;
   if (Array.isArray(configs)) {
-    for (const config of configs) {
+    for (const config of configs as XctestrunConfig[]) {
       if (!config || typeof config !== 'object') continue;
       const targets = config.TestTargets;
       if (!Array.isArray(targets)) continue;
-      for (const target of targets) {
+      for (const target of targets as XctestrunTarget[]) {
         if (!target || typeof target !== 'object') continue;
         applyEnvToTarget(target);
       }
@@ -720,9 +742,12 @@ export async function prepareXctestrunWithEnv(
   }
 
   for (const [key, value] of Object.entries(parsed)) {
-    if (value && typeof value === 'object' && value.TestBundlePath) {
-      applyEnvToTarget(value);
-      parsed[key] = value;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const candidate = value as XctestrunTarget;
+      if (candidate.TestBundlePath) {
+        applyEnvToTarget(candidate);
+        parsed[key] = candidate;
+      }
     }
   }
 

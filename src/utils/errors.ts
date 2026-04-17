@@ -3,6 +3,7 @@ import { redactDiagnosticData } from './redaction.ts';
 export type AppErrorCode =
   | 'INVALID_ARGS'
   | 'DEVICE_NOT_FOUND'
+  | 'DEVICE_IN_USE'
   | 'TOOL_MISSING'
   | 'APP_NOT_INSTALLED'
   | 'UNSUPPORTED_PLATFORM'
@@ -12,6 +13,36 @@ export type AppErrorCode =
   | 'SESSION_NOT_FOUND'
   | 'UNAUTHORIZED'
   | 'UNKNOWN';
+
+const APP_ERROR_CODES: readonly AppErrorCode[] = [
+  'INVALID_ARGS',
+  'DEVICE_NOT_FOUND',
+  'DEVICE_IN_USE',
+  'TOOL_MISSING',
+  'APP_NOT_INSTALLED',
+  'UNSUPPORTED_PLATFORM',
+  'UNSUPPORTED_OPERATION',
+  'NOT_IMPLEMENTED',
+  'COMMAND_FAILED',
+  'SESSION_NOT_FOUND',
+  'UNAUTHORIZED',
+  'UNKNOWN',
+];
+
+/**
+ * Narrow a wire-level error code string into a known AppErrorCode.
+ * Unrecognised codes are surfaced verbatim by preserving them on details,
+ * while the typed channel falls back to the provided default.
+ */
+export function toAppErrorCode(
+  code: string | undefined,
+  fallback: AppErrorCode = 'COMMAND_FAILED',
+): AppErrorCode {
+  if (typeof code === 'string' && (APP_ERROR_CODES as readonly string[]).includes(code)) {
+    return code as AppErrorCode;
+  }
+  return fallback;
+}
 
 type AppErrorDetails = Record<string, unknown> & {
   hint?: string;

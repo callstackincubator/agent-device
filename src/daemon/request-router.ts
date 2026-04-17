@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
 import { dispatchCommand, resolveTargetDevice } from '../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
-import { AppError, normalizeError } from '../utils/errors.ts';
+import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
 import type {
   DaemonArtifact,
   DaemonRequest,
@@ -156,7 +156,7 @@ function finalizeDaemonResponse(
     });
     const logPathOnFailure = flushDiagnosticsToSessionFile({ force: true }) ?? undefined;
     const normalizedError = normalizeError(
-      new AppError(response.error.code as any, response.error.message, {
+      new AppError(toAppErrorCode(response.error.code), response.error.message, {
         ...(response.error.details ?? {}),
         hint: response.error.hint,
         diagnosticId: response.error.diagnosticId,

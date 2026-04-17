@@ -3,7 +3,7 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
-import { AppError } from './utils/errors.ts';
+import { AppError, toAppErrorCode } from './utils/errors.ts';
 import type {
   DaemonArtifact,
   DaemonRequest as SharedDaemonRequest,
@@ -979,7 +979,10 @@ async function sendHttpRequest(
               const data = parsed.error.data ?? {};
               reject(
                 new AppError(
-                  String(data.code ?? 'COMMAND_FAILED') as any,
+                  toAppErrorCode(
+                    typeof data.code === 'string' ? data.code : undefined,
+                    'COMMAND_FAILED',
+                  ),
                   String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),
                   {
                     ...(typeof data.details === 'object' && data.details ? data.details : {}),

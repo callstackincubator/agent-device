@@ -1,6 +1,6 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
-import { AppError, normalizeError } from '../utils/errors.ts';
+import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
 import type { JsonRpcId, JsonRpcRequestEnvelope } from '../contracts.ts';
 import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
@@ -325,7 +325,7 @@ async function runHttpAuthHook(
   if (result.ok === false) {
     const normalized = normalizeError(
       new AppError(
-        (result.code as any) ?? 'UNAUTHORIZED',
+        toAppErrorCode(result.code, 'UNAUTHORIZED'),
         result.message ?? 'Request rejected by auth hook',
         result.details,
       ),
