@@ -1,10 +1,14 @@
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import { stopMetroTunnel } from '../../metro.ts';
+import { resolveRemoteConfigProfile } from '../../remote-config.ts';
 import {
+  buildRemoteConnectionDaemonState,
+  hashRemoteConfigFile,
   readRemoteConnectionState,
   writeRemoteConnectionState,
   type RemoteConnectionState,
 } from '../../remote-connection-state.ts';
+import { REMOTE_CONFIG_FIELD_SPECS, type RemoteConfigProfile } from '../../remote-config-schema.ts';
 import type { BatchStep } from '../../core/dispatch.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
@@ -37,15 +41,39 @@ export async function materializeRemoteConnectionForCommand(options: {
   }
 
   const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
-  const state = readRemoteConnectionState({ stateDir, session: flags.session ?? 'default' });
-  if (!state) {
-    return { flags, runtime: options.runtime };
+  const remoteConfig = resolveRemoteConfigProfile({
+    configPath: flags.remoteConfig,
+    cwd: process.cwd(),
+    env: process.env,
+  });
+  const profileFlags = profileToCliFlags(remoteConfig.profile);
+  const mergedFlags = {
+    ...profileFlags,
+    ...flags,
+    remoteConfig: remoteConfig.resolvedPath,
+  };
+  const existingState = readRemoteConnectionState({
+    stateDir,
+    session: mergedFlags.session ?? 'default',
+  });
+  if (existingState && existingState.remoteConfigPath !== remoteConfig.resolvedPath) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'A different remote connection is already active for this session. Run connect --force or disconnect before using a different --remote-config.',
+      {
+        session: existingState.session,
+        activeRemoteConfig: existingState.remoteConfigPath,
+        requestedRemoteConfig: remoteConfig.resolvedPath,
+      },
+    );
   }
 
-  const nextFlags = { ...flags };
-  let nextRuntime = selectCompatibleRuntime(state.runtime, flags.platform) ?? options.runtime;
+  const state =
+    existingState ?? createRemoteConnectionStateFromFlags(mergedFlags, remoteConfig.resolvedPath);
+  const nextFlags = { ...mergedFlags, session: state.session };
+  let nextRuntime = selectCompatibleRuntime(state.runtime, nextFlags.platform) ?? options.runtime;
   let nextState = state;
-  let changed = false;
+  let changed = !existingState;
   let metroCleanupToStop: RemoteConnectionState['metro'] | undefined;
   let preparedMetroCleanupOnFailure: RemoteConnectionState['metro'] | undefined;
 
@@ -72,7 +100,7 @@ export async function materializeRemoteConnectionForCommand(options: {
 
   if (
     shouldPrepareRuntimeForCommand(command, options.batchSteps) &&
-    hasDeferredMetroConfig(flags)
+    hasDeferredMetroConfig(nextFlags)
   ) {
     if (!nextState.leaseId && nextFlags.leaseId) {
       nextState = {
@@ -263,7 +291,7 @@ function shouldPrepareRuntimeForCommand(command: string, batchSteps?: BatchStep[
   });
 }
 
-function hasDeferredMetroConfig(flags: CliFlags): boolean {
+export function hasDeferredMetroConfig(flags: CliFlags): boolean {
   return Boolean(
     flags.metroPublicBaseUrl ||
     flags.metroProxyBaseUrl ||
@@ -299,6 +327,57 @@ function selectCompatibleRuntime(
 ): SessionRuntimeHints | undefined {
   if (!runtime) return undefined;
   return isRuntimeCompatibleWithPlatform(runtime, platform) ? runtime : undefined;
+}
+
+function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
+  const flags: Partial<CliFlags> = {};
+  for (const spec of REMOTE_CONFIG_FIELD_SPECS) {
+    const value = profile[spec.key];
+    if (value !== undefined) {
+      (flags as Record<string, unknown>)[spec.key] = value;
+    }
+  }
+  return flags;
+}
+
+function createRemoteConnectionStateFromFlags(
+  flags: CliFlags,
+  remoteConfigPath: string,
+): RemoteConnectionState {
+  if (!flags.tenant) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'remote command requires tenant in remote config or via --tenant <id>.',
+    );
+  }
+  if (!flags.runId) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'remote command requires runId in remote config or via --run-id <id>.',
+    );
+  }
+  if (!flags.daemonBaseUrl) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'remote command requires daemonBaseUrl in remote config, config, env, or --daemon-base-url.',
+    );
+  }
+  const now = new Date().toISOString();
+  return {
+    version: 1,
+    session: flags.session ?? 'default',
+    remoteConfigPath,
+    remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+    daemon: buildRemoteConnectionDaemonState(flags),
+    tenant: flags.tenant,
+    runId: flags.runId,
+    leaseId: flags.leaseId,
+    leaseBackend: flags.leaseBackend ?? resolveRequestedLeaseBackend(flags),
+    platform: flags.platform,
+    target: flags.target,
+    connectedAt: now,
+    updatedAt: now,
+  };
 }
 
 async function allocateOrReuseLease(

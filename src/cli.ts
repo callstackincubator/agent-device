@@ -54,6 +54,17 @@ const METRO_RUNTIME_OVERRIDE_FLAG_KEYS = new Set<FlagKey>([
   'metroStatusHost',
 ]);
 
+const REMOTE_MATERIALIZATION_DEFERRED_COMMANDS = new Set([
+  'connect',
+  'connection',
+  'close',
+  'devices',
+  'disconnect',
+  'ensure-simulator',
+  'metro',
+  'session',
+]);
+
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
   const version = readVersion();
@@ -141,12 +152,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       let effectiveFlags: typeof parsed.flags;
       const explicitFlagKeys = new Set(parsed.providedFlags.map((entry) => entry.key));
       try {
-        if (parsed.flags.remoteConfig && command !== 'connect' && command !== 'metro') {
-          throw new AppError(
-            'INVALID_ARGS',
-            '--remote-config is only supported by connect and metro prepare. Run agent-device connect first, then use normal commands.',
-          );
-        }
         binding = resolveBindingSettings({
           policyOverrides: parsed.flags,
           configuredPlatform: parsed.flags.platform,
@@ -166,6 +171,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           explicitFlagKeys,
           stateDir: daemonPaths.baseDir,
           session: sessionName,
+          remoteConfig: flags.remoteConfig,
         });
         effectiveFlags = connectionDefaults
           ? mergeConnectionFlags(flags, connectionDefaults.flags, explicitFlagKeys)
@@ -223,7 +229,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           parsedBatchSteps = readBatchSteps(flags);
         }
 
-        if (connectionDefaults && command !== 'connect' && command !== 'connection') {
+        if (effectiveFlags.remoteConfig && shouldMaterializeRemoteConnection(command)) {
           const materializationClient = createAgentDeviceClient(
             buildClientConfig(effectiveFlags, resolvedRuntime),
             {
@@ -240,6 +246,19 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           });
           effectiveFlags = materialized.flags;
           resolvedRuntime = materialized.runtime;
+        }
+        if (
+          shouldWarnOpenMayMissRemoteRuntime({
+            command,
+            flags: effectiveFlags,
+            runtime: resolvedRuntime,
+            explicitFlagKeys,
+            hadConnectionDefaults: Boolean(connectionDefaults),
+          })
+        ) {
+          process.stderr.write(
+            'Warning: open is using explicit remote daemon or tenant flags without saved Metro runtime hints. React Native apps may launch without bundle/runtime hints; prefer connect --remote-config <path> first or pass --remote-config <path> on this command.\n',
+          );
         }
         const remoteDaemonBaseUrl = effectiveFlags.daemonBaseUrl;
         logTailStopper =
@@ -361,21 +380,55 @@ function resolveActiveConnectionDefaults(options: {
   explicitFlagKeys: Set<FlagKey>;
   stateDir: string;
   session: string;
+  remoteConfig?: string;
 }): {
   flags: Partial<CliFlags>;
   runtime?: SessionRuntimeHints;
 } | null {
   if (options.command === 'connect' || options.command === 'connection') return null;
-  if (options.explicitFlagKeys.has('remoteConfig')) return null;
   const defaults = resolveRemoteConnectionDefaults({
     stateDir: options.stateDir,
     session: options.session,
+    remoteConfig: options.remoteConfig,
     cwd: process.cwd(),
     env: process.env,
-    allowActiveFallback: !options.explicitFlagKeys.has('session'),
+    allowActiveFallback:
+      !options.explicitFlagKeys.has('session') &&
+      (!options.remoteConfig || options.command === 'disconnect'),
     validateRemoteConfigHash: options.command !== 'disconnect',
   });
   return defaults;
+}
+
+function shouldMaterializeRemoteConnection(command: string): boolean {
+  return !REMOTE_MATERIALIZATION_DEFERRED_COMMANDS.has(command);
+}
+
+function shouldWarnOpenMayMissRemoteRuntime(options: {
+  command: string;
+  flags: CliFlags;
+  runtime?: SessionRuntimeHints;
+  explicitFlagKeys: Set<FlagKey>;
+  hadConnectionDefaults: boolean;
+}): boolean {
+  if (options.command !== 'open') return false;
+  if (options.runtime) return false;
+  if (options.flags.bundleUrl || options.flags.metroHost || options.flags.metroPort) return false;
+  if (options.flags.remoteConfig) return false;
+  if (options.hadConnectionDefaults) return false;
+  return hasExplicitRemoteScopeFlags(options.explicitFlagKeys);
+}
+
+function hasExplicitRemoteScopeFlags(explicitFlagKeys: Set<FlagKey>): boolean {
+  return (
+    explicitFlagKeys.has('daemonBaseUrl') ||
+    explicitFlagKeys.has('daemonTransport') ||
+    explicitFlagKeys.has('tenant') ||
+    explicitFlagKeys.has('sessionIsolation') ||
+    explicitFlagKeys.has('runId') ||
+    explicitFlagKeys.has('leaseId') ||
+    explicitFlagKeys.has('leaseBackend')
+  );
 }
 
 function mergeConnectionFlags(

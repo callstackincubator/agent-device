@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolveRemoteConfigProfile } from './remote-config-core.ts';
+import { resolveRemoteConfigPath, resolveRemoteConfigProfile } from './remote-config-core.ts';
 import { AppError } from './utils/errors.ts';
 import { emitDiagnostic } from './utils/diagnostics.ts';
 import type { CliFlags } from './utils/command-schema.ts';
@@ -71,6 +71,16 @@ export function writeRemoteConnectionState(options: {
   writeJsonFile(activeConnectionStatePath(options.stateDir), { session: options.state.session });
 }
 
+export function buildRemoteConnectionDaemonState(
+  flags: Pick<CliFlags, 'daemonBaseUrl' | 'daemonTransport' | 'daemonServerMode'>,
+): RemoteConnectionState['daemon'] {
+  return {
+    baseUrl: sanitizeDaemonBaseUrl(flags.daemonBaseUrl),
+    transport: flags.daemonTransport,
+    serverMode: flags.daemonServerMode,
+  };
+}
+
 export function removeRemoteConnectionState(options: { stateDir: string; session: string }): void {
   fs.rmSync(remoteConnectionStatePath(options), { force: true });
   const activePath = activeConnectionStatePath(options.stateDir);
@@ -83,18 +93,29 @@ export function removeRemoteConnectionState(options: { stateDir: string; session
 export function resolveRemoteConnectionDefaults(options: {
   stateDir: string;
   session: string;
+  remoteConfig?: string;
   cwd: string;
   env: Record<string, string | undefined>;
   allowActiveFallback?: boolean;
   validateRemoteConfigHash?: boolean;
 }): RemoteConnectionDefaults | null {
   const validateRemoteConfigHash = options.validateRemoteConfigHash ?? true;
+  const expectedRemoteConfigPath = options.remoteConfig
+    ? resolveRemoteConfigPath({
+        configPath: options.remoteConfig,
+        cwd: options.cwd,
+        env: options.env,
+      })
+    : undefined;
   const state =
     readRemoteConnectionState(options) ??
     (options.allowActiveFallback
       ? readActiveConnectionState({ stateDir: options.stateDir })
       : null);
   if (!state) return null;
+  if (expectedRemoteConfigPath && state.remoteConfigPath !== expectedRemoteConfigPath) {
+    return null;
+  }
   if (
     validateRemoteConfigHash &&
     hashRemoteConfigFile(state.remoteConfigPath) !== state.remoteConfigHash
@@ -205,6 +226,19 @@ function writeJsonFile(filePath: string, value: unknown): void {
     mode: 0o600,
   });
   fs.chmodSync(filePath, 0o600);
+}
+
+function sanitizeDaemonBaseUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const url = new URL(value);
+  url.username = '';
+  url.password = '';
+  for (const key of [...url.searchParams.keys()]) {
+    if (/(auth|key|password|secret|token)/i.test(key)) {
+      url.searchParams.delete(key);
+    }
+  }
+  return url.toString().replace(/\/+$/, '');
 }
 
 function removeInvalidRemoteConnectionState(

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import { resolveRemoteConfigProfile } from '../../remote-config.ts';
 import {
+  buildRemoteConnectionDaemonState,
   fingerprint,
   hashRemoteConfigFile,
   readActiveConnectionState,
@@ -12,6 +13,7 @@ import {
 } from '../../remote-connection-state.ts';
 import { AppError } from '../../utils/errors.ts';
 import {
+  hasDeferredMetroConfig,
   releasePreviousLease,
   resolveRequestedLeaseBackend,
   stopMetroCleanup,
@@ -104,14 +106,17 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
     await stopMetroCleanup(previous.metro);
     await releasePreviousLease(client, previous);
   }
+  const runtimePreparation = buildRuntimePreparationNotice(flags, state);
 
-  writeCommandOutput(
-    flags,
-    serializeConnectionState(state),
-    () =>
+  writeCommandOutput(flags, serializeConnectionState(state, runtimePreparation), () =>
+    [
       `Connected remote session "${session}" tenant "${tenant}" run "${runId}" ${
         state.leaseId ? `lease ${state.leaseId}` : 'lease pending'
       }`,
+      runtimePreparation?.message,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n'),
   );
   return true;
 };
@@ -177,13 +182,17 @@ export const connectionCommand: ClientCommandHandler = async ({ positionals, fla
     );
     return true;
   }
-  writeCommandOutput(flags, serializeConnectionState(state), () =>
+  const runtimePreparation = buildRuntimePreparationNoticeFromState(state);
+  writeCommandOutput(flags, serializeConnectionState(state, runtimePreparation), () =>
     [
       `Connected remote session "${state.session}".`,
       `tenant=${state.tenant} runId=${state.runId} leaseId=${state.leaseId ?? 'pending'} backend=${state.leaseBackend ?? 'pending'}`,
       `remoteConfig=${state.remoteConfigPath}`,
       state.runtime ? 'metro=prepared' : 'metro=not-prepared',
-    ].join('\n'),
+      runtimePreparation?.message,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n'),
   );
   return true;
 };
@@ -235,27 +244,67 @@ function isSameDaemonState(
 }
 
 function buildDaemonState(flags: CliFlags): RemoteConnectionState['daemon'] {
+  return buildRemoteConnectionDaemonState(flags);
+}
+
+type RuntimePreparationNotice = {
+  status: 'deferred';
+  message: string;
+  nextStep: string;
+};
+
+function buildRuntimePreparationNotice(
+  flags: CliFlags,
+  state: RemoteConnectionState,
+): RuntimePreparationNotice | undefined {
+  if (state.runtime) return undefined;
+  if (!hasDeferredMetroConfig(flags) && !remoteConfigHasMetroSettings(state.remoteConfigPath)) {
+    return undefined;
+  }
+  return buildDeferredRuntimeNotice(state.remoteConfigPath);
+}
+
+function buildRuntimePreparationNoticeFromState(
+  state: RemoteConnectionState,
+): RuntimePreparationNotice | undefined {
+  if (state.runtime || !remoteConfigHasMetroSettings(state.remoteConfigPath)) return undefined;
+  return buildDeferredRuntimeNotice(state.remoteConfigPath);
+}
+
+function buildDeferredRuntimeNotice(remoteConfigPath: string): RuntimePreparationNotice {
+  const nextStep = `agent-device metro prepare --remote-config ${remoteConfigPath}`;
   return {
-    baseUrl: sanitizeDaemonBaseUrl(flags.daemonBaseUrl),
-    transport: flags.daemonTransport,
-    serverMode: flags.daemonServerMode,
+    status: 'deferred',
+    nextStep,
+    message:
+      `Metro runtime is not prepared yet; it will be prepared automatically on first open, ` +
+      `or run "${nextStep}" to inspect it before launch.`,
   };
 }
 
-function sanitizeDaemonBaseUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const url = new URL(value);
-  url.username = '';
-  url.password = '';
-  for (const key of [...url.searchParams.keys()]) {
-    if (/(auth|key|password|secret|token)/i.test(key)) {
-      url.searchParams.delete(key);
-    }
+function remoteConfigHasMetroSettings(remoteConfigPath: string): boolean {
+  try {
+    const remoteConfig = resolveRemoteConfigProfile({
+      configPath: remoteConfigPath,
+      cwd: process.cwd(),
+      env: process.env,
+    });
+    const profile = remoteConfig.profile;
+    return Boolean(
+      profile.metroPublicBaseUrl ||
+      profile.metroProxyBaseUrl ||
+      profile.metroProjectRoot ||
+      profile.metroKind,
+    );
+  } catch {
+    return false;
   }
-  return url.toString().replace(/\/+$/, '');
 }
 
-function serializeConnectionState(state: RemoteConnectionState): Record<string, unknown> {
+function serializeConnectionState(
+  state: RemoteConnectionState,
+  runtimePreparation?: RuntimePreparationNotice,
+): Record<string, unknown> {
   return {
     connected: true,
     session: state.session,
@@ -272,6 +321,7 @@ function serializeConnectionState(state: RemoteConnectionState): Record<string, 
     metro: state.metro
       ? { prepared: true, projectRoot: state.metro.projectRoot }
       : { prepared: false },
+    ...(runtimePreparation ? { runtimePreparation } : {}),
     connectedAt: state.connectedAt,
     updatedAt: state.updatedAt,
   };

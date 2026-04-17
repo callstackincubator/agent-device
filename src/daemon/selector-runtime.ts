@@ -33,6 +33,10 @@ import type { ContextFromFlags } from './handlers/interaction-common.ts';
 import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import {
+  describeAndroidEscapeSurface,
+  detectAndroidEscapeSurface,
+} from './handlers/interaction-android-escape.ts';
+import {
   buildFindRecordResult,
   buildGetRecordResult,
   recordIfSession,
@@ -167,7 +171,7 @@ export async function dispatchIsViaRuntime(
   });
   if (!resolvedRuntime.ok) return resolvedRuntime.response;
 
-  return await toDaemonResponse(async () => {
+  const response = await toDaemonResponse(async () => {
     const result = await resolvedRuntime.runtime.selectors.is({
       session: params.sessionName,
       requestId: req.meta?.requestId,
@@ -178,6 +182,7 @@ export async function dispatchIsViaRuntime(
     recordIfSession(params.sessionStore, params.sessionName, req, result);
     return stripSelectorChain(result);
   });
+  return await maybeAndroidForegroundBlockerResponse(params, response, `is ${predicate}`);
 }
 
 export async function dispatchWaitViaRuntime(
@@ -196,7 +201,7 @@ export async function dispatchWaitViaRuntime(
       session,
       device,
     });
-    return await toDaemonResponse(async () => {
+    const response = await toDaemonResponse(async () => {
       const result = await runtime.selectors.wait({
         session: sessionName,
         requestId: req.meta?.requestId,
@@ -205,6 +210,7 @@ export async function dispatchWaitViaRuntime(
       recordIfSession(sessionStore, sessionName, req, result);
       return toDaemonWaitData(result);
     });
+    return await maybeAndroidForegroundBlockerResponse(params, response, 'wait');
   };
   if (!waitNeedsRunnerCleanup(parsed)) return await execute();
   return await withSessionlessRunnerCleanup(session, device, execute);
@@ -462,6 +468,33 @@ async function toDaemonResponse(
     const appError = asAppError(error);
     return errorResponse(appError.code, appError.message, appError.details);
   }
+}
+
+async function maybeAndroidForegroundBlockerResponse(
+  params: SelectorRuntimeParams,
+  response: DaemonResponse,
+  commandLabel: string,
+): Promise<DaemonResponse> {
+  if (response.ok) return response;
+  const session = params.sessionStore.get(params.sessionName);
+  if (!session) return response;
+  let surface: Awaited<ReturnType<typeof detectAndroidEscapeSurface>>;
+  try {
+    surface = await detectAndroidEscapeSurface(session);
+  } catch {
+    return response;
+  }
+  if (!surface) return response;
+  return errorResponse(
+    response.error.code,
+    `${commandLabel} failed because ${describeAndroidEscapeSurface(surface)}.`,
+    {
+      ...(response.error.details ?? {}),
+      ...surface,
+      blockedBy: 'android_foreground_surface',
+      originalMessage: response.error.message,
+    },
+  );
 }
 
 function toCommandSession(session: SessionState | undefined) {

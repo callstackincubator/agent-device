@@ -7,47 +7,87 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 ## Main commands to reach for first
 
 - `agent-device connect --remote-config <path>`
+- `agent-device install-from-source <url> --remote-config <path> --platform android`
+- `agent-device open <package> --remote-config <path> --relaunch`
+- `agent-device snapshot --remote-config <path> -i`
+- `agent-device disconnect --remote-config <path>`
 - `agent-device connection status`
-- `agent-device disconnect`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
 
 ## Most common mistake to avoid
 
-Do not run remote tenant work by repeating `--remote-config` on every command. `--remote-config` is a `connect` input. After connecting, use normal `agent-device` commands; the active connection supplies daemon URL, tenant, run, and session context, then resolves lease and Metro details only when a later command actually needs them.
+Do not mix an arbitrary `--session` plus ad-hoc daemon, tenant, run, or lease flags. That can bypass saved Metro runtime hints. Use one of these patterns instead:
 
-## Preferred remote flow
+- Interactive flow: run `connect --remote-config <path>` once, then normal commands, then `disconnect`.
+- Script flow: pass the same `--remote-config <path>` to every command, including `disconnect`.
 
-Use this when the agent needs the simplest remote control flow: a Linux sandbox agent talks over HTTP to `agent-device` on a remote macOS host and launches the target app through a checked-in `--remote-config` profile.
+## Choose one flow
+
+### Interactive flow
+
+Use this when the agent will run several commands in one session.
 
 ```bash
 export AGENT_DEVICE_DAEMON_AUTH_TOKEN="YOUR_TOKEN"
 export AGENT_DEVICE_PROXY_TOKEN="$AGENT_DEVICE_DAEMON_AUTH_TOKEN"
 
-agent-device connect \
-  --remote-config ./remote-config.json
+agent-device connect --remote-config ./remote-config.json
 
-agent-device install com.example.app ./app.apk
-agent-device install-from-source https://example.com/builds/app.apk --platform android
+ARTIFACT_URL="<trusted-artifact-url>"
+agent-device install-from-source "$ARTIFACT_URL" --platform android
 agent-device open com.example.app --relaunch
 agent-device snapshot -i
 agent-device fill @e3 "test@example.com"
 agent-device disconnect
 ```
 
-`connect` resolves the remote profile, generates a local session name when the profile omits one, stores local non-secret connection state, and defers tenant lease allocation plus Metro preparation until a later command needs them. When a command such as `open`, `install`, `apps`, or `snapshot` needs a lease, the client allocates or refreshes it from the connected scope. When a command needs Metro runtime hints, the client prepares Metro locally at that point and starts the local Metro companion when the bridge needs it, including `batch` runs whose steps open an app. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease when one was allocated, and removes local connection state.
+After `connect`, normal commands use the active remote connection. End with `disconnect` to release the lease and stop the owned Metro companion.
 
-After `connect`, normal `agent-device` commands use the active remote connection. Do not repeat `--remote-config` on every command.
+### Self-contained script flow
+
+Use this when each command must be explicit and repeatable. Pass the same `--remote-config` to each step.
+
+```bash
+ARTIFACT_URL="<trusted-artifact-url>"
+
+agent-device install-from-source "$ARTIFACT_URL" \
+  --remote-config ./remote-config.json \
+  --platform android
+
+agent-device open com.example.app \
+  --remote-config ./remote-config.json \
+  --relaunch
+
+agent-device snapshot \
+  --remote-config ./remote-config.json \
+  -i
+
+agent-device disconnect \
+  --remote-config ./remote-config.json
+```
+
+The first command that needs a lease or Metro runtime prepares and persists it. Later commands with the same `--remote-config` reuse that state. End with `disconnect --remote-config <path>` to release the lease and stop the owned Metro companion.
+
+## Behavior summary
+
+- `connect` stores local non-secret connection state and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Commands such as `install-from-source`, `open`, `snapshot`, and `apps` allocate or refresh the lease when needed.
+- `open` prepares Metro runtime hints when the remote profile has Metro fields and no compatible runtime is already saved.
+- `batch` also prepares Metro when any step opens an app and that step does not provide its own runtime.
+- `disconnect` closes the session when possible, stops the Metro companion owned by the connection, releases the lease when one was allocated, and removes local connection state.
 
 Remote install examples:
 
 ```bash
 agent-device install com.example.app ./app.apk
-agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+ARTIFACT_URL="<trusted-artifact-url>"
+agent-device install-from-source "$ARTIFACT_URL" --platform android
+GITHUB_ARTIFACT_URL="<trusted-github-actions-artifact-api-url>"
+agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header "authorization: Bearer TOKEN"
 ```
 
 - Use `install` or `reinstall` for local paths; remote daemons upload local artifacts automatically.
-- Use `install-from-source` for artifact URLs the remote daemon can reach.
+- Use `install-from-source` only for trusted, operator-approved artifact URLs the remote daemon can reach. Do not fetch arbitrary user-supplied URLs.
 - For local-path versus URL artifact rules, follow [bootstrap-install.md](bootstrap-install.md).
 
 Use `agent-device connection status --session adc-android` to inspect the active connection without reading JSON state manually. Status output must not include auth tokens.

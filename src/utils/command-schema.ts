@@ -987,7 +987,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   connect: {
     usageOverride:
       'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force]',
-    helpDescription: 'Connect to a remote daemon, allocate a tenant lease, and prepare Metro',
+    helpDescription: 'Connect to a remote daemon and save remote session state',
     summary: 'Connect to remote daemon',
     positionalArgs: [],
     allowedFlags: [

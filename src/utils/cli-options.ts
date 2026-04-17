@@ -41,5 +41,5 @@ export function resolveCliOptions(
 }
 
 function shouldApplyRemoteConfigDefaults(command: string | null): boolean {
-  return command === 'connect' || command === 'metro';
+  return command !== null;
 }

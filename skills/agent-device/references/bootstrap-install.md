@@ -62,15 +62,17 @@ agent-device install com.example.app ./build/MyApp.app --platform ios --device "
 ```
 
 ```bash
-agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+ARTIFACT_URL="<trusted-artifact-url>"
+agent-device install-from-source "$ARTIFACT_URL" --platform android
+GITHUB_ARTIFACT_URL="<trusted-github-actions-artifact-api-url>"
+agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header "authorization: Bearer TOKEN"
 ```
 
 ## Install guidance
 
 - Use `install <app> <path>` when the app may already be installed and you do not need a fresh-state reset.
 - Use `reinstall <app> <path>` when you explicitly need uninstall plus install as one deterministic step.
-- Use `install-from-source <url>` when an existing artifact URL is already reachable by the daemon.
+- Use `install-from-source <url>` only when an existing artifact URL is trusted, operator-approved, and reachable by the daemon.
 - Local `.apk`, `.aab`, `.app`, and `.ipa` paths go through `install` or `reinstall`; existing reachable URLs go through `install-from-source`.
 - Do not download, re-zip, publish temporary GitHub releases, or move CI artifacts elsewhere just to make an install command work.
 - Keep install and open as separate phases. Do not turn them into one default command flow.
