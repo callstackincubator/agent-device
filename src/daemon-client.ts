@@ -977,7 +977,7 @@ async function sendHttpRequest(
               reject(
                 new AppError(
                   toAppErrorCode(
-                    typeof data.code === 'string' ? data.code : undefined,
+                    data.code != null ? String(data.code) : undefined,
                     'COMMAND_FAILED',
                   ),
                   String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),

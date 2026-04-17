@@ -15,8 +15,11 @@ export type KnownAppErrorCode =
   | 'AMBIGUOUS_MATCH'
   | 'UNKNOWN';
 
-// Accepts any string so wire codes from the daemon are preserved verbatim; the
-// `(string & {})` form keeps IDE autocomplete of the known codes.
+// Intentionally widened with `(string & {})` so daemon-originated codes pass
+// through verbatim without requiring the SDK union to be updated first. Known
+// codes still autocomplete in IDEs. Tradeoff: `switch (err.code)` is no longer
+// exhaustive by construction — SDK consumers handling unknown codes should
+// include a default branch.
 export type AppErrorCode = KnownAppErrorCode | (string & {});
 
 export function toAppErrorCode(
