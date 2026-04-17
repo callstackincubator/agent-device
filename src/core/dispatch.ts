@@ -17,7 +17,11 @@ import { snapshotLinux } from '../platforms/linux/index.ts';
 import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';
 import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';
-import { getClickButtonValidationError, resolveClickButton } from './click-button.ts';
+import {
+  getClickButtonValidationError,
+  resolveClickButton,
+  type ClickButton,
+} from './click-button.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
@@ -69,7 +73,7 @@ type DispatchContext = {
   jitterPx?: number;
   pixels?: number;
   doubleTap?: boolean;
-  clickButton?: 'primary' | 'secondary' | 'middle';
+  clickButton?: ClickButton;
   backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
@@ -879,11 +883,7 @@ function findMistargetedTypeRef(positionals: string[]): string | null {
   return null;
 }
 
-function formatPressMessage(params: {
-  x: number;
-  y: number;
-  button?: 'primary' | 'secondary' | 'middle';
-}): string {
+function formatPressMessage(params: { x: number; y: number; button?: ClickButton }): string {
   if (params.button && params.button !== 'primary') {
     return `Clicked ${params.button} (${params.x}, ${params.y})`;
   }

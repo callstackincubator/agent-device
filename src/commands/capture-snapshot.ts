@@ -2,6 +2,7 @@ import type { BackendSnapshotResult } from '../backend.ts';
 import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
+import type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
 import type { SnapshotNode, SnapshotState, SnapshotVisibility } from '../utils/snapshot.ts';
 import { buildSnapshotVisibility } from '../utils/snapshot-visibility.ts';
 import type {
@@ -11,6 +12,8 @@ import type {
 } from './index.ts';
 import { now } from './selector-read-utils.ts';
 
+export type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
+
 export type SnapshotCommandResult = {
   nodes: SnapshotNode[];
   truncated: boolean;
@@ -18,17 +21,6 @@ export type SnapshotCommandResult = {
   appBundleId?: string;
   visibility?: SnapshotVisibility;
   warnings?: string[];
-};
-
-export type SnapshotDiffLine = {
-  kind: 'added' | 'removed' | 'unchanged';
-  text: string;
-};
-
-export type SnapshotDiffSummary = {
-  additions: number;
-  removals: number;
-  unchanged: number;
 };
 
 export type DiffSnapshotCommandResult = {

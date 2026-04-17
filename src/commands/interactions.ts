@@ -1,4 +1,5 @@
 import { AppError } from '../utils/errors.ts';
+import type { ClickButton } from '../core/click-button.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
 import { isFillableType } from '../utils/snapshot-processing.ts';
 import { requireIntInRange } from '../utils/validation.ts';
@@ -42,7 +43,7 @@ export type {
 
 export type PressCommandOptions = CommandContext & {
   target: InteractionTarget;
-  button?: 'primary' | 'secondary' | 'middle';
+  button?: ClickButton;
   count?: number;
   intervalMs?: number;
   holdMs?: number;

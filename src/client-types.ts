@@ -8,8 +8,11 @@ import type {
   SessionRuntimeHints,
 } from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
+import type { FindLocator } from './utils/finders.ts';
 import type { ScreenshotOverlayRef, SnapshotNode, SnapshotVisibility } from './utils/snapshot.ts';
 import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
+
+export type { FindLocator } from './utils/finders.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
@@ -593,8 +596,6 @@ type IsStatePredicateOptions = ClientCommandBaseOptions &
   };
 
 export type IsOptions = IsTextPredicateOptions | IsStatePredicateOptions;
-
-export type FindLocator = 'any' | 'text' | 'label' | 'value' | 'role' | 'id';
 
 type FindBaseOptions = ClientCommandBaseOptions &
   FindSnapshotCommandOptions & {

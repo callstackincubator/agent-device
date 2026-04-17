@@ -1,6 +1,7 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError } from '../utils/errors.ts';
+import type { JsonRpcId, JsonRpcRequestEnvelope } from '../contracts.ts';
 import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import {
@@ -18,16 +19,11 @@ import {
 } from './artifact-tracking.ts';
 import { receiveUpload } from './upload.ts';
 
-type JsonRpcRequest = {
-  jsonrpc?: string;
-  id?: string | number | null;
-  method?: string;
-  params?: unknown;
-};
+type JsonRpcRequest = JsonRpcRequestEnvelope;
 
 type JsonRpcResponse = {
   jsonrpc: '2.0';
-  id: string | number | null;
+  id: JsonRpcId;
   result?: unknown;
   error?: {
     code: number;
@@ -90,7 +86,7 @@ const SUPPORTED_RPC_METHODS = new Set([
 ]);
 
 function createRpcError(
-  id: string | number | null,
+  id: JsonRpcId,
   code: number,
   message: string,
   data?: Record<string, unknown>,

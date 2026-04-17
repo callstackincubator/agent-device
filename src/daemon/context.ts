@@ -1,5 +1,5 @@
 import type { CommandFlags } from '../core/dispatch.ts';
-import { resolveClickButton } from '../core/click-button.ts';
+import { resolveClickButton, type ClickButton } from '../core/click-button.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
@@ -23,7 +23,7 @@ export type DaemonCommandContext = {
   jitterPx?: number;
   pixels?: number;
   doubleTap?: boolean;
-  clickButton?: 'primary' | 'secondary' | 'middle';
+  clickButton?: ClickButton;
   backMode?: 'in-app' | 'system';
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
