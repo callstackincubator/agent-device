@@ -9,12 +9,8 @@ import {
   type AppLogResult,
   type AppLogState,
 } from './app-log-process.ts';
-import {
-  attachChildToStream,
-  createLineWriter,
-  sleep,
-  waitForChildExit,
-} from './app-log-stream.ts';
+import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
+import { sleep } from '../utils/timeouts.ts';
 
 export function assertAndroidPackageArgSafe(appBundleId: string): void {
   if (!/^[a-zA-Z0-9._:-]+$/.test(appBundleId)) {

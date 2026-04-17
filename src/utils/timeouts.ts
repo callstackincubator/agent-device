@@ -5,6 +5,10 @@ export function resolveTimeoutMs(raw: string | undefined, fallback: number, min:
   return Math.max(min, Math.floor(parsed));
 }
 
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Alias for `resolveTimeoutMs` — semantically marks the caller expects seconds. */
 export function resolveTimeoutSeconds(
   raw: string | undefined,

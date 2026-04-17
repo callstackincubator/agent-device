@@ -1,4 +1,5 @@
-import type { DeviceInfo } from '../utils/device.ts';
+import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
+import { sleep } from '../utils/timeouts.ts';
 export { requireIntInRange } from '../utils/validation.ts';
 
 const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
@@ -24,16 +25,11 @@ export function shouldUseIosTapSeries(
   holdMs: number,
   jitterPx: number,
 ): boolean {
-  return (
-    (device.platform === 'ios' || device.platform === 'macos') &&
-    count > 1 &&
-    holdMs === 0 &&
-    jitterPx === 0
-  );
+  return isApplePlatform(device.platform) && count > 1 && holdMs === 0 && jitterPx === 0;
 }
 
 export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {
-  return (device.platform === 'ios' || device.platform === 'macos') && count > 1;
+  return isApplePlatform(device.platform) && count > 1;
 }
 
 export function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {
@@ -53,8 +49,4 @@ export async function runRepeatedSeries(
       await sleep(pauseMs);
     }
   }
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
 }

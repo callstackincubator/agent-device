@@ -22,7 +22,7 @@ export function isLargeTextSurface(node: TextSurfaceNode, displayType?: string):
   if (displayType === 'text-view' || displayType === 'text-field' || displayType === 'search') {
     return true;
   }
-  const normalized = normalizeTextSurfaceType(node.type ?? '');
+  const normalized = normalizeType(node.type ?? '');
   const rawRole = `${node.role ?? ''} ${node.subrole ?? ''}`.toLowerCase();
   return (
     normalized.includes('textview') ||
@@ -72,19 +72,7 @@ export function trimText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function prefersValueForReadableText(type: string): boolean {
-  const normalized = normalizeTextSurfaceType(type);
-  return (
-    normalized.includes('textfield') ||
-    normalized.includes('securetextfield') ||
-    normalized.includes('searchfield') ||
-    normalized.includes('edittext') ||
-    normalized.includes('textview') ||
-    normalized.includes('textarea')
-  );
-}
-
-function normalizeTextSurfaceType(type: string): string {
+export function normalizeType(type: string): string {
   let normalized = type
     .trim()
     .replace(/XCUIElementType/gi, '')
@@ -95,6 +83,18 @@ function normalizeTextSurfaceType(type: string): string {
     normalized = normalized.slice(lastSeparator + 1);
   }
   return normalized;
+}
+
+function prefersValueForReadableText(type: string): boolean {
+  const normalized = normalizeType(type);
+  return (
+    normalized.includes('textfield') ||
+    normalized.includes('securetextfield') ||
+    normalized.includes('searchfield') ||
+    normalized.includes('edittext') ||
+    normalized.includes('textview') ||
+    normalized.includes('textarea')
+  );
 }
 
 function isMeaningfulReadableIdentifier(value: string): boolean {

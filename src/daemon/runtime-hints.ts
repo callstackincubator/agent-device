@@ -296,7 +296,7 @@ function removeAndroidPrefEntry(xml: string, key: string): string {
     );
 }
 
-function trimRuntimeValue(value: string | undefined): string | undefined {
+export function trimRuntimeValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }

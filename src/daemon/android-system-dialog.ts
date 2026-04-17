@@ -3,6 +3,7 @@ import { adbArgs } from '../platforms/android/adb.ts';
 import { runCmd } from '../utils/exec.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { centerOfRect, attachRefs, type SnapshotNode } from '../utils/snapshot.ts';
+import { sleep } from '../utils/timeouts.ts';
 import { pruneGroupNodes } from './snapshot-processing.ts';
 import type { SessionState } from './types.ts';
 
@@ -177,8 +178,4 @@ function containsBlockingDialog(nodes: SnapshotNode[]): boolean {
     const text = readNodeText(node);
     return text.length > 0 && ANDROID_BLOCKING_MODAL_PATTERN.test(text);
   });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

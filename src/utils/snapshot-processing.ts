@@ -1,6 +1,8 @@
 import type { Platform } from './device.ts';
 import type { RawSnapshotNode, SnapshotState } from './snapshot.ts';
-import { extractReadableText } from './text-surface.ts';
+import { extractReadableText, normalizeType } from './text-surface.ts';
+
+export { normalizeType };
 
 export function findNodeByLabel(nodes: SnapshotState['nodes'], label: string) {
   const query = label.toLowerCase();
@@ -77,19 +79,6 @@ export function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
     result.push({ ...node, depth: adjustedDepth });
   }
   return result;
-}
-
-export function normalizeType(type: string): string {
-  let value = type.trim().replace(/XCUIElementType/gi, '');
-  if (value.startsWith('AX')) {
-    value = value.slice(2);
-  }
-  value = value.toLowerCase();
-  const lastSeparator = Math.max(value.lastIndexOf('.'), value.lastIndexOf('/'));
-  if (lastSeparator !== -1) {
-    value = value.slice(lastSeparator + 1);
-  }
-  return value;
 }
 
 export function isFillableType(type: string, platform: Platform): boolean {

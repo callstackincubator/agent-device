@@ -1,5 +1,6 @@
 import { runCmd } from '../../utils/exec.ts';
 import { ensureInputTool } from './linux-env.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 
 // ── Low-level wrappers ─────────────────────────────────────────────────
@@ -184,10 +185,4 @@ export async function fillLinux(x: number, y: number, text: string, delayMs = 0)
   await sleep(50);
   // Type replacement text
   await typeLinux(text, delayMs);
-}
-
-// ── Utilities ───────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

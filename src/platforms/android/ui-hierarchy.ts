@@ -285,7 +285,7 @@ function shouldIncludeAndroidNode(
   const isVisual = type === 'imageview' || type === 'imagebutton';
   if (options.interactiveOnly) {
     if (node.hittable) return true;
-    if (isScrollableContainerType(type) && descendantHittable) {
+    if (isScrollableType(type) && descendantHittable) {
       return true;
     }
     // Keep text proxies for tappable rows while dropping structural noise.
@@ -315,10 +315,6 @@ function isCollectionContainerType(type: string | null): boolean {
     normalized.includes('listview') ||
     normalized.includes('gridview')
   );
-}
-
-function isScrollableContainerType(type: string): boolean {
-  return isScrollableType(type);
 }
 
 function normalizeAndroidType(type: string | null): string {
