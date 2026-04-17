@@ -4,6 +4,16 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub Release tag to upload assets to, for example v0.12.6.
+        required: true
+        type: string
+      checkout_ref:
+        description: Optional branch, tag, or commit SHA to build. Defaults to the selected workflow ref.
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -20,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.inputs.checkout_ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
@@ -31,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
-          TAG_NAME="${{ github.event.release.tag_name }}"
+          TAG_NAME="${{ github.event.release.tag_name || github.event.inputs.release_tag }}"
           VERSION="${TAG_NAME#v}"
           if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
             echo "Release tag $TAG_NAME does not match package.json version $PACKAGE_VERSION" >&2
