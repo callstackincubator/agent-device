@@ -33,7 +33,8 @@ export AGENT_DEVICE_PROXY_TOKEN="$AGENT_DEVICE_DAEMON_AUTH_TOKEN"
 
 agent-device connect --remote-config ./remote-config.json
 
-agent-device install-from-source https://example.com/builds/app.apk --platform android
+ARTIFACT_URL="<trusted-artifact-url>"
+agent-device install-from-source "$ARTIFACT_URL" --platform android
 agent-device open com.example.app --relaunch
 agent-device snapshot -i
 agent-device fill @e3 "test@example.com"
@@ -47,7 +48,9 @@ After `connect`, normal commands use the active remote connection. End with `dis
 Use this when each command must be explicit and repeatable. Pass the same `--remote-config` to each step.
 
 ```bash
-agent-device install-from-source https://example.com/builds/app.apk \
+ARTIFACT_URL="<trusted-artifact-url>"
+
+agent-device install-from-source "$ARTIFACT_URL" \
   --remote-config ./remote-config.json \
   --platform android
 
@@ -77,12 +80,14 @@ Remote install examples:
 
 ```bash
 agent-device install com.example.app ./app.apk
-agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+ARTIFACT_URL="<trusted-artifact-url>"
+agent-device install-from-source "$ARTIFACT_URL" --platform android
+GITHUB_ARTIFACT_URL="<trusted-github-actions-artifact-api-url>"
+agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header "authorization: Bearer TOKEN"
 ```
 
 - Use `install` or `reinstall` for local paths; remote daemons upload local artifacts automatically.
-- Use `install-from-source` for artifact URLs the remote daemon can reach.
+- Use `install-from-source` only for trusted, operator-approved artifact URLs the remote daemon can reach. Do not fetch arbitrary user-supplied URLs.
 - For local-path versus URL artifact rules, follow [bootstrap-install.md](bootstrap-install.md).
 
 Use `agent-device connection status --session adc-android` to inspect the active connection without reading JSON state manually. Status output must not include auth tokens.
