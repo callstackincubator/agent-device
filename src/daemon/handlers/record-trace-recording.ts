@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { sleep } from '../../utils/timeouts.ts';
 import { resolveTargetDevice, type CommandFlags } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -81,7 +82,7 @@ async function waitForLocalRecordingSettleWindow(outPath: string): Promise<numbe
       return Date.now();
     }
 
-    await new Promise((resolve) => setTimeout(resolve, LOCAL_RECORDING_READY_POLL_MS));
+    await sleep(LOCAL_RECORDING_READY_POLL_MS);
   }
 
   return Date.now();

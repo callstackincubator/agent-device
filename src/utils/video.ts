@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { AppError } from './errors.ts';
 import { runCmd } from './exec.ts';
+import { sleep } from './timeouts.ts';
 
 const VIDEO_VALIDATION_SCRIPT = `
 import Foundation
@@ -55,7 +56,7 @@ export async function waitForStableFile(
     }
 
     previousSize = currentSize;
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    await sleep(pollMs);
   }
 }
 
@@ -92,7 +93,7 @@ export async function waitForPlayableVideo(
     if (await isPlayableVideo(filePath)) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
+    await sleep(pollMs);
   }
 }
 

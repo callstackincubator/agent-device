@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-types.ts';
@@ -67,7 +68,7 @@ async function waitForAndroidProcessExit(
     if (!(await isAndroidProcessRunning(deps, deviceId, pid))) {
       return true;
     }
-    await new Promise((resolve) => setTimeout(resolve, ANDROID_PROCESS_EXIT_POLL_MS));
+    await sleep(ANDROID_PROCESS_EXIT_POLL_MS);
   }
   return !(await isAndroidProcessRunning(deps, deviceId, pid));
 }
@@ -96,7 +97,7 @@ async function waitForAndroidRemoteFileStability(
       stableCount = 0;
     }
     previousSize = currentSize;
-    await new Promise((resolve) => setTimeout(resolve, ANDROID_REMOTE_FILE_POLL_MS));
+    await sleep(ANDROID_REMOTE_FILE_POLL_MS);
   }
 }
 
@@ -128,7 +129,7 @@ async function waitForAndroidRecordingReady(
       return true;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, ANDROID_REMOTE_FILE_POLL_MS));
+    await sleep(ANDROID_REMOTE_FILE_POLL_MS);
   }
 
   return false;
@@ -196,7 +197,7 @@ async function copyAndroidRecordingWithValidation(params: {
     }
 
     if (attempt < ANDROID_LOCAL_VIDEO_ATTEMPTS - 1) {
-      await new Promise((resolve) => setTimeout(resolve, ANDROID_LOCAL_VIDEO_RETRY_DELAY_MS));
+      await sleep(ANDROID_LOCAL_VIDEO_RETRY_DELAY_MS);
     }
   }
 

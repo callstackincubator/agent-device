@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import {
   runCmd,
   runCmdSync,
@@ -338,7 +339,7 @@ async function acquireXcodebuildSimulatorSetLock(params: {
       if (clearStaleXcodebuildSimulatorSetLock(lockDirPath, ownerFilePath)) {
         continue;
       }
-      await new Promise((resolve) => setTimeout(resolve, XCTEST_DEVICE_SET_LOCK_POLL_MS));
+      await sleep(XCTEST_DEVICE_SET_LOCK_POLL_MS);
     }
   }
 

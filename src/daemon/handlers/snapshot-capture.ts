@@ -1,6 +1,7 @@
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
-import { snapshotLinux } from '../../platforms/linux/index.ts';
+import { snapshotLinux } from '../../platforms/linux/snapshot.ts';
 import type { AndroidSnapshotAnalysis } from '../../platforms/android/ui-hierarchy.ts';
 import {
   attachRefs,
@@ -108,7 +109,7 @@ async function captureAndroidFreshnessAwareSnapshot(
 
   for (const delayMs of ANDROID_FRESHNESS_RETRY_DELAYS_MS) {
     if (!suspiciousReason) break;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await sleep(delayMs);
     latest = await captureSnapshotAttempt(params);
     retryCount += 1;
     suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);

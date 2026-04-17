@@ -338,6 +338,7 @@ Common batch error categories:
 - `SESSION_NOT_FOUND`: open or select the correct session, then retry.
 - `UNSUPPORTED_OPERATION`: switch to a supported command or surface.
 - `AMBIGUOUS_MATCH`: refine the selector or locator, then retry the failed step.
+- `DEVICE_IN_USE`: the device is held by another session — close or reuse the existing session before retrying.
 - `COMMAND_FAILED`: add sync guards and retry from the failing step.
 
 ## Stop conditions

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { sleep } from './utils/timeouts.ts';
 import { ensureMetroCompanion } from './client-metro-companion.ts';
 import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 import type {
@@ -215,7 +216,7 @@ function installDependenciesIfNeeded(
 }
 
 async function wait(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+  await sleep(ms);
 }
 
 async function fetchText(

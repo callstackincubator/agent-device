@@ -1,4 +1,5 @@
 import { runCmdSync } from './exec.ts';
+import { sleep } from './timeouts.ts';
 
 const PS_TIMEOUT_MS = 1_000;
 const DAEMON_COMMAND_PATTERNS = [
@@ -78,7 +79,7 @@ export async function waitForProcessExit(pid: number, timeoutMs: number): Promis
   if (!isProcessAlive(pid)) return true;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await sleep(50);
     if (!isProcessAlive(pid)) return true;
   }
   return !isProcessAlive(pid);

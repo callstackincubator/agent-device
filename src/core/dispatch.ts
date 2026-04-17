@@ -13,7 +13,7 @@ import { getInteractor, type Interactor, type RunnerContext } from './interactor
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
-import { snapshotLinux } from '../platforms/linux/index.ts';
+import { snapshotLinux } from '../platforms/linux/snapshot.ts';
 import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';
 import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';

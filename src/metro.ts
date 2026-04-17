@@ -1,6 +1,7 @@
 import type { SessionRuntimeHints } from './contracts.ts';
 import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
+import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 import { resolveRuntimeTransportHints } from './daemon/runtime-hints.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
@@ -106,11 +107,7 @@ export type PrepareRemoteMetroOptions = {
   publicBaseUrl: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
-  bridgeScope?: {
-    tenantId: string;
-    runId: string;
-    leaseId: string;
-  };
+  bridgeScope?: MetroBridgeScope;
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
@@ -140,11 +137,7 @@ export type EnsureMetroTunnelOptions = {
   serverBaseUrl: string;
   bearerToken: string;
   localBaseUrl: string;
-  bridgeScope: {
-    tenantId: string;
-    runId: string;
-    leaseId: string;
-  };
+  bridgeScope: MetroBridgeScope;
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;

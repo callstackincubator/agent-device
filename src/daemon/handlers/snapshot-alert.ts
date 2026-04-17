@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -54,7 +55,7 @@ export async function handleAlertCommand(
         } catch {
           // keep waiting
         }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        await sleep(POLL_INTERVAL_MS);
       }
       return errorResponse('COMMAND_FAILED', 'alert wait timed out');
     }
@@ -73,7 +74,7 @@ export async function handleAlertCommand(
           const msg = String((err as { message?: unknown })?.message ?? '').toLowerCase();
           if (!msg.includes('alert not found') && !msg.includes('no alert')) break;
         }
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        await sleep(POLL_INTERVAL_MS);
       }
       throw withAlertFallbackHint(lastError);
     }
@@ -101,7 +102,7 @@ export async function handleAlertCommand(
       } catch {
         // keep waiting
       }
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      await sleep(POLL_INTERVAL_MS);
     }
     return errorResponse('COMMAND_FAILED', 'alert wait timed out');
   }
@@ -132,7 +133,7 @@ export async function handleAlertCommand(
         const msg = String((err as { message?: unknown })?.message ?? '').toLowerCase();
         if (!msg.includes('alert not found') && !msg.includes('no alert')) break;
       }
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      await sleep(POLL_INTERVAL_MS);
     }
     // lastError is always set because ALERT_ACTION_RETRY_MS > 0
     throw withAlertFallbackHint(lastError);
