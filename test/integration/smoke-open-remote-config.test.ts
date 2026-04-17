@@ -202,17 +202,19 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
             enabled: true,
             base_url: `http://127.0.0.1:${hostPort}`,
             status_url: `http://127.0.0.1:${metroPort}/status`,
-            bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+            bundle_url: 'https://qa-android.metro.agent-device.dev/index.bundle?platform=ios',
             ios_runtime: {
-              metro_host: '127.0.0.1',
-              metro_port: metroPort,
-              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+              metro_host: 'qa-android.metro.agent-device.dev',
+              metro_port: 443,
+              metro_bundle_url:
+                'https://qa-android.metro.agent-device.dev/index.bundle?platform=ios',
               launch_url: 'myapp://ios-dev',
             },
             android_runtime: {
-              metro_host: '10.0.2.2',
-              metro_port: metroPort,
-              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=android',
+              metro_host: 'bridge.example.test',
+              metro_port: 443,
+              metro_bundle_url:
+                'https://bridge.example.test/api/metro/runtimes/qa-android/index.bundle?platform=android',
               launch_url: 'myapp://android-dev',
             },
             upstream: {
@@ -314,7 +316,6 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
       platform: 'android',
       daemonBaseUrl: `http://127.0.0.1:${hostPort}/agent-device`,
       metroProjectRoot: '../project',
-      metroPublicBaseUrl: 'https://public.example.test',
       metroProxyBaseUrl: `http://127.0.0.1:${hostPort}`,
       metroPreparePort: metroPort,
     }),
@@ -360,23 +361,22 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
   assert.equal(capturedOpenRpcRequest?.body?.params?.meta?.leaseId, 'abc123abc123abc1');
   assert.deepEqual(capturedOpenRpcRequest?.body?.params?.runtime, {
     platform: 'android',
-    metroHost: '10.0.2.2',
-    metroPort: metroPort,
-    bundleUrl: 'https://bridge.example.test/index.bundle?platform=android',
+    metroHost: 'bridge.example.test',
+    metroPort: 443,
+    bundleUrl:
+      'https://bridge.example.test/api/metro/runtimes/qa-android/index.bundle?platform=android',
     launchUrl: 'myapp://android-dev',
   });
-  assert.equal(
-    capturedBridgeRequest?.body?.ios_runtime?.metro_bundle_url,
-    'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-  );
+  assert.equal(capturedBridgeRequest?.body?.ios_runtime, undefined);
   assert.equal(capturedBridgeRequest?.body?.tenantId, 'acme');
   assert.equal(capturedBridgeRequest?.body?.runId, 'run-123');
   assert.equal(capturedBridgeRequest?.body?.leaseId, 'abc123abc123abc1');
   assert.deepEqual(result.json?.data?.runtime, {
     platform: 'android',
-    metroHost: '10.0.2.2',
-    metroPort: metroPort,
-    bundleUrl: 'https://bridge.example.test/index.bundle?platform=android',
+    metroHost: 'bridge.example.test',
+    metroPort: 443,
+    bundleUrl:
+      'https://bridge.example.test/api/metro/runtimes/qa-android/index.bundle?platform=android',
     launchUrl: 'myapp://android-dev',
   });
 });

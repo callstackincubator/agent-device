@@ -103,8 +103,8 @@ Example `remote-config.json` shape:
   "tenant": "acme",
   "runId": "run-123",
   "sessionIsolation": "tenant",
-  "platform": "android",
-  "metroPublicBaseUrl": "http://127.0.0.1:8081"
+  "platform": "ios",
+  "metroProxyBaseUrl": "https://bridge.example.com"
 }
 ```
 
@@ -112,11 +112,11 @@ Optional overrides stay available for advanced cases:
 
 ```json
 {
-  "session": "adc-android",
-  "leaseBackend": "android-instance",
+  "session": "adc-ios",
+  "leaseBackend": "ios-instance",
   "metroProjectRoot": ".",
   "metroKind": "expo",
-  "metroProxyBaseUrl": "https://bridge.example.com/metro/acme/run-123"
+  "metroPublicBaseUrl": "http://127.0.0.1:8081"
 }
 ```
 
@@ -124,7 +124,10 @@ Optional overrides stay available for advanced cases:
 - Omit Metro fields for non-React Native flows.
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
-- For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally.
+- For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally. `metroProxyBaseUrl` is the bridge origin, not a prebuilt `/api/metro/...` route.
+- For cloud stock React Native iOS, use the bridge descriptor's wildcard HTTPS Metro hints directly; do not install or launch the XCTest runner just to make Metro reachable.
+- Android keeps using bridge-provided `/api/metro/runtimes/<runtimeId>/...` Metro routes.
+- `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it.
 - Use a lease backend that matches the bridge target platform, for example `android-instance`, `ios-instance`, or an explicit `--lease-backend` override.
 
 ## Transport prerequisites

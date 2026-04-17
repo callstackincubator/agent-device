@@ -191,10 +191,10 @@ export async function prepareConnectedMetro(
       'Deferred Metro preparation requires platform "ios" or "android".',
     );
   }
-  if (!flags.metroPublicBaseUrl) {
+  if (!flags.metroPublicBaseUrl && !flags.metroProxyBaseUrl) {
     throw new AppError(
       'INVALID_ARGS',
-      'Deferred Metro preparation requires metroPublicBaseUrl when Metro settings are provided.',
+      'Deferred Metro preparation requires metroPublicBaseUrl or metroProxyBaseUrl when Metro settings are provided.',
     );
   }
   const prepared = await client.metro.prepare({

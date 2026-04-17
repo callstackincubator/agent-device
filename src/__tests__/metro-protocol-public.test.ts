@@ -15,14 +15,15 @@ import {
   enabled: true,
   base_url: 'https://bridge.example.test',
   ios_runtime: {
-    metro_host: '127.0.0.1',
-    metro_port: 8081,
-    metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+    metro_host: 'runtime-1.metro.agent-device.dev',
+    metro_port: 443,
+    metro_bundle_url: 'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
   },
   android_runtime: {
-    metro_host: '10.0.2.2',
-    metro_port: 8081,
-    metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=android',
+    metro_host: 'bridge.example.test',
+    metro_port: 443,
+    metro_bundle_url:
+      'https://bridge.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android',
   },
   upstream: { bundle_url: 'http://127.0.0.1:8081/index.bundle?platform=ios' },
   probe: { reachable: true, status_code: 200, latency_ms: 4, detail: 'ok' },

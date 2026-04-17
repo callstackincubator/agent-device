@@ -58,7 +58,7 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
     assert.equal(body.tenantId, 'tenant-1');
     assert.equal(body.runId, 'run-1');
     assert.equal(body.leaseId, 'lease-1');
-    assert.match(body.ios_runtime?.metro_bundle_url ?? '', /index\.bundle\?platform=ios/);
+    assert.equal(body.ios_runtime, undefined);
 
     res.statusCode = 200;
     res.setHeader('content-type', 'application/json');
@@ -72,16 +72,16 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
             status_url: 'http://127.0.0.1:8081/status',
             bundle_url: 'http://127.0.0.1:8081/index.bundle?platform=ios&dev=true&minify=false',
             ios_runtime: {
-              metro_host: '127.0.0.1',
-              metro_port: 8081,
+              metro_host: 'runtime-1.metro.agent-device.dev',
+              metro_port: 443,
               metro_bundle_url:
-                'http://127.0.0.1:8081/index.bundle?platform=ios&dev=true&minify=false',
+                'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios&dev=true&minify=false',
             },
             android_runtime: {
-              metro_host: '10.0.2.2',
-              metro_port: 8081,
+              metro_host: 'bridge.example.test',
+              metro_port: 443,
               metro_bundle_url:
-                'http://10.0.2.2:8081/index.bundle?platform=android&dev=true&minify=false',
+                'https://bridge.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android&dev=true&minify=false',
             },
             upstream: {
               bundle_url: `http://127.0.0.1:${metroPort}/index.bundle?platform=ios&dev=true&minify=false`,
@@ -140,9 +140,10 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
     assert.equal(result.started, true);
     assert.equal(result.reused, false);
     assert.equal(result.bridge?.enabled, true);
-    assert.equal(result.iosRuntime.metroHost, '127.0.0.1');
+    assert.equal(result.iosRuntime.metroHost, 'runtime-1.metro.agent-device.dev');
+    assert.equal(result.iosRuntime.metroPort, 443);
     assert.equal(result.iosRuntime.platform, 'ios');
-    assert.equal(result.androidRuntime.metroHost, '10.0.2.2');
+    assert.equal(result.androidRuntime.metroHost, 'bridge.example.test');
     assert.equal(result.androidRuntime.platform, 'android');
     assert.deepEqual(requests, ['/api/metro/bridge']);
 
@@ -151,10 +152,10 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
       androidRuntime: { metroHost?: string; metroPort?: number; platform?: string };
       runtimeFilePath?: string;
     };
-    assert.equal(written.iosRuntime.metroHost, '127.0.0.1');
-    assert.equal(written.iosRuntime.metroPort, 8081);
+    assert.equal(written.iosRuntime.metroHost, 'runtime-1.metro.agent-device.dev');
+    assert.equal(written.iosRuntime.metroPort, 443);
     assert.equal(written.iosRuntime.platform, 'ios');
-    assert.equal(written.androidRuntime.metroHost, '10.0.2.2');
+    assert.equal(written.androidRuntime.metroHost, 'bridge.example.test');
     assert.equal(written.androidRuntime.platform, 'android');
     assert.equal(written.runtimeFilePath, runtimeFilePath);
   } finally {

@@ -166,6 +166,35 @@ test('metro prepare forwards normalized options to client.metro.prepare', async 
   assert.equal(payload.runtimeFilePath, null);
 });
 
+test('metro prepare rejects when no public or proxy base URL is provided', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    prepareMetro: async () => {
+      throw new Error('unexpected metro prepare call');
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      tryRunClientBackedCommand({
+        command: 'metro',
+        positionals: ['prepare'],
+        flags: {
+          json: false,
+          help: false,
+          version: false,
+        },
+        client,
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('--public-base-url <url> or --proxy-base-url <url>'),
+  );
+});
+
 test('screenshot forwards --overlay-refs to the client capture API', async () => {
   let observed:
     | {
@@ -426,7 +455,6 @@ test('metro prepare with --remote-config loads profile defaults', async () => {
     remoteConfigPath,
     JSON.stringify({
       metroProjectRoot: './apps/demo',
-      metroPublicBaseUrl: 'https://sandbox.example.test',
       metroProxyBaseUrl: 'https://proxy.example.test',
       tenant: 'tenant-1',
       runId: 'run-1',
@@ -483,7 +511,7 @@ test('metro prepare with --remote-config loads profile defaults', async () => {
   assert.deepEqual(observedPrepare, {
     projectRoot: path.join(configDir, 'apps/demo'),
     kind: undefined,
-    publicBaseUrl: 'https://sandbox.example.test',
+    publicBaseUrl: undefined,
     proxyBaseUrl: 'https://proxy.example.test',
     bearerToken: undefined,
     bridgeScope: {

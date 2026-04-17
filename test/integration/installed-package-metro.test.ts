@@ -189,16 +189,17 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
             enabled: true,
             base_url: `http://127.0.0.1:${bridgePort}`,
             status_url: `http://127.0.0.1:${metroPort}/status`,
-            bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+            bundle_url: 'https://demo.metro.agent-device.dev/index.bundle?platform=ios',
             ios_runtime: {
-              metro_host: '127.0.0.1',
-              metro_port: metroPort,
-              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+              metro_host: 'demo.metro.agent-device.dev',
+              metro_port: 443,
+              metro_bundle_url: 'https://demo.metro.agent-device.dev/index.bundle?platform=ios',
             },
             android_runtime: {
-              metro_host: '10.0.2.2',
-              metro_port: metroPort,
-              metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=android',
+              metro_host: 'bridge.example.test',
+              metro_port: 443,
+              metro_bundle_url:
+                'https://bridge.example.test/api/metro/runtimes/demo/index.bundle?platform=android',
             },
             upstream: {
               bundle_url:
@@ -278,7 +279,6 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
       JSON.stringify({
         platform: 'ios',
         metroProjectRoot: projectRoot,
-        metroPublicBaseUrl: 'https://public.example.test',
         metroProxyBaseUrl: `http://127.0.0.1:${bridgePort}`,
         metroBearerToken: bridgeToken,
         tenant: 'tenant-1',

@@ -271,9 +271,13 @@ const remoteConfig = resolveRemoteConfigProfile({
 const prepared = await prepareRemoteMetro({
   projectRoot: remoteConfig.profile.metroProjectRoot!,
   kind: remoteConfig.profile.metroKind ?? 'auto',
-  publicBaseUrl: remoteConfig.profile.metroPublicBaseUrl!,
   proxyBaseUrl: remoteConfig.profile.metroProxyBaseUrl,
   proxyBearerToken: remoteConfig.profile.metroBearerToken,
+  bridgeScope: {
+    tenantId: remoteConfig.profile.tenant!,
+    runId: remoteConfig.profile.runId!,
+    leaseId: remoteConfig.profile.leaseId!,
+  },
   profileKey: remoteConfig.resolvedPath,
 });
 
@@ -285,7 +289,7 @@ await stopMetroTunnel({
 });
 ```
 
-Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types.
+Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types. For bridged remote Metro, `proxyBaseUrl` is the bridge origin and `publicBaseUrl` is optional; the bridge descriptor supplies cloud iOS wildcard HTTPS hints and Android runtime-route hints.
 
 ## Selector helpers
 

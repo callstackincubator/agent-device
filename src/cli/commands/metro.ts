@@ -7,8 +7,11 @@ export const metroCommand: ClientCommandHandler = async ({ positionals, flags, c
   if (action !== 'prepare') {
     throw new AppError('INVALID_ARGS', 'metro only supports prepare');
   }
-  if (!flags.metroPublicBaseUrl) {
-    throw new AppError('INVALID_ARGS', 'metro prepare requires --public-base-url <url>.');
+  if (!flags.metroPublicBaseUrl && !flags.metroProxyBaseUrl) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'metro prepare requires --public-base-url <url> or --proxy-base-url <url>.',
+    );
   }
 
   const result = await client.metro.prepare({

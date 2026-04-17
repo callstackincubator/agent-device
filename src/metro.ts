@@ -146,7 +146,7 @@ export type MetroTunnelMessage = MetroTunnelRequestMessage | MetroTunnelResponse
 export type PrepareRemoteMetroOptions = {
   projectRoot: string;
   kind: 'auto' | 'react-native' | 'expo';
-  publicBaseUrl: string;
+  publicBaseUrl?: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
   bridgeScope?: {

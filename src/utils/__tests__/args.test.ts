@@ -903,7 +903,10 @@ test('usage includes swipe and press series options', () => {
 test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
-  assert.match(help, /  metro prepare --public-base-url <url>\s{2,}Prepare local Metro runtime/);
+  assert.match(
+    help,
+    /  metro prepare --public-base-url <url> \| --proxy-base-url <url>\s{2,}Prepare local Metro runtime/,
+  );
   assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
   assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run \.ad test suites/);
   assert.match(help, /  session list\s{2,}List active sessions/);

@@ -393,14 +393,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--public-base-url'],
     type: 'string',
     usageLabel: '--public-base-url <url>',
-    usageDescription: 'metro prepare: public base URL used to build bundle hints',
+    usageDescription: 'metro prepare: public base URL used for direct bundle hints',
   },
   {
     key: 'metroProxyBaseUrl',
     names: ['--proxy-base-url'],
     type: 'string',
     usageLabel: '--proxy-base-url <url>',
-    usageDescription: 'metro prepare: optional remote host bridge base URL for Metro access',
+    usageDescription: 'metro prepare: optional bridge origin for remote Metro access',
   },
   {
     key: 'metroBearerToken',
@@ -1098,8 +1098,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   metro: {
     usageOverride:
-      'metro prepare --public-base-url <url> [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
-    listUsageOverride: 'metro prepare --public-base-url <url>',
+      'metro prepare (--public-base-url <url> | --proxy-base-url <url>) [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
+    listUsageOverride: 'metro prepare --public-base-url <url> | --proxy-base-url <url>',
     helpDescription: 'Prepare a local Metro runtime and optionally bridge it through a remote host',
     summary: 'Prepare local Metro runtime',
     positionalArgs: ['prepare'],

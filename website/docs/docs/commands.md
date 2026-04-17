@@ -646,13 +646,12 @@ Example `agent-device.remote.json`:
   "daemonTransport": "http",
   "tenant": "acme",
   "runId": "run-123",
-  "session": "adc-android",
+  "session": "adc-ios",
   "sessionIsolation": "tenant",
-  "platform": "android",
-  "leaseBackend": "android-instance",
+  "platform": "ios",
+  "leaseBackend": "ios-instance",
   "metroProjectRoot": ".",
-  "metroPublicBaseUrl": "http://127.0.0.1:8081",
-  "metroProxyBaseUrl": "https://bridge.example.com/metro/acme/run-123"
+  "metroProxyBaseUrl": "https://bridge.example.com"
 }
 ```
 
@@ -666,7 +665,7 @@ agent-device disconnect
 For self-contained scripts, pass the same profile to each step:
 
 ```bash
-agent-device install-from-source https://example.com/builds/app.apk --remote-config ./agent-device.remote.json --platform android
+agent-device install-from-source https://example.com/builds/Demo.app.zip --remote-config ./agent-device.remote.json --platform ios
 agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device snapshot --remote-config ./agent-device.remote.json -i
 agent-device disconnect --remote-config ./agent-device.remote.json
@@ -678,6 +677,10 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 - After `connect`, `snapshot`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Passing the same `--remote-config` to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.
 - Self-contained remote scripts should end with `disconnect --remote-config <path>` or `disconnect` to release the lease and stop the owned Metro companion.
 - Explicit command-line flags override connected defaults. When `open` uses explicit remote daemon or tenant flags without saved runtime hints, the CLI warns because React Native apps may launch without Metro bundle/runtime hints.
+- `metroProxyBaseUrl` is the bridge origin. Do not prebuild `/api/metro/...` paths in the client profile; the CLI calls the bridge endpoints itself.
+- For cloud stock React Native iOS, the bridge descriptor supplies direct wildcard HTTPS Metro hints such as `<runtime>.metro.agent-device.dev:443`. The XCTest runner package is still used for runner-backed device commands, not for Metro reachability.
+- Android keeps using bridge-provided runtime routes such as `/api/metro/runtimes/<runtimeId>/...`.
+- `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it and rely on `metroProxyBaseUrl`.
 - `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 - The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
 

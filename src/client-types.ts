@@ -264,7 +264,7 @@ export type LeaseScopedOptions = LeaseOptions & {
 export type MetroPrepareOptions = {
   projectRoot?: string;
   kind?: MetroPrepareKind;
-  publicBaseUrl: string;
+  publicBaseUrl?: string;
   proxyBaseUrl?: string;
   bearerToken?: string;
   bridgeScope?: {

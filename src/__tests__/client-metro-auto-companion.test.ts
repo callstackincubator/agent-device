@@ -67,16 +67,17 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
           enabled: true,
           base_url: 'https://proxy.example.test',
           status_url: 'https://proxy.example.test/status',
-          bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+          bundle_url: 'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
           ios_runtime: {
-            metro_host: '127.0.0.1',
-            metro_port: 8081,
-            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+            metro_host: 'runtime-1.metro.agent-device.dev',
+            metro_port: 443,
+            metro_bundle_url: 'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
           },
           android_runtime: {
-            metro_host: '10.0.2.2',
-            metro_port: 8081,
-            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=android',
+            metro_host: 'proxy.example.test',
+            metro_port: 443,
+            metro_bundle_url:
+              'https://proxy.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android',
           },
           upstream: {
             bundle_url:
@@ -99,7 +100,6 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
   try {
     const result = await prepareMetroRuntime({
       projectRoot,
-      publicBaseUrl: 'https://public.example.test',
       proxyBaseUrl: 'https://proxy.example.test',
       proxyBearerToken: 'shared-token',
       bridgeScope: TEST_BRIDGE_SCOPE,
@@ -113,11 +113,13 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
     assert.equal(result.bridge?.enabled, true);
     assert.equal(
       result.iosRuntime.bundleUrl,
-      'https://proxy.example.test/index.bundle?platform=ios',
+      'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
     );
+    assert.equal(result.iosRuntime.metroHost, 'runtime-1.metro.agent-device.dev');
+    assert.equal(result.iosRuntime.metroPort, 443);
     assert.equal(
       result.androidRuntime.bundleUrl,
-      'https://proxy.example.test/index.bundle?platform=android',
+      'https://proxy.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android',
     );
     assert.equal(vi.mocked(ensureMetroCompanion).mock.calls.length, 1);
     assert.deepEqual(vi.mocked(ensureMetroCompanion).mock.calls[0]?.[0], {
@@ -138,22 +140,86 @@ test('prepareMetroRuntime starts the local companion only after bridge setup nee
       tenantId: 'tenant-1',
       runId: 'run-1',
       leaseId: 'lease-1',
-      ios_runtime: {
-        metro_bundle_url:
-          'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-      },
       timeout_ms: 10000,
     });
     assert.deepEqual(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)), {
       tenantId: 'tenant-1',
       runId: 'run-1',
       leaseId: 'lease-1',
-      ios_runtime: {
-        metro_bundle_url:
-          'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-      },
       timeout_ms: 10000,
     });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareMetroRuntime rejects bridged descriptors without iOS bundle URLs', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-descriptor-'));
+  const projectRoot = path.join(tempRoot, 'project');
+  fs.mkdirSync(path.join(projectRoot, 'node_modules'), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({
+      name: 'metro-descriptor-test',
+      private: true,
+      dependencies: {
+        'react-native': '0.0.0-test',
+      },
+    }),
+  );
+
+  const fetchMock = vi.fn();
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => 'packager-status:running',
+  });
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () =>
+      JSON.stringify({
+        ok: true,
+        data: {
+          enabled: true,
+          base_url: 'https://proxy.example.test',
+          status_url: 'https://proxy.example.test/status',
+          bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+          ios_runtime: {},
+          android_runtime: {
+            metro_bundle_url:
+              'https://proxy.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android',
+          },
+          upstream: {
+            bundle_url:
+              'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
+          },
+          probe: {
+            reachable: true,
+            status_code: 200,
+            latency_ms: 5,
+            detail: 'ok',
+          },
+        },
+      }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+
+  try {
+    await assert.rejects(
+      () =>
+        prepareMetroRuntime({
+          projectRoot,
+          proxyBaseUrl: 'https://proxy.example.test',
+          proxyBearerToken: 'shared-token',
+          bridgeScope: TEST_BRIDGE_SCOPE,
+          metroPort: 8081,
+          reuseExisting: true,
+          installDependenciesIfNeeded: false,
+        }),
+      /bridge descriptor is missing ios_runtime\.metro_bundle_url/,
+    );
+    assert.equal(vi.mocked(ensureMetroCompanion).mock.calls.length, 0);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -387,12 +453,17 @@ test('prepareMetroRuntime retries malformed retryable bridge responses after com
           enabled: true,
           base_url: 'https://proxy.example.test',
           status_url: 'https://proxy.example.test/status',
-          bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+          bundle_url: 'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
           ios_runtime: {
-            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=ios',
+            metro_host: 'runtime-1.metro.agent-device.dev',
+            metro_port: 443,
+            metro_bundle_url: 'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
           },
           android_runtime: {
-            metro_bundle_url: 'https://proxy.example.test/index.bundle?platform=android',
+            metro_host: 'proxy.example.test',
+            metro_port: 443,
+            metro_bundle_url:
+              'https://proxy.example.test/api/metro/runtimes/runtime-1/index.bundle?platform=android',
           },
           upstream: {
             bundle_url:
@@ -429,8 +500,10 @@ test('prepareMetroRuntime retries malformed retryable bridge responses after com
     assert.equal(result.bridge?.enabled, true);
     assert.equal(
       result.iosRuntime.bundleUrl,
-      'https://proxy.example.test/index.bundle?platform=ios',
+      'https://runtime-1.metro.agent-device.dev/index.bundle?platform=ios',
     );
+    assert.equal(result.iosRuntime.metroHost, 'runtime-1.metro.agent-device.dev');
+    assert.equal(result.iosRuntime.metroPort, 443);
     assert.equal(fetchMock.mock.calls.length, 4);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

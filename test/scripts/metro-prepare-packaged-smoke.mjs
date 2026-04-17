@@ -273,16 +273,18 @@ async function main() {
               enabled: true,
               base_url: `http://127.0.0.1:${hostPort}`,
               status_url: `http://127.0.0.1:${metroPort}/status`,
-              bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+              bundle_url: 'https://packaged.metro.agent-device.dev/index.bundle?platform=ios',
               ios_runtime: {
-                metro_host: '127.0.0.1',
-                metro_port: metroPort,
-                metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=ios',
+                metro_host: 'packaged.metro.agent-device.dev',
+                metro_port: 443,
+                metro_bundle_url:
+                  'https://packaged.metro.agent-device.dev/index.bundle?platform=ios',
               },
               android_runtime: {
-                metro_host: '10.0.2.2',
-                metro_port: metroPort,
-                metro_bundle_url: 'https://bridge.example.test/index.bundle?platform=android',
+                metro_host: 'bridge.example.test',
+                metro_port: 443,
+                metro_bundle_url:
+                  'https://bridge.example.test/api/metro/runtimes/packaged/index.bundle?platform=android',
               },
               upstream: {
                 bundle_url:
@@ -334,7 +336,6 @@ async function main() {
       remoteConfigPath,
       JSON.stringify({
         metroProjectRoot: projectRoot,
-        metroPublicBaseUrl: 'https://public.example.test',
         metroProxyBaseUrl: `http://127.0.0.1:${hostPort}`,
         metroBearerToken: 'shared-token',
         ...bridgeScope,
@@ -418,17 +419,11 @@ async function main() {
     assert.equal(bridgeBodies[0]?.tenantId, bridgeScope.tenant);
     assert.equal(bridgeBodies[0]?.runId, bridgeScope.runId);
     assert.equal(bridgeBodies[0]?.leaseId, bridgeScope.leaseId);
-    assert.equal(
-      bridgeBodies[0]?.ios_runtime?.metro_bundle_url,
-      'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-    );
+    assert.equal(bridgeBodies[0]?.ios_runtime, undefined);
     assert.equal(bridgeBodies.at(-1)?.tenantId, bridgeScope.tenant);
     assert.equal(bridgeBodies.at(-1)?.runId, bridgeScope.runId);
     assert.equal(bridgeBodies.at(-1)?.leaseId, bridgeScope.leaseId);
-    assert.equal(
-      bridgeBodies.at(-1)?.ios_runtime?.metro_bundle_url,
-      'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
-    );
+    assert.equal(bridgeBodies.at(-1)?.ios_runtime, undefined);
   } finally {
     stopProcessIfAlive(companionPid);
     for (const socket of wsSockets) {
