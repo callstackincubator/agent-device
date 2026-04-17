@@ -29,27 +29,6 @@ export default defineConfig({
           contracts: 'src/contracts.ts',
           selectors: 'src/selectors.ts',
           finders: 'src/finders.ts',
-        },
-        tsconfigPath: 'tsconfig.lib.json',
-      },
-      output: {
-        distPath: {
-          root: path.join('dist', 'src'),
-        },
-        minify: true,
-      },
-    },
-    {
-      format: 'esm',
-      syntax: 'esnext',
-      dts: false,
-      shims: {
-        esm: {
-          __filename: true,
-        },
-      },
-      source: {
-        entry: {
           bin: 'src/bin.ts',
           'metro-companion': 'src/metro-companion.ts',
           daemon: 'src/daemon.ts',
