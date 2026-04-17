@@ -4,6 +4,14 @@
   "description": "Unified control plane for physical and virtual devices via an agent-driven CLI.",
   "license": "MIT",
   "author": "Callstack",
+  "homepage": "https://agent-device.dev/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callstackincubator/agent-device.git"
+  },
+  "bugs": {
+    "url": "https://github.com/callstackincubator/agent-device/issues"
+  },
   "type": "module",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
