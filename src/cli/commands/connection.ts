@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import { resolveRemoteConfigProfile } from '../../remote-config.ts';
 import {
+  buildRemoteConnectionDaemonState,
   fingerprint,
   hashRemoteConfigFile,
   readActiveConnectionState,
@@ -235,24 +236,7 @@ function isSameDaemonState(
 }
 
 function buildDaemonState(flags: CliFlags): RemoteConnectionState['daemon'] {
-  return {
-    baseUrl: sanitizeDaemonBaseUrl(flags.daemonBaseUrl),
-    transport: flags.daemonTransport,
-    serverMode: flags.daemonServerMode,
-  };
-}
-
-function sanitizeDaemonBaseUrl(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const url = new URL(value);
-  url.username = '';
-  url.password = '';
-  for (const key of [...url.searchParams.keys()]) {
-    if (/(auth|key|password|secret|token)/i.test(key)) {
-      url.searchParams.delete(key);
-    }
-  }
-  return url.toString().replace(/\/+$/, '');
+  return buildRemoteConnectionDaemonState(flags);
 }
 
 function serializeConnectionState(state: RemoteConnectionState): Record<string, unknown> {

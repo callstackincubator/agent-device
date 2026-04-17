@@ -483,23 +483,102 @@ test('missing explicit remote config path returns parse error before daemon disp
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-test('normal commands reject direct remote-config usage', async () => {
+test('normal commands accept direct remote-config usage', async () => {
   const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
   const remoteConfig = path.join(project, 'agent-device.remote.json');
   fs.writeFileSync(
     remoteConfig,
-    JSON.stringify({ daemonBaseUrl: 'http://127.0.0.1:9124' }),
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+    }),
     'utf8',
   );
 
-  const result = await runCliCapture(['snapshot', '--remote-config', remoteConfig], {
-    cwd: project,
-    env: { HOME: home },
-  });
+  const result = await runCliCapture(
+    ['snapshot', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_allocate') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-direct-001',
+                tenantId: 'acme',
+                runId: 'run-123',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return { ok: true, data: { nodes: [], truncated: false } };
+      },
+    },
+  );
 
-  assert.equal(result.code, 1);
-  assert.match(result.stderr, /--remote-config is only supported by connect and metro prepare/);
-  assert.equal(result.calls.length, 0);
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'lease_allocate');
+  assert.equal(result.calls[1]?.command, 'snapshot');
+  assert.equal(
+    result.calls[1]?.flags?.daemonBaseUrl,
+    'http://remote-mac.example.test:9124/agent-device',
+  );
+  assert.equal(result.calls[1]?.meta?.tenantId, 'acme');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-direct-001');
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'default' })?.leaseId,
+    'lease-direct-001',
+  );
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('open warns when explicit remote flags bypass saved runtime hints', async () => {
+  const { root, home, project } = makeTempWorkspace();
+
+  const result = await runCliCapture(
+    [
+      'open',
+      'com.example.demo',
+      '--platform',
+      'android',
+      '--daemon-base-url',
+      'http://remote-mac.example.test:9124/agent-device',
+      '--tenant',
+      'acme',
+      '--run-id',
+      'run-123',
+      '--lease-id',
+      'lease-123',
+      '--json',
+    ],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async () => ({
+        ok: true,
+        data: {
+          platform: 'android',
+          target: 'mobile',
+          device: 'Pixel',
+          id: 'emulator-5554',
+          appBundleId: 'com.example.demo',
+        },
+      }),
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.match(result.stderr, /without saved Metro runtime hints/);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.runtime, undefined);
 
   fs.rmSync(root, { recursive: true, force: true });
 });

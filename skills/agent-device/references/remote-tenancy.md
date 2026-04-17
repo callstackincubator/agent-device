@@ -13,7 +13,7 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 
 ## Most common mistake to avoid
 
-Do not run remote tenant work by repeating `--remote-config` on every command. `--remote-config` is a `connect` input. After connecting, use normal `agent-device` commands; the active connection supplies daemon URL, tenant, run, and session context, then resolves lease and Metro details only when a later command actually needs them.
+Do not mix an arbitrary `--session` plus ad-hoc daemon/tenant flags when a remote connection is already active. That can bypass saved Metro runtime hints. Prefer `connect --remote-config <path>` once, then normal commands. If a command must be self-contained, pass the same `--remote-config <path>` on that command so the CLI can merge the remote profile and persist any lease/runtime state it prepares.
 
 ## Preferred remote flow
 
@@ -36,7 +36,7 @@ agent-device disconnect
 
 `connect` resolves the remote profile, generates a local session name when the profile omits one, stores local non-secret connection state, and defers tenant lease allocation plus Metro preparation until a later command needs them. When a command such as `open`, `install`, `apps`, or `snapshot` needs a lease, the client allocates or refreshes it from the connected scope. When a command needs Metro runtime hints, the client prepares Metro locally at that point and starts the local Metro companion when the bridge needs it, including `batch` runs whose steps open an app. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease when one was allocated, and removes local connection state.
 
-After `connect`, normal `agent-device` commands use the active remote connection. Do not repeat `--remote-config` on every command.
+After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch.
 
 Remote install examples:
 
@@ -84,6 +84,7 @@ Optional overrides stay available for advanced cases:
 - Omit Metro fields for non-React Native flows.
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
+- If Android opens to a notification permission dialog before the React Native screen, treat the dialog as the current UI: run `snapshot -i`, then press the visible allow/dismiss button by `@ref` before checking Metro content again. A failed app-content check while `com.google.android.permissioncontroller` is foreground usually means the smoke is blocked by the permission prompt, not by Metro.
 - For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally.
 - Use a lease backend that matches the bridge target platform, for example `android-instance`, `ios-instance`, or an explicit `--lease-backend` override.
 
