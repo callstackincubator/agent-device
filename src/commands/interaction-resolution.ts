@@ -1,7 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import type { Point, SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { centerOfRect, findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { formatSelectorFailure, parseSelectorChain, resolveSelectorChain } from '../selectors.ts';
 import { buildSelectorChainForNode } from '../utils/selector-build.ts';
 import { findNodeByLabel, resolveRefLabel } from '../utils/snapshot-processing.ts';

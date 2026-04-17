@@ -93,9 +93,7 @@ export function acquireDaemonLock(
   }
   try {
     fs.unlinkSync(lockPath);
-  } catch {
-    // ignore
-  }
+  } catch {}
   return tryWriteLock();
 }
 
@@ -104,9 +102,7 @@ export function releaseDaemonLock(lockPath: string): void {
   if (existing && existing.pid !== process.pid) return;
   try {
     if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export function parseIntegerEnv(raw: string | undefined): number | undefined {

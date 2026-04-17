@@ -1,4 +1,4 @@
-import type { AgentDeviceRuntime } from '../runtime.ts';
+import type { AgentDeviceRuntime } from '../runtime-contract.ts';
 import { AppError, normalizeAgentDeviceError } from '../utils/errors.ts';
 import { screenshotCommand } from './capture-screenshot.ts';
 import { diffScreenshotCommand } from './capture-diff-screenshot.ts';

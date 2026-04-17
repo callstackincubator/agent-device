@@ -14,7 +14,6 @@ import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
-import type { AndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import type { AppLogState } from './app-log-process.ts';
 
 export type DaemonInstallSource = MaterializeInstallSource;
@@ -129,6 +128,14 @@ export type RecordingGestureEvent =
       scale: number;
       durationMs: number;
     });
+
+export type AndroidSnapshotFreshness = {
+  action: string;
+  markedAt: number;
+  baselineCount: number;
+  baselineSignatures?: string[];
+  routeComparable: boolean;
+};
 
 type SessionRecordingBase = {
   outPath: string;

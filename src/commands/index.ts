@@ -1,5 +1,11 @@
-import type { FileOutputRef } from '../io.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime } from '../runtime-contract.ts';
+import type {
+  BoundRuntimeCommand,
+  DiffSnapshotCommandOptions,
+  RuntimeCommand,
+  ScreenshotCommandOptions,
+  SnapshotCommandOptions,
+} from './runtime-types.ts';
 import { screenshotCommand, type ScreenshotCommandResult } from './capture-screenshot.ts';
 import {
   diffScreenshotCommand,
@@ -279,33 +285,14 @@ export type {
   CommandRouterResult,
 } from './router.ts';
 
-export type CommandResult = Record<string, unknown>;
-export type RuntimeCommand<TOptions = Record<string, unknown>, TResult = CommandResult> = (
-  runtime: AgentDeviceRuntime,
-  options: TOptions,
-) => Promise<TResult>;
-export type BoundRuntimeCommand<TOptions = Record<string, unknown>, TResult = CommandResult> = (
-  options: TOptions,
-) => Promise<TResult>;
-
-export type ScreenshotCommandOptions = CommandContext & {
-  out?: FileOutputRef;
-  fullscreen?: boolean;
-  overlayRefs?: boolean;
-  appId?: string;
-  appBundleId?: string;
-  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
-};
-
-export type SnapshotCommandOptions = CommandContext & {
-  interactiveOnly?: boolean;
-  compact?: boolean;
-  depth?: number;
-  scope?: string;
-  raw?: boolean;
-};
-
-export type DiffSnapshotCommandOptions = SnapshotCommandOptions;
+export type {
+  BoundRuntimeCommand,
+  CommandResult,
+  DiffSnapshotCommandOptions,
+  RuntimeCommand,
+  ScreenshotCommandOptions,
+  SnapshotCommandOptions,
+} from './runtime-types.ts';
 
 export type AgentDeviceCommands = {
   capture: {

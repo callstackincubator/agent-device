@@ -1,6 +1,6 @@
 import { serializeCloseResult, serializeOpenResult } from '../../client-shared.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const openCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await client.apps.open({

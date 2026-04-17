@@ -3,6 +3,8 @@ import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { ensureAndroidSdkPathConfigured } from './sdk.ts';
 
+export { sleep } from '../../utils/timeouts.ts';
+
 export function adbArgs(device: DeviceInfo, args: string[]): string[] {
   return ['-s', device.id, ...args];
 }
@@ -18,8 +20,4 @@ export function isClipboardShellUnsupported(stdout: string, stderr: string): boo
   return (
     haystack.includes('no shell command implementation') || haystack.includes('unknown command')
   );
-}
-
-export async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
 }

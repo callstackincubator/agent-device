@@ -112,7 +112,8 @@ function extractUiDumpXml(stdout: string, stderr: string): string | null {
 function isRetryableAdbError(err: unknown): boolean {
   if (!(err instanceof AppError)) return false;
   if (err.code !== 'COMMAND_FAILED') return false;
-  const stderr = `${(err.details as any)?.stderr ?? ''}`.toLowerCase();
+  const rawStderr = err.details?.stderr;
+  const stderr = (typeof rawStderr === 'string' ? rawStderr : '').toLowerCase();
   if (stderr.includes('device offline')) return true;
   if (stderr.includes('device not found')) return true;
   if (stderr.includes('transport error')) return true;

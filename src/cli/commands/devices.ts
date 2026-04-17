@@ -1,7 +1,7 @@
 import { serializeDevice } from '../../client-shared.ts';
 import type { AgentDeviceDevice } from '../../client.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const devicesCommand: ClientCommandHandler = async ({ flags, client }) => {
   const devices = await client.devices.list(buildSelectionOptions(flags));

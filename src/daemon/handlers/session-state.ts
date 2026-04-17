@@ -1,6 +1,6 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { asAppError } from '../../utils/errors.ts';
-import { normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
+import { isApplePlatform, normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -49,8 +49,7 @@ async function handleAppStateCommand(params: {
   if (guard) return guard;
 
   const shouldUseSessionStateForApple =
-    (session?.device.platform === 'ios' || session?.device.platform === 'macos') &&
-    selectorTargetsSessionDevice(flags, session);
+    isApplePlatform(session?.device.platform) && selectorTargetsSessionDevice(flags, session);
   const targetsIos = normalizedPlatform === 'ios';
   const targetsMacOs = normalizedPlatform === 'macos';
 

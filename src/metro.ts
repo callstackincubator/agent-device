@@ -1,68 +1,26 @@
 import type { SessionRuntimeHints } from './contracts.ts';
 import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
+import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 import { resolveRuntimeTransportHints } from './daemon/runtime-hints.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
-type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
+export type {
+  MetroBridgeDescriptor,
+  MetroBridgeResult,
+  MetroBridgeRuntimePayload,
+  MetroRuntimeHints,
+} from './metro-types.ts';
 
-/** Re-export of {@link SessionRuntimeHints} under the Metro-specific alias used by public API consumers. */
-export type MetroRuntimeHints = SessionRuntimeHints;
+import type { MetroBridgeResult, MetroRuntimeHints } from './metro-types.ts';
+
+type EnvSource = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
 export function resolveRuntimeTransport(
   runtime: SessionRuntimeHints | undefined,
 ): { host: string; port: number; scheme: 'http' | 'https' } | undefined {
   return resolveRuntimeTransportHints(runtime);
 }
-
-export type MetroBridgeResult = {
-  enabled: boolean;
-  baseUrl: string;
-  statusUrl: string;
-  bundleUrl: string;
-  iosRuntime: MetroRuntimeHints;
-  androidRuntime: MetroRuntimeHints;
-  upstream: {
-    bundleUrl: string;
-    host: string;
-    port: number;
-    statusUrl: string;
-  };
-  probe: {
-    reachable: boolean;
-    statusCode: number;
-    latencyMs: number;
-    detail: string;
-  };
-};
-
-export type MetroBridgeRuntimePayload = {
-  metro_host?: string;
-  metro_port?: number;
-  metro_bundle_url?: string;
-  launch_url?: string;
-};
-
-export type MetroBridgeDescriptor = {
-  enabled: boolean;
-  base_url: string;
-  status_url?: string;
-  bundle_url?: string;
-  ios_runtime: MetroBridgeRuntimePayload;
-  android_runtime: MetroBridgeRuntimePayload;
-  upstream: {
-    bundle_url?: string;
-    host?: string;
-    port?: number;
-    status_url?: string;
-  };
-  probe: {
-    reachable: boolean;
-    status_code: number;
-    latency_ms: number;
-    detail: string;
-  };
-};
 
 export type MetroTunnelPingMessage = {
   type: 'ping';
@@ -149,11 +107,7 @@ export type PrepareRemoteMetroOptions = {
   publicBaseUrl: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;
-  bridgeScope?: {
-    tenantId: string;
-    runId: string;
-    leaseId: string;
-  };
+  bridgeScope?: MetroBridgeScope;
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;
@@ -183,11 +137,7 @@ export type EnsureMetroTunnelOptions = {
   serverBaseUrl: string;
   bearerToken: string;
   localBaseUrl: string;
-  bridgeScope: {
-    tenantId: string;
-    runId: string;
-    leaseId: string;
-  };
+  bridgeScope: MetroBridgeScope;
   launchUrl?: string;
   profileKey?: string;
   consumerKey?: string;

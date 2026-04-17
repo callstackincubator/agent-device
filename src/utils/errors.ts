@@ -1,8 +1,9 @@
 import { redactDiagnosticData } from './redaction.ts';
 
-export type AppErrorCode =
+export type KnownAppErrorCode =
   | 'INVALID_ARGS'
   | 'DEVICE_NOT_FOUND'
+  | 'DEVICE_IN_USE'
   | 'TOOL_MISSING'
   | 'APP_NOT_INSTALLED'
   | 'UNSUPPORTED_PLATFORM'
@@ -11,7 +12,23 @@ export type AppErrorCode =
   | 'COMMAND_FAILED'
   | 'SESSION_NOT_FOUND'
   | 'UNAUTHORIZED'
+  | 'AMBIGUOUS_MATCH'
   | 'UNKNOWN';
+
+// Intentionally widened with `(string & {})` so daemon-originated codes pass
+// through verbatim without requiring the SDK union to be updated first. Known
+// codes still autocomplete in IDEs. Tradeoff: `switch (err.code)` is no longer
+// exhaustive by construction — SDK consumers handling unknown codes should
+// include a default branch.
+export type AppErrorCode = KnownAppErrorCode | (string & {});
+
+export function toAppErrorCode(
+  code: string | undefined,
+  fallback: AppErrorCode = 'COMMAND_FAILED',
+): AppErrorCode {
+  if (typeof code === 'string' && code.length > 0) return code;
+  return fallback;
+}
 
 type AppErrorDetails = Record<string, unknown> & {
   hint?: string;

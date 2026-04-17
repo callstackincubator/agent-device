@@ -14,7 +14,11 @@ import {
   METRO_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
 } from './client-metro-companion-contract.ts';
-import type { CompanionOptions, MetroCompanionRequest } from './client-metro-companion-contract.ts';
+import type { CompanionOptions } from './client-metro-companion-contract.ts';
+import type {
+  MetroTunnelRequestMessage as MetroCompanionRequest,
+  MetroTunnelResponseMessage,
+} from './metro.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
 
 function createHeaders(serverBaseUrl: string, token: string): Record<string, string> {
@@ -87,7 +91,7 @@ function normalizeOutgoingCloseCode(code: number): number {
   return 3001;
 }
 
-function sendJson(socket: WebSocket, payload: object): void {
+function sendJson(socket: WebSocket, payload: MetroTunnelResponseMessage): void {
   if (socket.readyState !== WS_READY_STATE_OPEN) return;
   socket.send(JSON.stringify(payload));
 }

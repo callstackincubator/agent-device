@@ -105,9 +105,7 @@ export class SessionStore {
       if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
       const script = formatScript(session, this.buildOptimizedActions(session));
       fs.writeFileSync(scriptPath, script);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   defaultTracePath(session: SessionState): string {

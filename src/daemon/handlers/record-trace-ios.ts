@@ -3,7 +3,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { IOS_RUNNER_CONTAINER_BUNDLE_IDS } from '../../platforms/ios/runner-client.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
-import type { RecordTraceDeps, RecordingBase } from './record-trace-recording.ts';
+import type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 

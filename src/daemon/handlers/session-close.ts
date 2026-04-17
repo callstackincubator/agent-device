@@ -1,7 +1,7 @@
 import { normalizeError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
+import { isApplePlatform, type DeviceInfo } from '../../utils/device.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { contextFromFlags } from '../context.ts';
@@ -109,7 +109,7 @@ export async function handleCloseCommand(params: {
     await stopAppLog(session.appLog);
   }
   if (req.positionals && req.positionals.length > 0) {
-    if (session.device.platform === 'ios' || session.device.platform === 'macos') {
+    if (isApplePlatform(session.device.platform)) {
       await stopAppleRunnerForClose(session);
     }
     await dispatchCommand(session.device, 'close', req.positionals, req.flags?.out, {
@@ -117,7 +117,7 @@ export async function handleCloseCommand(params: {
     });
     await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
   }
-  if (session.device.platform === 'ios' || session.device.platform === 'macos') {
+  if (isApplePlatform(session.device.platform)) {
     // The targeted close path stops before dispatch to avoid runner/app races.
     // Stop again here so both plain and targeted closes end with the runner down.
     // macOS may no-op the second alert dismiss, but it keeps teardown symmetric with runner stop.

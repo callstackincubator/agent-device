@@ -1,5 +1,7 @@
 import type { SnapshotState } from '../utils/snapshot.ts';
-import type { SessionState } from './types.ts';
+import type { AndroidSnapshotFreshness, SessionState } from './types.ts';
+
+export type { AndroidSnapshotFreshness } from './types.ts';
 
 // How long after a navigation-sensitive action (press, click, back, open) to consider
 // the Android UI hierarchy potentially stale.  Android's UIAutomator dump is async
@@ -11,14 +13,6 @@ const ANDROID_FRESHNESS_WINDOW_MS = 2_500;
 // 250 ms + 400 ms cover the vast majority of Android transition latencies without
 // adding perceptible lag to the happy path.
 export const ANDROID_FRESHNESS_RETRY_DELAYS_MS = [250, 400] as const;
-
-export type AndroidSnapshotFreshness = {
-  action: string;
-  markedAt: number;
-  baselineCount: number;
-  baselineSignatures?: string[];
-  routeComparable: boolean;
-};
 
 export type AndroidFreshnessCaptureMeta = {
   action: string;

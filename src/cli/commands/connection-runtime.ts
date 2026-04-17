@@ -1,6 +1,7 @@
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import { stopMetroTunnel } from '../../metro.ts';
 import { resolveRemoteConfigProfile } from '../../remote-config.ts';
+import type { MetroBridgeScope } from '../../client-metro-companion-contract.ts';
 import {
   buildRemoteConnectionDaemonState,
   hashRemoteConfigFile,
@@ -173,11 +174,7 @@ export async function prepareConnectedMetro(
   client: AgentDeviceClient,
   remoteConfigPath: string,
   session: string,
-  bridgeScope: {
-    tenantId: string;
-    runId: string;
-    leaseId: string;
-  },
+  bridgeScope: MetroBridgeScope,
 ): Promise<{
   runtime?: SessionRuntimeHints;
   cleanup?: NonNullable<RemoteConnectionState['metro']>;

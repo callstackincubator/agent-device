@@ -13,7 +13,7 @@ import { AppError } from '../../utils/errors.ts';
 import { parseWaitArgs } from '../../daemon/handlers/snapshot.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
 import { buildSelectionOptions, writeCommandMessage, writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandlerMap } from './router.ts';
+import type { ClientCommandHandlerMap } from './router-types.ts';
 
 export const clientCommandMethodHandlers = {
   [CLIENT_COMMANDS.wait]: async ({ positionals, flags, client }) => {

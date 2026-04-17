@@ -336,9 +336,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
                   process.stderr.write(`\n[daemon log]\n${tail}\n`);
                 }
               }
-            } catch {
-              // ignore
-            }
+            } catch {}
           }
         }
         if (logTailStopper) logTailStopper();

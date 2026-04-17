@@ -45,22 +45,6 @@ export function isRectVisibleInViewport(targetRect: Rect, viewportRect: Rect): b
   );
 }
 
-export function distanceFromSafeViewportBand(targetRect: Rect, viewportRect: Rect): number {
-  const viewportHeight = Math.max(1, viewportRect.height);
-  const viewportTop = viewportRect.y;
-  const viewportBottom = viewportRect.y + viewportHeight;
-  const safeTop = viewportTop + viewportHeight * 0.25;
-  const safeBottom = viewportBottom - viewportHeight * 0.25;
-  const targetCenterY = targetRect.y + targetRect.height / 2;
-  if (targetCenterY < safeTop) return Math.ceil(safeTop - targetCenterY);
-  if (targetCenterY > safeBottom) return Math.ceil(targetCenterY - safeBottom);
-  return 0;
-}
-
-export function isRectWithinSafeViewportBand(targetRect: Rect, viewportRect: Rect): boolean {
-  return distanceFromSafeViewportBand(targetRect, viewportRect) === 0;
-}
-
 function hasValidRect(rect: Rect | undefined): rect is Rect {
   if (!rect) return false;
   return (

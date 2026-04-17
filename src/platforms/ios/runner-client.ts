@@ -110,7 +110,6 @@ async function executeRunnerCommand(
   }
 }
 
-// Re-export public API from submodules
 export {
   resolveRunnerDestination,
   resolveRunnerBuildDestination,

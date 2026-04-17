@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import {
   runCmd,
   runCmdSync,
@@ -338,7 +339,7 @@ async function acquireXcodebuildSimulatorSetLock(params: {
       if (clearStaleXcodebuildSimulatorSetLock(lockDirPath, ownerFilePath)) {
         continue;
       }
-      await new Promise((resolve) => setTimeout(resolve, XCTEST_DEVICE_SET_LOCK_POLL_MS));
+      await sleep(XCTEST_DEVICE_SET_LOCK_POLL_MS);
     }
   }
 
@@ -497,9 +498,7 @@ function cleanRunnerDerivedArtifacts(derived: string): void {
       if (!shouldDeleteRunnerDerivedRootEntry(entry.name)) continue;
       fs.rmSync(path.join(derived, entry.name), { recursive: true, force: true });
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 const RUNNER_ROOT_TRANSIENT_ENTRY_NAMES = new Set([
@@ -540,9 +539,7 @@ export function findXctestrun(root: string, device?: DeviceInfo): string | null 
         try {
           const stat = fs.statSync(full);
           candidates.push({ path: full, mtimeMs: stat.mtimeMs });
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
     }
   }
@@ -635,9 +632,7 @@ export function xctestrunReferencesProjectRoot(
     const candidateRoots = new Set<string>([projectRoot]);
     try {
       candidateRoots.add(fs.realpathSync(projectRoot));
-    } catch {
-      // ignore
-    }
+    } catch {}
     for (const root of candidateRoots) {
       if (contents.includes(root)) {
         return true;
@@ -680,9 +675,31 @@ export async function prepareXctestrunWithEnv(
     });
   }
 
-  let parsed: Record<string, any>;
+  type EnvMap = Record<string, string>;
+  type XctestrunTarget = {
+    TestBundlePath?: unknown;
+    EnvironmentVariables?: EnvMap;
+    UITestEnvironmentVariables?: EnvMap;
+    UITargetAppEnvironmentVariables?: EnvMap;
+    TestingEnvironmentVariables?: EnvMap;
+    [key: string]: unknown;
+  };
+  type XctestrunConfig = {
+    TestTargets?: unknown;
+    [key: string]: unknown;
+  };
+  type XctestrunPlist = {
+    TestConfigurations?: unknown;
+    [key: string]: unknown;
+  };
+
+  let parsed: XctestrunPlist;
   try {
-    parsed = JSON.parse(jsonResult.stdout) as Record<string, any>;
+    const raw: unknown = JSON.parse(jsonResult.stdout);
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('Root must be an object');
+    }
+    parsed = raw as XctestrunPlist;
   } catch (err) {
     throw new AppError('COMMAND_FAILED', 'Failed to parse xctestrun JSON', {
       xctestrunPath,
@@ -690,7 +707,7 @@ export async function prepareXctestrunWithEnv(
     });
   }
 
-  const applyEnvToTarget = (target: Record<string, any>) => {
+  const applyEnvToTarget = (target: XctestrunTarget) => {
     target.EnvironmentVariables = { ...(target.EnvironmentVariables ?? {}), ...envVars };
     target.UITestEnvironmentVariables = {
       ...(target.UITestEnvironmentVariables ?? {}),
@@ -708,11 +725,11 @@ export async function prepareXctestrunWithEnv(
 
   const configs = parsed.TestConfigurations;
   if (Array.isArray(configs)) {
-    for (const config of configs) {
+    for (const config of configs as XctestrunConfig[]) {
       if (!config || typeof config !== 'object') continue;
       const targets = config.TestTargets;
       if (!Array.isArray(targets)) continue;
-      for (const target of targets) {
+      for (const target of targets as XctestrunTarget[]) {
         if (!target || typeof target !== 'object') continue;
         applyEnvToTarget(target);
       }
@@ -720,9 +737,12 @@ export async function prepareXctestrunWithEnv(
   }
 
   for (const [key, value] of Object.entries(parsed)) {
-    if (value && typeof value === 'object' && value.TestBundlePath) {
-      applyEnvToTarget(value);
-      parsed[key] = value;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const candidate = value as XctestrunTarget;
+      if (candidate.TestBundlePath) {
+        applyEnvToTarget(candidate);
+        parsed[key] = candidate;
+      }
     }
   }
 

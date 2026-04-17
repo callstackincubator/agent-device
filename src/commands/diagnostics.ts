@@ -3,18 +3,20 @@ import type {
   BackendDiagnosticsPageOptions,
   BackendDiagnosticsTimeWindow,
   BackendDumpNetworkOptions,
-  BackendLogEntry,
   BackendMeasurePerfOptions,
-  BackendNetworkEntry,
   BackendNetworkIncludeMode,
-  BackendPerfMetric,
   BackendReadLogsOptions,
 } from '../backend.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { formatLogsResult, formatNetworkResult, formatPerfResult } from './diagnostics-format.ts';
-import type { RuntimeCommand } from './index.ts';
+import type {
+  DiagnosticsLogsCommandResult,
+  DiagnosticsNetworkCommandResult,
+  DiagnosticsPerfCommandResult,
+} from './diagnostics-types.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 
 export type DiagnosticsPageOptions = CommandContext & {
@@ -45,35 +47,11 @@ export type DiagnosticsPerfCommandOptions = CommandContext & {
   metrics?: readonly string[];
 };
 
-export type DiagnosticsLogsCommandResult = {
-  kind: 'diagnosticsLogs';
-  entries: readonly BackendLogEntry[];
-  nextCursor?: string;
-  timeWindow?: BackendDiagnosticsTimeWindow;
-  backend?: string;
-  redacted: boolean;
-  notes?: readonly string[];
-};
-
-export type DiagnosticsNetworkCommandResult = {
-  kind: 'diagnosticsNetwork';
-  entries: readonly BackendNetworkEntry[];
-  nextCursor?: string;
-  timeWindow?: BackendDiagnosticsTimeWindow;
-  backend?: string;
-  redacted: boolean;
-  notes?: readonly string[];
-};
-
-export type DiagnosticsPerfCommandResult = {
-  kind: 'diagnosticsPerf';
-  metrics: readonly BackendPerfMetric[];
-  startedAt?: string;
-  endedAt?: string;
-  backend?: string;
-  redacted: boolean;
-  notes?: readonly string[];
-};
+export type {
+  DiagnosticsLogsCommandResult,
+  DiagnosticsNetworkCommandResult,
+  DiagnosticsPerfCommandResult,
+} from './diagnostics-types.ts';
 
 const LOG_LIMIT_DEFAULT = 100;
 const LOG_LIMIT_MAX = 500;

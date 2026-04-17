@@ -12,13 +12,10 @@ import {
   resolveRequestTrackingId,
 } from './request-cancel.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
+import { sleep } from '../utils/timeouts.ts';
 
 const disconnectAbortPollIntervalMs = 200;
 const disconnectAbortMaxWindowMs = 15_000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export function createSocketServer(
   handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>,

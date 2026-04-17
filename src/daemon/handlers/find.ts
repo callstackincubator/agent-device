@@ -1,4 +1,5 @@
 import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import { findBestMatchesByLocator, parseFindArgs, type FindLocator } from '../../utils/finders.ts';
 import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
@@ -200,7 +201,7 @@ async function handleFindWait(
       }
       return { ok: true, data: { found: true, waitedMs: Date.now() - start } };
     }
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await sleep(300);
   }
   return errorResponse('COMMAND_FAILED', 'find wait timed out');
 }

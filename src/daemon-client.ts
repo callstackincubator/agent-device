@@ -3,7 +3,8 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
-import { AppError } from './utils/errors.ts';
+import { sleep } from './utils/timeouts.ts';
+import { AppError, toAppErrorCode } from './utils/errors.ts';
 import type {
   DaemonArtifact,
   DaemonRequest as SharedDaemonRequest,
@@ -483,7 +484,7 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
 
     // Detached daemon startup can race on busy CI hosts; retry when no metadata exists yet.
     if (!metadataState.hasInfo && !metadataState.hasLock) {
-      await sleepMs(150);
+      await sleep(150);
       continue;
     }
   }
@@ -509,13 +510,9 @@ async function waitForDaemonInfo(
   while (Date.now() - start < timeoutMs) {
     const info = readDaemonInfo(settings.paths.infoPath);
     if (info && (await canConnect(info, settings.transportPreference))) return info;
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await sleep(100);
   }
   return null;
-}
-
-async function sleepMs(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function recoverDaemonLockHolder(paths: DaemonPaths): Promise<boolean> {
@@ -979,7 +976,10 @@ async function sendHttpRequest(
               const data = parsed.error.data ?? {};
               reject(
                 new AppError(
-                  String(data.code ?? 'COMMAND_FAILED') as any,
+                  toAppErrorCode(
+                    data.code != null ? String(data.code) : undefined,
+                    'COMMAND_FAILED',
+                  ),
                   String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),
                   {
                     ...(typeof data.details === 'object' && data.details ? data.details : {}),

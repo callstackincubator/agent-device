@@ -1,5 +1,6 @@
 import { runCmd, runCmdDetached, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { Deadline, retryWithPolicy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
@@ -323,7 +324,7 @@ async function waitForAndroidEmulatorByAvdName(params: {
     } catch {
       // Best-effort polling while adb/emulator process settles.
     }
-    await new Promise((resolve) => setTimeout(resolve, ANDROID_EMULATOR_BOOT_POLL_MS));
+    await sleep(ANDROID_EMULATOR_BOOT_POLL_MS);
   }
   throw new AppError('COMMAND_FAILED', 'Android emulator did not appear in time', {
     avdName: params.avdName,

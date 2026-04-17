@@ -1,5 +1,6 @@
 import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import { sendKey } from './input-actions.ts';
 
 /**
@@ -27,7 +28,7 @@ export async function openLinuxApp(app: string): Promise<void> {
       });
     });
     // Give it a moment to start
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await sleep(500);
     return;
   }
 

@@ -331,7 +331,8 @@ async function typeAndroidViaClipboard(
 function isAndroidInputTextUnsupported(error: unknown): boolean {
   if (!(error instanceof AppError)) return false;
   if (error.code !== 'COMMAND_FAILED') return false;
-  const stderr = String((error.details as any)?.stderr ?? '').toLowerCase();
+  const rawStderr = error.details?.stderr;
+  const stderr = (typeof rawStderr === 'string' ? rawStderr : '').toLowerCase();
   if (stderr.includes("exception occurred while executing 'text'")) return true;
   if (stderr.includes('nullpointerexception') && stderr.includes('inputshellcommand.sendtext'))
     return true;

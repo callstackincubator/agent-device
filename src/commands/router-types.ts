@@ -1,4 +1,4 @@
-import type { AgentDeviceRuntime } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import type { NormalizedError } from '../utils/errors.ts';
 import type { ScreenshotCommandResult } from './capture-screenshot.ts';
 import type {
@@ -97,8 +97,7 @@ import type {
   DiffSnapshotCommandOptions,
   ScreenshotCommandOptions,
   SnapshotCommandOptions,
-} from './index.ts';
-import type { BatchCommandOptions, BatchCommandResult } from './router-orchestration.ts';
+} from './runtime-types.ts';
 
 export type CommandRouterRequest<TContext = unknown> =
   | { command: 'capture.screenshot'; options: ScreenshotCommandOptions; context?: TContext }
@@ -231,4 +230,35 @@ export type CommandRouterConfig<TContext = unknown> = {
   ): AgentDeviceRuntime | Promise<AgentDeviceRuntime>;
   beforeDispatch?(request: CommandRouterRequest<TContext>): void | Promise<void>;
   formatError?(error: unknown, request: CommandRouterRequest<TContext>): NormalizedError;
+};
+
+export type BatchCommandOptions<TContext = unknown> = CommandContext & {
+  steps: readonly CommandRouterRequest<TContext>[];
+  stopOnError?: boolean;
+  maxSteps?: number;
+};
+
+export type BatchCommandStepResult =
+  | {
+      step: number;
+      command: string;
+      ok: true;
+      data: CommandRouterResult;
+      durationMs: number;
+    }
+  | {
+      step: number;
+      command: string;
+      ok: false;
+      error: NormalizedError;
+      durationMs: number;
+    };
+
+export type BatchCommandResult = {
+  kind: 'batch';
+  total: number;
+  executed: number;
+  failed: number;
+  totalDurationMs: number;
+  results: readonly BatchCommandStepResult[];
 };

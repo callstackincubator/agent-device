@@ -3,7 +3,11 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, SessionRuntimeHints, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
+import {
+  clearRuntimeHintsFromApp,
+  hasRuntimeTransportHints,
+  trimRuntimeValue,
+} from '../runtime-hints.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 const RUNTIME_HINT_FIELD_NAMES = [
@@ -22,11 +26,6 @@ export function countConfiguredRuntimeHints(runtime: SessionRuntimeHints | undef
   ).length;
 }
 
-function trimRuntimeString(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
-
 function normalizeRuntimeStringInput(
   value: unknown,
   fieldName: 'metroHost' | 'bundleUrl' | 'launchUrl',
@@ -35,7 +34,7 @@ function normalizeRuntimeStringInput(
   if (typeof value !== 'string') {
     throw new AppError('INVALID_ARGS', `Invalid open runtime ${fieldName}: expected string.`);
   }
-  return trimRuntimeString(value);
+  return trimRuntimeValue(value);
 }
 
 function validateRuntimePort(port: number | undefined): number | undefined {
@@ -93,10 +92,10 @@ export function buildRuntimeHints(
 ): SessionRuntimeHints {
   return {
     platform,
-    metroHost: trimRuntimeString(flags?.metroHost),
+    metroHost: trimRuntimeValue(flags?.metroHost),
     metroPort: validateRuntimePort(flags?.metroPort),
-    bundleUrl: trimRuntimeString(flags?.bundleUrl),
-    launchUrl: trimRuntimeString(flags?.launchUrl),
+    bundleUrl: trimRuntimeValue(flags?.bundleUrl),
+    launchUrl: trimRuntimeValue(flags?.launchUrl),
   };
 }
 

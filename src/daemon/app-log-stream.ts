@@ -12,10 +12,6 @@ export async function waitForChildExit(
   ]);
 }
 
-export async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function redactChunk(chunk: string, patterns: RegExp[]): string {
   if (patterns.length === 0) return chunk;
   let output = chunk;

@@ -8,11 +8,11 @@ import type {
   BackendPushInput,
 } from '../backend.ts';
 import type { FileInputRef } from '../io.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { resolveCommandInput } from './io-policy.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 
 const APP_EVENT_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
 const MAX_APP_EVENT_PAYLOAD_BYTES = 8 * 1024;

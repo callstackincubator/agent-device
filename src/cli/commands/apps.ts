@@ -1,5 +1,5 @@
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
-import type { ClientCommandHandler } from './router.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 export const appsCommand: ClientCommandHandler = async ({ flags, client }) => {
   const apps = await client.apps.list({

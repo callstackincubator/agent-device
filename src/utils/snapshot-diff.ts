@@ -6,18 +6,18 @@ import {
   formatSnapshotLine,
 } from './snapshot-lines.ts';
 
-type SnapshotDiffLine = {
+export type SnapshotDiffLine = {
   kind: 'added' | 'removed' | 'unchanged';
   text: string;
 };
 
-type SnapshotDiffSummary = {
+export type SnapshotDiffSummary = {
   additions: number;
   removals: number;
   unchanged: number;
 };
 
-type SnapshotDiffResult = {
+export type SnapshotDiffResult = {
   summary: SnapshotDiffSummary;
   lines: SnapshotDiffLine[];
 };

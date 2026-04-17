@@ -9,10 +9,10 @@ import type {
   BackendInstallResult,
   BackendInstallSource,
 } from '../backend.ts';
-import type { AgentDeviceRuntime, CommandContext } from '../runtime.ts';
+import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
-import type { RuntimeCommand } from './index.ts';
+import type { RuntimeCommand } from './runtime-types.ts';
 import { resolveCommandInput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 

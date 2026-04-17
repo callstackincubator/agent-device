@@ -1,4 +1,4 @@
-import { AppError } from '../../utils/errors.ts';
+import { AppError, toAppErrorCode } from '../../utils/errors.ts';
 import {
   runCmd,
   runCmdBackground,
@@ -27,19 +27,9 @@ import {
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
 import type { RunnerCommand } from './runner-contract.ts';
+import type { RunnerSession } from './runner-session-types.ts';
 
-export type RunnerSession = {
-  sessionId: string;
-  device: DeviceInfo;
-  deviceId: string;
-  port: number;
-  xctestrunPath: string;
-  jsonPath: string;
-  testPromise: Promise<ExecResult>;
-  child: ExecBackgroundResult['child'];
-  ready: boolean;
-  simulatorSetRedirect?: { release: () => Promise<void> };
-};
+export type { RunnerSession } from './runner-session-types.ts';
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
@@ -201,9 +191,7 @@ async function stopRunnerSessionInternal(
       session.testPromise,
       new Promise<void>((resolve) => setTimeout(resolve, RUNNER_STOP_WAIT_TIMEOUT_MS)),
     ]);
-  } catch {
-    // ignore
-  }
+  } catch {}
   await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
@@ -293,20 +281,14 @@ async function killRunnerProcessTree(
   if (!pid || pid <= 0) return;
   try {
     process.kill(-pid, signal);
-  } catch {
-    // ignore
-  }
+  } catch {}
   try {
     process.kill(pid, signal);
-  } catch {
-    // ignore
-  }
+  } catch {}
   const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
   try {
     await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
@@ -357,24 +339,33 @@ export async function executeRunnerCommandWithSession(
   return await parseRunnerResponse(response, session, logPath);
 }
 
+type RunnerResponsePayload = {
+  ok?: unknown;
+  error?: { code?: unknown; message?: unknown };
+  data?: unknown;
+};
+
 export async function parseRunnerResponse(
   response: Response,
   session: RunnerSession,
   logPath?: string,
 ): Promise<Record<string, unknown>> {
   const text = await response.text();
-  let json: any = {};
+  let json: RunnerResponsePayload;
   try {
-    json = JSON.parse(text);
+    const parsed: unknown = JSON.parse(text);
+    json = parsed && typeof parsed === 'object' ? (parsed as RunnerResponsePayload) : {};
   } catch {
     throw new AppError('COMMAND_FAILED', 'Invalid runner response', { text });
   }
   if (!json.ok) {
+    const rawCode = json.error?.code;
     const errorCode =
-      typeof json.error?.code === 'string' && json.error.code.trim().length > 0
-        ? json.error.code
+      typeof rawCode === 'string' && rawCode.trim().length > 0
+        ? toAppErrorCode(rawCode)
         : 'COMMAND_FAILED';
-    throw new AppError(errorCode, json.error?.message ?? 'Runner error', {
+    const errorMessage = typeof json.error?.message === 'string' ? json.error.message : undefined;
+    throw new AppError(errorCode, errorMessage ?? 'Runner error', {
       runner: json,
       xcodebuild: {
         exitCode: 1,
@@ -385,5 +376,8 @@ export async function parseRunnerResponse(
     });
   }
   session.ready = true;
-  return json.data ?? {};
+  if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
+    return json.data as Record<string, unknown>;
+  }
+  return {};
 }
