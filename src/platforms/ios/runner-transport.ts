@@ -333,7 +333,5 @@ export function logChunk(
 export function cleanupTempFile(filePath: string): void {
   try {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }

@@ -201,9 +201,7 @@ async function stopRunnerSessionInternal(
       session.testPromise,
       new Promise<void>((resolve) => setTimeout(resolve, RUNNER_STOP_WAIT_TIMEOUT_MS)),
     ]);
-  } catch {
-    // ignore
-  }
+  } catch {}
   await killRunnerProcessTree(session.child.pid, 'SIGKILL');
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
@@ -293,20 +291,14 @@ async function killRunnerProcessTree(
   if (!pid || pid <= 0) return;
   try {
     process.kill(-pid, signal);
-  } catch {
-    // ignore
-  }
+  } catch {}
   try {
     process.kill(pid, signal);
-  } catch {
-    // ignore
-  }
+  } catch {}
   const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
   try {
     await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {

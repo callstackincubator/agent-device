@@ -91,9 +91,7 @@ async function start(): Promise<void> {
     for (const server of servers) {
       try {
         server.close(() => {});
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
     removeInfo(infoPath);
     releaseDaemonLock(lockPath);

@@ -497,9 +497,7 @@ function cleanRunnerDerivedArtifacts(derived: string): void {
       if (!shouldDeleteRunnerDerivedRootEntry(entry.name)) continue;
       fs.rmSync(path.join(derived, entry.name), { recursive: true, force: true });
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 const RUNNER_ROOT_TRANSIENT_ENTRY_NAMES = new Set([
@@ -540,9 +538,7 @@ export function findXctestrun(root: string, device?: DeviceInfo): string | null 
         try {
           const stat = fs.statSync(full);
           candidates.push({ path: full, mtimeMs: stat.mtimeMs });
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
     }
   }
@@ -635,9 +631,7 @@ export function xctestrunReferencesProjectRoot(
     const candidateRoots = new Set<string>([projectRoot]);
     try {
       candidateRoots.add(fs.realpathSync(projectRoot));
-    } catch {
-      // ignore
-    }
+    } catch {}
     for (const root of candidateRoots) {
       if (contents.includes(root)) {
         return true;
