@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-422/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-422/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-422/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-422/static/js/index.80c52ff3ec.js"></script>
+<script defer src="/agent-device/pr-preview/pr-422/static/js/index.9bf2935ce2.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -625,6 +625,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li><code>connect --remote-config ...</code> is the main agent flow. It generates a local session name when needed, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.</li>
 <li>Deferred Metro preparation also applies to <code>batch</code> when any step opens an app and the batch does not provide its own per-step runtime.</li>
 <li>After <code>connect</code>, <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>screenshot</code>, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Passing the same <code>--remote-config</code> to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.</li>
+<li>Self-contained remote scripts should end with <code>disconnect --remote-config &lt;path&gt;</code> or <code>disconnect</code> to release the lease and stop the owned Metro companion.</li>
 <li>Explicit command-line flags override connected defaults. When <code>open</code> uses explicit remote daemon or tenant flags without saved runtime hints, the CLI warns because React Native apps may launch without Metro bundle/runtime hints.</li>
 <li><code>metro prepare --remote-config ...</code> remains an advanced inspection/debug path and can still write a <code>--runtime-file &lt;path&gt;</code> artifact when needed.</li>
 <li>The local Metro companion runs on the same machine as the React Native project and Metro. <code>disconnect</code> stops the companion owned by the connection, but it does not stop the user’s Metro server.</li>
