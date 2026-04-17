@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { AppError, asAppError, normalizeError } from '../errors.ts';
+import { AppError, asAppError, normalizeError, toAppErrorCode } from '../errors.ts';
 
 test('normalizeError adds default hint and strips diagnostic metadata from details', () => {
   const err = new AppError('COMMAND_FAILED', 'runner failed', {
@@ -90,4 +90,16 @@ test('normalizeError provides app discovery guidance for app-not-installed error
     normalized.hint ?? '',
     /Run apps to discover the exact installed package or bundle id/i,
   );
+});
+
+test('toAppErrorCode preserves handler-emitted codes verbatim (including AMBIGUOUS_MATCH)', () => {
+  assert.equal(toAppErrorCode('AMBIGUOUS_MATCH'), 'AMBIGUOUS_MATCH');
+  assert.equal(toAppErrorCode('SOME_FUTURE_CODE'), 'SOME_FUTURE_CODE');
+  assert.equal(toAppErrorCode('DEVICE_IN_USE'), 'DEVICE_IN_USE');
+});
+
+test('toAppErrorCode falls back when code is missing or empty', () => {
+  assert.equal(toAppErrorCode(undefined), 'COMMAND_FAILED');
+  assert.equal(toAppErrorCode(''), 'COMMAND_FAILED');
+  assert.equal(toAppErrorCode(undefined, 'UNAUTHORIZED'), 'UNAUTHORIZED');
 });

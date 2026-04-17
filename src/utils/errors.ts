@@ -1,6 +1,6 @@
 import { redactDiagnosticData } from './redaction.ts';
 
-export type AppErrorCode =
+export type KnownAppErrorCode =
   | 'INVALID_ARGS'
   | 'DEVICE_NOT_FOUND'
   | 'DEVICE_IN_USE'
@@ -12,35 +12,18 @@ export type AppErrorCode =
   | 'COMMAND_FAILED'
   | 'SESSION_NOT_FOUND'
   | 'UNAUTHORIZED'
+  | 'AMBIGUOUS_MATCH'
   | 'UNKNOWN';
 
-const APP_ERROR_CODES: readonly AppErrorCode[] = [
-  'INVALID_ARGS',
-  'DEVICE_NOT_FOUND',
-  'DEVICE_IN_USE',
-  'TOOL_MISSING',
-  'APP_NOT_INSTALLED',
-  'UNSUPPORTED_PLATFORM',
-  'UNSUPPORTED_OPERATION',
-  'NOT_IMPLEMENTED',
-  'COMMAND_FAILED',
-  'SESSION_NOT_FOUND',
-  'UNAUTHORIZED',
-  'UNKNOWN',
-];
+// Accepts any string so wire codes from the daemon are preserved verbatim; the
+// `(string & {})` form keeps IDE autocomplete of the known codes.
+export type AppErrorCode = KnownAppErrorCode | (string & {});
 
-/**
- * Narrow a wire-level error code string into a known AppErrorCode.
- * Unrecognised codes are surfaced verbatim by preserving them on details,
- * while the typed channel falls back to the provided default.
- */
 export function toAppErrorCode(
   code: string | undefined,
   fallback: AppErrorCode = 'COMMAND_FAILED',
 ): AppErrorCode {
-  if (typeof code === 'string' && (APP_ERROR_CODES as readonly string[]).includes(code)) {
-    return code as AppErrorCode;
-  }
+  if (typeof code === 'string' && code.length > 0) return code;
   return fallback;
 }
 
