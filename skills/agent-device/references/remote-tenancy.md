@@ -7,6 +7,7 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 ## Main commands to reach for first
 
 - `agent-device connect --remote-config <path>`
+- `agent-device --remote-config <path> run-react-native android --app <package>`
 - `agent-device connection status`
 - `agent-device disconnect`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
@@ -37,6 +38,16 @@ agent-device disconnect
 `connect` resolves the remote profile, generates a local session name when the profile omits one, stores local non-secret connection state, and defers tenant lease allocation plus Metro preparation until a later command needs them. When a command such as `open`, `install`, `apps`, or `snapshot` needs a lease, the client allocates or refreshes it from the connected scope. When a command needs Metro runtime hints, the client prepares Metro locally at that point and starts the local Metro companion when the bridge needs it, including `batch` runs whose steps open an app. `disconnect` closes the session when possible, stops the Metro companion owned by that connection, releases the lease when one was allocated, and removes local connection state.
 
 After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch.
+
+For the React Native happy path, prefer a single ordered command when the app artifact is already available by URL:
+
+```bash
+agent-device --remote-config ./remote-config.json run-react-native android \
+  --install-from-source https://example.com/builds/app.apk \
+  --app com.example.app
+```
+
+This command uses the positional platform for lease selection, prepares missing Metro runtime hints from the remote profile, installs the URL artifact when provided, then opens the requested app with a relaunch after install.
 
 Remote install examples:
 
@@ -84,7 +95,7 @@ Optional overrides stay available for advanced cases:
 - Omit Metro fields for non-React Native flows.
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
-- If Android opens to a notification permission dialog before the React Native screen, treat the dialog as the current UI: run `snapshot -i`, then press the visible allow/dismiss button by `@ref` before checking Metro content again. A failed app-content check while `com.google.android.permissioncontroller` is foreground usually means the smoke is blocked by the permission prompt, not by Metro.
+- If Android opens to a notification permission dialog before the React Native screen, treat the dialog as the current UI: run `snapshot -i`, then press the visible allow/dismiss button by `@ref` before checking Metro content again. `is` and `wait` assertions now report this as a permission-dialog blocker when `com.google.android.permissioncontroller` is foreground, so do not interpret that failure as a Metro failure.
 - For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally.
 - Use a lease backend that matches the bridge target platform, for example `android-instance`, `ios-instance`, or an explicit `--lease-backend` override.
 

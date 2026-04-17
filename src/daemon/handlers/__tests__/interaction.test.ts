@@ -1869,3 +1869,45 @@ test('is visible fails for nodes outside the current viewport', async () => {
     expect(response.error.message).toMatch(/actual=\{"visible":false/);
   }
 });
+
+test('is reports Android permission dialog blocker when app content assertion fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-permission-blocked';
+  sessionStore.set(
+    sessionName,
+    makeBaseAndroidSession(sessionName, { appBundleId: 'com.example.demo' }),
+  );
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+    return { nodes: [], backend: 'uiautomator' };
+  });
+  mockGetAndroidAppState.mockResolvedValue({
+    package: 'com.google.android.permissioncontroller',
+    activity: 'com.android.permissioncontroller.permission.ui.GrantPermissionsActivity',
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['visible', 'label="Metro Ready"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toMatch(/permission dialog is blocking/);
+    expect(response.error.details).toMatchObject({
+      blockedBy: 'android_foreground_surface',
+      expectedPackage: 'com.example.demo',
+      foregroundPackage: 'com.google.android.permissioncontroller',
+    });
+  }
+});

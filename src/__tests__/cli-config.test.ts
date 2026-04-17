@@ -540,6 +540,74 @@ test('normal commands accept direct remote-config usage', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('run-react-native uses positional platform for remote lease and install/open flow', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-123',
+    }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(
+    [
+      'run-react-native',
+      'android',
+      '--remote-config',
+      remoteConfig,
+      '--state-dir',
+      stateDir,
+      '--app',
+      'com.example.demo',
+      '--install-from-source',
+      'https://example.com/app.apk',
+      '--json',
+    ],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_allocate') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-rn-001',
+                tenantId: 'acme',
+                runId: 'run-123',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        if (req.command === 'install_source') {
+          return { ok: true, data: { launchTarget: 'com.example.demo' } };
+        }
+        if (req.command === 'open') {
+          return { ok: true, data: { appBundleId: 'com.example.demo' } };
+        }
+        return { ok: true, data: {} };
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'lease_allocate');
+  assert.equal(result.calls[1]?.command, 'install_source');
+  assert.equal(result.calls[1]?.flags?.platform, 'android');
+  assert.equal(result.calls[2]?.command, 'open');
+  assert.equal(result.calls[2]?.positionals?.[0], 'com.example.demo');
+  assert.equal(result.calls[2]?.flags?.relaunch, true);
+  assert.equal(result.calls[2]?.meta?.leaseId, 'lease-rn-001');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('open warns when explicit remote flags bypass saved runtime hints', async () => {
   const { root, home, project } = makeTempWorkspace();
 

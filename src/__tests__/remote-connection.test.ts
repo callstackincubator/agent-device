@@ -154,6 +154,43 @@ test('connect auto-generates a local session and writes minimal remote state', a
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
+test('connect reports deferred Metro runtime preparation when remote config has Metro settings', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-metro-notice-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      daemonBaseUrl: 'https://daemon.example.test',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+    }),
+  );
+
+  const stdout = await captureStdout(async () => {
+    await connectCommand({
+      positionals: [],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+        stateDir,
+        remoteConfig: remoteConfigPath,
+        daemonBaseUrl: 'https://daemon.example.test',
+        tenant: 'acme',
+        runId: 'run-123',
+        platform: 'android',
+      },
+      client: createTestClient(),
+    });
+  });
+
+  assert.match(stdout, /Metro runtime is not prepared yet/);
+  assert.match(stdout, /metro prepare --remote-config/);
+  assert.equal(readActiveConnectionState({ stateDir })?.runtime, undefined);
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
 test('connect without a session reuses the active generated connection', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-idempotent-'));
   const stateDir = path.join(tempRoot, '.state');
@@ -405,6 +442,60 @@ test('direct remote-config materialization creates state and prepares Metro for 
   assert.deepEqual(readRemoteConnectionState({ stateDir, session: 'direct-android' })?.runtime, {
     platform: 'android',
     bundleUrl: 'https://bundle.example.test',
+  });
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('direct remote-config materialization prepares Metro for run-react-native', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-direct-remote-rn-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(
+    remoteConfigPath,
+    JSON.stringify({
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'direct-rn',
+      platform: 'android',
+      metroPublicBaseUrl: 'https://sandbox.example.test',
+      metroProxyBaseUrl: 'https://proxy.example.test',
+    }),
+  );
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'run-react-native',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'direct-rn',
+      platform: 'android',
+    },
+    client: createTestClient({
+      allocate: async (request) => ({
+        leaseId: 'lease-rn',
+        tenantId: request.tenant,
+        runId: request.runId,
+        backend: request.leaseBackend ?? 'android-instance',
+      }),
+    }),
+  });
+
+  assert.equal(materialized.flags.leaseId, 'lease-rn');
+  assert.deepEqual(materialized.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
+  });
+  assert.deepEqual(readRemoteConnectionState({ stateDir, session: 'direct-rn' })?.runtime, {
+    platform: 'android',
+    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
   });
 
   fs.rmSync(tempRoot, { recursive: true, force: true });

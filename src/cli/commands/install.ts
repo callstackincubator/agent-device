@@ -81,7 +81,7 @@ async function runInstallFromSourceCommand(
   });
 }
 
-function parseInstallSourceHeaders(
+export function parseInstallSourceHeaders(
   headerFlags: CliFlags['header'],
 ): Record<string, string> | undefined {
   if (!headerFlags || headerFlags.length === 0) return undefined;

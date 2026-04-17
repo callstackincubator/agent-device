@@ -82,6 +82,7 @@ export const commandCatalog: readonly CommandCatalogEntry[] = [
   { command: 'install', category: 'backend-admin', status: 'implemented' },
   { command: 'reinstall', category: 'backend-admin', status: 'implemented' },
   { command: 'install-from-source', category: 'backend-admin', status: 'implemented' },
+  { command: 'run-react-native', category: 'backend-admin', status: 'implemented' },
   { command: 'admin.devices', category: 'backend-admin', status: 'implemented' },
   { command: 'admin.boot', category: 'backend-admin', status: 'implemented' },
   { command: 'admin.ensureSimulator', category: 'backend-admin', status: 'implemented' },

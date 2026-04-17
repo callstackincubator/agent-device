@@ -25,7 +25,7 @@ const leaseDeferredCommands = new Set([
   'metro',
   'session',
 ]);
-const runtimeDeferredCommands = new Set(['open']);
+const runtimeDeferredCommands = new Set(['open', 'run-react-native']);
 
 export async function materializeRemoteConnectionForCommand(options: {
   command: string;
@@ -291,7 +291,7 @@ function shouldPrepareRuntimeForCommand(command: string, batchSteps?: BatchStep[
   });
 }
 
-function hasDeferredMetroConfig(flags: CliFlags): boolean {
+export function hasDeferredMetroConfig(flags: CliFlags): boolean {
   return Boolean(
     flags.metroPublicBaseUrl ||
     flags.metroProxyBaseUrl ||

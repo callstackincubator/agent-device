@@ -202,6 +202,29 @@ test('parseArgs accepts install-from-source url and repeated headers', () => {
   assert.equal(parsed.flags.retentionMs, 60000);
 });
 
+test('parseArgs accepts run-react-native happy path flags', () => {
+  const parsed = parseArgs(
+    [
+      'run-react-native',
+      'android',
+      '--app',
+      'com.example.demo',
+      '--install-from-source',
+      'https://example.com/builds/app.apk',
+      '--header',
+      'authorization: Bearer token',
+      '--relaunch',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'run-react-native');
+  assert.deepEqual(parsed.positionals, ['android']);
+  assert.equal(parsed.flags.app, 'com.example.demo');
+  assert.equal(parsed.flags.installFromSource, 'https://example.com/builds/app.apk');
+  assert.deepEqual(parsed.flags.header, ['authorization: Bearer token']);
+  assert.equal(parsed.flags.relaunch, true);
+});
+
 test('parseArgs accepts metro prepare arguments', () => {
   const parsed = parseArgs(
     [
@@ -658,6 +681,7 @@ test('parseArgs rejects conflicting back mode flags', () => {
 test('usage includes concise top-level commands', () => {
   const usageText = usage();
   assert.match(usageText, /install-from-source <url>/);
+  assert.match(usageText, /run-react-native ios\|android --app <id>/);
   assert.match(usageText, /metro prepare --public-base-url <url>/);
   assert.match(usageText, /batch --steps <json> \| --steps-file <path>/);
   assert.match(usageText, /network dump/);
