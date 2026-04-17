@@ -124,7 +124,6 @@ Optional overrides stay available for advanced cases:
 - Omit Metro fields for non-React Native flows.
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
-- If Android opens to a notification permission dialog before the React Native screen, treat the dialog as the current UI: run `snapshot -i`, then press the visible allow/dismiss button by `@ref` before checking Metro content again. `is` and `wait` assertions now report this as a permission-dialog blocker when `com.google.android.permissioncontroller` is foreground, so do not interpret that failure as a Metro failure.
 - For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally.
 - Use a lease backend that matches the bridge target platform, for example `android-instance`, `ios-instance`, or an explicit `--lease-backend` override.
 
