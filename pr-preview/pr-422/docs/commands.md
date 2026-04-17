@@ -382,19 +382,6 @@ agent-device install-from-source https://api.github.com/repos/acme/app/actions/a
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
 - URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
 
-## React Native remote happy path
-
-```bash
-agent-device --remote-config ./remote-config.json run-react-native android \
-  --install-from-source https://example.com/builds/app.apk \
-  --app com.example.app
-```
-
-- `run-react-native ios|android --app <id>` prepares the remote Metro runtime when the profile has Metro settings, optionally installs a URL artifact, then opens the app.
-- `--install-from-source <url>` accepts the same URL sources and repeatable `--header <name:value>` flags as `install-from-source`.
-- The positional platform (`ios` or `android`) is used for remote lease selection, so profiles can omit `platform` when a script provides it in the command.
-- The command is equivalent to the ordered remote flow: materialize remote lease/runtime, install from URL when requested, then `open --relaunch` after install.
-
 ## Push notification simulation
 
 ```bash
@@ -679,6 +666,15 @@ agent-device connect --remote-config ./agent-device.remote.json
 agent-device open com.example.myapp --relaunch
 agent-device snapshot -i
 agent-device disconnect
+```
+
+For self-contained scripts, pass the same profile to each step:
+
+```bash
+agent-device install-from-source https://example.com/builds/app.apk --remote-config ./agent-device.remote.json --platform android
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+agent-device snapshot --remote-config ./agent-device.remote.json -i
+agent-device disconnect --remote-config ./agent-device.remote.json
 ```
 
 - `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
