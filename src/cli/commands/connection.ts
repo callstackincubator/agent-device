@@ -277,7 +277,7 @@ function buildDeferredRuntimeNotice(remoteConfigPath: string): RuntimePreparatio
     status: 'deferred',
     nextStep,
     message:
-      `Metro runtime is not prepared yet; it will be prepared automatically on first open/run-react-native, ` +
+      `Metro runtime is not prepared yet; it will be prepared automatically on first open, ` +
       `or run "${nextStep}" to inspect it before launch.`,
   };
 }

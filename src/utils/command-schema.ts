@@ -76,8 +76,6 @@ export type CliFlags = {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
-  app?: string;
-  installFromSource?: string;
   header?: string[];
   saveScript?: boolean | string;
   shutdown?: boolean;
@@ -522,27 +520,12 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Android app launch activity (package/Activity); not for URL opens',
   },
   {
-    key: 'app',
-    names: ['--app'],
-    type: 'string',
-    usageLabel: '--app <id>',
-    usageDescription: 'run-react-native: app bundle identifier or Android package to open',
-  },
-  {
-    key: 'installFromSource',
-    names: ['--install-from-source'],
-    type: 'string',
-    usageLabel: '--install-from-source <url>',
-    usageDescription: 'run-react-native: install an app artifact URL before opening',
-  },
-  {
     key: 'header',
     names: ['--header'],
     type: 'string',
     multiple: true,
     usageLabel: '--header <name:value>',
-    usageDescription:
-      'install-from-source/run-react-native: repeatable HTTP header for URL downloads',
+    usageDescription: 'install-from-source: repeatable HTTP header for URL downloads',
   },
   {
     key: 'session',
@@ -1066,25 +1049,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Install app from a URL source',
     positionalArgs: ['url'],
     allowedFlags: ['header', 'retainPaths', 'retentionMs'],
-  },
-  'run-react-native': {
-    usageOverride:
-      'run-react-native ios|android --app <id> [--install-from-source <url>] [--relaunch]',
-    listUsageOverride: 'run-react-native ios|android --app <id> [--install-from-source <url>]',
-    helpDescription:
-      'Prepare remote Metro runtime, optionally install, then open a React Native app',
-    summary: 'Install and open a React Native app',
-    positionalArgs: ['ios|android'],
-    allowedFlags: [
-      'app',
-      'installFromSource',
-      'activity',
-      'header',
-      'retainPaths',
-      'retentionMs',
-      'relaunch',
-      'saveScript',
-    ],
   },
   push: {
     helpDescription: 'Simulate push notification payload delivery',

@@ -164,12 +164,6 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     linux: LINUX_NONE,
     supports: isNotMacOs,
   },
-  'run-react-native': {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_NONE,
-    supports: isNotMacOs,
-  },
   reinstall: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },

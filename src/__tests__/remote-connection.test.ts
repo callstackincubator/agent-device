@@ -447,60 +447,6 @@ test('direct remote-config materialization creates state and prepares Metro for 
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
-test('direct remote-config materialization prepares Metro for run-react-native', async () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-direct-remote-rn-'));
-  const stateDir = path.join(tempRoot, '.state');
-  const remoteConfigPath = path.join(tempRoot, 'remote.json');
-  fs.writeFileSync(
-    remoteConfigPath,
-    JSON.stringify({
-      daemonBaseUrl: 'https://daemon.example',
-      tenant: 'acme',
-      runId: 'run-123',
-      session: 'direct-rn',
-      platform: 'android',
-      metroPublicBaseUrl: 'https://sandbox.example.test',
-      metroProxyBaseUrl: 'https://proxy.example.test',
-    }),
-  );
-
-  const materialized = await materializeRemoteConnectionForCommand({
-    command: 'run-react-native',
-    flags: {
-      json: true,
-      help: false,
-      version: false,
-      stateDir,
-      remoteConfig: remoteConfigPath,
-      daemonBaseUrl: 'https://daemon.example',
-      tenant: 'acme',
-      runId: 'run-123',
-      session: 'direct-rn',
-      platform: 'android',
-    },
-    client: createTestClient({
-      allocate: async (request) => ({
-        leaseId: 'lease-rn',
-        tenantId: request.tenant,
-        runId: request.runId,
-        backend: request.leaseBackend ?? 'android-instance',
-      }),
-    }),
-  });
-
-  assert.equal(materialized.flags.leaseId, 'lease-rn');
-  assert.deepEqual(materialized.runtime, {
-    platform: 'android',
-    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
-  });
-  assert.deepEqual(readRemoteConnectionState({ stateDir, session: 'direct-rn' })?.runtime, {
-    platform: 'android',
-    bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
-  });
-
-  fs.rmSync(tempRoot, { recursive: true, force: true });
-});
-
 test('deferred materialization prepares Metro for batch when a step opens an app', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-batch-open-'));
   const stateDir = path.join(tempRoot, '.state');

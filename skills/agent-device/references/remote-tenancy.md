@@ -7,7 +7,8 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 ## Main commands to reach for first
 
 - `agent-device connect --remote-config <path>`
-- `agent-device --remote-config <path> run-react-native android --app <package>`
+- `agent-device install-from-source <url> --remote-config <path> --platform android`
+- `agent-device open <package> --remote-config <path> --relaunch`
 - `agent-device connection status`
 - `agent-device disconnect`
 - `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
@@ -39,15 +40,26 @@ agent-device disconnect
 
 After `connect`, normal `agent-device` commands use the active remote connection. Repeating the same `--remote-config` is also supported for self-contained scripts; it reuses matching saved state when present and prepares missing lease or Metro runtime state before dispatch. End self-contained remote scripts with `agent-device disconnect --remote-config <path>` or `agent-device disconnect` to release the lease and stop the owned Metro companion.
 
-For the React Native happy path, prefer a single ordered command when the app artifact is already available by URL:
+For self-contained React Native scripts, pass the same `--remote-config` to each step so the CLI can propagate daemon, lease, and Metro runtime state:
 
 ```bash
-agent-device --remote-config ./remote-config.json run-react-native android \
-  --install-from-source https://example.com/builds/app.apk \
-  --app com.example.app
+agent-device install-from-source https://example.com/builds/app.apk \
+  --remote-config ./remote-config.json \
+  --platform android
+
+agent-device open com.example.app \
+  --remote-config ./remote-config.json \
+  --relaunch
+
+agent-device snapshot \
+  --remote-config ./remote-config.json \
+  -i
+
+agent-device disconnect \
+  --remote-config ./remote-config.json
 ```
 
-This command uses the positional platform for lease selection, prepares missing Metro runtime hints from the remote profile, installs the URL artifact when provided, then opens the requested app with a relaunch after install.
+Use this explicit sequence instead of mixing ad-hoc `--session`, daemon, tenant, or lease flags. The first command that needs a lease or Metro runtime prepares and persists it for the later steps.
 
 Remote install examples:
 

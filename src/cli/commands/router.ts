@@ -7,7 +7,6 @@ import { ensureSimulatorCommand } from './ensure-simulator.ts';
 import { metroCommand } from './metro.ts';
 import { appsCommand } from './apps.ts';
 import { installCommand, reinstallCommand, installFromSourceCommand } from './install.ts';
-import { runReactNativeCommand } from './run-react-native.ts';
 import { openCommand, closeCommand } from './open.ts';
 import { connectCommand, connectionCommand, disconnectCommand } from './connection.ts';
 import { snapshotCommand } from './snapshot.ts';
@@ -33,7 +32,6 @@ const dedicatedClientApiHandlers = {
   install: installCommand,
   reinstall: reinstallCommand,
   'install-from-source': installFromSourceCommand,
-  'run-react-native': runReactNativeCommand,
   connect: connectCommand,
   disconnect: disconnectCommand,
   connection: connectionCommand,

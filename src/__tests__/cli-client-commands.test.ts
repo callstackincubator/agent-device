@@ -83,58 +83,6 @@ test('install-from-source rejects malformed header syntax', async () => {
   );
 });
 
-test('run-react-native installs from URL then opens the requested app', async () => {
-  let observedInstall: AppInstallFromSourceOptions | undefined;
-  let observedOpen: AppOpenOptions | undefined;
-  const client = createStubClient({
-    installFromSource: async (options) => {
-      observedInstall = options;
-      return {
-        launchTarget: 'com.example.demo',
-        packageName: 'com.example.demo',
-        identifiers: { appId: 'com.example.demo', package: 'com.example.demo' },
-      };
-    },
-    open: async (options) => {
-      observedOpen = options;
-      return {
-        session: 'rn-android',
-        appBundleId: 'com.example.demo',
-        identifiers: { session: 'rn-android', appId: 'com.example.demo' },
-      };
-    },
-  });
-
-  const stdout = await captureStdout(async () => {
-    const handled = await tryRunClientBackedCommand({
-      command: 'run-react-native',
-      positionals: ['android'],
-      flags: {
-        json: false,
-        help: false,
-        version: false,
-        app: 'com.example.demo',
-        installFromSource: 'https://example.com/app.apk',
-        header: ['authorization: Bearer token'],
-      },
-      client,
-    });
-    assert.equal(handled, true);
-  });
-
-  assert.equal(observedInstall?.platform, 'android');
-  assert.deepEqual(observedInstall?.source, {
-    kind: 'url',
-    url: 'https://example.com/app.apk',
-    headers: { authorization: 'Bearer token' },
-  });
-  assert.equal(observedOpen?.platform, 'android');
-  assert.equal(observedOpen?.app, 'com.example.demo');
-  assert.equal(observedOpen?.relaunch, true);
-  assert.match(stdout, /Installed: com.example.demo/);
-  assert.match(stdout, /Opened: com.example.demo/);
-});
-
 test('metro prepare forwards normalized options to client.metro.prepare', async () => {
   let observed: MetroPrepareOptions | undefined;
   const client = createStubClient({

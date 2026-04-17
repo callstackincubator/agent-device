@@ -25,7 +25,7 @@ const leaseDeferredCommands = new Set([
   'metro',
   'session',
 ]);
-const runtimeDeferredCommands = new Set(['open', 'run-react-native']);
+const runtimeDeferredCommands = new Set(['open']);
 
 export async function materializeRemoteConnectionForCommand(options: {
   command: string;

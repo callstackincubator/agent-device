@@ -176,7 +176,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         effectiveFlags = connectionDefaults
           ? mergeConnectionFlags(flags, connectionDefaults.flags, explicitFlagKeys)
           : flags;
-        effectiveFlags = applyCommandPositionalDefaults(command, positionals, effectiveFlags);
       } catch (err) {
         const appErr = asAppError(err);
         const normalized = normalizeError(appErr, {
@@ -403,23 +402,6 @@ function resolveActiveConnectionDefaults(options: {
 
 function shouldMaterializeRemoteConnection(command: string): boolean {
   return !REMOTE_MATERIALIZATION_DEFERRED_COMMANDS.has(command);
-}
-
-function applyCommandPositionalDefaults(
-  command: string,
-  positionals: string[],
-  flags: CliFlags,
-): CliFlags {
-  if (command !== 'run-react-native') return flags;
-  const platform = positionals[0];
-  if (platform !== 'ios' && platform !== 'android') return flags;
-  if (flags.platform && flags.platform !== platform) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `run-react-native ${platform} conflicts with --platform ${flags.platform}.`,
-    );
-  }
-  return { ...flags, platform };
 }
 
 function shouldWarnOpenMayMissRemoteRuntime(options: {
