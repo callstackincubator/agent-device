@@ -58,6 +58,7 @@ export type CliFlags = {
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
+  screenshotMaxSize?: number;
   baseline?: string;
   threshold?: string;
   appsFilter?: 'user-installed' | 'all';
@@ -924,6 +925,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Screenshot: capture the full screen instead of the app window',
   },
   {
+    key: 'screenshotMaxSize',
+    names: ['--max-size'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--max-size <px>',
+    usageDescription: 'Screenshot: downscale so the longest edge is at most <px>',
+  },
+  {
     key: 'baseline',
     names: ['--baseline', '-b'],
     type: 'string',
@@ -1297,9 +1306,9 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   screenshot: {
     helpDescription:
-      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, or --overlay-refs to annotate the image with current refs)',
+      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, or --overlay-refs to annotate the image with current refs)',
     positionalArgs: ['path?'],
-    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen'],
+    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen', 'screenshotMaxSize'],
   },
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',

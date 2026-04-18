@@ -13,6 +13,7 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
   const result = await client.capture.screenshot({
     path: positionals[0] ?? flags.out,
     overlayRefs: flags.overlayRefs,
+    maxSize: flags.screenshotMaxSize,
     ...(flags.screenshotFullscreen !== undefined ? { fullscreen: flags.screenshotFullscreen } : {}),
   });
   const data = {

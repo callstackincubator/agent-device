@@ -16,6 +16,7 @@ export type ScreenshotCommandOptions = CommandContext & {
   out?: FileOutputRef;
   fullscreen?: boolean;
   overlayRefs?: boolean;
+  maxSize?: number;
   appId?: string;
   appBundleId?: string;
   surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';

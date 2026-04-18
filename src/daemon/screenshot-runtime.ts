@@ -41,6 +41,7 @@ export async function dispatchScreenshotViaRuntime(params: {
     requestId: dispatchContext.requestId,
     appBundleId: session.appBundleId,
     fullscreen: dispatchContext.screenshotFullscreen,
+    maxSize: dispatchContext.screenshotMaxSize,
     surface: session.surface,
     ...(outPath ? { out: { kind: 'path', path: outPath } } : {}),
   });
