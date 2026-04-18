@@ -1,5 +1,6 @@
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
+import { resizePngFileToMaxSize } from '../utils/png.ts';
 import type { ArtifactDescriptor } from '../io.ts';
 import type { RuntimeCommand, ScreenshotCommandOptions } from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';
@@ -41,6 +42,9 @@ export const screenshotCommand: RuntimeCommand<
         surface: options.surface,
       },
     );
+    if (options.maxSize !== undefined) {
+      await resizePngFileToMaxSize(reserved.path, options.maxSize);
+    }
     artifact = await reserved.publish();
   } catch (error) {
     await reserved.cleanup?.();

@@ -231,6 +231,7 @@ const SANITIZED_FLAG_KEYS = [
   'snapshotScope',
   'snapshotRaw',
   'screenshotFullscreen',
+  'screenshotMaxSize',
   'relaunch',
   'saveScript',
   'noRecord',
@@ -343,6 +344,9 @@ function formatActionLine(action: SessionAction): string {
       parts.push(formatScriptArg(positional));
     }
     if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
+    if (typeof action.flags?.screenshotMaxSize === 'number') {
+      parts.push('--max-size', String(action.flags.screenshotMaxSize));
+    }
     return parts.join(' ');
   }
   if (action.command === 'open') {

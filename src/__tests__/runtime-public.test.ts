@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { PNG } from 'pngjs';
 import { test } from 'vitest';
 import {
   createAgentDevice,
@@ -165,6 +166,35 @@ test('runtime screenshot command reserves output and calls backend primitive', a
   assert.deepEqual(result, {
     path: '/tmp/screen.png',
     message: 'Saved screenshot: /tmp/screen.png',
+  });
+});
+
+test('runtime screenshot command downscales screenshots to max size', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runtime-screenshot-resize-'));
+  const outPath = path.join(root, 'screen.png');
+  const device = createAgentDevice({
+    backend: {
+      ...backend,
+      captureScreenshot: async (_context, targetPath) => {
+        fs.writeFileSync(targetPath, PNG.sync.write(new PNG({ width: 20, height: 10 })));
+      },
+    },
+    artifacts,
+    sessions,
+    policy: localCommandPolicy(),
+  });
+
+  const result = await device.capture.screenshot({
+    out: { kind: 'path', path: outPath },
+    maxSize: 8,
+  });
+
+  const resized = PNG.sync.read(fs.readFileSync(outPath));
+  assert.equal(resized.width, 8);
+  assert.equal(resized.height, 4);
+  assert.deepEqual(result, {
+    path: outPath,
+    message: `Saved screenshot: ${outPath}`,
   });
 });
 

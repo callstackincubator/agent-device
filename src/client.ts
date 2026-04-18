@@ -309,6 +309,7 @@ export function createAgentDeviceClient(
         const data = await execute(CLIENT_COMMANDS.screenshot, options.path ? [options.path] : [], {
           ...options,
           screenshotFullscreen: options.fullscreen,
+          screenshotMaxSize: options.maxSize,
         });
         return {
           path: readRequiredString(data, 'path'),

@@ -15,7 +15,8 @@ test('contextFromFlags forwards scroll pixels from CLI flags', () => {
 });
 
 test('contextFromFlags forwards screenshot fullscreen from CLI flags', () => {
-  const flags: CommandFlags = { screenshotFullscreen: true };
+  const flags: CommandFlags = { screenshotFullscreen: true, screenshotMaxSize: 1024 };
   const context = contextFromFlags('/tmp/agent-device.log', flags);
   assert.equal(context.screenshotFullscreen, true);
+  assert.equal(context.screenshotMaxSize, 1024);
 });

@@ -76,7 +76,7 @@ test('record replay script round-trips fps, quality, and hide-touches flags', ()
   assert.equal(parsed[0]?.flags.hideTouches, true);
 });
 
-test('screenshot replay script round-trips fullscreen flag', () => {
+test('screenshot replay script round-trips screenshot flags', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-screenshot-'));
   const replayPath = path.join(root, 'flow.ad');
   const actions: SessionAction[] = [
@@ -84,17 +84,18 @@ test('screenshot replay script round-trips fullscreen flag', () => {
       ts: Date.now(),
       command: 'screenshot',
       positionals: ['./page.png'],
-      flags: { screenshotFullscreen: true },
+      flags: { screenshotFullscreen: true, screenshotMaxSize: 1024 },
     },
   ];
 
   writeReplayScript(replayPath, actions, makeSession());
   const script = fs.readFileSync(replayPath, 'utf8');
-  assert.match(script, /screenshot "\.\/page\.png" --fullscreen/);
+  assert.match(script, /screenshot "\.\/page\.png" --fullscreen --max-size 1024/);
 
   const parsed = parseReplayScript(script);
   assert.deepEqual(parsed[0]?.positionals, ['./page.png']);
   assert.equal(parsed[0]?.flags.screenshotFullscreen, true);
+  assert.equal(parsed[0]?.flags.screenshotMaxSize, 1024);
 });
 
 test('type and fill replay scripts round-trip typing delay flags', () => {

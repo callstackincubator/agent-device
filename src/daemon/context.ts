@@ -16,6 +16,7 @@ export type DaemonCommandContext = {
   snapshotScope?: string;
   snapshotRaw?: boolean;
   screenshotFullscreen?: boolean;
+  screenshotMaxSize?: number;
   count?: number;
   intervalMs?: number;
   delayMs?: number;
@@ -51,6 +52,7 @@ export function contextFromFlags(
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
     screenshotFullscreen: flags?.screenshotFullscreen,
+    screenshotMaxSize: flags?.screenshotMaxSize,
     count: flags?.count,
     intervalMs: flags?.intervalMs,
     delayMs: flags?.delayMs,

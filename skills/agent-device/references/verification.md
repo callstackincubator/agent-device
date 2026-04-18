@@ -46,7 +46,10 @@ agent-device diff snapshot -i
 
 Use `screenshot` when the proof needs a rendered image instead of a structural tree.
 
+- Add `--max-size 1024` when a full-resolution screenshot is too large for an agent, model, or chat attachment.
 - Add `--overlay-refs` when you want the saved PNG to show fresh `@eN` refs burned into the screenshot.
+- Combine them as `screenshot /tmp/proof.png --max-size 1024 --overlay-refs` when you need a smaller visual proof that still includes tappable refs.
+- Avoid very small `--max-size` values when text, icons, or labels need to remain readable.
 
 ## Visual regression with diff screenshot
 

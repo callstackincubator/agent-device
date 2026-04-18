@@ -560,10 +560,13 @@ test('parseArgs recognizes record --hide-touches flag', () => {
 });
 
 test('parseArgs recognizes screenshot --fullscreen flag', () => {
-  const parsed = parseArgs(['screenshot', 'page.png', '--fullscreen'], { strictFlags: true });
+  const parsed = parseArgs(['screenshot', 'page.png', '--fullscreen', '--max-size', '1024'], {
+    strictFlags: true,
+  });
   assert.equal(parsed.command, 'screenshot');
   assert.deepEqual(parsed.positionals, ['page.png']);
   assert.equal(parsed.flags.screenshotFullscreen, true);
+  assert.equal(parsed.flags.screenshotMaxSize, 1024);
 });
 
 test('parseArgs rejects invalid record --fps range', () => {

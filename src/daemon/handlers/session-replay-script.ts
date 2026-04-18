@@ -259,9 +259,20 @@ function parseReplayScriptLine(line: string): SessionAction | null {
 
   if (command === 'screenshot') {
     const positionals: string[] = [];
-    for (const token of args) {
+    for (let index = 0; index < args.length; index += 1) {
+      const token = args[index];
       if (token === '--fullscreen') {
         action.flags.screenshotFullscreen = true;
+        continue;
+      }
+      if (token === '--max-size') {
+        const value = args[index + 1];
+        const maxSize = value === undefined ? NaN : Number(value);
+        if (!Number.isInteger(maxSize) || maxSize < 1) {
+          throw new AppError('INVALID_ARGS', 'screenshot --max-size requires a positive integer');
+        }
+        action.flags.screenshotMaxSize = maxSize;
+        index += 1;
         continue;
       }
       positionals.push(token);
@@ -373,6 +384,9 @@ function formatReplayActionLine(action: SessionAction): string {
       parts.push(formatScriptArg(positional));
     }
     if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
+    if (typeof action.flags?.screenshotMaxSize === 'number') {
+      parts.push('--max-size', String(action.flags.screenshotMaxSize));
+    }
     return parts.join(' ');
   }
   for (const positional of action.positionals ?? []) {
