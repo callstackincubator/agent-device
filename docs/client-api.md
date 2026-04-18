@@ -115,6 +115,7 @@ const device = createAgentDevice({
 await device.capture.screenshot({
   session: 'default',
   out: { kind: 'path', path: './screen.png' },
+  maxSize: 1024,
 });
 
 await device.selectors.waitForText('Ready', { session: 'default', timeoutMs: 5_000 });
