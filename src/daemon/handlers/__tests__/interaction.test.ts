@@ -847,6 +847,70 @@ test('press @ref refreshes stale stored refs and syncs the daemon session snapsh
   });
 });
 
+test('press @ref refreshes Android snapshot when freshness tracking is active', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-fresh-ref-refresh';
+  const session = makeAndroidSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.Button',
+        label: 'Continue',
+        rect: { x: 0, y: 0, width: 40, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+    comparisonSafe: true,
+  };
+  session.androidSnapshotFreshness = {
+    action: 'press',
+    markedAt: Date.now(),
+    baselineCount: 1,
+    routeComparable: false,
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockImplementation(async (_device, command, args) => {
+    if (command === 'snapshot') {
+      return {
+        nodes: [
+          {
+            index: 0,
+            type: 'android.widget.Button',
+            label: 'Continue',
+            rect: { x: 100, y: 200, width: 80, height: 40 },
+            enabled: true,
+            hittable: true,
+          },
+        ],
+        backend: 'android',
+      };
+    }
+    return { pressed: true, args };
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e1', 'Continue'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press']);
+  expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['140', '220']);
+});
+
 test('press @ref fails when Android tap escapes to launcher', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-escape';

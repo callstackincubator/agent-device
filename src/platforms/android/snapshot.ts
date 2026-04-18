@@ -21,6 +21,8 @@ import {
 import { adbArgs } from './adb.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 
+const UI_HIERARCHY_DUMP_TIMEOUT_MS = 8_000;
+
 export async function snapshotAndroid(
   device: DeviceInfo,
   options: SnapshotOptions = {},
@@ -67,9 +69,24 @@ async function deriveScrollableContentHintsIfNeeded(
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
-  return withRetry(() => dumpUiHierarchyOnce(device), {
-    shouldRetry: isRetryableAdbError,
-  });
+  try {
+    return await withRetry(() => dumpUiHierarchyOnce(device), {
+      shouldRetry: isRetryableAdbError,
+    });
+  } catch (error) {
+    if (isUiHierarchyDumpTimeout(error)) {
+      throw new AppError(
+        'COMMAND_FAILED',
+        'Android UI hierarchy dump timed out while waiting for the UI to become idle',
+        {
+          ...(error.details ?? {}),
+          hint: 'If the app has looping animations, use screenshot as visual truth, try settings animations off, then retry snapshot. Stock Android UIAutomator may still time out on app-owned infinite animations.',
+        },
+        error,
+      );
+    }
+    throw error;
+  }
 }
 
 async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
@@ -77,7 +94,7 @@ async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
   const streamed = await runCmd(
     'adb',
     adbArgs(device, ['exec-out', 'uiautomator', 'dump', '/dev/tty']),
-    { allowFailure: true },
+    { allowFailure: true, timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS },
   );
   const fromStream = extractUiDumpXml(streamed.stdout, streamed.stderr);
   if (fromStream) return fromStream;
@@ -88,7 +105,7 @@ async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
   const dumpResult = await runCmd(
     'adb',
     adbArgs(device, ['shell', 'uiautomator', 'dump', dumpPath]),
-    { allowFailure: true },
+    { allowFailure: true, timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS },
   );
   const actualPath = resolveDumpPath(dumpPath, dumpResult.stdout, dumpResult.stderr);
 
@@ -133,6 +150,14 @@ function isRetryableAdbError(err: unknown): boolean {
   if (stderr.includes('timed out')) return true;
   if (stderr.includes('no such file or directory')) return true;
   return false;
+}
+
+function isUiHierarchyDumpTimeout(err: unknown): err is AppError {
+  if (!(err instanceof AppError)) return false;
+  if (err.code !== 'COMMAND_FAILED') return false;
+  const timeoutMs = err.details?.timeoutMs;
+  if (typeof timeoutMs === 'number') return true;
+  return err.message.toLowerCase().includes('timed out');
 }
 
 async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {

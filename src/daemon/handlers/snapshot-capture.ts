@@ -15,6 +15,7 @@ import { normalizeSnapshotTree } from '../../utils/snapshot-tree.ts';
 export { buildSnapshotVisibility } from '../../utils/snapshot-visibility.ts';
 import type { SessionState } from '../types.ts';
 import {
+  ANDROID_FRESHNESS_RETRY_DEADLINE_MS,
   ANDROID_FRESHNESS_RETRY_DELAYS_MS,
   clearAndroidSnapshotFreshness,
   getActiveAndroidSnapshotFreshness,
@@ -106,10 +107,13 @@ async function captureAndroidFreshnessAwareSnapshot(
   let latest = await captureSnapshotAttempt(params);
   let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);
   let retryCount = 0;
+  const retryUntilMs = freshness.markedAt + ANDROID_FRESHNESS_RETRY_DEADLINE_MS;
 
   for (const delayMs of ANDROID_FRESHNESS_RETRY_DELAYS_MS) {
     if (!suspiciousReason) break;
-    await sleep(delayMs);
+    const remainingMs = retryUntilMs - Date.now();
+    if (remainingMs <= 0) break;
+    await sleep(Math.min(delayMs, remainingMs));
     latest = await captureSnapshotAttempt(params);
     retryCount += 1;
     suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);

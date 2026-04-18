@@ -183,6 +183,7 @@ test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', a
 
   assert.equal(result, xml);
   assert.equal(mockRunCmd.mock.calls.length, 1);
+  assert.deepEqual(mockRunCmd.mock.calls[0]?.[2], { allowFailure: true, timeoutMs: 8000 });
 });
 
 test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => {
@@ -224,7 +225,7 @@ test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => 
   );
 
   assert.equal(result, xml);
-  assert.deepEqual(dumpCall?.[2], { allowFailure: true });
+  assert.deepEqual(dumpCall?.[2], { allowFailure: true, timeoutMs: 8000 });
   assert.equal(catCall?.[2], undefined);
 });
 
@@ -268,6 +269,28 @@ test('dumpUiHierarchy retries when fallback dump file is temporarily missing', a
       ([, args]) => args.includes('uiautomator') && args.includes('/sdcard/window_dump.xml'),
     ).length,
     2,
+  );
+});
+
+test('dumpUiHierarchy explains timeout on looping Android animations', async () => {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('uiautomator')) {
+      throw new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
+        cmd: 'adb',
+        args,
+        timeoutMs: 8000,
+      });
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  await assert.rejects(
+    dumpUiHierarchy(device),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.message.includes('Android UI hierarchy dump timed out') &&
+      typeof error.details?.hint === 'string' &&
+      error.details.hint.includes('settings animations off'),
   );
 });
 

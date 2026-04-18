@@ -690,6 +690,10 @@ export type SettingsUpdateOptions =
       state: 'on' | 'off';
     })
   | (ClientCommandBaseOptions & {
+      setting: 'animations';
+      state: 'on' | 'off';
+    })
+  | (ClientCommandBaseOptions & {
       setting: 'appearance';
       state: 'light' | 'dark' | 'toggle';
     })

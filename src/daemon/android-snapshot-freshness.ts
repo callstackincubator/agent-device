@@ -9,10 +9,11 @@ export type { AndroidSnapshotFreshness } from './types.ts';
 // while avoiding unnecessary retries for steady-state interactions like typing.
 const ANDROID_FRESHNESS_WINDOW_MS = 2_500;
 
-// Progressive back-off delays between freshness retry attempts.  Two retries at
-// 250 ms + 400 ms cover the vast majority of Android transition latencies without
-// adding perceptible lag to the happy path.
-export const ANDROID_FRESHNESS_RETRY_DELAYS_MS = [250, 400] as const;
+// Retry suspicious snapshots until this post-action deadline expires.  The delay
+// sequence stays short in the happy path, while allowing one more capture for
+// slower Android route transitions.
+export const ANDROID_FRESHNESS_RETRY_DEADLINE_MS = 1_500;
+export const ANDROID_FRESHNESS_RETRY_DELAYS_MS = [250, 400, 600] as const;
 
 export type AndroidFreshnessCaptureMeta = {
   action: string;

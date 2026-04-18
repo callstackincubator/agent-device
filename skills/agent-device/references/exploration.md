@@ -49,8 +49,9 @@ Open this file when the app or screen is already running and you need to discove
 **Android AX tree lag.** After submits, route changes, or composer transitions, the accessibility tree can lag behind the visible UI. If `snapshot -i` and `screenshot` disagree:
 
 1. Trust the screenshot as visual truth.
-2. Take one fresh `snapshot -i`. Android retries briefly after navigation-sensitive actions.
+2. Take one fresh `snapshot -i`. Android retries suspicious trees for a short post-action deadline after navigation-sensitive actions.
 3. If the tree still disagrees with the screenshot, wait briefly, then take one more fresh snapshot. Do not loop snapshots immediately.
+4. For animation-heavy Android runs, use `settings animations off` as an opt-in stabilizer and restore with `settings animations on` after the run.
 
 **React Native dev overlays.** In dev or debug builds, warning or error overlays can block taps, change focus, or hide the real UI. Check for them near app open and after major transitions.
 
@@ -222,7 +223,7 @@ Preferred mapping:
 Notes:
 
 - `wait text` is useful for synchronizing on text presence, but it is not the same as `is visible`.
-- After a nearby navigation or submit on Android, prefer `screenshot`, then `wait 500` or `wait 1000`, then one fresh `snapshot -i` if the accessibility tree seems stale.
+- After a nearby navigation or submit on Android, prefer `screenshot`, then one fresh `snapshot -i`; `@ref` interactions refresh while the Android freshness window is active.
 
 Anti-hallucination rules:
 

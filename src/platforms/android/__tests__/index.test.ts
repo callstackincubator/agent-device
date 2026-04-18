@@ -1679,6 +1679,24 @@ test('setAndroidSetting permission grant camera uses pm grant', async () => {
   );
 });
 
+test('setAndroidSetting animations off disables global animation scales', async () => {
+  await withMockedAdb(
+    'agent-device-android-animations-',
+    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      const result = await setAndroidSetting(device, 'animations', 'off');
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\nsettings\nput\nglobal\nwindow_animation_scale\n0/);
+      assert.match(logged, /shell\nsettings\nput\nglobal\ntransition_animation_scale\n0/);
+      assert.match(logged, /shell\nsettings\nput\nglobal\nanimator_duration_scale\n0/);
+      assert.deepEqual(result, {
+        scale: '0',
+        keys: ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'],
+      });
+    },
+  );
+});
+
 test('setAndroidSetting permission deny notifications revokes runtime permission and appops', async () => {
   await withMockedAdb(
     'agent-device-android-permission-notifications-',

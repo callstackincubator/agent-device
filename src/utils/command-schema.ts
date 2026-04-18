@@ -1371,7 +1371,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: SETTINGS_USAGE_OVERRIDE,
     listUsageOverride: 'settings [area] [options]',
     helpDescription:
-      'Toggle OS settings, appearance, and app permissions (macOS supports only settings appearance <light|dark|toggle> and settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>; wifi|airplane|location remain unsupported on macOS; mobile permission actions use the active session app)',
+      'Toggle OS settings, animation scales, appearance, and app permissions (macOS supports only settings appearance <light|dark|toggle> and settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>; wifi|airplane|location|animations remain unsupported on macOS; mobile permission actions use the active session app)',
     summary: 'Change OS settings and app permissions',
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
     allowedFlags: [],

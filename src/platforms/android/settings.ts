@@ -9,6 +9,12 @@ import {
 import { parseAppearanceAction } from '../appearance.ts';
 import { adbArgs } from './adb.ts';
 
+const ANDROID_ANIMATION_SCALE_SETTINGS = [
+  'window_animation_scale',
+  'transition_animation_scale',
+  'animator_duration_scale',
+] as const;
+
 export async function setAndroidSetting(
   device: DeviceInfo,
   setting: string,
@@ -57,6 +63,14 @@ export async function setAndroidSetting(
         adbArgs(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]),
       );
       return;
+    }
+    case 'animations': {
+      const enabled = parseSettingState(state);
+      const scale = enabled ? '1' : '0';
+      for (const key of ANDROID_ANIMATION_SCALE_SETTINGS) {
+        await runCmd('adb', adbArgs(device, ['shell', 'settings', 'put', 'global', key, scale]));
+      }
+      return { scale, keys: [...ANDROID_ANIMATION_SCALE_SETTINGS] };
     }
     case 'appearance': {
       const target = await resolveAndroidAppearanceTarget(device, state);

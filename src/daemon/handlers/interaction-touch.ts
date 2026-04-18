@@ -6,7 +6,7 @@ import {
 } from '../../core/click-button.ts';
 import type { FillCommandResult, PressCommandResult } from '../../commands/index.ts';
 import { asAppError, normalizeError } from '../../utils/errors.ts';
-import type { DaemonResponse } from '../types.ts';
+import type { DaemonResponse, SessionState } from '../types.ts';
 import {
   buildTouchVisualizationResult,
   finalizeTouchInteraction,
@@ -32,6 +32,7 @@ import {
   parsePressTarget,
   stripAtPrefix,
 } from './interaction-touch-targets.ts';
+import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 
 export async function handleTouchInteractionCommands(
   params: InteractionHandlerParams & {
@@ -93,6 +94,7 @@ async function dispatchPressViaRuntime(
   if (parsedTarget.target.kind === 'ref') {
     const invalidRefFlagsResponse = params.refSnapshotFlagGuardResponse('press', req.flags);
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
+    await refreshAndroidRefSnapshotIfFreshnessActive(params, session);
   }
 
   return await dispatchRuntimeInteraction(params, {
@@ -165,6 +167,7 @@ async function dispatchFillViaRuntime(
   if (parsedTarget.target.kind === 'ref') {
     const invalidRefFlagsResponse = params.refSnapshotFlagGuardResponse('fill', req.flags);
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
+    await refreshAndroidRefSnapshotIfFreshnessActive(params, session);
   }
 
   return await dispatchRuntimeInteraction(params, {
@@ -246,6 +249,22 @@ async function dispatchRuntimeInteraction<TResult extends PressCommandResult | F
     if (isAndroidEscapeError(appError)) throw appError;
     return appErrorResponse(error);
   }
+}
+
+async function refreshAndroidRefSnapshotIfFreshnessActive(
+  params: InteractionHandlerParams & {
+    captureSnapshotForSession: CaptureSnapshotForSession;
+  },
+  session: SessionState,
+): Promise<void> {
+  if (!getActiveAndroidSnapshotFreshness(session)) return;
+  await params.captureSnapshotForSession(
+    session,
+    params.req.flags,
+    params.sessionStore,
+    params.contextFromFlags,
+    { interactiveOnly: true },
+  );
 }
 
 function appErrorResponse(error: unknown): DaemonResponse {

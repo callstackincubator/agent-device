@@ -111,7 +111,7 @@ agent-device alert accept
 - `snapshot` returns 0 nodes: the app may no longer be foregrounded or the UI is not stable yet. Re-open the app or retry when state settles.
 - Logs are empty: confirm you opened an app session before `logs clear --restart`.
 - Android logs look stale after relaunch: retry the repro window after the process rebinds.
-- Android accessibility snapshots can lag behind visible screen transitions. The next snapshot now retries briefly after navigation-sensitive actions, but if the tree still looks stale, use `screenshot` as visual truth, wait briefly, then re-run `snapshot -i`.
+- Android accessibility snapshots can lag behind visible screen transitions. The next snapshot retries suspicious trees for a short post-action deadline after navigation-sensitive actions, and `@ref` actions refresh while that window is active. If the tree still looks stale, use `screenshot` as visual truth, wait briefly, then re-run `snapshot -i`. For animation-heavy runs, try `settings animations off` and restore with `settings animations on`.
 - React Native dev warnings or errors keep reappearing: treat them as part of the app state, not as disposable chrome. Capture one clean repro and include them in the summary.
 - Permission prompts block the flow: wait for the alert and handle it explicitly.
 - If snapshots keep returning 0 nodes on an iOS simulator, restart Simulator and re-open the app.

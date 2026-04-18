@@ -461,7 +461,10 @@ function readSettingsOptions(positionals: string[], flags: CliFlags): SettingsUp
   const setting = positionals[0];
   const state = positionals[1];
   if (
-    (setting === 'wifi' || setting === 'airplane' || setting === 'location') &&
+    (setting === 'wifi' ||
+      setting === 'airplane' ||
+      setting === 'location' ||
+      setting === 'animations') &&
     (state === 'on' || state === 'off')
   ) {
     return { ...base, setting, state };
