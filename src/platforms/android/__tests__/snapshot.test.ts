@@ -394,6 +394,14 @@ test('snapshotAndroid derives hidden content hints for interactive snapshots fro
   const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
 
   assert.ok(scrollArea);
+  assert.equal(
+    result.nodes.some((node) => node.type === 'android.view.ViewGroup'),
+    false,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Offscreen message'),
+    false,
+  );
   assert.equal(scrollArea?.hiddenContentAbove, undefined);
   assert.equal(scrollArea?.hiddenContentBelow, true);
 });

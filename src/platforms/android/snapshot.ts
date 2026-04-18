@@ -2,17 +2,24 @@ import { runCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { attachRefs, type RawSnapshotNode, type SnapshotOptions } from '../../utils/snapshot.ts';
+import {
+  attachRefs,
+  type HiddenContentHint,
+  type RawSnapshotNode,
+  type SnapshotOptions,
+} from '../../utils/snapshot.ts';
 import { isScrollableType } from '../../utils/scrollable.ts';
-import { buildMobileSnapshotPresentation } from '../../utils/mobile-snapshot-semantics.ts';
+import { deriveMobileSnapshotHiddenContentHints } from '../../utils/mobile-snapshot-semantics.ts';
 import {
   buildUiHierarchySnapshot,
   parseUiHierarchy,
   parseUiHierarchyTree,
+  type AndroidBuiltSnapshot,
   type AndroidSnapshotAnalysis,
+  type AndroidUiHierarchy,
 } from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
-import { annotateAndroidScrollableContentHints } from './scroll-hints.ts';
+import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 
 export async function snapshotAndroid(
   device: DeviceInfo,
@@ -25,34 +32,38 @@ export async function snapshotAndroid(
   const xml = await dumpUiHierarchy(device);
   if (!options.interactiveOnly) {
     const parsed = parseUiHierarchy(xml, 800, options);
-    await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
+    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes);
+    applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
     return parsed;
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const parsed = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
-  await annotateScrollableContentHintsIfNeeded(device, parsed.nodes);
-  applyDerivedPresentationHiddenContentHints(parsed.nodes);
-  applyHiddenContentHintsToSourceNodes(parsed);
-  const { sourceNodes: _sourceNodes, ...interactiveSnapshot } = buildUiHierarchySnapshot(
-    tree,
-    800,
-    options,
-  );
-  return interactiveSnapshot;
+  const fullSnapshot = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
+  const interactiveSnapshot = buildUiHierarchySnapshot(tree, 800, options);
+  const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes);
+  applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
+  if (nativeHints.size === 0) {
+    const presentationHints = deriveMobileSnapshotHiddenContentHints(
+      attachRefs(fullSnapshot.nodes),
+    );
+    applyHiddenContentHintsToInteractiveNodes(presentationHints, fullSnapshot, interactiveSnapshot);
+  }
+  const { sourceNodes: _sourceNodes, ...snapshot } = interactiveSnapshot;
+  return snapshot;
 }
 
-async function annotateScrollableContentHintsIfNeeded(
+async function deriveScrollableContentHintsIfNeeded(
   device: DeviceInfo,
   nodes: RawSnapshotNode[],
-): Promise<void> {
+): Promise<Map<number, HiddenContentHint>> {
   if (!nodes.some((node) => isScrollableType(node.type))) {
-    return;
+    return new Map();
   }
   const activityTopDump = await dumpActivityTop(device);
-  if (activityTopDump) {
-    annotateAndroidScrollableContentHints(nodes, activityTopDump);
+  if (!activityTopDump) {
+    return new Map();
   }
+  return deriveAndroidScrollableContentHints(nodes, activityTopDump);
 }
 
 export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
@@ -137,41 +148,50 @@ async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
   }
 }
 
-function applyHiddenContentHintsToSourceNodes(
-  parsed: ReturnType<typeof buildUiHierarchySnapshot>,
+function applyHiddenContentHintsToInteractiveNodes(
+  hintsByFullNodeIndex: ReadonlyMap<number, HiddenContentHint>,
+  fullSnapshot: AndroidBuiltSnapshot,
+  interactiveSnapshot: AndroidBuiltSnapshot,
 ): void {
-  // `tree` is parsed fresh for each snapshot call, so mutating the paired source nodes here
-  // is scoped to this invocation and feeds the interactive rebuild below.
-  for (const [index, sourceNode] of parsed.sourceNodes.entries()) {
-    const snapshotNode = parsed.nodes[index];
-    if (!snapshotNode) {
+  if (hintsByFullNodeIndex.size === 0) {
+    return;
+  }
+
+  // Both snapshots come from one parsed hierarchy, so source node identity is the stable bridge
+  // between full geometry context and the pruned interactive output.
+  const interactiveNodesBySource = new Map<AndroidUiHierarchy, RawSnapshotNode>();
+  for (const [index, sourceNode] of interactiveSnapshot.sourceNodes.entries()) {
+    const node = interactiveSnapshot.nodes[index];
+    if (node) {
+      interactiveNodesBySource.set(sourceNode, node);
+    }
+  }
+
+  for (const [fullIndex, hint] of hintsByFullNodeIndex) {
+    const sourceNode = fullSnapshot.sourceNodes[fullIndex];
+    if (!sourceNode) {
       continue;
     }
-    if (snapshotNode.hiddenContentAbove) {
-      sourceNode.hiddenContentAbove = true;
+    const interactiveNode = interactiveNodesBySource.get(sourceNode);
+    if (!interactiveNode) {
+      continue;
     }
-    if (snapshotNode.hiddenContentBelow) {
-      sourceNode.hiddenContentBelow = true;
+    if (hint.hiddenContentAbove) {
+      interactiveNode.hiddenContentAbove = true;
+    }
+    if (hint.hiddenContentBelow) {
+      interactiveNode.hiddenContentBelow = true;
     }
   }
 }
 
-function applyDerivedPresentationHiddenContentHints(nodes: RawSnapshotNode[]): void {
-  if (
-    nodes.length === 0 ||
-    nodes.some((node) => node.hiddenContentAbove || node.hiddenContentBelow)
-  ) {
-    return;
-  }
-  const presentation = buildMobileSnapshotPresentation(attachRefs(nodes));
-  const hintsByIndex = new Map(
-    presentation.nodes
-      .filter((node) => node.hiddenContentAbove || node.hiddenContentBelow)
-      .map((node) => [node.index, node] as const),
-  );
-  for (const node of nodes) {
-    const hint = hintsByIndex.get(node.index);
-    if (!hint) {
+function applyHiddenContentHintsToNodes(
+  hintsByIndex: ReadonlyMap<number, HiddenContentHint>,
+  nodes: RawSnapshotNode[],
+): void {
+  for (const [index, hint] of hintsByIndex) {
+    const node = nodes[index];
+    if (!node) {
       continue;
     }
     if (hint.hiddenContentAbove) {

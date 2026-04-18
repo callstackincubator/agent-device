@@ -1,6 +1,6 @@
 import { isRectVisibleInViewport, resolveViewportRect } from './rect-visibility.ts';
 import { inferVerticalScrollIndicatorDirections } from './scroll-indicator.ts';
-import type { Rect, SnapshotNode } from './snapshot.ts';
+import type { HiddenContentHint, Rect, SnapshotNode } from './snapshot.ts';
 import { buildSnapshotNodeMap, displayNodeLabel } from './snapshot-tree.ts';
 import { isScrollableNodeLike } from './scrollable.ts';
 
@@ -17,19 +17,8 @@ export function buildMobileSnapshotPresentation(nodes: SnapshotNode[]): MobileSn
     return { nodes, hiddenCount: 0, summaryLines: [] };
   }
 
-  const byIndex = buildSnapshotNodeMap(nodes);
-  const visibleNodeIndexes = new Set<number>();
-  const offscreenNodes: SnapshotNode[] = [];
-
-  for (const node of nodes) {
-    if (isNodeVisibleInEffectiveViewport(node, nodes, byIndex)) {
-      markNodeAndAncestorsVisible(node, visibleNodeIndexes, byIndex);
-      continue;
-    }
-    offscreenNodes.push(node);
-  }
-
-  const hintedContainers = deriveContainerHints(nodes, offscreenNodes, visibleNodeIndexes, byIndex);
+  const { byIndex, visibleNodeIndexes, offscreenNodes, hintedContainers } =
+    analyzeMobileSnapshotVisibility(nodes);
   const presentedNodes =
     visibleNodeIndexes.size === 0
       ? nodes
@@ -50,6 +39,42 @@ export function buildMobileSnapshotPresentation(nodes: SnapshotNode[]): MobileSn
       byIndex,
     ),
   };
+}
+
+export function deriveMobileSnapshotHiddenContentHints(
+  nodes: SnapshotNode[],
+): Map<number, HiddenContentHint> {
+  if (nodes.length === 0) {
+    return new Map();
+  }
+
+  const { hintedContainers } = analyzeMobileSnapshotVisibility(nodes);
+  return toHiddenContentHints(hintedContainers.directionsByContainer);
+}
+
+function analyzeMobileSnapshotVisibility(nodes: SnapshotNode[]): {
+  byIndex: Map<number, SnapshotNode>;
+  visibleNodeIndexes: Set<number>;
+  offscreenNodes: SnapshotNode[];
+  hintedContainers: {
+    directionsByContainer: Map<number, Set<Direction>>;
+    coveredNodeIndexes: Set<number>;
+  };
+} {
+  const byIndex = buildSnapshotNodeMap(nodes);
+  const visibleNodeIndexes = new Set<number>();
+  const offscreenNodes: SnapshotNode[] = [];
+
+  for (const node of nodes) {
+    if (isNodeVisibleInEffectiveViewport(node, nodes, byIndex)) {
+      markNodeAndAncestorsVisible(node, visibleNodeIndexes, byIndex);
+      continue;
+    }
+    offscreenNodes.push(node);
+  }
+
+  const hintedContainers = deriveContainerHints(nodes, offscreenNodes, visibleNodeIndexes, byIndex);
+  return { byIndex, visibleNodeIndexes, offscreenNodes, hintedContainers };
 }
 
 export function isNodeVisibleInEffectiveViewport(
@@ -112,6 +137,25 @@ function deriveContainerHints(
   mergeScrollIndicatorDirections(allNodes, visibleNodeIndexes, byIndex, directionsByContainer);
 
   return { directionsByContainer, coveredNodeIndexes };
+}
+
+function toHiddenContentHints(
+  directionsByContainer: Map<number, Set<Direction>>,
+): Map<number, HiddenContentHint> {
+  const hints = new Map<number, HiddenContentHint>();
+  for (const [index, directions] of directionsByContainer) {
+    const hint: HiddenContentHint = {};
+    if (directions.has('above')) {
+      hint.hiddenContentAbove = true;
+    }
+    if (directions.has('below')) {
+      hint.hiddenContentBelow = true;
+    }
+    if (hint.hiddenContentAbove || hint.hiddenContentBelow) {
+      hints.set(index, hint);
+    }
+  }
+  return hints;
 }
 
 function applyDerivedHiddenContentHints(

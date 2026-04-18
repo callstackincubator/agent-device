@@ -41,6 +41,11 @@ export type RawSnapshotNode = {
   hiddenContentBelow?: boolean;
 };
 
+export type HiddenContentHint = {
+  hiddenContentAbove?: true;
+  hiddenContentBelow?: true;
+};
+
 export type SnapshotNode = RawSnapshotNode & {
   ref: string;
 };

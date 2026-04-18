@@ -1,4 +1,4 @@
-import type { RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
+import type { HiddenContentHint, RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
 import { isScrollableType } from '../../utils/scrollable.ts';
 
 type ViewNode = {
@@ -17,16 +17,36 @@ export function annotateAndroidScrollableContentHints(
   nodes: RawSnapshotNode[],
   activityTopDump: string,
 ): void {
+  const hintsByIndex = deriveAndroidScrollableContentHints(nodes, activityTopDump);
+  for (const node of nodes) {
+    const hint = hintsByIndex.get(node.index);
+    if (!hint) {
+      continue;
+    }
+    if (hint.hiddenContentAbove) {
+      node.hiddenContentAbove = true;
+    }
+    if (hint.hiddenContentBelow) {
+      node.hiddenContentBelow = true;
+    }
+  }
+}
+
+export function deriveAndroidScrollableContentHints(
+  nodes: RawSnapshotNode[],
+  activityTopDump: string,
+): Map<number, HiddenContentHint> {
   const viewTree = parseActivityTopViewTree(activityTopDump);
   if (!viewTree) {
-    return;
+    return new Map();
   }
 
   const nativeScrollViews = collectNativeScrollViews(viewTree);
   if (nativeScrollViews.length === 0) {
-    return;
+    return new Map();
   }
 
+  const hintsByIndex = new Map<number, HiddenContentHint>();
   for (const node of nodes) {
     if (!node.rect || !isScrollableType(node.type)) {
       continue;
@@ -44,13 +64,18 @@ export function annotateAndroidScrollableContentHints(
     if (!hiddenContent) {
       continue;
     }
+    const hint: HiddenContentHint = {};
     if (hiddenContent.above) {
-      node.hiddenContentAbove = true;
+      hint.hiddenContentAbove = true;
     }
     if (hiddenContent.below) {
-      node.hiddenContentBelow = true;
+      hint.hiddenContentBelow = true;
+    }
+    if (hint.hiddenContentAbove || hint.hiddenContentBelow) {
+      hintsByIndex.set(node.index, hint);
     }
   }
+  return hintsByIndex;
 }
 
 type NativeScrollView = {
