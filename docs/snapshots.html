@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.176155724e.js"></script>
+<script defer src="/agent-device/static/js/index.a4690ae2cf.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -72,7 +72,8 @@ It does not automatically switch to AX.</p>
 <li>If <code>snapshot -i</code> returns 0 nodes on Android but the screen is visibly populated, trust <code>screenshot</code> as visual truth, wait briefly, then take one fresh <code>snapshot -i</code>.</li>
 <li>If <code>snapshot -i -d &lt;n&gt;</code> says the interactive output is empty at that depth, retry once without <code>-d</code> before taking more shallow snapshots.</li>
 <li>Re-snapshot after any UI mutation before reusing refs.</li>
-<li>On Android after navigation or submit, if <code>snapshot -i</code> disagrees with the visible screen, trust <code>screenshot</code>, wait briefly, then take one fresh snapshot instead of looping stale snapshots.</li>
+<li>On Android after navigation or submit, snapshot capture retries suspicious trees for a short post-action deadline and <code>@ref</code> interactions refresh while that freshness window is active. If <code>snapshot -i</code> still disagrees with the visible screen, trust <code>screenshot</code>, wait briefly, then take one fresh snapshot instead of looping stale snapshots.</li>
+<li>For automation runs affected by Android animation churn, use <code>settings animations off</code> as an opt-in stabilizer and restore with <code>settings animations on</code> after the run.</li>
 <li>Use <code>diff snapshot</code> between mutations to validate structural changes with lower output volume.</li>
 <li>Use <code>snapshot --diff</code> when you discover the feature from snapshot help, but keep <code>diff snapshot</code> as the default exploration command.</li>
 <li>Keep <code>--raw</code> for troubleshooting only when you need the full tree instead of visible-first output.</li>

@@ -426,6 +426,8 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings animations off
+agent-device settings animations on
 agent-device settings appearance light
 agent-device settings appearance dark
 agent-device settings appearance toggle
@@ -449,7 +451,8 @@ agent-device settings permission reset screen-recording --platform macos
 
 - iOS `settings` support is simulator-only except for `settings appearance` and the macOS permission subset on macOS.
 - macOS supports only `settings appearance <light|dark|toggle>` and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
-- `settings wifi|airplane|location` remain intentionally unsupported on macOS.
+- `settings wifi|airplane|location|animations` remain intentionally unsupported on macOS.
+- Android `settings animations off|on` toggles the global `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with `settings animations on` when needed.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.

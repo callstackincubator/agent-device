@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/static/js/index.176155724e.js"></script>
+<script defer src="/agent-device/static/js/index.a4690ae2cf.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -380,6 +380,8 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> airplane</span><span style="color:var(--shiki-token-string)"> off</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> location</span><span style="color:var(--shiki-token-string)"> on</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> location</span><span style="color:var(--shiki-token-string)"> off</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> animations</span><span style="color:var(--shiki-token-string)"> off</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> animations</span><span style="color:var(--shiki-token-string)"> on</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> appearance</span><span style="color:var(--shiki-token-string)"> light</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> appearance</span><span style="color:var(--shiki-token-string)"> dark</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> appearance</span><span style="color:var(--shiki-token-string)"> toggle</span></span>
@@ -402,7 +404,8 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <ul>
 <li>iOS <code>settings</code> support is simulator-only except for <code>settings appearance</code> and the macOS permission subset on macOS.</li>
 <li>macOS supports only <code>settings appearance &lt;light|dark|toggle&gt;</code> and <code>settings permission &lt;grant|reset&gt; &lt;accessibility|screen-recording|input-monitoring&gt;</code>.</li>
-<li><code>settings wifi|airplane|location</code> remain intentionally unsupported on macOS.</li>
+<li><code>settings wifi|airplane|location|animations</code> remain intentionally unsupported on macOS.</li>
+<li>Android <code>settings animations off|on</code> toggles the global <code>window_animation_scale</code>, <code>transition_animation_scale</code>, and <code>animator_duration_scale</code> values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with <code>settings animations on</code> when needed.</li>
 <li><code>settings appearance</code> maps to macOS appearance, iOS simulator appearance, and Android night mode.</li>
 <li>Face ID and Touch ID controls are iOS simulator-only.</li>
 <li>Fingerprint simulation is supported on Android targets where <code>cmd fingerprint</code> or <code>adb emu finger</code> is available.
