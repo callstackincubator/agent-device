@@ -1,4 +1,5 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
+import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -73,6 +74,7 @@ export function finalizeTouchInteraction(params: {
   responseData: Record<string, unknown>;
   actionStartedAt: number;
   actionFinishedAt: number;
+  androidFreshnessBaseline?: SnapshotState | undefined;
 }): DaemonResponse {
   const {
     session,
@@ -84,6 +86,7 @@ export function finalizeTouchInteraction(params: {
     responseData,
     actionStartedAt,
     actionFinishedAt,
+    androidFreshnessBaseline,
   } = params;
   sessionStore.recordAction(session, {
     command,
@@ -92,7 +95,7 @@ export function finalizeTouchInteraction(params: {
     result,
   });
   if (isNavigationSensitiveAction(command)) {
-    markAndroidSnapshotFreshness(session, command);
+    markAndroidSnapshotFreshness(session, command, androidFreshnessBaseline ?? session.snapshot);
   }
   recordTouchVisualizationEvent(
     session,
