@@ -35,6 +35,7 @@ type CaptureSnapshotParams = {
   outPath?: string;
   logPath: string;
   snapshotScope?: string;
+  androidFreshnessMode?: AndroidFreshnessMode;
 };
 
 type SnapshotData = {
@@ -45,6 +46,7 @@ type SnapshotData = {
 };
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
+type AndroidFreshnessMode = 'default' | 'ref-refresh';
 
 export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   snapshot: SnapshotState;
@@ -105,7 +107,7 @@ async function captureAndroidFreshnessAwareSnapshot(
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
   let latest = await captureSnapshotAttempt(params);
-  let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);
+  let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params);
   let retryCount = 0;
   const retryUntilMs = freshness.markedAt + ANDROID_FRESHNESS_RETRY_DEADLINE_MS;
 
@@ -116,7 +118,7 @@ async function captureAndroidFreshnessAwareSnapshot(
     await sleep(Math.min(delayMs, remainingMs));
     latest = await captureSnapshotAttempt(params);
     retryCount += 1;
-    suspiciousReason = getAndroidFreshnessReason(latest, freshness, params.flags);
+    suspiciousReason = getAndroidFreshnessReason(latest, freshness, params);
   }
 
   if (!suspiciousReason) {
@@ -151,9 +153,9 @@ async function captureSnapshotAttempt(
 function getAndroidFreshnessReason(
   attempt: { data: SnapshotData; snapshot: SnapshotState },
   freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
-  flags: CommandFlags | undefined,
+  params: Pick<CaptureSnapshotParams, 'flags' | 'androidFreshnessMode'>,
 ): AndroidFreshnessReason | null {
-  const interactiveOnly = flags?.snapshotInteractiveOnly === true;
+  const interactiveOnly = params.flags?.snapshotInteractiveOnly === true;
   const analysis = attempt.data.analysis;
 
   // When interactive-only filtering produces zero visible nodes from ≥12 raw nodes,
@@ -166,6 +168,10 @@ function getAndroidFreshnessReason(
     analysis.rawNodeCount >= 12
   ) {
     return 'empty-interactive';
+  }
+
+  if (params.androidFreshnessMode === 'ref-refresh') {
+    return null;
   }
 
   if (isLikelyStaleSnapshotDrop(freshness.baselineCount, attempt.snapshot.nodes.length)) {

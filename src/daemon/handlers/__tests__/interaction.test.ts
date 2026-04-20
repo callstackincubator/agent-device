@@ -58,7 +58,7 @@ async function emulateCaptureSnapshotForSession(
     appBundleId?: string,
     traceLogPath?: string,
   ) => Record<string, unknown>,
-  options: { interactiveOnly: boolean },
+  options: { interactiveOnly: boolean; androidFreshnessMode?: 'ref-refresh' },
 ) {
   const effectiveFlags = {
     ...(flags ?? {}),
@@ -907,6 +907,10 @@ test('press @ref refreshes Android snapshot when freshness tracking is active', 
   });
 
   expect(response?.ok).toBe(true);
+  expect(mockCaptureSnapshotForSession.mock.calls[0]?.[4]).toEqual({
+    interactiveOnly: true,
+    androidFreshnessMode: 'ref-refresh',
+  });
   expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press']);
   expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['140', '220']);
 });

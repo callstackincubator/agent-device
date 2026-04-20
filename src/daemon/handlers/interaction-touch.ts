@@ -263,7 +263,7 @@ async function refreshAndroidRefSnapshotIfFreshnessActive(
     params.req.flags,
     params.sessionStore,
     params.contextFromFlags,
-    { interactiveOnly: true },
+    { interactiveOnly: true, androidFreshnessMode: 'ref-refresh' },
   );
 }
 

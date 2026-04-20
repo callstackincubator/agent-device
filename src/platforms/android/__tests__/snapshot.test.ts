@@ -294,6 +294,33 @@ test('dumpUiHierarchy explains timeout on looping Android animations', async () 
   );
 });
 
+test('dumpUiHierarchy does not attach animation hint to non-dump timeouts', async () => {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args.includes('uiautomator')) {
+      return { exitCode: 0, stdout: 'UI hierarchy dumped to: /sdcard/window_dump.xml', stderr: '' };
+    }
+    if (args.includes('cat')) {
+      throw new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
+        cmd: 'adb',
+        args,
+        timeoutMs: 8000,
+      });
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  await assert.rejects(
+    dumpUiHierarchy(device),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.message === 'adb timed out after 8000ms' &&
+      typeof error.details?.hint === 'undefined',
+  );
+});
+
 test('snapshotAndroid preserves hidden scroll content hints in interactive snapshots', async () => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <hierarchy rotation="0">
