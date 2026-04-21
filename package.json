@@ -1,7 +1,7 @@
 {
   "name": "agent-device",
   "version": "0.12.9",
-  "description": "Unified control plane for physical and virtual devices via an agent-driven CLI.",
+  "description": "Agent-driven CLI for mobile UI automation, network inspection, and performance diagnostics across iOS, Android, tvOS, and macOS.",
   "license": "MIT",
   "author": "Callstack",
   "homepage": "https://agent-device.dev/",
@@ -128,11 +128,20 @@
     "agent",
     "device",
     "cli",
+    "automation",
     "adb",
     "simctl",
     "devicectl",
     "ios",
-    "android"
+    "android",
+    "tvos",
+    "macos",
+    "react-native",
+    "observability",
+    "diagnostics",
+    "network",
+    "profiling",
+    "performance"
   ],
   "dependencies": {
     "fast-xml-parser": "^5.5.10",

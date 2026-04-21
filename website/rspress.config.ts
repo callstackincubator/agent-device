@@ -6,9 +6,10 @@ export default withCallstackPreset(
     context: __dirname,
     docs: {
       title: 'agent-device',
-      description: 'CLI to control iOS and Android devices for AI agents',
+      description:
+        'CLI for mobile UI automation, logs, network inspection, and performance diagnostics for AI agents',
       editUrl: 'https://github.com/callstackincubator/agent-device/edit/main/website',
-      rootUrl: 'https://oss.callstack.com/agent-device',
+      rootUrl: 'https://incubator.callstack.com/agent-device',
       rootDir: 'docs',
       icon: '/logo.svg',
       logoLight: '/logo-light.svg',

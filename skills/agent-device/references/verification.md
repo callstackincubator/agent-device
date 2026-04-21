@@ -129,5 +129,6 @@ agent-device perf --json
 - `startup` is command round-trip timing around `open`.
 - It is not true first-frame or first-interactive telemetry.
 - Android app sessions also expose `memory` (`dumpsys meminfo`) and `cpu` (`dumpsys cpuinfo`) snapshots when the session has an app package context.
-- Apple app sessions on macOS and iOS simulators also expose `memory` and `cpu` process snapshots when the session has an app bundle ID.
-- `fps` is still unavailable, and physical iOS devices still leave `memory` and `cpu` unavailable in this release.
+- Apple app sessions on macOS, iOS simulators, and physical iOS devices also expose `memory` and `cpu` process snapshots when the session has an app bundle ID.
+- On physical iOS devices, sampling uses a short `xcrun xctrace` Activity Monitor capture, so keep the device unlocked, connected, and the app active in the foreground while sampling.
+- `fps` is still unavailable in this release.

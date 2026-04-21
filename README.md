@@ -8,7 +8,7 @@
 
 # agent-device
 
-`agent-device` is a CLI for UI automation on iOS, tvOS, macOS, Android, and AndroidTV. It is designed for agent-driven workflows: inspect the UI, act on it deterministically, and keep that work session-aware and replayable.
+`agent-device` is a CLI for UI automation and app observability on iOS, tvOS, macOS, Android, and AndroidTV. It is built for agent-driven workflows: inspect the UI, interact deterministically, collect logs/network/perf evidence when behavior breaks, and keep the whole flow session-aware and replayable.
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this project applies the same broad idea to mobile apps and devices.
 
@@ -19,6 +19,7 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 - Give agents a practical way to understand mobile UI state through structured snapshots.
 - Keep automation flows token-efficient enough for real agent loops.
 - Make common interactions reliable enough for repeated automation runs.
+- Make debugging evidence easy to collect through logs, network inspection, and performance snapshots.
 - Keep automation grounded in sessions, selectors, and replayable flows instead of one-off scripts.
 
 ## Core Ideas
@@ -26,10 +27,17 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 - Sessions: open a target once, interact within that session, then close it cleanly.
 - Snapshots: inspect the current accessibility tree in a compact form and get current-screen refs for exploration.
 - Refs vs selectors: use refs for discovery, use selectors for durable replay and assertions.
+- Observability: collect session logs, inspect recent HTTP traffic with `network dump`, and sample CPU/memory with `perf`.
 - Tests: run deterministic `.ad` scripts as a light e2e test suite.
 - Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
   `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
 - Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
+
+## Complementary Tooling
+
+Use `agent-device` for on-device UI automation, screenshots/recordings, app logs, network inspection, and performance snapshots.
+
+When the task needs the React component tree, props, state, hooks, or render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project. The two tools solve different layers of the same debugging workflow.
 
 ## Command Flow
 

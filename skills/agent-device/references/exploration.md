@@ -20,6 +20,7 @@ Open this file when the app or screen is already running and you need to discove
 - User asks what is visible on screen: `snapshot`
 - User asks for exact text from a known target: `get text`
 - User asks you to tap, type, or choose an element: `snapshot -i`, then act
+- User asks for the React component tree, props/state/hooks, or render profiling: pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project
 - React Native dev or debug build shows warning/error UI: capture enough evidence to identify it, dismiss it if it is not the requested behavior, then continue the flow and report it in the summary
 - The on-screen keyboard is blocking the next step: `keyboard dismiss`; on iOS do this only while an app session is active, and use `keyboard status|get` only on Android
 - UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked

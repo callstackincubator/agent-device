@@ -4,6 +4,8 @@
 
 Open this file when the task turns into failure triage, logs, network inspection, permission prompts, setup trouble, or unstable session behavior.
 
+If the debugging task needs the React component tree, props, state, hooks, or render profiling, pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project instead of trying to infer those internals from the accessibility tree or app logs alone.
+
 ## Main commands to reach for first
 
 - `logs clear --restart`
