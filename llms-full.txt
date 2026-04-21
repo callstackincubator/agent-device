@@ -9,15 +9,18 @@ url: /agent-device/docs/introduction.md
 - Accessibility snapshots for UI understanding
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
+- Session logs and network inspection for debugging broken flows
+- Performance snapshots with `perf`/`metrics`, including CPU and memory data where supported
 
-If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation.
+If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in this repository.
+For React component trees, props/state/hooks, and render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
 
 ## What it’s good at
 
-- Capturing structured UI state for LLMs
-- Driving common UI actions with refs or semantic selectors
-- Replaying flows for regression checks
+- Exploring and driving app flows on real devices and simulators
+- Collecting debugging evidence through logs, network traffic, screenshots, recordings, and performance snapshots
+- Replaying successful flows as lightweight regression checks
 
 ## Platform support highlights
 
@@ -25,6 +28,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
+- Session diagnostics: `logs` and `network dump` are available for debugging active app sessions, with network inspection based on recent HTTP(s) entries captured in the session app log.
 - Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions and Apple app sessions on macOS, iOS simulators, or connected iOS devices also expose CPU and memory snapshots when an app identifier is available in the session.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
@@ -42,6 +46,12 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 2. The daemon manages sessions and dispatches to platform drivers.
 3. iOS uses XCTest runner for snapshots and input on simulators and physical devices.
 4. Android uses ADB-based tooling.
+
+## Complementary React tooling
+
+`agent-device` is intentionally centered on the device/app layer: UI automation, screenshots/recordings, app logs, network inspection, and performance sampling.
+
+When a debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use the complementary `agent-react-devtools` project alongside `agent-device` rather than as a replacement.
 
 ## Example
 
@@ -1387,6 +1397,87 @@ This keeps one shared config file usable across different command families.
 
 
 ---
+url: /agent-device/docs/debugging-profiling.md
+---
+
+# Debugging & Profiling
+
+Use `agent-device` when the task moves past UI automation and you need runtime evidence from the app or device layer.
+
+## What `agent-device` covers well
+
+- Session app logs for targeted debugging windows
+- Network inspection from recent HTTP(s) entries in app logs via `network dump`
+- Performance snapshots with `perf` / `metrics`
+- Screenshots, recordings, and replayable repro flows
+
+## What to use instead
+
+If the task needs the React component tree, props, state, hooks, or render profiling, pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
+
+`agent-device` is centered on the device and app runtime layer. `agent-react-devtools` is the better fit for React internals.
+
+## Fast path
+
+```bash
+agent-device open MyApp --platform ios
+agent-device logs clear --restart
+agent-device network dump 25 --include headers
+agent-device perf --json
+agent-device logs path
+```
+
+Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
+
+## Core commands
+
+### Logs
+
+```bash
+agent-device logs start
+agent-device logs stop
+agent-device logs clear --restart
+agent-device logs path
+agent-device logs doctor
+agent-device logs mark "before submit"
+```
+
+- Logging is off by default; enable it only for focused debugging windows.
+- Prefer `logs clear --restart` for clean repro loops.
+- Use `logs path` and then grep the file instead of loading whole logs into agent context.
+
+### Network inspection
+
+```bash
+agent-device network dump 25
+agent-device network dump 25 --include headers
+agent-device network dump 25 --include all
+```
+
+- `network dump` parses recent HTTP(s) entries from the session app log.
+- `network log` is an alias for `network dump`.
+- Parsed results depend on what the app emits into the platform log backend.
+
+### Performance snapshots
+
+```bash
+agent-device perf --json
+agent-device metrics --json
+```
+
+- `perf` returns session-scoped startup and, where supported, CPU and memory samples.
+- Startup is measured around the `open` command; it is not first-frame instrumentation.
+- CPU and memory availability depends on platform and whether the active session is bound to an app/package.
+
+## Where to go deeper
+
+- Full command reference: [Commands](/agent-device/docs/commands.md)
+- Typed client observability APIs: [Typed Client](/agent-device/docs/client-api.md)
+- Session behavior and lifecycle: [Sessions](/agent-device/docs/sessions.md)
+
+
+
+---
 url: /agent-device/docs/installation.md
 ---
 
@@ -1997,7 +2088,7 @@ url: /agent-device/index.md
 
 # Control iOS and Android devices with AI agents.
 
-> agent-device is a token-efficient, lightweight CLI for iOS and Android device automation. Gives your agents "eyes" to see and "hands" to interact with the UI.
+> agent-device is a token-efficient CLI for mobile UI automation and app observability. It gives agents structured UI access, deterministic interactions, and built-in logs, network inspection, and perf metrics when the happy path breaks.
 
 [Get Started](/docs/introduction) | [Commands](/docs/commands)
 
@@ -2006,8 +2097,9 @@ url: /agent-device/index.md
 - **One CLI, many devices**: Control iOS simulators, Android emulators, and physical devices with consistent snapshot and interaction commands.
 - **Token-efficient UI snapshots**: Accessibility trees give agents a complete view of the UI while keeping output compact.
 - **Interactions that just work**: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
+- **Built-in observability**: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
 - **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
 - **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-- **Traceable automation**: Collect trace logs for XCTest to debug flaky interactions.
+- **Complementary React internals**: Pair agent-device with agent-react-devtools when you need the React component tree, props, state, hooks, or render profiling.
 
 

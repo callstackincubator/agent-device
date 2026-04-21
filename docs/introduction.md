@@ -5,15 +5,18 @@
 - Accessibility snapshots for UI understanding
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
+- Session logs and network inspection for debugging broken flows
+- Performance snapshots with `perf`/`metrics`, including CPU and memory data where supported
 
-If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation.
+If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in this repository.
+For React component trees, props/state/hooks, and render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
 
 ## What it’s good at
 
-- Capturing structured UI state for LLMs
-- Driving common UI actions with refs or semantic selectors
-- Replaying flows for regression checks
+- Exploring and driving app flows on real devices and simulators
+- Collecting debugging evidence through logs, network traffic, screenshots, recordings, and performance snapshots
+- Replaying successful flows as lightweight regression checks
 
 ## Platform support highlights
 
@@ -21,6 +24,7 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
+- Session diagnostics: `logs` and `network dump` are available for debugging active app sessions, with network inspection based on recent HTTP(s) entries captured in the session app log.
 - Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions and Apple app sessions on macOS, iOS simulators, or connected iOS devices also expose CPU and memory snapshots when an app identifier is available in the session.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
@@ -38,6 +42,12 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 2. The daemon manages sessions and dispatches to platform drivers.
 3. iOS uses XCTest runner for snapshots and input on simulators and physical devices.
 4. Android uses ADB-based tooling.
+
+## Complementary React tooling
+
+`agent-device` is intentionally centered on the device/app layer: UI automation, screenshots/recordings, app logs, network inspection, and performance sampling.
+
+When a debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use the complementary `agent-react-devtools` project alongside `agent-device` rather than as a replacement.
 
 ## Example
 
