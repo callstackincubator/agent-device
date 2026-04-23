@@ -1,13 +1,25 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { type CommandFlags } from '../../core/dispatch.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { parseReplayScript, writeReplayScript } from './session-replay-script.ts';
+import {
+  parseReplayScriptDetailed,
+  readReplayScriptMetadata,
+  writeReplayScript,
+} from './session-replay-script.ts';
 import { healReplayAction } from './session-replay-heal.ts';
 import { formatScriptActionSummary } from '../script-utils.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { errorResponse } from './response.ts';
+import {
+  buildReplayVarScope,
+  collectReplayShellEnv,
+  parseReplayCliEnvEntries,
+  resolveReplayAction,
+  type ReplayVarScope,
+} from './session-replay-vars.ts';
 
 export async function runReplayScriptFile(params: {
   req: DaemonRequest;
@@ -35,7 +47,27 @@ export async function runReplayScriptFile(params: {
       );
     }
 
-    const actions = parseReplayScript(script);
+    const metadata = readReplayScriptMetadata(script);
+    const parsed = parseReplayScriptDetailed(script);
+    const actions = parsed.actions;
+    const actionLines = parsed.actionLines;
+    if (req.flags?.replayUpdate === true && metadata.env && Object.keys(metadata.env).length > 0) {
+      return errorResponse(
+        'INVALID_ARGS',
+        'replay -u cannot heal scripts with env directives yet; the writer would drop the env block.',
+      );
+    }
+    const scope = buildReplayVarScope({
+      builtins: buildReplayBuiltinVars({
+        req,
+        sessionName,
+        metadata,
+        resolvedPath: resolved,
+      }),
+      fileEnv: metadata.env,
+      shellEnv: collectReplayShellEnv(process.env),
+      cliEnv: parseReplayCliEnvEntries(readCliEnvEntries(req)),
+    });
     const shouldUpdate = req.flags?.replayUpdate === true;
     let healed = 0;
     for (let index = 0; index < actions.length; index += 1) {
@@ -46,6 +78,9 @@ export async function runReplayScriptFile(params: {
         req,
         sessionName,
         action,
+        scope,
+        filePath: resolved,
+        line: actionLines[index] ?? 0,
         invoke,
       });
       if (response.ok) {
@@ -71,6 +106,9 @@ export async function runReplayScriptFile(params: {
         req,
         sessionName,
         action: nextAction,
+        scope,
+        filePath: resolved,
+        line: actionLines[index] ?? 0,
         invoke,
       });
       if (!response.ok) {
@@ -106,18 +144,52 @@ async function invokeReplayAction(params: {
   req: DaemonRequest;
   sessionName: string;
   action: SessionAction;
+  scope: ReplayVarScope;
+  filePath: string;
+  line: number;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, action, invoke } = params;
+  const { req, sessionName, action, scope, filePath, line, invoke } = params;
+  const resolved = resolveReplayAction(action, scope, { file: filePath, line });
   return await invoke({
     token: req.token,
     session: sessionName,
-    command: action.command,
-    positionals: action.positionals ?? [],
-    flags: buildReplayActionFlags(req.flags, action.flags),
-    runtime: action.runtime,
+    command: resolved.command,
+    positionals: resolved.positionals ?? [],
+    flags: buildReplayActionFlags(req.flags, resolved.flags),
+    runtime: resolved.runtime,
     meta: req.meta,
   });
+}
+
+function buildReplayBuiltinVars(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  metadata: ReturnType<typeof readReplayScriptMetadata>;
+  resolvedPath: string;
+}): Record<string, string> {
+  const { req, sessionName, metadata, resolvedPath } = params;
+  const flags = req.flags ?? {};
+  const cwd = req.meta?.cwd ?? process.cwd();
+  const filename = path.relative(cwd, resolvedPath) || resolvedPath;
+  const builtins: Record<string, string> = {
+    AD_SESSION: sessionName,
+    AD_FILENAME: filename,
+  };
+  const platform = (flags.platform as string | undefined) ?? metadata.platform;
+  if (platform) builtins.AD_PLATFORM = platform;
+  const device = flags.device;
+  if (typeof device === 'string' && device.length > 0) builtins.AD_DEVICE = device;
+  const artifactsDir = flags.artifactsDir;
+  if (typeof artifactsDir === 'string' && artifactsDir.length > 0) {
+    builtins.AD_ARTIFACTS = artifactsDir;
+  }
+  return builtins;
+}
+
+function readCliEnvEntries(req: DaemonRequest): string[] {
+  const raw = req.flags?.replayEnv;
+  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
 }
 
 export function withReplayFailureContext(

@@ -88,6 +88,7 @@ export type CliFlags = {
   retainPaths?: boolean;
   retentionMs?: number;
   replayUpdate?: boolean;
+  replayEnv?: string[];
   failFast?: boolean;
   timeoutMs?: number;
   retries?: number;
@@ -768,6 +769,15 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Replay: update selectors and rewrite replay file in place',
   },
   {
+    key: 'replayEnv',
+    names: ['-e', '--env'],
+    type: 'string',
+    multiple: true,
+    usageLabel: '-e KEY=VALUE, --env KEY=VALUE',
+    usageDescription:
+      'Replay/Test: inject or override a ${KEY} variable for the script (repeatable)',
+  },
+  {
     key: 'failFast',
     names: ['--fail-fast'],
     type: 'boolean',
@@ -1217,7 +1227,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   replay: {
     helpDescription: 'Replay a recorded session',
     positionalArgs: ['path'],
-    allowedFlags: ['replayUpdate'],
+    allowedFlags: ['replayUpdate', 'replayEnv'],
     skipCapabilityCheck: true,
   },
   test: {
@@ -1229,6 +1239,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowsExtraPositionals: true,
     allowedFlags: [
       'replayUpdate',
+      'replayEnv',
       'failFast',
       'timeoutMs',
       'retries',

@@ -66,6 +66,39 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use `--verbose` to print every test result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
 
+## Parametrise `.ad` scripts
+
+Declare reusable values as `env` directives in the script header and reference them with `${VAR}`:
+
+```sh
+context platform=android
+env APP_ID=settings
+env WAIT_SHORT=500
+env SETTINGS_ITEMS="label=Wait || label=\"Close app\" || label=Apps"
+
+open ${APP_ID} --relaunch
+wait ${WAIT_SHORT}
+click "${SETTINGS_ITEMS}"
+```
+
+Override or inject values from the command line with `-e KEY=VALUE` (repeatable):
+
+```bash
+agent-device test ./workflows/01-settings.ad -e APP_ID=com.example.debug -e WAIT_SHORT=1000
+```
+
+Shell environment variables prefixed with `AD_` are auto-imported (prefix stripped). Precedence, highest wins: CLI `-e` > `AD_*` shell env > script-local `env` > built-ins.
+
+Built-ins (always available):
+
+- `AD_PLATFORM` - matches `context platform=...`
+- `AD_SESSION` - active session name
+- `AD_FILENAME` - path of the running `.ad` file
+- `AD_ARTIFACTS` - suite artifacts root (when running under `test`)
+- `AD_DEVICE` - device identifier (when `--device` is set)
+
+Fallback syntax `${VAR:-default}` yields `default` when `VAR` is unset. To include a literal `${`, escape with `\${`. Unresolved variables fail the script with a `file:line` reference.
+
 ## Update stale selectors in replay scripts
 
 ```bash

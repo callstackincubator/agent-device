@@ -407,11 +407,13 @@ export function createAgentDeviceClient(
         await executeCommandRequest(CLIENT_COMMANDS.replay, [options.path], {
           ...options,
           replayUpdate: options.update,
+          replayEnv: options.env,
         }),
       test: async (options) =>
         await executeCommandRequest(CLIENT_COMMANDS.test, options.paths, {
           ...options,
           replayUpdate: options.update,
+          replayEnv: options.env,
         }),
     },
     batch: {

@@ -73,6 +73,7 @@ export const genericClientCommandHandlers = {
         ...buildSelectionOptions(flags),
         path: required(positionals[0], 'replay requires path'),
         update: flags.replayUpdate,
+        env: flags.replayEnv,
       }),
   ),
   [CLIENT_COMMANDS.test]: createGenericClientCommandHandler(
@@ -83,6 +84,7 @@ export const genericClientCommandHandlers = {
         ...buildSelectionOptions(flags),
         paths: positionals,
         update: flags.replayUpdate,
+        env: flags.replayEnv,
         failFast: flags.failFast,
         timeoutMs: flags.timeoutMs,
         retries: flags.retries,
