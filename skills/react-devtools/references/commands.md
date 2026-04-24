@@ -16,32 +16,9 @@ agent-device react-devtools wait --component <ComponentName> --timeout 30
 - Most commands auto-start the daemon, but `start` is useful before launching or reloading the app.
 - React Native development builds connect to the daemon on port 8097. For Android emulators or physical devices, use `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If the app also uses local Metro, set `adb reverse tcp:8081 tcp:8081`.
 
-## Cross-platform validation setup
+## Validation Notes
 
-Use this when validating the same React Native app on both iOS and Android simulators.
-
-```bash
-STATE_DIR=/tmp/agent-device-react-devtools-validate
-agent-device react-devtools stop
-agent-device react-devtools start
-agent-device --state-dir "$STATE_DIR" open <ios-bundle-id> --platform ios --device "<simulator>"
-agent-device react-devtools wait --connected --timeout 30
-agent-device react-devtools get tree --depth 3
-agent-device --state-dir "$STATE_DIR" close
-
-agent-device react-devtools stop
-agent-device react-devtools start
-adb -s <serial> reverse tcp:8081 tcp:8081
-adb -s <serial> reverse tcp:8097 tcp:8097
-agent-device --state-dir "$STATE_DIR" open <android-package> --platform android --serial <serial>
-agent-device react-devtools wait --connected --timeout 30
-agent-device react-devtools get tree --depth 3
-agent-device --state-dir "$STATE_DIR" close
-agent-device react-devtools stop
-```
-
-- Use an isolated `--state-dir` for validation runs so stale local or remote connection state cannot affect results.
-- Do not combine a named `--session` with explicit target selectors during setup unless you intentionally want bound-session lock behavior. For setup with `--device`, `--udid`, or `--serial`, an isolated state directory is usually simpler.
+- When validating the same app across iOS and Android with explicit `--device`, `--udid`, or `--serial` selectors, prefer an isolated `--state-dir` over separate named sessions. A named `--session` enables bound-session lock behavior, so setup commands with explicit target selectors can be rejected.
 - Restart the React DevTools daemon between platforms so `status`, `get tree`, and profiling output belong to the currently launched app.
 - Verify the app is visibly loaded with `snapshot` before collecting React internals. Use `react-devtools` for component state and profiling, not for proving the device/app surface is open.
 

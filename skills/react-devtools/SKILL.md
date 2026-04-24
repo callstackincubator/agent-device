@@ -20,7 +20,7 @@ The first run may download the pinned package from npm. `agent-device` global fl
 5. Profile only around the interaction being investigated.
 6. Verify the fix with the same command sequence and interaction.
 
-For cross-platform validation, prefer an isolated `--state-dir` over a named `--session` while booting, installing, or opening with explicit `--device`, `--udid`, or `--serial` selectors. Restart `agent-device react-devtools` between iOS and Android runs so `status`, `get tree`, and profiling clearly refer to the currently launched app.
+For cross-platform validation with explicit `--device`, `--udid`, or `--serial` selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `agent-device react-devtools` between iOS and Android runs so `status`, `get tree`, and profiling clearly refer to the currently launched app.
 
 ## Main commands
 
