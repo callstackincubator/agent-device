@@ -87,19 +87,19 @@ click "label=${APP_ID}"
 | CLI `-e KEY=VALUE` | highest | `agent-device test flow.ad -e APP_ID=demo` |
 | Shell env prefixed `AD_VAR_` | | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`) |
 | Script `env KEY=VALUE` | | `env APP_ID=settings` in header |
-| Built-ins | lowest | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
+| Built-ins | reserved | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
 
 ### Built-ins
 
-Always defined; resolved last so user overrides win where applicable.
+Built-ins are provided by replay/test runtime and use the reserved `AD_*` namespace.
 
-- `AD_PLATFORM` - matches `context platform=...`
+- `AD_PLATFORM` - matches `context platform=...` or the selected platform when available
 - `AD_SESSION` - active session name
 - `AD_FILENAME` - path of the running `.ad` file
 - `AD_DEVICE` - device identifier (when `--device` is set)
-- `AD_ARTIFACTS` - suite artifacts root (when running under `test`)
+- `AD_ARTIFACTS` - attempt artifacts directory (when running under `test`)
 
-The `AD_*` namespace is reserved. User-defined keys starting with `AD_` (in `env`, `-e`, or via `AD_VAR_AD_FOO`) are rejected.
+User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imports such as `AD_VAR_AD_FOO`, so built-ins cannot be overridden.
 
 ### Fallback and escape
 
