@@ -1229,7 +1229,7 @@ function buildDaemonHttpUrl(baseUrl: string, route: 'health' | 'rpc'): string {
 
 function buildDaemonArtifactUrl(baseUrl: string, artifactId: string): string {
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return new URL(`upload/${encodeURIComponent(artifactId)}`, normalizedBase).toString();
+  return new URL(`artifacts/${encodeURIComponent(artifactId)}`, normalizedBase).toString();
 }
 
 async function materializeRemoteArtifacts(
