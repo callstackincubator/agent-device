@@ -153,7 +153,7 @@ Quote `${VAR}` inside selector expressions so the whole expression is treated as
 ### Notes
 
 - `replay -u` does not yet preserve `env` directives or `${VAR}` tokens. Workaround: temporarily inline the literal values, run `-u`, re-parametrise.
-- Shell env (`AD_VAR_*`) is read from the host running the daemon, not the host running the CLI. For remote-daemon setups, set those vars on the daemon side, or use `-e` which is always client-side.
+- Shell env (`AD_VAR_*`) is collected on the CLI/client side at request time, so the same values are seen whether the daemon runs locally or remotely.
 - No nested fallback. `${A:-${B}}` is not supported.
 - Unresolved `${VAR}` fails with a `file:line` reference. Typos are loud.
 

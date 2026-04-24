@@ -458,3 +458,75 @@ test('runReplayScriptFile dispatches resolved literals with file env overridden 
     }
   }
 });
+
+test('runReplayScriptFile reads shell env from request (client-collected), not daemon process.env', async () => {
+  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
+  const { SessionStore } = await import('../../session-store.ts');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-shell-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(scriptPath, 'context platform=android\nopen ${APP}\n');
+  // Ensure the daemon's own process.env does NOT contain AD_VAR_APP.
+  assert.equal(process.env.AD_VAR_APP, undefined);
+  const calls: string[] = [];
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      // Client-collected shell env; still uses the raw AD_VAR_* prefix.
+      flags: { replayShellEnv: { AD_VAR_APP: 'client-shell-app' } },
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore: new SessionStore(path.join(root, 'state')),
+    invoke: async (req) => {
+      calls.push((req.positionals ?? []).join(' '));
+      return { ok: true, data: {} };
+    },
+  });
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, ['client-shell-app']);
+});
+
+test('runReplayScriptFile falls back to process.env when request omits replayShellEnv', async () => {
+  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
+  const { SessionStore } = await import('../../session-store.ts');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-shell-fallback-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(scriptPath, 'context platform=android\nopen ${APP}\n');
+  const previous = process.env.AD_VAR_APP;
+  process.env.AD_VAR_APP = 'daemon-env-app';
+  try {
+    const calls: string[] = [];
+    const response = await runReplayScriptFile({
+      req: {
+        token: 't',
+        session: 's',
+        command: 'replay',
+        positionals: [scriptPath],
+        flags: {},
+        meta: { cwd: root },
+      },
+      sessionName: 's',
+      logPath: path.join(root, 'log'),
+      sessionStore: new SessionStore(path.join(root, 'state')),
+      invoke: async (req) => {
+        calls.push((req.positionals ?? []).join(' '));
+        return { ok: true, data: {} };
+      },
+    });
+    assert.equal(response.ok, true);
+    assert.deepEqual(calls, ['daemon-env-app']);
+  } finally {
+    if (previous === undefined) delete process.env.AD_VAR_APP;
+    else process.env.AD_VAR_APP = previous;
+  }
+});

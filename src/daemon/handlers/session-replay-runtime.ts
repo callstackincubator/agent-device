@@ -71,7 +71,7 @@ export async function runReplayScriptFile(params: {
         resolvedPath: resolved,
       }),
       fileEnv: metadata.env,
-      shellEnv: collectReplayShellEnv(process.env),
+      shellEnv: collectReplayShellEnv(readShellEnvSource(req)),
       cliEnv: parseReplayCliEnvEntries(readCliEnvEntries(req)),
     });
     const shouldUpdate = req.flags?.replayUpdate === true;
@@ -196,6 +196,18 @@ function buildReplayBuiltinVars(params: {
 function readCliEnvEntries(req: DaemonRequest): string[] {
   const raw = req.flags?.replayEnv;
   return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
+}
+
+function readShellEnvSource(req: DaemonRequest): NodeJS.ProcessEnv {
+  const raw = req.flags?.replayShellEnv;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const result: NodeJS.ProcessEnv = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (typeof value === 'string') result[key] = value;
+    }
+    return result;
+  }
+  return process.env;
 }
 
 export function withReplayFailureContext(

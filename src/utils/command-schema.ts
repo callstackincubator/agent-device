@@ -89,6 +89,7 @@ export type CliFlags = {
   retentionMs?: number;
   replayUpdate?: boolean;
   replayEnv?: string[];
+  replayShellEnv?: Record<string, string>;
   failFast?: boolean;
   timeoutMs?: number;
   retries?: number;

@@ -741,6 +741,7 @@ type CommandExecutionOptions = {
   restart?: boolean;
   replayUpdate?: boolean;
   replayEnv?: string[];
+  replayShellEnv?: Record<string, string>;
   failFast?: boolean;
   timeoutMs?: number;
   retries?: number;

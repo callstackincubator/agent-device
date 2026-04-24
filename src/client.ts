@@ -408,12 +408,14 @@ export function createAgentDeviceClient(
           ...options,
           replayUpdate: options.update,
           replayEnv: options.env,
+          replayShellEnv: collectReplayClientShellEnv(process.env),
         }),
       test: async (options) =>
         await executeCommandRequest(CLIENT_COMMANDS.test, options.paths, {
           ...options,
           replayUpdate: options.update,
           replayEnv: options.env,
+          replayShellEnv: collectReplayClientShellEnv(process.env),
         }),
     },
     batch: {
@@ -521,6 +523,18 @@ function optionalString(value: string | undefined): string[] {
 
 function optionalNumber(value: number | undefined): string[] {
   return value === undefined ? [] : [String(value)];
+}
+
+const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';
+
+function collectReplayClientShellEnv(env: NodeJS.ProcessEnv): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === 'string' && key.startsWith(REPLAY_SHELL_ENV_PREFIX)) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 function mergeClientOptions(
