@@ -1122,6 +1122,8 @@ agent-device react-devtools profile rerenders --limit 5
 ```
 
 - `react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` through npm and passes arguments through 1:1.
+- The first run may download the pinned package from npm; later runs can reuse the npm cache.
+- Put downstream flags after `react-devtools` so they pass through to `agent-react-devtools`.
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host.
