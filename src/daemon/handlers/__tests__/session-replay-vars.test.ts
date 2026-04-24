@@ -88,18 +88,30 @@ test('buildReplayVarScope precedence: cli > shell > file > builtin', () => {
   assert.equal(shellWinsOverFile.values.K, 'shell');
 });
 
-test('collectReplayShellEnv strips AD_ prefix and ignores other vars', () => {
+test('collectReplayShellEnv strips AD_VAR_ prefix and ignores other vars', () => {
   const result = collectReplayShellEnv({
-    AD_APP_ID: 'settings',
+    AD_VAR_APP_ID: 'settings',
     PATH: '/bin',
-    AD_123: 'x',
-    AD_: 'empty',
+    AD_VAR_123: 'x',
+    AD_VAR_: 'empty',
     OTHER_VAR: 'y',
+    AD_APP_ID: 'no-legacy-prefix',
   });
   assert.equal(result.APP_ID, 'settings');
   assert.equal(result.PATH, undefined);
   assert.equal(result['123'], undefined);
   assert.equal(result[''], undefined);
+  // legacy AD_* (non AD_VAR_*) is no longer auto-imported.
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'AD_APP_ID'), false);
+});
+
+test('collectReplayShellEnv skips keys that land in reserved AD_* namespace after strip', () => {
+  const result = collectReplayShellEnv({
+    AD_VAR_AD_SESSION: 'evil',
+    AD_VAR_AD_FOO: 'evil',
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'AD_SESSION'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'AD_FOO'), false);
 });
 
 test('parseReplayCliEnvEntries splits KEY=VALUE and rejects invalid keys', () => {
@@ -250,7 +262,7 @@ test('runReplayScriptFile rejects replay -u on scripts with env directives', asy
   assert.equal(response.ok, false);
   if (!response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /replay -u cannot heal scripts with env directives/);
+    assert.match(response.error.message, /replay -u does not yet preserve env directives/);
   }
 });
 
@@ -287,4 +299,162 @@ test('resolveReplayAction produces dispatch-ready literals for a realistic fixtu
   assert.deepEqual(resolved[2]?.positionals, ['label=Wait || label=Apps']);
   assert.deepEqual(resolved[3]?.positionals, ['exists', 'label=Wait || label=Apps']);
   assert.equal(resolved[4]?.flags.snapshotScope, 'app');
+});
+
+test('parseReplayEnvLine rejects AD_* keys as reserved namespace', () => {
+  assert.throws(
+    () =>
+      readReplayScriptMetadata(
+        'context platform=android\nenv AD_FOO=bar\n',
+      ),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /AD_\* namespace is reserved/.test(error.message) &&
+      /AD_FOO/.test(error.message),
+  );
+});
+
+test('parseReplayCliEnvEntries rejects AD_* keys as reserved namespace', () => {
+  assert.throws(
+    () => parseReplayCliEnvEntries(['AD_FOO=x']),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /AD_\* namespace is reserved/.test(error.message),
+  );
+});
+
+test('parseReplayCliEnvEntries error wording is user-friendly for invalid keys', () => {
+  assert.throws(
+    () => parseReplayCliEnvEntries(['lower=x']),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /uppercase letters, digits, and underscores/.test(error.message),
+  );
+});
+
+test('buildReplayVarScope rejects AD_* keys in file env', () => {
+  assert.throws(
+    () => buildReplayVarScope({ fileEnv: { AD_FOO: 'x' } }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /AD_\* namespace is reserved/.test(error.message),
+  );
+});
+
+test('buildReplayVarScope rejects AD_* keys in cli env', () => {
+  assert.throws(
+    () => buildReplayVarScope({ cliEnv: { AD_SESSION: 'x' } }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /AD_\* namespace is reserved/.test(error.message),
+  );
+});
+
+test('buildReplayVarScope allows AD_* keys from builtins (trusted)', () => {
+  const scope = buildReplayVarScope({
+    builtins: { AD_SESSION: 's', AD_PLATFORM: 'android' },
+  });
+  assert.equal(scope.values.AD_SESSION, 's');
+  assert.equal(scope.values.AD_PLATFORM, 'android');
+});
+
+test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', async () => {
+  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
+  const { SessionStore } = await import('../../session-store.ts');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-var-heal-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  // No env directive, but positional uses ${APP}.
+  fs.writeFileSync(
+    scriptPath,
+    'context platform=android\nopen ${APP}\n',
+  );
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      flags: { replayUpdate: true, replayEnv: ['APP=settings'] },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore: new SessionStore(path.join(root, 'state')),
+    invoke: async () => ({ ok: true, data: {} }),
+  });
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(
+      response.error.message,
+      /replay -u does not yet preserve \$\{VAR\} substitutions/,
+    );
+  }
+});
+
+test('runReplayScriptFile dispatches resolved literals with file env overridden by CLI', async () => {
+  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
+  const { SessionStore } = await import('../../session-store.ts');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-green-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(
+    scriptPath,
+    [
+      'context platform=android',
+      'env APP=file-app',
+      'env SCOPE=file-scope',
+      '',
+      'open ${APP}',
+      'snapshot -s ${SCOPE}',
+      'click "at ${AD_FILENAME}"',
+    ].join('\n') + '\n',
+  );
+  const calls: Array<{ command: string; positionals?: string[]; flags?: Record<string, unknown> }> = [];
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      flags: { replayEnv: ['APP=cli-app'] },
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore: new SessionStore(path.join(root, 'state')),
+    invoke: async (req) => {
+      calls.push({
+        command: req.command,
+        positionals: req.positionals,
+        flags: req.flags,
+      });
+      return { ok: true, data: {} };
+    },
+  });
+  assert.equal(response.ok, true);
+  // open ${APP} -> CLI override wins.
+  assert.equal(calls[0]?.command, 'open');
+  assert.deepEqual(calls[0]?.positionals, ['cli-app']);
+  // snapshot -s ${SCOPE} -> file env fills in.
+  assert.equal(calls[1]?.command, 'snapshot');
+  assert.equal(calls[1]?.flags?.snapshotScope, 'file-scope');
+  // click with ${AD_FILENAME} resolves to the relative script path.
+  assert.equal(calls[2]?.command, 'click');
+  assert.deepEqual(calls[2]?.positionals, ['at flow.ad']);
+  // And nothing dispatched still contains a literal ${...} token.
+  for (const call of calls) {
+    for (const pos of call.positionals ?? []) {
+      assert.equal(pos.includes('${'), false, `unresolved interpolation leaked: ${pos}`);
+    }
+  }
 });

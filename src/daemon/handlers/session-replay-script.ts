@@ -123,7 +123,13 @@ export function parseReplayEnvLine(trimmed: string, lineNumber: number): { key: 
   if (!REPLAY_ENV_KEY_RE.test(key)) {
     throw new AppError(
       'INVALID_ARGS',
-      `Invalid env key "${key}" on line ${lineNumber}: must match /^[A-Z_][A-Z0-9_]*$/.`,
+      `Invalid env key "${key}" on line ${lineNumber}: keys must be uppercase letters, digits, and underscores (e.g. APP_ID).`,
+    );
+  }
+  if (key.startsWith('AD_')) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid env key "${key}" on line ${lineNumber}: the AD_* namespace is reserved for built-in variables. Rename ${key} to avoid the AD_ prefix.`,
     );
   }
   const rawValue = body.slice(eqIndex + 1);

@@ -15,19 +15,39 @@ export type ReplayVarSources = {
 const VAR_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
 const INTERPOLATION_RE =
   /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
-const SHELL_PREFIX = 'AD_';
+const SHELL_PREFIX = 'AD_VAR_';
+const RESERVED_NAMESPACE_PREFIX = 'AD_';
+
+function isReservedNamespaceKey(key: string): boolean {
+  return key.startsWith(RESERVED_NAMESPACE_PREFIX);
+}
+
+function reservedNamespaceError(key: string): AppError {
+  return new AppError(
+    'INVALID_ARGS',
+    `The AD_* namespace is reserved for built-in variables. Rename ${key} to avoid the AD_ prefix.`,
+  );
+}
 
 export function buildReplayVarScope(sources: ReplayVarSources): ReplayVarScope {
   const merged: Record<string, string> = {};
-  const layers: Array<Record<string, string> | undefined> = [
-    sources.builtins,
+  // builtins are trusted (set by the runtime) and may legitimately use AD_*.
+  if (sources.builtins) {
+    for (const [key, value] of Object.entries(sources.builtins)) {
+      merged[key] = value;
+    }
+  }
+  const untrustedLayers: Array<Record<string, string> | undefined> = [
     sources.fileEnv,
     sources.shellEnv,
     sources.cliEnv,
   ];
-  for (const layer of layers) {
+  for (const layer of untrustedLayers) {
     if (!layer) continue;
     for (const [key, value] of Object.entries(layer)) {
+      if (isReservedNamespaceKey(key)) {
+        throw reservedNamespaceError(key);
+      }
       merged[key] = value;
     }
   }
@@ -42,6 +62,9 @@ export function collectReplayShellEnv(processEnv: NodeJS.ProcessEnv): Record<str
     const key = rawKey.slice(SHELL_PREFIX.length);
     if (key.length === 0) continue;
     if (!VAR_KEY_RE.test(key)) continue;
+    // Belt-and-suspenders: never let the stripped key land back in the reserved
+    // AD_* namespace (e.g. shell `AD_VAR_AD_SESSION=evil` would become `AD_SESSION`).
+    if (isReservedNamespaceKey(key)) continue;
     result[key] = value;
   }
   return result;
@@ -58,8 +81,11 @@ export function parseReplayCliEnvEntries(entries: readonly string[]): Record<str
     if (!VAR_KEY_RE.test(key)) {
       throw new AppError(
         'INVALID_ARGS',
-        `Invalid -e key "${key}": must match /^[A-Z_][A-Z0-9_]*$/.`,
+        `Invalid -e key "${key}": keys must be uppercase letters, digits, and underscores (e.g. APP_ID).`,
       );
+    }
+    if (isReservedNamespaceKey(key)) {
+      throw reservedNamespaceError(key);
     }
     result[key] = entry.slice(eqIndex + 1);
   }

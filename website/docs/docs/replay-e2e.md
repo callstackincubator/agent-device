@@ -68,36 +68,94 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 
 ## Parametrise `.ad` scripts
 
-Declare reusable values as `env` directives in the script header and reference them with `${VAR}`:
+Substitute `${VAR}` tokens in `.ad` scripts using values from the CLI, shell env, script-local `env` directives, or built-ins.
 
 ```sh
 context platform=android
 env APP_ID=settings
 env WAIT_SHORT=500
-env SETTINGS_ITEMS="label=Wait || label=\"Close app\" || label=Apps"
 
 open ${APP_ID} --relaunch
 wait ${WAIT_SHORT}
-click "${SETTINGS_ITEMS}"
+click "label=${APP_ID}"
 ```
 
-Override or inject values from the command line with `-e KEY=VALUE` (repeatable):
+### Precedence
 
-```bash
-agent-device test ./workflows/01-settings.ad -e APP_ID=com.example.debug -e WAIT_SHORT=1000
-```
+| Source | Priority | Example |
+|---|---|---|
+| CLI `-e KEY=VALUE` | highest | `agent-device test flow.ad -e APP_ID=demo` |
+| Shell env prefixed `AD_VAR_` | | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`) |
+| Script `env KEY=VALUE` | | `env APP_ID=settings` in header |
+| Built-ins | lowest | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
 
-Shell environment variables prefixed with `AD_` are auto-imported (prefix stripped). Precedence, highest wins: CLI `-e` > `AD_*` shell env > script-local `env` > built-ins.
+### Built-ins
 
-Built-ins (always available):
+Always defined; resolved last so user overrides win where applicable.
 
 - `AD_PLATFORM` - matches `context platform=...`
 - `AD_SESSION` - active session name
 - `AD_FILENAME` - path of the running `.ad` file
-- `AD_ARTIFACTS` - suite artifacts root (when running under `test`)
 - `AD_DEVICE` - device identifier (when `--device` is set)
+- `AD_ARTIFACTS` - suite artifacts root (when running under `test`)
 
-Fallback syntax `${VAR:-default}` yields `default` when `VAR` is unset. To include a literal `${`, escape with `\${`. Unresolved variables fail the script with a `file:line` reference.
+The `AD_*` namespace is reserved. User-defined keys starting with `AD_` (in `env`, `-e`, or via `AD_VAR_AD_FOO`) are rejected.
+
+### Fallback and escape
+
+```sh
+wait ${WAIT_MS:-500}
+```
+
+`${VAR:-default}` yields `default` when `VAR` is unset.
+
+```sh
+echo "Price: \${APP}"
+```
+
+`\${APP}` emits a literal `${APP}` with no substitution.
+
+### Recipes
+
+Run one flow against two app variants in CI:
+
+```sh
+agent-device test ./flows/login.ad -e APP_ID=com.example.debug
+agent-device test ./flows/login.ad -e APP_ID=com.example.release
+```
+
+Tune timings locally without editing the script:
+
+```sh
+AD_VAR_WAIT_SHORT=2000 agent-device replay ./flow.ad
+```
+
+Extract a reusable selector. Before:
+
+```ad
+click "label=Account || label=Profile || label=User"
+wait 500
+click "label=Account || label=Profile || label=User"
+```
+
+After:
+
+```ad
+env SETTINGS="label=Account || label=Profile || label=User"
+
+click "${SETTINGS}"
+wait 500
+click "${SETTINGS}"
+```
+
+Quote `${VAR}` inside selector expressions so the whole expression is treated as a single argument.
+
+### Notes
+
+- `replay -u` does not yet preserve `env` directives or `${VAR}` tokens. Workaround: temporarily inline the literal values, run `-u`, re-parametrise.
+- Shell env (`AD_VAR_*`) is read from the host running the daemon, not the host running the CLI. For remote-daemon setups, set those vars on the daemon side, or use `-e` which is always client-side.
+- No nested fallback. `${A:-${B}}` is not supported.
+- Unresolved `${VAR}` fails with a `file:line` reference. Typos are loud.
 
 ## Update stale selectors in replay scripts
 
