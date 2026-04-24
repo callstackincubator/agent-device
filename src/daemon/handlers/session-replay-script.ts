@@ -14,6 +14,7 @@ import {
   parseReplaySeriesFlags,
   parseReplayRuntimeFlags,
 } from '../script-utils.ts';
+import { REPLAY_VAR_KEY_RE } from './session-replay-vars.ts';
 
 type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
 
@@ -30,8 +31,6 @@ export type ReplayScriptMetadata = {
   retries?: number;
   env?: Record<string, string>;
 };
-
-const REPLAY_ENV_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
 
 export function parseReplayScript(script: string): SessionAction[] {
   return parseReplayScriptDetailed(script).actions;
@@ -110,7 +109,7 @@ function isReplayEnvLine(trimmed: string): boolean {
   return trimmed === 'env' || trimmed.startsWith('env ') || trimmed.startsWith('env\t');
 }
 
-export function parseReplayEnvLine(trimmed: string, lineNumber: number): { key: string; value: string } {
+function parseReplayEnvLine(trimmed: string, lineNumber: number): { key: string; value: string } {
   const body = trimmed.slice(3).replace(/^[\s]+/, '');
   const eqIndex = body.indexOf('=');
   if (eqIndex <= 0) {
@@ -120,7 +119,7 @@ export function parseReplayEnvLine(trimmed: string, lineNumber: number): { key: 
     );
   }
   const key = body.slice(0, eqIndex);
-  if (!REPLAY_ENV_KEY_RE.test(key)) {
+  if (!REPLAY_VAR_KEY_RE.test(key)) {
     throw new AppError(
       'INVALID_ARGS',
       `Invalid env key "${key}" on line ${lineNumber}: keys must be uppercase letters, digits, and underscores (e.g. APP_ID).`,

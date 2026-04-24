@@ -1,5 +1,5 @@
 import { AppError } from '../../utils/errors.ts';
-import type { SessionAction, SessionRuntimeHints } from '../types.ts';
+import type { SessionAction } from '../types.ts';
 
 export type ReplayVarScope = {
   readonly values: Readonly<Record<string, string>>;
@@ -12,7 +12,7 @@ export type ReplayVarSources = {
   cliEnv?: Record<string, string>;
 };
 
-const VAR_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
+export const REPLAY_VAR_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
 const INTERPOLATION_RE =
   /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
 const SHELL_PREFIX = 'AD_VAR_';
@@ -61,7 +61,7 @@ export function collectReplayShellEnv(processEnv: NodeJS.ProcessEnv): Record<str
     if (!rawKey.startsWith(SHELL_PREFIX)) continue;
     const key = rawKey.slice(SHELL_PREFIX.length);
     if (key.length === 0) continue;
-    if (!VAR_KEY_RE.test(key)) continue;
+    if (!REPLAY_VAR_KEY_RE.test(key)) continue;
     // Belt-and-suspenders: never let the stripped key land back in the reserved
     // AD_* namespace (e.g. shell `AD_VAR_AD_SESSION=evil` would become `AD_SESSION`).
     if (isReservedNamespaceKey(key)) continue;
@@ -78,7 +78,7 @@ export function parseReplayCliEnvEntries(entries: readonly string[]): Record<str
       throw new AppError('INVALID_ARGS', `Invalid -e entry "${entry}": expected KEY=VALUE.`);
     }
     const key = entry.slice(0, eqIndex);
-    if (!VAR_KEY_RE.test(key)) {
+    if (!REPLAY_VAR_KEY_RE.test(key)) {
       throw new AppError(
         'INVALID_ARGS',
         `Invalid -e key "${key}": keys must be uppercase letters, digits, and underscores (e.g. APP_ID).`,
@@ -118,45 +118,27 @@ export function resolveReplayAction(
   scope: ReplayVarScope,
   loc: { file: string; line: number },
 ): SessionAction {
-  const positionals = (action.positionals ?? []).map((token) =>
-    resolveReplayString(token, scope, loc),
-  );
-  const flags = resolveReplayFlags(action.flags, scope, loc);
-  const runtime = resolveReplayRuntime(action.runtime, scope, loc);
   return {
     ...action,
-    positionals,
-    flags,
-    runtime,
+    positionals: (action.positionals ?? []).map((token) =>
+      resolveReplayString(token, scope, loc),
+    ),
+    flags: resolveStringProps(action.flags, scope, loc) ?? {},
+    runtime: resolveStringProps(action.runtime, scope, loc),
   };
 }
 
-function resolveReplayFlags(
-  flags: SessionAction['flags'] | undefined,
+function resolveStringProps<T extends object>(
+  obj: T | undefined,
   scope: ReplayVarScope,
   loc: { file: string; line: number },
-): SessionAction['flags'] {
-  if (!flags) return {};
-  const next: Record<string, unknown> = { ...flags };
+): T | undefined {
+  if (!obj) return obj;
+  const next: Record<string, unknown> = { ...obj };
   for (const [key, value] of Object.entries(next)) {
     if (typeof value === 'string') {
       next[key] = resolveReplayString(value, scope, loc);
     }
   }
-  return next as SessionAction['flags'];
-}
-
-function resolveReplayRuntime(
-  runtime: SessionRuntimeHints | undefined,
-  scope: ReplayVarScope,
-  loc: { file: string; line: number },
-): SessionRuntimeHints | undefined {
-  if (!runtime) return undefined;
-  const next: Record<string, unknown> = { ...runtime };
-  for (const [key, value] of Object.entries(next)) {
-    if (typeof value === 'string') {
-      next[key] = resolveReplayString(value, scope, loc);
-    }
-  }
-  return next as SessionRuntimeHints;
+  return next as T;
 }

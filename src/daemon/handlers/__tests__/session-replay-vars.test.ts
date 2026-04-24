@@ -1,7 +1,12 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { AppError } from '../../../utils/errors.ts';
-import type { SessionAction } from '../../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
+import type { CommandFlags } from '../../../core/dispatch.ts';
+import { SessionStore } from '../../session-store.ts';
 import {
   buildReplayVarScope,
   collectReplayShellEnv,
@@ -14,8 +19,51 @@ import {
   parseReplayScriptDetailed,
   readReplayScriptMetadata,
 } from '../session-replay-script.ts';
+import { runReplayScriptFile } from '../session-replay-runtime.ts';
 
 const LOC = { file: 'test.ad', line: 1 };
+
+type CapturedInvocation = {
+  command: string;
+  positionals?: string[];
+  flags?: Record<string, unknown>;
+};
+
+async function runReplayFixture(params: {
+  label: string;
+  script: string;
+  flags?: CommandFlags;
+  invoke?: (req: DaemonRequest) => Promise<DaemonResponse>;
+}): Promise<{
+  response: DaemonResponse;
+  calls: CapturedInvocation[];
+  root: string;
+  scriptPath: string;
+}> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `agent-device-replay-${params.label}-`));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(scriptPath, params.script);
+  const calls: CapturedInvocation[] = [];
+  const defaultInvoke = async (req: DaemonRequest): Promise<DaemonResponse> => {
+    calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+    return { ok: true, data: {} };
+  };
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      flags: params.flags ?? {},
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore: new SessionStore(path.join(root, 'state')),
+    invoke: params.invoke ?? defaultInvoke,
+  });
+  return { response, calls, root, scriptPath };
+}
 
 test('resolveReplayString substitutes variables', () => {
   const scope = buildReplayVarScope({ fileEnv: { APP: 'settings' } });
@@ -235,29 +283,10 @@ test('parseReplayScript rejects env after first action', () => {
 });
 
 test('runReplayScriptFile rejects replay -u on scripts with env directives', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-env-heal-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  fs.writeFileSync(
-    scriptPath,
-    'context platform=android\nenv APP=settings\nopen ${APP}\n',
-  );
-  const response = await runReplayScriptFile({
-    req: {
-      token: 't',
-      session: 's',
-      command: 'replay',
-      positionals: [scriptPath],
-      flags: { replayUpdate: true },
-    },
-    sessionName: 's',
-    logPath: path.join(root, 'log'),
-    sessionStore: new SessionStore(path.join(root, 'state')),
-    invoke: async () => ({ ok: true, data: {} }),
+  const { response } = await runReplayFixture({
+    label: 'env-heal',
+    script: 'context platform=android\nenv APP=settings\nopen ${APP}\n',
+    flags: { replayUpdate: true },
   });
   assert.equal(response.ok, false);
   if (!response.ok) {
@@ -301,27 +330,35 @@ test('resolveReplayAction produces dispatch-ready literals for a realistic fixtu
   assert.equal(resolved[4]?.flags.snapshotScope, 'app');
 });
 
-test('parseReplayEnvLine rejects AD_* keys as reserved namespace', () => {
+test.each([
+  {
+    name: 'file env via parseReplayEnvLine',
+    run: () => readReplayScriptMetadata('context platform=android\nenv AD_FOO=bar\n'),
+    keyMatch: /AD_FOO/,
+  },
+  {
+    name: 'CLI -e via parseReplayCliEnvEntries',
+    run: () => parseReplayCliEnvEntries(['AD_FOO=x']),
+    keyMatch: /AD_FOO/,
+  },
+  {
+    name: 'buildReplayVarScope.fileEnv',
+    run: () => buildReplayVarScope({ fileEnv: { AD_FOO: 'x' } }),
+    keyMatch: /AD_FOO/,
+  },
+  {
+    name: 'buildReplayVarScope.cliEnv',
+    run: () => buildReplayVarScope({ cliEnv: { AD_SESSION: 'x' } }),
+    keyMatch: /AD_SESSION/,
+  },
+])('rejects AD_* as reserved namespace in $name', ({ run, keyMatch }) => {
   assert.throws(
-    () =>
-      readReplayScriptMetadata(
-        'context platform=android\nenv AD_FOO=bar\n',
-      ),
+    run,
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
       /AD_\* namespace is reserved/.test(error.message) &&
-      /AD_FOO/.test(error.message),
-  );
-});
-
-test('parseReplayCliEnvEntries rejects AD_* keys as reserved namespace', () => {
-  assert.throws(
-    () => parseReplayCliEnvEntries(['AD_FOO=x']),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      /AD_\* namespace is reserved/.test(error.message),
+      keyMatch.test(error.message),
   );
 });
 
@@ -335,26 +372,6 @@ test('parseReplayCliEnvEntries error wording is user-friendly for invalid keys',
   );
 });
 
-test('buildReplayVarScope rejects AD_* keys in file env', () => {
-  assert.throws(
-    () => buildReplayVarScope({ fileEnv: { AD_FOO: 'x' } }),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      /AD_\* namespace is reserved/.test(error.message),
-  );
-});
-
-test('buildReplayVarScope rejects AD_* keys in cli env', () => {
-  assert.throws(
-    () => buildReplayVarScope({ cliEnv: { AD_SESSION: 'x' } }),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      /AD_\* namespace is reserved/.test(error.message),
-  );
-});
-
 test('buildReplayVarScope allows AD_* keys from builtins (trusted)', () => {
   const scope = buildReplayVarScope({
     builtins: { AD_SESSION: 's', AD_PLATFORM: 'android' },
@@ -364,30 +381,11 @@ test('buildReplayVarScope allows AD_* keys from builtins (trusted)', () => {
 });
 
 test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-var-heal-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  // No env directive, but positional uses ${APP}.
-  fs.writeFileSync(
-    scriptPath,
-    'context platform=android\nopen ${APP}\n',
-  );
-  const response = await runReplayScriptFile({
-    req: {
-      token: 't',
-      session: 's',
-      command: 'replay',
-      positionals: [scriptPath],
-      flags: { replayUpdate: true, replayEnv: ['APP=settings'] },
-    },
-    sessionName: 's',
-    logPath: path.join(root, 'log'),
-    sessionStore: new SessionStore(path.join(root, 'state')),
-    invoke: async () => ({ ok: true, data: {} }),
+  const { response } = await runReplayFixture({
+    label: 'var-heal',
+    // No env directive, but positional uses ${APP}.
+    script: 'context platform=android\nopen ${APP}\n',
+    flags: { replayUpdate: true, replayEnv: ['APP=settings'] },
   });
   assert.equal(response.ok, false);
   if (!response.ok) {
@@ -400,46 +398,19 @@ test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', as
 });
 
 test('runReplayScriptFile dispatches resolved literals with file env overridden by CLI', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-green-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  fs.writeFileSync(
-    scriptPath,
-    [
-      'context platform=android',
-      'env APP=file-app',
-      'env SCOPE=file-scope',
-      '',
-      'open ${APP}',
-      'snapshot -s ${SCOPE}',
-      'click "at ${AD_FILENAME}"',
-    ].join('\n') + '\n',
-  );
-  const calls: Array<{ command: string; positionals?: string[]; flags?: Record<string, unknown> }> = [];
-  const response = await runReplayScriptFile({
-    req: {
-      token: 't',
-      session: 's',
-      command: 'replay',
-      positionals: [scriptPath],
-      flags: { replayEnv: ['APP=cli-app'] },
-      meta: { cwd: root },
-    },
-    sessionName: 's',
-    logPath: path.join(root, 'log'),
-    sessionStore: new SessionStore(path.join(root, 'state')),
-    invoke: async (req) => {
-      calls.push({
-        command: req.command,
-        positionals: req.positionals,
-        flags: req.flags,
-      });
-      return { ok: true, data: {} };
-    },
+  const { response, calls } = await runReplayFixture({
+    label: 'green',
+    script:
+      [
+        'context platform=android',
+        'env APP=file-app',
+        'env SCOPE=file-scope',
+        '',
+        'open ${APP}',
+        'snapshot -s ${SCOPE}',
+        'click "at ${AD_FILENAME}"',
+      ].join('\n') + '\n',
+    flags: { replayEnv: ['APP=cli-app'] },
   });
   assert.equal(response.ok, true);
   // open ${APP} -> CLI override wins.
@@ -460,71 +431,28 @@ test('runReplayScriptFile dispatches resolved literals with file env overridden 
 });
 
 test('runReplayScriptFile reads shell env from request (client-collected), not daemon process.env', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-shell-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  fs.writeFileSync(scriptPath, 'context platform=android\nopen ${APP}\n');
   // Ensure the daemon's own process.env does NOT contain AD_VAR_APP.
   assert.equal(process.env.AD_VAR_APP, undefined);
-  const calls: string[] = [];
-  const response = await runReplayScriptFile({
-    req: {
-      token: 't',
-      session: 's',
-      command: 'replay',
-      positionals: [scriptPath],
-      // Client-collected shell env; still uses the raw AD_VAR_* prefix.
-      flags: { replayShellEnv: { AD_VAR_APP: 'client-shell-app' } },
-      meta: { cwd: root },
-    },
-    sessionName: 's',
-    logPath: path.join(root, 'log'),
-    sessionStore: new SessionStore(path.join(root, 'state')),
-    invoke: async (req) => {
-      calls.push((req.positionals ?? []).join(' '));
-      return { ok: true, data: {} };
-    },
+  const { response, calls } = await runReplayFixture({
+    label: 'shell',
+    script: 'context platform=android\nopen ${APP}\n',
+    // Client-collected shell env; still uses the raw AD_VAR_* prefix.
+    flags: { replayShellEnv: { AD_VAR_APP: 'client-shell-app' } },
   });
   assert.equal(response.ok, true);
-  assert.deepEqual(calls, ['client-shell-app']);
+  assert.deepEqual(calls[0]?.positionals, ['client-shell-app']);
 });
 
 test('runReplayScriptFile falls back to process.env when request omits replayShellEnv', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-shell-fallback-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  fs.writeFileSync(scriptPath, 'context platform=android\nopen ${APP}\n');
   const previous = process.env.AD_VAR_APP;
   process.env.AD_VAR_APP = 'daemon-env-app';
   try {
-    const calls: string[] = [];
-    const response = await runReplayScriptFile({
-      req: {
-        token: 't',
-        session: 's',
-        command: 'replay',
-        positionals: [scriptPath],
-        flags: {},
-        meta: { cwd: root },
-      },
-      sessionName: 's',
-      logPath: path.join(root, 'log'),
-      sessionStore: new SessionStore(path.join(root, 'state')),
-      invoke: async (req) => {
-        calls.push((req.positionals ?? []).join(' '));
-        return { ok: true, data: {} };
-      },
+    const { response, calls } = await runReplayFixture({
+      label: 'shell-fallback',
+      script: 'context platform=android\nopen ${APP}\n',
     });
     assert.equal(response.ok, true);
-    assert.deepEqual(calls, ['daemon-env-app']);
+    assert.deepEqual(calls[0]?.positionals, ['daemon-env-app']);
   } finally {
     if (previous === undefined) delete process.env.AD_VAR_APP;
     else process.env.AD_VAR_APP = previous;
@@ -532,35 +460,11 @@ test('runReplayScriptFile falls back to process.env when request omits replayShe
 });
 
 test('AD_ARTIFACTS resolves to per-attempt dir when artifactsDir flag is set by the test runner', async () => {
-  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
-  const { SessionStore } = await import('../../session-store.ts');
-  const fs = await import('node:fs');
-  const os = await import('node:os');
-  const path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-artifacts-'));
-  const scriptPath = path.join(root, 'flow.ad');
-  fs.writeFileSync(
-    scriptPath,
-    'context platform=android\nscreenshot "${AD_ARTIFACTS}/shot.png"\n',
-  );
-  const attemptDir = path.join(root, 'test-artifacts/run-x/flow/attempt-1');
-  const calls: Array<{ positionals?: string[] }> = [];
-  const response = await runReplayScriptFile({
-    req: {
-      token: 't',
-      session: 's',
-      command: 'replay',
-      positionals: [scriptPath],
-      flags: { artifactsDir: attemptDir },
-      meta: { cwd: root },
-    },
-    sessionName: 's',
-    logPath: path.join(root, 'log'),
-    sessionStore: new SessionStore(path.join(root, 'state')),
-    invoke: async (req) => {
-      calls.push({ positionals: req.positionals });
-      return { ok: true, data: {} };
-    },
+  const attemptDir = '/tmp/agent-device-replay-artifacts-stub/run-x/flow/attempt-1';
+  const { response, calls } = await runReplayFixture({
+    label: 'artifacts',
+    script: 'context platform=android\nscreenshot "${AD_ARTIFACTS}/shot.png"\n',
+    flags: { artifactsDir: attemptDir },
   });
   assert.equal(response.ok, true);
   assert.deepEqual(calls[0]?.positionals, [`${attemptDir}/shot.png`]);
