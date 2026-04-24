@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-435/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-435/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-435/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-435/static/js/index.d5ca57dffc.js"></script>
+<script defer src="/agent-device/pr-preview/pr-435/static/js/index.7b02f4e393.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -499,7 +499,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <ul>
 <li><code>react-devtools</code> dynamically runs pinned <code>agent-react-devtools@0.4.0</code> through npm and passes arguments through 1:1.</li>
 <li>The first run may download the pinned package from npm; later runs can reuse the npm cache.</li>
-<li>Put downstream flags after <code>react-devtools</code> so they pass through to <code>agent-react-devtools</code>.</li>
+<li><code>agent-device</code> global flags work before or after <code>react-devtools</code>. Use <code>--</code> before downstream flags only when they intentionally share an <code>agent-device</code> global flag name.</li>
 <li>Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.</li>
 <li>Keep using <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>logs</code>, <code>network</code>, and <code>perf</code> for device/app runtime evidence. Use <code>react-devtools</code> for React internals.</li>
 <li>React Native development builds can connect to the DevTools daemon on port 8097. For Android physical devices, run <code>adb reverse tcp:8097 tcp:8097</code> if the app cannot reach the host.</li>
