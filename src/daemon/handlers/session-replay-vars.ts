@@ -13,8 +13,7 @@ export type ReplayVarSources = {
 };
 
 export const REPLAY_VAR_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
-const INTERPOLATION_RE =
-  /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
+const INTERPOLATION_RE = /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
 const SHELL_PREFIX = 'AD_VAR_';
 const RESERVED_NAMESPACE_PREFIX = 'AD_';
 
@@ -97,20 +96,28 @@ export function resolveReplayString(
   scope: ReplayVarScope,
   loc: { file: string; line: number },
 ): string {
-  return raw.replace(INTERPOLATION_RE, (match, escapedLiteral: string | undefined, key: string | undefined, fallback: string | undefined) => {
-    if (escapedLiteral) return '${';
-    if (!key) return match;
-    if (Object.prototype.hasOwnProperty.call(scope.values, key)) {
-      return scope.values[key];
-    }
-    if (fallback !== undefined) {
-      return fallback.replace(/\\(.)/g, '$1');
-    }
-    throw new AppError(
-      'INVALID_ARGS',
-      `Unresolved variable \${${key}} at ${loc.file}:${loc.line}.`,
-    );
-  });
+  return raw.replace(
+    INTERPOLATION_RE,
+    (
+      match,
+      escapedLiteral: string | undefined,
+      key: string | undefined,
+      fallback: string | undefined,
+    ) => {
+      if (escapedLiteral) return '${';
+      if (!key) return match;
+      if (Object.prototype.hasOwnProperty.call(scope.values, key)) {
+        return scope.values[key];
+      }
+      if (fallback !== undefined) {
+        return fallback.replace(/\\(.)/g, '$1');
+      }
+      throw new AppError(
+        'INVALID_ARGS',
+        `Unresolved variable \${${key}} at ${loc.file}:${loc.line}.`,
+      );
+    },
+  );
 }
 
 export function resolveReplayAction(
@@ -120,9 +127,7 @@ export function resolveReplayAction(
 ): SessionAction {
   return {
     ...action,
-    positionals: (action.positionals ?? []).map((token) =>
-      resolveReplayString(token, scope, loc),
-    ),
+    positionals: (action.positionals ?? []).map((token) => resolveReplayString(token, scope, loc)),
     flags: resolveStringProps(action.flags, scope, loc) ?? {},
     runtime: resolveStringProps(action.runtime, scope, loc),
   };
@@ -134,7 +139,7 @@ function resolveStringProps<T extends object>(
   loc: { file: string; line: number },
 ): T | undefined {
   if (!obj) return obj;
-  const next: Record<string, unknown> = { ...obj };
+  const next: Record<string, unknown> = { ...(obj as Record<string, unknown>) };
   for (const [key, value] of Object.entries(next)) {
     if (typeof value === 'string') {
       next[key] = resolveReplayString(value, scope, loc);

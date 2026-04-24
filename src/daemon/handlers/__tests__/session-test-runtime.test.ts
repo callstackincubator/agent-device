@@ -49,9 +49,7 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
 });
 
 test('runReplayTestAttempt forwards artifactsDir to the runReplay callback', async () => {
-  const runReplay = vi.fn(
-    async (): Promise<DaemonResponse> => ({ ok: true, data: {} }),
-  );
+  const runReplay = vi.fn(async (): Promise<DaemonResponse> => ({ ok: true, data: {} }));
   const cleanupSession = vi.fn(async () => {});
   await runReplayTestAttempt({
     filePath: 'flow.ad',

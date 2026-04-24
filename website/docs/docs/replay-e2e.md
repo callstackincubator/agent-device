@@ -87,7 +87,7 @@ click "label=${APP_ID}"
 | CLI `-e KEY=VALUE` | highest | `agent-device test flow.ad -e APP_ID=demo` |
 | Shell env prefixed `AD_VAR_` | | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`) |
 | Script `env KEY=VALUE` | | `env APP_ID=settings` in header |
-| Built-ins | reserved | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
+| Built-ins | runtime | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
 
 ### Built-ins
 
@@ -100,6 +100,13 @@ Built-ins are provided by replay/test runtime and use the reserved `AD_*` namesp
 - `AD_ARTIFACTS` - attempt artifacts directory (when running under `test`)
 
 User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imports such as `AD_VAR_AD_FOO`, so built-ins cannot be overridden.
+
+Substitution happens inside parsed string values. It does not create extra arguments, so quote selectors or text values that contain spaces:
+
+```ad
+env SETTINGS="label=Account || label=Profile"
+click "${SETTINGS}"
+```
 
 ### Fallback and escape
 

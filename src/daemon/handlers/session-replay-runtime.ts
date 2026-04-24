@@ -195,7 +195,9 @@ function buildReplayBuiltinVars(params: {
 
 function readCliEnvEntries(req: DaemonRequest): string[] {
   const raw = req.flags?.replayEnv;
-  return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
+  return Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === 'string')
+    : [];
 }
 
 function readShellEnvSource(req: DaemonRequest): NodeJS.ProcessEnv {

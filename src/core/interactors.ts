@@ -55,12 +55,7 @@ import {
 import { readLinuxClipboard, writeLinuxClipboard } from '../platforms/linux/clipboard.ts';
 import type { Interactor, RunnerContext } from './interactor-types.ts';
 
-export type {
-  BackMode,
-  Interactor,
-  RunnerContext,
-  ScreenshotOptions,
-} from './interactor-types.ts';
+export type { BackMode, Interactor, RunnerContext, ScreenshotOptions } from './interactor-types.ts';
 
 export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
   switch (device.platform) {

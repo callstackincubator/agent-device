@@ -146,10 +146,7 @@ function decodeReplayEnvValue(raw: string, lineNumber: number): string {
       }
       return parsed;
     } catch {
-      throw new AppError(
-        'INVALID_ARGS',
-        `Invalid quoted env value on line ${lineNumber}.`,
-      );
+      throw new AppError('INVALID_ARGS', `Invalid quoted env value on line ${lineNumber}.`);
     }
   }
   return raw;
@@ -159,10 +156,7 @@ function ingestEnvLine(metadata: ReplayScriptMetadata, trimmed: string, lineNumb
   const { key, value } = parseReplayEnvLine(trimmed, lineNumber);
   const env = metadata.env ?? {};
   if (Object.prototype.hasOwnProperty.call(env, key)) {
-    throw new AppError(
-      'INVALID_ARGS',
-      `Duplicate env directive "${key}" on line ${lineNumber}.`,
-    );
+    throw new AppError('INVALID_ARGS', `Duplicate env directive "${key}" on line ${lineNumber}.`);
   }
   env[key] = value;
   metadata.env = env;

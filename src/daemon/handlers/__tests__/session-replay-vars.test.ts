@@ -72,26 +72,17 @@ test('resolveReplayString substitutes variables', () => {
 
 test('resolveReplayString supports fallback with :-default', () => {
   const scope = buildReplayVarScope({});
-  assert.equal(
-    resolveReplayString('wait ${WAIT_SHORT:-500}', scope, LOC),
-    'wait 500',
-  );
+  assert.equal(resolveReplayString('wait ${WAIT_SHORT:-500}', scope, LOC), 'wait 500');
 });
 
 test('resolveReplayString prefers scope value over fallback', () => {
   const scope = buildReplayVarScope({ fileEnv: { WAIT_SHORT: '1000' } });
-  assert.equal(
-    resolveReplayString('wait ${WAIT_SHORT:-500}', scope, LOC),
-    'wait 1000',
-  );
+  assert.equal(resolveReplayString('wait ${WAIT_SHORT:-500}', scope, LOC), 'wait 1000');
 });
 
 test('resolveReplayString fallback preserves embedded braces via escapes', () => {
   const scope = buildReplayVarScope({});
-  assert.equal(
-    resolveReplayString('x ${A:-one\\}two}', scope, LOC),
-    'x one}two',
-  );
+  assert.equal(resolveReplayString('x ${A:-one\\}two}', scope, LOC), 'x one}two');
 });
 
 test('resolveReplayString supports escape for literal $', () => {
@@ -163,10 +154,10 @@ test('collectReplayShellEnv skips keys that land in reserved AD_* namespace afte
 });
 
 test('parseReplayCliEnvEntries splits KEY=VALUE and rejects invalid keys', () => {
-  assert.deepEqual(
-    parseReplayCliEnvEntries(['APP=settings', 'FOO=bar=baz']),
-    { APP: 'settings', FOO: 'bar=baz' },
-  );
+  assert.deepEqual(parseReplayCliEnvEntries(['APP=settings', 'FOO=bar=baz']), {
+    APP: 'settings',
+    FOO: 'bar=baz',
+  });
   assert.throws(() => parseReplayCliEnvEntries(['NOEQUAL']), AppError);
   assert.throws(() => parseReplayCliEnvEntries(['lower=x']), AppError);
   assert.throws(() => parseReplayCliEnvEntries(['=value']), AppError);
@@ -247,8 +238,7 @@ test('readReplayScriptMetadata parses quoted env values with spaces', () => {
 
 test('readReplayScriptMetadata rejects invalid env key', () => {
   assert.throws(
-    () =>
-      readReplayScriptMetadata('context platform=android\nenv lower=settings\n'),
+    () => readReplayScriptMetadata('context platform=android\nenv lower=settings\n'),
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
@@ -258,10 +248,7 @@ test('readReplayScriptMetadata rejects invalid env key', () => {
 
 test('readReplayScriptMetadata rejects duplicate env key', () => {
   assert.throws(
-    () =>
-      readReplayScriptMetadata(
-        'context platform=android\nenv APP=a\nenv APP=b\n',
-      ),
+    () => readReplayScriptMetadata('context platform=android\nenv APP=a\nenv APP=b\n'),
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
@@ -271,10 +258,7 @@ test('readReplayScriptMetadata rejects duplicate env key', () => {
 
 test('parseReplayScript rejects env after first action', () => {
   assert.throws(
-    () =>
-      parseReplayScript(
-        'context platform=android\nopen settings\nenv APP=late\n',
-      ),
+    () => parseReplayScript('context platform=android\nopen settings\nenv APP=late\n'),
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
@@ -390,10 +374,7 @@ test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', as
   assert.equal(response.ok, false);
   if (!response.ok) {
     assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(
-      response.error.message,
-      /replay -u does not yet preserve \$\{VAR\} substitutions/,
-    );
+    assert.match(response.error.message, /replay -u does not yet preserve \$\{VAR\} substitutions/);
   }
 });
 
