@@ -14,6 +14,7 @@ import {
   parseReplaySeriesFlags,
   parseReplayRuntimeFlags,
 } from '../script-utils.ts';
+import { REPLAY_VAR_KEY_RE } from './session-replay-vars.ts';
 
 type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
 
@@ -28,27 +29,56 @@ export type ReplayScriptMetadata = {
   platform?: ReplayScriptPlatform;
   timeoutMs?: number;
   retries?: number;
+  env?: Record<string, string>;
 };
 
 export function parseReplayScript(script: string): SessionAction[] {
+  return parseReplayScriptDetailed(script).actions;
+}
+
+export type ParsedReplayScript = {
+  actions: SessionAction[];
+  actionLines: number[];
+};
+
+export function parseReplayScriptDetailed(script: string): ParsedReplayScript {
   const actions: SessionAction[] = [];
+  const actionLines: number[] = [];
   const lines = script.split(/\r?\n/);
-  for (const line of lines) {
-    const parsed = parseReplayScriptLine(line);
-    if (parsed) {
-      actions.push(parsed);
+  let sawAction = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
+    const trimmed = rawLine.trim();
+    if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
+    if (isReplayEnvLine(trimmed)) {
+      if (sawAction) {
+        throw new AppError(
+          'INVALID_ARGS',
+          `env directives must precede all actions (line ${index + 1}).`,
+        );
+      }
+      continue;
     }
+    const parsed = parseReplayScriptLine(rawLine);
+    if (!parsed) continue;
+    actions.push(parsed);
+    actionLines.push(index + 1);
+    sawAction = true;
   }
-  return actions;
+  return { actions, actionLines };
 }
 
 export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
   const lines = script.split(/\r?\n/);
   const metadata: ReplayScriptMetadata = {};
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const trimmed = line.trim();
     if (trimmed.length === 0 || trimmed.startsWith('#')) continue;
-    // Metadata comes only from the leading context header block.
+    if (isReplayEnvLine(trimmed)) {
+      ingestEnvLine(metadata, trimmed, index + 1);
+      continue;
+    }
     if (!trimmed.startsWith('context ')) break;
     const platformMatch = trimmed.match(/(?:^|\s)platform=([^\s]+)/);
     if (platformMatch) {
@@ -73,6 +103,63 @@ export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
     }
   }
   return metadata;
+}
+
+function isReplayEnvLine(trimmed: string): boolean {
+  return trimmed === 'env' || trimmed.startsWith('env ') || trimmed.startsWith('env\t');
+}
+
+function parseReplayEnvLine(trimmed: string, lineNumber: number): { key: string; value: string } {
+  const body = trimmed.slice(3).replace(/^[\s]+/, '');
+  const eqIndex = body.indexOf('=');
+  if (eqIndex <= 0) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid env directive on line ${lineNumber}: expected "env KEY=VALUE".`,
+    );
+  }
+  const key = body.slice(0, eqIndex);
+  if (!REPLAY_VAR_KEY_RE.test(key)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid env key "${key}" on line ${lineNumber}: keys must be uppercase letters, digits, and underscores (e.g. APP_ID).`,
+    );
+  }
+  if (key.startsWith('AD_')) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Invalid env key "${key}" on line ${lineNumber}: the AD_* namespace is reserved for built-in variables. Rename ${key} to avoid the AD_ prefix.`,
+    );
+  }
+  const rawValue = body.slice(eqIndex + 1);
+  const value = decodeReplayEnvValue(rawValue, lineNumber);
+  return { key, value };
+}
+
+function decodeReplayEnvValue(raw: string, lineNumber: number): string {
+  if (raw.length === 0) return '';
+  if (raw.startsWith('"')) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (typeof parsed !== 'string') {
+        throw new Error('not a string literal');
+      }
+      return parsed;
+    } catch {
+      throw new AppError('INVALID_ARGS', `Invalid quoted env value on line ${lineNumber}.`);
+    }
+  }
+  return raw;
+}
+
+function ingestEnvLine(metadata: ReplayScriptMetadata, trimmed: string, lineNumber: number): void {
+  const { key, value } = parseReplayEnvLine(trimmed, lineNumber);
+  const env = metadata.env ?? {};
+  if (Object.prototype.hasOwnProperty.call(env, key)) {
+    throw new AppError('INVALID_ARGS', `Duplicate env directive "${key}" on line ${lineNumber}.`);
+  }
+  env[key] = value;
+  metadata.env = env;
 }
 
 function assignReplayMetadataValue<Key extends keyof ReplayScriptMetadata>(

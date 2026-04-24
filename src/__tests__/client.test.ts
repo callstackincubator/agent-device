@@ -371,6 +371,42 @@ test('client throws AppError for daemon failures', async () => {
   );
 });
 
+test('replay.run serializes client-collected AD_VAR shell env into daemon request', async () => {
+  const previousAppId = process.env.AD_VAR_APP_ID;
+  const previousWaitMs = process.env.AD_VAR_WAIT_MS;
+  const previousLegacy = process.env.AD_APP_ID;
+  process.env.AD_VAR_APP_ID = 'com.example.debug';
+  process.env.AD_VAR_WAIT_MS = '750';
+  process.env.AD_APP_ID = 'legacy-prefix-ignored';
+  try {
+    const setup = createTransport(async () => ({ ok: true, data: {} }));
+    const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+    await client.replay.run({
+      path: './flows/login.ad',
+      env: ['APP_ID=cli-override'],
+    });
+
+    assert.equal(setup.calls.length, 1);
+    assert.equal(setup.calls[0]?.command, 'replay');
+    assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.ad']);
+    assert.deepEqual(setup.calls[0]?.flags?.replayEnv, ['APP_ID=cli-override']);
+    const replayShellEnv = setup.calls[0]?.flags?.replayShellEnv as
+      | Record<string, string>
+      | undefined;
+    assert.equal(replayShellEnv?.AD_VAR_APP_ID, 'com.example.debug');
+    assert.equal(replayShellEnv?.AD_VAR_WAIT_MS, '750');
+    assert.equal(Object.prototype.hasOwnProperty.call(replayShellEnv ?? {}, 'AD_APP_ID'), false);
+  } finally {
+    if (previousAppId === undefined) delete process.env.AD_VAR_APP_ID;
+    else process.env.AD_VAR_APP_ID = previousAppId;
+    if (previousWaitMs === undefined) delete process.env.AD_VAR_WAIT_MS;
+    else process.env.AD_VAR_WAIT_MS = previousWaitMs;
+    if (previousLegacy === undefined) delete process.env.AD_APP_ID;
+    else process.env.AD_APP_ID = previousLegacy;
+  }
+});
+
 test('client.command.wait prepares selector options and rejects invalid selectors', async () => {
   const setup = createTransport(async () => ({
     ok: true,

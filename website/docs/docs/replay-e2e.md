@@ -66,6 +66,104 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use `--verbose` to print every test result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
 
+## Parametrise `.ad` scripts
+
+Substitute `${VAR}` tokens in `.ad` scripts using values from the CLI, shell env, script-local `env` directives, or built-ins.
+
+```sh
+context platform=android
+env APP_ID=settings
+env WAIT_SHORT=500
+
+open ${APP_ID} --relaunch
+wait ${WAIT_SHORT}
+click "label=${APP_ID}"
+```
+
+### Precedence
+
+| Source | Priority | Example |
+|---|---|---|
+| CLI `-e KEY=VALUE` | highest | `agent-device test flow.ad -e APP_ID=demo` |
+| Shell env prefixed `AD_VAR_` | | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`) |
+| Script `env KEY=VALUE` | | `env APP_ID=settings` in header |
+| Built-ins | runtime | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
+
+### Built-ins
+
+Built-ins are provided by replay/test runtime and use the reserved `AD_*` namespace.
+
+- `AD_PLATFORM` - matches `context platform=...` or the selected platform when available
+- `AD_SESSION` - active session name
+- `AD_FILENAME` - path of the running `.ad` file
+- `AD_DEVICE` - device identifier (when `--device` is set)
+- `AD_ARTIFACTS` - attempt artifacts directory (when running under `test`)
+
+User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imports such as `AD_VAR_AD_FOO`, so built-ins cannot be overridden.
+
+Substitution happens inside parsed string values. It does not create extra arguments, so quote selectors or text values that contain spaces:
+
+```ad
+env SETTINGS="label=Account || label=Profile"
+click "${SETTINGS}"
+```
+
+### Fallback and escape
+
+```sh
+wait ${WAIT_MS:-500}
+```
+
+`${VAR:-default}` yields `default` when `VAR` is unset.
+
+```sh
+echo "Price: \${APP}"
+```
+
+`\${APP}` emits a literal `${APP}` with no substitution.
+
+### Recipes
+
+Run one flow against two app variants in CI:
+
+```sh
+agent-device test ./flows/login.ad -e APP_ID=com.example.debug
+agent-device test ./flows/login.ad -e APP_ID=com.example.release
+```
+
+Tune timings locally without editing the script:
+
+```sh
+AD_VAR_WAIT_SHORT=2000 agent-device replay ./flow.ad
+```
+
+Extract a reusable selector. Before:
+
+```ad
+click "label=Account || label=Profile || label=User"
+wait 500
+click "label=Account || label=Profile || label=User"
+```
+
+After:
+
+```ad
+env SETTINGS="label=Account || label=Profile || label=User"
+
+click "${SETTINGS}"
+wait 500
+click "${SETTINGS}"
+```
+
+Quote `${VAR}` inside selector expressions so the whole expression is treated as a single argument.
+
+### Notes
+
+- `replay -u` does not yet preserve `env` directives or `${VAR}` tokens. Workaround: temporarily inline the literal values, run `-u`, re-parametrise.
+- Shell env (`AD_VAR_*`) is collected on the CLI/client side at request time, so the same values are seen whether the daemon runs locally or remotely.
+- No nested fallback. `${A:-${B}}` is not supported.
+- Unresolved `${VAR}` fails with a `file:line` reference. Typos are loud.
+
 ## Update stale selectors in replay scripts
 
 ```bash

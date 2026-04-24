@@ -259,3 +259,57 @@ test('readReplayScriptMetadata rejects conflicting metadata keys in context head
       /Conflicting replay test metadata "timeoutMs"/.test(error.message),
   );
 });
+
+test('writeReplayScript round-trips ${VAR} tokens byte-for-byte across positionals and flags', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-vars-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'open',
+      positionals: ['${APP_ID}'],
+      runtime: {
+        platform: 'android',
+        metroHost: '${HOST}',
+      },
+      flags: { relaunch: true },
+    },
+    {
+      ts: Date.now(),
+      command: 'click',
+      positionals: ['label=Wait || ${EXTRA}'],
+      flags: {},
+    },
+    {
+      ts: Date.now(),
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotScope: '${SNAPSHOT_SCOPE:-app}' },
+    },
+    {
+      ts: Date.now(),
+      command: 'fill',
+      positionals: ['@e2', 'value-${SUFFIX}'],
+      flags: {},
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+  // Each raw ${...} token must be preserved on disk.
+  assert.ok(script.includes('${APP_ID}'), `missing \${APP_ID} in:\n${script}`);
+  assert.ok(script.includes('${HOST}'), `missing \${HOST} in:\n${script}`);
+  assert.ok(script.includes('label=Wait || ${EXTRA}'), `missing \${EXTRA} in:\n${script}`);
+  assert.ok(
+    script.includes('${SNAPSHOT_SCOPE:-app}'),
+    `missing \${SNAPSHOT_SCOPE:-app} in:\n${script}`,
+  );
+  assert.ok(script.includes('value-${SUFFIX}'), `missing \${SUFFIX} in:\n${script}`);
+
+  const parsed = parseReplayScript(script);
+  assert.deepEqual(parsed[0]?.positionals, ['${APP_ID}']);
+  assert.equal(parsed[0]?.runtime?.metroHost, '${HOST}');
+  assert.deepEqual(parsed[1]?.positionals, ['label=Wait || ${EXTRA}']);
+  assert.equal(parsed[2]?.flags.snapshotScope, '${SNAPSHOT_SCOPE:-app}');
+  assert.deepEqual(parsed[3]?.positionals, ['@e2', 'value-${SUFFIX}']);
+});

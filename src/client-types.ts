@@ -611,12 +611,14 @@ export type FindOptions =
 export type ReplayRunOptions = AgentDeviceRequestOverrides & {
   path: string;
   update?: boolean;
+  env?: string[];
 };
 
 export type ReplayTestOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     paths: string[];
     update?: boolean;
+    env?: string[];
     failFast?: boolean;
     timeoutMs?: number;
     retries?: number;
@@ -738,6 +740,8 @@ type CommandExecutionOptions = {
   headless?: boolean;
   restart?: boolean;
   replayUpdate?: boolean;
+  replayEnv?: string[];
+  replayShellEnv?: Record<string, string>;
   failFast?: boolean;
   timeoutMs?: number;
   retries?: number;

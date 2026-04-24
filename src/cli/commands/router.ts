@@ -13,10 +13,7 @@ import { snapshotCommand } from './snapshot.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
 import { clientCommandMethodHandlers } from './client-command.ts';
 import { genericClientCommandHandlers } from './generic.ts';
-import type {
-  ClientCommandHandler,
-  ClientCommandHandlerMap,
-} from './router-types.ts';
+import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
 
 export type {
   ClientCommandHandler,

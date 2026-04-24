@@ -1,4 +1,8 @@
-import type { AgentDeviceRuntime, CommandContext, CommandSessionRecord } from '../runtime-contract.ts';
+import type {
+  AgentDeviceRuntime,
+  CommandContext,
+  CommandSessionRecord,
+} from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import type { SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
