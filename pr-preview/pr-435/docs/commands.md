@@ -556,7 +556,7 @@ agent-device react-devtools profile rerenders --limit 5
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
-- For cross-platform validation, use an isolated `--state-dir`, avoid named `--session` during setup with explicit `--device`/`--udid`/`--serial` selectors unless you want bound-session locks, and restart `react-devtools` between iOS and Android runs.
+- For cross-platform validation with explicit target selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `react-devtools` between iOS and Android runs.
 
 ## Media and logs
 
