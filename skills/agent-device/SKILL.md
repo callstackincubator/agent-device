@@ -71,4 +71,4 @@ Use this skill as a router with mandatory defaults. Read this file first. For no
 - Need desktop surfaces, menu bar behavior, or macOS-specific interaction rules: [references/macos-desktop.md](references/macos-desktop.md)
 - Need remote HTTP transport, `connect --remote-config`, or tenant leases on a remote macOS host: [references/remote-tenancy.md](references/remote-tenancy.md)
   This includes remote React Native runs where `agent-device` now prepares Metro locally and manages the local Metro companion tunnel automatically.
-- Need the React component tree, props, state, hooks, or render profiling: pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project when available.
+- Need the React Native component tree, props, state, hooks, or render profiling: use `agent-device react-devtools ...` and the [react-devtools skill](../react-devtools/SKILL.md).

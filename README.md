@@ -37,7 +37,17 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 
 Use `agent-device` for on-device UI automation, screenshots/recordings, app logs, network inspection, and performance snapshots.
 
-When the task needs the React component tree, props, state, hooks, or render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project. The two tools solve different layers of the same debugging workflow.
+When the task needs the React Native component tree, props, state, hooks, or render profiling, use the bundled passthrough:
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
+
+`react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` commands 1:1, so `agent-device` covers both the device/app runtime layer and React component internals without making React DevTools part of the daemon.
 
 ## Command Flow
 
@@ -77,6 +87,7 @@ For people:
 For agents:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
+- [react-devtools skill](skills/react-devtools/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)
 

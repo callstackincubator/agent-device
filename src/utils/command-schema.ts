@@ -154,6 +154,7 @@ const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies 
 
 const AGENT_SKILLS = [
   { label: 'agent-device', description: 'Canonical mobile automation flows' },
+  { label: 'react-devtools', description: 'React Native component tree and render profiling' },
   { label: 'dogfood', description: 'Exploratory QA and bug hunts' },
 ] as const;
 
@@ -173,6 +174,7 @@ const EXAMPLE_LINES = [
   'agent-device open Settings --platform ios',
   'agent-device open TextEdit --platform macos',
   'agent-device snapshot -i',
+  'agent-device react-devtools get tree --depth 3',
   'agent-device fill @e3 "test@example.com"',
   'agent-device replay ./session.ad',
   'agent-device test ./suite --platform android',
@@ -1149,6 +1151,17 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Show performance metrics',
     positionalArgs: [],
     allowedFlags: [],
+  },
+  'react-devtools': {
+    usageOverride: 'react-devtools [...args]',
+    listUsageOverride: 'react-devtools [...args]',
+    helpDescription:
+      'Run pinned agent-react-devtools commands for React Native component trees, props/state/hooks, and render profiling',
+    summary: 'Inspect and profile React Native component trees',
+    positionalArgs: ['args?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   back: {
     usageOverride: 'back [--in-app|--system]',

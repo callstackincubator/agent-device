@@ -14,7 +14,7 @@ title: Introduction
 
 If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in this repository.
-For React component trees, props/state/hooks, and render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
+For React Native component trees, props/state/hooks, and render profiling, use `agent-device react-devtools`, which dynamically runs pinned `agent-react-devtools` commands.
 
 ## What it’s good at
 
@@ -51,7 +51,15 @@ For React component trees, props/state/hooks, and render profiling, pair it with
 
 `agent-device` is intentionally centered on the device/app layer: UI automation, screenshots/recordings, app logs, network inspection, and performance sampling.
 
-When a debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use the complementary `agent-react-devtools` project alongside `agent-device` rather than as a replacement.
+When a React Native debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use `agent-device react-devtools` alongside normal device commands:
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
 
 ## Example
 

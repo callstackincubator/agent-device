@@ -166,6 +166,16 @@ test('parseArgs recognizes network include flag', () => {
   assert.equal(parsed.flags.networkInclude, 'headers');
 });
 
+test('parseArgs preserves react-devtools arguments as passthrough positionals', () => {
+  const parsed = parseArgs(
+    ['--json', 'react-devtools', 'profile', 'diff', '--threshold', '10', '--limit=5'],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'react-devtools');
+  assert.equal(parsed.flags.json, true);
+  assert.deepEqual(parsed.positionals, ['profile', 'diff', '--threshold', '10', '--limit=5']);
+});
+
 test('parseArgs accepts push with payload file', () => {
   const parsed = parseArgs(['push', 'com.example.app', './payload.json'], { strictFlags: true });
   assert.equal(parsed.command, 'push');

@@ -93,6 +93,7 @@ export const commandCatalog: readonly CommandCatalogEntry[] = [
   { command: 'disconnect', category: 'environment', status: 'planned' },
   { command: 'connection', category: 'environment', status: 'planned' },
   { command: 'metro', category: 'environment', status: 'planned' },
+  { command: 'react-devtools', category: 'environment', status: 'implemented' },
   { command: 'record', category: 'capability-gated', status: 'implemented' },
   { command: 'trace', category: 'capability-gated', status: 'implemented' },
   { command: 'replay', category: 'capability-gated', status: 'planned' },

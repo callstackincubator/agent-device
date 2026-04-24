@@ -26,5 +26,5 @@ features:
   - title: Visual verification
     details: Capture full-resolution screenshots and video recordings for reporting and visual checks.
   - title: Complementary React internals
-    details: Pair agent-device with agent-react-devtools when you need the React component tree, props, state, hooks, or render profiling.
+    details: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
 ---
