@@ -9,7 +9,7 @@ Use this skill when the task needs React Native internals that are not visible i
 
 Run commands through `agent-device react-devtools`. The command dynamically runs pinned `agent-react-devtools@0.4.0` and passes arguments through 1:1.
 
-The first run may download the pinned package from npm. Put downstream flags after `react-devtools` so they pass through to `agent-react-devtools`.
+The first run may download the pinned package from npm. `agent-device` global flags work before or after `react-devtools`; use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
 
 ## Default flow
 
