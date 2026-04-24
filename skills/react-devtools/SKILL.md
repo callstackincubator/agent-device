@@ -20,6 +20,8 @@ The first run may download the pinned package from npm. `agent-device` global fl
 5. Profile only around the interaction being investigated.
 6. Verify the fix with the same command sequence and interaction.
 
+For cross-platform validation, prefer an isolated `--state-dir` over a named `--session` while booting, installing, or opening with explicit `--device`, `--udid`, or `--serial` selectors. Restart `agent-device react-devtools` between iOS and Android runs so `status`, `get tree`, and profiling clearly refer to the currently launched app.
+
 ## Main commands
 
 ```bash
@@ -41,6 +43,7 @@ agent-device react-devtools profile rerenders --limit 5
 - Start component-tree reads with `get tree --depth 3` or `find <name>` to keep output bounded.
 - Labels like `@c5` reset when the app reloads or components remount. After reload, run `wait --connected` and inspect again.
 - Profiling only captures renders between `profile start` and `profile stop`.
+- On Android, set `adb reverse tcp:8097 tcp:8097` for React DevTools. If Metro is local, also set `adb reverse tcp:8081 tcp:8081`.
 
 ## References
 
