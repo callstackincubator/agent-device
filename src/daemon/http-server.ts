@@ -406,7 +406,7 @@ export async function createDaemonHttpServer(options: {
       return;
     }
 
-    if (req.method === 'GET' && req.url?.startsWith('/upload/')) {
+    if (req.method === 'GET' && req.url?.startsWith('/artifacts/')) {
       void handleArtifactDownload(req, res, authHook, token);
       return;
     }
@@ -611,7 +611,7 @@ async function handleArtifactDownload(
   authHook: HttpAuthHook | null,
   expectedToken?: string,
 ): Promise<void> {
-  const artifactId = req.url?.slice('/upload/'.length) ?? '';
+  const artifactId = req.url?.slice('/artifacts/'.length) ?? '';
   if (!artifactId) {
     res.statusCode = 400;
     res.end('Missing artifact id');
