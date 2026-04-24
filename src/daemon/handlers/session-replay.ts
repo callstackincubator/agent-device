@@ -1,8 +1,24 @@
+import type { CommandFlags } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
+import type { ReplayScriptMetadata } from './session-replay-script.ts';
+
+export function buildNestedReplayFlags(params: {
+  parentFlags: CommandFlags | undefined;
+  platform: ReplayScriptMetadata['platform'] | undefined;
+  artifactsDir: string | undefined;
+}): CommandFlags | undefined {
+  const { parentFlags, platform, artifactsDir } = params;
+  if (platform === undefined && artifactsDir === undefined) return parentFlags;
+  return {
+    ...(parentFlags ?? {}),
+    ...(platform !== undefined ? { platform } : {}),
+    ...(artifactsDir !== undefined ? { artifactsDir } : {}),
+  };
+}
 
 export async function handleSessionReplayCommands(params: {
   req: DaemonRequest;
@@ -32,6 +48,7 @@ export async function handleSessionReplayCommands(params: {
         sessionName: testSessionName,
         platform,
         requestId,
+        artifactsDir,
         artifactPaths,
       }) => {
         const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
@@ -40,13 +57,19 @@ export async function handleSessionReplayCommands(params: {
           return response;
         };
 
+        const nestedFlags = buildNestedReplayFlags({
+          parentFlags: req.flags,
+          platform,
+          artifactsDir,
+        });
+
         return await runReplayScriptFile({
           req: {
             ...req,
             command: 'replay',
             session: testSessionName,
             positionals: [filePath],
-            flags: platform === undefined ? req.flags : { ...(req.flags ?? {}), platform },
+            flags: nestedFlags,
             meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
           },
           sessionName: testSessionName,

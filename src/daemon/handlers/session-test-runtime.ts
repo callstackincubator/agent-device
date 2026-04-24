@@ -20,17 +20,27 @@ export async function runReplayTestAttempt(params: {
   requestId: string;
   timeoutMs?: number;
   platform?: ReplayScriptMetadata['platform'];
+  artifactsDir?: string;
   runReplay: (params: {
     filePath: string;
     sessionName: string;
     platform?: ReplayScriptMetadata['platform'];
     requestId?: string;
+    artifactsDir?: string;
     artifactPaths?: Set<string>;
   }) => Promise<DaemonResponse>;
   cleanupSession: (sessionName: string) => Promise<void>;
 }): Promise<DaemonResponse> {
-  const { filePath, sessionName, requestId, timeoutMs, platform, runReplay, cleanupSession } =
-    params;
+  const {
+    filePath,
+    sessionName,
+    requestId,
+    timeoutMs,
+    platform,
+    artifactsDir,
+    runReplay,
+    cleanupSession,
+  } = params;
   registerRequestAbort(requestId);
   const artifactPaths = new Set<string>();
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -40,6 +50,7 @@ export async function runReplayTestAttempt(params: {
     sessionName,
     platform,
     requestId,
+    artifactsDir,
     artifactPaths,
   })
     .catch((error) => {

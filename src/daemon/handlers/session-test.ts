@@ -33,6 +33,7 @@ export async function runReplayTestSuite(params: {
     sessionName: string;
     platform?: ReplayScriptMetadata['platform'];
     requestId?: string;
+    artifactsDir?: string;
     artifactPaths?: Set<string>;
   }) => Promise<DaemonResponse>;
   cleanupSession: (sessionName: string) => Promise<void>;
@@ -118,6 +119,7 @@ async function runReplayTestCase(params: {
     sessionName: string;
     platform?: ReplayScriptMetadata['platform'];
     requestId?: string;
+    artifactsDir?: string;
     artifactPaths?: Set<string>;
   }) => Promise<DaemonResponse>;
   cleanupSession: (sessionName: string) => Promise<void>;
@@ -169,6 +171,7 @@ async function runReplayTestCase(params: {
       requestId: attemptRequestId,
       timeoutMs,
       platform: entry.metadata.platform,
+      artifactsDir: attemptArtifactsDir,
       runReplay,
       cleanupSession,
     });

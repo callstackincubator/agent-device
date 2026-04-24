@@ -530,3 +530,38 @@ test('runReplayScriptFile falls back to process.env when request omits replayShe
     else process.env.AD_VAR_APP = previous;
   }
 });
+
+test('AD_ARTIFACTS resolves to per-attempt dir when artifactsDir flag is set by the test runner', async () => {
+  const { runReplayScriptFile } = await import('../session-replay-runtime.ts');
+  const { SessionStore } = await import('../../session-store.ts');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-artifacts-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(
+    scriptPath,
+    'context platform=android\nscreenshot "${AD_ARTIFACTS}/shot.png"\n',
+  );
+  const attemptDir = path.join(root, 'test-artifacts/run-x/flow/attempt-1');
+  const calls: Array<{ positionals?: string[] }> = [];
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      flags: { artifactsDir: attemptDir },
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore: new SessionStore(path.join(root, 'state')),
+    invoke: async (req) => {
+      calls.push({ positionals: req.positionals });
+      return { ok: true, data: {} };
+    },
+  });
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls[0]?.positionals, [`${attemptDir}/shot.png`]);
+});
