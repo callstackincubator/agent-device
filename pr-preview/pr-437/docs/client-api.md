@@ -269,7 +269,10 @@ Direct Android `.apk` and `.aab` URL sources can still resolve package identity 
 ## Remote Metro helpers
 
 ```ts
-import { prepareRemoteMetro, stopMetroTunnel } from 'agent-device/metro';
+import {
+  prepareRemoteMetro,
+  stopMetroTunnel,
+} from 'agent-device/metro';
 import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
 
 const remoteConfig = resolveRemoteConfigProfile({
