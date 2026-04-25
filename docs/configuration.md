@@ -81,6 +81,21 @@ Common keys include:
 
 Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `quality`, `stepsFile`, or `saveScript`.
 
+`install-from-source` can also read a structured GitHub Actions artifact source from config when a compatible remote daemon resolves CI artifacts server-side:
+
+```json
+{
+  "platform": "android",
+  "installSource": {
+    "type": "github-actions-artifact",
+    "repo": "thymikee/RNCLI83",
+    "artifact": "rn-android-emulator-debug-pr-19"
+  }
+}
+```
+
+Use a numeric `artifact` value for an artifact ID. Use a string `artifact` value for an artifact name.
+
 Bound-session defaults use the same config and env mapping too:
 
 - `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
