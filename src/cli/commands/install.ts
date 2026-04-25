@@ -3,6 +3,7 @@ import { serializeDeployResult, serializeInstallFromSourceResult } from '../../c
 import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient, AppDeployResult } from '../../client.ts';
 import { buildSelectionOptions, writeCommandMessage } from './shared.ts';
+import { parseGitHubActionsArtifactInstallSourceSpec } from '../../utils/install-source-config.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const installCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
@@ -59,26 +60,47 @@ async function runInstallFromSourceCommand(
   flags: CliFlags,
   client: AgentDeviceClient,
 ) {
-  const url = positionals[0]?.trim();
-  if (!url) {
-    throw new AppError('INVALID_ARGS', 'install-from-source requires: install-from-source <url>');
-  }
-  if (positionals.length > 1) {
+  const source = resolveInstallSource(positionals, flags);
+  if (source.kind !== 'url' && flags.header && flags.header.length > 0) {
     throw new AppError(
       'INVALID_ARGS',
-      'install-from-source accepts exactly one positional argument: <url>',
+      'install-from-source --header is only supported for URL sources',
     );
   }
   return await client.apps.installFromSource({
     ...buildSelectionOptions(flags),
     retainPaths: flags.retainPaths,
     retentionMs: flags.retentionMs,
-    source: {
-      kind: 'url',
-      url,
-      headers: parseInstallSourceHeaders(flags.header),
-    },
+    source,
   });
+}
+
+function resolveInstallSource(positionals: string[], flags: CliFlags) {
+  const url = positionals[0]?.trim();
+  if (positionals.length > 1) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'install-from-source accepts either one <url> positional or --github-actions-artifact',
+    );
+  }
+  const githubArtifactSource = flags.githubActionsArtifact
+    ? parseGitHubActionsArtifactInstallSourceSpec(flags.githubActionsArtifact)
+    : undefined;
+  const configuredSource = flags.installSource;
+  const sourceCount = (url ? 1 : 0) + (githubArtifactSource ? 1 : 0) + (configuredSource ? 1 : 0);
+  if (sourceCount !== 1) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'install-from-source requires exactly one source: <url>, --github-actions-artifact, or config installSource',
+    );
+  }
+  if (githubArtifactSource) return githubArtifactSource;
+  if (configuredSource) return configuredSource;
+  return {
+    kind: 'url' as const,
+    url: url!,
+    headers: parseInstallSourceHeaders(flags.header),
+  };
 }
 
 function parseInstallSourceHeaders(

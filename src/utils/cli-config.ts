@@ -9,6 +9,7 @@ import {
   getOptionSpec,
   parseOptionValueFromSource,
 } from './cli-option-schema.ts';
+import { parseInstallSourceConfig } from './install-source-config.ts';
 
 type EnvMap = Record<string, string | undefined>;
 
@@ -99,6 +100,10 @@ function parseConfigObject(
 ): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
   for (const [rawKey, rawValue] of Object.entries(source)) {
+    if (rawKey === 'installSource') {
+      flags.installSource = parseInstallSourceConfig(rawValue, sourceLabel);
+      continue;
+    }
     const key = rawKey as FlagKey;
     const spec = getOptionSpec(key);
     if (!spec) {
@@ -120,6 +125,7 @@ function parseConfigObject(
 function readEnvFlagDefaults(env: EnvMap, command: string | null): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
   for (const spec of getConfigurableOptionSpecs(command)) {
+    if (spec.key === 'installSource') continue;
     const envNames = spec.env.names;
     const envValue = envNames
       .map((name) => ({ name, value: env[name] }))

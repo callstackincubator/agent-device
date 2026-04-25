@@ -109,6 +109,21 @@ test('resolveInstallSource leaves URL sources unchanged even when upload metadat
   resolved.cleanup();
 });
 
+test('resolveInstallSource rejects GitHub Actions artifact sources on the local daemon', () => {
+  expect(() =>
+    resolveInstallSource(
+      makeRequest({
+        installSource: {
+          kind: 'github-actions-artifact',
+          owner: 'acme',
+          repo: 'mobile',
+          artifactId: 1234567890,
+        },
+      }),
+    ),
+  ).toThrow(/compatible remote daemon/i);
+});
+
 test('install_from_source returns Android package identity resolved after install when artifact inspection is empty', async () => {
   const sessionStore = makeSessionStore();
   const session = makeAndroidSession('default');

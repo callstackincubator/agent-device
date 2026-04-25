@@ -4,11 +4,11 @@ import type {
   DaemonRequestMeta as PublicDaemonRequestMeta,
   DaemonResponse as PublicDaemonResponse,
   DaemonResponseData as PublicDaemonResponseData,
+  DaemonInstallSource as PublicDaemonInstallSource,
   LeaseBackend,
   SessionRuntimeHints as PublicSessionRuntimeHints,
 } from '../contracts.ts';
 export type { DaemonLockPolicy } from '../contracts.ts';
-import type { MaterializeInstallSource } from '../platforms/install-source.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
@@ -16,7 +16,7 @@ import type { ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import type { AppLogState } from './app-log-process.ts';
 
-export type DaemonInstallSource = MaterializeInstallSource;
+export type DaemonInstallSource = PublicDaemonInstallSource;
 export type SessionRuntimeHints = PublicSessionRuntimeHints;
 export type DaemonArtifact = PublicDaemonArtifact;
 export type DaemonResponseData = PublicDaemonResponseData;

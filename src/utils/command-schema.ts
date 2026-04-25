@@ -1,5 +1,6 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 import { SESSION_SURFACES } from '../core/session-surface.ts';
+import type { DaemonInstallSource } from '../contracts.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -78,6 +79,8 @@ export type CliFlags = {
   pattern?: 'one-way' | 'ping-pong';
   activity?: string;
   header?: string[];
+  githubActionsArtifact?: string;
+  installSource?: DaemonInstallSource;
   saveScript?: boolean | string;
   shutdown?: boolean;
   relaunch?: boolean;
@@ -531,6 +534,19 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     multiple: true,
     usageLabel: '--header <name:value>',
     usageDescription: 'install-from-source: repeatable HTTP header for URL downloads',
+  },
+  {
+    key: 'githubActionsArtifact',
+    names: ['--github-actions-artifact'],
+    type: 'string',
+    usageLabel: '--github-actions-artifact <owner/repo:artifact>',
+    usageDescription: 'install-from-source: GitHub Actions artifact resolved by a remote daemon',
+  },
+  {
+    key: 'installSource',
+    // Config-only virtual option; parsed explicitly from JSON before generic string options.
+    names: [],
+    type: 'string',
   },
   {
     key: 'session',
@@ -1067,10 +1083,19 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   'install-from-source': {
-    helpDescription: 'Install app from a URL source through the normal daemon artifact flow',
-    summary: 'Install app from a URL source',
-    positionalArgs: ['url'],
-    allowedFlags: ['header', 'retainPaths', 'retentionMs'],
+    usageOverride:
+      'install-from-source <url> | install-from-source --github-actions-artifact <owner/repo:artifact>',
+    listUsageOverride: 'install-from-source <url> | install-from-source --github-actions-artifact',
+    helpDescription: 'Install app from a URL or remote-resolved source',
+    summary: 'Install app from a source',
+    positionalArgs: ['url?'],
+    allowedFlags: [
+      'header',
+      'githubActionsArtifact',
+      'installSource',
+      'retainPaths',
+      'retentionMs',
+    ],
   },
   push: {
     helpDescription: 'Simulate push notification payload delivery',

@@ -18,6 +18,7 @@ Use this exact order when you are not sure about the installed app identifier. O
 
 - `install` or `reinstall`
 - `install-from-source` when the artifact already exists at a URL the daemon can reach
+- `install-from-source --github-actions-artifact` when a compatible remote daemon should resolve a GitHub Actions artifact
 
 ## Most common mistake to avoid
 
@@ -35,8 +36,6 @@ After setup is confirmed or completed, move to `exploration.md` before doing UI 
 - If `open <app>` fails, run `agent-device apps` and retry with a discovered app name before considering install steps.
 - Do not install or reinstall on the first attempt unless the user explicitly asks for installation or provides a concrete artifact path or URL.
 - When installation is required from a known location, prefer a checked-in shell script or other deterministic bootstrap command over ad hoc path guessing.
-
-- If `open <app>` fails, or you are not sure which app name is available on the target, run `agent-device apps` first and choose from the discovered app list instead of guessing.
 - Use `apps --platform <platform>` together with `--device`, `--udid`, or `--serial` when target selection matters.
 - Once you have the correct app name, retry `open` with that exact discovered value.
 
@@ -64,8 +63,27 @@ agent-device install com.example.app ./build/MyApp.app --platform ios --device "
 ```bash
 ARTIFACT_URL="<trusted-artifact-url>"
 agent-device install-from-source "$ARTIFACT_URL" --platform android
-GITHUB_ARTIFACT_URL="<trusted-github-actions-artifact-api-url>"
-agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header "authorization: Bearer TOKEN"
+```
+
+Daemon-resolved GitHub Actions artifacts:
+
+```bash
+agent-device install-from-source \
+  --github-actions-artifact ORG/REPO:1234567890 \
+  --platform android
+```
+
+Project config can provide an artifact name instead:
+
+```json
+{
+  "platform": "android",
+  "installSource": {
+    "type": "github-actions-artifact",
+    "repo": "ORG/REPO",
+    "artifact": "app-debug"
+  }
+}
 ```
 
 ## Install guidance
@@ -73,6 +91,7 @@ agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header 
 - Use `install <app> <path>` when the app may already be installed and you do not need a fresh-state reset.
 - Use `reinstall <app> <path>` when you explicitly need uninstall plus install as one deterministic step.
 - Use `install-from-source <url>` only when an existing artifact URL is trusted, operator-approved, and reachable by the daemon.
+- Use `--github-actions-artifact <org>/<repo>:<artifact>` when a compatible remote daemon should resolve a GitHub Actions artifact. Numeric artifacts are IDs; non-numeric artifacts are names.
 - Local `.apk`, `.aab`, `.app`, and `.ipa` paths go through `install` or `reinstall`; existing reachable URLs go through `install-from-source`.
 - Do not download, re-zip, publish temporary GitHub releases, or move CI artifacts elsewhere just to make an install command work.
 - Keep install and open as separate phases. Do not turn them into one default command flow.
@@ -80,10 +99,10 @@ agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header 
   - Android: `.apk` and `.aab`
   - iOS: `.app` and `.ipa`
 - Android URL sources can be direct `.apk` or `.aab` files.
-- Trusted artifact service URLs, currently GitHub Actions and EAS, may point at archive-backed downloads that contain one installable artifact. This includes GitHub Actions artifact ZIPs whose URL path does not end in `.zip` and ZIPs containing one nested `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
+- Trusted artifact service URLs may point at archive-backed downloads that contain one installable artifact. Prefer `--github-actions-artifact` for GitHub Actions artifacts that a compatible remote daemon can resolve with its own credentials.
 - If a trusted artifact archive contains multiple installables, stop and ask for the intended artifact instead of guessing.
 - `.aab` still requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`, when the daemon installs the materialized artifact.
-- For iOS `.ipa` files, `<app>` is used as the bundle id or bundle name hint when the archive contains multiple app bundles.
+- For `.ipa` archives with multiple app bundles, `<app>` is the bundle id or bundle name selection hint.
 - After install or reinstall, later use `open <app>` with the exact discovered or known package/bundle identifier, not the artifact path.
 
 ## Choose the right starting point

@@ -233,6 +233,114 @@ test('HTTP install_from_source RPC maps typed params to an install_source daemon
   });
 });
 
+test('HTTP install_from_source RPC accepts GitHub Actions artifact sources', async (ctx) => {
+  if (!(await supportsLoopbackBind())) {
+    ctx.skip();
+    return;
+  }
+
+  let observedRequest: DaemonRequest | undefined;
+  const server = await createDaemonHttpServer({
+    handleRequest: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      observedRequest = req;
+      return { ok: true, data: { launchTarget: 'com.example.archive' } };
+    },
+    token: 'test-token',
+  });
+  const port = await listen(server);
+  onTestFinished(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  });
+
+  const artifactIdResponse = await callRpc(port, {
+    jsonrpc: '2.0',
+    id: 'rpc-install-source-gh-artifact-id',
+    method: 'agent_device.install_from_source',
+    params: {
+      token: 'test-token',
+      session: 'bootstrap',
+      platform: 'android',
+      source: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        artifactId: '1234567890',
+      },
+    },
+  });
+
+  assert.equal(artifactIdResponse.statusCode, 200);
+  assert.equal((artifactIdResponse.json as { result?: { ok?: boolean } }).result?.ok, true);
+  assert.deepEqual(observedRequest?.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactId: 1234567890,
+  });
+
+  const latestArtifactNameResponse = await callRpc(port, {
+    jsonrpc: '2.0',
+    id: 'rpc-install-source-gh-artifact-name',
+    method: 'agent_device.install_from_source',
+    params: {
+      token: 'test-token',
+      session: 'bootstrap',
+      platform: 'android',
+      source: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        artifactName: 'app-debug',
+      },
+    },
+  });
+
+  assert.equal(latestArtifactNameResponse.statusCode, 200);
+  assert.equal((latestArtifactNameResponse.json as { result?: { ok?: boolean } }).result?.ok, true);
+  assert.deepEqual(observedRequest?.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactName: 'app-debug',
+  });
+
+  const artifactNameResponse = await callRpc(port, {
+    jsonrpc: '2.0',
+    id: 'rpc-install-source-gh',
+    method: 'agent_device.install_from_source',
+    params: {
+      token: 'test-token',
+      session: 'bootstrap',
+      platform: 'android',
+      source: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        runId: '1234567890',
+        artifactName: 'app-debug',
+      },
+    },
+  });
+
+  assert.equal(artifactNameResponse.statusCode, 200);
+  assert.equal((artifactNameResponse.json as { result?: { ok?: boolean } }).result?.ok, true);
+  assert.deepEqual(observedRequest?.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    runId: 1234567890,
+    artifactName: 'app-debug',
+  });
+});
+
 test('HTTP release_materialized_paths RPC maps typed params to a release_materialized_paths daemon request', async (ctx) => {
   if (!(await supportsLoopbackBind())) {
     ctx.skip();

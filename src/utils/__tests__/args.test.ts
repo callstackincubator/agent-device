@@ -230,6 +230,23 @@ test('parseArgs accepts install-from-source url and repeated headers', () => {
   assert.equal(parsed.flags.retentionMs, 60000);
 });
 
+test('parseArgs accepts install-from-source GitHub Actions artifact flag', () => {
+  const parsed = parseArgs(
+    [
+      'install-from-source',
+      '--github-actions-artifact',
+      'thymikee/RNCLI83:6635342232',
+      '--platform',
+      'android',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'install-from-source');
+  assert.deepEqual(parsed.positionals, []);
+  assert.equal(parsed.flags.githubActionsArtifact, 'thymikee/RNCLI83:6635342232');
+  assert.equal(parsed.flags.platform, 'android');
+});
+
 test('parseArgs accepts metro prepare arguments', () => {
   const parsed = parseArgs(
     [
@@ -688,7 +705,10 @@ test('parseArgs rejects conflicting back mode flags', () => {
 
 test('usage includes concise top-level commands', () => {
   const usageText = usage();
-  assert.match(usageText, /install-from-source <url>/);
+  assert.match(
+    usageText,
+    /install-from-source <url> \| install-from-source --github-actions-artifact/,
+  );
   assert.match(usageText, /metro prepare --public-base-url <url>/);
   assert.match(usageText, /batch --steps <json> \| --steps-file <path>/);
   assert.match(usageText, /network dump/);

@@ -87,6 +87,102 @@ test('public contract schemas validate daemon requests and lease payloads', () =
   assert.equal(node.ref, 'e1');
 });
 
+test('public daemon request schema accepts GitHub Actions artifact install sources', () => {
+  const artifactIdRequest = daemonCommandRequestSchema.parse({
+    command: 'install_source',
+    positionals: [],
+    flags: { platform: 'android' },
+    meta: {
+      installSource: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        artifactId: 1234567890,
+      },
+    },
+  });
+  const artifactNameRequest = daemonCommandRequestSchema.parse({
+    command: 'install_source',
+    positionals: [],
+    flags: { platform: 'ios' },
+    meta: {
+      installSource: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        runId: 987654321,
+        artifactName: 'app-debug',
+      },
+    },
+  });
+  const latestArtifactNameRequest = daemonCommandRequestSchema.parse({
+    command: 'install_source',
+    positionals: [],
+    flags: { platform: 'android' },
+    meta: {
+      installSource: {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        artifactName: 'app-debug',
+      },
+    },
+  });
+
+  assert.deepEqual(artifactIdRequest.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactId: 1234567890,
+  });
+  assert.deepEqual(artifactNameRequest.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    runId: 987654321,
+    artifactName: 'app-debug',
+  });
+  assert.deepEqual(latestArtifactNameRequest.meta?.installSource, {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactName: 'app-debug',
+  });
+  assert.throws(
+    () =>
+      daemonCommandRequestSchema.parse({
+        command: 'install_source',
+        positionals: [],
+        meta: {
+          installSource: {
+            kind: 'github-actions-artifact',
+            owner: 'acme',
+            repo: 'mobile',
+            artifactId: 1234567890,
+            runId: 987654321,
+            artifactName: 'app-debug',
+          },
+        },
+      }),
+    /either artifactId or artifactName, not both/,
+  );
+  assert.throws(
+    () =>
+      daemonCommandRequestSchema.parse({
+        command: 'install_source',
+        positionals: [],
+        meta: {
+          installSource: {
+            kind: 'github-actions-artifact',
+            owner: ' ',
+            repo: 'mobile',
+          },
+        },
+      }),
+    /owner/,
+  );
+});
+
 test('public contract exports normalize and hint app errors', () => {
   const normalized = normalizeError(new AppError(invalidArgsCode, 'Invalid command'));
 

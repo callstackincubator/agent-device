@@ -252,6 +252,21 @@ If the daemon cannot determine installed app identity, the request fails instead
 - Archive-backed URL installs are only supported for trusted artifact services, currently GitHub Actions and EAS.
 - For existing reachable artifact URLs, use `source: { kind: 'url', url: ... }`.
 - For local artifacts, use `source: { kind: 'path', path: ... }` or the CLI `install`/`reinstall` commands.
+- For compatible remote daemons that resolve CI artifacts server-side, pass a GitHub Actions artifact source:
+
+```ts
+await client.apps.installFromSource({
+  platform: 'android',
+  source: {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactId: 1234567890,
+  },
+});
+```
+
+Remote daemons may also support `{ kind: 'github-actions-artifact', owner, repo, artifactName }` or `{ kind: 'github-actions-artifact', owner, repo, runId, artifactName }`. The local client preserves these payloads and does not perform GitHub authentication or artifact download.
 
 Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact. Trusted GitHub Actions and EAS archive URLs may contain one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
 

@@ -8,6 +8,7 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 
 - `agent-device connect --remote-config <path>`
 - `agent-device install-from-source <url> --remote-config <path> --platform android`
+- `agent-device install-from-source --github-actions-artifact <org>/<repo>:<artifact> --remote-config <path> --platform android`
 - `agent-device open <package> --remote-config <path> --relaunch`
 - `agent-device snapshot --remote-config <path> -i`
 - `agent-device disconnect --remote-config <path>`
@@ -82,12 +83,11 @@ Remote install examples:
 agent-device install com.example.app ./app.apk
 ARTIFACT_URL="<trusted-artifact-url>"
 agent-device install-from-source "$ARTIFACT_URL" --platform android
-GITHUB_ARTIFACT_URL="<trusted-github-actions-artifact-api-url>"
-agent-device install-from-source "$GITHUB_ARTIFACT_URL" --platform ios --header "authorization: Bearer TOKEN"
 ```
 
 - Use `install` or `reinstall` for local paths; remote daemons upload local artifacts automatically.
 - Use `install-from-source` only for trusted, operator-approved artifact URLs the remote daemon can reach. Do not fetch arbitrary user-supplied URLs.
+- Use `install-from-source --github-actions-artifact <org>/<repo>:<artifact>` when the remote daemon has repository credentials and supports daemon-resolved GitHub Actions artifacts.
 - For local-path versus URL artifact rules, follow [bootstrap-install.md](bootstrap-install.md).
 
 Use `agent-device connection status --session adc-android` to inspect the active connection without reading JSON state manually. Status output must not include auth tokens.
@@ -135,30 +135,47 @@ Optional overrides stay available for advanced cases:
 - Start the daemon in HTTP mode with `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual` on the host.
 - Point the profile or env at the remote host with `daemonBaseUrl` or `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]`.
 - For non-loopback remote hosts, set `AGENT_DEVICE_DAEMON_AUTH_TOKEN` or `--daemon-auth-token`. The client rejects non-loopback remote daemon URLs without auth.
-- Direct JSON-RPC callers can authenticate with request params, `Authorization: Bearer <token>`, or `x-agent-device-token`.
 - Prefer an auth hook such as `AGENT_DEVICE_HTTP_AUTH_HOOK` when the host needs caller validation or tenant injection.
 
-## Manual lease debug fallback
+## Lease debug fallback
 
-The main agent flow should use `connect`. Use manual JSON-RPC only for host-side automation or daemon-side auth/scope debugging, and only against trusted daemon hosts.
+The main agent flow should use `connect` and `connection status`. For daemon-side auth, scope, or lease debugging, inspect host-side daemon logs and operator tooling instead of issuing raw daemon RPC from the agent shell.
+
+## GitHub Actions artifact install
+
+Use this when a compatible remote daemon resolves GitHub Actions artifacts server-side. Do not download CI artifacts locally or add a local `GITHUB_TOKEN` just to install CI output.
+
+Artifact ID shape:
 
 ```bash
-curl -fsS "$AGENT_DEVICE_DAEMON_BASE_URL/rpc" \
-  -H "Authorization: Bearer $AGENT_DEVICE_DAEMON_AUTH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "lease-1",
-    "method": "agent_device.lease.allocate",
-    "params": {
-      "tenantId": "acme",
-      "runId": "run-123",
-      "backend": "android-instance"
-    }
-  }'
+agent-device install-from-source \
+  --github-actions-artifact OWNER/REPO:1234567890 \
+  --remote-config ./remote-config.json \
+  --platform android
 ```
 
-Related daemon methods are `agent_device.lease.allocate`, `agent_device.lease.heartbeat`, `agent_device.lease.release`, and `agent_device.command`.
+Artifact-name shape:
+
+```bash
+agent-device install-from-source \
+  --github-actions-artifact OWNER/REPO:app-debug \
+  --remote-config ./remote-config.json \
+  --platform ios
+```
+
+Config shape:
+
+```json
+{
+  "installSource": {
+    "type": "github-actions-artifact",
+    "repo": "OWNER/REPO",
+    "artifact": "app-debug"
+  }
+}
+```
+
+Numeric artifacts are passed as artifact IDs. Non-numeric artifacts are passed as artifact names.
 
 ## Failure semantics and trust notes
 

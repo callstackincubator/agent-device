@@ -374,15 +374,16 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+agent-device install-from-source --github-actions-artifact thymikee/RNCLI83:6635342232 --platform android
 ```
 
 - `install-from-source <url>` installs from a URL source through the normal daemon artifact flow.
+- `install-from-source --github-actions-artifact <owner/repo:artifact>` passes a typed GitHub Actions artifact source through to a compatible remote daemon. Numeric artifacts are sent as `artifactId`; non-numeric artifacts are sent as `artifactName`.
 - Repeat `--header <name:value>` for authenticated or signed artifact requests.
 - Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
 - Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths; use `install-from-source` when the artifact already exists at a URL reachable by the daemon.
 - Direct Android URL sources may be `.apk` or `.aab`.
-- Trusted artifact service URLs, currently GitHub Actions and EAS, may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
+- Trusted artifact service URLs may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive. Prefer `--github-actions-artifact` for GitHub Actions artifacts that a compatible remote daemon can resolve with its own credentials.
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
 - URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
 

@@ -28,6 +28,7 @@ const CONFIG_EXCLUDED_FLAG_KEYS = new Set<FlagKey>([
   'help',
   'version',
   'batchSteps',
+  'githubActionsArtifact',
 ]);
 
 const LEGACY_ENV_VAR_NAMES: Partial<Record<FlagKey, string[]>> = {

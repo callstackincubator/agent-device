@@ -18,7 +18,23 @@ export type DaemonInstallSource =
   | {
       kind: 'path';
       path: string;
-    };
+    }
+  | ({
+      kind: 'github-actions-artifact';
+      owner: string;
+      repo: string;
+    } & (
+      | {
+          artifactId: number;
+        }
+      | {
+          runId: number;
+          artifactName: string;
+        }
+      | {
+          artifactName: string;
+        }
+    ));
 
 export type DaemonLockPolicy = 'reject' | 'strip';
 export type LeaseBackend = 'ios-simulator' | 'ios-instance' | 'android-instance';
@@ -157,6 +173,14 @@ function expectString(input: unknown, path: string): string {
   return input;
 }
 
+function expectNonEmptyString(input: unknown, path: string): string {
+  const value = expectString(input, path).trim();
+  if (!value) {
+    fail(path, 'Expected a non-empty string');
+  }
+  return value;
+}
+
 function expectInteger(input: unknown, path: string): number {
   if (!Number.isInteger(input)) {
     fail(path, 'Expected an integer');
@@ -234,6 +258,41 @@ function expectStringRecord(input: unknown, path: string): Record<string, string
   return result;
 }
 
+function parseGitHubActionsArtifactInstallSource(
+  record: Record<string, unknown>,
+  path: string,
+): DaemonInstallSource {
+  const owner = expectNonEmptyString(record.owner, `${path}.owner`);
+  const repo = expectNonEmptyString(record.repo, `${path}.repo`);
+  const hasArtifactId = record.artifactId !== undefined;
+  const hasRunId = record.runId !== undefined;
+  const hasArtifactName = record.artifactName !== undefined;
+  if (hasArtifactId && (hasRunId || hasArtifactName)) {
+    fail(`${path}`, 'Expected either artifactId or artifactName, not both');
+  }
+  if (!hasArtifactId && hasRunId && !hasArtifactName) {
+    fail(`${path}`, 'Expected artifactName when runId is specified');
+  }
+  if (!hasArtifactId && !hasArtifactName) {
+    fail(`${path}`, 'Expected artifactId or artifactName');
+  }
+  if (hasArtifactId) {
+    return {
+      kind: 'github-actions-artifact',
+      owner,
+      repo,
+      artifactId: expectInteger(record.artifactId, `${path}.artifactId`),
+    };
+  }
+  return {
+    kind: 'github-actions-artifact',
+    owner,
+    repo,
+    ...(hasRunId ? { runId: expectInteger(record.runId, `${path}.runId`) } : {}),
+    artifactName: expectNonEmptyString(record.artifactName, `${path}.artifactName`),
+  };
+}
+
 function parseDaemonInstallSource(input: unknown, path: string): DaemonInstallSource {
   const record = expectObject(input, path);
   const kind = expectString(record.kind, `${path}.kind`);
@@ -251,7 +310,10 @@ function parseDaemonInstallSource(input: unknown, path: string): DaemonInstallSo
       path: expectString(record.path, `${path}.path`),
     };
   }
-  fail(`${path}.kind`, 'Expected "url" or "path"');
+  if (kind === 'github-actions-artifact') {
+    return parseGitHubActionsArtifactInstallSource(record, path);
+  }
+  fail(`${path}.kind`, 'Expected "url", "path", or "github-actions-artifact"');
 }
 
 export const daemonRuntimeSchema = schema<SessionRuntimeHints>((input, path) => {
