@@ -4,7 +4,7 @@
 
 ## Docs
 
-- [Introduction](/agent-device/docs/introduction.md): agent-device is a CLI for automating iOS simulators + physical devices and Android emulators + devices from agents. It provides: Accessibility snapshots for UI understandingDeterministic interactions (tap, type, scroll)Session-aware workflows and replaySession logs and network inspection for debugging broken flowsPerformance snapshots with perf/metrics, including CPU and memory data where supported If you know agent-browser, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability. For exploratory QA and bug-hunting workflows, see skills/dogfood/SKILL.md in this repository. For React component trees, props/state/hooks, and render profiling, pair it with the complementary agent-react-devtools project.
+- [Introduction](/agent-device/docs/introduction.md): agent-device is a CLI for automating iOS simulators + physical devices and Android emulators + devices from agents. It provides: Accessibility snapshots for UI understandingDeterministic interactions (tap, type, scroll)Session-aware workflows and replaySession logs and network inspection for debugging broken flowsPerformance snapshots with perf/metrics, including CPU and memory data where supported If you know agent-browser, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability. For exploratory QA and bug-hunting workflows, see skills/dogfood/SKILL.md in this repository. For React Native component trees, props/state/hooks, and render profiling, use agent-device react-devtools, which dynamically runs pinned agent-react-devtools commands.
 
 ## Others
 

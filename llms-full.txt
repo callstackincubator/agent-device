@@ -14,7 +14,7 @@ url: /agent-device/docs/introduction.md
 
 If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in this repository.
-For React component trees, props/state/hooks, and render profiling, pair it with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
+For React Native component trees, props/state/hooks, and render profiling, use `agent-device react-devtools`, which dynamically runs pinned `agent-react-devtools` commands.
 
 ## What it’s good at
 
@@ -51,7 +51,15 @@ For React component trees, props/state/hooks, and render profiling, pair it with
 
 `agent-device` is intentionally centered on the device/app layer: UI automation, screenshots/recordings, app logs, network inspection, and performance sampling.
 
-When a debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use the complementary `agent-react-devtools` project alongside `agent-device` rather than as a replacement.
+When a React Native debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use `agent-device react-devtools` alongside normal device commands:
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
 
 ## Example
 
@@ -1099,6 +1107,28 @@ agent-device metrics --json
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 
+## React Native component internals
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools wait --connected
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools get component @c5
+agent-device react-devtools find Button
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+agent-device react-devtools profile rerenders --limit 5
+```
+
+- `react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` through npm and passes arguments through 1:1.
+- The first run may download the pinned package from npm; later runs can reuse the npm cache.
+- `agent-device` global flags work before or after `react-devtools`. Use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
+- Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
+- Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
+- React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
+- For cross-platform validation with explicit target selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `react-devtools` between iOS and Android runs.
+
 ## Media and logs
 
 ```bash
@@ -1411,11 +1441,20 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 - Performance snapshots with `perf` / `metrics`
 - Screenshots, recordings, and replayable repro flows
 
-## What to use instead
+## React Native component internals
 
-If the task needs the React component tree, props, state, hooks, or render profiling, pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
+If the task needs the React Native component tree, props, state, hooks, or render profiling, use the `react-devtools` passthrough:
 
-`agent-device` is centered on the device and app runtime layer. `agent-react-devtools` is the better fit for React internals.
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools get component @c5
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
+
+`agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
 
 ## Fast path
 
@@ -1801,6 +1840,104 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use `--verbose` to print every test result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
 
+## Parametrise `.ad` scripts
+
+Substitute `${VAR}` tokens in `.ad` scripts using values from the CLI, shell env, script-local `env` directives, or built-ins.
+
+```sh
+context platform=android
+env APP_ID=settings
+env WAIT_SHORT=500
+
+open ${APP_ID} --relaunch
+wait ${WAIT_SHORT}
+click "label=${APP_ID}"
+```
+
+### Precedence
+
+| Source                       | Priority | Example                                                                 |
+| ---------------------------- | -------- | ----------------------------------------------------------------------- |
+| CLI `-e KEY=VALUE`           | highest  | `agent-device test flow.ad -e APP_ID=demo`                              |
+| Shell env prefixed `AD_VAR_` |          | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`)   |
+| Script `env KEY=VALUE`       |          | `env APP_ID=settings` in header                                         |
+| Built-ins                    | runtime  | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
+
+### Built-ins
+
+Built-ins are provided by replay/test runtime and use the reserved `AD_*` namespace.
+
+- `AD_PLATFORM` - matches `context platform=...` or the selected platform when available
+- `AD_SESSION` - active session name
+- `AD_FILENAME` - path of the running `.ad` file
+- `AD_DEVICE` - device identifier (when `--device` is set)
+- `AD_ARTIFACTS` - attempt artifacts directory (when running under `test`)
+
+User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imports such as `AD_VAR_AD_FOO`, so built-ins cannot be overridden.
+
+Substitution happens inside parsed string values. It does not create extra arguments, so quote selectors or text values that contain spaces:
+
+```sh
+env SETTINGS="label=Account || label=Profile"
+click "${SETTINGS}"
+```
+
+### Fallback and escape
+
+```sh
+wait ${WAIT_MS:-500}
+```
+
+`${VAR:-default}` yields `default` when `VAR` is unset.
+
+```sh
+echo "Price: \${APP}"
+```
+
+`\${APP}` emits a literal `${APP}` with no substitution.
+
+### Recipes
+
+Run one flow against two app variants in CI:
+
+```sh
+agent-device test ./flows/login.ad -e APP_ID=com.example.debug
+agent-device test ./flows/login.ad -e APP_ID=com.example.release
+```
+
+Tune timings locally without editing the script:
+
+```sh
+AD_VAR_WAIT_SHORT=2000 agent-device replay ./flow.ad
+```
+
+Extract a reusable selector. Before:
+
+```sh
+click "label=Account || label=Profile || label=User"
+wait 500
+click "label=Account || label=Profile || label=User"
+```
+
+After:
+
+```sh
+env SETTINGS="label=Account || label=Profile || label=User"
+
+click "${SETTINGS}"
+wait 500
+click "${SETTINGS}"
+```
+
+Quote `${VAR}` inside selector expressions so the whole expression is treated as a single argument.
+
+### Notes
+
+- `replay -u` does not yet preserve `env` directives or `${VAR}` tokens. Workaround: temporarily inline the literal values, run `-u`, re-parametrise.
+- Shell env (`AD_VAR_*`) is collected on the CLI/client side at request time, so the same values are seen whether the daemon runs locally or remotely.
+- No nested fallback. `${A:-${B}}` is not supported.
+- Unresolved `${VAR}` fails with a `file:line` reference. Typos are loud.
+
 ## Update stale selectors in replay scripts
 
 ```bash
@@ -2100,6 +2237,6 @@ url: /agent-device/index.md
 - **Built-in observability**: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
 - **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
 - **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-- **Complementary React internals**: Pair agent-device with agent-react-devtools when you need the React component tree, props, state, hooks, or render profiling.
+- **Complementary React internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
 
 

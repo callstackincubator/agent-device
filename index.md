@@ -12,4 +12,4 @@
 - **Built-in observability**: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
 - **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
 - **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-- **Complementary React internals**: Pair agent-device with agent-react-devtools when you need the React component tree, props, state, hooks, or render profiling.
+- **Complementary React internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.

@@ -9,11 +9,20 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 - Performance snapshots with `perf` / `metrics`
 - Screenshots, recordings, and replayable repro flows
 
-## What to use instead
+## React Native component internals
 
-If the task needs the React component tree, props, state, hooks, or render profiling, pair `agent-device` with the complementary [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools) project.
+If the task needs the React Native component tree, props, state, hooks, or render profiling, use the `react-devtools` passthrough:
 
-`agent-device` is centered on the device and app runtime layer. `agent-react-devtools` is the better fit for React internals.
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools get component @c5
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
+
+`agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
 
 ## Fast path
 
