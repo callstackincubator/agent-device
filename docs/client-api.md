@@ -17,10 +17,11 @@ Public subpath API exposed for Node consumers:
 - `agent-device/metro`
   - `prepareRemoteMetro(options)`
   - `ensureMetroTunnel(options)`
+  - `reloadRemoteMetro(options)`
   - `stopMetroTunnel(options)`
   - `buildIosRuntimeHints(baseUrl)`
   - `buildAndroidRuntimeHints(baseUrl)`
-  - types: `PrepareRemoteMetroOptions`, `PrepareRemoteMetroResult`, `EnsureMetroTunnelOptions`, `EnsureMetroTunnelResult`, `StopMetroTunnelOptions`, `MetroRuntimeHints`, `MetroBridgeResult`
+  - types: `PrepareRemoteMetroOptions`, `PrepareRemoteMetroResult`, `EnsureMetroTunnelOptions`, `EnsureMetroTunnelResult`, `ReloadRemoteMetroOptions`, `ReloadRemoteMetroResult`, `StopMetroTunnelOptions`, `MetroRuntimeHints`, `MetroBridgeResult`
 - `agent-device/remote-config`
   - `resolveRemoteConfigPath(options)`
   - `resolveRemoteConfigProfile(options)`
@@ -256,6 +257,7 @@ Direct Android `.apk` and `.aab` URL sources can still resolve package identity 
 ```ts
 import {
   prepareRemoteMetro,
+  reloadRemoteMetro,
   stopMetroTunnel,
 } from 'agent-device/metro';
 import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
@@ -280,13 +282,17 @@ const prepared = await prepareRemoteMetro({
 
 console.log(prepared.iosRuntime, prepared.androidRuntime);
 
+await reloadRemoteMetro({
+  runtime: prepared.iosRuntime,
+});
+
 await stopMetroTunnel({
   projectRoot: remoteConfig.profile.metroProjectRoot!,
   profileKey: remoteConfig.resolvedPath,
 });
 ```
 
-Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types. For bridged remote Metro, `proxyBaseUrl` is the bridge origin and `publicBaseUrl` is optional; the bridge descriptor supplies cloud iOS wildcard HTTPS hints and Android runtime-route hints.
+Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation, reload, and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types. For bridged remote Metro, `proxyBaseUrl` is the bridge origin and `publicBaseUrl` is optional; the bridge descriptor supplies cloud iOS wildcard HTTPS hints and Android runtime-route hints. `reloadRemoteMetro()` calls Metro's `/reload` endpoint, matching the terminal `r` reload path for connected React Native apps.
 
 ## Selector helpers
 
