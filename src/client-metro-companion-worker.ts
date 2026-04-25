@@ -4,14 +4,19 @@ import {
   ENV_BEARER_TOKEN,
   ENV_LAUNCH_URL,
   ENV_LOCAL_BASE_URL,
+  ENV_DEVICE_PORT,
+  ENV_REGISTER_PATH,
   ENV_SERVER_BASE_URL,
+  ENV_SESSION,
   ENV_SCOPE_LEASE_ID,
   ENV_SCOPE_RUN_ID,
   ENV_SCOPE_TENANT_ID,
   ENV_STATE_PATH,
+  ENV_UNREGISTER_PATH,
   METRO_COMPANION_LEASE_CHECK_INTERVAL_MS,
   METRO_COMPANION_RECONNECT_DELAY_MS,
   METRO_COMPANION_RUN_ARG,
+  REACT_DEVTOOLS_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
 } from './client-metro-companion-contract.ts';
 import type { CompanionOptions } from './client-metro-companion-contract.ts';
@@ -21,6 +26,8 @@ import type {
 } from './metro.ts';
 import { normalizeBaseUrl } from './utils/url.ts';
 
+const COMPANION_REGISTER_TIMEOUT_MS = 5_000;
+
 function createHeaders(serverBaseUrl: string, token: string): Record<string, string> {
   return {
     authorization: `Bearer ${token}`,
@@ -29,27 +36,84 @@ function createHeaders(serverBaseUrl: string, token: string): Record<string, str
   };
 }
 
+function formatResponseSnippet(text: string): string {
+  const normalized = text.replaceAll(/\s+/g, ' ').trim();
+  return normalized.length > 300 ? `${normalized.slice(0, 300)}...` : normalized;
+}
+
+function resolveRegisterPath(options: CompanionOptions): string {
+  return options.registerPath ?? '/api/metro/companion/register';
+}
+
+function resolveUnregisterPath(options: CompanionOptions): string | null {
+  return options.unregisterPath ?? null;
+}
+
+export function buildCompanionPayload(options: CompanionOptions): Record<string, unknown> {
+  return {
+    ...options.bridgeScope,
+    ...(options.session ? { session: options.session } : {}),
+    local_base_url: normalizeBaseUrl(options.localBaseUrl),
+    ...(options.devicePort ? { device_port: options.devicePort } : {}),
+    ...(options.launchUrl ? { launch_url: options.launchUrl } : {}),
+  };
+}
+
 async function registerCompanion(options: CompanionOptions): Promise<{ wsUrl: string }> {
-  const response = await fetch(
-    `${normalizeBaseUrl(options.serverBaseUrl)}/api/metro/companion/register`,
-    {
+  const registerPath = resolveRegisterPath(options);
+  let response: Response;
+  try {
+    response = await fetch(`${normalizeBaseUrl(options.serverBaseUrl)}${registerPath}`, {
       method: 'POST',
       headers: createHeaders(options.serverBaseUrl, options.bearerToken),
-      body: JSON.stringify({
-        ...options.bridgeScope,
-        local_base_url: normalizeBaseUrl(options.localBaseUrl),
-        ...(options.launchUrl ? { launch_url: options.launchUrl } : {}),
-      }),
-    },
-  );
-  const payload = (await response.json()) as {
+      body: JSON.stringify(buildCompanionPayload(options)),
+      signal: AbortSignal.timeout(COMPANION_REGISTER_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new Error(
+        `${registerPath} timed out after ${COMPANION_REGISTER_TIMEOUT_MS}ms calling ${normalizeBaseUrl(
+          options.serverBaseUrl,
+        )}${registerPath}`,
+      );
+    }
+    throw error;
+  }
+  const responseText = await response.text();
+  let payload: {
     ok?: boolean;
     data?: { ws_url?: string };
   };
+  try {
+    payload = responseText ? (JSON.parse(responseText) as typeof payload) : {};
+  } catch {
+    throw new Error(
+      `Failed to register companion (${response.status}): invalid JSON response: ${formatResponseSnippet(
+        responseText,
+      )}`,
+    );
+  }
   if (!response.ok || payload.ok !== true || typeof payload.data?.ws_url !== 'string') {
-    throw new Error(`Failed to register Metro companion: ${JSON.stringify(payload)}`);
+    throw new Error(
+      `Failed to register companion (${response.status}): ${JSON.stringify(payload)}`,
+    );
   }
   return { wsUrl: payload.data.ws_url };
+}
+
+async function unregisterCompanion(options: CompanionOptions): Promise<void> {
+  const unregisterPath = resolveUnregisterPath(options);
+  if (!unregisterPath) return;
+  try {
+    await fetch(`${normalizeBaseUrl(options.serverBaseUrl)}${unregisterPath}`, {
+      method: 'POST',
+      headers: createHeaders(options.serverBaseUrl, options.bearerToken),
+      body: JSON.stringify(buildCompanionPayload(options)),
+      signal: AbortSignal.timeout(2_000),
+    });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+  }
 }
 
 async function bufferFromWebSocketData(data: unknown): Promise<Buffer> {
@@ -275,6 +339,22 @@ async function handleBridgeMessage(
 
 export async function runMetroCompanionWorker(options: CompanionOptions): Promise<void> {
   const upstreamSockets = new Map<string, WebSocket>();
+  let shutdownRequested = false;
+  let activeBridgeSocket: WebSocket | null = null;
+  let activeRegistrationComplete = false;
+  const requestShutdown = () => {
+    if (shutdownRequested) return;
+    shutdownRequested = true;
+    if (activeRegistrationComplete) {
+      void unregisterCompanion(options).finally(() => process.exit(0));
+    }
+    if (activeBridgeSocket) {
+      closeSocketQuietly(activeBridgeSocket, 1000, 'companion stopping');
+    }
+    setTimeout(() => process.exit(0), 900).unref();
+  };
+  process.once('SIGTERM', requestShutdown);
+  process.once('SIGINT', requestShutdown);
   const lifetimeHandle = setInterval(() => {
     if (!shouldKeepWorkerRunning(options)) {
       // Node's built-in WebSocket client does not expose a force-close API. If the peer never
@@ -284,30 +364,58 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
     }
   }, METRO_COMPANION_LEASE_CHECK_INTERVAL_MS);
   lifetimeHandle.unref();
-  while (shouldKeepWorkerRunning(options)) {
+  while (!shutdownRequested && shouldKeepWorkerRunning(options)) {
+    let registered = false;
     try {
+      activeRegistrationComplete = false;
       const registration = await registerCompanion(options);
+      registered = true;
+      activeRegistrationComplete = true;
+      if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
+        await unregisterCompanion(options);
+        registered = false;
+        activeRegistrationComplete = false;
+        break;
+      }
       const bridgeSocket = new WebSocket(registration.wsUrl);
+      activeBridgeSocket = bridgeSocket;
       bridgeSocket.binaryType = 'arraybuffer';
-      await waitForSocketOpen(bridgeSocket, 'Bridge');
-      bridgeSocket.addEventListener('message', (event) => {
-        void (async () => {
-          const message = await parseBridgeMessage(event);
-          await handleBridgeMessage(bridgeSocket, message, options, upstreamSockets);
-        })().catch((error) => {
-          console.error(error instanceof Error ? error.message : String(error));
+      try {
+        await waitForSocketOpen(bridgeSocket, 'Bridge');
+        bridgeSocket.addEventListener('message', (event) => {
+          void (async () => {
+            const message = await parseBridgeMessage(event);
+            await handleBridgeMessage(bridgeSocket, message, options, upstreamSockets);
+          })().catch((error) => {
+            console.error(error instanceof Error ? error.message : String(error));
+          });
         });
-      });
-      await waitForSocketShutdown(bridgeSocket);
-      upstreamSockets.forEach((socket) => closeSocketQuietly(socket, 1012, 'bridge disconnected'));
-      upstreamSockets.clear();
+        await waitForSocketShutdown(bridgeSocket);
+      } finally {
+        activeBridgeSocket = null;
+        activeRegistrationComplete = false;
+        upstreamSockets.forEach((socket) =>
+          closeSocketQuietly(socket, 1012, 'bridge disconnected'),
+        );
+        upstreamSockets.clear();
+        if (registered) {
+          await unregisterCompanion(options);
+          registered = false;
+        }
+      }
     } catch (error) {
-      if (!shouldKeepWorkerRunning(options)) {
+      activeBridgeSocket = null;
+      activeRegistrationComplete = false;
+      if (registered) {
+        await unregisterCompanion(options);
+        registered = false;
+      }
+      if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
         break;
       }
       console.error(error instanceof Error ? error.message : String(error));
     }
-    if (!shouldKeepWorkerRunning(options)) {
+    if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
       break;
     }
     await delay(METRO_COMPANION_RECONNECT_DELAY_MS);
@@ -315,8 +423,20 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
   clearInterval(lifetimeHandle);
 }
 
+function parseDevicePort(value: string | undefined): number | undefined {
+  if (!value?.trim()) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    throw new Error('Companion worker received invalid device port configuration.');
+  }
+  return parsed;
+}
+
 function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOptions | null {
-  if (argv[0] !== METRO_COMPANION_RUN_ARG) return null;
+  const commandArg = argv[0];
+  if (commandArg !== METRO_COMPANION_RUN_ARG && commandArg !== REACT_DEVTOOLS_COMPANION_RUN_ARG) {
+    return null;
+  }
   const serverBaseUrl = env[ENV_SERVER_BASE_URL]?.trim();
   const bearerToken = env[ENV_BEARER_TOKEN]?.trim();
   const localBaseUrl = env[ENV_LOCAL_BASE_URL]?.trim();
@@ -340,6 +460,10 @@ function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOpt
     },
     launchUrl: env[ENV_LAUNCH_URL]?.trim() || undefined,
     statePath: env[ENV_STATE_PATH]?.trim() || undefined,
+    registerPath: env[ENV_REGISTER_PATH]?.trim() || undefined,
+    unregisterPath: env[ENV_UNREGISTER_PATH]?.trim() || undefined,
+    devicePort: parseDevicePort(env[ENV_DEVICE_PORT]),
+    session: env[ENV_SESSION]?.trim() || undefined,
   };
 }
 

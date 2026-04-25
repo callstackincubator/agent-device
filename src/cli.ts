@@ -145,25 +145,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       const { command, positionals } = parsed;
-      if (command === 'react-devtools') {
-        try {
-          const exitCode = await runReactDevtoolsCommand(positionals);
-          process.exit(exitCode);
-          return;
-        } catch (error) {
-          const normalized = normalizeError(error, {
-            diagnosticId: getDiagnosticsMeta().diagnosticId,
-            logPath: flushDiagnosticsToSessionFile({ force: true }) ?? undefined,
-          });
-          if (parsed.flags.json) {
-            printJson({ success: false, error: normalized });
-          } else {
-            printHumanError(normalized, { showDetails: parsed.flags.verbose });
-          }
-          process.exit(1);
-          return;
-        }
-      }
       let binding: ReturnType<typeof resolveBindingSettings>;
       let flags: typeof parsed.flags;
       let daemonPaths: ReturnType<typeof resolveDaemonPaths>;
@@ -212,6 +193,17 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
       let logTailStopper: (() => void) | null = null;
       try {
+        if (command === 'react-devtools') {
+          const exitCode = await runReactDevtoolsCommand(positionals, {
+            flags: effectiveFlags,
+            stateDir: daemonPaths.baseDir,
+            session: effectiveFlags.session ?? sessionName,
+            cwd: process.cwd(),
+            env: process.env,
+          });
+          process.exit(exitCode);
+          return;
+        }
         maybeRunUpgradeNotifier({
           command,
           currentVersion: version,

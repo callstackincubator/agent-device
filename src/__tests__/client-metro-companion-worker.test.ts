@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, test } from 'vitest';
+import { buildCompanionPayload } from '../client-metro-companion-worker.ts';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -172,6 +173,33 @@ afterEach(async () => {
     if (!task) continue;
     await task();
   }
+});
+
+test('companion payload includes React DevTools session and device port', () => {
+  assert.deepEqual(
+    buildCompanionPayload({
+      serverBaseUrl: 'https://bridge.example.test',
+      bearerToken: 'token',
+      localBaseUrl: 'http://127.0.0.1:8097/',
+      bridgeScope: {
+        tenantId: 'tenant-1',
+        runId: 'run-1',
+        leaseId: 'lease-1',
+      },
+      session: 'default',
+      devicePort: 8097,
+      registerPath: '/api/react-devtools/companion/register',
+      unregisterPath: '/api/react-devtools/companion/unregister',
+    }),
+    {
+      tenantId: 'tenant-1',
+      runId: 'run-1',
+      leaseId: 'lease-1',
+      session: 'default',
+      local_base_url: 'http://127.0.0.1:8097',
+      device_port: 8097,
+    },
+  );
 });
 
 test('metro companion worker proxies websocket frames to the local upstream server', async () => {

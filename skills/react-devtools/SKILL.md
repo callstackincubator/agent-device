@@ -44,6 +44,8 @@ agent-device react-devtools profile rerenders --limit 5
 - Labels like `@c5` reset when the app reloads or components remount. After reload, run `wait --connected` and inspect again.
 - Profiling only captures renders between `profile start` and `profile stop`.
 - On Android, set `adb reverse tcp:8097 tcp:8097` for React DevTools. If Metro is local, also set `adb reverse tcp:8081 tcp:8081`.
+- For Android sessions connected through `agent-device connect --remote-config`, run `agent-device react-devtools ...` normally. The CLI registers a bridge companion tunnel to the local DevTools daemon on `127.0.0.1:8097` and unregisters it when the command exits.
+- Remote Android React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Do not assume older browser/Chromium DevTools workflows exist in remote sandboxes. For Expo apps, verify the SDK's bundled React Native version and runtime behavior first; no Expo SDK version is separately verified by this skill.
 
 ## References
 

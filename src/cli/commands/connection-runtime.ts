@@ -1,4 +1,5 @@
 import { resolveDaemonPaths } from '../../daemon/config.ts';
+import { stopMetroCompanion } from '../../client-metro-companion.ts';
 import { stopMetroTunnel } from '../../metro.ts';
 import { resolveRemoteConfigProfile } from '../../remote-config.ts';
 import type { MetroBridgeScope } from '../../client-metro-companion-contract.ts';
@@ -231,6 +232,23 @@ export async function stopMetroCleanup(
   if (!cleanup) return;
   try {
     await stopMetroTunnel(cleanup);
+  } catch {
+    // Connection lifecycle cleanup must stay best-effort.
+  }
+}
+
+export async function stopReactDevtoolsCleanup(options: {
+  stateDir: string;
+  state: Pick<RemoteConnectionState, 'remoteConfigPath' | 'session'>;
+}): Promise<void> {
+  try {
+    await stopMetroCompanion({
+      projectRoot: process.cwd(),
+      stateDir: options.stateDir,
+      kind: 'react-devtools',
+      profileKey: options.state.remoteConfigPath,
+      consumerKey: options.state.session,
+    });
   } catch {
     // Connection lifecycle cleanup must stay best-effort.
   }

@@ -17,6 +17,7 @@ import {
   releasePreviousLease,
   resolveRequestedLeaseBackend,
   stopMetroCleanup,
+  stopReactDevtoolsCleanup,
 } from './connection-runtime.ts';
 import { writeCommandOutput } from './shared.ts';
 import type { LeaseBackend } from '../../contracts.ts';
@@ -104,6 +105,7 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
   writeRemoteConnectionState({ stateDir, state });
   if (previous && flags.force) {
     await stopMetroCleanup(previous.metro);
+    await stopReactDevtoolsCleanup({ stateDir, state: previous });
     await releasePreviousLease(client, previous);
   }
   const runtimePreparation = buildRuntimePreparationNotice(flags, state);
@@ -143,6 +145,7 @@ export const disconnectCommand: ClientCommandHandler = async ({ flags, client })
     // Disconnect is idempotent; the session may already be closed.
   }
   await stopMetroCleanup(state.metro);
+  await stopReactDevtoolsCleanup({ stateDir, state });
   let released = false;
   if (state.leaseId) {
     try {

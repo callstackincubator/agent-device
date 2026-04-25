@@ -49,6 +49,10 @@ agent-device react-devtools profile slow --limit 5
 
 `react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` commands 1:1, so `agent-device` covers both the device/app runtime layer and React component internals without making React DevTools part of the daemon.
 
+When an Android session is connected through a remote bridge profile, `react-devtools` automatically opens a lease-scoped companion tunnel for the local DevTools daemon on port 8097 and cleans it up when the command exits.
+
+Remote Android React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
+
 ## Command Flow
 
 The canonical loop is:
