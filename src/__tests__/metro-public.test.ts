@@ -6,6 +6,7 @@ vi.mock('../client-metro.ts', async () => {
   return {
     ...actual,
     prepareMetroRuntime: vi.fn(),
+    reloadMetro: vi.fn(),
   };
 });
 
@@ -14,13 +15,14 @@ vi.mock('../client-metro-companion.ts', () => ({
   stopMetroCompanion: vi.fn(),
 }));
 
-import { prepareMetroRuntime } from '../client-metro.ts';
+import { prepareMetroRuntime, reloadMetro } from '../client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from '../client-metro-companion.ts';
 import {
   buildAndroidRuntimeHints,
   buildIosRuntimeHints,
   ensureMetroTunnel,
   prepareRemoteMetro,
+  reloadRemoteMetro,
   resolveRuntimeTransport,
   stopMetroTunnel,
 } from '../metro.ts';
@@ -65,6 +67,12 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
     stopped: true,
     statePath: '/tmp/project/.agent-device/metro-companion.json',
   });
+  vi.mocked(reloadMetro).mockResolvedValue({
+    reloaded: true,
+    reloadUrl: 'http://127.0.0.1:8081/reload',
+    status: 200,
+    body: 'OK',
+  });
 
   const prepared = await prepareRemoteMetro({
     projectRoot: '/tmp/project',
@@ -87,11 +95,15 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
   await stopMetroTunnel({
     projectRoot: '/tmp/project',
   });
+  const reloaded = await reloadRemoteMetro({
+    runtime: { platform: 'ios', bundleUrl: 'http://127.0.0.1:8081/index.bundle?platform=ios' },
+  });
 
   assert.equal(prepared.reused, true);
   assert.equal(prepared.logPath, '/tmp/project/.agent-device/metro.log');
   assert.equal(tunnel.started, true);
   assert.equal(tunnel.logPath, '/tmp/project/.agent-device/metro-companion.log');
+  assert.equal(reloaded.reloaded, true);
   assert.deepEqual(vi.mocked(prepareMetroRuntime).mock.calls[0]?.[0], {
     projectRoot: '/tmp/project',
     kind: 'react-native',
@@ -112,6 +124,9 @@ test('public metro helpers expose stable Node-facing wrappers', async () => {
     runtimeFilePath: undefined,
     logPath: undefined,
     env: undefined,
+  });
+  assert.deepEqual(vi.mocked(reloadMetro).mock.calls[0]?.[0], {
+    runtime: { platform: 'ios', bundleUrl: 'http://127.0.0.1:8081/index.bundle?platform=ios' },
   });
   assert.equal(
     buildIosRuntimeHints('https://public.example.test').bundleUrl,

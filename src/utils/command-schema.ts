@@ -1120,12 +1120,16 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   metro: {
     usageOverride:
-      'metro prepare (--public-base-url <url> | --proxy-base-url <url>) [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]',
-    listUsageOverride: 'metro prepare --public-base-url <url> | --proxy-base-url <url>',
-    helpDescription: 'Prepare a local Metro runtime and optionally bridge it through a remote host',
-    summary: 'Prepare local Metro runtime',
-    positionalArgs: ['prepare'],
+      'metro prepare (--public-base-url <url> | --proxy-base-url <url>) [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]\n  agent-device metro reload [--metro-host <host>] [--metro-port <port>] [--bundle-url <url>]',
+    listUsageOverride:
+      'metro prepare --public-base-url <url> | --proxy-base-url <url>; metro reload',
+    helpDescription:
+      'Prepare a local Metro runtime or ask Metro to reload connected React Native apps',
+    summary: 'Prepare Metro or reload apps',
+    positionalArgs: ['prepare|reload'],
     allowedFlags: [
+      'metroHost',
+      'metroPort',
       'metroProjectRoot',
       'metroKind',
       'metroPublicBaseUrl',
@@ -1139,6 +1143,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'metroRuntimeFile',
       'metroNoReuseExisting',
       'metroNoInstallDeps',
+      'bundleUrl',
     ],
     skipCapabilityCheck: true,
   },

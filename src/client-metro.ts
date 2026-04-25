@@ -14,7 +14,13 @@ import { runCmdSync, runCmdDetached } from './utils/exec.ts';
 import { resolveUserPath } from './utils/path-resolution.ts';
 import { waitForProcessExit } from './utils/process-identity.ts';
 import { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
+import {
+  resolveRuntimeTransportHints,
+  type ResolvedRuntimeTransport,
+} from './utils/runtime-transport.ts';
 
+const DEFAULT_METRO_HOST = 'localhost';
+const DEFAULT_METRO_PORT = 8081;
 const METRO_TERM_TIMEOUT_MS = 1_000;
 const METRO_KILL_TIMEOUT_MS = 1_000;
 
@@ -74,6 +80,21 @@ export type PrepareMetroRuntimeResult = {
   iosRuntime: MetroRuntimeHints;
   androidRuntime: MetroRuntimeHints;
   bridge: MetroBridgeResult | null;
+};
+
+export type ReloadMetroOptions = {
+  metroHost?: string;
+  metroPort?: number | string;
+  bundleUrl?: string;
+  runtime?: MetroRuntimeHints;
+  timeoutMs?: number | string;
+};
+
+export type ReloadMetroResult = {
+  reloaded: true;
+  reloadUrl: string;
+  status: number;
+  body: string;
 };
 
 type ProxyBridgeRequestOptions = {
@@ -249,6 +270,48 @@ async function isMetroReady(statusUrl: string, timeoutMs: number): Promise<boole
   } catch {
     return false;
   }
+}
+
+function buildReloadUrl(transport: ResolvedRuntimeTransport, pathName: string): string {
+  const url = new URL(`${transport.scheme}://localhost`);
+  url.hostname = transport.host;
+  url.port = String(transport.port);
+  url.pathname = pathName;
+  return url.toString();
+}
+
+function resolveMetroReloadPath(bundleUrl: string | undefined): string {
+  const value = normalizeOptionalString(bundleUrl);
+  if (!value) return '/reload';
+  const url = new URL(value);
+  const bundlePath = url.pathname.replace(/\/+$/, '');
+  if (!bundlePath.endsWith('/index.bundle')) return '/reload';
+  return `${bundlePath.slice(0, -'/index.bundle'.length)}/reload`;
+}
+
+function resolveMetroReloadUrl(input: ReloadMetroOptions): string {
+  const bundleUrl = normalizeOptionalString(input.bundleUrl) ?? input.runtime?.bundleUrl;
+  const hasExplicitBundleUrl = Boolean(normalizeOptionalString(input.bundleUrl));
+  const hasBundleUrl = Boolean(normalizeOptionalString(bundleUrl));
+  const metroHost =
+    normalizeOptionalString(input.metroHost) ??
+    (hasExplicitBundleUrl ? undefined : normalizeOptionalString(input.runtime?.metroHost)) ??
+    (hasBundleUrl ? undefined : DEFAULT_METRO_HOST);
+  const metroPort =
+    input.metroPort !== undefined
+      ? parsePort(input.metroPort, DEFAULT_METRO_PORT)
+      : hasExplicitBundleUrl
+        ? undefined
+        : (input.runtime?.metroPort ?? (hasBundleUrl ? undefined : DEFAULT_METRO_PORT));
+  const transport = resolveRuntimeTransportHints({
+    metroHost,
+    metroPort,
+    bundleUrl,
+  });
+  if (!transport) {
+    throw new AppError('INVALID_ARGS', 'Unable to resolve Metro host and port for reload.');
+  }
+  return buildReloadUrl(transport, resolveMetroReloadPath(bundleUrl));
 }
 
 function buildMetroCommand(
@@ -785,4 +848,24 @@ export async function prepareMetroRuntime(
   }
 
   return result;
+}
+
+export async function reloadMetro(input: ReloadMetroOptions = {}): Promise<ReloadMetroResult> {
+  const timeoutMs = parseTimeout(input.timeoutMs, 10_000, 1_000);
+  const reloadUrl = resolveMetroReloadUrl(input);
+  const response = await fetchText(reloadUrl, timeoutMs);
+  if (!response.ok) {
+    throw new AppError('COMMAND_FAILED', `Metro reload failed (${response.status}).`, {
+      reloadUrl,
+      status: response.status,
+      body: response.body,
+      hint: 'Verify Metro is running and the target React Native app is connected to this Metro instance.',
+    });
+  }
+  return {
+    reloaded: true,
+    reloadUrl,
+    status: response.status,
+    body: response.body,
+  };
 }

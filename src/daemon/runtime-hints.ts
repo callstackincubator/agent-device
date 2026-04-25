@@ -1,8 +1,11 @@
-import { URL } from 'node:url';
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import type { SessionRuntimeHints } from './types.ts';
+import {
+  resolveRuntimeTransportHints,
+  type ResolvedRuntimeTransport,
+} from '../utils/runtime-transport.ts';
 import { adbArgs } from '../platforms/android/adb.ts';
 import {
   classifyAndroidAppTarget,
@@ -28,48 +31,10 @@ const DEFAULT_ANDROID_PREFS_XML = [
   '',
 ].join('\n');
 
-type ResolvedRuntimeTransport = {
-  host: string;
-  port: number;
-  scheme: 'http' | 'https';
-};
+export { resolveRuntimeTransportHints, trimRuntimeValue } from '../utils/runtime-transport.ts';
 
 export function hasRuntimeTransportHints(runtime: SessionRuntimeHints | undefined): boolean {
   return resolveRuntimeTransportHints(runtime) !== undefined;
-}
-
-export function resolveRuntimeTransportHints(
-  runtime: SessionRuntimeHints | undefined,
-): ResolvedRuntimeTransport | undefined {
-  if (!runtime) return undefined;
-
-  let host = trimRuntimeValue(runtime.metroHost);
-  let port = normalizePort(runtime.metroPort);
-  let scheme: 'http' | 'https' = 'http';
-  const bundleUrl = trimRuntimeValue(runtime.bundleUrl);
-  if (bundleUrl) {
-    let parsed: URL;
-    try {
-      parsed = new URL(bundleUrl);
-    } catch (error) {
-      throw new AppError(
-        'INVALID_ARGS',
-        `Invalid runtime bundle URL: ${bundleUrl}`,
-        {},
-        error as Error,
-      );
-    }
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      host ??= trimRuntimeValue(parsed.hostname);
-      port ??= normalizePort(
-        parsed.port.length > 0 ? Number(parsed.port) : defaultPortForProtocol(parsed.protocol),
-      );
-      scheme = parsed.protocol === 'https:' ? 'https' : 'http';
-    }
-  }
-
-  if (!host || !port) return undefined;
-  return { host, port, scheme };
 }
 
 export async function applyRuntimeHintsToApp(params: {
@@ -296,11 +261,6 @@ function removeAndroidPrefEntry(xml: string, key: string): string {
     );
 }
 
-export function trimRuntimeValue(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
-
 function assertAndroidRuntimePackageName(packageName: string): void {
   if (classifyAndroidAppTarget(packageName) !== 'binary') return;
   const message = formatAndroidInstalledPackageRequiredMessage(packageName);
@@ -308,18 +268,6 @@ function assertAndroidRuntimePackageName(packageName: string): void {
     package: packageName,
     hint: message,
   });
-}
-
-function normalizePort(value: number | undefined): number | undefined {
-  if (!Number.isInteger(value)) return undefined;
-  if ((value as number) <= 0 || (value as number) > 65_535) return undefined;
-  return value;
-}
-
-function defaultPortForProtocol(protocol: string): number | undefined {
-  if (protocol === 'https:') return 443;
-  if (protocol === 'http:') return 80;
-  return undefined;
 }
 
 function escapeRegex(value: string): string {

@@ -220,6 +220,8 @@ export type {
   MaterializationReleaseResult,
   MetroPrepareOptions,
   MetroPrepareResult,
+  MetroReloadOptions,
+  MetroReloadResult,
   NetworkOptions,
   PerfOptions,
   PermissionTarget,

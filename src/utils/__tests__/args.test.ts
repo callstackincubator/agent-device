@@ -268,6 +268,31 @@ test('parseArgs accepts metro prepare arguments', () => {
   assert.equal(parsed.flags.metroNoInstallDeps, true);
 });
 
+test('parseArgs accepts metro reload arguments', () => {
+  const parsed = parseArgs(
+    [
+      'metro',
+      'reload',
+      '--metro-host',
+      '127.0.0.1',
+      '--metro-port',
+      '9090',
+      '--bundle-url',
+      'http://127.0.0.1:9090/index.bundle?platform=ios',
+      '--probe-timeout-ms',
+      '1500',
+    ],
+    { strictFlags: true },
+  );
+
+  assert.equal(parsed.command, 'metro');
+  assert.deepEqual(parsed.positionals, ['reload']);
+  assert.equal(parsed.flags.metroHost, '127.0.0.1');
+  assert.equal(parsed.flags.metroPort, 9090);
+  assert.equal(parsed.flags.bundleUrl, 'http://127.0.0.1:9090/index.bundle?platform=ios');
+  assert.equal(parsed.flags.metroProbeTimeoutMs, 1500);
+});
+
 test('parseArgs accepts remote workflow profile flag', () => {
   const parsed = parseArgs(
     [
@@ -936,7 +961,7 @@ test('usage renders concise commands inline with descriptions', () => {
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
   assert.match(
     help,
-    /  metro prepare --public-base-url <url> \| --proxy-base-url <url>\s{2,}Prepare local Metro runtime/,
+    /  metro prepare --public-base-url <url> \| --proxy-base-url <url>; metro reload\s{2,}Prepare Metro or reload apps/,
   );
   assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
   assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run \.ad test suites/);
@@ -1019,10 +1044,9 @@ test('command usage shows record touch-overlay opt-out flag', () => {
 test('command usage keeps detailed descriptions', () => {
   const help = usageForCommand('metro');
   if (help === null) throw new Error('Expected command help text');
-  assert.match(
-    help,
-    /Prepare a local Metro runtime and optionally bridge it through a remote host/,
-  );
+  assert.match(help, /Prepare a local Metro runtime or ask Metro to reload/);
+  assert.match(help, /metro reload/);
+  assert.match(help, /--metro-host <host>/);
 });
 
 test('command usage shows no command flags when unsupported', () => {
