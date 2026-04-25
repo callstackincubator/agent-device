@@ -1,8 +1,14 @@
 import type { SessionRuntimeHints } from './contracts.ts';
-import { buildMetroRuntimeHints, prepareMetroRuntime } from './client-metro.ts';
+import {
+  buildMetroRuntimeHints,
+  prepareMetroRuntime,
+  reloadMetro,
+  type ReloadMetroOptions,
+  type ReloadMetroResult,
+} from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
 import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
-import { resolveRuntimeTransportHints } from './daemon/runtime-hints.ts';
+import { resolveRuntimeTransportHints } from './utils/runtime-transport.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
 export type {
@@ -132,6 +138,10 @@ export type PrepareRemoteMetroResult = {
   logPath: string;
 };
 
+export type ReloadRemoteMetroOptions = ReloadMetroOptions;
+
+export type ReloadRemoteMetroResult = ReloadMetroResult;
+
 export type EnsureMetroTunnelOptions = {
   projectRoot: string;
   serverBaseUrl: string;
@@ -203,6 +213,12 @@ export async function ensureMetroTunnel(
 
 export async function stopMetroTunnel(options: StopMetroTunnelOptions): Promise<void> {
   await stopMetroCompanion(options);
+}
+
+export async function reloadRemoteMetro(
+  options: ReloadRemoteMetroOptions = {},
+): Promise<ReloadRemoteMetroResult> {
+  return await reloadMetro(options);
 }
 
 export function buildIosRuntimeHints(baseUrl: string): MetroRuntimeHints {

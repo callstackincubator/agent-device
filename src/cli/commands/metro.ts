@@ -4,8 +4,18 @@ import type { ClientCommandHandler } from './router-types.ts';
 
 export const metroCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const action = (positionals[0] ?? '').toLowerCase();
+  if (action === 'reload') {
+    const result = await client.metro.reload({
+      metroHost: flags.metroHost,
+      metroPort: flags.metroPort,
+      bundleUrl: flags.bundleUrl,
+      timeoutMs: flags.metroProbeTimeoutMs,
+    });
+    writeCommandOutput(flags, result, () => `Reloaded React Native apps via ${result.reloadUrl}`);
+    return true;
+  }
   if (action !== 'prepare') {
-    throw new AppError('INVALID_ARGS', 'metro only supports prepare');
+    throw new AppError('INVALID_ARGS', 'metro requires a subcommand: prepare or reload');
   }
   if (!flags.metroPublicBaseUrl && !flags.metroProxyBaseUrl) {
     throw new AppError(

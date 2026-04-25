@@ -10,7 +10,11 @@ import type {
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { FindLocator } from './utils/finders.ts';
 import type { ScreenshotOverlayRef, SnapshotNode, SnapshotVisibility } from './utils/snapshot.ts';
-import type { MetroPrepareKind, PrepareMetroRuntimeResult } from './client-metro.ts';
+import type {
+  MetroPrepareKind,
+  PrepareMetroRuntimeResult,
+  ReloadMetroResult,
+} from './client-metro.ts';
 import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
@@ -287,6 +291,15 @@ export type MetroPrepareOptions = {
 };
 
 export type MetroPrepareResult = PrepareMetroRuntimeResult;
+
+export type MetroReloadOptions = {
+  metroHost?: string;
+  metroPort?: number;
+  bundleUrl?: string;
+  timeoutMs?: number;
+};
+
+export type MetroReloadResult = ReloadMetroResult;
 
 export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
@@ -827,6 +840,7 @@ export type AgentDeviceClient = {
   };
   metro: {
     prepare: (options: MetroPrepareOptions) => Promise<MetroPrepareResult>;
+    reload: (options?: MetroReloadOptions) => Promise<MetroReloadResult>;
   };
   capture: {
     snapshot: (options?: CaptureSnapshotOptions) => Promise<CaptureSnapshotResult>;

@@ -10,6 +10,7 @@ import type {
   AppInstallFromSourceOptions,
   AppOpenOptions,
   MetroPrepareOptions,
+  MetroReloadOptions,
 } from '../client.ts';
 import { AppError } from '../utils/errors.ts';
 import { resolveCliOptions } from '../utils/cli-options.ts';
@@ -193,6 +194,50 @@ test('metro prepare rejects when no public or proxy base URL is provided', async
       error.code === 'INVALID_ARGS' &&
       error.message.includes('--public-base-url <url> or --proxy-base-url <url>'),
   );
+});
+
+test('metro reload forwards host, port, bundle URL, and timeout to client.metro.reload', async () => {
+  let observed: MetroReloadOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    reloadMetro: async (options) => {
+      observed = options;
+      return {
+        reloaded: true,
+        reloadUrl: 'http://127.0.0.1:9090/reload',
+        status: 200,
+        body: 'OK',
+      };
+    },
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'metro',
+      positionals: ['reload'],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+        metroHost: '127.0.0.1',
+        metroPort: 9090,
+        bundleUrl: 'http://127.0.0.1:9090/index.bundle?platform=ios',
+        metroProbeTimeoutMs: 1500,
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  assert.deepEqual(observed, {
+    metroHost: '127.0.0.1',
+    metroPort: 9090,
+    bundleUrl: 'http://127.0.0.1:9090/index.bundle?platform=ios',
+    timeoutMs: 1500,
+  });
+  assert.equal(stdout, 'Reloaded React Native apps via http://127.0.0.1:9090/reload\n');
 });
 
 test('screenshot forwards --overlay-refs to the client capture API', async () => {
@@ -578,6 +623,7 @@ async function captureStdout(run: () => Promise<void>): Promise<string> {
 function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];
   prepareMetro?: AgentDeviceClient['metro']['prepare'];
+  reloadMetro?: AgentDeviceClient['metro']['reload'];
   open?: AgentDeviceClient['apps']['open'];
   screenshot?: AgentDeviceClient['capture']['screenshot'];
 }): AgentDeviceClient {
@@ -682,6 +728,14 @@ function createStubClient(params: {
             bundleUrl: 'https://sandbox.example.test/index.bundle?platform=android',
           },
           bridge: null,
+        })),
+      reload:
+        params.reloadMetro ??
+        (async () => ({
+          reloaded: true,
+          reloadUrl: 'http://127.0.0.1:8081/reload',
+          status: 200,
+          body: 'OK',
         })),
     },
     capture: {

@@ -115,6 +115,7 @@ agent-device --session auth snapshot -i
 - Use semantic session names when you need multiple concurrent runs.
 - Use `--save-script=<path>` on `close` when you want to keep a replay script.
 - For dev loops where state can linger, prefer `open <app> --relaunch`.
+- For Metro-backed React Native JS changes with the app already running, prefer `metro reload` instead of `open <app> --relaunch`; it asks Metro to reload connected apps without restarting the native process.
 - In iOS sessions, use `open <app>` for the app itself. Use `open <url>` for deep links, and `open <app> <url>` when you need to launch the app and deep link in one step.
 - On iOS, `appstate` is session-scoped and requires the matching active session on the target device.
 

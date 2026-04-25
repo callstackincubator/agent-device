@@ -8,7 +8,7 @@ import type { Socket } from 'node:net';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { prepareMetroRuntime } from '../client-metro.ts';
+import { prepareMetroRuntime, reloadMetro } from '../client-metro.ts';
 import { AppError } from '../utils/errors.ts';
 
 const TEST_TOKEN = 'agent-device-proxy-test-token';
@@ -197,6 +197,65 @@ test('prepareMetroRuntime rejects incomplete proxy configuration', async () => {
       error.code === 'INVALID_ARGS' &&
       error.message.includes('tenantId, runId, and leaseId bridge scope'),
   );
+});
+
+test('reloadMetro preserves the bundle URL route prefix', async () => {
+  const requests: string[] = [];
+  const server = createServer((req, res) => {
+    requests.push(req.url ?? '');
+    if (req.url === '/metro/runtime-1/reload') {
+      res.statusCode = 200;
+      res.end('OK');
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+
+  try {
+    const result = await reloadMetro({
+      bundleUrl: `http://127.0.0.1:${address.port}/metro/runtime-1/index.bundle?platform=ios&dev=true`,
+      timeoutMs: 1_000,
+    });
+
+    assert.deepEqual(requests, ['/metro/runtime-1/reload']);
+    assert.deepEqual(result, {
+      reloaded: true,
+      reloadUrl: `http://127.0.0.1:${address.port}/metro/runtime-1/reload`,
+      status: 200,
+      body: 'OK',
+    });
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('reloadMetro defaults to local Metro host and port', async () => {
+  const server = createServer((req, res) => {
+    if (req.url === '/reload') {
+      res.statusCode = 200;
+      res.end('OK');
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+  server.listen(0);
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+
+  try {
+    const result = await reloadMetro({ metroPort: address.port, timeoutMs: 1_000 });
+    assert.equal(result.reloadUrl, `http://localhost:${address.port}/reload`);
+    assert.equal(result.body, 'OK');
+  } finally {
+    await closeServer(server);
+  }
 });
 
 function writeFakeNpx(binDir: string): void {

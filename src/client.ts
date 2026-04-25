@@ -1,5 +1,5 @@
 import { sendToDaemon } from './daemon-client.ts';
-import { prepareMetroRuntime } from './client-metro.ts';
+import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { CLIENT_COMMANDS } from './client-command-registry.ts';
 import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
 import { throwDaemonError } from './daemon-error.ts';
@@ -277,6 +277,14 @@ export function createAgentDeviceClient(
           installDependenciesIfNeeded: options.installDependenciesIfNeeded,
           runtimeFilePath: options.runtimeFilePath,
           logPath: options.logPath,
+        }),
+      reload: async (options = {}) =>
+        await reloadMetro({
+          metroHost: options.metroHost,
+          metroPort: options.metroPort,
+          bundleUrl: options.bundleUrl,
+          runtime: config.runtime,
+          timeoutMs: options.timeoutMs,
         }),
     },
     capture: {
@@ -627,6 +635,8 @@ export type {
   MaterializationReleaseResult,
   MetroPrepareOptions,
   MetroPrepareResult,
+  MetroReloadOptions,
+  MetroReloadResult,
   NetworkOptions,
   PerfOptions,
   PermissionTarget,

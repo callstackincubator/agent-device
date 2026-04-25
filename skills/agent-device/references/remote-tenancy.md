@@ -9,6 +9,7 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 - `agent-device connect --remote-config <path>`
 - `agent-device install-from-source <url> --remote-config <path> --platform android`
 - `agent-device open <package> --remote-config <path> --relaunch`
+- `agent-device metro reload --remote-config <path>`
 - `agent-device snapshot --remote-config <path> -i`
 - `agent-device disconnect --remote-config <path>`
 - `agent-device connection status`
@@ -36,6 +37,7 @@ agent-device connect --remote-config ./remote-config.json
 ARTIFACT_URL="<trusted-artifact-url>"
 agent-device install-from-source "$ARTIFACT_URL" --platform android
 agent-device open com.example.app --relaunch
+agent-device metro reload
 agent-device snapshot -i
 agent-device fill @e3 "test@example.com"
 agent-device disconnect
@@ -73,6 +75,7 @@ The first command that needs a lease or Metro runtime prepares and persists it. 
 - `connect` stores local non-secret connection state and defers tenant lease allocation plus Metro preparation until a later command needs them.
 - Commands such as `install-from-source`, `open`, `snapshot`, and `apps` allocate or refresh the lease when needed.
 - `open` prepares Metro runtime hints when the remote profile has Metro fields and no compatible runtime is already saved.
+- `metro reload` reuses saved Metro runtime hints and asks Metro to reload connected React Native apps without restarting the native process.
 - `batch` also prepares Metro when any step opens an app and that step does not provide its own runtime.
 - `disconnect` closes the session when possible, stops the Metro companion owned by the connection, releases the lease when one was allocated, and removes local connection state.
 

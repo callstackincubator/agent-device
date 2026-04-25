@@ -21,6 +21,7 @@ Open this file when the app or screen is already running and you need to discove
 - User asks for exact text from a known target: `get text`
 - User asks you to tap, type, or choose an element: `snapshot -i`, then act
 - User asks for the React Native component tree, props/state/hooks, or render profiling: use `agent-device react-devtools ...` and the `skills/react-devtools` workflow
+- User asks to reload a Metro-backed React Native app after JS changes: `agent-device metro reload`, then wait briefly and re-run `snapshot` or `snapshot -i`
 - React Native dev or debug build shows warning/error UI: capture enough evidence to identify it, dismiss it if it is not the requested behavior, then continue the flow and report it in the summary
 - The on-screen keyboard is blocking the next step: `keyboard dismiss`; on iOS do this only while an app session is active, and use `keyboard status|get` only on Android
 - UI does not expose the answer: say so plainly; do not browse or force the app into a new state unless asked
@@ -59,6 +60,16 @@ Open this file when the app or screen is already running and you need to discove
 - Not blocking the task: dismiss and continue.
 - Blocking or recurring: switch to [debugging.md](debugging.md) and collect evidence.
 - Seen at any point: mention in the final summary even if dismissed.
+
+**React Native Metro reload.** When a dev app is already running and connected to Metro, prefer a Metro reload over restarting the native app process:
+
+```bash
+agent-device metro reload
+agent-device wait 1000
+agent-device snapshot -i
+```
+
+Use `--metro-host`, `--metro-port`, or `--bundle-url` only when the active connection does not already carry the right runtime hints. Fall back to `open <app> --relaunch` when the app is not connected to Metro, Metro reload fails, or native startup state needs a clean process.
 
 ## Common example loops
 
