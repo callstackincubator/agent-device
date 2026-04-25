@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-437/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-437/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-437/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-437/static/js/index.92c8343e82.js"></script>
+<script defer src="/agent-device/pr-preview/pr-437/static/js/index.9f85433fcd.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -114,6 +114,16 @@
 <li><code>json</code></li>
 </ul>
 <p>Command-specific defaults are supported too, for example <code>snapshotDepth</code>, <code>snapshotScope</code>, <code>activity</code>, <code>relaunch</code>, <code>shutdown</code>, <code>fps</code>, <code>quality</code>, <code>stepsFile</code>, or <code>saveScript</code>.</p>
+<p><code>install-from-source</code> can also read a structured GitHub Actions artifact source from config when a compatible remote daemon resolves CI artifacts server-side:</p>
+<div class="rp-codeblock language-json"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="json"><code><span class="line"><span style="color:var(--shiki-foreground)">{</span></span>
+<span class="line"><span style="color:var(--shiki-token-keyword)">  &quot;platform&quot;</span><span style="color:var(--shiki-token-punctuation)">:</span><span style="color:var(--shiki-token-string-expression)"> &quot;android&quot;</span><span style="color:var(--shiki-token-punctuation)">,</span></span>
+<span class="line"><span style="color:var(--shiki-token-keyword)">  &quot;installSource&quot;</span><span style="color:var(--shiki-token-punctuation)">:</span><span style="color:var(--shiki-foreground)"> {</span></span>
+<span class="line"><span style="color:var(--shiki-token-keyword)">    &quot;type&quot;</span><span style="color:var(--shiki-token-punctuation)">:</span><span style="color:var(--shiki-token-string-expression)"> &quot;github-actions-artifact&quot;</span><span style="color:var(--shiki-token-punctuation)">,</span></span>
+<span class="line"><span style="color:var(--shiki-token-keyword)">    &quot;repo&quot;</span><span style="color:var(--shiki-token-punctuation)">:</span><span style="color:var(--shiki-token-string-expression)"> &quot;thymikee/RNCLI83&quot;</span><span style="color:var(--shiki-token-punctuation)">,</span></span>
+<span class="line"><span style="color:var(--shiki-token-keyword)">    &quot;artifact&quot;</span><span style="color:var(--shiki-token-punctuation)">:</span><span style="color:var(--shiki-token-string-expression)"> &quot;rn-android-emulator-debug-pr-19&quot;</span></span>
+<span class="line"><span style="color:var(--shiki-foreground)">  }</span></span>
+<span class="line"><span style="color:var(--shiki-foreground)">}</span></span></code></pre></div><div class="rp-code-button-group"><button class="rp-code-button-group__button rp-code-wrap-button" title="Toggle code wrap"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrapped"><path fill="#22a041" d="M21 5H3v2h18zM3 19h7v-2H3zm0-6h15c1 0 2 .43 2 2s-1 2-2 2h-2v-2l-4 3 4 3v-2h2c2.95 0 4-1.27 4-4 0-2.72-1-4-4-4H3z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" class="rp-code-button-group__icon rp-code-button-group__icon--wrap"><path fill="currentColor" d="M16 7H3V5h13zM3 19h13v-2H3zm19-7-4-3v2H3v2h15v2z"></path></svg></button><button class="rp-code-button-group__button rp-code-copy-button" title="Copy code"><svg xmlns="http://www.w3.org/2000/svg" width="272" height="272" viewBox="0 0 272 272" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--copy"><path fill="currentColor" fill-rule="evenodd" d="M45.883 23.368h123.823v22.514H68.396v146.336H45.883zm45.026 45.027H225.99v180.107H90.91zm22.514 22.513v135.08h90.053V90.908z" clip-rule="evenodd"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="271" height="271" viewBox="0 0 271 271" class="rp-code-button-group__icon rp-code-copy-button__icon rp-code-copy-button__icon--success"><path fill="currentColor" d="M112.687 203.223H90.174v-22.514h22.512v-22.514h22.512v22.514h-22.511zm-22.514-22.514H67.66v-22.514h22.513zm-22.514-22.514H45.146v-22.512H67.66zm90.054 0h-22.514v-22.512h22.514zm22.514-22.512h-22.514v-22.514h22.514zm22.513-22.514h-22.513V90.655h22.513zm22.514-22.514H202.74V68.143h22.514z"></path></svg></button></div></div></div>
+<p>Use a numeric <code>artifact</code> value for an artifact ID. Use a string <code>artifact</code> value for an artifact name.</p>
 <p>Bound-session defaults use the same config and env mapping too:</p>
 <ul>
 <li><code>sessionLock</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK</code></li>

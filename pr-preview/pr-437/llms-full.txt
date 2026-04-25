@@ -518,7 +518,7 @@ await client.apps.installFromSource({
 });
 ```
 
-Remote daemons may also support `{ kind: 'github-actions-artifact', owner, repo, runId, artifactName }`. The local client preserves these payloads and does not perform GitHub authentication or artifact download.
+Remote daemons may also support `{ kind: 'github-actions-artifact', owner, repo, artifactName }` or `{ kind: 'github-actions-artifact', owner, repo, runId, artifactName }`. The local client preserves these payloads and does not perform GitHub authentication or artifact download.
 
 Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact. Trusted GitHub Actions and EAS archive URLs may contain one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
 
@@ -956,15 +956,16 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device install-from-source https://example.com/builds/app.aab --platform android
-agent-device install-from-source https://api.github.com/repos/acme/app/actions/artifacts/123/zip --platform ios --header "authorization: Bearer TOKEN"
+agent-device install-from-source --github-actions-artifact thymikee/RNCLI83:6635342232 --platform android
 ```
 
 - `install-from-source <url>` installs from a URL source through the normal daemon artifact flow.
+- `install-from-source --github-actions-artifact <owner/repo:artifact>` passes a typed GitHub Actions artifact source through to a compatible remote daemon. Numeric artifacts are sent as `artifactId`; non-numeric artifacts are sent as `artifactName`.
 - Repeat `--header <name:value>` for authenticated or signed artifact requests.
 - Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
 - Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths; use `install-from-source` when the artifact already exists at a URL reachable by the daemon.
 - Direct Android URL sources may be `.apk` or `.aab`.
-- Trusted artifact service URLs, currently GitHub Actions and EAS, may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
+- Trusted artifact service URLs may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive. Prefer `--github-actions-artifact` for GitHub Actions artifacts that a compatible remote daemon can resolve with its own credentials.
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
 - URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
 
@@ -1417,6 +1418,21 @@ Common keys include:
 
 Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `quality`, `stepsFile`, or `saveScript`.
 
+`install-from-source` can also read a structured GitHub Actions artifact source from config when a compatible remote daemon resolves CI artifacts server-side:
+
+```json
+{
+  "platform": "android",
+  "installSource": {
+    "type": "github-actions-artifact",
+    "repo": "thymikee/RNCLI83",
+    "artifact": "rn-android-emulator-debug-pr-19"
+  }
+}
+```
+
+Use a numeric `artifact` value for an artifact ID. Use a string `artifact` value for an artifact name.
+
 Bound-session defaults use the same config and env mapping too:
 
 - `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
@@ -1706,7 +1722,7 @@ agent-device close
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
-- Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted GitHub Actions or EAS archives with one installable artifact.
+- Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted archives with one installable artifact. Use `install-from-source --github-actions-artifact <owner/repo:artifact>` for daemon-resolved GitHub Actions artifacts.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.
