@@ -103,7 +103,7 @@ User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imp
 
 Substitution happens inside parsed string values. It does not create extra arguments, so quote selectors or text values that contain spaces:
 
-```ad
+```sh
 env SETTINGS="label=Account || label=Profile"
 click "${SETTINGS}"
 ```
@@ -139,7 +139,7 @@ AD_VAR_WAIT_SHORT=2000 agent-device replay ./flow.ad
 
 Extract a reusable selector. Before:
 
-```ad
+```sh
 click "label=Account || label=Profile || label=User"
 wait 500
 click "label=Account || label=Profile || label=User"
@@ -147,7 +147,7 @@ click "label=Account || label=Profile || label=User"
 
 After:
 
-```ad
+```sh
 env SETTINGS="label=Account || label=Profile || label=User"
 
 click "${SETTINGS}"
