@@ -3,89 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runCli } from '../cli.ts';
 import {
   hashRemoteConfigFile,
   readActiveConnectionState,
   readRemoteConnectionState,
 } from '../remote-connection-state.ts';
-import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
-import { installIsolatedCliTestEnv } from './cli-test-env.ts';
-
-class ExitSignal extends Error {
-  public readonly code: number;
-
-  constructor(code: number) {
-    super(`EXIT_${code}`);
-    this.code = code;
-  }
-}
-
-type RunResult = {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  calls: Omit<DaemonRequest, 'token'>[];
-};
-
-async function runCliCapture(
-  argv: string[],
-  options?: {
-    cwd?: string;
-    env?: Record<string, string | undefined>;
-    sendToDaemon?: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>;
-  },
-): Promise<RunResult> {
-  let stdout = '';
-  let stderr = '';
-  let code: number | null = null;
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
-
-  const originalExit = process.exit;
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const originalCwd = process.cwd();
-  const restoreEnv = installIsolatedCliTestEnv(options?.env ?? {});
-
-  if (options?.cwd) {
-    process.chdir(options.cwd);
-  }
-
-  (process as any).exit = ((nextCode?: number) => {
-    throw new ExitSignal(nextCode ?? 0);
-  }) as typeof process.exit;
-  (process.stdout as any).write = ((chunk: unknown) => {
-    stdout += String(chunk);
-    return true;
-  }) as typeof process.stdout.write;
-  (process.stderr as any).write = ((chunk: unknown) => {
-    stderr += String(chunk);
-    return true;
-  }) as typeof process.stderr.write;
-
-  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-    calls.push(req);
-    if (options?.sendToDaemon) {
-      return await options.sendToDaemon(req);
-    }
-    return { ok: true, data: {} };
-  };
-
-  try {
-    await runCli(argv, { sendToDaemon });
-  } catch (error) {
-    if (error instanceof ExitSignal) code = error.code;
-    else throw error;
-  } finally {
-    restoreEnv();
-    process.exit = originalExit;
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-    process.chdir(originalCwd);
-  }
-
-  return { code, stdout, stderr, calls };
-}
+import { runCliCapture, type CapturedDaemonRequest } from './cli-capture.ts';
 
 function makeTempWorkspace(): { root: string; home: string; project: string } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-config-'));
@@ -381,7 +304,7 @@ test('install-from-source uses active remote connection lease binding', async ()
     'utf8',
   );
 
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
+  const calls: CapturedDaemonRequest[] = [];
   const result = await runCliCapture(
     ['install-from-source', 'https://example.com/app.apk', '--state-dir', stateDir, '--json'],
     {
@@ -462,7 +385,7 @@ test('minimal remote connect defers lease allocation until a platform-bound comm
   assert.equal(connected?.leaseId, undefined);
   assert.equal(connected?.leaseBackend, 'android-instance');
 
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
+  const calls: CapturedDaemonRequest[] = [];
   const appsResult = await runCliCapture(['apps', '--state-dir', stateDir, '--json'], {
     cwd: project,
     env: { HOME: home },

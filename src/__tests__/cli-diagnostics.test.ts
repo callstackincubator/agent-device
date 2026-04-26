@@ -3,79 +3,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runCli } from '../cli.ts';
-import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
+import type { DaemonResponse } from '../daemon-client.ts';
 import { resolveDaemonPaths } from '../daemon/config.ts';
-import { installIsolatedCliTestEnv } from './cli-test-env.ts';
-
-class ExitSignal extends Error {
-  public readonly code: number;
-
-  constructor(code: number) {
-    super(`EXIT_${code}`);
-    this.code = code;
-  }
-}
-
-type RunResult = {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  calls: Omit<DaemonRequest, 'token'>[];
-};
+import {
+  runCliCapture as captureCli,
+  type CapturedCliRun,
+  type CapturedDaemonRequest,
+} from './cli-capture.ts';
 
 async function runCliCapture(
   argv: string[],
-  responder: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>,
+  responder: (req: CapturedDaemonRequest) => Promise<DaemonResponse>,
   options?: {
     env?: Record<string, string | undefined>;
   },
-): Promise<RunResult> {
-  let stdout = '';
-  let stderr = '';
-  let code: number | null = null;
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
-
-  const originalExit = process.exit;
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-diagnostics-'));
-  const restoreEnv = installIsolatedCliTestEnv({
-    ...(options?.env ?? {}),
-    AGENT_DEVICE_STATE_DIR: stateDir,
+): Promise<CapturedCliRun> {
+  return captureCli(argv, responder, {
+    env: options?.env,
+    stateDirPrefix: 'agent-device-cli-diagnostics-',
   });
-
-  (process as any).exit = ((nextCode?: number) => {
-    throw new ExitSignal(nextCode ?? 0);
-  }) as typeof process.exit;
-  (process.stdout as any).write = ((chunk: unknown) => {
-    stdout += String(chunk);
-    return true;
-  }) as typeof process.stdout.write;
-  (process.stderr as any).write = ((chunk: unknown) => {
-    stderr += String(chunk);
-    return true;
-  }) as typeof process.stderr.write;
-
-  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-    calls.push(req);
-    return await responder(req);
-  };
-
-  try {
-    await runCli(argv, { sendToDaemon });
-  } catch (error) {
-    if (error instanceof ExitSignal) code = error.code;
-    else throw error;
-  } finally {
-    restoreEnv();
-    fs.rmSync(stateDir, { recursive: true, force: true });
-    process.exit = originalExit;
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-  }
-
-  return { code, stdout, stderr, calls };
 }
 
 test('cli forwards --debug as verbose/debug metadata', async () => {

@@ -1,72 +1,11 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { runCli } from '../cli.ts';
-import type { DaemonResponse } from '../daemon-client.ts';
-import { installIsolatedCliTestEnv } from './cli-test-env.ts';
-
-class ExitSignal extends Error {
-  public readonly code: number;
-
-  constructor(code: number) {
-    super(`EXIT_${code}`);
-    this.code = code;
-  }
-}
-
-type RunResult = {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  daemonCalls: number;
-};
-
-async function runCliCapture(argv: string[]): Promise<RunResult> {
-  let daemonCalls = 0;
-  let stdout = '';
-  let stderr = '';
-  let code: number | null = null;
-
-  const originalExit = process.exit;
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const restoreEnv = installIsolatedCliTestEnv();
-
-  (process as any).exit = ((nextCode?: number) => {
-    throw new ExitSignal(nextCode ?? 0);
-  }) as typeof process.exit;
-  (process.stdout as any).write = ((chunk: unknown) => {
-    stdout += String(chunk);
-    return true;
-  }) as typeof process.stdout.write;
-  (process.stderr as any).write = ((chunk: unknown) => {
-    stderr += String(chunk);
-    return true;
-  }) as typeof process.stderr.write;
-
-  const sendToDaemon = async (): Promise<DaemonResponse> => {
-    daemonCalls += 1;
-    return { ok: true, data: {} };
-  };
-
-  try {
-    await runCli(argv, { sendToDaemon });
-  } catch (error) {
-    if (error instanceof ExitSignal) code = error.code;
-    else throw error;
-  } finally {
-    restoreEnv();
-    process.exit = originalExit;
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-  }
-
-  return { code, stdout, stderr, daemonCalls };
-}
+import { runCliCapture } from './cli-capture.ts';
 
 test('help appstate prints command help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'appstate']);
   assert.equal(result.code, 0);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /Show foreground app\/activity/);
   assert.doesNotMatch(result.stdout, /Command flags:/);
   assert.match(result.stdout, /Global flags:/);
@@ -75,14 +14,14 @@ test('help appstate prints command help and skips daemon dispatch', async () => 
 test('help longpress prints command help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'longpress']);
   assert.equal(result.code, 0);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /Usage:\n  agent-device longpress <x> <y> \[durationMs\]/);
 });
 
 test('help long-press resolves to longpress help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'long-press']);
   assert.equal(result.code, 0);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /Usage:\n  agent-device longpress <x> <y> \[durationMs\]/);
   assert.doesNotMatch(result.stdout, /agent-device long-press/);
 });
@@ -90,7 +29,7 @@ test('help long-press resolves to longpress help and skips daemon dispatch', asy
 test('appstate --help prints command help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['appstate', '--help']);
   assert.equal(result.code, 0);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /Usage:\n  agent-device appstate/);
   assert.match(result.stdout, /Global flags:/);
 });
@@ -98,7 +37,7 @@ test('appstate --help prints command help and skips daemon dispatch', async () =
 test('help react-devtools prints passthrough command help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'react-devtools']);
   assert.equal(result.code, 0);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /Usage:\n  agent-device react-devtools \[\.\.\.args\]/);
   assert.match(result.stdout, /React Native component trees/);
 });
@@ -106,7 +45,7 @@ test('help react-devtools prints passthrough command help and skips daemon dispa
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'not-a-command']);
   assert.equal(result.code, 1);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Error \(INVALID_ARGS\): Unknown command: not-a-command/);
   assert.match(result.stdout, /Commands:/);
   assert.match(result.stdout, /Flags:/);
@@ -116,7 +55,7 @@ test('help unknown command prints error plus global usage and skips daemon dispa
 test('unknown command --help prints error plus global usage and skips daemon dispatch', async () => {
   const result = await runCliCapture(['not-a-command', '--help']);
   assert.equal(result.code, 1);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Error \(INVALID_ARGS\): Unknown command: not-a-command/);
   assert.match(result.stdout, /Commands:/);
 });
@@ -124,13 +63,13 @@ test('unknown command --help prints error plus global usage and skips daemon dis
 test('runtime command is rejected before daemon dispatch', async () => {
   const result = await runCliCapture(['runtime', 'show']);
   assert.equal(result.code, 1);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Error \(INVALID_ARGS\): runtime command was removed/);
 });
 
 test('help rejects multiple positional commands and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'appstate', 'extra']);
   assert.equal(result.code, 1);
-  assert.equal(result.daemonCalls, 0);
+  assert.equal(result.calls.length, 0);
   assert.match(result.stderr, /Error \(INVALID_ARGS\): help accepts at most one command/);
 });
