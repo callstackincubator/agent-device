@@ -60,7 +60,6 @@ const REMOTE_MATERIALIZATION_DEFERRED_COMMANDS = new Set([
   'connect',
   'connection',
   'close',
-  'devices',
   'disconnect',
   'ensure-simulator',
   'metro',

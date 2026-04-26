@@ -174,6 +174,14 @@ const ENVIRONMENT_LINES = [
   { label: 'AGENT_DEVICE_PLATFORM', description: 'Default platform binding' },
   { label: 'AGENT_DEVICE_SESSION_LOCK', description: 'Bound-session conflict mode' },
   { label: 'AGENT_DEVICE_DAEMON_BASE_URL', description: 'Connect to remote daemon' },
+  {
+    label: 'AGENT_DEVICE_DAEMON_AUTH_TOKEN',
+    description: 'Remote daemon service/API token',
+  },
+  {
+    label: 'AGENT_DEVICE_CLOUD_BASE_URL',
+    description: 'Bridge/control-plane API origin for cloud auth and /api-keys',
+  },
 ] as const;
 
 const EXAMPLE_LINES = [
@@ -1034,7 +1042,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride:
       'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
     helpDescription:
-      'Connect to a remote daemon, authenticate when needed, and save remote session state',
+      'Connect to a remote daemon, authenticate when needed, and save remote session state. AGENT_DEVICE_CLOUD_BASE_URL is the bridge/control-plane API origin; use AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_... for CI/service-token automation.',
     summary: 'Connect to remote daemon',
     positionalArgs: [],
     allowedFlags: [

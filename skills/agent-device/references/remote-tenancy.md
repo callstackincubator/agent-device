@@ -15,7 +15,7 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 - `agent-device disconnect --remote-config <path>`
 - `agent-device connection status`
 - `agent-device auth status`
-- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...` for CI/service-token automation
+- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_...` for CI/service-token automation
 
 ## Most common mistake to avoid
 
@@ -42,7 +42,7 @@ agent-device fill @e3 "test@example.com"
 agent-device disconnect
 ```
 
-After `connect`, normal commands use the active remote connection. If cloud credentials are missing, `connect` starts login automatically in an interactive shell and stores a revocable CLI session that silently mints short-lived `adc_agent_...` command tokens. The cloud side remains responsible for token expiry, tenant/run claim checks, revocation, one-time device approval, and polling rate limits. End with `disconnect` to release the lease and stop the owned Metro companion.
+After `connect`, normal commands use the active remote connection. If cloud credentials are missing, `connect` starts login automatically in an interactive local shell and stores a revocable CLI session that silently mints short-lived `adc_agent_...` command tokens. Linux sandboxes, CI, and other non-interactive shells should set `AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_...` instead. The cloud side remains responsible for token expiry, tenant/run claim checks, revocation, one-time device approval, and polling rate limits. End with `disconnect` to release the lease and stop the owned Metro companion.
 
 ### Self-contained script flow
 
@@ -72,7 +72,7 @@ The first command that needs a lease or Metro runtime prepares and persists it. 
 ## Behavior summary
 
 - `connect` stores local non-secret connection state and defers tenant lease allocation plus Metro preparation until a later command needs them.
-- Commands such as `install-from-source`, `open`, `snapshot`, and `apps` allocate or refresh the lease when needed.
+- Commands such as `install-from-source`, `open`, `snapshot`, `devices`, and `apps` allocate or refresh the lease when needed.
 - `open` prepares Metro runtime hints when the remote profile has Metro fields and no compatible runtime is already saved.
 - `metro reload` reuses saved Metro runtime hints and asks Metro to reload connected React Native apps without restarting the native process.
 - `batch` also prepares Metro when any step opens an app and that step does not provide its own runtime.
@@ -126,6 +126,7 @@ Optional overrides stay available for advanced cases:
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
 - For React Native Metro runs with `metroProxyBaseUrl`, `agent-device >= 0.11.12` can manage the local companion tunnel, but Metro itself still needs to be running locally. `metroProxyBaseUrl` is the bridge origin, not a prebuilt `/api/metro/...` route.
+- Set `AGENT_DEVICE_CLOUD_BASE_URL` to the bridge/control-plane API origin. It does not need to be the dashboard origin; `/api-keys` on the bridge can redirect to the dashboard for service-token setup.
 - For cloud stock React Native iOS, use the bridge descriptor's wildcard HTTPS Metro hints directly; do not install or launch the XCTest runner just to make Metro reachable.
 - Android keeps using bridge-provided `/api/metro/runtimes/<runtimeId>/...` Metro routes.
 - `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it.

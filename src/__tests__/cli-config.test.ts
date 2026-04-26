@@ -535,6 +535,74 @@ test('normal commands accept direct remote-config usage', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('devices allocates a pending remote lease before listing devices', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+
+  const connectResult = await runCliCapture(
+    ['connect', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    { cwd: project, env: { HOME: home } },
+  );
+  assert.equal(connectResult.code, null);
+
+  const result = await runCliCapture(['devices', '--state-dir', stateDir, '--json'], {
+    cwd: project,
+    env: { HOME: home },
+    sendToDaemon: async (req) => {
+      if (req.command === 'lease_allocate') {
+        return {
+          ok: true,
+          data: {
+            lease: {
+              leaseId: 'lease-devices-001',
+              tenantId: 'acme',
+              runId: 'run-123',
+              backend: 'android-instance',
+            },
+          },
+        };
+      }
+      if (req.command === 'devices') {
+        return {
+          ok: true,
+          data: {
+            devices: [
+              {
+                id: 'emulator-5554',
+                name: 'Pixel 8',
+                platform: 'android',
+                kind: 'emulator',
+                booted: true,
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`unexpected daemon command: ${req.command}`);
+    },
+  });
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'lease_allocate');
+  assert.equal(result.calls[1]?.command, 'devices');
+  assert.equal(result.calls[1]?.flags?.leaseId, 'lease-devices-001');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-devices-001');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('direct remote-config command does not fall back to unrelated active session', async () => {
   const { root, home, project } = makeTempWorkspace();
   const stateDir = path.join(root, 'state');
