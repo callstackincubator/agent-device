@@ -15,9 +15,10 @@ import type {
   PrepareMetroRuntimeResult,
   ReloadMetroResult,
 } from './client-metro.ts';
-import type { CompanionTunnelScope as MetroBridgeScope } from './client-companion-tunnel-contract.ts';
+import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
+export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';

@@ -1,7 +1,8 @@
+import { MissingCompanionEnvError } from './client-companion-tunnel-contract.ts';
 import { runCompanionTunnelProcessFromEnv } from './client-companion-tunnel-worker.ts';
 
 void runCompanionTunnelProcessFromEnv(process.argv.slice(2), process.env).catch((error) => {
-  if (error instanceof Error && error.message.includes('missing required environment')) {
+  if (error instanceof MissingCompanionEnvError) {
     console.error(error.message);
     process.exitCode = 1;
     return;

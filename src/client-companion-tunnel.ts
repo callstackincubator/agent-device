@@ -28,6 +28,7 @@ import {
 
 const COMPANION_TUNNEL_TERM_TIMEOUT_MS = 1_000;
 const COMPANION_TUNNEL_KILL_TIMEOUT_MS = 1_000;
+const COMPANION_TUNNEL_ENTRYPOINT = 'companion-tunnel';
 
 export type CompanionTunnelDefinition = {
   slug: string;
@@ -319,18 +320,16 @@ function buildCompanionEnv(
   options: EnsureCompanionTunnelOptions,
   env: NodeJS.ProcessEnv,
 ): NodeJS.ProcessEnv {
-  const nextEnv: NodeJS.ProcessEnv = {
-    ...env,
-    [ENV_COMPANION_TUNNEL_SERVER_BASE_URL]: normalizeBaseUrl(options.serverBaseUrl),
-    [ENV_COMPANION_TUNNEL_BEARER_TOKEN]: options.bearerToken,
-    [ENV_COMPANION_TUNNEL_LOCAL_BASE_URL]: normalizeBaseUrl(options.localBaseUrl),
-    [ENV_COMPANION_TUNNEL_STATE_PATH]: resolveCompanionTunnelPaths(
-      options.projectRoot,
-      options.definition,
-      options.profileKey,
-      options.stateDir,
-    ).statePath,
-  };
+  const nextEnv: NodeJS.ProcessEnv = { ...env };
+  nextEnv[ENV_COMPANION_TUNNEL_SERVER_BASE_URL] = normalizeBaseUrl(options.serverBaseUrl);
+  nextEnv[ENV_COMPANION_TUNNEL_BEARER_TOKEN] = options.bearerToken;
+  nextEnv[ENV_COMPANION_TUNNEL_LOCAL_BASE_URL] = normalizeBaseUrl(options.localBaseUrl);
+  nextEnv[ENV_COMPANION_TUNNEL_STATE_PATH] = resolveCompanionTunnelPaths(
+    options.projectRoot,
+    options.definition,
+    options.profileKey,
+    options.stateDir,
+  ).statePath;
   nextEnv[ENV_COMPANION_TUNNEL_SCOPE_TENANT_ID] = options.bridgeScope.tenantId;
   nextEnv[ENV_COMPANION_TUNNEL_SCOPE_RUN_ID] = options.bridgeScope.runId;
   nextEnv[ENV_COMPANION_TUNNEL_SCOPE_LEASE_ID] = options.bridgeScope.leaseId;
@@ -365,13 +364,12 @@ function buildCompanionEnv(
 function resolveCompanionEntryModulePath(definition: CompanionTunnelDefinition): string {
   const currentModulePath = fileURLToPath(import.meta.url);
   const extension = path.extname(currentModulePath) || '.js';
-  const entryPath = path.join(path.dirname(currentModulePath), `metro-companion${extension}`);
-  if (!fs.existsSync(entryPath)) {
-    throw new Error(
-      `${definition.displayName} entrypoint not found at ${entryPath}. Rebuild the package to include the companion worker entry.`,
-    );
-  }
-  return entryPath;
+  const entryDir = path.dirname(currentModulePath);
+  const entryPath = path.join(entryDir, `${COMPANION_TUNNEL_ENTRYPOINT}${extension}`);
+  if (fs.existsSync(entryPath)) return entryPath;
+  throw new Error(
+    `${definition.displayName} entrypoint not found at ${entryPath}. Rebuild the package to include the companion worker entry.`,
+  );
 }
 
 function spawnCompanionProcess(

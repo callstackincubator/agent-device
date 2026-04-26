@@ -130,7 +130,7 @@ function acceptWebSocket(socket: Duplex, key: string): void {
   );
 }
 
-test('installed package exposes Node APIs and packaged metro companion entrypoint', async (t) => {
+test('installed package exposes Node APIs and packaged companion tunnel entrypoint', async (t) => {
   const distMetroPath = path.join(repoRoot, 'dist', 'src', 'metro.js');
   if (!fs.existsSync(distMetroPath)) {
     t.skip('run pnpm build before executing installed-package integration tests');
@@ -245,8 +245,12 @@ test('installed package exposes Node APIs and packaged metro companion entrypoin
     installedPackageRoot = extractInstalledPackage(tarballPath, consumerRoot);
     linkRuntimeDependencies(installedPackageRoot, consumerRoot);
     assert.equal(
-      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'metro-companion.js')),
+      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'companion-tunnel.js')),
       true,
+    );
+    assert.equal(
+      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'metro-companion.js')),
+      false,
     );
 
     metroPort = await listen(metroServer);

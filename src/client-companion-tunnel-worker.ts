@@ -18,6 +18,7 @@ import {
   METRO_COMPANION_RUN_ARG,
   REACT_DEVTOOLS_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
+  MissingCompanionEnvError,
   type CompanionTunnelWorkerOptions,
 } from './client-companion-tunnel-contract.ts';
 import type {
@@ -450,17 +451,23 @@ function readWorkerOptions(
   const bearerToken = env[ENV_COMPANION_TUNNEL_BEARER_TOKEN]?.trim();
   const localBaseUrl = env[ENV_COMPANION_TUNNEL_LOCAL_BASE_URL]?.trim();
   if (!serverBaseUrl || !bearerToken || !localBaseUrl) {
-    throw new Error('Companion tunnel worker is missing required environment configuration.');
+    throw new MissingCompanionEnvError(
+      'Companion tunnel worker is missing required environment configuration.',
+    );
   }
   const tenantId = env[ENV_COMPANION_TUNNEL_SCOPE_TENANT_ID]?.trim();
   const runId = env[ENV_COMPANION_TUNNEL_SCOPE_RUN_ID]?.trim();
   const leaseId = env[ENV_COMPANION_TUNNEL_SCOPE_LEASE_ID]?.trim();
   if (!tenantId || !runId || !leaseId) {
-    throw new Error('Companion tunnel worker is missing required bridge scope configuration.');
+    throw new MissingCompanionEnvError(
+      'Companion tunnel worker is missing required bridge scope configuration.',
+    );
   }
   const registerPath = env[ENV_COMPANION_TUNNEL_REGISTER_PATH]?.trim();
   if (!registerPath) {
-    throw new Error('Companion tunnel worker is missing required register path configuration.');
+    throw new MissingCompanionEnvError(
+      'Companion tunnel worker is missing required register path configuration.',
+    );
   }
   return {
     serverBaseUrl,
@@ -472,11 +479,11 @@ function readWorkerOptions(
       runId,
       leaseId,
     },
-    launchUrl: env[ENV_COMPANION_TUNNEL_LAUNCH_URL]?.trim() || undefined,
-    statePath: env[ENV_COMPANION_TUNNEL_STATE_PATH]?.trim() || undefined,
-    unregisterPath: env[ENV_COMPANION_TUNNEL_UNREGISTER_PATH]?.trim() || undefined,
-    devicePort: parseDevicePort(env[ENV_COMPANION_TUNNEL_DEVICE_PORT]),
-    session: env[ENV_COMPANION_TUNNEL_SESSION]?.trim() || undefined,
+    launchUrl: env[ENV_COMPANION_TUNNEL_LAUNCH_URL]?.trim(),
+    statePath: env[ENV_COMPANION_TUNNEL_STATE_PATH]?.trim(),
+    unregisterPath: env[ENV_COMPANION_TUNNEL_UNREGISTER_PATH]?.trim(),
+    devicePort: parseDevicePort(env[ENV_COMPANION_TUNNEL_DEVICE_PORT]?.trim()),
+    session: env[ENV_COMPANION_TUNNEL_SESSION]?.trim(),
   };
 }
 
