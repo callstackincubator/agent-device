@@ -64,6 +64,9 @@ test('diagnostics redacts sensitive fields', async () => {
             token: 'secret-token',
             text: 'sensitive text',
             nested: { authorization: 'Bearer abc' },
+            agentToken: 'adc_agent_secret',
+            deviceUrl: 'https://cloud.agent-device.dev/device?user_code=ABCD-EFGH',
+            userCode: 'ABCD-EFGH',
             safe: 'ok',
           },
         });
@@ -81,6 +84,9 @@ test('diagnostics redacts sensitive fields', async () => {
     assert.equal(payload.token, '[REDACTED]');
     assert.equal(payload.text, 'sensitive text');
     assert.equal(payload.nested?.authorization, '[REDACTED]');
+    assert.equal(payload.agentToken, '[REDACTED]');
+    assert.equal(payload.deviceUrl, '[REDACTED]');
+    assert.equal(payload.userCode, '[REDACTED]');
     assert.equal(payload.safe, 'ok');
   } finally {
     process.env.HOME = previousHome;

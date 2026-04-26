@@ -401,7 +401,7 @@ test('parseArgs recognizes daemon transport/state/tenant isolation flags', () =>
   assert.equal(parsed.flags.leaseId, 'abcd1234ef567890');
 });
 
-test('parseArgs recognizes connect lease backend and force flags', () => {
+test('parseArgs recognizes connect lease backend force and no-login flags', () => {
   const parsed = parseArgs(
     [
       'connect',
@@ -414,6 +414,7 @@ test('parseArgs recognizes connect lease backend and force flags', () => {
       '--lease-backend',
       'android-instance',
       '--force',
+      '--no-login',
     ],
     { strictFlags: true },
   );
@@ -421,6 +422,20 @@ test('parseArgs recognizes connect lease backend and force flags', () => {
   assert.equal(parsed.flags.remoteConfig, './remote.json');
   assert.equal(parsed.flags.leaseBackend, 'android-instance');
   assert.equal(parsed.flags.force, true);
+  assert.equal(parsed.flags.noLogin, true);
+});
+
+test('parseArgs accepts auth management subcommands', () => {
+  const status = parseArgs(['auth', 'status'], { strictFlags: true });
+  assert.equal(status.command, 'auth');
+  assert.deepEqual(status.positionals, ['status']);
+
+  const login = parseArgs(['auth', 'login', '--remote-config', './remote.json'], {
+    strictFlags: true,
+  });
+  assert.equal(login.command, 'auth');
+  assert.deepEqual(login.positionals, ['login']);
+  assert.equal(login.flags.remoteConfig, './remote.json');
 });
 
 test('parseArgs recognizes explicit config file flag', () => {

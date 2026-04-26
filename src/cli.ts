@@ -27,6 +27,7 @@ import { applyDefaultPlatformBinding, resolveBindingSettings } from './utils/ses
 import { resolveCliOptions } from './utils/cli-options.ts';
 import { maybeRunUpgradeNotifier } from './utils/update-check.ts';
 import { resolveRemoteConnectionDefaults } from './remote-connection-state.ts';
+import { resolveRemoteAuthForCli } from './cli/auth-session.ts';
 import type { CliFlags, FlagKey } from './utils/command-schema.ts';
 import type { SessionRuntimeHints } from './contracts.ts';
 
@@ -241,6 +242,16 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           parsedBatchSteps = readBatchSteps(flags);
         }
 
+        if (shouldResolveRemoteAuth(command)) {
+          const authResolution = await resolveRemoteAuthForCli({
+            command,
+            flags: effectiveFlags,
+            stateDir: daemonPaths.baseDir,
+            env: process.env,
+          });
+          effectiveFlags = authResolution.flags;
+        }
+
         if (effectiveFlags.remoteConfig && shouldMaterializeRemoteConnection(command)) {
           const materializationClient = createAgentDeviceClient(
             buildClientConfig(effectiveFlags, resolvedRuntime),
@@ -412,6 +423,10 @@ function resolveActiveConnectionDefaults(options: {
 
 function shouldMaterializeRemoteConnection(command: string): boolean {
   return !REMOTE_MATERIALIZATION_DEFERRED_COMMANDS.has(command);
+}
+
+function shouldResolveRemoteAuth(command: string): boolean {
+  return command !== 'auth' && command !== 'connection';
 }
 
 function shouldWarnOpenMayMissRemoteRuntime(options: {

@@ -1,7 +1,7 @@
 const SENSITIVE_KEY_RE =
-  /(token|secret|password|authorization|cookie|api[_-]?key|access[_-]?key|private[_-]?key)/i;
+  /(token|secret|password|authorization|cookie|api[_-]?key|access[_-]?key|private[_-]?key|user[_-]?code|device[_-]?code|refresh[_-]?credential)/i;
 const SENSITIVE_VALUE_RE =
-  /(bearer\s+[a-z0-9._-]+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+)/i;
+  /(bearer\s+[a-z0-9._-]+|adc_(?:agent|live|refresh|cli)_[a-z0-9._-]+|(?:api[_-]?key|token|secret|password|user[_-]?code|device[_-]?code)\s*[=:]\s*\S+)/i;
 
 export function redactDiagnosticData<T>(input: T): T {
   return redactValue(input, new WeakSet<object>()) as T;

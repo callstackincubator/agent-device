@@ -17,6 +17,7 @@ export type CliFlags = {
   leaseId?: string;
   leaseBackend?: 'ios-simulator' | 'ios-instance' | 'android-instance';
   force?: boolean;
+  noLogin?: boolean;
   sessionLock?: 'reject' | 'strip';
   sessionLocked?: boolean;
   sessionLockConflicts?: 'reject' | 'strip';
@@ -280,6 +281,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--force',
     usageDescription: 'Force connection state replacement when reconnecting',
+  },
+  {
+    key: 'noLogin',
+    names: ['--no-login'],
+    type: 'boolean',
+    usageLabel: '--no-login',
+    usageDescription: 'Connect: fail instead of starting implicit cloud login',
   },
   {
     key: 'sessionLock',
@@ -1024,12 +1032,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   connect: {
     usageOverride:
-      'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force]',
-    helpDescription: 'Connect to a remote daemon and save remote session state',
+      'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
+    helpDescription:
+      'Connect to a remote daemon, authenticate when needed, and save remote session state',
     summary: 'Connect to remote daemon',
     positionalArgs: [],
     allowedFlags: [
       'force',
+      'noLogin',
       'metroProjectRoot',
       'metroKind',
       'metroPublicBaseUrl',
@@ -1061,6 +1071,15 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     helpDescription: 'Inspect active remote connection state',
     summary: 'Inspect remote connection',
     positionalArgs: ['status'],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
+  auth: {
+    usageOverride: 'auth status|login|logout',
+    listUsageOverride: 'auth status|login|logout',
+    helpDescription: 'Manage cloud CLI authentication',
+    summary: 'Manage cloud authentication',
+    positionalArgs: ['status|login|logout'],
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
