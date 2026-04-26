@@ -40,6 +40,10 @@
       "import": "./dist/src/artifacts.js",
       "types": "./dist/src/artifacts.d.ts"
     },
+    "./observability": {
+      "import": "./dist/src/observability.js",
+      "types": "./dist/src/observability.d.ts"
+    },
     "./metro": {
       "import": "./dist/src/metro.js",
       "types": "./dist/src/metro.d.ts"

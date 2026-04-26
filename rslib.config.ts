@@ -22,6 +22,7 @@ export default defineConfig({
           io: 'src/io.ts',
           'testing/conformance': 'src/testing/conformance.ts',
           artifacts: 'src/artifacts.ts',
+          observability: 'src/observability.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
           'install-source': 'src/install-source.ts',
