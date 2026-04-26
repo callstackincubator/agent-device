@@ -24,7 +24,7 @@ This repo now includes a starter setup under `test/skillgym` plus a fixture app 
 
 ## Recommended rollout
 
-1. Start with skill-routing suites that assert `agent-device` and `dogfood` are loaded in the right prompts.
+1. Start with skill-routing suites that assert `agent-device` is loaded in the right prompts.
 2. Add fixture-aware planning suites against `Agent Device Tester` to keep prompts concrete.
 3. Add local-only cases that expect real `agent-device` command usage when a simulator or device is available.
 
