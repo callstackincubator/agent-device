@@ -8,7 +8,7 @@ import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, test } from 'vitest';
-import { buildCompanionPayload } from '../client-metro-companion-worker.ts';
+import { buildCompanionPayload } from '../client-companion-tunnel-worker.ts';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -358,6 +358,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
+        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
@@ -509,6 +510,7 @@ test('metro companion worker reconnects after the bridge closes immediately afte
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
@@ -616,6 +618,7 @@ test('metro companion worker exits after its state file is removed', async () =>
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
@@ -663,6 +666,7 @@ test('metro companion worker exits immediately when its state file is already mi
         AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: 'http://127.0.0.1:1',
         AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
         AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
         AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',

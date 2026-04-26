@@ -1,15 +1,14 @@
 import { runCmdStreaming } from '../../utils/exec.ts';
-import { ensureMetroCompanion, stopMetroCompanion } from '../../client-metro-companion.ts';
+import {
+  ensureReactDevtoolsCompanion,
+  stopReactDevtoolsCompanion,
+} from '../../client-react-devtools-companion.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 
 export const AGENT_REACT_DEVTOOLS_VERSION = '0.4.0';
 export const AGENT_REACT_DEVTOOLS_PACKAGE = `agent-react-devtools@${AGENT_REACT_DEVTOOLS_VERSION}`;
 const AGENT_REACT_DEVTOOLS_BIN = 'agent-react-devtools';
-const REACT_DEVTOOLS_LOCAL_BASE_URL = 'http://127.0.0.1:8097';
-const REACT_DEVTOOLS_DEVICE_PORT = 8097;
-const REACT_DEVTOOLS_REGISTER_PATH = '/api/react-devtools/companion/register';
-const REACT_DEVTOOLS_UNREGISTER_PATH = '/api/react-devtools/companion/unregister';
 
 type ReactDevtoolsCommandOptions = {
   flags?: Pick<
@@ -101,21 +100,16 @@ async function withRemoteAndroidDevtoolsCompanion<T>(
   const session = options.session ?? flags?.session ?? 'default';
   const profileKey =
     flags?.remoteConfig ?? `${bridgeConfig.tenantId}:${bridgeConfig.runId}:${bridgeConfig.leaseId}`;
-  await ensureMetroCompanion({
+  await ensureReactDevtoolsCompanion({
     projectRoot: options.cwd ?? process.cwd(),
     stateDir,
-    kind: 'react-devtools',
     serverBaseUrl: bridgeConfig.serverBaseUrl,
     bearerToken: bridgeConfig.bearerToken,
-    localBaseUrl: REACT_DEVTOOLS_LOCAL_BASE_URL,
     bridgeScope: {
       tenantId: bridgeConfig.tenantId,
       runId: bridgeConfig.runId,
       leaseId: bridgeConfig.leaseId,
     },
-    registerPath: REACT_DEVTOOLS_REGISTER_PATH,
-    unregisterPath: REACT_DEVTOOLS_UNREGISTER_PATH,
-    devicePort: REACT_DEVTOOLS_DEVICE_PORT,
     session,
     profileKey,
     consumerKey: session,
@@ -124,10 +118,9 @@ async function withRemoteAndroidDevtoolsCompanion<T>(
   try {
     return await action();
   } finally {
-    await stopMetroCompanion({
+    await stopReactDevtoolsCompanion({
       projectRoot: options.cwd ?? process.cwd(),
       stateDir,
-      kind: 'react-devtools',
       profileKey,
       consumerKey: session,
     });

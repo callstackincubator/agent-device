@@ -15,7 +15,7 @@ import type {
   PrepareMetroRuntimeResult,
   ReloadMetroResult,
 } from './client-metro.ts';
-import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
+import type { CompanionTunnelScope as MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 

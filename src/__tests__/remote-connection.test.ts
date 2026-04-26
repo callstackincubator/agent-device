@@ -8,6 +8,10 @@ vi.mock('../client-metro-companion.ts', () => ({
   stopMetroCompanion: vi.fn(),
 }));
 
+vi.mock('../client-react-devtools-companion.ts', () => ({
+  stopReactDevtoolsCompanion: vi.fn(),
+}));
+
 import {
   connectCommand,
   connectionCommand,

@@ -1,25 +1,25 @@
 import fs from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
-  ENV_BEARER_TOKEN,
-  ENV_LAUNCH_URL,
-  ENV_LOCAL_BASE_URL,
-  ENV_DEVICE_PORT,
-  ENV_REGISTER_PATH,
-  ENV_SERVER_BASE_URL,
-  ENV_SESSION,
-  ENV_SCOPE_LEASE_ID,
-  ENV_SCOPE_RUN_ID,
-  ENV_SCOPE_TENANT_ID,
-  ENV_STATE_PATH,
-  ENV_UNREGISTER_PATH,
-  METRO_COMPANION_LEASE_CHECK_INTERVAL_MS,
-  METRO_COMPANION_RECONNECT_DELAY_MS,
+  COMPANION_TUNNEL_LEASE_CHECK_INTERVAL_MS,
+  COMPANION_TUNNEL_RECONNECT_DELAY_MS,
+  ENV_COMPANION_TUNNEL_BEARER_TOKEN,
+  ENV_COMPANION_TUNNEL_DEVICE_PORT,
+  ENV_COMPANION_TUNNEL_LAUNCH_URL,
+  ENV_COMPANION_TUNNEL_LOCAL_BASE_URL,
+  ENV_COMPANION_TUNNEL_REGISTER_PATH,
+  ENV_COMPANION_TUNNEL_SCOPE_LEASE_ID,
+  ENV_COMPANION_TUNNEL_SCOPE_RUN_ID,
+  ENV_COMPANION_TUNNEL_SCOPE_TENANT_ID,
+  ENV_COMPANION_TUNNEL_SERVER_BASE_URL,
+  ENV_COMPANION_TUNNEL_SESSION,
+  ENV_COMPANION_TUNNEL_STATE_PATH,
+  ENV_COMPANION_TUNNEL_UNREGISTER_PATH,
   METRO_COMPANION_RUN_ARG,
   REACT_DEVTOOLS_COMPANION_RUN_ARG,
   WS_READY_STATE_OPEN,
-} from './client-metro-companion-contract.ts';
-import type { CompanionOptions } from './client-metro-companion-contract.ts';
+  type CompanionTunnelWorkerOptions,
+} from './client-companion-tunnel-contract.ts';
 import type {
   MetroTunnelRequestMessage as MetroCompanionRequest,
   MetroTunnelResponseMessage,
@@ -41,15 +41,17 @@ function formatResponseSnippet(text: string): string {
   return normalized.length > 300 ? `${normalized.slice(0, 300)}...` : normalized;
 }
 
-function resolveRegisterPath(options: CompanionOptions): string {
-  return options.registerPath ?? '/api/metro/companion/register';
+function resolveRegisterPath(options: CompanionTunnelWorkerOptions): string {
+  return options.registerPath;
 }
 
-function resolveUnregisterPath(options: CompanionOptions): string | null {
+function resolveUnregisterPath(options: CompanionTunnelWorkerOptions): string | null {
   return options.unregisterPath ?? null;
 }
 
-export function buildCompanionPayload(options: CompanionOptions): Record<string, unknown> {
+export function buildCompanionPayload(
+  options: CompanionTunnelWorkerOptions,
+): Record<string, unknown> {
   return {
     ...options.bridgeScope,
     ...(options.session ? { session: options.session } : {}),
@@ -59,7 +61,9 @@ export function buildCompanionPayload(options: CompanionOptions): Record<string,
   };
 }
 
-async function registerCompanion(options: CompanionOptions): Promise<{ wsUrl: string }> {
+async function registerCompanion(
+  options: CompanionTunnelWorkerOptions,
+): Promise<{ wsUrl: string }> {
   const registerPath = resolveRegisterPath(options);
   let response: Response;
   try {
@@ -101,7 +105,7 @@ async function registerCompanion(options: CompanionOptions): Promise<{ wsUrl: st
   return { wsUrl: payload.data.ws_url };
 }
 
-async function unregisterCompanion(options: CompanionOptions): Promise<void> {
+async function unregisterCompanion(options: CompanionTunnelWorkerOptions): Promise<void> {
   const unregisterPath = resolveUnregisterPath(options);
   if (!unregisterPath) return;
   try {
@@ -213,14 +217,14 @@ function closeSocketQuietly(socket: WebSocket, code: number, reason: string): vo
   }
 }
 
-function shouldKeepWorkerRunning(options: CompanionOptions): boolean {
+function shouldKeepWorkerRunning(options: CompanionTunnelWorkerOptions): boolean {
   return !options.statePath || fs.existsSync(options.statePath);
 }
 
 async function handleBridgeMessage(
   bridgeSocket: WebSocket,
   message: MetroCompanionRequest,
-  options: CompanionOptions,
+  options: CompanionTunnelWorkerOptions,
   upstreamSockets: Map<string, WebSocket>,
 ): Promise<void> {
   switch (message.type) {
@@ -337,7 +341,9 @@ async function handleBridgeMessage(
   }
 }
 
-export async function runMetroCompanionWorker(options: CompanionOptions): Promise<void> {
+export async function runCompanionTunnelWorker(
+  options: CompanionTunnelWorkerOptions,
+): Promise<void> {
   const upstreamSockets = new Map<string, WebSocket>();
   let shutdownRequested = false;
   let activeBridgeSocket: WebSocket | null = null;
@@ -362,7 +368,7 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
       // uses a hard exit to guarantee teardown.
       process.exit(0);
     }
-  }, METRO_COMPANION_LEASE_CHECK_INTERVAL_MS);
+  }, COMPANION_TUNNEL_LEASE_CHECK_INTERVAL_MS);
   lifetimeHandle.unref();
   while (!shutdownRequested && shouldKeepWorkerRunning(options)) {
     let registered = false;
@@ -418,7 +424,7 @@ export async function runMetroCompanionWorker(options: CompanionOptions): Promis
     if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
       break;
     }
-    await delay(METRO_COMPANION_RECONNECT_DELAY_MS);
+    await delay(COMPANION_TUNNEL_RECONNECT_DELAY_MS);
   }
   clearInterval(lifetimeHandle);
 }
@@ -432,47 +438,54 @@ function parseDevicePort(value: string | undefined): number | undefined {
   return parsed;
 }
 
-function readWorkerOptions(argv: string[], env: NodeJS.ProcessEnv): CompanionOptions | null {
+function readWorkerOptions(
+  argv: string[],
+  env: NodeJS.ProcessEnv,
+): CompanionTunnelWorkerOptions | null {
   const commandArg = argv[0];
   if (commandArg !== METRO_COMPANION_RUN_ARG && commandArg !== REACT_DEVTOOLS_COMPANION_RUN_ARG) {
     return null;
   }
-  const serverBaseUrl = env[ENV_SERVER_BASE_URL]?.trim();
-  const bearerToken = env[ENV_BEARER_TOKEN]?.trim();
-  const localBaseUrl = env[ENV_LOCAL_BASE_URL]?.trim();
+  const serverBaseUrl = env[ENV_COMPANION_TUNNEL_SERVER_BASE_URL]?.trim();
+  const bearerToken = env[ENV_COMPANION_TUNNEL_BEARER_TOKEN]?.trim();
+  const localBaseUrl = env[ENV_COMPANION_TUNNEL_LOCAL_BASE_URL]?.trim();
   if (!serverBaseUrl || !bearerToken || !localBaseUrl) {
-    throw new Error('Metro companion worker is missing required environment configuration.');
+    throw new Error('Companion tunnel worker is missing required environment configuration.');
   }
-  const tenantId = env[ENV_SCOPE_TENANT_ID]?.trim();
-  const runId = env[ENV_SCOPE_RUN_ID]?.trim();
-  const leaseId = env[ENV_SCOPE_LEASE_ID]?.trim();
+  const tenantId = env[ENV_COMPANION_TUNNEL_SCOPE_TENANT_ID]?.trim();
+  const runId = env[ENV_COMPANION_TUNNEL_SCOPE_RUN_ID]?.trim();
+  const leaseId = env[ENV_COMPANION_TUNNEL_SCOPE_LEASE_ID]?.trim();
   if (!tenantId || !runId || !leaseId) {
-    throw new Error('Metro companion worker is missing required bridge scope configuration.');
+    throw new Error('Companion tunnel worker is missing required bridge scope configuration.');
+  }
+  const registerPath = env[ENV_COMPANION_TUNNEL_REGISTER_PATH]?.trim();
+  if (!registerPath) {
+    throw new Error('Companion tunnel worker is missing required register path configuration.');
   }
   return {
     serverBaseUrl,
     bearerToken,
     localBaseUrl,
+    registerPath,
     bridgeScope: {
       tenantId,
       runId,
       leaseId,
     },
-    launchUrl: env[ENV_LAUNCH_URL]?.trim() || undefined,
-    statePath: env[ENV_STATE_PATH]?.trim() || undefined,
-    registerPath: env[ENV_REGISTER_PATH]?.trim() || undefined,
-    unregisterPath: env[ENV_UNREGISTER_PATH]?.trim() || undefined,
-    devicePort: parseDevicePort(env[ENV_DEVICE_PORT]),
-    session: env[ENV_SESSION]?.trim() || undefined,
+    launchUrl: env[ENV_COMPANION_TUNNEL_LAUNCH_URL]?.trim() || undefined,
+    statePath: env[ENV_COMPANION_TUNNEL_STATE_PATH]?.trim() || undefined,
+    unregisterPath: env[ENV_COMPANION_TUNNEL_UNREGISTER_PATH]?.trim() || undefined,
+    devicePort: parseDevicePort(env[ENV_COMPANION_TUNNEL_DEVICE_PORT]),
+    session: env[ENV_COMPANION_TUNNEL_SESSION]?.trim() || undefined,
   };
 }
 
-export async function runMetroCompanionProcessFromEnv(
+export async function runCompanionTunnelProcessFromEnv(
   argv: string[],
   env: NodeJS.ProcessEnv,
 ): Promise<boolean> {
   const options = readWorkerOptions(argv, env);
   if (!options) return false;
-  await runMetroCompanionWorker(options);
+  await runCompanionTunnelWorker(options);
   return true;
 }

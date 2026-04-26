@@ -7,7 +7,7 @@ import {
   type ReloadMetroResult,
 } from './client-metro.ts';
 import { ensureMetroCompanion, stopMetroCompanion } from './client-metro-companion.ts';
-import type { MetroBridgeScope } from './client-metro-companion-contract.ts';
+import type { CompanionTunnelScope as MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 import { resolveRuntimeTransportHints } from './utils/runtime-transport.ts';
 export { buildBundleUrl, normalizeBaseUrl } from './utils/url.ts';
 
