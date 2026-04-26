@@ -523,6 +523,38 @@ test('missing explicit remote config path returns parse error before daemon disp
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('connection status with remote config stays local without cloud auth', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'https://bridge.agent-device.dev',
+      tenant: 'acme',
+      runId: 'run-123',
+    }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(
+    ['connection', 'status', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home, CI: 'true' },
+      sendToDaemon: async () => {
+        throw new Error('connection status should not contact daemon or cloud auth');
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /"connected": false/);
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('normal commands accept direct remote-config usage', async () => {
   const { root, home, project } = makeTempWorkspace();
   const stateDir = path.join(root, 'state');

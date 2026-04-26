@@ -14,7 +14,8 @@ Open this file for remote daemon HTTP flows that let an agent running in a Linux
 - `agent-device snapshot --remote-config <path> -i`
 - `agent-device disconnect --remote-config <path>`
 - `agent-device connection status`
-- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...`
+- `agent-device auth status`
+- `AGENT_DEVICE_DAEMON_AUTH_TOKEN=...` for CI/service-token automation
 
 ## Most common mistake to avoid
 
@@ -30,9 +31,6 @@ Do not mix an arbitrary `--session` plus ad-hoc daemon, tenant, run, or lease fl
 Use this when the agent will run several commands in one session.
 
 ```bash
-export AGENT_DEVICE_DAEMON_AUTH_TOKEN="YOUR_TOKEN"
-export AGENT_DEVICE_PROXY_TOKEN="$AGENT_DEVICE_DAEMON_AUTH_TOKEN"
-
 agent-device connect --remote-config ./remote-config.json
 
 ARTIFACT_URL="<trusted-artifact-url>"
@@ -44,7 +42,7 @@ agent-device fill @e3 "test@example.com"
 agent-device disconnect
 ```
 
-After `connect`, normal commands use the active remote connection. End with `disconnect` to release the lease and stop the owned Metro companion.
+After `connect`, normal commands use the active remote connection. If cloud credentials are missing, `connect` starts login automatically in an interactive shell and stores a revocable CLI session that silently mints short-lived `adc_agent_...` command tokens. The cloud side remains responsible for token expiry, tenant/run claim checks, revocation, one-time device approval, and polling rate limits. End with `disconnect` to release the lease and stop the owned Metro companion.
 
 ### Self-contained script flow
 
@@ -123,7 +121,7 @@ Optional overrides stay available for advanced cases:
 }
 ```
 
-- Keep secrets in env/config managed by the operator boundary. Do not persist auth tokens in connection state.
+- Keep service tokens in env/config managed by the operator boundary. Do not persist auth tokens in connection state. Human login uses `agent-device auth login` or implicit `connect` login and stores only the CLI session credential.
 - Omit Metro fields for non-React Native flows.
 - Put `tenant`, `runId`, and `sessionIsolation` in the remote profile so agents can run `agent-device connect --remote-config ./remote-config.json` without extra scope flags. Add `platform`, `leaseBackend`, `session`, or Metro overrides only when the default inference is not enough for that flow.
 - Explicit command-line flags override connected defaults. Use them intentionally when switching session, platform, target, tenant, run, or lease scope.
@@ -137,7 +135,8 @@ Optional overrides stay available for advanced cases:
 
 - Start the daemon in HTTP mode with `AGENT_DEVICE_DAEMON_SERVER_MODE=http|dual` on the host.
 - Point the profile or env at the remote host with `daemonBaseUrl` or `AGENT_DEVICE_DAEMON_BASE_URL=http(s)://host:port[/base-path]`.
-- For non-loopback remote hosts, set `AGENT_DEVICE_DAEMON_AUTH_TOKEN` or `--daemon-auth-token`. The client rejects non-loopback remote daemon URLs without auth.
+- For humans, run `connect --remote-config <path>` and let it refresh or create the CLI session. Use `agent-device auth status` to inspect it and `agent-device auth logout` to remove it.
+- For CI/non-interactive shells, set `AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_...` or pass `--daemon-auth-token`. The client does not start device-code polling in CI by default.
 - Prefer an auth hook such as `AGENT_DEVICE_HTTP_AUTH_HOOK` when the host needs caller validation or tenant injection.
 
 ## Lease debug fallback

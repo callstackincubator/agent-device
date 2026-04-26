@@ -53,7 +53,8 @@ agent-device app-switcher
 - In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
-- Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
+- Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for explicit service/API-token automation against non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
+- For human cloud access, `connect --remote-config ...` refreshes a stored CLI session into a short-lived `adc_agent_...` token. If no CLI session exists, interactive shells start login automatically; CI and non-interactive shells fail with API-token setup instructions. Use `--no-login` to disable implicit login.
 - For remote `connect --remote-config` flows, see [Remote Metro workflow](#remote-metro-workflow).
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - For Metro-backed React Native JS changes, use `metro reload` before `open <app> --relaunch`; it mirrors pressing `r` in the Metro terminal and keeps the native process alive.
@@ -719,7 +720,9 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 ```
 
 - `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
-- `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, authenticates to cloud when credentials are missing, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Auth management commands are available for inspection and recovery: `agent-device auth status`, `agent-device auth login`, and `agent-device auth logout`. Human login stores a revocable CLI session locally; it does not create or persist an `adc_live_...` service token.
+- Cloud auth uses three credential classes: `adc_agent_...` short-lived command tokens, revocable CLI session refresh credentials, and explicit `adc_live_...` service/API tokens for CI. The CLI implements credential selection, CI refusal, local storage permissions, logout, and output redaction; the cloud API must enforce token expiry, tenant/run scope, revocation, one-time device approval, polling rate limits, and dashboard/API separation.
 - Deferred Metro preparation also applies to `batch` when any step opens an app and the batch does not provide its own per-step runtime.
 - After `connect`, `snapshot`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. Passing the same `--remote-config` to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.
 - Self-contained remote scripts should end with `disconnect --remote-config <path>` or `disconnect` to release the lease and stop the owned Metro companion.
