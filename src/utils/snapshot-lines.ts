@@ -13,6 +13,47 @@ type SnapshotLineFormatOptions = {
   summarizeTextSurfaces?: boolean;
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  application: 'application',
+  navigationbar: 'navigation-bar',
+  tabbar: 'tab-bar',
+  button: 'button',
+  imagebutton: 'button',
+  link: 'link',
+  cell: 'cell',
+  statictext: 'text',
+  checkedtextview: 'text',
+  textfield: 'text-field',
+  edittext: 'text-field',
+  textarea: 'text-view',
+  switch: 'switch',
+  slider: 'slider',
+  image: 'image',
+  imageview: 'image',
+  webview: 'webview',
+  framelayout: 'group',
+  linearlayout: 'group',
+  relativelayout: 'group',
+  constraintlayout: 'group',
+  viewgroup: 'group',
+  view: 'group',
+  listview: 'list',
+  recyclerview: 'list',
+  collectionview: 'collection',
+  searchfield: 'search',
+  segmentedcontrol: 'segmented-control',
+  group: 'group',
+  window: 'window',
+  checkbox: 'checkbox',
+  radio: 'radio',
+  menuitem: 'menu-item',
+  toolbar: 'toolbar',
+  scrollarea: 'scroll-area',
+  scrollview: 'scroll-area',
+  nestedscrollview: 'scroll-area',
+  table: 'table',
+};
+
 export function buildSnapshotDisplayLines(
   nodes: SnapshotNode[],
   options: SnapshotLineFormatOptions = {},
@@ -104,76 +145,16 @@ export function formatRole(type: string): string {
       normalized = normalized.slice(normalized.lastIndexOf('.') + 1);
     }
   }
-  switch (normalized) {
-    case 'application':
-      return 'application';
-    case 'navigationbar':
-      return 'navigation-bar';
-    case 'tabbar':
-      return 'tab-bar';
-    case 'button':
-    case 'imagebutton':
-      return 'button';
-    case 'link':
-      return 'link';
-    case 'cell':
-      return 'cell';
-    case 'statictext':
-    case 'checkedtextview':
-      return 'text';
-    case 'textfield':
-    case 'edittext':
-      return 'text-field';
-    case 'textview':
-      return isAndroidClass ? 'text' : 'text-view';
-    case 'textarea':
-      return 'text-view';
-    case 'switch':
-      return 'switch';
-    case 'slider':
-      return 'slider';
-    case 'image':
-    case 'imageview':
-      return 'image';
-    case 'webview':
-      return 'webview';
-    case 'framelayout':
-    case 'linearlayout':
-    case 'relativelayout':
-    case 'constraintlayout':
-    case 'viewgroup':
-    case 'view':
-      return 'group';
-    case 'listview':
-    case 'recyclerview':
-      return 'list';
-    case 'collectionview':
-      return 'collection';
-    case 'searchfield':
-      return 'search';
-    case 'segmentedcontrol':
-      return 'segmented-control';
-    case 'group':
-      return 'group';
-    case 'window':
-      return 'window';
-    case 'checkbox':
-      return 'checkbox';
-    case 'radio':
-      return 'radio';
-    case 'menuitem':
-      return 'menu-item';
-    case 'toolbar':
-      return 'toolbar';
-    case 'scrollarea':
-    case 'scrollview':
-    case 'nestedscrollview':
-      return 'scroll-area';
-    case 'table':
-      return 'table';
-    default:
-      return normalized || 'element';
+  if (normalized === 'textview') {
+    return isAndroidClass ? 'text' : 'text-view';
   }
+  return lookupRoleLabel(normalized) || normalized || 'element';
+}
+
+function lookupRoleLabel(normalized: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(ROLE_LABELS, normalized)
+    ? ROLE_LABELS[normalized]
+    : undefined;
 }
 
 function isEditableRole(type: string): boolean {

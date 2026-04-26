@@ -5,14 +5,6 @@
         "count": 1
       }
     },
-    "src/__tests__/client-companion-tunnel-worker.test.ts": {
-      "complexity_high": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
-      }
-    },
     "src/__tests__/client-metro-companion.test.ts": {
       "crap_moderate": {
         "count": 1
@@ -919,20 +911,8 @@
       }
     },
     "src/utils/output.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "complexity_high": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
-      },
       "crap_moderate": {
-        "count": 1
+        "count": 2
       }
     },
     "src/utils/retry.ts": {
@@ -985,12 +965,6 @@
       }
     },
     "src/utils/snapshot-lines.ts": {
-      "complexity_high": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }
@@ -1062,28 +1036,27 @@
     "src/daemon/handlers/snapshot-capture.ts:high impact",
     "src/daemon/handlers/session-device-utils.ts:high impact",
     "src/utils/process-identity.ts:high impact",
-    "src/cli.ts:complexity",
     "src/client-shared.ts:high impact",
     "src/daemon/handlers/session-replay-script.ts:complexity",
+    "src/daemon/config.ts:high impact",
     "src/commands/selector-read-utils.ts:high impact",
     "src/utils/args.ts:high impact",
-    "src/daemon/config.ts:high impact",
     "src/daemon/android-snapshot-freshness.ts:high impact",
     "src/daemon/session-store.ts:complexity",
     "src/platforms/boot-diagnostics.ts:complexity",
     "src/cli/commands/connection-runtime.ts:complexity",
     "src/daemon/handlers/session-replay-heal.ts:complexity",
+    "src/cli/commands/output.ts:complexity",
     "src/daemon/handlers/snapshot-alert.ts:complexity",
     "src/cli/commands/connection.ts:untested risk",
-    "src/utils/snapshot-lines.ts:high impact",
     "src/daemon/handlers/session-inventory.ts:complexity",
     "src/utils/success-text.ts:high impact",
     "src/daemon/handlers/install-source.ts:complexity",
-    "src/utils/output.ts:high impact",
-    "src/cli/commands/output.ts:complexity",
     "src/daemon/script-utils.ts:high impact",
     "src/utils/snapshot-processing.ts:high impact",
     "src/daemon/handlers/session-open-target.ts:high impact",
+    "src/cli.ts:complexity",
+    "src/utils/output.ts:high impact",
     "src/daemon/handlers/session-state.ts:complexity",
     "src/daemon/handlers/session-open.ts:complexity",
     "src/platforms/android/ui-hierarchy.ts:high impact",
@@ -1091,20 +1064,20 @@
     "src/utils/device.ts:high impact",
     "src/platforms/android/input-actions.ts:complexity",
     "src/daemon/app-log-process.ts:high impact",
+    "src/utils/snapshot-lines.ts:high impact",
     "src/client-metro.ts:complexity",
     "src/utils/selector-build.ts:high impact",
     "src/platforms/ios/xml.ts:high impact",
-    "src/utils/keyed-lock.ts:high impact",
     "src/utils/text-surface.ts:high impact",
+    "src/cli-test.ts:untested risk",
+    "src/utils/keyed-lock.ts:high impact",
     "src/daemon/app-log-stream.ts:high impact",
     "src/core/batch.ts:complexity",
     "src/platforms/ios/runner-xctestrun.ts:complexity",
-    "src/cli-test.ts:untested risk",
     "src/platforms/android/sdk.ts:high impact",
     "src/utils/source-value.ts:high impact",
     "src/utils/screenshot-diff-regions.ts:complexity",
     "src/daemon/screenshot-overlay.ts:untested risk",
-    "src/utils/screenshot-diff-non-text.ts:complexity",
-    "src/__tests__/client-companion-tunnel-worker.test.ts:complexity"
+    "src/utils/screenshot-diff-non-text.ts:complexity"
   ]
 }

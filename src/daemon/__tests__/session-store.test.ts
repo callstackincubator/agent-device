@@ -21,6 +21,20 @@ function makeSession(name: string): SessionState {
   };
 }
 
+function isSessionScriptFile(file: string): boolean {
+  return file.endsWith('.ad');
+}
+
+function listSessionScriptFiles(root: string): string[] {
+  return fs.readdirSync(root).filter(isSessionScriptFile);
+}
+
+function readWrittenSessionScript(root: string): string {
+  const scriptFile = fs.readdirSync(root).find(isSessionScriptFile);
+  assert.ok(scriptFile);
+  return fs.readFileSync(path.join(root, scriptFile), 'utf8');
+}
+
 test('expandHome resolves tilde, relative-with-cwd, and absolute paths', () => {
   const homePath = SessionStore.expandHome('~/flows/replay.ad');
   assert.equal(homePath.startsWith(os.homedir()), true);
@@ -81,8 +95,7 @@ test('writeSessionLog writes .ad only when recording is enabled', () => {
   });
 
   store.writeSessionLog(session);
-  const files = fs.readdirSync(root);
-  assert.equal(files.filter((file) => file.endsWith('.ad')).length, 0);
+  assert.equal(listSessionScriptFiles(root).length, 0);
 });
 
 test('saveScript flag enables .ad session log writing', () => {
@@ -103,8 +116,7 @@ test('saveScript flag enables .ad session log writing', () => {
   });
 
   store.writeSessionLog(session);
-  const files = fs.readdirSync(root);
-  assert.equal(files.filter((file) => file.endsWith('.ad')).length, 1);
+  assert.equal(listSessionScriptFiles(root).length, 1);
 });
 
 test('saveScript path writes session log to custom location', () => {
@@ -148,9 +160,7 @@ test('writeSessionLog persists open --relaunch in script output', () => {
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(script, /open "Settings" --relaunch/);
 });
 
@@ -172,9 +182,7 @@ test('writeSessionLog persists record --hide-touches flags in script output', ()
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --quality 8 --hide-touches/);
 });
 
@@ -196,9 +204,7 @@ test('writeSessionLog persists screenshot flags in script output', () => {
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(script, /screenshot "\.\/page\.png" --fullscreen --max-size 1024/);
 });
 
@@ -226,9 +232,7 @@ test('writeSessionLog persists inline open runtime hints in script output', () =
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(
     script,
     /open "Settings" --relaunch --platform ios --metro-host 127\.0\.0\.1 --metro-port 8081 --launch-url myapp:\/\/dev/,
@@ -264,9 +268,7 @@ test('writeSessionLog persists runtime set hints in script output', () => {
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(
     script,
     /runtime set --platform ios --metro-host 127\.0\.0\.1 --metro-port 8081 --launch-url myapp:\/\/dev/,
@@ -334,9 +336,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(
     script,
     /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/,
@@ -359,9 +359,7 @@ test('writeSessionLog escapes device labels with quotes and backslashes', () => 
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(
     script,
     /context platform=ios device="QA \\"Lab\\" \\\\ Shelf" kind=simulator theme=unknown/,
@@ -403,9 +401,7 @@ test('writeSessionLog preserves significant whitespace and empty string argument
   });
 
   store.writeSessionLog(session);
-  const scriptFile = fs.readdirSync(root).find((file) => file.endsWith('.ad'));
-  assert.ok(scriptFile);
-  const script = fs.readFileSync(path.join(root, scriptFile!), 'utf8');
+  const script = readWrittenSessionScript(root);
   assert.match(script, /type "  leading\\ttrailing  "/);
   assert.match(script, /fill @e5 "Search field" ""/);
   assert.match(script, /screenshot " \.\/screens\/final\.png "/);

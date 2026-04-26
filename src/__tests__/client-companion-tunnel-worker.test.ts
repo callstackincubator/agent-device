@@ -21,6 +21,12 @@ type CloseFrame = {
   reason?: string;
 };
 
+type ParsedWebSocketFrame = {
+  opcode: number;
+  payload: Buffer;
+  nextOffset: number;
+};
+
 function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -65,6 +71,67 @@ function encodeCloseFrame(code = 1000, reason = ''): Buffer {
   ]);
 }
 
+function parseWebSocketFrame(pending: Buffer, startOffset: number): ParsedWebSocketFrame | null {
+  if (startOffset + 2 > pending.length) return null;
+
+  const first = pending[startOffset]!;
+  const second = pending[startOffset + 1]!;
+  const opcode = first & 0x0f;
+  let offset = startOffset + 2;
+  let length = second & 0x7f;
+
+  if (length === 126) {
+    if (offset + 2 > pending.length) return null;
+    length = pending.readUInt16BE(offset);
+    offset += 2;
+  } else if (length === 127) {
+    throw new Error('Large WebSocket frames are not supported in this test.');
+  }
+
+  const masked = (second & 0x80) !== 0;
+  const maskLength = masked ? 4 : 0;
+  if (offset + maskLength + length > pending.length) return null;
+
+  const mask = masked ? pending.subarray(offset, offset + 4) : null;
+  offset += maskLength;
+  const payload = decodeWebSocketPayload(pending.subarray(offset, offset + length), mask);
+
+  return { opcode, payload, nextOffset: offset + length };
+}
+
+function decodeWebSocketPayload(payload: Buffer, mask: Buffer | null): Buffer {
+  if (!mask) return payload;
+
+  const decoded = Buffer.from(payload);
+  for (let index = 0; index < decoded.length; index += 1) {
+    decoded[index] ^= mask[index % 4];
+  }
+  return decoded;
+}
+
+function parseCloseFrame(payload: Buffer): CloseFrame {
+  if (payload.length < 2) return {};
+
+  return {
+    code: payload.readUInt16BE(0),
+    reason: payload.subarray(2).toString('utf8'),
+  };
+}
+
+function emitWebSocketFrame(
+  frame: ParsedWebSocketFrame,
+  onText: (text: string) => void,
+  onClose?: (frame: CloseFrame) => void,
+): void {
+  if (frame.opcode === 0x1) {
+    onText(frame.payload.toString('utf8'));
+    return;
+  }
+  if (frame.opcode === 0x8 && onClose) {
+    onClose(parseCloseFrame(frame.payload));
+  }
+}
+
 function attachWebSocketFrameParser(
   socket: NodeJS.WritableStream & NodeJS.EventEmitter,
   onText: (text: string) => void,
@@ -74,52 +141,11 @@ function attachWebSocketFrameParser(
   socket.on('data', (chunk: Buffer) => {
     pending = Buffer.concat([pending, chunk]);
     let offset = 0;
-    while (offset + 2 <= pending.length) {
-      const first = pending[offset++];
-      const second = pending[offset++];
-      const opcode = first & 0x0f;
-      let length = second & 0x7f;
-      if (length === 126) {
-        if (offset + 2 > pending.length) {
-          offset -= 4;
-          break;
-        }
-        length = pending.readUInt16BE(offset);
-        offset += 2;
-      } else if (length === 127) {
-        throw new Error('Large WebSocket frames are not supported in this test.');
-      }
-      const masked = (second & 0x80) !== 0;
-      const maskLength = masked ? 4 : 0;
-      if (offset + maskLength + length > pending.length) {
-        offset -= length === 126 ? 4 : 2;
-        break;
-      }
-      const mask = masked ? pending.subarray(offset, offset + 4) : null;
-      offset += maskLength;
-      let payload = pending.subarray(offset, offset + length);
-      offset += length;
-      if (masked && mask) {
-        payload = Buffer.from(payload);
-        for (let index = 0; index < payload.length; index += 1) {
-          payload[index] ^= mask[index % 4];
-        }
-      }
-      if (opcode === 0x1) {
-        onText(payload.toString('utf8'));
-        continue;
-      }
-      if (opcode === 0x8) {
-        if (!onClose) continue;
-        if (payload.length >= 2) {
-          onClose({
-            code: payload.readUInt16BE(0),
-            reason: payload.subarray(2).toString('utf8'),
-          });
-        } else {
-          onClose({});
-        }
-      }
+    for (;;) {
+      const frame = parseWebSocketFrame(pending, offset);
+      if (!frame) break;
+      offset = frame.nextOffset;
+      emitWebSocketFrame(frame, onText, onClose);
     }
     pending = pending.subarray(offset);
   });
