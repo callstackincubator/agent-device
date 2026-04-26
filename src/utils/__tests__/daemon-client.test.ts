@@ -44,6 +44,77 @@ async function supportsLoopbackBind(): Promise<boolean> {
   return await loopbackBindSupportPromise;
 }
 
+type MockHttpResponse = EventEmitter & {
+  statusCode?: number;
+  resume: () => void;
+  setEncoding: (_encoding: string) => void;
+};
+
+async function withRemoteDaemonEnv<T>(callback: () => Promise<T>): Promise<T> {
+  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
+  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
+
+  try {
+    return await callback();
+  } finally {
+    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
+    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+  }
+}
+
+function emitJsonRpcResult(res: MockHttpResponse, id: string, result: unknown): void {
+  res.emit('data', JSON.stringify({ jsonrpc: '2.0', id, result }));
+  res.emit('end');
+}
+
+function mockEventHttpRequest(
+  handler: (context: { options: Record<string, any>; body: string; res: MockHttpResponse }) => void,
+): () => void {
+  const originalHttpRequest = http.request;
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
+    const req = new EventEmitter() as EventEmitter & {
+      write: (chunk: string) => void;
+      end: () => void;
+      destroy: () => void;
+    };
+    let body = '';
+    req.write = (chunk: string) => {
+      body += chunk;
+    };
+    req.destroy = () => {
+      req.emit('close');
+    };
+    req.end = () => {
+      const res = new EventEmitter() as MockHttpResponse;
+      res.statusCode = 200;
+      res.resume = () => {};
+      res.setEncoding = () => {};
+      process.nextTick(() => {
+        callback(res);
+        handler({ options, body, res });
+      });
+    };
+    return req as any;
+  }) as typeof http.request;
+
+  return () => {
+    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
+  };
+}
+
+function respondToHealthcheck(options: Record<string, any>, res: MockHttpResponse): boolean {
+  if (options.method !== 'GET') return false;
+  res.emit('end');
+  return true;
+}
+
 test('daemon timeout and retry helpers normalize configured values', () => {
   const scenarios: Array<{
     resolve: (value: string | undefined) => number;
@@ -698,207 +769,117 @@ test('sendToDaemon uploads local install artifacts for remote daemons and passes
 test('sendToDaemon preserves explicit remote install paths without uploading', async () => {
   const seenPaths: string[] = [];
   let rpcRequest: Record<string, unknown> | null = null;
-  const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((
-    options: any,
-    callback: (res: any) => void,
-  ) => {
-    const req = new EventEmitter() as EventEmitter & {
-      write: (chunk: string) => void;
-      end: () => void;
-      destroy: () => void;
-    };
-    let body = '';
-    req.write = (chunk: string) => {
-      body += chunk;
-    };
-    req.destroy = () => {
-      req.emit('close');
-    };
-    req.end = () => {
-      seenPaths.push(String(options.path ?? ''));
-      const res = new EventEmitter() as EventEmitter & {
-        statusCode?: number;
-        resume: () => void;
-        setEncoding: (_encoding: string) => void;
-      };
-      res.statusCode = 200;
-      res.resume = () => {};
-      res.setEncoding = () => {};
-      process.nextTick(() => {
-        callback(res);
-        if (options.method === 'GET') {
-          res.emit('end');
-          return;
-        }
-        rpcRequest = JSON.parse(body) as Record<string, unknown>;
-        res.emit(
-          'data',
-          JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'req-remote-path',
-            result: {
-              ok: true,
-              data: { source: 'remote-daemon' },
-            },
-          }),
-        );
-        res.emit('end');
-      });
-    };
-    return req as any;
-  }) as typeof http.request;
+  const restoreHttpRequest = mockEventHttpRequest(({ options, body, res }) => {
+    seenPaths.push(String(options.path ?? ''));
+    if (respondToHealthcheck(options, res)) {
+      return;
+    }
 
-  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
-  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
+    rpcRequest = JSON.parse(body) as Record<string, unknown>;
+    emitJsonRpcResult(res, 'req-remote-path', {
+      ok: true,
+      data: { source: 'remote-daemon' },
+    });
+  });
 
   try {
-    const response = await sendToDaemon({
-      session: 'default',
-      command: 'install',
-      positionals: ['com.example.app', 'remote:/srv/builds/Sample.apk'],
-      flags: {},
-      meta: { requestId: 'req-remote-path' },
-    });
+    await withRemoteDaemonEnv(async () => {
+      const response = await sendToDaemon({
+        session: 'default',
+        command: 'install',
+        positionals: ['com.example.app', 'remote:/srv/builds/Sample.apk'],
+        flags: {},
+        meta: { requestId: 'req-remote-path' },
+      });
 
-    assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
-    assert.equal((rpcRequest as any)?.params?.positionals?.[1], '/srv/builds/Sample.apk');
-    assert.equal((rpcRequest as any)?.params?.meta?.uploadedArtifactId, undefined);
+      assert.equal(response.ok, true);
+      assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
+      assert.equal((rpcRequest as any)?.params?.positionals?.[1], '/srv/builds/Sample.apk');
+      assert.equal((rpcRequest as any)?.params?.meta?.uploadedArtifactId, undefined);
+    });
   } finally {
-    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
-    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
-    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+    restoreHttpRequest();
   }
 });
 
 test('sendToDaemon preserves install_source payload metadata for remote HTTP RPC', async () => {
   const seenPaths: string[] = [];
   let rpcRequest: Record<string, unknown> | null = null;
-  const originalHttpRequest = http.request;
-  (http as unknown as { request: typeof http.request }).request = ((
-    options: any,
-    callback: (res: any) => void,
-  ) => {
-    const req = new EventEmitter() as EventEmitter & {
-      write: (chunk: string) => void;
-      end: () => void;
-      destroy: () => void;
-    };
-    let body = '';
-    req.write = (chunk: string) => {
-      body += chunk;
-    };
-    req.destroy = () => {
-      req.emit('close');
-    };
-    req.end = () => {
-      seenPaths.push(String(options.path ?? ''));
-      const res = new EventEmitter() as EventEmitter & {
-        statusCode?: number;
-        resume: () => void;
-        setEncoding: (_encoding: string) => void;
-      };
-      res.statusCode = 200;
-      res.resume = () => {};
-      res.setEncoding = () => {};
-      process.nextTick(() => {
-        callback(res);
-        if (options.method === 'GET') {
-          res.emit('end');
-          return;
-        }
-        rpcRequest = JSON.parse(body) as Record<string, unknown>;
-        res.emit(
-          'data',
-          JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'req-install-source',
-            result: {
-              ok: true,
-              data: { source: 'remote-daemon' },
-            },
-          }),
-        );
-        res.emit('end');
-      });
-    };
-    return req as any;
-  }) as typeof http.request;
+  const restoreHttpRequest = mockEventHttpRequest(({ options, body, res }) => {
+    seenPaths.push(String(options.path ?? ''));
+    if (respondToHealthcheck(options, res)) {
+      return;
+    }
 
-  const previousBaseUrl = process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-  const previousAuthToken = process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-  process.env.AGENT_DEVICE_DAEMON_BASE_URL = 'http://remote-mac.example.test:7777/agent-device';
-  process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = 'remote-secret';
+    rpcRequest = JSON.parse(body) as Record<string, unknown>;
+    emitJsonRpcResult(res, 'req-install-source', {
+      ok: true,
+      data: { source: 'remote-daemon' },
+    });
+  });
 
   try {
-    const response = await sendToDaemon({
-      session: 'default',
-      command: 'install_source',
-      positionals: [],
-      flags: { platform: 'android' },
-      meta: {
-        requestId: 'req-install-source',
-        installSource: {
-          kind: 'url',
-          url: 'https://example.com/app.apk',
-          headers: {},
+    await withRemoteDaemonEnv(async () => {
+      const response = await sendToDaemon({
+        session: 'default',
+        command: 'install_source',
+        positionals: [],
+        flags: { platform: 'android' },
+        meta: {
+          requestId: 'req-install-source',
+          installSource: {
+            kind: 'url',
+            url: 'https://example.com/app.apk',
+            headers: {},
+          },
+          retainMaterializedPaths: true,
+          materializedPathRetentionMs: 60_000,
         },
-        retainMaterializedPaths: true,
-        materializedPathRetentionMs: 60_000,
-      },
-    });
+      });
 
-    assert.equal(response.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
-    assert.deepEqual((rpcRequest as any)?.params?.meta?.installSource, {
-      kind: 'url',
-      url: 'https://example.com/app.apk',
-      headers: {},
-    });
-    assert.equal((rpcRequest as any)?.params?.meta?.retainMaterializedPaths, true);
-    assert.equal((rpcRequest as any)?.params?.meta?.materializedPathRetentionMs, 60_000);
+      assert.equal(response.ok, true);
+      assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
+      assert.deepEqual((rpcRequest as any)?.params?.meta?.installSource, {
+        kind: 'url',
+        url: 'https://example.com/app.apk',
+        headers: {},
+      });
+      assert.equal((rpcRequest as any)?.params?.meta?.retainMaterializedPaths, true);
+      assert.equal((rpcRequest as any)?.params?.meta?.materializedPathRetentionMs, 60_000);
 
-    seenPaths.length = 0;
-    rpcRequest = null;
+      seenPaths.length = 0;
+      rpcRequest = null;
 
-    const githubArtifactResponse = await sendToDaemon({
-      session: 'default',
-      command: 'install_source',
-      positionals: [],
-      flags: { platform: 'android' },
-      meta: {
-        requestId: 'req-install-source-gh',
-        installSource: {
-          kind: 'github-actions-artifact',
-          owner: 'acme',
-          repo: 'mobile',
-          runId: 1234567890,
-          artifactName: 'app-debug',
+      const githubArtifactResponse = await sendToDaemon({
+        session: 'default',
+        command: 'install_source',
+        positionals: [],
+        flags: { platform: 'android' },
+        meta: {
+          requestId: 'req-install-source-gh',
+          installSource: {
+            kind: 'github-actions-artifact',
+            owner: 'acme',
+            repo: 'mobile',
+            runId: 1234567890,
+            artifactName: 'app-debug',
+          },
         },
-      },
-    });
+      });
 
-    assert.equal(githubArtifactResponse.ok, true);
-    assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
-    assert.deepEqual((rpcRequest as any)?.params?.meta?.installSource, {
-      kind: 'github-actions-artifact',
-      owner: 'acme',
-      repo: 'mobile',
-      runId: 1234567890,
-      artifactName: 'app-debug',
+      assert.equal(githubArtifactResponse.ok, true);
+      assert.deepEqual(seenPaths, ['/agent-device/health', '/agent-device/rpc']);
+      assert.deepEqual((rpcRequest as any)?.params?.meta?.installSource, {
+        kind: 'github-actions-artifact',
+        owner: 'acme',
+        repo: 'mobile',
+        runId: 1234567890,
+        artifactName: 'app-debug',
+      });
+      assert.equal((rpcRequest as any)?.params?.meta?.uploadedArtifactId, undefined);
     });
-    assert.equal((rpcRequest as any)?.params?.meta?.uploadedArtifactId, undefined);
   } finally {
-    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
-    if (previousBaseUrl === undefined) delete process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-    else process.env.AGENT_DEVICE_DAEMON_BASE_URL = previousBaseUrl;
-    if (previousAuthToken === undefined) delete process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-    else process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN = previousAuthToken;
+    restoreHttpRequest();
   }
 });
 

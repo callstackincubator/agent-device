@@ -5,6 +5,52 @@ import os from 'node:os';
 import path from 'node:path';
 import { runCliCapture } from './cli-capture.ts';
 
+function makeFailedReplayResult() {
+  return {
+    file: '/tmp/02-fail.ad',
+    session: 'default:test:suite:2',
+    status: 'failed',
+    durationMs: 5,
+    attempts: 2,
+    artifactsDir: '/tmp/test-artifacts/02-fail',
+    error: { message: 'Replay failed at step 1 (open Demo): boom' },
+  };
+}
+
+function makeReplaySuiteResponse() {
+  const failedReplayResult = makeFailedReplayResult();
+
+  return {
+    ok: true as const,
+    data: {
+      total: 3,
+      executed: 2,
+      passed: 1,
+      failed: 1,
+      skipped: 1,
+      notRun: 0,
+      durationMs: 25,
+      failures: [failedReplayResult],
+      tests: [
+        {
+          file: '/tmp/01-pass.ad',
+          session: 'default:test:suite:1',
+          status: 'passed',
+          durationMs: 10,
+          attempts: 1,
+        },
+        failedReplayResult,
+        {
+          file: '/tmp/03-skip.ad',
+          status: 'skipped',
+          durationMs: 0,
+          message: 'missing platform metadata for --platform android',
+        },
+      ],
+    },
+  };
+}
+
 test('network dump prints parsed entries and metadata', async () => {
   const result = await runCliCapture(['network', 'dump', '10', '--include', 'all'], async () => ({
     ok: true,
@@ -53,53 +99,7 @@ test('network dump prints parsed entries and metadata', async () => {
 });
 
 test('test command prints suite summary and exits non-zero on failures', async () => {
-  const result = await runCliCapture(['test', './suite'], async () => ({
-    ok: true,
-    data: {
-      total: 3,
-      executed: 2,
-      passed: 1,
-      failed: 1,
-      skipped: 1,
-      notRun: 0,
-      durationMs: 25,
-      failures: [
-        {
-          file: '/tmp/02-fail.ad',
-          session: 'default:test:suite:2',
-          status: 'failed',
-          durationMs: 5,
-          attempts: 2,
-          artifactsDir: '/tmp/test-artifacts/02-fail',
-          error: { message: 'Replay failed at step 1 (open Demo): boom' },
-        },
-      ],
-      tests: [
-        {
-          file: '/tmp/01-pass.ad',
-          session: 'default:test:suite:1',
-          status: 'passed',
-          durationMs: 10,
-          attempts: 1,
-        },
-        {
-          file: '/tmp/02-fail.ad',
-          session: 'default:test:suite:2',
-          status: 'failed',
-          durationMs: 5,
-          attempts: 2,
-          artifactsDir: '/tmp/test-artifacts/02-fail',
-          error: { message: 'Replay failed at step 1 (open Demo): boom' },
-        },
-        {
-          file: '/tmp/03-skip.ad',
-          status: 'skipped',
-          durationMs: 0,
-          message: 'missing platform metadata for --platform android',
-        },
-      ],
-    },
-  }));
+  const result = await runCliCapture(['test', './suite'], async () => makeReplaySuiteResponse());
 
   assert.equal(result.code, 1);
   assert.equal(result.calls.length, 1);
@@ -113,53 +113,9 @@ test('test command prints suite summary and exits non-zero on failures', async (
 });
 
 test('test command --verbose prints all test statuses', async () => {
-  const result = await runCliCapture(['test', './suite', '--verbose'], async () => ({
-    ok: true,
-    data: {
-      total: 3,
-      executed: 2,
-      passed: 1,
-      failed: 1,
-      skipped: 1,
-      notRun: 0,
-      durationMs: 25,
-      failures: [
-        {
-          file: '/tmp/02-fail.ad',
-          session: 'default:test:suite:2',
-          status: 'failed',
-          durationMs: 5,
-          attempts: 2,
-          artifactsDir: '/tmp/test-artifacts/02-fail',
-          error: { message: 'Replay failed at step 1 (open Demo): boom' },
-        },
-      ],
-      tests: [
-        {
-          file: '/tmp/01-pass.ad',
-          session: 'default:test:suite:1',
-          status: 'passed',
-          durationMs: 10,
-          attempts: 1,
-        },
-        {
-          file: '/tmp/02-fail.ad',
-          session: 'default:test:suite:2',
-          status: 'failed',
-          durationMs: 5,
-          attempts: 2,
-          artifactsDir: '/tmp/test-artifacts/02-fail',
-          error: { message: 'Replay failed at step 1 (open Demo): boom' },
-        },
-        {
-          file: '/tmp/03-skip.ad',
-          status: 'skipped',
-          durationMs: 0,
-          message: 'missing platform metadata for --platform android',
-        },
-      ],
-    },
-  }));
+  const result = await runCliCapture(['test', './suite', '--verbose'], async () =>
+    makeReplaySuiteResponse(),
+  );
 
   assert.equal(result.code, 1);
   assert.match(result.stderr, /Running replay suite\.\.\./);
