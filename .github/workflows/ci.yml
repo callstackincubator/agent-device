@@ -90,6 +90,30 @@ jobs:
       - name: Run typecheck
         run: pnpm typecheck
 
+  android-snapshot-helper:
+    name: Android Snapshot Helper Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Check Java toolchain
+        run: |
+          javac --version
+          java --version
+
+      - name: Package Android snapshot helper
+        run: pnpm package:android-snapshot-helper
+
   integration-smoke:
     name: Integration Smoke
     runs-on: macos-26

@@ -196,6 +196,10 @@ agent-device get attrs @e1
 ```
 
 - iOS snapshots use XCTest on simulators and physical devices.
+- Android snapshots use stock UIAutomator by default. To try the released Android snapshot helper
+  before stock UIAutomator, set both `AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_APK` and
+  `AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_MANIFEST`; helper failures fall back to stock UIAutomator
+  and include `androidSnapshot.fallbackReason` in typed results.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 - `snapshot --diff` is an alias for `diff snapshot`.
 

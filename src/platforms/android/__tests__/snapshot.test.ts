@@ -20,6 +20,7 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { sleep } from '../adb.ts';
+import type { AndroidAdbExecutor, AndroidSnapshotHelperManifest } from '../snapshot-helper.ts';
 
 const VALID_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
@@ -34,6 +35,21 @@ const device: DeviceInfo = {
   name: 'Pixel',
   kind: 'emulator',
   booted: true,
+};
+
+const helperManifest: AndroidSnapshotHelperManifest = {
+  name: 'android-snapshot-helper',
+  version: '0.13.3',
+  apkUrl: null,
+  sha256: 'abc123',
+  packageName: 'com.callstack.agentdevice.snapshothelper',
+  versionCode: 13003,
+  instrumentationRunner: 'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',
+  minSdk: 23,
+  targetSdk: 36,
+  outputFormat: 'uiautomator-xml',
+  statusProtocol: 'android-snapshot-helper-v1',
+  installArgs: ['install', '-r', '-t'],
 };
 
 beforeEach(() => {
@@ -168,6 +184,31 @@ test('screenshotAndroid throws when PNG payload is truncated', async () => {
   }
 });
 
+function helperOutput(xml: string): string {
+  return [
+    'INSTRUMENTATION_STATUS: agentDeviceProtocol=android-snapshot-helper-v1',
+    'INSTRUMENTATION_STATUS: helperApiVersion=1',
+    'INSTRUMENTATION_STATUS: outputFormat=uiautomator-xml',
+    'INSTRUMENTATION_STATUS: chunkIndex=0',
+    'INSTRUMENTATION_STATUS: chunkCount=1',
+    `INSTRUMENTATION_STATUS: payloadBase64=${Buffer.from(xml, 'utf8').toString('base64')}`,
+    'INSTRUMENTATION_STATUS_CODE: 1',
+    'INSTRUMENTATION_RESULT: agentDeviceProtocol=android-snapshot-helper-v1',
+    'INSTRUMENTATION_RESULT: helperApiVersion=1',
+    'INSTRUMENTATION_RESULT: ok=true',
+    'INSTRUMENTATION_RESULT: outputFormat=uiautomator-xml',
+    'INSTRUMENTATION_RESULT: waitForIdleTimeoutMs=0',
+    'INSTRUMENTATION_RESULT: timeoutMs=8000',
+    'INSTRUMENTATION_RESULT: maxDepth=128',
+    'INSTRUMENTATION_RESULT: maxNodes=5000',
+    'INSTRUMENTATION_RESULT: rootPresent=true',
+    'INSTRUMENTATION_RESULT: nodeCount=1',
+    'INSTRUMENTATION_RESULT: truncated=false',
+    'INSTRUMENTATION_RESULT: elapsedMs=12',
+    'INSTRUMENTATION_CODE: 0',
+  ].join('\n');
+}
+
 test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', async () => {
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="streamed"/></hierarchy>';
@@ -184,6 +225,79 @@ test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', a
   assert.equal(result, xml);
   assert.equal(mockRunCmd.mock.calls.length, 1);
   assert.deepEqual(mockRunCmd.mock.calls[0]?.[2], { allowFailure: true, timeoutMs: 8000 });
+});
+
+test('snapshotAndroid uses configured helper before stock uiautomator', async () => {
+  const timeouts: Array<number | undefined> = [];
+  const helperAdb: AndroidAdbExecutor = async (args, options) => {
+    timeouts.push(options?.timeoutMs);
+    if (args.includes('--show-versioncode')) {
+      return {
+        exitCode: 0,
+        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+        stderr: '',
+      };
+    }
+    if (args.includes('instrument')) {
+      return {
+        exitCode: 0,
+        stdout: helperOutput('<hierarchy><node text="helper" bounds="[0,0][10,10]" /></hierarchy>'),
+        stderr: '',
+      };
+    }
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
+
+  const result = await snapshotAndroid(device, {
+    helperAdb,
+    helperArtifact: {
+      apkPath: '/tmp/helper.apk',
+      manifest: helperManifest,
+    },
+  });
+
+  assert.equal(result.nodes[0]?.label, 'helper');
+  assert.equal(result.androidSnapshot.backend, 'android-helper');
+  assert.equal(result.androidSnapshot.helperVersion, '0.13.3');
+  assert.equal(result.androidSnapshot.installReason, 'current');
+  assert.deepEqual(timeouts, [30000, 13000]);
+  assert.equal(mockRunCmd.mock.calls.length, 0);
+});
+
+test('snapshotAndroid falls back to stock uiautomator when helper fails', async () => {
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) {
+      return {
+        exitCode: 0,
+        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+        stderr: '',
+      };
+    }
+    return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
+  };
+  const stockXml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: stockXml, stderr: '' };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+
+  const result = await snapshotAndroid(device, {
+    helperAdb,
+    helperArtifact: {
+      apkPath: '/tmp/helper.apk',
+      manifest: helperManifest,
+    },
+  });
+
+  assert.equal(result.nodes[0]?.label, 'stock');
+  assert.equal(result.androidSnapshot.backend, 'uiautomator-dump');
+  assert.match(
+    result.androidSnapshot.fallbackReason ?? '',
+    /failed before returning parseable output/,
+  );
 });
 
 test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => {

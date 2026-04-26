@@ -1,4 +1,5 @@
 import type { BackendSnapshotResult } from '../backend.ts';
+import type { AndroidSnapshotBackendMetadata } from '../platforms/android/snapshot-types.ts';
 import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
@@ -20,6 +21,7 @@ export type SnapshotCommandResult = {
   appName?: string;
   appBundleId?: string;
   visibility?: SnapshotVisibility;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
   warnings?: string[];
 };
 
@@ -52,6 +54,7 @@ export const snapshotCommand: RuntimeCommand<
       backend: capture.snapshot.backend,
       snapshotRaw: options.raw,
     }),
+    ...(capture.result.androidSnapshot ? { androidSnapshot: capture.result.androidSnapshot } : {}),
     ...(capture.warnings.length > 0 ? { warnings: capture.warnings } : {}),
     ...snapshotAppFields(capture),
   };

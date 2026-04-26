@@ -1,0 +1,85 @@
+name: Release Android Snapshot Helper
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub Release tag to upload assets to, for example v0.13.3.
+        required: true
+        type: string
+      checkout_ref:
+        description: Optional branch, tag, or commit SHA to build. Defaults to the selected workflow ref.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-android-snapshot-helper:
+    name: Publish Android Snapshot Helper
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.inputs.checkout_ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: "22"
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Check Java toolchain
+        run: |
+          javac --version
+          java --version
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+          TAG_NAME="${{ github.event.release.tag_name || github.event.inputs.release_tag }}"
+          VERSION="${TAG_NAME#v}"
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Release tag $TAG_NAME does not match package.json version $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+          echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Package Android snapshot helper
+        id: package
+        env:
+          RELEASE_ASSET_DIR: ${{ github.workspace }}/.tmp/release-assets
+        run: |
+          set -euo pipefail
+          mkdir -p "${RELEASE_ASSET_DIR}"
+          sh ./scripts/package-android-snapshot-helper.sh \
+            "${{ steps.meta.outputs.version }}" \
+            "${{ steps.meta.outputs.tag }}" \
+            "${RELEASE_ASSET_DIR}"
+        shell: bash
+
+      - name: Upload helper assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "${{ steps.meta.outputs.tag }}" \
+            "${{ steps.package.outputs.apk_path }}" \
+            "${{ steps.package.outputs.checksum_path }}" \
+            "${{ steps.package.outputs.manifest_path }}" \
+            --clobber
+        shell: bash

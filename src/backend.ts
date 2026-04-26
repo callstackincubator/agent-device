@@ -1,3 +1,4 @@
+import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type {
   Point,
   ScreenshotOverlayRef,
@@ -33,6 +34,7 @@ export type BackendSnapshotResult = {
   backend?: string;
   snapshot?: SnapshotState;
   analysis?: BackendSnapshotAnalysis;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: BackendSnapshotFreshness;
   warnings?: string[];
   appName?: string;

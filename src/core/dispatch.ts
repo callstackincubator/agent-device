@@ -818,6 +818,7 @@ async function handleSnapshotCommand(
     truncated: androidResult.truncated ?? false,
     backend: 'android',
     analysis: androidResult.analysis,
+    androidSnapshot: androidResult.androidSnapshot,
   };
 }
 

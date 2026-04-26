@@ -44,6 +44,10 @@
       "import": "./dist/src/android-apps.js",
       "types": "./dist/src/android-apps.d.ts"
     },
+    "./android-snapshot-helper": {
+      "import": "./dist/src/android-snapshot-helper.js",
+      "types": "./dist/src/android-snapshot-helper.d.ts"
+    },
     "./contracts": {
       "import": "./dist/src/contracts.js",
       "types": "./dist/src/contracts.d.ts"
@@ -71,6 +75,8 @@
     "build:xcuitest:ios": "AGENT_DEVICE_XCUITEST_PLATFORM=ios AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
     "build:xcuitest:macos": "AGENT_DEVICE_XCUITEST_PLATFORM=macos sh ./scripts/build-xcuitest-apple.sh",
     "build:xcuitest:tvos": "AGENT_DEVICE_XCUITEST_PLATFORM=tvos AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
+    "build:android-snapshot-helper": "sh ./scripts/build-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
+    "package:android-snapshot-helper": "sh ./scripts/package-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") v$(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
     "build:macos-helper": "swift build -c release --package-path macos-helper",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",

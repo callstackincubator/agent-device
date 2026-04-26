@@ -20,28 +20,57 @@ import {
 } from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
+import {
+  captureAndroidSnapshotWithHelper,
+  ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+  ensureAndroidSnapshotHelper,
+  type AndroidAdbExecutor,
+  type AndroidSnapshotHelperArtifact,
+  type AndroidSnapshotHelperInstallPolicy,
+} from './snapshot-helper.ts';
+import {
+  helperFallbackReason,
+  resolveAndroidSnapshotHelperConfig,
+} from './snapshot-helper-config.ts';
+import {
+  ANDROID_SNAPSHOT_MAX_NODES,
+  type AndroidSnapshotBackendMetadata,
+} from './snapshot-types.ts';
 
 const UI_HIERARCHY_DUMP_TIMEOUT_MS = 8_000;
+const HELPER_INSTALL_TIMEOUT_MS = 30_000;
+const HELPER_COMMAND_TIMEOUT_MS = UI_HIERARCHY_DUMP_TIMEOUT_MS + 5_000;
+
+type AndroidSnapshotOptions = SnapshotOptions & {
+  helperArtifact?: AndroidSnapshotHelperArtifact;
+  helperInstallPolicy?: AndroidSnapshotHelperInstallPolicy;
+  helperAdb?: AndroidAdbExecutor;
+};
 
 export async function snapshotAndroid(
   device: DeviceInfo,
-  options: SnapshotOptions = {},
+  options: AndroidSnapshotOptions = {},
 ): Promise<{
   nodes: RawSnapshotNode[];
   truncated?: boolean;
   analysis: AndroidSnapshotAnalysis;
+  androidSnapshot: AndroidSnapshotBackendMetadata;
 }> {
-  const xml = await dumpUiHierarchy(device);
+  const capture = await captureAndroidUiHierarchy(device, options);
+  const xml = capture.xml;
   if (!options.interactiveOnly) {
-    const parsed = parseUiHierarchy(xml, 800, options);
+    const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
     const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes);
     applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
-    return parsed;
+    return { ...parsed, androidSnapshot: capture.metadata };
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const fullSnapshot = buildUiHierarchySnapshot(tree, 800, { ...options, interactiveOnly: false });
-  const interactiveSnapshot = buildUiHierarchySnapshot(tree, 800, options);
+  const fullSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, {
+    ...options,
+    interactiveOnly: false,
+  });
+  const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
   const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes);
   applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
   if (nativeHints.size === 0) {
@@ -51,7 +80,71 @@ export async function snapshotAndroid(
     applyHiddenContentHintsToInteractiveNodes(presentationHints, fullSnapshot, interactiveSnapshot);
   }
   const { sourceNodes: _sourceNodes, ...snapshot } = interactiveSnapshot;
-  return snapshot;
+  return { ...snapshot, androidSnapshot: capture.metadata };
+}
+
+async function captureAndroidUiHierarchy(
+  device: DeviceInfo,
+  options: AndroidSnapshotOptions,
+): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
+  const helperConfig = await resolveAndroidSnapshotHelperConfig(options);
+  if (helperConfig.artifact) {
+    try {
+      const adb = options.helperAdb ?? createDeviceAdbExecutor(device);
+      const install = await ensureAndroidSnapshotHelper({
+        adb,
+        artifact: helperConfig.artifact,
+        installPolicy: options.helperInstallPolicy,
+        timeoutMs: HELPER_INSTALL_TIMEOUT_MS,
+      });
+      const capture = await captureAndroidSnapshotWithHelper({
+        adb,
+        packageName: helperConfig.artifact.manifest.packageName,
+        instrumentationRunner: helperConfig.artifact.manifest.instrumentationRunner,
+        waitForIdleTimeoutMs: ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+        timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
+        commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
+      });
+      return {
+        xml: capture.xml,
+        metadata: {
+          backend: 'android-helper',
+          helperVersion: helperConfig.artifact.manifest.version,
+          helperApiVersion: capture.metadata.helperApiVersion,
+          installReason: install.reason,
+          waitForIdleTimeoutMs: capture.metadata.waitForIdleTimeoutMs,
+          timeoutMs: capture.metadata.timeoutMs,
+          maxDepth: capture.metadata.maxDepth,
+          maxNodes: capture.metadata.maxNodes,
+          rootPresent: capture.metadata.rootPresent,
+          nodeCount: capture.metadata.nodeCount,
+          helperTruncated: capture.metadata.truncated,
+          elapsedMs: capture.metadata.elapsedMs,
+        },
+      };
+    } catch (error) {
+      return await captureStockUiHierarchy(device, helperFallbackReason(error));
+    }
+  }
+
+  return await captureStockUiHierarchy(device, helperConfig.fallbackReason);
+}
+
+async function captureStockUiHierarchy(
+  device: DeviceInfo,
+  fallbackReason?: string,
+): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
+  return {
+    xml: await dumpUiHierarchy(device),
+    metadata: {
+      backend: 'uiautomator-dump',
+      ...(fallbackReason ? { fallbackReason } : {}),
+    },
+  };
+}
+
+function createDeviceAdbExecutor(device: DeviceInfo): AndroidAdbExecutor {
+  return async (args, options) => await runCmd('adb', adbArgs(device, args), options);
 }
 
 async function deriveScrollableContentHintsIfNeeded(

@@ -2,6 +2,7 @@ import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
 import { snapshotLinux } from '../../platforms/linux/snapshot.ts';
+import type { AndroidSnapshotBackendMetadata } from '../../platforms/android/snapshot-types.ts';
 import type { AndroidSnapshotAnalysis } from '../../platforms/android/ui-hierarchy.ts';
 import {
   attachRefs,
@@ -43,6 +44,7 @@ type SnapshotData = {
   truncated?: boolean;
   backend?: SnapshotBackend;
   analysis?: AndroidSnapshotAnalysis;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
 };
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
@@ -51,6 +53,7 @@ type AndroidFreshnessMode = 'default' | 'ref-refresh';
 export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
   const freshness = getActiveAndroidSnapshotFreshness(params.session);
@@ -62,6 +65,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   return {
     snapshot: buildSnapshotState(data, params.flags),
     analysis: data.analysis,
+    androidSnapshot: data.androidSnapshot,
   };
 }
 
@@ -104,6 +108,7 @@ async function captureAndroidFreshnessAwareSnapshot(
 ): Promise<{
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
   let latest = await captureSnapshotAttempt(params);
@@ -128,6 +133,7 @@ async function captureAndroidFreshnessAwareSnapshot(
   return {
     snapshot: latest.snapshot,
     analysis: latest.data.analysis,
+    androidSnapshot: latest.data.androidSnapshot,
     freshness:
       retryCount > 0 || Boolean(suspiciousReason)
         ? {
