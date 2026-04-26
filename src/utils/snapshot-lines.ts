@@ -148,7 +148,13 @@ export function formatRole(type: string): string {
   if (normalized === 'textview') {
     return isAndroidClass ? 'text' : 'text-view';
   }
-  return (ROLE_LABELS[normalized] ?? normalized) || 'element';
+  return lookupRoleLabel(normalized) || normalized || 'element';
+}
+
+function lookupRoleLabel(normalized: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(ROLE_LABELS, normalized)
+    ? ROLE_LABELS[normalized]
+    : undefined;
 }
 
 function isEditableRole(type: string): boolean {

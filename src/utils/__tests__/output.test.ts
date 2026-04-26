@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { formatScreenshotDiffText, formatSnapshotDiffText, formatSnapshotText } from '../output.ts';
-import { formatSnapshotLine } from '../snapshot-lines.ts';
+import { formatRole, formatSnapshotLine } from '../snapshot-lines.ts';
 
 const DIFF_DATA = {
   mode: 'snapshot',
@@ -15,6 +15,12 @@ const DIFF_DATA = {
     { kind: 'added', text: '  @e3 [text] "134"' },
   ],
 } as const;
+
+test('formatRole falls back for object prototype role names', () => {
+  assert.equal(formatRole('constructor'), 'constructor');
+  assert.equal(formatRole('__proto__'), '__proto__');
+  assert.equal(formatRole('com.android.constructor'), 'constructor');
+});
 
 test('formatSnapshotDiffText renders plain text when color is disabled', () => {
   const originalForceColor = process.env.FORCE_COLOR;
