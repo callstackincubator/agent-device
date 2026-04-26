@@ -367,6 +367,14 @@ async function main() {
       'bin',
       'agent-device.mjs',
     );
+    const companionEntryPath = path.join(
+      installRoot,
+      'node_modules',
+      'agent-device',
+      'dist',
+      'src',
+      'companion-tunnel.js',
+    );
     const metroEntryPath = path.join(
       installRoot,
       'node_modules',
@@ -383,7 +391,12 @@ async function main() {
       'src',
       'update-check-entry.js',
     );
-    assert.equal(fs.existsSync(metroEntryPath), true, 'expected packaged Metro companion entry');
+    assert.equal(
+      fs.existsSync(companionEntryPath),
+      true,
+      'expected packaged companion tunnel entry',
+    );
+    assert.equal(fs.existsSync(metroEntryPath), false, 'unexpected packaged Metro companion entry');
     assert.equal(fs.existsSync(updateCheckEntryPath), true, 'expected packaged update-check entry');
 
     const cliResult = await runCliWithHeartbeat(

@@ -31,7 +31,7 @@ export default defineConfig({
           selectors: 'src/selectors.ts',
           finders: 'src/finders.ts',
           bin: 'src/bin.ts',
-          'metro-companion': 'src/metro-companion.ts',
+          'companion-tunnel': 'src/companion-tunnel.ts',
           daemon: 'src/daemon.ts',
           'update-check-entry': 'src/utils/update-check-entry.ts',
         },

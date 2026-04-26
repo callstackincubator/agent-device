@@ -350,18 +350,18 @@ test('metro companion worker proxies websocket frames to the local upstream serv
 
   const companion = spawn(
     process.execPath,
-    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
-        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -502,18 +502,18 @@ test('metro companion worker reconnects after the bridge closes immediately afte
 
   const companion = spawn(
     process.execPath,
-    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
-        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -610,19 +610,19 @@ test('metro companion worker exits after its state file is removed', async () =>
 
   const companion = spawn(
     process.execPath,
-    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
-        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
-        AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH: statePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -649,7 +649,7 @@ test('metro companion worker exits after its state file is removed', async () =>
   assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
 });
 
-test('metro companion worker exits immediately when its state file is already missing', async () => {
+test('companion tunnel entrypoint reads neutral env and exits when state file is missing', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
   const statePath = path.join(tempRoot, 'missing-metro-companion.json');
   cleanupTasks.push(async () => {
@@ -658,19 +658,19 @@ test('metro companion worker exits immediately when its state file is already mi
 
   const companion = spawn(
     process.execPath,
-    ['--experimental-strip-types', 'src/metro-companion.ts', '--agent-device-run-metro-companion'],
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
     {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        AGENT_DEVICE_METRO_COMPANION_SERVER_BASE_URL: 'http://127.0.0.1:1',
-        AGENT_DEVICE_METRO_COMPANION_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_METRO_COMPANION_LOCAL_BASE_URL: 'http://127.0.0.1:1',
-        AGENT_DEVICE_METRO_COMPANION_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_METRO_COMPANION_SCOPE_LEASE_ID: 'lease-1',
-        AGENT_DEVICE_METRO_COMPANION_STATE_PATH: statePath,
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: 'http://127.0.0.1:1',
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH: statePath,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
