@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 
-export const DEFAULT_TEST_ARTIFACTS_ROOT = '.agent-device/test-artifacts';
+const DEFAULT_TEST_ARTIFACTS_ROOT = '.agent-device/test-artifacts';
 
 export function resolveReplayTestArtifactsDir(params: {
   artifactsDir?: string;

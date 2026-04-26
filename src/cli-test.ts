@@ -102,7 +102,7 @@ function isFlakyReplayTestResult(
   return result.status === 'passed' && result.attempts > 1;
 }
 
-export function getReplayTestExitCode(data: ReplaySuiteResult): number {
+function getReplayTestExitCode(data: ReplaySuiteResult): number {
   return data.failed > 0 ? 1 : 0;
 }
 

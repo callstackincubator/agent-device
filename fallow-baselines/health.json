@@ -1,0 +1,1110 @@
+{
+  "finding_counts": {
+    "src/__tests__/cli-config.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/__tests__/client-companion-tunnel-worker.test.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/__tests__/client-metro-companion.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/__tests__/client.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/__tests__/runtime-diagnostics-router.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/__tests__/runtime-public.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/__tests__/upload-client.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/cli-test.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/cli.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/cli/auth-session.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/cli/commands/connection-runtime.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/cli/commands/connection.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/cli/commands/generic.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/cli/commands/output.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "complexity_high": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/cli/commands/react-devtools.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/client-commands.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/client-companion-tunnel-worker.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/client-companion-tunnel.ts": {
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/client-metro.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/client-shared.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/client.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/commands/admin.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/commands/capture-diff-screenshot.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/commands/capture-snapshot.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/commands/diagnostics-format.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/commands/diagnostics.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/commands/interaction-resolution.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/commands/system.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/contracts.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/core/batch.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/core/dispatch-resolve.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/core/dispatch.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 5
+      }
+    },
+    "src/daemon-client.ts": {
+      "complexity_critical": {
+        "count": 3
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/daemon.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/__tests__/http-server.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/__tests__/network-log.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/android-snapshot-freshness.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/app-log.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/context.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/device-ready.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/__tests__/interaction.test.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 6
+      }
+    },
+    "src/daemon/handlers/__tests__/record-trace.test.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/__tests__/replay-heal.test.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/__tests__/session-close-shutdown.test.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/__tests__/session-open-runtime.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/__tests__/session-reinstall.test.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/__tests__/session-replay-vars.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/__tests__/session.test.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 5
+      },
+      "crap_moderate": {
+        "count": 12
+      }
+    },
+    "src/daemon/handlers/__tests__/snapshot-handler.test.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/find.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/install-source.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/interaction-common.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/interaction-touch-reference-frame.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/interaction-touch.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/interaction.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/record-trace-recording.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/record-trace.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-inventory.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-observability.ts": {
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/session-open-surface.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-open.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/session-perf.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-replay-heal.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-replay-runtime.ts": {
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-replay-script.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "complexity_high": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-runtime.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-state.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/session-test-artifacts.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session-test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/session.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/daemon/handlers/snapshot-alert.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/handlers/snapshot-capture.ts": {
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/daemon/http-server.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/daemon/install-source-resolution.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/network-log.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/daemon/recording-gestures.ts": {
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/request-router.ts": {
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/daemon/runtime-hints.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/screenshot-overlay.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/script-utils.ts": {
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/selector-runtime.ts": {
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/daemon/selectors-match.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/daemon/selectors-parse.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon/selectors-resolve.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/server-lifecycle.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/daemon/session-selector.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon/session-store.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      }
+    },
+    "src/daemon/transport.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/app-lifecycle.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/app-parsers.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/device-input-state.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/platforms/android/input-actions.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/manifest.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/scroll-hints.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/platforms/android/settings.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/android/snapshot.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/platforms/android/ui-hierarchy.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/boot-diagnostics.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/platforms/install-source.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/__tests__/index.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/__tests__/perf.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/apps.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/platforms/ios/devices.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/ensure-simulator.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/interactions.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/macos-helper.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/perf.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/runner-client.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/runner-transport.ts": {
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/platforms/ios/runner-xctestrun.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 4
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/platforms/ios/screenshot-status-bar.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/platforms/ios/screenshot.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/simulator.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/ios/xml.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/linux/atspi-bridge.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/platforms/linux/input-actions.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/remote-config-core.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/remote-connection-state.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/upload-client.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/__tests__/screenshot-diff.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/utils/args.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/utils/cli-config.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/cli-option-schema.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/device.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/exec.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/mobile-snapshot-semantics.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/output.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/retry.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/utils/screenshot-diff-non-text.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/utils/screenshot-diff-regions.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/utils/screenshot-diff.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/utils/selector-build.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/utils/selector-is-predicates.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/session-binding.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/snapshot-diff.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/snapshot-lines.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/source-value.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/utils/text-surface.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/utils/update-check.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "test/integration/installed-package-metro.test.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "test/integration/recording-overlay.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "test/integration/smoke-daemon-http.test.ts": {
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "test/integration/smoke-open-remote-config.test.ts": {
+      "crap_critical": {
+        "count": 2
+      }
+    },
+    "test/integration/test-helpers.ts": {
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "test/scripts/metro-prepare-packaged-smoke.mjs": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "src/daemon/handlers/session.ts:complexity",
+    "src/daemon/handlers/snapshot-capture.ts:high impact",
+    "src/daemon/handlers/session-device-utils.ts:high impact",
+    "src/utils/process-identity.ts:high impact",
+    "src/cli.ts:complexity",
+    "src/client-shared.ts:high impact",
+    "src/daemon/handlers/session-replay-script.ts:complexity",
+    "src/commands/selector-read-utils.ts:high impact",
+    "src/utils/args.ts:high impact",
+    "src/daemon/config.ts:high impact",
+    "src/daemon/android-snapshot-freshness.ts:high impact",
+    "src/daemon/session-store.ts:complexity",
+    "src/platforms/boot-diagnostics.ts:complexity",
+    "src/cli/commands/connection-runtime.ts:complexity",
+    "src/daemon/handlers/session-replay-heal.ts:complexity",
+    "src/daemon/handlers/snapshot-alert.ts:complexity",
+    "src/cli/commands/connection.ts:untested risk",
+    "src/utils/snapshot-lines.ts:high impact",
+    "src/daemon/handlers/session-inventory.ts:complexity",
+    "src/utils/success-text.ts:high impact",
+    "src/daemon/handlers/install-source.ts:complexity",
+    "src/utils/output.ts:high impact",
+    "src/cli/commands/output.ts:complexity",
+    "src/daemon/script-utils.ts:high impact",
+    "src/utils/snapshot-processing.ts:high impact",
+    "src/daemon/handlers/session-open-target.ts:high impact",
+    "src/daemon/handlers/session-state.ts:complexity",
+    "src/daemon/handlers/session-open.ts:complexity",
+    "src/platforms/android/ui-hierarchy.ts:high impact",
+    "src/daemon/request-cancel.ts:high impact",
+    "src/utils/device.ts:high impact",
+    "src/platforms/android/input-actions.ts:complexity",
+    "src/daemon/app-log-process.ts:high impact",
+    "src/client-metro.ts:complexity",
+    "src/utils/selector-build.ts:high impact",
+    "src/platforms/ios/xml.ts:high impact",
+    "src/utils/keyed-lock.ts:high impact",
+    "src/utils/text-surface.ts:high impact",
+    "src/daemon/app-log-stream.ts:high impact",
+    "src/core/batch.ts:complexity",
+    "src/platforms/ios/runner-xctestrun.ts:complexity",
+    "src/cli-test.ts:untested risk",
+    "src/platforms/android/sdk.ts:high impact",
+    "src/utils/source-value.ts:high impact",
+    "src/utils/screenshot-diff-regions.ts:complexity",
+    "src/daemon/screenshot-overlay.ts:untested risk",
+    "src/utils/screenshot-diff-non-text.ts:complexity",
+    "src/__tests__/client-companion-tunnel-worker.test.ts:complexity"
+  ]
+}

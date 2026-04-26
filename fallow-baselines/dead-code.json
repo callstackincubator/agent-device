@@ -1,0 +1,18 @@
+{
+  "unused_files": [],
+  "unused_exports": [],
+  "unused_types": [],
+  "unused_dependencies": [],
+  "unused_dev_dependencies": [],
+  "circular_dependencies": [],
+  "unused_optional_dependencies": [],
+  "unused_enum_members": [],
+  "unused_class_members": [],
+  "unresolved_imports": [],
+  "unlisted_dependencies": [],
+  "duplicate_exports": [],
+  "type_only_dependencies": [],
+  "test_only_dependencies": [],
+  "boundary_violations": [],
+  "stale_suppressions": []
+}

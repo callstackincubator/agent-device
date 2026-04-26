@@ -43,7 +43,7 @@ type AppleDeviceSelector = {
  *
  * Exported for testing; production callers should use `resolveTargetDevice`.
  */
-export async function resolveAppleDevice(
+async function resolveAppleDevice(
   devices: DeviceInfo[],
   selector: AppleDeviceSelector,
   context: { simulatorSetPath?: string },

@@ -170,7 +170,7 @@ export async function materializeRemoteConnectionForCommand(options: {
   };
 }
 
-export async function prepareConnectedMetro(
+async function prepareConnectedMetro(
   flags: CliFlags,
   client: AgentDeviceClient,
   remoteConfigPath: string,

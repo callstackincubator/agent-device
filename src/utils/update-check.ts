@@ -6,7 +6,7 @@ import { runCmdDetached } from './exec.ts';
 const PACKAGE_NAME = 'agent-device';
 const UPDATE_CHECK_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 const UPDATE_CHECK_TIMEOUT_MS = 3500;
-export const UPDATE_CHECK_ARG = '--agent-device-run-update-check';
+const UPDATE_CHECK_ARG = '--agent-device-run-update-check';
 const UPDATE_CHECK_CACHE_FILE = 'update-check.json';
 
 type UpdateCheckCache = {

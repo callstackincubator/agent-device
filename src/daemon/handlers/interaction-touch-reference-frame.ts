@@ -8,7 +8,7 @@ import type { SessionState } from '../types.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 
-export async function resolveDirectTouchReferenceFrame(params: {
+async function resolveDirectTouchReferenceFrame(params: {
   session: SessionState;
   flags: CommandFlags | undefined;
   sessionStore: SessionStore;

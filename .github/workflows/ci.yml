@@ -44,6 +44,24 @@ jobs:
             exit 1
           fi
 
+  fallow:
+    name: Fallow Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run Fallow audit
+        env:
+          FALLOW_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: pnpm check:fallow --base "$FALLOW_BASE"
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest

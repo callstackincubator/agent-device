@@ -21,7 +21,7 @@ export function classifyAndroidAppTarget(target: string): AndroidAppTargetKind {
   return 'package';
 }
 
-export function looksLikeAndroidPackageName(value: string): boolean {
+function looksLikeAndroidPackageName(value: string): boolean {
   return ANDROID_PACKAGE_NAME_PATTERN.test(value);
 }
 

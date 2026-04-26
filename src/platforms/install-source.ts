@@ -85,7 +85,7 @@ export async function materializeInstallablePath(
   }
 }
 
-export function expandSourcePath(inputPath: string): string {
+function expandSourcePath(inputPath: string): string {
   return expandUserHomePath(inputPath);
 }
 

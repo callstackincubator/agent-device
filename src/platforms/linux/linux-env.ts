@@ -11,7 +11,7 @@ import { AppError } from '../../utils/errors.ts';
 export type DisplayServer = 'wayland' | 'x11';
 export type InputTool = 'xdotool' | 'ydotool';
 
-export function detectDisplayServer(): DisplayServer {
+function detectDisplayServer(): DisplayServer {
   if (process.env['WAYLAND_DISPLAY']) return 'wayland';
   if (process.env['XDG_SESSION_TYPE'] === 'wayland') return 'wayland';
   return 'x11';

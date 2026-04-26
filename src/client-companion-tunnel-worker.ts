@@ -342,9 +342,7 @@ async function handleBridgeMessage(
   }
 }
 
-export async function runCompanionTunnelWorker(
-  options: CompanionTunnelWorkerOptions,
-): Promise<void> {
+async function runCompanionTunnelWorker(options: CompanionTunnelWorkerOptions): Promise<void> {
   const upstreamSockets = new Map<string, WebSocket>();
   let shutdownRequested = false;
   let activeBridgeSocket: WebSocket | null = null;

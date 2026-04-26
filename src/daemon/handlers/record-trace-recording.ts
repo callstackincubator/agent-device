@@ -40,7 +40,7 @@ import type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
 export type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
-export function buildRecordTraceDeps(): RecordTraceDeps {
+function buildRecordTraceDeps(): RecordTraceDeps {
   return {
     runCmd,
     runCmdBackground,

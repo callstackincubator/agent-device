@@ -18,7 +18,7 @@ export function extractReadableText(node: TextSurfaceNode): string {
   return label || value || fallbackIdentifier;
 }
 
-export function isLargeTextSurface(node: TextSurfaceNode, displayType?: string): boolean {
+function isLargeTextSurface(node: TextSurfaceNode, displayType?: string): boolean {
   if (displayType === 'text-view' || displayType === 'text-field' || displayType === 'search') {
     return true;
   }
@@ -61,7 +61,7 @@ export function describeTextSurface(
   };
 }
 
-export function shouldSummarizeTextSurface(text: string): boolean {
+function shouldSummarizeTextSurface(text: string): boolean {
   if (!text) {
     return false;
   }

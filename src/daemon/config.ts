@@ -24,7 +24,7 @@ export function resolveDaemonPaths(stateDir: string | undefined): DaemonPaths {
   };
 }
 
-export function resolveStateDir(raw: string | undefined): string {
+function resolveStateDir(raw: string | undefined): string {
   const value = (raw ?? '').trim();
   if (!value) {
     return path.join(expandUserHomePath('~'), '.agent-device');

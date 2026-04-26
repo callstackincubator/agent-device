@@ -19,7 +19,7 @@ export type PermissionSettingOptions = {
   permissionTarget?: string;
   permissionMode?: string;
 };
-export const PERMISSION_TARGETS: readonly PermissionTarget[] = [
+const PERMISSION_TARGETS: readonly PermissionTarget[] = [
   'camera',
   'microphone',
   'photos',

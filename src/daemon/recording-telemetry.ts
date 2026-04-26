@@ -19,7 +19,7 @@ export function deriveRecordingTelemetryPath(videoPath: string): string {
   return path.join(parsed.dir, `${parsed.name}.gesture-telemetry.json`);
 }
 
-export function trimRecordingTelemetryEvents(
+function trimRecordingTelemetryEvents(
   events: RecordingGestureEvent[],
   trimStartMs: number,
 ): RecordingGestureEvent[] {
@@ -48,13 +48,13 @@ export function trimRecordingTelemetryEvents(
   );
 }
 
-export function normalizeRecordingTelemetryEvents(
+function normalizeRecordingTelemetryEvents(
   events: RecordingGestureEvent[],
 ): RecordingGestureEvent[] {
   return [...events].sort((left, right) => left.tMs - right.tMs);
 }
 
-export function writeRecordingTelemetry(params: {
+function writeRecordingTelemetry(params: {
   videoPath: string;
   events: RecordingGestureEvent[];
   trimStartMs?: number;

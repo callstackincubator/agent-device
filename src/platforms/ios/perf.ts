@@ -18,10 +18,10 @@ import { readInfoPlistString } from './plist.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
 
-export const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
-export const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
-export const IOS_DEVICE_CPU_SAMPLE_METHOD = 'xctrace-activity-monitor';
-export const IOS_DEVICE_MEMORY_SAMPLE_METHOD = 'xctrace-activity-monitor';
+const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
+const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
+const IOS_DEVICE_CPU_SAMPLE_METHOD = 'xctrace-activity-monitor';
+const IOS_DEVICE_MEMORY_SAMPLE_METHOD = 'xctrace-activity-monitor';
 
 const APPLE_PERF_TIMEOUT_MS = 15_000;
 // Physical device tracing can take materially longer to initialize than the 1s sample window.

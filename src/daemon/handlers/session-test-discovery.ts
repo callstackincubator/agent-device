@@ -8,7 +8,7 @@ import { readReplayScriptMetadata, type ReplayScriptMetadata } from './session-r
 
 const GLOB_PATTERN_CHARS = /[*?[\]{}]/;
 
-export const MAX_REPLAY_TEST_RETRIES = 3;
+const MAX_REPLAY_TEST_RETRIES = 3;
 
 export type ReplayTestDiscoveryEntry =
   | {

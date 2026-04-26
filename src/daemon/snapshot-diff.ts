@@ -1,1 +1,1 @@
-export { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
+export { buildSnapshotDiff } from '../utils/snapshot-diff.ts';

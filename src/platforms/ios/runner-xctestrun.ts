@@ -1030,7 +1030,7 @@ export function xctestrunReferencesExistingProducts(xctestrunPath: string): bool
   }
 }
 
-export function resolveExistingXctestrunProductPaths(xctestrunPath: string): string[] | null {
+function resolveExistingXctestrunProductPaths(xctestrunPath: string): string[] | null {
   const values = resolveXctestrunProductReferences(xctestrunPath);
   if (!values || values.length === 0) {
     return null;
