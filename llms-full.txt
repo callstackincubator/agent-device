@@ -262,14 +262,8 @@ For remote Metro-backed flows, import the reusable Node APIs instead of spawning
 
 Public subpath API exposed for Node consumers:
 
-- `agent-device/commands`
-  - runtime command namespaces for command semantics as they migrate out of the daemon and CLI layers
-- `agent-device/backend`
-  - backend primitive and policy-gated capability types for local and hosted adapters
 - `agent-device/io`
   - artifact adapter types, file input refs, and file output refs
-- `agent-device/testing/conformance`
-  - conformance suites for backend/runtime parity across capture, selectors, interactions, and apps
 - `agent-device/metro`
   - `prepareRemoteMetro(options)`
   - `ensureMetroTunnel(options)`
@@ -311,7 +305,7 @@ Public subpath API exposed for Node consumers:
 - `agent-device/artifacts`
   - `resolveAndroidArchivePackageName(archivePath)`
 
-The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, and `remote-config` subpaths remain available for compatibility. New command-level integrations should prefer the runtime boundary: `agent-device/commands`, `agent-device/backend`, and `agent-device/io`.
+The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
 
 ## Basic usage
 
@@ -345,67 +339,6 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 
 await client.sessions.close();
 ```
-
-## Runtime command API
-
-Use `createAgentDevice()` when you want command semantics without the daemon RPC
-client. The runtime takes an explicit backend and IO adapter, so service code can
-avoid accidental local filesystem or local device access. If no session store is
-provided, the runtime uses an isolated in-memory store.
-
-```ts
-import {
-  createAgentDevice,
-  createLocalArtifactAdapter,
-  createMemorySessionStore,
-  localCommandPolicy,
-  selector,
-} from 'agent-device';
-
-const device = createAgentDevice({
-  backend,
-  artifacts: createLocalArtifactAdapter(),
-  sessions: createMemorySessionStore([{ name: 'default' }]),
-  policy: localCommandPolicy(),
-});
-
-await device.capture.screenshot({
-  session: 'default',
-  out: { kind: 'path', path: './screen.png' },
-  maxSize: 1024,
-});
-
-await device.selectors.waitForText('Ready', { session: 'default', timeoutMs: 5_000 });
-await device.interactions.click(selector('label=Continue'), { session: 'default' });
-await device.apps.open({ session: 'default', app: 'com.example' });
-```
-
-Implemented runtime namespaces are currently:
-
-- `capture`: `screenshot`, `diffScreenshot`, `snapshot`, `diffSnapshot`
-- `selectors`: `find`, `get`, `getText`, `getAttrs`, `is`, `isVisible`, `isHidden`, `wait`, `waitForText`
-- `interactions`: `click`, `press`, `fill`, `typeText`, `focus`, `longPress`, `swipe`, `scroll`, `pinch`
-- `apps`: `open`, `close`, `list`, `state`, `push`, `triggerEvent`
-- `admin`: `devices`, `boot`, `ensureSimulator`, `install`, `reinstall`, `installFromSource`
-- `recording`: `record`, `trace`
-- `observability`: `logs`, `network`, `perf` (`createCommandRouter()` dispatches these as `diagnostics.logs`, `diagnostics.network`, and `diagnostics.perf`)
-
-Commands that have not migrated are tracked in `commandCatalog` instead of being
-exposed as throwing methods.
-
-Backend authors can use `runCommandConformance()` or `assertCommandConformance()` from
-`agent-device/testing/conformance` to verify capture, selector, interaction, app,
-admin, recording, and diagnostics semantics against a prepared fixture app or
-test backend.
-
-Use `createCommandRouter()` from `agent-device/commands` as the recommended
-transport boundary for hosted adapters. The router applies command dispatch,
-error normalization, and per-request runtime construction without exposing
-daemon internals. Router-level `batch` dispatches its nested steps through the
-same router path so command policy and error formatting still run for each step.
-Diagnostics payload redaction is best-effort: structured JSON bodies are
-redacted recursively, and non-JSON payloads are sanitized with string-pattern
-fallbacks before truncation.
 
 ## Command methods
 
@@ -2051,62 +1984,6 @@ Use `replay -u` locally during maintenance, review the rewritten `.ad` lines, th
   - Re-record that flow (`--save-script`) from a fresh exploratory pass.
 - Replay file parse error:
   - Validate quoting in `.ad` lines (unclosed quotes are rejected).
-
-
-
----
-url: /agent-device/docs/runtime-command-stability.md
----
-
-# Runtime Command Stability
-
-The runtime command API is the stable command-semantics boundary for hosted
-adapters, daemon compatibility shims, and direct Node integrations.
-
-## Versioning rules
-
-- New runtime commands are added under typed namespaces such as `capture`,
-  `selectors`, `interactions`, and `apps`.
-- Public command methods are exposed only after their backend primitive,
-  JavaScript result shape, router dispatch, and conformance coverage are in
-  place.
-- Result unions stay discriminated with a `kind` field. Additive fields are
-  allowed in minor releases; removing or changing existing fields requires a
-  major release or a documented migration window.
-- Command options should keep `session`, `requestId`, `signal`, and `metadata`
-  from `CommandContext` so hosted transports can preserve cancellation and
-  audit scope.
-- Backend primitives remain small named methods. Do not add generic
-  `run(command, args)` escape hatches for portable command behavior.
-- File input, file output, named backend capabilities, and local path access
-  must stay policy-gated.
-- Runtime JSON payloads must serialize to a JSON string and stay within the
-  command's byte limit before reaching backend adapters.
-
-## Deprecation rules
-
-- Planned commands belong in `commandCatalog` until they are implemented.
-- Compatibility helper subpaths remain available during the migration, but new
-  command semantics should move behind `agent-device/commands`,
-  `agent-device/backend`, and `agent-device/io`.
-- Helpers should not be hard-deprecated until downstream hosted adapters have
-  moved to runtime command APIs or `createCommandRouter()`.
-- Deprecations must identify the replacement runtime namespace and the first
-  package version where the replacement is available.
-
-## Transport boundary
-
-Use `createCommandRouter()` for hosted or RPC transports. The router should be
-the boundary that:
-
-- constructs a request-scoped runtime,
-- applies per-command policy before dispatch,
-- normalizes command errors,
-- preserves per-request context, and
-- avoids exposing daemon-only session or platform internals.
-
-Direct service integrations can call `createAgentDevice()` when they already
-own backend, artifact, session, and policy objects in-process.
 
 
 
