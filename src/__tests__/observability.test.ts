@@ -75,7 +75,7 @@ test('public observability parser preserves Android packet IDs', () => {
 
   assert.equal(dump.entries.length, 1);
   assert.equal(dump.entries[0]?.packetId, '23911610');
-  assert.equal(dump.entries[0]?.metadata?.packetId, '23911610');
+  assert.equal(dump.entries[0]?.metadata?.packetId, undefined);
 });
 
 test('public observability merge de-duplicates entries and honors max entries', () => {
@@ -106,7 +106,6 @@ test('public observability mapper produces backend diagnostics result', () => {
   dump.entries[0] = {
     ...dump.entries[0],
     packetId: 'packet-1',
-    metadata: { packetId: 'packet-1' },
   };
 
   const result = mapNetworkDumpToBackendResult(dump, {

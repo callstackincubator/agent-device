@@ -135,9 +135,7 @@ function toParsedNetworkDump(
       ...(entry.responseBody !== undefined ? { responseBody: entry.responseBody } : {}),
       ...(entry.raw ? { raw: entry.raw } : {}),
       ...(entry.line !== undefined ? { line: entry.line } : {}),
-      ...(entry.packetId
-        ? { packetId: entry.packetId, metadata: { packetId: entry.packetId } }
-        : {}),
+      ...(entry.packetId ? { packetId: entry.packetId } : {}),
     })),
     include: dump.include,
     limits: dump.limits,
