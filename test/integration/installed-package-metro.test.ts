@@ -245,11 +245,13 @@ test('installed package exposes Node APIs and packaged companion tunnel entrypoi
     installedPackageRoot = extractInstalledPackage(tarballPath, consumerRoot);
     linkRuntimeDependencies(installedPackageRoot, consumerRoot);
     assert.equal(
-      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'companion-tunnel.js')),
+      fs.existsSync(
+        path.join(installedPackageRoot, 'dist', 'src', 'internal', 'companion-tunnel.js'),
+      ),
       true,
     );
     assert.equal(
-      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'metro-companion.js')),
+      fs.existsSync(path.join(installedPackageRoot, 'dist', 'src', 'companion-tunnel.js')),
       false,
     );
 
@@ -298,30 +300,33 @@ test('installed package exposes Node APIs and packaged companion tunnel entrypoi
       consumerRoot,
       ['--input-type=module', '-e'],
       `
-        import { createAgentDevice, createMemorySessionStore, restrictedCommandPolicy } from 'agent-device';
+        import { createAgentDeviceClient, createLocalArtifactAdapter } from 'agent-device';
         import 'agent-device/contracts';
         import { daemonCommandRequestSchema } from 'agent-device/contracts';
-        import { BACKEND_CAPABILITY_NAMES } from 'agent-device/backend';
-        import { commandCatalog, commands, selector } from 'agent-device/commands';
-        import { createLocalArtifactAdapter } from 'agent-device/io';
+        import { createLocalArtifactAdapter as createIoArtifactAdapter } from 'agent-device/io';
         import { buildBundleUrl, buildIosRuntimeHints, normalizeBaseUrl } from 'agent-device/metro';
         import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
-        import { commandConformanceSuites } from 'agent-device/testing/conformance';
         const loaded = resolveRemoteConfigProfile({ configPath: ${JSON.stringify(remoteConfigPath)}, cwd: process.cwd() });
-        const device = createAgentDevice({
-          backend: { platform: 'ios' },
-          artifacts: createLocalArtifactAdapter({ cwd: process.cwd() }),
-          sessions: createMemorySessionStore(),
-          policy: restrictedCommandPolicy()
-        });
+        const client = createAgentDeviceClient();
+        const removedSubpaths = await Promise.all([
+          'agent-device/backend',
+          'agent-device/commands',
+          'agent-device/testing/conformance',
+          'agent-device/observability',
+        ].map(async (specifier) => {
+          try {
+            await import(specifier);
+            return false;
+          } catch {
+            return true;
+          }
+        }));
         console.log(JSON.stringify({
-          backendCapabilityCount: BACKEND_CAPABILITY_NAMES.length,
           bundleUrl: buildIosRuntimeHints('https://public.example.test').bundleUrl,
-          catalogEntries: commandCatalog.length,
-          conformanceSuites: commandConformanceSuites.length,
-          hasBoundScreenshot: typeof device.capture.screenshot,
-          hasCommandsScreenshot: typeof commands.capture.screenshot,
-          selectorKind: selector('label=Continue').kind,
+          rootClientSnapshot: typeof client.capture.snapshot,
+          rootArtifactAdapter: typeof createLocalArtifactAdapter({ cwd: process.cwd() }).reserveOutput,
+          ioArtifactAdapter: typeof createIoArtifactAdapter({ cwd: process.cwd() }).reserveOutput,
+          removedSubpathsBlocked: removedSubpaths.every(Boolean),
           normalizedBaseUrl: normalizeBaseUrl('https://public.example.test///'),
           protocolBundleUrl: buildBundleUrl('https://public.example.test', 'android'),
           parsedCommand: daemonCommandRequestSchema.parse({
@@ -337,12 +342,10 @@ test('installed package exposes Node APIs and packaged companion tunnel entrypoi
       imports.bundleUrl,
       'https://public.example.test/index.bundle?platform=ios&dev=true&minify=false',
     );
-    assert.equal(imports.backendCapabilityCount > 0, true);
-    assert.equal(imports.catalogEntries > 0, true);
-    assert.equal(imports.conformanceSuites > 0, true);
-    assert.equal(imports.hasBoundScreenshot, 'function');
-    assert.equal(imports.hasCommandsScreenshot, 'function');
-    assert.equal(imports.selectorKind, 'selector');
+    assert.equal(imports.rootClientSnapshot, 'function');
+    assert.equal(imports.rootArtifactAdapter, 'function');
+    assert.equal(imports.ioArtifactAdapter, 'function');
+    assert.equal(imports.removedSubpathsBlocked, true);
     assert.equal(imports.normalizedBaseUrl, 'https://public.example.test');
     assert.equal(
       imports.protocolBundleUrl,

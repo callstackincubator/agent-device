@@ -124,10 +124,14 @@ function writeUpdateCheckCache(cachePath: string, cache: UpdateCheckCache): void
 function resolveUpdateCheckEntryModulePath(): string {
   const currentModulePath = fileURLToPath(import.meta.url);
   const extension = path.extname(currentModulePath) || '.js';
-  const entryPath = path.join(path.dirname(currentModulePath), `update-check-entry${extension}`);
-  if (!fs.existsSync(entryPath)) {
+  const entryPaths = [
+    path.join(path.dirname(currentModulePath), `update-check-entry${extension}`),
+    path.join(path.dirname(currentModulePath), 'internal', `update-check-entry${extension}`),
+  ];
+  const entryPath = entryPaths.find((candidate) => fs.existsSync(candidate));
+  if (!entryPath) {
     throw new Error(
-      `Update check entrypoint not found at ${entryPath}. Rebuild the package to include the update-check worker entry.`,
+      'Update check entrypoint not found. Rebuild the package to include the update-check worker entry.',
     );
   }
   return entryPath;

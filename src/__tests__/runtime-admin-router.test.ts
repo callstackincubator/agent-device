@@ -3,7 +3,6 @@ import { test } from 'vitest';
 import type { AgentDeviceBackend, BackendInstallSource } from '../backend.ts';
 import type { ArtifactAdapter, FileInputRef } from '../io.ts';
 import { createAgentDevice, localCommandPolicy, restrictedCommandPolicy } from '../runtime.ts';
-import { createCommandRouter } from '../commands/index.ts';
 
 const artifacts = {
   resolveInput: async (ref: FileInputRef) => ({
@@ -143,92 +142,6 @@ test('admin install cleans materialized input when backend source resolution fai
   assert.equal(installCalled, false);
 });
 
-test('router batch preserves per-step failures and enforces per-command policy', async () => {
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend: {
-          platform: 'ios',
-          openApp: async () => {},
-          installApp: async () => ({ bundleId: 'com.example.app' }),
-        },
-        artifacts,
-        policy: restrictedCommandPolicy(),
-      }),
-  });
-
-  const response = await router.dispatch({
-    command: 'batch',
-    options: {
-      steps: [
-        { command: 'apps.open', options: { app: 'com.example.app' } },
-        {
-          command: 'admin.install',
-          options: { app: 'com.example.app', source: { kind: 'path', path: '/tmp/app.zip' } },
-        },
-        { command: 'apps.open', options: { app: 'com.example.other' } },
-      ],
-    },
-  });
-
-  assert.equal(response.ok, true);
-  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.executed : 0, 2);
-  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.failed : 0, 1);
-  const failed =
-    response.ok && isResultKind(response.data, 'batch') ? response.data.results[1] : null;
-  assert.equal(failed?.ok, false);
-  assert.equal(failed?.ok === false ? failed.error.code : undefined, 'INVALID_ARGS');
-
-  const nested = await router.dispatch({
-    command: 'batch',
-    options: {
-      steps: [{ command: 'batch', options: { steps: [] } }],
-    },
-  });
-  assert.equal(nested.ok, false);
-  assert.equal(nested.ok ? undefined : nested.error.code, 'INVALID_ARGS');
-});
-
-test('router batch can continue after failure and inherits command context', async () => {
-  const sessionsSeen: unknown[] = [];
-  const appsOpened: string[] = [];
-  const router = createCommandRouter({
-    createRuntime: (request) => {
-      sessionsSeen.push(request.options?.session);
-      return createAgentDevice({
-        backend: {
-          platform: 'ios',
-          openApp: async (_context, target) => {
-            if (target.app === 'bad') throw new Error('open failed');
-            if (target.app) appsOpened.push(target.app);
-          },
-        },
-        artifacts,
-        policy: restrictedCommandPolicy(),
-      });
-    },
-  });
-
-  const response = await router.dispatch({
-    command: 'batch',
-    options: {
-      session: 'parent-session',
-      stopOnError: false,
-      maxSteps: 2,
-      steps: [
-        { command: 'apps.open', options: { app: 'bad' } },
-        { command: 'apps.open', options: { app: 'good' } },
-      ],
-    },
-  });
-
-  assert.equal(response.ok, true);
-  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.executed : 0, 2);
-  assert.equal(response.ok && isResultKind(response.data, 'batch') ? response.data.failed : 0, 1);
-  assert.deepEqual(appsOpened, ['good']);
-  assert.deepEqual(sessionsSeen, ['parent-session', 'parent-session']);
-});
-
 test('record and trace runtime commands call typed backend lifecycle primitives', async () => {
   const calls: unknown[] = [];
   const device = createAgentDevice({
@@ -325,40 +238,6 @@ test('record keeps successful reserved outputs available after publish', async (
   assert.equal(result.artifact?.kind, 'artifact');
   assert.equal(cleanupCalled, false);
 });
-
-test('router replay and test stay planned until phase 7 migration is complete', async () => {
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend: { platform: 'ios' },
-        artifacts,
-        policy: restrictedCommandPolicy(),
-      }),
-  });
-
-  const replay = await router.dispatch({
-    command: 'replay',
-    options: { steps: [{ command: 'apps.open', options: { app: 'com.example.app' } }] },
-  } as never);
-  assert.equal(replay.ok, false);
-  assert.equal(replay.ok ? undefined : replay.error.code, 'NOT_IMPLEMENTED');
-
-  const suite = await router.dispatch({
-    command: 'test',
-    options: {
-      tests: [{ name: 'opens app', steps: [{ command: 'apps.open', options: { app: 'suite' } }] }],
-    },
-  } as never);
-  assert.equal(suite.ok, false);
-  assert.equal(suite.ok ? undefined : suite.error.code, 'NOT_IMPLEMENTED');
-});
-
-function isResultKind<TKind extends string>(
-  value: unknown,
-  kind: TKind,
-): value is { kind: TKind } & Record<string, unknown> {
-  return Boolean(value && typeof value === 'object' && (value as { kind?: unknown }).kind === kind);
-}
 
 function createAdminBackend(
   calls: string[],

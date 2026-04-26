@@ -4,6 +4,7 @@ import { sleep } from './timeouts.ts';
 const PS_TIMEOUT_MS = 1_000;
 const DAEMON_COMMAND_PATTERNS = [
   /(^|[/\s"'=])dist\/src\/daemon\.js($|[\s"'])/,
+  /(^|[/\s"'=])dist\/src\/internal\/daemon\.js($|[\s"'])/,
   /(^|[/\s"'=])src\/daemon\.ts($|[\s"'])/,
 ];
 

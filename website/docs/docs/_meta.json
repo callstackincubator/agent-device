@@ -25,11 +25,6 @@
     "label": "Typed Client"
   },
   {
-    "name": "runtime-command-stability",
-    "type": "file",
-    "label": "Runtime Command Stability"
-  },
-  {
     "name": "commands",
     "type": "file",
     "label": "Commands"

@@ -715,23 +715,28 @@ async function startDaemon(settings: DaemonClientSettings): Promise<void> {
 type DaemonLaunchSpec = {
   root: string;
   distPath: string;
+  distPaths: string[];
   srcPath: string;
   useSrc: boolean;
 };
 
 function resolveDaemonLaunchSpec(): DaemonLaunchSpec {
   const root = findProjectRoot();
-  const distPath = path.join(root, 'dist', 'src', 'daemon.js');
+  const distPaths = [
+    path.join(root, 'dist', 'src', 'internal', 'daemon.js'),
+    path.join(root, 'dist', 'src', 'daemon.js'),
+  ];
+  const distPath = distPaths.find((candidate) => fs.existsSync(candidate)) ?? distPaths[0]!;
   const srcPath = path.join(root, 'src', 'daemon.ts');
 
-  const hasDist = fs.existsSync(distPath);
+  const hasDist = distPaths.some((candidate) => fs.existsSync(candidate));
   const hasSrc = fs.existsSync(srcPath);
   if (!hasDist && !hasSrc) {
-    throw new AppError('COMMAND_FAILED', 'Daemon entry not found', { distPath, srcPath });
+    throw new AppError('COMMAND_FAILED', 'Daemon entry not found', { distPaths, srcPath });
   }
   const runningFromSource = process.execArgv.includes('--experimental-strip-types');
   const useSrc = runningFromSource ? hasSrc : !hasDist && hasSrc;
-  return { root, distPath, srcPath, useSrc };
+  return { root, distPath, distPaths, srcPath, useSrc };
 }
 
 function resolveLocalDaemonCodeSignature(): string {

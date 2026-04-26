@@ -1,13 +1,13 @@
 # Command Ownership Inventory
 
-This inventory keeps the public boundary stable while command semantics move into
-the runtime layer. New integrations should prefer the runtime, backend, and IO
-interfaces over helper subpaths.
+This inventory tracks the internal command-runtime ownership used by daemon and
+CLI compatibility shims. New Node integrations should use the typed client and
+the remaining helper subpaths documented in `website/docs/docs/client-api.md`.
 
 ## Portable Command Runtime
 
 These commands describe device, app, capture, selector, or interaction behavior.
-Their semantics should live in `agent-device/commands` as they migrate.
+Their semantics live in internal runtime modules under `src/commands`.
 
 - `alert`
 - `app-switcher`
@@ -104,26 +104,27 @@ Their semantics should live in `agent-device/commands` as they migrate.
   sources and local path policy enforcement.
 - `install-from-source`: runtime `admin.installFromSource` implemented with the
   same structured source resolver used by install/reinstall.
-- `batch`: runtime router command implemented; nested steps are dispatched
-  through `createCommandRouter()` so policy and error formatting run per step.
-- `record`: runtime `record` router/API command implemented with typed record
+- `batch`: daemon-owned; nested steps are dispatched through the daemon command
+  handler so existing session semantics and error formatting are preserved.
+- `record`: runtime `recording.record` command implemented with typed record
   start/stop result unions.
-- `trace`: runtime `trace` router/API command implemented with typed trace
+- `trace`: runtime `recording.trace` command implemented with typed trace
   start/stop result unions.
 - `logs`: runtime `diagnostics.logs` implemented with bounded, paginated,
   best-effort redacted log entries.
 - `network`: runtime `diagnostics.network` implemented with bounded,
   structured, best-effort redacted network entries.
 - `perf`: runtime `diagnostics.perf` implemented with typed metric entries.
-- `replay`: still daemon/CLI owned; runtime router migration is deferred until
-  it can reuse the real `.ad` parser and healing semantics.
-- `test`: still daemon/CLI owned; runtime router migration is deferred until it
-  can share daemon replay-suite semantics end to end.
+- `replay`: daemon/CLI owned so it can reuse the real `.ad` parser and healing
+  semantics.
+- `test`: daemon/CLI owned so it can share daemon replay-suite semantics end to
+  end.
 
 ## Boundary Requirements
 
-- Public command APIs expose only implemented commands. Planned commands belong
-  in `commandCatalog`, not as methods that throw at runtime.
+- Public Node APIs expose only supported client/helper surfaces from
+  `package.json` exports. Do not add command-runtime modules back as public
+  subpaths without an explicit API decision.
 - Runtime services default to `restrictedCommandPolicy()`. Local input and
   output paths require an explicit local policy or adapter decision.
 - File inputs and outputs cross the runtime boundary through `agent-device/io`
@@ -139,8 +140,8 @@ Their semantics should live in `agent-device/commands` as they migrate.
 - Runtime command modules should depend on shared `src/utils/*` helpers, not
   daemon-only modules. Keep daemon paths as compatibility shims when older
   handlers still import them.
-- New backend adapters should run `agent-device/testing/conformance` suites for
-  the command families they claim to support.
+- New backend/runtime work should add focused behavioral tests for the command
+  families it touches.
 
 ## Backend And Admin Capabilities
 
@@ -183,6 +184,10 @@ bounded result windows and backend-specific support.
 These subpaths remain available during migration, but they should not be the
 primary boundary for new command behavior:
 
+- `agent-device/io`
+- `agent-device/artifacts`
+- `agent-device/metro`
+- `agent-device/remote-config`
 - `agent-device/contracts`
 - `agent-device/selectors`
 - `agent-device/finders`
