@@ -271,19 +271,6 @@ export type {
   DiagnosticsPerfCommandResult,
 } from './diagnostics.ts';
 export { ref, selector } from './selector-read.ts';
-export { commandCatalog } from './catalog.ts';
-export type { CommandCatalogEntry } from './catalog.ts';
-export { createCommandRouter } from './router.ts';
-export type {
-  BatchCommandOptions,
-  BatchCommandResult,
-  BatchCommandStepResult,
-  CommandRouter,
-  CommandRouterConfig,
-  CommandRouterRequest,
-  CommandRouterResponse,
-  CommandRouterResult,
-} from './router.ts';
 
 export type {
   BoundRuntimeCommand,

@@ -4,9 +4,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const distPath = join(here, '..', 'dist', 'src', 'bin.js');
+const distPaths = [
+  join(here, '..', 'dist', 'src', 'internal', 'bin.js'),
+  join(here, '..', 'dist', 'src', 'bin.js'),
+];
+const distPath = distPaths.find((candidate) => existsSync(candidate));
 
-if (!existsSync(distPath)) {
+if (!distPath) {
   process.stderr.write('Missing dist build. Run `pnpm build` before using the binary.\n');
   process.exit(1);
 }

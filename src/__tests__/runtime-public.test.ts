@@ -7,32 +7,24 @@ import { test } from 'vitest';
 import {
   createAgentDevice,
   createMemorySessionStore,
-  createLocalArtifactAdapter,
-  commands as rootCommands,
   assertBackendCapabilityAllowed,
   localCommandPolicy,
   restrictedCommandPolicy,
-  selector as rootSelector,
   type AgentDevice,
   type CommandSessionStore,
-} from '../index.ts';
+} from '../runtime.ts';
 import {
   BACKEND_CAPABILITY_NAMES,
   hasBackendCapability,
   type AgentDeviceBackend,
 } from '../backend.ts';
+import { commands, type ScreenshotCommandOptions } from '../commands/index.ts';
 import {
-  commandCatalog,
-  commands,
-  createCommandRouter,
-  type ScreenshotCommandOptions,
-} from '../commands/index.ts';
-import type { ArtifactAdapter, FileInputRef, FileOutputRef } from '../io.ts';
-import {
-  commandConformanceSuites,
-  runCommandConformance,
-  type CommandConformanceTarget,
-} from '../testing/conformance.ts';
+  createLocalArtifactAdapter,
+  type ArtifactAdapter,
+  type FileInputRef,
+  type FileOutputRef,
+} from '../io.ts';
 
 const backend = {
   platform: 'ios',
@@ -48,44 +40,6 @@ const backend = {
   readLogs: async () => ({ entries: [{ message: 'ready' }] }),
   dumpNetwork: async () => ({ entries: [{ method: 'GET', url: 'https://example.test' }] }),
   measurePerf: async () => ({ metrics: [{ name: 'cpu', value: 1, unit: '%' }] }),
-} satisfies AgentDeviceBackend;
-
-const routerAlignmentBackend = {
-  ...backend,
-  captureSnapshot: async () => ({ nodes: [] }),
-  tap: async () => {},
-  fill: async () => {},
-  focus: async () => {},
-  longPress: async () => {},
-  swipe: async () => {},
-  scroll: async () => {},
-  pinch: async () => {},
-  pressBack: async () => {},
-  rotate: async () => {},
-  setKeyboard: async () => ({ visible: true }),
-  getClipboard: async () => ({ text: '' }),
-  setClipboard: async () => {},
-  openSettings: async () => {},
-  handleAlert: async () => ({ kind: 'alertStatus', alert: null }),
-  openAppSwitcher: async () => {},
-  listDevices: async () => [],
-  bootDevice: async () => {},
-  ensureSimulator: async () => ({
-    udid: 'SIM-1',
-    device: 'iPhone 16',
-    runtime: 'iOS 18',
-    created: false,
-    booted: true,
-  }),
-  installApp: async () => ({}),
-  reinstallApp: async () => ({}),
-  startRecording: async () => ({}),
-  stopRecording: async () => ({}),
-  startTrace: async () => ({}),
-  stopTrace: async () => ({}),
-  readLogs: async () => ({ entries: [] }),
-  dumpNetwork: async () => ({ entries: [] }),
-  measurePerf: async () => ({ metrics: [] }),
 } satisfies AgentDeviceBackend;
 
 const artifacts = {
@@ -109,7 +63,7 @@ const sessions = {
   set: () => {},
 } satisfies CommandSessionStore;
 
-test('package root exposes command runtime skeleton', async () => {
+test('internal command runtime skeleton is available', async () => {
   const device: AgentDevice = createAgentDevice({
     backend,
     artifacts,
@@ -227,54 +181,14 @@ test('runtime screenshot command cleans reserved output when publish fails', asy
   assert.equal(cleanupCalled, true);
 });
 
-test('public runtime policy helpers expose local and restricted defaults', async () => {
+test('runtime policy helpers expose local and restricted defaults', async () => {
   assert.equal(typeof createLocalArtifactAdapter, 'function');
-  assert.equal(rootCommands.capture.screenshot, commands.capture.screenshot);
-  assert.deepEqual(rootSelector('label=Continue'), {
-    kind: 'selector',
-    selector: 'label=Continue',
-  });
   assert.equal(localCommandPolicy().allowLocalInputPaths, true);
   assert.equal(localCommandPolicy().allowLocalOutputPaths, true);
   assert.equal(restrictedCommandPolicy().allowLocalInputPaths, false);
   assert.equal(restrictedCommandPolicy({ allowLocalInputPaths: true }).allowLocalInputPaths, true);
   const store = createMemorySessionStore([{ name: 'default' }]);
   assert.equal((await store.get('default'))?.name, 'default');
-});
-
-test('runtime router command map stays aligned with implemented catalog entries', async () => {
-  const catalogRuntimeCommands = commandCatalog
-    .filter(
-      (entry) =>
-        entry.status === 'implemented' &&
-        (entry.command.includes('.') || entry.command === 'record' || entry.command === 'trace'),
-    )
-    .map((entry) => entry.command);
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend: routerAlignmentBackend,
-        artifacts,
-        policy: localCommandPolicy(),
-      }),
-  });
-  for (const command of catalogRuntimeCommands) {
-    const result = await router.dispatch({ command, options: {} } as never);
-    assert.notEqual(result.ok ? undefined : result.error.code, 'NOT_IMPLEMENTED', command);
-    assert.notEqual(result.ok ? undefined : result.error.code, 'UNSUPPORTED_OPERATION', command);
-  }
-  assert.equal(
-    commandCatalog.some((entry) => entry.command === 'batch' && entry.status === 'implemented'),
-    true,
-  );
-  assert.equal(
-    commandCatalog.some((entry) => entry.command === 'replay' && entry.status === 'planned'),
-    true,
-  );
-  assert.equal(
-    commandCatalog.some((entry) => entry.command === 'test' && entry.status === 'planned'),
-    true,
-  );
 });
 
 test('local artifact adapter marks command outputs and temp files by visibility', async () => {
@@ -440,20 +354,10 @@ test('runtime commands work with async command session stores', async () => {
   assert.equal(records.get('default')?.snapshot?.nodes[0]?.label, 'Ready');
 });
 
-test('public backend, commands, io, and conformance subpaths are importable', () => {
+test('internal backend, commands, and io modules are usable', () => {
   const options = {
     out: { kind: 'path', path: '/tmp/screen.png' },
   } satisfies ScreenshotCommandOptions;
-  const target = {
-    name: 'fake',
-    createRuntime: () =>
-      createAgentDevice({
-        backend,
-        artifacts,
-        sessions,
-      }),
-  } satisfies CommandConformanceTarget;
-
   assert.equal(BACKEND_CAPABILITY_NAMES.includes('android.shell'), true);
   assert.equal(hasBackendCapability(backend, 'android.shell'), false);
   assert.equal(
@@ -496,116 +400,4 @@ test('public backend, commands, io, and conformance subpaths are importable', ()
   assert.equal(typeof commands.diagnostics.logs, 'function');
   assert.equal(typeof commands.diagnostics.network, 'function');
   assert.equal(typeof commands.diagnostics.perf, 'function');
-  assert.equal(
-    commandCatalog.some((entry) => entry.command === 'click' && entry.status === 'implemented'),
-    true,
-  );
-  assert.equal(commandConformanceSuites.length, 8);
-  assert.equal(typeof runCommandConformance, 'function');
-  assert.equal(target.name, 'fake');
-});
-
-test('command router dispatches implemented runtime commands and normalizes errors', async () => {
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend,
-        artifacts,
-        sessions,
-      }),
-  });
-
-  const ok = await router.dispatch({
-    command: 'capture.screenshot',
-    options: {},
-  });
-  assert.equal(ok.ok, true);
-  assert.equal(ok.ok && 'path' in ok.data ? ok.data.path : undefined, '/tmp/path.png');
-
-  const failure = await router.dispatch({
-    command: 'capture.diffScreenshot',
-    options: {
-      baseline: { kind: 'path', path: '/tmp/baseline.png' },
-    },
-  });
-  assert.equal(failure.ok, false);
-  assert.equal(failure.ok ? undefined : failure.error.code, 'INVALID_ARGS');
-
-  const unsupportedInteraction = await router.dispatch({
-    command: 'interactions.click',
-    options: {
-      target: { kind: 'point', x: 1, y: 2 },
-    },
-  });
-  assert.equal(unsupportedInteraction.ok, false);
-  assert.equal(
-    unsupportedInteraction.ok ? undefined : unsupportedInteraction.error.code,
-    'UNSUPPORTED_OPERATION',
-  );
-
-  const typed = await router.dispatch({
-    command: 'interactions.typeText',
-    options: {
-      text: 'hello',
-    },
-  });
-  assert.equal(typed.ok, true);
-  assert.equal(typed.ok && 'text' in typed.data ? typed.data.text : undefined, 'hello');
-
-  const home = await router.dispatch({
-    command: 'system.home',
-    options: {},
-  });
-  assert.equal(home.ok, true);
-  assert.equal(home.ok && 'kind' in home.data ? home.data.kind : undefined, 'systemHome');
-
-  const opened = await router.dispatch({
-    command: 'apps.open',
-    options: {
-      app: 'com.example.app',
-      relaunch: true,
-    },
-  });
-  assert.equal(opened.ok, true);
-  assert.equal(
-    opened.ok && 'kind' in opened.data && opened.data.kind === 'appOpened'
-      ? opened.data.relaunch
-      : false,
-    true,
-  );
-
-  const listed = await router.dispatch({
-    command: 'apps.list',
-    options: { filter: 'user-installed' },
-  });
-  assert.equal(listed.ok, true);
-  assert.equal(
-    listed.ok && 'kind' in listed.data && listed.data.kind === 'appsList'
-      ? listed.data.apps.length
-      : 0,
-    1,
-  );
-
-  const batch = await router.dispatch({
-    command: 'batch',
-    options: {
-      steps: [{ command: 'apps.open', options: { app: 'com.example.app' } }],
-    },
-  });
-  assert.equal(batch.ok, true);
-  assert.equal(batch.ok && 'kind' in batch.data ? batch.data.kind : undefined, 'batch');
-
-  const logs = await router.dispatch({
-    command: 'diagnostics.logs',
-    options: { limit: 10 },
-  });
-  assert.equal(logs.ok, true);
-  assert.equal(logs.ok && 'kind' in logs.data ? logs.data.kind : undefined, 'diagnosticsLogs');
-
-  const planned = await router.dispatch({
-    command: 'session',
-    options: {},
-  } as never);
-  assert.equal(planned.ok, false);
-  assert.equal(planned.ok ? undefined : planned.error.code, 'NOT_IMPLEMENTED');
 });

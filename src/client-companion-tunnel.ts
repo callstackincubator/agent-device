@@ -364,12 +364,21 @@ function buildCompanionEnv(
 function resolveCompanionEntryModulePath(definition: CompanionTunnelDefinition): string {
   const currentModulePath = fileURLToPath(import.meta.url);
   const extension = path.extname(currentModulePath) || '.js';
-  const entryDir = path.dirname(currentModulePath);
-  const entryPath = path.join(entryDir, `${COMPANION_TUNNEL_ENTRYPOINT}${extension}`);
-  if (fs.existsSync(entryPath)) return entryPath;
-  throw new Error(
-    `${definition.displayName} entrypoint not found at ${entryPath}. Rebuild the package to include the companion worker entry.`,
-  );
+  const entryPaths = [
+    path.join(path.dirname(currentModulePath), `${COMPANION_TUNNEL_ENTRYPOINT}${extension}`),
+    path.join(
+      path.dirname(currentModulePath),
+      'internal',
+      `${COMPANION_TUNNEL_ENTRYPOINT}${extension}`,
+    ),
+  ];
+  const entryPath = entryPaths.find((candidate) => fs.existsSync(candidate));
+  if (!entryPath) {
+    throw new Error(
+      `${definition.displayName} entrypoint not found. Rebuild the package to include the companion worker entry.`,
+    );
+  }
+  return entryPath;
 }
 
 function spawnCompanionProcess(

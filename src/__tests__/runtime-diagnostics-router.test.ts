@@ -7,7 +7,6 @@ import {
   createMemorySessionStore,
   restrictedCommandPolicy,
 } from '../runtime.ts';
-import { createCommandRouter } from '../commands/index.ts';
 
 const artifacts = {
   resolveInput: async () => ({ path: '/tmp/input' }),
@@ -84,32 +83,21 @@ test('diagnostics runtime commands call typed backend primitives and redact sens
   );
 });
 
-test('diagnostics commands validate bounded windows and router dispatches diagnostics namespace', async () => {
-  const router = createCommandRouter({
-    createRuntime: () =>
-      createAgentDevice({
-        backend: createDiagnosticsBackend([]),
-        artifacts,
-        policy: restrictedCommandPolicy(),
-      }),
+test('diagnostics commands validate bounded windows', async () => {
+  const device = createAgentDevice({
+    backend: createDiagnosticsBackend([]),
+    artifacts,
+    policy: restrictedCommandPolicy(),
   });
 
-  const ok = await router.dispatch({
-    command: 'diagnostics.network',
-    options: { limit: 1, include: 'summary' },
-  });
-  assert.equal(ok.ok, true);
-  assert.equal(ok.ok && 'kind' in ok.data ? ok.data.kind : undefined, 'diagnosticsNetwork');
-  const data =
-    ok.ok && 'kind' in ok.data && ok.data.kind === 'diagnosticsNetwork' ? ok.data : undefined;
-  assert.equal(data?.entries[0]?.requestHeaders, undefined);
+  const network = await device.observability.network({ limit: 1, include: 'summary' });
+  assert.equal(network.kind, 'diagnosticsNetwork');
+  assert.equal(network.entries[0]?.requestHeaders, undefined);
 
-  const invalid = await router.dispatch({
-    command: 'diagnostics.logs',
-    options: { limit: 501 },
-  });
-  assert.equal(invalid.ok, false);
-  assert.equal(invalid.ok ? undefined : invalid.error.code, 'INVALID_ARGS');
+  await assert.rejects(
+    () => device.observability.logs({ limit: 501 }),
+    /logs limit must be an integer between 1 and 500/,
+  );
 });
 
 function createDiagnosticsBackend(contexts: BackendCommandContext[]): AgentDeviceBackend {

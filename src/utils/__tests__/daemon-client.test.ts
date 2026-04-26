@@ -1308,7 +1308,7 @@ test('computeDaemonCodeSignature fingerprints the daemon runtime import graph', 
 
 test('stopDaemonProcessForTakeover terminates a matching daemon process', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-test-'));
-  const daemonDir = path.join(root, 'agent-device', 'dist', 'src');
+  const daemonDir = path.join(root, 'agent-device', 'dist', 'src', 'internal');
   const daemonScriptPath = path.join(daemonDir, 'daemon.js');
   fs.mkdirSync(daemonDir, { recursive: true });
   fs.writeFileSync(daemonScriptPath, 'setInterval(() => {}, 1000);\n', 'utf8');
