@@ -108,6 +108,7 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
     await stopReactDevtoolsCleanup({ stateDir, state: previous });
     await releasePreviousLease(client, previous);
   }
+  const leasePreparation = buildLeasePreparationNotice(state);
   const runtimePreparation = buildRuntimePreparationNotice(flags, state);
 
   writeCommandOutput(flags, serializeConnectionState(state, runtimePreparation), () =>
@@ -115,6 +116,7 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
       `Connected remote session "${session}" tenant "${tenant}" run "${runId}" ${
         state.leaseId ? `lease ${state.leaseId}` : 'lease pending'
       }`,
+      leasePreparation?.message,
       runtimePreparation?.message,
     ]
       .filter((line): line is string => Boolean(line))
@@ -185,6 +187,7 @@ export const connectionCommand: ClientCommandHandler = async ({ positionals, fla
     );
     return true;
   }
+  const leasePreparation = buildLeasePreparationNotice(state);
   const runtimePreparation = buildRuntimePreparationNoticeFromState(state);
   writeCommandOutput(flags, serializeConnectionState(state, runtimePreparation), () =>
     [
@@ -192,6 +195,7 @@ export const connectionCommand: ClientCommandHandler = async ({ positionals, fla
       `tenant=${state.tenant} runId=${state.runId} leaseId=${state.leaseId ?? 'pending'} backend=${state.leaseBackend ?? 'pending'}`,
       `remoteConfig=${state.remoteConfigPath}`,
       state.runtime ? 'metro=prepared' : 'metro=not-prepared',
+      leasePreparation?.message,
       runtimePreparation?.message,
     ]
       .filter((line): line is string => Boolean(line))
@@ -256,6 +260,12 @@ type RuntimePreparationNotice = {
   nextStep: string;
 };
 
+type LeasePreparationNotice = {
+  status: 'deferred';
+  message: string;
+  nextSteps: string[];
+};
+
 function buildRuntimePreparationNotice(
   flags: CliFlags,
   state: RemoteConnectionState,
@@ -272,6 +282,29 @@ function buildRuntimePreparationNoticeFromState(
 ): RuntimePreparationNotice | undefined {
   if (state.runtime || !remoteConfigHasMetroSettings(state.remoteConfigPath)) return undefined;
   return buildDeferredRuntimeNotice(state.remoteConfigPath);
+}
+
+function buildLeasePreparationNotice(
+  state: RemoteConnectionState,
+): LeasePreparationNotice | undefined {
+  if (state.leaseId) return undefined;
+  const needsPlatform =
+    state.platform === undefined && state.leaseBackend === undefined
+      ? ' Add --platform ios|android if the profile does not set a platform.'
+      : '';
+  const nextSteps = [
+    'agent-device install-from-source <artifact-url> --platform ios|android',
+    'agent-device open <app-id> --relaunch',
+    'agent-device snapshot -i',
+    'agent-device devices',
+  ];
+  return {
+    status: 'deferred',
+    nextSteps,
+    message:
+      'Lease allocation is pending; run install-from-source, open, snapshot, or devices when ready to allocate or refresh the lease.' +
+      needsPlatform,
+  };
 }
 
 function buildDeferredRuntimeNotice(remoteConfigPath: string): RuntimePreparationNotice {
@@ -308,6 +341,7 @@ function serializeConnectionState(
   state: RemoteConnectionState,
   runtimePreparation?: RuntimePreparationNotice,
 ): Record<string, unknown> {
+  const leasePreparation = buildLeasePreparationNotice(state);
   return {
     connected: true,
     session: state.session,
@@ -324,6 +358,7 @@ function serializeConnectionState(
     metro: state.metro
       ? { prepared: true, projectRoot: state.metro.projectRoot }
       : { prepared: false },
+    ...(leasePreparation ? { leasePreparation } : {}),
     ...(runtimePreparation ? { runtimePreparation } : {}),
     connectedAt: state.connectedAt,
     updatedAt: state.updatedAt,

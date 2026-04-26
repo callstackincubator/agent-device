@@ -189,6 +189,8 @@ test('connect reports deferred Metro runtime preparation when remote config has 
     });
   });
 
+  assert.match(stdout, /Lease allocation is pending/);
+  assert.match(stdout, /open, snapshot, or devices/);
   assert.match(stdout, /Metro runtime is not prepared yet/);
   assert.match(stdout, /metro prepare --remote-config/);
   assert.equal(readActiveConnectionState({ stateDir })?.runtime, undefined);
@@ -672,6 +674,66 @@ test('deferred materialization heartbeats an existing lease before dispatch', as
   assert.equal(
     readRemoteConnectionState({ stateDir, session: 'adc-android' })?.leaseId,
     'lease-existing',
+  );
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('deferred materialization allocates pending lease for devices', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-devices-'));
+  const stateDir = path.join(tempRoot, '.state');
+  const remoteConfigPath = path.join(tempRoot, 'remote.json');
+  fs.writeFileSync(remoteConfigPath, JSON.stringify({ daemonBaseUrl: 'https://daemon.example' }));
+  writeRemoteConnectionState({
+    stateDir,
+    state: {
+      version: 1,
+      session: 'adc-android',
+      remoteConfigPath,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfigPath),
+      daemon: { baseUrl: 'https://daemon.example' },
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+      connectedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+  let allocateCount = 0;
+
+  const materialized = await materializeRemoteConnectionForCommand({
+    command: 'devices',
+    flags: {
+      json: true,
+      help: false,
+      version: false,
+      stateDir,
+      remoteConfig: remoteConfigPath,
+      daemonBaseUrl: 'https://daemon.example',
+      tenant: 'acme',
+      runId: 'run-123',
+      session: 'adc-android',
+      platform: 'android',
+    },
+    client: createTestClient({
+      allocate: async (request) => {
+        allocateCount += 1;
+        return {
+          leaseId: 'lease-devices',
+          tenantId: request.tenant,
+          runId: request.runId,
+          backend: request.leaseBackend ?? 'android-instance',
+        };
+      },
+    }),
+  });
+
+  assert.equal(allocateCount, 1);
+  assert.equal(materialized.flags.leaseId, 'lease-devices');
+  assert.equal(materialized.flags.leaseBackend, 'android-instance');
+  assert.equal(
+    readRemoteConnectionState({ stateDir, session: 'adc-android' })?.leaseId,
+    'lease-devices',
   );
 
   fs.rmSync(tempRoot, { recursive: true, force: true });

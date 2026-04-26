@@ -12,6 +12,7 @@ import {
   summarizeCliSession,
   writeCliSession,
 } from '../auth-session.ts';
+import { normalizeError } from '../../utils/errors.ts';
 
 const baseFlags = {
   json: false,
@@ -61,6 +62,31 @@ test('remote auth fails in CI with service token instructions', async () => {
   );
 
   fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('non-interactive auth hint preserves safe API-token setup URL', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-auth-url-hint-'));
+
+  try {
+    await resolveRemoteAuth({
+      command: 'connect',
+      flags: { ...baseFlags, daemonBaseUrl: 'https://bridge.agent-device.dev' },
+      stateDir: tempRoot,
+      allowInteractiveLogin: true,
+      env: {
+        CI: 'true',
+        AGENT_DEVICE_CLOUD_BASE_URL: 'https://bridge.agent-device.dev',
+      },
+      io: { stdinIsTTY: true, stdoutIsTTY: true },
+    });
+    assert.fail('expected non-interactive auth to fail');
+  } catch (error) {
+    const normalized = normalizeError(error);
+    assert.match(normalized.hint ?? '', /https:\/\/bridge\.agent-device\.dev\/api-keys/);
+    assert.doesNotMatch(normalized.hint ?? '', /\[REDACTED\]/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('remote auth leaves non-cloud remote daemons to existing daemon auth validation', async () => {
