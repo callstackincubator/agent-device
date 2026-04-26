@@ -9,6 +9,10 @@ import type {
   DiagnosticsNetworkCommandResult,
   DiagnosticsPerfCommandResult,
 } from './diagnostics-types.ts';
+import {
+  redactNetworkLogText as redactText,
+  redactNetworkUrl,
+} from '../observability-redaction.ts';
 
 const PAYLOAD_MAX_CHARS = 2048;
 const MESSAGE_MAX_CHARS = 4096;
@@ -132,19 +136,10 @@ function redactHeaders(headers: Record<string, string> | undefined): {
 }
 
 function redactUrl(url: string): { value: string; redacted: boolean } {
-  try {
-    const parsed = new URL(url);
-    let redacted = false;
-    for (const key of Array.from(parsed.searchParams.keys())) {
-      if (SECRET_KEY_PATTERN.test(key)) {
-        parsed.searchParams.set(key, '[REDACTED]');
-        redacted = true;
-      }
-    }
-    return { value: parsed.toString(), redacted };
-  } catch {
-    return redactAndTruncate(url, PAYLOAD_MAX_CHARS) as { value: string; redacted: boolean };
-  }
+  return (
+    redactNetworkUrl(url) ??
+    (redactAndTruncate(url, PAYLOAD_MAX_CHARS) as { value: string; redacted: boolean })
+  );
 }
 
 function redactPayload(value: string | undefined): { value?: string; redacted: boolean } {
@@ -205,36 +200,6 @@ function redactAndTruncate(
   if (value === undefined) return { redacted: false };
   const result = redactText(value);
   return truncateRedacted(result.value, maxChars, result.redacted);
-}
-
-function redactText(value: string): { value: string; redacted: boolean } {
-  let redacted = false;
-  let next = value.replaceAll(
-    /(authorization|token|secret|password|passwd|api[-_]?key)=([^&\s]+)/gi,
-    (_match, key) => {
-      redacted = true;
-      return `${String(key)}=[REDACTED]`;
-    },
-  );
-  next = next.replaceAll(
-    /("(?:authorization|cookie|token|secret|password|passwd|api[-_]?key)"\s*:\s*")([^"]*)(")/gi,
-    (_match, prefix, _value, suffix) => {
-      redacted = true;
-      return `${String(prefix)}[REDACTED]${String(suffix)}`;
-    },
-  );
-  next = next.replaceAll(/\b(Bearer\s+)([^\s",;]+)/gi, (_match, prefix) => {
-    redacted = true;
-    return `${String(prefix)}[REDACTED]`;
-  });
-  next = next.replaceAll(
-    /((?:authorization|cookie|token|secret|password|passwd|api[-_]?key)\s*[:=]\s*)([^\s,;]+)/gi,
-    (_match, prefix) => {
-      redacted = true;
-      return `${String(prefix)}[REDACTED]`;
-    },
-  );
-  return { value: next, redacted };
 }
 
 function truncateRedacted(
