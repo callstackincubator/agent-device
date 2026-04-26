@@ -43,7 +43,7 @@ The default suite now covers 20+ concrete cases, including:
 
 - Expo Go open/snapshot/close
 - Home banner dismissal, confirmation alerts, and refresh waits
-- Catalog search debounce, category filters, favorites, add-to-cart, and scrollintoview
+- Catalog search debounce, category filters, favorites, add-to-cart, and scroll
 - Product detail navigation, quantity edits, note append, and save-to-cart
 - Form validation errors, successful submit, keyboard dismiss, and reset
 - Settings diagnostics error/retry, preference toggles, and reset alert handling
