@@ -3,81 +3,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runCli } from '../cli.ts';
-import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
-import { installIsolatedCliTestEnv } from './cli-test-env.ts';
+import type { DaemonResponse } from '../daemon-client.ts';
+import {
+  runCliCapture as captureCli,
+  type CapturedCliRun,
+  type CapturedDaemonRequest,
+  type CliCaptureOptions,
+} from './cli-capture.ts';
 
-class ExitSignal extends Error {
-  public readonly code: number;
-
-  constructor(code: number) {
-    super(`EXIT_${code}`);
-    this.code = code;
-  }
-}
-
-type RunResult = {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  calls: Omit<DaemonRequest, 'token'>[];
+const batchDefaultResponse: DaemonResponse = {
+  ok: true,
+  data: { total: 1, executed: 1, totalDurationMs: 1 },
 };
 
-async function runCliCapture(
+function runCliCapture(
   argv: string[],
-  responder?: (req: Omit<DaemonRequest, 'token'>) => Promise<DaemonResponse>,
-  options?: {
-    env?: Record<string, string | undefined>;
-  },
-): Promise<RunResult> {
-  let stdout = '';
-  let stderr = '';
-  let code: number | null = null;
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
-
-  const originalExit = process.exit;
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-batch-'));
-  const restoreEnv = installIsolatedCliTestEnv({
-    ...(options?.env ?? {}),
-    AGENT_DEVICE_STATE_DIR: stateDir,
-  });
-
-  (process as any).exit = ((nextCode?: number) => {
-    throw new ExitSignal(nextCode ?? 0);
-  }) as typeof process.exit;
-  (process.stdout as any).write = ((chunk: unknown) => {
-    stdout += String(chunk);
-    return true;
-  }) as typeof process.stdout.write;
-  (process.stderr as any).write = ((chunk: unknown) => {
-    stderr += String(chunk);
-    return true;
-  }) as typeof process.stderr.write;
-
-  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-    calls.push(req);
-    if (responder) {
-      return await responder(req);
-    }
-    return { ok: true, data: { total: 1, executed: 1, totalDurationMs: 1 } };
-  };
-
-  try {
-    await runCli(argv, { sendToDaemon });
-  } catch (error) {
-    if (error instanceof ExitSignal) code = error.code;
-    else throw error;
-  } finally {
-    restoreEnv();
-    fs.rmSync(stateDir, { recursive: true, force: true });
-    process.exit = originalExit;
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-  }
-
-  return { code, stdout, stderr, calls };
+  responder?: (req: CapturedDaemonRequest) => Promise<DaemonResponse>,
+  options?: CliCaptureOptions,
+): Promise<CapturedCliRun> {
+  return captureCli(argv, responder, { ...options, defaultResponse: batchDefaultResponse });
 }
 
 test('batch --steps parses JSON and forwards batchSteps only', async () => {

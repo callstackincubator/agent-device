@@ -4,25 +4,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { PNG } from 'pngjs';
-import { runCli } from '../cli.ts';
-import type { DaemonRequest, DaemonResponse } from '../daemon-client.ts';
-import { installIsolatedCliTestEnv } from './cli-test-env.ts';
-
-class ExitSignal extends Error {
-  public readonly code: number;
-
-  constructor(code: number) {
-    super(`EXIT_${code}`);
-    this.code = code;
-  }
-}
-
-type RunResult = {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-  calls: Omit<DaemonRequest, 'token'>[];
-};
+import type { DaemonResponse } from '../daemon-client.ts';
+import {
+  runCliCapture as captureCli,
+  type CapturedCliRun,
+  type CapturedDaemonRequest,
+} from './cli-capture.ts';
 
 type RunCliCaptureOptions = {
   preserveHome?: boolean;
@@ -47,43 +34,10 @@ function solidPngBuffer(
 async function runCliCapture(
   argv: string[],
   options: RunCliCaptureOptions = {},
-): Promise<RunResult> {
-  let stdout = '';
-  let stderr = '';
-  let code: number | null = null;
-  const calls: Array<Omit<DaemonRequest, 'token'>> = [];
-
-  const originalExit = process.exit;
-  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-  const originalStderrWrite = process.stderr.write.bind(process.stderr);
-  const originalForceColor = process.env.FORCE_COLOR;
-  const originalNoColor = process.env.NO_COLOR;
+): Promise<CapturedCliRun> {
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-diff-home-'));
-  const restoreEnv = installIsolatedCliTestEnv(
-    options.preserveHome ? { HOME: process.env.HOME } : { HOME: tempHome },
-  );
 
-  // Disable ANSI colors so assertions can match plain text
-  process.env.FORCE_COLOR = '0';
-  delete process.env.NO_COLOR;
-
-  (process as any).exit = ((nextCode?: number) => {
-    throw new ExitSignal(nextCode ?? 0);
-  }) as typeof process.exit;
-  (process.stdout as any).write = ((chunk: unknown, ...args: unknown[]) => {
-    // Pass through the test runner's binary protocol messages (raw Buffers)
-    if (Buffer.isBuffer(chunk)) return originalStdoutWrite(chunk, ...(args as [any]));
-    stdout += String(chunk);
-    return true;
-  }) as typeof process.stdout.write;
-  (process.stderr as any).write = ((chunk: unknown, ...args: unknown[]) => {
-    if (Buffer.isBuffer(chunk)) return originalStderrWrite(chunk, ...(args as [any]));
-    stderr += String(chunk);
-    return true;
-  }) as typeof process.stderr.write;
-
-  const sendToDaemon = async (req: Omit<DaemonRequest, 'token'>): Promise<DaemonResponse> => {
-    calls.push(req);
+  const sendToDaemon = async (req: CapturedDaemonRequest): Promise<DaemonResponse> => {
     if (req.command === 'screenshot') {
       // The client-backed diff handler captures a screenshot via the client.
       // Write a real PNG to the requested path so compareScreenshots can read it.
@@ -128,23 +82,17 @@ async function runCliCapture(
   };
 
   try {
-    await runCli(argv, { sendToDaemon });
-  } catch (error) {
-    if (error instanceof ExitSignal) code = error.code;
-    else throw error;
+    return await captureCli(argv, sendToDaemon, {
+      env: {
+        HOME: options.preserveHome ? process.env.HOME : tempHome,
+        FORCE_COLOR: '0',
+        NO_COLOR: undefined,
+      },
+      passthroughBufferWrites: true,
+    });
   } finally {
-    process.exit = originalExit;
-    process.stdout.write = originalStdoutWrite;
-    process.stderr.write = originalStderrWrite;
-    if (typeof originalForceColor === 'string') process.env.FORCE_COLOR = originalForceColor;
-    else delete process.env.FORCE_COLOR;
-    if (typeof originalNoColor === 'string') process.env.NO_COLOR = originalNoColor;
-    else delete process.env.NO_COLOR;
-    restoreEnv();
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
-
-  return { code, stdout, stderr, calls };
 }
 
 // Tests must run serially because they monkey-patch process.exit and process.stdout.write.
