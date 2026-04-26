@@ -39,7 +39,9 @@ This repo now includes a starter setup under `test/skillgym` plus a fixture app 
 - long-list scroll and detail drill-in
 - modals, toggles, checkboxes, validation errors, and retryable async states
 
-The default suite now covers 20+ concrete cases, including:
+The default suite now covers 40+ cases in two MECE groups.
+
+Fixture smoke cases cover concrete app behavior:
 
 - Expo Go open/snapshot/close
 - Home banner dismissal, confirmation alerts, and refresh waits
@@ -48,6 +50,15 @@ The default suite now covers 20+ concrete cases, including:
 - Form validation errors, successful submit, keyboard dismiss, and reset
 - Settings diagnostics error/retry, preference toggles, and reset alert handling
 - Accessibility audit (screenshot vs snapshot)
+
+Skill-guidance regression cases cover command-planning habits:
+
+- read-only inspection versus mutation
+- fresh `@ref` targeting, durable selectors, and off-screen scroll recovery
+- text replacement, append semantics, keyboard status, and keyboard dismiss
+- install/open setup, app discovery, session scoping, and in-app back navigation
+- Metro reload, logs, network dump, alert fallback, and screenshot evidence
+- remote config, macOS menu bar surfaces, replay update, and batch during recording
 
 ## Run it
 

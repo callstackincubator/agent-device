@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-453/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-453/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-453/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-453/static/js/index.67cff1a8c8.js"></script>
+<script defer src="/agent-device/pr-preview/pr-453/static/js/index.bebaead00e.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -58,7 +58,8 @@
 <li>long-list scroll and detail drill-in</li>
 <li>modals, toggles, checkboxes, validation errors, and retryable async states</li>
 </ul>
-<p>The default suite now covers 20+ concrete cases, including:</p>
+<p>The default suite now covers 40+ cases in two MECE groups.</p>
+<p>Fixture smoke cases cover concrete app behavior:</p>
 <ul>
 <li>Expo Go open/snapshot/close</li>
 <li>Home banner dismissal, confirmation alerts, and refresh waits</li>
@@ -67,6 +68,15 @@
 <li>Form validation errors, successful submit, keyboard dismiss, and reset</li>
 <li>Settings diagnostics error/retry, preference toggles, and reset alert handling</li>
 <li>Accessibility audit (screenshot vs snapshot)</li>
+</ul>
+<p>Skill-guidance regression cases cover command-planning habits:</p>
+<ul>
+<li>read-only inspection versus mutation</li>
+<li>fresh <code>@ref</code> targeting, durable selectors, and off-screen scroll recovery</li>
+<li>text replacement, append semantics, keyboard status, and keyboard dismiss</li>
+<li>install/open setup, app discovery, session scoping, and in-app back navigation</li>
+<li>Metro reload, logs, network dump, alert fallback, and screenshot evidence</li>
+<li>remote config, macOS menu bar surfaces, replay update, and batch during recording</li>
 </ul>
 <h2 class="rp-toc-include" id="run-it"><a href="#run-it" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Run it</h2>
 <p><code>skillgym</code> is installed as a repo dev dependency. From the repo root:</p>
