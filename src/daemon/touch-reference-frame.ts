@@ -20,7 +20,7 @@ export function getSnapshotReferenceFrame(
   return inferred;
 }
 
-export function inferTouchReferenceFrame(
+function inferTouchReferenceFrame(
   nodes: Array<Pick<SnapshotNode, 'type' | 'rect'>>,
 ): TouchReferenceFrame | undefined {
   const viewportRect = inferViewportRect(nodes);

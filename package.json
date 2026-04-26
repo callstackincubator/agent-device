@@ -76,10 +76,13 @@
     "ad": "node bin/agent-device.mjs",
     "lint": "oxlint . --deny-warnings",
     "format": "oxfmt --write src test skills package.json tsconfig.json .oxlintrc.json .oxfmtrc.json",
+    "fallow": "fallow --summary",
+    "fallow:baseline": "(fallow dead-code --save-baseline fallow-baselines/dead-code.json --summary || true) && (fallow dupes --save-baseline fallow-baselines/dupes.json --summary || true) && (fallow health --save-baseline fallow-baselines/health.json --summary || true)",
+    "check:fallow": "fallow audit",
     "check:quick": "pnpm lint && pnpm typecheck",
     "check:tooling": "pnpm lint && pnpm typecheck && pnpm build",
     "check:unit": "pnpm test:unit && pnpm test:smoke",
-    "check": "pnpm check:tooling && pnpm check:unit",
+    "check": "pnpm check:tooling && pnpm check:fallow && pnpm check:unit",
     "prepack": "pnpm build:all",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
@@ -136,14 +139,14 @@
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "^7.58.1",
+    "vitest": "^4.1.2",
     "@rslib/core": "0.20.1",
     "@types/node": "^22.0.0",
     "@types/pngjs": "^6.0.5",
+    "fallow": "^2.52.0",
     "oxfmt": "^0.42.0",
     "oxlint": "^1.57.0",
     "typescript": "^6.0.2",
-    "vite": "^8.0.7",
-    "vitest": "^4.1.2"
+    "vite": "^8.0.7"
   }
 }

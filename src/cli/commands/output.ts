@@ -5,7 +5,7 @@ import { printJson } from '../../utils/output.ts';
 import { renderReplayTestResponse } from '../../cli-test.ts';
 import type { ReplaySuiteResult } from '../../daemon/types.ts';
 
-export function renderBatchSummary(data: Record<string, unknown>): void {
+function renderBatchSummary(data: Record<string, unknown>): void {
   const total = typeof data.total === 'number' ? data.total : 0;
   const executed = typeof data.executed === 'number' ? data.executed : 0;
   const durationMs = typeof data.totalDurationMs === 'number' ? data.totalDurationMs : undefined;

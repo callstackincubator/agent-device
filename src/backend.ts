@@ -432,7 +432,7 @@ export type BackendEscapeHatches = {
   ): Promise<BackendScreenshotResult | void>;
 };
 
-export const BACKEND_CAPABILITY_ESCAPE_HATCH_METHODS = {
+const BACKEND_CAPABILITY_ESCAPE_HATCH_METHODS = {
   'android.shell': 'androidShell',
   'ios.runnerCommand': 'iosRunnerCommand',
   'macos.desktopScreenshot': 'macosDesktopScreenshot',

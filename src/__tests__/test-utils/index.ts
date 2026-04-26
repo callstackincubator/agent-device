@@ -15,8 +15,4 @@ export {
   makeSession,
 } from './session-factories.ts';
 
-export { makeSessionStore } from './store-factory.ts';
-
-export { buildNodes, makeSnapshotState } from './snapshot-builders.ts';
-
-export { withMockedAdb, withMockedXcrun } from './mocked-binaries.ts';
+export { makeSnapshotState } from './snapshot-builders.ts';

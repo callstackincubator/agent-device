@@ -6,7 +6,7 @@ import {
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 
-export const AGENT_REACT_DEVTOOLS_VERSION = '0.4.0';
+const AGENT_REACT_DEVTOOLS_VERSION = '0.4.0';
 export const AGENT_REACT_DEVTOOLS_PACKAGE = `agent-react-devtools@${AGENT_REACT_DEVTOOLS_VERSION}`;
 const AGENT_REACT_DEVTOOLS_BIN = 'agent-react-devtools';
 

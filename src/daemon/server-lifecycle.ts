@@ -1,7 +1,9 @@
 import fs from 'node:fs';
-import { readVersion } from '../utils/version.ts';
-import { isAgentDeviceDaemonProcess, readProcessStartTime } from '../utils/process-identity.ts';
-import { resolveDaemonCodeSignature } from './code-signature.ts';
+import { isAgentDeviceDaemonProcess } from '../utils/process-identity.ts';
+
+export { readVersion } from '../utils/version.ts';
+export { readProcessStartTime } from '../utils/process-identity.ts';
+export { resolveDaemonCodeSignature } from './code-signature.ts';
 
 export type DaemonLockInfo = {
   pid: number;
@@ -53,7 +55,7 @@ export function removeInfo(infoPath: string): void {
   if (fs.existsSync(infoPath)) fs.unlinkSync(infoPath);
 }
 
-export function readLockInfo(lockPath: string): DaemonLockInfo | null {
+function readLockInfo(lockPath: string): DaemonLockInfo | null {
   if (!fs.existsSync(lockPath)) return null;
   try {
     const parsed = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as DaemonLockInfo;
@@ -111,5 +113,3 @@ export function parseIntegerEnv(raw: string | undefined): number | undefined {
   if (!Number.isInteger(value)) return undefined;
   return value;
 }
-
-export { readVersion, readProcessStartTime, resolveDaemonCodeSignature };

@@ -9,10 +9,10 @@ import {
   type CompanionTunnelScope,
 } from './client-companion-tunnel-contract.ts';
 
-export const REACT_DEVTOOLS_LOCAL_BASE_URL = 'http://127.0.0.1:8097';
-export const REACT_DEVTOOLS_DEVICE_PORT = 8097;
-export const REACT_DEVTOOLS_REGISTER_PATH = '/api/react-devtools/companion/register';
-export const REACT_DEVTOOLS_UNREGISTER_PATH = '/api/react-devtools/companion/unregister';
+const REACT_DEVTOOLS_LOCAL_BASE_URL = 'http://127.0.0.1:8097';
+const REACT_DEVTOOLS_DEVICE_PORT = 8097;
+const REACT_DEVTOOLS_REGISTER_PATH = '/api/react-devtools/companion/register';
+const REACT_DEVTOOLS_UNREGISTER_PATH = '/api/react-devtools/companion/unregister';
 
 const REACT_DEVTOOLS_COMPANION_TUNNEL: CompanionTunnelDefinition = {
   slug: 'react-devtools-companion',

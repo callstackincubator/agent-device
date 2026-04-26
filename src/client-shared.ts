@@ -41,7 +41,7 @@ export function buildDeviceIdentifiers(
   };
 }
 
-export function serializeSessionDevice(
+function serializeSessionDevice(
   device: AgentDeviceSessionDevice,
   options: { includeAndroidSerial?: boolean } = {},
 ): Record<string, unknown> {

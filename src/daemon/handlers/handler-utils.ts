@@ -25,7 +25,7 @@ export function recordSessionAction(
  * Flag keys inherited from a parent request (batch/replay) into child step flags.
  * Shared between batch and replay so the inheritance rules stay in sync.
  */
-export const INHERITED_PARENT_FLAG_KEYS: ReadonlyArray<keyof CommandFlags> = [
+const INHERITED_PARENT_FLAG_KEYS: ReadonlyArray<keyof CommandFlags> = [
   'platform',
   'target',
   'device',

@@ -19,7 +19,7 @@ import { isClickLikeCommand } from '../script-utils.ts';
 import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
 
-export function parseSelectorWaitPositionals(positionals: string[]): {
+function parseSelectorWaitPositionals(positionals: string[]): {
   selectorExpression: string | null;
   selectorTimeout: string | null;
 } {
@@ -37,7 +37,7 @@ export function parseSelectorWaitPositionals(positionals: string[]): {
   };
 }
 
-export function collectReplaySelectorCandidates(action: SessionAction): string[] {
+function collectReplaySelectorCandidates(action: SessionAction): string[] {
   const result: string[] = [];
   const explicitChain =
     Array.isArray(action.result?.selectorChain) &&

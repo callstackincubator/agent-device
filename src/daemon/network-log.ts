@@ -16,7 +16,7 @@ const ANDROID_NEARBY_LINE_RADIUS = 5;
 // OkHttp/Retrofit interceptor logs can spread request→response pairs across
 // many interleaved logcat lines.
 const ANDROID_PACKET_SCAN_RADIUS = 12;
-export const NETWORK_LOG_MEMORY_PATH = '<memory>';
+const NETWORK_LOG_MEMORY_PATH = '<memory>';
 
 export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
 export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';

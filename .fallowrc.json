@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "rslib.config.ts",
+    "src/index.ts",
+    "src/io.ts",
+    "src/artifacts.ts",
+    "src/metro.ts",
+    "src/remote-config.ts",
+    "src/install-source.ts",
+    "src/android-apps.ts",
+    "src/contracts.ts",
+    "src/selectors.ts",
+    "src/finders.ts",
+    "src/bin.ts",
+    "src/companion-tunnel.ts",
+    "src/daemon.ts",
+    "src/utils/update-check-entry.ts",
+    "test/scripts/metro-prepare-packaged-smoke.mjs",
+    "test/integration/*.test.ts",
+    "website/docs/404.mdx",
+    "website/rspress.config.ts"
+  ],
+  "ignoreDependencies": ["@theme"],
+  "ignoreExports": [
+    {
+      "file": "src/__tests__/test-utils/index.ts",
+      "exports": ["*"]
+    },
+    {
+      "file": "src/__tests__/test-utils/device-fixtures.ts",
+      "exports": ["LINUX_DEVICE", "ANDROID_TV_DEVICE", "TVOS_SIMULATOR"]
+    },
+    {
+      "file": "src/__tests__/test-utils/mocked-binaries.ts",
+      "exports": ["withMockedXcrun"]
+    },
+    {
+      "file": "src/daemon/app-log.ts",
+      "exports": ["readRecentAndroidLogcatForPackage"]
+    },
+    {
+      "file": "src/platforms/android/app-lifecycle.ts",
+      "exports": [
+        "parseAndroidForegroundApp",
+        "parseAndroidLaunchablePackages",
+        "parseAndroidUserInstalledPackages",
+        "installAndroidInstallablePath"
+      ]
+    },
+    {
+      "file": "src/platforms/android/index.ts",
+      "exports": ["installAndroidInstallablePath"]
+    },
+    {
+      "file": "src/platforms/ios/apps.ts",
+      "exports": ["listSimulatorApps", "uninstallIosApp"]
+    },
+    {
+      "file": "src/platforms/ios/index.ts",
+      "exports": ["listSimulatorApps", "uninstallIosApp"]
+    },
+    {
+      "file": "src/platforms/ios/runner-client.ts",
+      "exports": [
+        "buildRunnerConnectError",
+        "buildRunnerEarlyExitError",
+        "resolveSigningFailureHint"
+      ]
+    }
+  ],
+  "usedClassMembers": [
+    "name",
+    "listActiveLeases",
+    "delete",
+    "values",
+    "elapsedMs",
+    "isExpired"
+  ],
+  "rules": {
+    "unused-types": "off",
+    "duplicate-exports": "off"
+  },
+  "publicPackages": ["agent-device"],
+  "audit": {
+    "deadCodeBaseline": "fallow-baselines/dead-code.json",
+    "healthBaseline": "fallow-baselines/health.json",
+    "dupesBaseline": "fallow-baselines/dupes.json"
+  }
+}

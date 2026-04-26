@@ -2,7 +2,7 @@ import { AppError } from './errors.ts';
 import type { DeviceKind, DeviceTarget, Platform } from './device.ts';
 import type { Point } from './snapshot.ts';
 
-export function readRequired<T>(
+function readRequired<T>(
   record: Record<string, unknown>,
   key: string,
   parse: (value: unknown) => T | undefined,
@@ -15,7 +15,7 @@ export function readRequired<T>(
   return value;
 }
 
-export function readOptional<T>(
+function readOptional<T>(
   record: Record<string, unknown>,
   key: string,
   parse: (value: unknown) => T | undefined,
@@ -23,7 +23,7 @@ export function readOptional<T>(
   return parse(record[key]);
 }
 
-export function readNullable<T>(
+function readNullable<T>(
   record: Record<string, unknown>,
   key: string,
   parse: (value: unknown) => T | undefined,
@@ -98,23 +98,23 @@ export function readPoint(record: Record<string, unknown>, key: string): Point |
   return { x, y };
 }
 
-export function parseNonEmptyString(value: unknown): string | undefined {
+function parseNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-export function parseFiniteNumber(value: unknown): number | undefined {
+function parseFiniteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-export function parsePlatform(value: unknown): Platform | undefined {
+function parsePlatform(value: unknown): Platform | undefined {
   return value === 'ios' || value === 'macos' || value === 'android' ? value : undefined;
 }
 
-export function parseDeviceKind(value: unknown): DeviceKind | undefined {
+function parseDeviceKind(value: unknown): DeviceKind | undefined {
   return value === 'simulator' || value === 'emulator' || value === 'device' ? value : undefined;
 }
 
-export function parseDeviceTarget(value: unknown): DeviceTarget | undefined {
+function parseDeviceTarget(value: unknown): DeviceTarget | undefined {
   return value === 'tv' || value === 'mobile' || value === 'desktop' ? value : undefined;
 }
 

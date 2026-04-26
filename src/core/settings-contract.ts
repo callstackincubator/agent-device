@@ -1,14 +1,14 @@
-export const SETTINGS_WIFI_USAGE = '<wifi|airplane|location> <on|off>';
-export const SETTINGS_ANIMATIONS_USAGE = 'animations <on|off>';
-export const SETTINGS_APPEARANCE_USAGE = 'appearance <light|dark|toggle>';
-export const SETTINGS_FACEID_USAGE = 'faceid <match|nonmatch|enroll|unenroll>';
-export const SETTINGS_TOUCHID_USAGE = 'touchid <match|nonmatch|enroll|unenroll>';
-export const SETTINGS_FINGERPRINT_USAGE = 'fingerprint <match|nonmatch>';
-export const SETTINGS_PERMISSION_USAGE =
+const SETTINGS_WIFI_USAGE = '<wifi|airplane|location> <on|off>';
+const SETTINGS_ANIMATIONS_USAGE = 'animations <on|off>';
+const SETTINGS_APPEARANCE_USAGE = 'appearance <light|dark|toggle>';
+const SETTINGS_FACEID_USAGE = 'faceid <match|nonmatch|enroll|unenroll>';
+const SETTINGS_TOUCHID_USAGE = 'touchid <match|nonmatch|enroll|unenroll>';
+const SETTINGS_FINGERPRINT_USAGE = 'fingerprint <match|nonmatch>';
+const SETTINGS_PERMISSION_USAGE =
   'permission <grant|deny|reset> <camera|microphone|photos|contacts|contacts-limited|notifications|calendar|location|location-always|media-library|motion|reminders|siri> [full|limited]';
-export const SETTINGS_MACOS_PERMISSION_USAGE =
+const SETTINGS_MACOS_PERMISSION_USAGE =
   'permission <grant|reset> <accessibility|screen-recording|input-monitoring>';
-export const SETTINGS_MACOS_SUPPORTED_MESSAGE = `macOS supports only settings ${SETTINGS_APPEARANCE_USAGE} and settings ${SETTINGS_MACOS_PERMISSION_USAGE}. wifi|airplane|location|animations remain unsupported on macOS.`;
+const SETTINGS_MACOS_SUPPORTED_MESSAGE = `macOS supports only settings ${SETTINGS_APPEARANCE_USAGE} and settings ${SETTINGS_MACOS_PERMISSION_USAGE}. wifi|airplane|location|animations remain unsupported on macOS.`;
 
 export const SETTINGS_USAGE_OVERRIDE = [
   `settings ${SETTINGS_WIFI_USAGE}`,

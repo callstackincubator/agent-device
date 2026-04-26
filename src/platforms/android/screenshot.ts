@@ -23,7 +23,7 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
  * Enable Android demo mode and set deterministic time in status bar
  * for consistent screenshots.
  */
-export async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
+async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
   const shell = (cmd: string) =>
     runCmd('adb', adbArgs(device, ['shell', cmd]), { allowFailure: true });
 
@@ -37,7 +37,7 @@ export async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
 }
 
 /** Disable demo mode and restore the live status bar. */
-export async function disableAndroidDemoMode(device: DeviceInfo): Promise<void> {
+async function disableAndroidDemoMode(device: DeviceInfo): Promise<void> {
   await runCmd(
     'adb',
     adbArgs(device, ['shell', 'am broadcast -a com.android.systemui.demo -e command exit']),

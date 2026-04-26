@@ -85,7 +85,7 @@ export function runCliJson(args: string[], options?: { env?: NodeJS.ProcessEnv }
   };
 }
 
-export function formatResultDebug(step: string, args: string[], result: CliJsonResult): string {
+function formatResultDebug(step: string, args: string[], result: CliJsonResult): string {
   const jsonText =
     result.json === undefined ? '(unparseable)' : JSON.stringify(result.json, null, 2);
   return [

@@ -114,7 +114,7 @@ function areCompanionScopesEqual(a: CompanionTunnelScope, b: CompanionTunnelScop
   return a.tenantId === b.tenantId && a.runId === b.runId && a.leaseId === b.leaseId;
 }
 
-export function resolveCompanionTunnelPaths(
+function resolveCompanionTunnelPaths(
   projectRoot: string,
   definition: CompanionTunnelDefinition,
   profileKey?: string,

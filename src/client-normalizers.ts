@@ -30,7 +30,7 @@ import {
 
 export { readNullableString, readOptionalString, readRequiredString } from './utils/parsing.ts';
 
-export const DEFAULT_SESSION_NAME = 'default';
+const DEFAULT_SESSION_NAME = 'default';
 
 export function normalizeDeployResult(
   data: Record<string, unknown>,

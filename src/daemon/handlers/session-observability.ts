@@ -29,7 +29,7 @@ type ObservabilityParams = {
   sessionStore: SessionStore;
 };
 
-export function resolveSessionLogBackendLabel(
+function resolveSessionLogBackendLabel(
   session: SessionState,
 ): 'ios-simulator' | 'ios-device' | 'android' | 'macos' {
   if (session.appLog) {
