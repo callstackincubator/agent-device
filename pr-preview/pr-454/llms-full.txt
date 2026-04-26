@@ -314,7 +314,7 @@ Public subpath API exposed for Node consumers:
   - `verifyAndroidSnapshotHelperArtifact(artifact)`
   - types: `AndroidAdbExecutor`, `AndroidSnapshotHelperArtifact`, `AndroidSnapshotHelperManifest`, `AndroidSnapshotHelperOutput`, `AndroidSnapshotHelperParsedSnapshot`
 
-The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `android-snapshot-helper`, `artifacts`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
+The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
 
 ## Basic usage
 
