@@ -21,7 +21,7 @@ const manifest: AndroidSnapshotHelperManifest = {
   name: 'android-snapshot-helper',
   version: '0.13.3',
   apkUrl: null,
-  sha256: 'abc123',
+  sha256: 'a'.repeat(64),
   packageName: 'com.callstack.agentdevice.snapshothelper',
   versionCode: 13003,
   instrumentationRunner: 'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',
@@ -435,6 +435,16 @@ test('parseAndroidSnapshotHelperManifest validates manifest shape', () => {
   assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, installArgs: ['shell'] }), {
     message: 'Android snapshot helper manifest installArgs must start with "install".',
   });
+  assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, sha256: 'not-a-sha' }), {
+    message: 'Android snapshot helper manifest sha256 must be a 64-character hex string.',
+  });
+  assert.equal(
+    parseAndroidSnapshotHelperManifest({
+      ...manifest,
+      sha256: ` ${sha256Text('helper-apk').toUpperCase()} `,
+    }).sha256,
+    sha256Text('helper-apk'),
+  );
 });
 
 function helperOutput(options: { chunks: string[]; result: Record<string, string> }): string {

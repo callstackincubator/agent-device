@@ -156,8 +156,14 @@ public final class SnapshotInstrumentation extends Instrumentation {
         if (root == null) {
           continue;
         }
-        appendNode(xml, root, windowCount, 0, maxDepth, maxNodes, stats);
+        StringBuilder windowXml = new StringBuilder();
+        CaptureStats windowStats = stats.copy();
+        appendNode(windowXml, root, windowCount, 0, maxDepth, maxNodes, windowStats);
+        xml.append(windowXml);
+        stats.copyFrom(windowStats);
         windowCount += 1;
+      } catch (RuntimeException ignored) {
+        // Accessibility windows can disappear while traversing; keep the rest of the snapshot.
       } finally {
         if (root != null) {
           root.recycle();
@@ -249,8 +255,11 @@ public final class SnapshotInstrumentation extends Instrumentation {
       if (child == null) {
         continue;
       }
-      appendNode(xml, child, index, depth + 1, maxDepth, maxNodes, stats);
-      child.recycle();
+      try {
+        appendNode(xml, child, index, depth + 1, maxDepth, maxNodes, stats);
+      } finally {
+        child.recycle();
+      }
     }
     xml.append("</node>");
   }
@@ -332,6 +341,18 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final class CaptureStats {
     int nodeCount;
     boolean truncated;
+
+    CaptureStats copy() {
+      CaptureStats next = new CaptureStats();
+      next.nodeCount = nodeCount;
+      next.truncated = truncated;
+      return next;
+    }
+
+    void copyFrom(CaptureStats next) {
+      nodeCount = next.nodeCount;
+      truncated = next.truncated;
+    }
   }
 
   private static final class CaptureResult {

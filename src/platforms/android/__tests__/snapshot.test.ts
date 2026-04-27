@@ -41,7 +41,7 @@ const helperManifest: AndroidSnapshotHelperManifest = {
   name: 'android-snapshot-helper',
   version: '0.13.3',
   apkUrl: null,
-  sha256: 'abc123',
+  sha256: 'a'.repeat(64),
   packageName: 'com.callstack.agentdevice.snapshothelper',
   versionCode: 13003,
   instrumentationRunner: 'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',

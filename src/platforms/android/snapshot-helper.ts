@@ -492,7 +492,7 @@ export function parseAndroidSnapshotHelperManifest(value: unknown): AndroidSnaps
     releaseTag: readOptionalString(record.releaseTag),
     assetName: readOptionalString(record.assetName),
     apkUrl: readOptionalNullableString(record.apkUrl, 'apkUrl'),
-    sha256: readString(record.sha256, 'sha256').toLowerCase(),
+    sha256: readSha256(record.sha256),
     checksumName: readOptionalString(record.checksumName),
     packageName: readString(record.packageName, 'packageName'),
     versionCode: readNumber(record.versionCode, 'versionCode'),
@@ -529,6 +529,17 @@ function readAndroidSnapshotHelperManifestInstallArgs(value: unknown): string[] 
     );
   }
   return installArgs;
+}
+
+function readSha256(value: unknown): string {
+  const sha256 = readString(value, 'sha256').trim().toLowerCase();
+  if (sha256.length !== 64 || !isLowerHex(sha256)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Android snapshot helper manifest sha256 must be a 64-character hex string.',
+    );
+  }
+  return sha256;
 }
 
 async function readInstalledVersionCode(
@@ -769,4 +780,14 @@ function readStringArray(value: unknown, field: string): string[] {
     );
   }
   return value;
+}
+
+function isLowerHex(value: string): boolean {
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    const isDigit = code >= 48 && code <= 57;
+    const isLowerHexLetter = code >= 97 && code <= 102;
+    if (!isDigit && !isLowerHexLetter) return false;
+  }
+  return true;
 }
