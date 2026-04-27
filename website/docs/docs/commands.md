@@ -11,6 +11,7 @@ For persistent defaults and project-scoped CLI settings, see [Configuration](/do
 For agent workflow guidance that is matched to the installed CLI, run:
 
 ```bash
+agent-device help
 agent-device help workflow
 agent-device help debugging
 agent-device help react-devtools
@@ -18,6 +19,8 @@ agent-device help remote
 agent-device help macos
 agent-device help dogfood
 ```
+
+Skills are recommended for auto-routing when your agent runtime supports them, but they are not required. The CLI help topics are the version-matched operating contract.
 
 ## Navigation
 

@@ -29,11 +29,25 @@ If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browse
 
 ## Quick Start
 
-Install the CLI.
+Install the CLI first:
 
 ```bash
 npm install -g agent-device
+agent-device --version
+agent-device help workflow
 ```
+
+The CLI help is the source of truth for agents and is shipped with the installed version. Skills are optional but recommended when your agent runtime supports them: they auto-route device, React DevTools, and dogfood tasks to the right `agent-device help <topic>` page and verify the CLI is new enough before acting.
+
+If you install skills separately, keep the CLI on `agent-device >= 0.13.4`. Older CLIs do not include the workflow help topics that the router skills expect.
+
+```bash
+npm install -g agent-device@latest
+agent-device --version
+agent-device help
+```
+
+`agent-device` performs a lightweight background upgrade check for interactive CLI runs and, when a newer package is available, suggests a global reinstall command. Updating the package also refreshes the bundled `skills/` shipped with the CLI.
 
 Prerequisites: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS Accessibility permission for desktop automation. See [Installation](https://incubator.callstack.com/agent-device/docs/installation).
 
