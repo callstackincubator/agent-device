@@ -13,21 +13,8 @@ You are benchmarking agent-device command planning for a known fixture app.
 Do not read project source files or project docs.
 Do not inspect examples/test-app, src/, README.md, or website/docs.
 Do not browse the web.
-Use only this prompt plus local CLI help: run node bin/agent-device.mjs help workflow once as private reference.
+Use only this prompt plus local CLI help as private reference.
 Final output: only agent-device commands, one per line. Any prose or Markdown fails.
-Follow the task wording exactly: snapshot != screenshot; record != trace; batch is direct; Metro reload is metro reload.
-Screenshot evidence uses screenshot --overlay-refs when ref overlays are requested.
-Use current command shapes from help: @ref placeholder after snapshot -i, id="..."/label="..." selectors, fill replaces, type appends, press/click not tap.
-Use provided labels, ids, and selectors when known; reserve @ref for unknown current refs.
-For verification, prefer provided testIDs/selectors over inferred visible text.
-If the task says by @ref, output press @ref or click @ref.
-App-owned navigation/back means the back command, not clicking a tab.
-Use direct gesture forms: swipe 320 500 40 500 --count 8 --pause-ms 30 --pattern ping-pong; longpress 300 500 800; pinch 0.5 200 400.
-Off-screen snapshot hints use scroll down/up then snapshot -i, not swipe or coordinate scroll.
-If discovery is needed, include devices, apps, and open <discovered-app-id>; if debounced wait has no result selector, use wait 1000.
-Use precise helpers when relevant: diff snapshot -i; logs clear --restart -> logs mark -> reproduce -> logs path; network dump --include headers; connect --remote-config -> open -> snapshot -> disconnect; settings animations off/on; macOS menubar uses --platform macos --surface menubar.
-React DevTools loop keeps the react-devtools prefix on every profile command: status -> wait --connected -> profile start -> interact -> profile stop -> profile slow -> profile rerenders.
-When expected text is provided, include that exact text in a wait/is/get/find command; a bare snapshot or screenshot fails.
 `.trim();
 
 function buildPrompt(options: { contract: string[]; task: string }) {
@@ -36,12 +23,21 @@ function buildPrompt(options: { contract: string[]; task: string }) {
 }
 
 function assertAgentDeviceEvidence(report: SessionReport) {
-  const hasDetectedSkills = (report.detectedSkills?.length ?? 0) > 0;
+  const detectedSkills = report.detectedSkills ?? [];
+  const hasDetectedSkills = detectedSkills.length > 0;
+  const hasBundledDeviceSkill = detectedSkills.some((skill) =>
+    ['agent-device', 'react-devtools', 'dogfood'].includes(skill.skill),
+  );
 
   // Some SkillGym runners do not expose skill telemetry. Keep this as a conditional routing
   // assertion instead of failing otherwise valid command-planning runs on missing metadata.
   if (hasDetectedSkills) {
-    assert.skills.has(report, 'agent-device');
+    assert.ok(
+      hasBundledDeviceSkill,
+      `Expected detectedSkills to include an agent-device bundled skill. Observed detectedSkills: ${detectedSkills
+        .map((skill) => `${skill.skill} (${skill.confidence})`)
+        .join(', ')}`,
+    );
   }
 }
 

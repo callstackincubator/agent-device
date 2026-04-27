@@ -788,6 +788,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Agent Quickstart:/);
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
+  assert.match(usageText, /network headers: network dump --include headers/);
   assert.match(usageText, /Full operating guide: agent-device help workflow/);
   assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
   assert.match(usageText, /Agent Workflows:/);

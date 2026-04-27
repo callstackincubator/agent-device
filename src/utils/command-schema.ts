@@ -174,6 +174,7 @@ const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
+  'Debug evidence: logs clear/mark/path; network headers: network dump --include headers.',
   'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
   'Full operating guide: agent-device help workflow. Exploratory QA: agent-device help dogfood.',
 ] as const;
@@ -225,6 +226,7 @@ Command shape:
     agent-device record start ./checkout.mp4 --session checkout
   Unknown current ref placeholder: @ref. Use provided labels/ids/selectors when known. Never invent @e#.
   After snapshot -i, use @ref in plans when the exact @e number is unknown.
+  If a task explicitly says to act by @ref, output press @ref or click @ref after refreshing refs.
   Close means agent-device close. App-owned back means back; system back means back --system.
   Taps are press or click. Gestures are direct commands: swipe, longpress, pinch.
 
@@ -294,7 +296,14 @@ React Native dev loop:
   Do not use agent-device reload. Use open --relaunch for native startup reset.
 
 React DevTools minimum loop:
-  react-devtools status -> react-devtools wait --connected -> react-devtools profile start -> interact -> react-devtools profile stop -> react-devtools profile slow -> react-devtools profile rerenders.
+  Keep the agent-device react-devtools prefix on every React DevTools command:
+    agent-device react-devtools status
+    agent-device react-devtools wait --connected
+    agent-device react-devtools profile start
+    interact with normal agent-device commands
+    agent-device react-devtools profile stop
+    agent-device react-devtools profile slow --limit 5
+    agent-device react-devtools profile rerenders --limit 5
 
 Escalate:
   help debugging       logs, network, alerts, traces, flaky runtime failures
