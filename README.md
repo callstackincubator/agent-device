@@ -52,9 +52,9 @@ agent-device snapshot -i
 # @e2 [button] "Sign In"
 # @e3 [text-field] "Email"
 
-# Act, check what changed, and close.
+# Act, capture a screenshot, and close.
 agent-device fill @e3 "test"
-agent-device diff snapshot -i
+agent-device screenshot ./artifacts/settings.png
 agent-device close
 ```
 
@@ -78,7 +78,7 @@ Dogfood flows, run accessibility checks, capture evidence, and generate replayab
 agent-device open SampleApp --platform ios --save-script ./workflows/smoke.ad
 agent-device snapshot -i
 agent-device fill @e3 "test"
-agent-device diff snapshot -i
+agent-device screenshot ./artifacts/smoke.png
 agent-device close
 agent-device test ./workflows
 ```
@@ -92,7 +92,7 @@ agent-device open SampleApp --platform ios
 agent-device logs clear --restart
 agent-device snapshot -i
 agent-device fill @e3 "test"
-agent-device diff snapshot -i
+agent-device screenshot ./artifacts/current-ui.png
 agent-device network dump
 agent-device perf
 ```
