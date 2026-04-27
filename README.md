@@ -68,37 +68,6 @@ Choose how to run it.
 | CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
-## Workflows
-
-**Quality Assurance**
-
-Exploration to replayable check:
-
-```bash
-agent-device open SampleApp --platform ios --save-script ./workflows/smoke.ad
-agent-device snapshot -i
-agent-device fill @e3 "test"
-agent-device screenshot ./artifacts/smoke.png
-# Compare screenshot vs snapshot output for accessibility gaps.
-agent-device close
-agent-device test ./workflows
-```
-
-**Development**
-
-Implementation and debugging loop:
-
-```bash
-agent-device open SampleApp --platform ios
-agent-device logs clear --restart
-agent-device snapshot -i
-agent-device fill @e3 "test"
-agent-device screenshot ./artifacts/current-ui.png
-agent-device react-devtools get tree --depth 3
-agent-device network dump
-agent-device perf
-```
-
 ## How It Works
 
 `agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets. See [Introduction](https://incubator.callstack.com/agent-device/docs/introduction) and [Commands](https://incubator.callstack.com/agent-device/docs/commands) for platform details.
