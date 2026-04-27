@@ -1,7 +1,10 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { runCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
-import { AppError } from '../../utils/errors.ts';
+import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { findProjectRoot, readVersion } from '../../utils/version.ts';
 import {
   attachRefs,
   type HiddenContentHint,
@@ -24,14 +27,11 @@ import {
   captureAndroidSnapshotWithHelper,
   ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
   ensureAndroidSnapshotHelper,
+  parseAndroidSnapshotHelperManifest,
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperArtifact,
   type AndroidSnapshotHelperInstallPolicy,
 } from './snapshot-helper.ts';
-import {
-  helperFallbackReason,
-  resolveAndroidSnapshotHelperConfig,
-} from './snapshot-helper-config.ts';
 import {
   ANDROID_SNAPSHOT_MAX_NODES,
   type AndroidSnapshotBackendMetadata,
@@ -87,20 +87,20 @@ async function captureAndroidUiHierarchy(
   device: DeviceInfo,
   options: AndroidSnapshotOptions,
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
-  const helperConfig = await resolveAndroidSnapshotHelperConfig(options);
-  if (helperConfig.artifact) {
+  const helper = await resolveAndroidSnapshotHelperArtifact(options.helperArtifact);
+  if (helper.artifact) {
     try {
       const adb = options.helperAdb ?? createDeviceAdbExecutor(device);
       const install = await ensureAndroidSnapshotHelper({
         adb,
-        artifact: helperConfig.artifact,
+        artifact: helper.artifact,
         installPolicy: options.helperInstallPolicy,
         timeoutMs: HELPER_INSTALL_TIMEOUT_MS,
       });
       const capture = await captureAndroidSnapshotWithHelper({
         adb,
-        packageName: helperConfig.artifact.manifest.packageName,
-        instrumentationRunner: helperConfig.artifact.manifest.instrumentationRunner,
+        packageName: helper.artifact.manifest.packageName,
+        instrumentationRunner: helper.artifact.manifest.instrumentationRunner,
         waitForIdleTimeoutMs: ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
         timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
         commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
@@ -109,7 +109,7 @@ async function captureAndroidUiHierarchy(
         xml: capture.xml,
         metadata: {
           backend: 'android-helper',
-          helperVersion: helperConfig.artifact.manifest.version,
+          helperVersion: helper.artifact.manifest.version,
           helperApiVersion: capture.metadata.helperApiVersion,
           installReason: install.reason,
           waitForIdleTimeoutMs: capture.metadata.waitForIdleTimeoutMs,
@@ -125,11 +125,46 @@ async function captureAndroidUiHierarchy(
         },
       };
     } catch (error) {
-      return await captureStockUiHierarchy(device, helperFallbackReason(error));
+      return await captureStockUiHierarchy(device, normalizeError(error).message);
     }
   }
 
-  return await captureStockUiHierarchy(device, helperConfig.fallbackReason);
+  return await captureStockUiHierarchy(device, helper.fallbackReason);
+}
+
+async function resolveAndroidSnapshotHelperArtifact(
+  explicitArtifact?: AndroidSnapshotHelperArtifact,
+): Promise<{ artifact?: AndroidSnapshotHelperArtifact; fallbackReason?: string }> {
+  if (explicitArtifact) {
+    return { artifact: explicitArtifact };
+  }
+
+  const version = readVersion();
+  const helperDir = path.join(findProjectRoot(), 'android-snapshot-helper', 'dist');
+  const manifestPath = path.join(
+    helperDir,
+    `agent-device-android-snapshot-helper-${version}.manifest.json`,
+  );
+
+  try {
+    await fs.access(manifestPath);
+  } catch {
+    return {};
+  }
+
+  try {
+    const manifest = parseAndroidSnapshotHelperManifest(
+      JSON.parse(await fs.readFile(manifestPath, 'utf8')),
+    );
+    const apkPath = path.join(
+      helperDir,
+      manifest.assetName ?? `agent-device-android-snapshot-helper-${manifest.version}.apk`,
+    );
+    await fs.access(apkPath);
+    return { artifact: { apkPath, manifest } };
+  } catch (error) {
+    return { fallbackReason: normalizeError(error).message };
+  }
 }
 
 async function captureStockUiHierarchy(

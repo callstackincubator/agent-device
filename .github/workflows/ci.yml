@@ -120,9 +120,6 @@ jobs:
           javac --version
           java --version
 
-      - name: Package Android snapshot helper
-        run: pnpm package:android-snapshot-helper
-
       - name: Package npm-bundled Android snapshot helper
         run: pnpm package:android-snapshot-helper:npm
 
