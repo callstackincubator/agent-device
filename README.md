@@ -16,7 +16,7 @@ Device automation CLI for AI agents. Mobile, TV, and desktop apps.
 
 `agent-device` lets coding agents run real apps, inspect UI state, interact with visible elements, and collect debugging evidence from the terminal.
 
-It is built around token-efficient accessibility snapshots, not pixel-first screenshots. Agents read compact UI trees, use refs like `@e3` for deterministic actions, and capture screenshots, video, logs, network, perf, and React profiles only when evidence is needed.
+It is built around token-efficient accessibility snapshots, not pixel-first screenshots. Agents read compact UI trees, locate elements through refs like `@e3`, perform touch and text actions, and capture screenshots, video, logs, network, perf, and React profiles only when evidence is needed.
 
 Built for two agentic workflows:
 
