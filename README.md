@@ -8,6 +8,10 @@
 
 # agent-device
 
+[![npm version](https://img.shields.io/npm/v/agent-device.svg)](https://www.npmjs.com/package/agent-device)
+[![CI](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml/badge.svg)](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
+
 Device automation CLI for AI agents. Mobile, TV, and desktop.
 
 Run the app. Read the UI. Act on the screen. Capture evidence.
@@ -21,15 +25,9 @@ Give agents a runtime loop for iOS, Android, tvOS, macOS, and Linux apps:
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
 
-[![Watch the demo video](./website/docs/public/agent-device-contacts.gif)](./website/docs/public/agent-device-contacts.mp4)
+![agent-device demo showing an agent inspecting and interacting with a contacts app](./website/docs/public/agent-device-contacts.gif)
 
-## Use Cases
-
-- **QA**: dogfood flows, run accessibility checks, capture evidence, and generate replayable e2e tests.
-- **Debugging**: start from Sentry, a development crash, a support ticket, or a bug description. Reproduce the flow and fix with UI, logs, network, and perf context.
-- **Development**: build from a product or engineering specification. Run, inspect, interact, debug, and iterate until the UI confirms the work.
-
-## Get Started
+## Quick Start
 
 Install the CLI.
 
@@ -37,17 +35,9 @@ Install the CLI.
 npm install -g agent-device
 ```
 
-Choose how to run it.
+Prerequisites: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS permissions for desktop automation. See [Installation](https://incubator.callstack.com/agent-device/docs/installation).
 
-| Path | Best for | Start with |
-| --- | --- | --- |
-| Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
-| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
-| Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
-
-## Command Flow
-
-The canonical loop is:
+Try the loop.
 
 ```bash
 # Find the app.
@@ -62,27 +52,69 @@ agent-device snapshot -i
 # @e2 [button] "Sign In"
 # @e3 [text-field] "Email"
 
-# Act on visible elements with press, fill, scroll, and more.
+# Act, check what changed, and close.
 agent-device fill @e3 "test"
-
-# Check what changed, then close the session.
 agent-device diff snapshot -i
 agent-device close
 ```
 
-Refs shown in default snapshot output are actionable now. For hidden content, scroll and re-snapshot before acting.
+Refs from the default snapshot are immediately actionable. For hidden content, scroll and re-snapshot.
 
-## Features
+Choose how to run it.
 
-- Mobile, TV, and desktop coverage: iOS, Android, tvOS, Android TV, macOS, and Linux.
-- Real device and simulator support.
-- Token-efficient accessibility snapshots for agent loops.
-- MIT licensed. Free to use.
-- Automation, diffing, logging, network inspection, and profiling.
-- React Native and Expo workflows, including pinned `agent-react-devtools@0.4.0` for component tree inspection, props/state/hooks, and render profiling.
-- Screenshots and video recordings.
-- Replayable `.ad` scripts for e2e tests.
-- Accessibility checks and dogfooding workflows.
+| Path | Best for | Start with |
+| --- | --- | --- |
+| Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
+| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
+| Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
+
+## Workflows
+
+**Quality Assurance**
+
+Dogfood flows, run accessibility checks, capture evidence, and generate replayable e2e tests.
+
+```bash
+agent-device open SampleApp --platform ios --save-script ./workflows/smoke.ad
+agent-device snapshot -i
+agent-device fill @e3 "test"
+agent-device diff snapshot -i
+agent-device close
+agent-device test ./workflows
+```
+
+**Development**
+
+Build from a product or engineering specification. Run, inspect, interact, debug, and iterate until the UI confirms the work.
+
+```bash
+agent-device open SampleApp --platform ios
+agent-device logs clear --restart
+agent-device snapshot -i
+agent-device fill @e3 "test"
+agent-device diff snapshot -i
+agent-device network dump
+agent-device perf
+```
+
+## Concepts
+
+- **Snapshot**: compact accessibility-tree output for the current UI.
+- **Ref**: a current-screen handle like `@e3`; re-snapshot after UI changes.
+- **Selector**: a stable text, role, or label query for replay and assertions.
+- **`.ad` script**: a recorded replay file that can run locally or in CI.
+
+## How It Works
+
+`agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets.
+
+## Capabilities
+
+- **Platforms**: iOS, Android, tvOS, Android TV, macOS, and Linux. Real devices and simulators are supported.
+- **Capture**: screenshots, video, logs, network traffic, performance data, accessibility snapshots, and React render profiles.
+- **Produce**: replayable `.ad` scripts, e2e test runs, diff output, and debugging artifacts.
+- **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling through pinned `agent-react-devtools@0.4.0`.
+- **License**: MIT. Free to use.
 
 ## Used By
 
@@ -91,14 +123,14 @@ Used by teams and developers at Callstack, Expensify, [Shopify](https://x.com/mu
 - [Oliver Bowman](https://x.com/oliverbowman_), HerLyfe: reduced the feedback loop in agentic workflows.
 - [Jay Meistrich](https://x.com/jmeistrich/status/2036398735698305178), LegendList: used it for Android phone and iOS simulator testing while developing LegendList optimizations.
 
-## Where To Go Next
+## Documentation
 
-For people:
+- [Installation](https://incubator.callstack.com/agent-device/docs/installation)
+- [Commands](https://incubator.callstack.com/agent-device/docs/commands)
+- [Replay & E2E](https://incubator.callstack.com/agent-device/docs/replay-e2e)
+- [Known limitations](https://incubator.callstack.com/agent-device/docs/known-limitations)
 
-- [Website](https://agent-device.dev/)
-- [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
-
-For agents:
+Agent integration:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
 - [react-devtools skill](skills/react-devtools/SKILL.md)
