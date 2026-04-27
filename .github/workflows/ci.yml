@@ -123,6 +123,9 @@ jobs:
       - name: Package Android snapshot helper
         run: pnpm package:android-snapshot-helper
 
+      - name: Package npm-bundled Android snapshot helper
+        run: pnpm package:android-snapshot-helper:npm
+
   integration-smoke:
     name: Integration Smoke
     runs-on: macos-26
