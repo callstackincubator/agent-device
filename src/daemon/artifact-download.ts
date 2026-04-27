@@ -3,6 +3,7 @@ import http, { type IncomingMessage } from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
+import { once } from 'node:events';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { AppError } from '../utils/errors.ts';
@@ -52,14 +53,14 @@ export function streamReadableToFile(
     let settled = false;
     let bytesWritten = 0;
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const output = fs.createWriteStream(destPath);
 
     const settle = (error?: unknown) => {
       if (settled) return;
       settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
       if (error) {
-        fs.rmSync(destPath, { force: true });
-        reject(error);
+        void removePartialFile(output, destPath).finally(() => reject(error));
         return;
       }
       resolve();
@@ -104,11 +105,23 @@ export function streamReadableToFile(
       settle(new AppError('COMMAND_FAILED', 'Artifact transfer was interrupted'));
     });
     armTimeout();
-    void pipeline(source, byteLimit, fs.createWriteStream(destPath)).then(
+    void pipeline(source, byteLimit, output).then(
       () => settle(),
       (error: unknown) => settle(error),
     );
   });
+}
+
+async function removePartialFile(output: fs.WriteStream, destPath: string): Promise<void> {
+  output.destroy();
+  if (!output.closed) {
+    try {
+      await once(output, 'close');
+    } catch {
+      // best-effort cleanup only
+    }
+  }
+  await fs.promises.rm(destPath, { force: true }).catch(() => {});
 }
 
 export async function downloadArtifactToTempDir(params: {
