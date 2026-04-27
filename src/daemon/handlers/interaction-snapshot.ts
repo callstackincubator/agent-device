@@ -4,6 +4,7 @@ import type { SessionState } from '../types.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
+import { setSessionSnapshot } from '../session-snapshot.ts';
 
 export type CaptureSnapshotForSession = (
   session: SessionState,
@@ -38,7 +39,7 @@ export async function captureSnapshotForSession(
     logPath: dispatchContext.logPath ?? '',
     androidFreshnessMode: options.androidFreshnessMode,
   });
-  session.snapshot = snapshot;
+  setSessionSnapshot(session, snapshot);
   sessionStore.set(session.name, session);
-  return session.snapshot;
+  return snapshot;
 }

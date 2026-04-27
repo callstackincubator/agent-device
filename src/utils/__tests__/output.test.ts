@@ -436,6 +436,59 @@ test('formatSnapshotText normalizes RecyclerView containers to list', () => {
   assert.match(text, /^  \[content below list hidden\]$/m);
 });
 
+test('formatSnapshotText renders hidden-below list hints after visible descendants', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'android.view.ViewGroup',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'androidx.recyclerview.widget.RecyclerView',
+          rect: { x: 0, y: 80, width: 390, height: 600 },
+          hiddenContentBelow: true,
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.TextView',
+          label: 'Text view',
+          rect: { x: 16, y: 120, width: 358, height: 80 },
+        },
+        {
+          ref: 'e4',
+          index: 3,
+          depth: 3,
+          parentIndex: 2,
+          type: 'android.widget.TextView',
+          label: 'loadJSBundleFromAssets',
+          rect: { x: 16, y: 140, width: 358, height: 40 },
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^@e2 \[list\]$/m);
+  assert.match(text, /^  @e3 \[text\] "Text view"$/m);
+  assert.match(text, /^    @e4 \[text\] "loadJSBundleFromAssets"$/m);
+  assert.match(text, /^  \[content below list hidden\]$/m);
+  assert.ok(
+    text.indexOf('@e4 [text] "loadJSBundleFromAssets"') <
+      text.indexOf('[content below list hidden]'),
+  );
+});
+
 test('formatSnapshotText marks visible scroll areas with hidden content above and below', () => {
   const text = withNoColor(() =>
     formatSnapshotText({

@@ -164,6 +164,8 @@ export type SessionState = {
   appBundleId?: string;
   appName?: string;
   snapshot?: SnapshotState;
+  /** Source snapshot used to resolve repeated `snapshot -s @ref` after scoped output replaces refs. */
+  snapshotScopeSource?: SnapshotState;
   androidSnapshotFreshness?: AndroidSnapshotFreshness;
   trace?: {
     outPath: string;

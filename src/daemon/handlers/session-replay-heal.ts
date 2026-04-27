@@ -1,4 +1,5 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
+import { setSessionSnapshot } from '../session-snapshot.ts';
 import {
   attachRefs,
   type RawSnapshotNode,
@@ -198,7 +199,7 @@ async function captureSnapshotForReplay(
     createdAt: Date.now(),
     backend: data?.backend,
   };
-  session.snapshot = snapshot;
+  setSessionSnapshot(session, snapshot);
   sessionStore.set(session.name, session);
   return snapshot;
 }
