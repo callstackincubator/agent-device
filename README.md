@@ -42,7 +42,7 @@ Choose how to run it.
 | Path | Best for | Start with |
 | --- | --- | --- |
 | Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
-| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Wire it into your pipeline today. GitHub PR and EAS templates are coming soon. |
+| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
 ## Command Flow
