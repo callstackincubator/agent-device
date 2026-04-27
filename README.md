@@ -60,7 +60,7 @@ agent-device close
 
 Refs from the default snapshot are immediately actionable. For hidden content, scroll and re-snapshot.
 
-Choose how to run it.
+## Where To Run agent-device
 
 | Path | Best for | Start with |
 | --- | --- | --- |
