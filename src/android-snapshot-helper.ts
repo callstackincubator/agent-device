@@ -9,7 +9,6 @@ export {
   ensureAndroidSnapshotHelper,
   parseAndroidSnapshotHelperManifest,
   parseAndroidSnapshotHelperOutput,
-  parseAndroidSnapshotHelperSnapshot,
   parseAndroidSnapshotHelperXml,
   prepareAndroidSnapshotHelperArtifactFromManifestUrl,
   verifyAndroidSnapshotHelperArtifact,

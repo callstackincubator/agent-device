@@ -56,7 +56,6 @@ Public subpath API exposed for Node consumers:
   - `ensureAndroidSnapshotHelper(options)`
   - `captureAndroidSnapshotWithHelper(options)`
   - `parseAndroidSnapshotHelperOutput(output)`
-  - `parseAndroidSnapshotHelperSnapshot(output, options?, maxNodes?)`
   - `parseAndroidSnapshotHelperXml(xml, metadata?, options?, maxNodes?)`
   - `prepareAndroidSnapshotHelperArtifactFromManifestUrl(options)`
   - `verifyAndroidSnapshotHelperArtifact(artifact)`

@@ -9,7 +9,6 @@ import {
   ensureAndroidSnapshotHelper,
   parseAndroidSnapshotHelperManifest,
   parseAndroidSnapshotHelperOutput,
-  parseAndroidSnapshotHelperSnapshot,
   parseAndroidSnapshotHelperXml,
   prepareAndroidSnapshotHelperArtifactFromManifestUrl,
   verifyAndroidSnapshotHelperArtifact,
@@ -96,21 +95,16 @@ test('parseAndroidSnapshotHelperOutput decodes UTF-8 across byte chunk boundarie
   assert.equal(parsed.xml, xml);
 });
 
-test('parseAndroidSnapshotHelperSnapshot returns shaped nodes', () => {
-  const output = helperOutput({
-    chunks: [
-      '<hierarchy><node text="Continue" class="android.widget.Button" bounds="[1,2][21,42]" clickable="true" /><node text="Keyboard suggestion" class="android.widget.TextView" bounds="[1,44][121,84]" /></hierarchy>',
-    ],
-    result: {
-      ok: 'true',
+test('parseAndroidSnapshotHelperXml returns shaped nodes from captured helper output', () => {
+  const parsed = parseAndroidSnapshotHelperXml(
+    '<hierarchy><node text="Continue" class="android.widget.Button" bounds="[1,2][21,42]" clickable="true" /><node text="Keyboard suggestion" class="android.widget.TextView" bounds="[1,44][121,84]" /></hierarchy>',
+    {
       outputFormat: 'uiautomator-xml',
       captureMode: 'interactive-windows',
-      windowCount: '2',
-      nodeCount: '2',
+      windowCount: 2,
+      nodeCount: 2,
     },
-  });
-
-  const parsed = parseAndroidSnapshotHelperSnapshot(output);
+  );
 
   assert.equal(parsed.nodes[0]?.label, 'Continue');
   assert.equal(parsed.nodes[0]?.hittable, true);
@@ -119,17 +113,6 @@ test('parseAndroidSnapshotHelperSnapshot returns shaped nodes', () => {
   assert.equal(parsed.metadata.captureMode, 'interactive-windows');
   assert.equal(parsed.metadata.windowCount, 2);
   assert.equal(parsed.metadata.nodeCount, 2);
-});
-
-test('parseAndroidSnapshotHelperXml returns shaped nodes from captured helper output', () => {
-  const parsed = parseAndroidSnapshotHelperXml(
-    '<hierarchy><node text="Login" bounds="[2,4][22,44]" clickable="true" /></hierarchy>',
-    { outputFormat: 'uiautomator-xml', nodeCount: 1 },
-  );
-
-  assert.equal(parsed.nodes[0]?.label, 'Login');
-  assert.equal(parsed.nodes[0]?.hittable, true);
-  assert.equal(parsed.metadata.nodeCount, 1);
 });
 
 test('parseAndroidSnapshotHelperOutput rejects incomplete chunks', () => {
