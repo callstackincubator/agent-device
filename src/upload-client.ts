@@ -4,6 +4,8 @@ import https from 'node:https';
 import path from 'node:path';
 import os from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
+import { Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from './utils/errors.ts';
 import { runCmd } from './utils/exec.ts';
 
@@ -366,11 +368,10 @@ async function streamFileToHttpRequest(options: {
     });
     req.on('close', () => clearTimeout(timeout));
 
-    const fileStream = fs.createReadStream(options.payloadPath);
-    fileStream.pipe(req);
-    fileStream.on('error', (err) => {
+    void pipeline(fs.createReadStream(options.payloadPath), req).catch((err: unknown) => {
       req.destroy();
-      reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err));
+      const error = err instanceof Error ? err : new Error(String(err));
+      reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, error));
     });
   });
 }
@@ -414,13 +415,19 @@ async function finalizeDirectUpload(options: {
 
 async function computeFileHash(localPath: string): Promise<string> {
   const hash = createHash(ARTIFACT_HASH_ALGORITHM);
-  await new Promise<void>((resolve, reject) => {
-    fs.createReadStream(localPath)
-      .on('data', (chunk) => hash.update(chunk))
-      .on('error', (err) => {
-        reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, err));
-      })
-      .on('end', resolve);
+  const sink = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      hash.update(chunk);
+      callback();
+    },
+  });
+  await pipeline(fs.createReadStream(localPath), sink).catch((err: unknown) => {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Failed to read local artifact',
+      {},
+      err instanceof Error ? err : undefined,
+    );
   });
   return hash.digest('hex');
 }

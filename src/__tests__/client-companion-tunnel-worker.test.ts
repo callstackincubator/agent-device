@@ -38,12 +38,15 @@ function createDeferred<T>(): Deferred<T> {
 }
 
 function waitFor<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    delay(timeoutMs).then(() => {
-      throw new Error(`Timed out waiting for ${label}.`);
-    }),
-  ]);
+  let timeout: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${label}.`));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+  });
 }
 
 function encodeTextFrame(text: string): Buffer {

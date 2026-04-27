@@ -1,5 +1,6 @@
-import { test } from 'vitest';
+import { test, type TestContext } from 'vitest';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { SessionStore } from '../session-store.ts';
@@ -21,12 +22,16 @@ function makeSession(name: string): SessionState {
   };
 }
 
-function makeStore(): SessionStore {
-  return new SessionStore(path.join(os.tmpdir(), 'agent-device-session-routing-tests'));
+function makeStore(t: TestContext): SessionStore {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-routing-'));
+  t.onTestFinished(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  return new SessionStore(path.join(root, 'sessions'));
 }
 
-test('reuses lone active session for implicit default session', () => {
-  const store = makeStore();
+test('reuses lone active session for implicit default session', (t) => {
+  const store = makeStore(t);
   store.set('android', makeSession('android'));
 
   const resolved = resolveEffectiveSessionName(
@@ -43,8 +48,8 @@ test('reuses lone active session for implicit default session', () => {
   assert.equal(resolved, 'android');
 });
 
-test('keeps requested default when explicit --session is provided', () => {
-  const store = makeStore();
+test('keeps requested default when explicit --session is provided', (t) => {
+  const store = makeStore(t);
   store.set('android', makeSession('android'));
 
   const resolved = resolveEffectiveSessionName(
@@ -61,8 +66,8 @@ test('keeps requested default when explicit --session is provided', () => {
   assert.equal(resolved, 'default');
 });
 
-test('keeps requested non-default session names', () => {
-  const store = makeStore();
+test('keeps requested non-default session names', (t) => {
+  const store = makeStore(t);
   store.set('android', makeSession('android'));
 
   const resolved = resolveEffectiveSessionName(
@@ -79,8 +84,8 @@ test('keeps requested non-default session names', () => {
   assert.equal(resolved, 'maps-test');
 });
 
-test('does not reuse when multiple sessions are active', () => {
-  const store = makeStore();
+test('does not reuse when multiple sessions are active', (t) => {
+  const store = makeStore(t);
   store.set('android', makeSession('android'));
   store.set('ios', {
     ...makeSession('ios'),

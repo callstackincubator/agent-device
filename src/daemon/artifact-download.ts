@@ -3,6 +3,8 @@ import http, { type IncomingMessage } from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from '../utils/errors.ts';
 import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
@@ -47,12 +49,6 @@ export function streamReadableToFile(
   destPath: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(destPath);
-    const destroySource = (error: Error) => {
-      if ('destroy' in source && typeof source.destroy === 'function') {
-        source.destroy(error);
-      }
-    };
     let settled = false;
     let bytesWritten = 0;
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -62,7 +58,6 @@ export function streamReadableToFile(
       settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
       if (error) {
-        output.destroy();
         fs.rmSync(destPath, { force: true });
         reject(error);
         return;
@@ -79,35 +74,40 @@ export function streamReadableToFile(
             timeoutMs: REQUEST_IDLE_TIMEOUT_MS,
           },
         );
-        destroySource(error);
-        output.destroy(error);
+        if ('destroy' in source && typeof source.destroy === 'function') {
+          source.destroy(error);
+        }
+        byteLimit.destroy(error);
         settle(error);
       }, REQUEST_IDLE_TIMEOUT_MS);
     };
 
-    source.on('data', (chunk: Buffer | string) => {
-      armTimeout();
-      const size = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
-      bytesWritten += size;
-      if (bytesWritten > MAX_ARTIFACT_BYTES) {
-        const error = new AppError(
-          'INVALID_ARGS',
-          `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`,
-        );
-        destroySource(error);
-        output.destroy(error);
-        settle(error);
-      }
+    const byteLimit = new Transform({
+      transform(chunk: Buffer | string, encoding, callback) {
+        armTimeout();
+        const size = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
+        bytesWritten += size;
+        if (bytesWritten > MAX_ARTIFACT_BYTES) {
+          callback(
+            new AppError(
+              'INVALID_ARGS',
+              `Upload exceeds maximum size of ${MAX_ARTIFACT_BYTES} bytes`,
+            ),
+          );
+          return;
+        }
+        callback(null, chunk);
+      },
     });
 
-    source.on('error', settle);
     source.on('aborted', () => {
       settle(new AppError('COMMAND_FAILED', 'Artifact transfer was interrupted'));
     });
-    output.on('error', settle);
-    output.on('finish', () => settle());
     armTimeout();
-    source.pipe(output);
+    void pipeline(source, byteLimit, fs.createWriteStream(destPath)).then(
+      () => settle(),
+      (error: unknown) => settle(error),
+    );
   });
 }
 

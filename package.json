@@ -13,6 +13,7 @@
     "url": "https://github.com/callstackincubator/agent-device/issues"
   },
   "type": "module",
+  "packageManager": "pnpm@10.33.2",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "exports": {
@@ -58,7 +59,7 @@
     }
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.19"
   },
   "bin": {
     "agent-device": "bin/agent-device.mjs"
@@ -75,7 +76,7 @@
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
     "lint": "oxlint . --deny-warnings",
-    "format": "oxfmt --write src test skills package.json tsconfig.json .oxlintrc.json .oxfmtrc.json '!test/skillgym/.skillgym-results/**'",
+    "format": "oxfmt --write src test skills package.json tsconfig.json tsconfig.lib.json rslib.config.ts vitest.config.ts .github/actions/setup-node-pnpm/action.yml .oxlintrc.json .oxfmtrc.json '!test/skillgym/.skillgym-results/**'",
     "fallow": "fallow --summary",
     "fallow:baseline": "(fallow dead-code --save-baseline fallow-baselines/dead-code.json --summary || true) && (fallow dupes --save-baseline fallow-baselines/dupes.json --summary || true) && (fallow health --save-baseline fallow-baselines/health.json --summary || true)",
     "check:fallow": "fallow audit",

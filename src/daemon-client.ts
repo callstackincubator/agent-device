@@ -3,6 +3,7 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { sleep } from './utils/timeouts.ts';
 import { AppError, toAppErrorCode } from './utils/errors.ts';
 import type {
@@ -1334,13 +1335,6 @@ export async function downloadRemoteArtifact(params: {
           });
           return;
         }
-        const output = fs.createWriteStream(params.destinationPath);
-        output.on('error', (error) => {
-          settle(error instanceof Error ? error : new Error(String(error)));
-        });
-        res.on('error', (error) => {
-          settle(error instanceof Error ? error : new Error(String(error)));
-        });
         res.on('aborted', () => {
           settle(
             new AppError('COMMAND_FAILED', 'Remote artifact download was interrupted', {
@@ -1349,10 +1343,10 @@ export async function downloadRemoteArtifact(params: {
             }),
           );
         });
-        output.on('finish', () => {
-          output.close(() => settle());
-        });
-        res.pipe(output);
+        void pipeline(res, fs.createWriteStream(params.destinationPath)).then(
+          () => settle(),
+          (error: unknown) => settle(error instanceof Error ? error : new Error(String(error))),
+        );
       },
     );
     const timeoutHandle = setTimeout(() => {

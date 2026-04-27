@@ -1315,6 +1315,7 @@ test('stopDaemonProcessForTakeover terminates a matching daemon process', async 
   } finally {
     if (isProcessAlive(pid)) {
       process.kill(pid, 'SIGKILL');
+      await waitForProcessExit(pid, 1_500);
     }
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -1338,6 +1339,7 @@ test('stopDaemonProcessForTakeover does not terminate non-daemon process', async
   } finally {
     if (isProcessAlive(pid)) {
       process.kill(pid, 'SIGKILL');
+      await waitForProcessExit(pid, 1_500);
     }
   }
 });

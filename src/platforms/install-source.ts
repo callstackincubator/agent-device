@@ -1,8 +1,10 @@
 import dns from 'node:dns/promises';
 import net from 'node:net';
-import { promises as fs } from 'node:fs';
+import { createWriteStream, promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import { expandUserHomePath } from '../utils/path-resolution.ts';
@@ -132,20 +134,14 @@ async function downloadToTempFile(
   if (requestSignal?.aborted) {
     throw new AppError('COMMAND_FAILED', 'request canceled', { reason: 'request_canceled' });
   }
-  const controller = new AbortController();
-  const onAbort = () => {
-    controller.abort(requestSignal?.reason);
-  };
-  requestSignal?.addEventListener('abort', onAbort, { once: true });
   const timeoutMs = options?.downloadTimeoutMs ?? DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS;
-  const timeoutHandle = setTimeout(() => {
-    controller.abort(new Error('download timeout'));
-  }, timeoutMs);
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const signal = requestSignal ? AbortSignal.any([requestSignal, timeoutSignal]) : timeoutSignal;
   try {
     const response = await fetch(parsedUrl, {
       headers,
       redirect: 'follow',
-      signal: controller.signal,
+      signal,
     });
     if (!response.ok) {
       throw new AppError(
@@ -166,14 +162,10 @@ async function downloadToTempFile(
         url: parsedUrl.toString(),
       });
     }
-    const file = await fs.open(destinationPath, 'w');
-    try {
-      for await (const chunk of body) {
-        await file.write(chunk);
-      }
-    } finally {
-      await file.close();
-    }
+    await pipeline(
+      Readable.from(body as unknown as AsyncIterable<Uint8Array>),
+      createWriteStream(destinationPath),
+    );
     return destinationPath;
   } catch (error) {
     if (requestSignal?.aborted) {
@@ -184,7 +176,7 @@ async function downloadToTempFile(
         error,
       );
     }
-    if (controller.signal.aborted) {
+    if (timeoutSignal.aborted) {
       throw new AppError(
         'COMMAND_FAILED',
         `App source download timed out after ${timeoutMs}ms`,
@@ -196,9 +188,6 @@ async function downloadToTempFile(
       );
     }
     throw error;
-  } finally {
-    requestSignal?.removeEventListener('abort', onAbort);
-    clearTimeout(timeoutHandle);
   }
 }
 

@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { prepareMetroRuntime, reloadMetro } from '../client-metro.ts';
 import { AppError } from '../utils/errors.ts';
+import { isProcessAlive, waitForProcessExit } from '../utils/process-identity.ts';
 
 const TEST_TOKEN = 'agent-device-proxy-test-token';
 
@@ -163,11 +164,7 @@ test('prepareMetroRuntime starts Metro, bridges through proxy, and writes runtim
       socket.destroy();
     }
     await closeServer(proxyServer);
-    if (pid) {
-      try {
-        process.kill(pid);
-      } catch {}
-    }
+    await stopProcess(pid);
     rmSync(tempRoot, { recursive: true, force: true });
   }
 });
@@ -325,4 +322,20 @@ async function closeServer(server: ReturnType<typeof createServer>): Promise<voi
       resolve();
     });
   });
+}
+
+async function stopProcess(pid: number): Promise<void> {
+  if (!pid || !isProcessAlive(pid)) return;
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch {
+    return;
+  }
+  if (await waitForProcessExit(pid, 1_500)) return;
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    return;
+  }
+  await waitForProcessExit(pid, 1_500);
 }

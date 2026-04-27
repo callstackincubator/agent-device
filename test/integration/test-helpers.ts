@@ -4,6 +4,9 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import { runCmdSync } from '../../src/utils/exec.ts';
 
+const CLI_TIMEOUT_MS = 120_000;
+const RECORDING_INSPECT_TIMEOUT_MS = 60_000;
+
 export type CliJsonResult = {
   status: number;
   json?: any;
@@ -69,6 +72,7 @@ export function runCliJson(args: string[], options?: { env?: NodeJS.ProcessEnv }
     {
       allowFailure: true,
       env: options?.env,
+      timeoutMs: CLI_TIMEOUT_MS,
     },
   );
   let json: any;
@@ -109,6 +113,22 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
 
   function runStep(step: string, args: string[], expectedStatus = 0): CliJsonResult {
     const result = runCliJson(args, { env: extraEnv });
+    recordStep(step, args, result);
+    maybeCaptureSnapshot(args, result);
+    if (result.status !== expectedStatus) {
+      failWithContext(step, args, result);
+    }
+    return result;
+  }
+
+  function runCleanupStep(step: string, args: string[]): CliJsonResult {
+    const result = runCliJson(args, { env: extraEnv });
+    recordStep(step, args, result);
+    maybeCaptureSnapshot(args, result);
+    return result;
+  }
+
+  function recordStep(step: string, args: string[], result: CliJsonResult): void {
     const errorCode =
       typeof result.json?.error?.code === 'string' ? (result.json.error.code as string) : undefined;
     const errorMessage =
@@ -123,11 +143,6 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
       errorCode,
       errorMessage,
     });
-    maybeCaptureSnapshot(args, result);
-    if (result.status !== expectedStatus) {
-      failWithContext(step, args, result);
-    }
-    return result;
   }
 
   function assertResult(
@@ -276,6 +291,7 @@ export function createIntegrationTestContext(options: IntegrationTestContextOpti
 
   return {
     runStep,
+    runCleanupStep,
     assertResult,
     artifactDir: ensureArtifactDir,
   };
@@ -300,7 +316,7 @@ export function runRecordingInspect(params: {
       '--output-dir',
       params.outputDir,
     ],
-    { allowFailure: true },
+    { allowFailure: true, timeoutMs: RECORDING_INSPECT_TIMEOUT_MS },
   );
   assert.equal(result.exitCode, 0, result.stderr || result.stdout || 'recording inspect failed');
   const manifestPath = path.join(params.outputDir, 'manifest.json');

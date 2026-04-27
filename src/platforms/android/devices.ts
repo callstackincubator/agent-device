@@ -18,12 +18,34 @@ const ANDROID_TV_FEATURES = [
   'android.software.leanback_only',
   'android.hardware.type.television',
 ] as const;
+const ANDROID_DISCOVERY_CONCURRENCY = 3;
+const ANDROID_FEATURE_PROBE_CONCURRENCY = 2;
 
 type AndroidDeviceDiscoveryOptions = {
   serialAllowlist?: ReadonlySet<string>;
 };
 
 type AndroidAdbRunner = typeof runCmd;
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  mapper: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, values.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < values.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(values[index]!);
+      }
+    }),
+  );
+  return results;
+}
 
 function commandOutput(result: ExecResult): string {
   return `${result.stdout}\n${result.stderr}`;
@@ -155,8 +177,10 @@ async function probeAndroidFeature(serial: string, feature: string): Promise<boo
 }
 
 async function hasAnyAndroidTvFeature(serial: string): Promise<boolean> {
-  const featureChecks = await Promise.all(
-    ANDROID_TV_FEATURES.map(async (feature) => await probeAndroidFeature(serial, feature)),
+  const featureChecks = await mapWithConcurrency(
+    ANDROID_TV_FEATURES,
+    ANDROID_FEATURE_PROBE_CONCURRENCY,
+    async (feature) => await probeAndroidFeature(serial, feature),
   );
   return featureChecks.some((value) => value === true);
 }
@@ -211,8 +235,10 @@ export async function listAndroidDevices(
     (entry) => !serialAllowlist || serialAllowlist.has(entry.serial),
   );
 
-  const devices = await Promise.all(
-    filteredEntries.map(async ({ serial, rawModel }) => {
+  const devices = await mapWithConcurrency(
+    filteredEntries,
+    ANDROID_DISCOVERY_CONCURRENCY,
+    async ({ serial, rawModel }) => {
       const [name, booted, target] = await Promise.all([
         resolveAndroidDeviceName(serial, rawModel),
         isAndroidBooted(serial),
@@ -226,7 +252,7 @@ export async function listAndroidDevices(
         target,
         booted,
       } satisfies DeviceInfo;
-    }),
+    },
   );
 
   return devices;

@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { runCmd, runCmdSync } from '../../src/utils/exec.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SUBPROCESS_TIMEOUT_MS = 120_000;
 
 async function listen(server: http.Server): Promise<number> {
   await new Promise<void>((resolve, reject) => {
@@ -48,43 +49,30 @@ async function execFileText(
   args: string[],
   options: { cwd: string },
 ): Promise<string> {
-  return await new Promise<string>((resolve, reject) => {
-    execFile(file, args, { ...options, encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
-        reject(
-          new Error(
-            [error.message, stdout ? `stdout:\n${stdout}` : '', stderr ? `stderr:\n${stderr}` : '']
-              .filter(Boolean)
-              .join('\n'),
-            { cause: error },
-          ),
-        );
-        return;
-      }
-      resolve(stdout);
-    });
+  const result = await runCmd(file, args, {
+    cwd: options.cwd,
+    timeoutMs: SUBPROCESS_TIMEOUT_MS,
   });
+  return result.stdout;
 }
 
 function packInstalledPackage(tempRoot: string): string {
   const packDir = path.join(tempRoot, 'pack');
   fs.mkdirSync(packDir, { recursive: true });
-  const tarballName = execFileSync(
-    'npm',
-    ['pack', '--ignore-scripts', '--pack-destination', packDir],
-    {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    },
-  ).trim();
+  const result = runCmdSync('npm', ['pack', '--ignore-scripts', '--pack-destination', packDir], {
+    cwd: repoRoot,
+    timeoutMs: SUBPROCESS_TIMEOUT_MS,
+  });
+  const tarballName = result.stdout.trim();
   return path.join(packDir, tarballName);
 }
 
 function extractInstalledPackage(tarballPath: string, consumerRoot: string): string {
   const nodeModulesRoot = path.join(consumerRoot, 'node_modules');
   fs.mkdirSync(nodeModulesRoot, { recursive: true });
-  execFileSync('tar', ['-xzf', tarballPath, '-C', nodeModulesRoot], {
+  runCmdSync('tar', ['-xzf', tarballPath, '-C', nodeModulesRoot], {
     cwd: consumerRoot,
+    timeoutMs: SUBPROCESS_TIMEOUT_MS,
   });
   const extractedPackageRoot = path.join(nodeModulesRoot, 'package');
   const installedPackageRoot = path.join(nodeModulesRoot, 'agent-device');

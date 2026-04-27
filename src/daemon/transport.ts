@@ -17,10 +17,17 @@ import { sleep } from '../utils/timeouts.ts';
 const disconnectAbortPollIntervalMs = 200;
 const disconnectAbortMaxWindowMs = 15_000;
 
+export type DaemonServer = (net.Server | HttpServer) & {
+  destroyConnections?: () => void;
+};
+
 export function createSocketServer(
   handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>,
-): net.Server {
-  return net.createServer((socket) => {
+): DaemonServer {
+  const sockets = new Set<net.Socket>();
+  const server: DaemonServer = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
     let buffer = '';
     let inFlightRequests = 0;
     const activeRequestIds = new Set<string>();
@@ -103,6 +110,13 @@ export function createSocketServer(
       }
     });
   });
+  server.destroyConnections = () => {
+    for (const socket of sockets) {
+      socket.destroy();
+    }
+    sockets.clear();
+  };
+  return server;
 }
 
 export function listenNetServer(server: net.Server): Promise<number> {

@@ -5,11 +5,11 @@ inputs:
   node-version:
     description: 'Node.js version'
     required: false
-    default: '22'
+    default: '22.19'
   pnpm-version:
     description: 'pnpm version'
     required: false
-    default: '9.12.2'
+    default: '10.33.2'
   install-deps:
     description: 'Whether to install dependencies with pnpm install --frozen-lockfile'
     required: false

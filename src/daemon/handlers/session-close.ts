@@ -94,6 +94,19 @@ async function stopAppleRunnerForClose(session: SessionState): Promise<void> {
   });
 }
 
+export async function teardownSessionResources(
+  session: SessionState,
+  sessionName: string,
+): Promise<void> {
+  if (session.appLog) {
+    await stopAppLog(session.appLog);
+  }
+  if (isApplePlatform(session.device.platform)) {
+    await stopAppleRunnerForClose(session);
+  }
+  await cleanupRetainedMaterializedPathsForSession(sessionName).catch(() => {});
+}
+
 export async function handleCloseCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -105,9 +118,7 @@ export async function handleCloseCommand(params: {
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'No active session');
   }
-  if (session.appLog) {
-    await stopAppLog(session.appLog);
-  }
+  if (session.appLog) await stopAppLog(session.appLog);
   if (req.positionals && req.positionals.length > 0) {
     if (isApplePlatform(session.device.platform)) {
       await stopAppleRunnerForClose(session);

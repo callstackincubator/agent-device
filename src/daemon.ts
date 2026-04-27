@@ -8,6 +8,12 @@ import { createDaemonHttpServer } from './daemon/http-server.ts';
 import { trackDownloadableArtifact } from './daemon/artifact-tracking.ts';
 import { LeaseRegistry } from './daemon/lease-registry.ts';
 import { createRequestHandler } from './daemon/request-router.ts';
+import { teardownSessionResources } from './daemon/handlers/session-close.ts';
+import {
+  emitDiagnostic,
+  flushDiagnosticsToSessionFile,
+  withDiagnosticsScope,
+} from './utils/diagnostics.ts';
 import {
   acquireDaemonLock,
   parseIntegerEnv,
@@ -18,7 +24,14 @@ import {
   resolveDaemonCodeSignature,
   writeInfo,
 } from './daemon/server-lifecycle.ts';
-import { createSocketServer, listenHttpServer, listenNetServer } from './daemon/transport.ts';
+import {
+  createSocketServer,
+  listenHttpServer,
+  listenNetServer,
+  type DaemonServer,
+} from './daemon/transport.ts';
+
+const DAEMON_SHUTDOWN_TIMEOUT_MS = 5_000;
 
 const daemonPaths = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
 const { baseDir, infoPath, lockPath, logPath, sessionsDir } = daemonPaths;
@@ -45,6 +58,115 @@ const handleRequest = createRequestHandler({
   trackDownloadableArtifact,
 });
 
+function forceCloseServer(server: DaemonServer): void {
+  server.destroyConnections?.();
+  const closeAllConnections =
+    'closeAllConnections' in server ? server.closeAllConnections : undefined;
+  if (typeof closeAllConnections === 'function') {
+    closeAllConnections.call(server);
+    return;
+  }
+  const closeIdleConnections =
+    'closeIdleConnections' in server ? server.closeIdleConnections : undefined;
+  if (typeof closeIdleConnections === 'function') closeIdleConnections.call(server);
+}
+
+async function closeDaemonServers(servers: DaemonServer[]): Promise<void> {
+  await Promise.all(
+    servers.map(async (server) => {
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      await new Promise<void>((resolve) => {
+        timeoutHandle = setTimeout(() => {
+          forceCloseServer(server);
+          resolve();
+        }, DAEMON_SHUTDOWN_TIMEOUT_MS);
+        try {
+          server.close(() => resolve());
+        } catch {
+          resolve();
+        }
+      });
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }),
+  );
+}
+
+async function emitFatalDiagnostic(error: unknown): Promise<void> {
+  await withDiagnosticsScope(
+    { command: 'daemon', session: 'daemon', logPath, debug: true },
+    async () => {
+      emitDiagnostic({
+        level: 'error',
+        phase: 'daemon_fatal',
+        data: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      flushDiagnosticsToSessionFile({ force: true });
+    },
+  );
+}
+
+async function teardownDaemonSessions(): Promise<void> {
+  const sessionsToStop = sessionStore.toArray();
+  for (const session of sessionsToStop) {
+    await teardownSessionResources(session, session.name).catch((error) => {
+      process.stderr.write(
+        `Daemon session teardown error (${session.name}): ${
+          error instanceof Error ? error.message : String(error)
+        }\n`,
+      );
+    });
+    sessionStore.writeSessionLog(session);
+    sessionStore.delete(session.name);
+  }
+}
+
+async function openDaemonServers(): Promise<{
+  servers: DaemonServer[];
+  socketPort?: number;
+  httpPort?: number;
+}> {
+  const servers: DaemonServer[] = [];
+  let socketPort: number | undefined;
+  let httpPort: number | undefined;
+  const startSocketServer = daemonServerMode !== 'http';
+  const startHttpServer = daemonServerMode !== 'socket';
+  if (startSocketServer) {
+    const socketServer = createSocketServer(handleRequest);
+    servers.push(socketServer);
+    socketPort = await listenNetServer(socketServer);
+  }
+
+  if (startHttpServer) {
+    const httpServer = await createDaemonHttpServer({ handleRequest, token });
+    servers.push(httpServer);
+    httpPort = await listenHttpServer(httpServer);
+  }
+  return { servers, socketPort, httpPort };
+}
+
+function publishDaemonInfo(socketPort: number | undefined, httpPort: number | undefined): void {
+  writeInfo(baseDir, infoPath, logPath, {
+    socketPort,
+    httpPort,
+    token,
+    version,
+    codeSignature: daemonCodeSignature,
+    processStartTime: daemonProcessStartTime,
+  });
+  if (socketPort) process.stdout.write(`AGENT_DEVICE_DAEMON_PORT=${socketPort}\n`);
+  if (httpPort) process.stdout.write(`AGENT_DEVICE_DAEMON_HTTP_PORT=${httpPort}\n`);
+}
+
+function closeServersBestEffort(servers: DaemonServer[]): void {
+  for (const server of servers) {
+    try {
+      server.close(() => {});
+    } catch {}
+  }
+}
+
 async function start(): Promise<void> {
   const lockData = {
     pid: process.pid,
@@ -58,41 +180,15 @@ async function start(): Promise<void> {
     return;
   }
 
-  const servers: Array<{ close: (cb: (err?: Error) => void) => void }> = [];
-  let socketPort: number | undefined;
-  let httpPort: number | undefined;
-
+  let servers: DaemonServer[] = [];
   try {
-    if (daemonServerMode === 'socket' || daemonServerMode === 'dual') {
-      const socketServer = createSocketServer(handleRequest);
-      servers.push(socketServer);
-      socketPort = await listenNetServer(socketServer);
-    }
-
-    if (daemonServerMode === 'http' || daemonServerMode === 'dual') {
-      const httpServer = await createDaemonHttpServer({ handleRequest, token });
-      servers.push(httpServer);
-      httpPort = await listenHttpServer(httpServer);
-    }
-
-    writeInfo(baseDir, infoPath, logPath, {
-      socketPort,
-      httpPort,
-      token,
-      version,
-      codeSignature: daemonCodeSignature,
-      processStartTime: daemonProcessStartTime,
-    });
-    if (socketPort) process.stdout.write(`AGENT_DEVICE_DAEMON_PORT=${socketPort}\n`);
-    if (httpPort) process.stdout.write(`AGENT_DEVICE_DAEMON_HTTP_PORT=${httpPort}\n`);
+    const opened = await openDaemonServers();
+    servers = opened.servers;
+    publishDaemonInfo(opened.socketPort, opened.httpPort);
   } catch (error) {
     const appErr = asAppError(error);
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
-    for (const server of servers) {
-      try {
-        server.close(() => {});
-      } catch {}
-    }
+    closeServersBestEffort(servers);
     removeInfo(infoPath);
     releaseDaemonLock(lockPath);
     process.exit(1);
@@ -100,31 +196,18 @@ async function start(): Promise<void> {
   }
 
   let shuttingDown = false;
-  const closeServers = async (): Promise<void> => {
-    await Promise.all(
-      servers.map(async (server) => {
-        await new Promise<void>((resolve) => {
-          try {
-            server.close(() => resolve());
-          } catch {
-            resolve();
-          }
-        });
-      }),
-    );
-  };
-  const shutdown = async () => {
+  const shutdown = async (options: { exitCode?: number; cause?: unknown } = {}) => {
     if (shuttingDown) return;
     shuttingDown = true;
-    await closeServers();
-    const sessionsToStop = sessionStore.toArray();
-    for (const session of sessionsToStop) {
-      sessionStore.writeSessionLog(session);
+    if (options.cause) {
+      await emitFatalDiagnostic(options.cause);
     }
+    await closeDaemonServers(servers);
+    await teardownDaemonSessions();
     await stopAllIosRunnerSessions();
     removeInfo(infoPath);
     releaseDaemonLock(lockPath);
-    process.exit(0);
+    process.exit(options.exitCode ?? 0);
   };
 
   process.on('SIGINT', () => {
@@ -139,13 +222,13 @@ async function start(): Promise<void> {
   process.on('uncaughtException', (err) => {
     const appErr = err instanceof AppError ? err : asAppError(err);
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
-    void shutdown();
+    void shutdown({ exitCode: 1, cause: err });
   });
   process.on('unhandledRejection', (reason) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     const appErr = err instanceof AppError ? err : asAppError(err);
     process.stderr.write(`Daemon error: ${appErr.message}\n`);
-    void shutdown();
+    void shutdown({ exitCode: 1, cause: err });
   });
 }
 
