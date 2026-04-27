@@ -599,6 +599,23 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
   }),
   makeCase({
+    id: 'expo-go-ios-after-app-id-miss',
+    contract: [
+      'Platform: iOS simulator',
+      'Target app display name: Agent Device Tester',
+      'Previous apps lookup did not list Agent Device Tester',
+      'Previous apps lookup did list Expo Go',
+      'Project URL: exp://127.0.0.1:8081',
+    ],
+    task: 'Plan the next command to launch the project after the app-id lookup miss without inventing a native bundle id.',
+    outputs: [commandPattern('open'), /exp:\/\/127\.0\.0\.1:8081/i],
+    forbiddenOutputs: [
+      /open\s+Agent Device Tester/i,
+      /com\.(?:callstack|example|agent)/i,
+      /host\.exp\.Exponent/i,
+    ],
+  }),
+  makeCase({
     id: 'expo-go-android-url-only',
     contract: [
       'Platform: Android',

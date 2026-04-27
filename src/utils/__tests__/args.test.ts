@@ -840,6 +840,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
+  assert.match(help, /apps lookup misses the project but shows Expo Go\/dev-client/);
   assert.match(help, /metro prepare --kind expo/);
   assert.match(help, /help react-devtools/);
 });

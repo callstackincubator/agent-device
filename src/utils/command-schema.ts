@@ -311,6 +311,7 @@ React Native dev loop:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
   Android uses the URL target directly; do not write open <app> <url> there:
     agent-device open exp://127.0.0.1:8081 --platform android
+  If apps lookup misses the project but shows Expo Go/dev-client and a project URL is available, open the URL/host shell; if no URL is available, ask instead of inventing an app id.
   Expo Dev Client/development builds: open the installed dev-client app id/name; if a dev-client URL is provided, open that URL next. For Metro setup use metro prepare --kind expo.
 
 React DevTools minimum loop:
