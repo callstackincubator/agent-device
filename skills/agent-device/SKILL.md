@@ -5,7 +5,15 @@ description: Automates Apple-platform apps (iOS, tvOS, macOS) and Android device
 
 # agent-device
 
-Router only. Before your first agent-device command or plan, read the version-matched CLI guide:
+Router only. Private setup before using this skill:
+
+```bash
+agent-device --version
+```
+
+Require `agent-device >= 0.13.4`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+
+Before your first agent-device command or plan, read the version-matched CLI guide:
 
 ```bash
 agent-device help workflow

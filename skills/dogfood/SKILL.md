@@ -6,7 +6,15 @@ allowed-tools: Bash(agent-device:*), Bash(npx agent-device:*)
 
 # Dogfood
 
-Router for exploratory QA. Read current CLI guidance:
+Router for exploratory QA. Private setup before using this skill:
+
+```bash
+agent-device --version
+```
+
+Require `agent-device >= 0.13.4`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+
+Read current CLI guidance:
 
 ```bash
 agent-device help dogfood

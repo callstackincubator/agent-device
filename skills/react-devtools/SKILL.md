@@ -5,7 +5,15 @@ description: Inspect and profile React Native component trees from agent-device.
 
 # react-devtools
 
-Router for React Native internals. Read current CLI guidance:
+Router for React Native internals. Private setup before using this skill:
+
+```bash
+agent-device --version
+```
+
+Require `agent-device >= 0.13.4`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+
+Read current CLI guidance:
 
 ```bash
 agent-device help react-devtools
