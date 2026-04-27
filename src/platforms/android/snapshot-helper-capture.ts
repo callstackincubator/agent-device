@@ -8,6 +8,8 @@ import {
   ANDROID_SNAPSHOT_HELPER_PACKAGE,
   ANDROID_SNAPSHOT_HELPER_PROTOCOL,
   ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+} from './snapshot-helper-types.ts';
+import type {
   AndroidSnapshotHelperCaptureOptions,
   AndroidSnapshotHelperMetadata,
   AndroidSnapshotHelperOutput,
