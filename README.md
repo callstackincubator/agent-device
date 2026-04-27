@@ -8,78 +8,83 @@
 
 # agent-device
 
-`agent-device` is a CLI for UI automation and app observability on iOS, tvOS, macOS, Android, and AndroidTV. It is built for agent-driven workflows: inspect the UI, interact deterministically, collect logs/network/perf evidence when behavior breaks, and keep the whole flow session-aware and replayable.
+Device automation CLI for AI agents. Mobile, TV, and desktop.
 
-If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this project applies the same broad idea to mobile apps and devices.
+Run the app. Inspect the UI. Collect the evidence. Repeat the flow.
+
+It gives agents structured UI access, deterministic interactions, screenshots, recordings, logs, network inspection, performance data, and replayable sessions on iOS, Android, tvOS, macOS, and Linux. If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
 
 [![Watch the demo video](./website/docs/public/agent-device-contacts.gif)](./website/docs/public/agent-device-contacts.mp4)
 
-## Project Goals
+## Use Cases
 
-- Give agents a practical way to understand mobile UI state through structured snapshots.
-- Keep automation flows token-efficient enough for real agent loops.
-- Make common interactions reliable enough for repeated automation runs.
-- Make debugging evidence easy to collect through logs, network inspection, and performance snapshots.
-- Keep automation grounded in sessions, selectors, and replayable flows instead of one-off scripts.
+- **QA**: explore flows, dogfood the app, run accessibility checks, capture evidence, and turn stable explorations into e2e tests.
+- **Debugging**: start from a Sentry issue, crash during development, support ticket, or bug description. Reproduce the flow, inspect logs/network/perf data, and fix with context.
+- **Development**: build from a product or engineering specification. Run the app, inspect the result, interact, debug, and iterate until the UI confirms the work.
 
-## Core Ideas
+## Get Started
 
-- Sessions: open a target once, interact within that session, then close it cleanly.
-- Snapshots: inspect the current accessibility tree in a compact form and get current-screen refs for exploration.
-- Refs vs selectors: use refs for discovery, use selectors for durable replay and assertions.
-- Observability: collect session logs, inspect recent HTTP traffic with `network dump`, and sample CPU/memory with `perf`.
-- Tests: run deterministic `.ad` scripts as a light e2e test suite.
-- Replay scripts: save `.ad` flows with `--save-script`, replay one script with `replay`, or run a folder/glob as a serial suite with `test`.
-  `test` supports metadata-aware retries up to 3 additional attempts, per-test timeouts, flaky pass reporting, and runner-managed artifacts under `.agent-device/test-artifacts` by default. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifacts when available.
-- Human docs vs agent skills: docs explain the system for people; skills provide compact operating guidance for agents.
-
-## Complementary Tooling
-
-Use `agent-device` for on-device UI automation, screenshots/recordings, app logs, network inspection, and performance snapshots.
-
-When the task needs the React Native component tree, props, state, hooks, or render profiling, use the bundled passthrough:
+Install the CLI.
 
 ```bash
-agent-device react-devtools status
-agent-device react-devtools get tree --depth 3
-agent-device react-devtools profile start
-agent-device react-devtools profile stop
-agent-device react-devtools profile slow --limit 5
+npm install -g agent-device
 ```
 
-`react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` commands 1:1, so `agent-device` covers both the device/app runtime layer and React component internals without making React DevTools part of the daemon.
+Choose how to run it.
 
-When an Android session is connected through a remote bridge profile, `react-devtools` automatically opens a lease-scoped companion tunnel for the local DevTools daemon on port 8097 and cleans it up when the command exits.
-
-Remote Android React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
+| Path | Best for | Start with |
+| --- | --- | --- |
+| Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
+| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Use a ready setup for GitHub PRs, EAS builds, or CI validation. Coming soon. |
+| Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
 ## Command Flow
 
 The canonical loop is:
 
 ```bash
+# Find the app.
 agent-device apps --platform ios
+
+# Start a session.
 agent-device open SampleApp --platform ios
+
+# Inspect the current screen.
 agent-device snapshot -i
-agent-device press @e3
+# @e1 [heading] "Settings"
+# @e2 [button] "Sign In"
+# @e3 [text-field] "Email"
+
+# Act on visible elements with press, fill, scroll, and more.
+agent-device fill @e3 "test"
+
+# Check what changed, then close the session.
 agent-device diff snapshot -i
-agent-device fill @e5 "test"
-agent-device press @e5
-agent-device type " more" --delay-ms 80
 agent-device close
 ```
 
-In practice, most work follows the same pattern:
-
-1. Discover the exact app id with `apps` if the package or bundle name is uncertain.
-2. `open` a target app or URL.
-3. `snapshot -i` to inspect the current screen.
-4. `press`, `fill`, `scroll`, `get`, or `wait` using refs or selectors. On iOS and Android, default snapshot text follows the same visible-first contract: refs shown in default output are actionable now, while hidden content is surfaced as scroll/list discovery hints instead of tappable off-screen refs. If the target only appears in a hidden-content hint, use `scroll <direction>` and re-snapshot.
-   Use `rotate <orientation>` when a flow needs a deterministic portrait or landscape state on mobile targets.
-5. `diff snapshot` or re-snapshot after UI changes.
-6. `close` when the session is finished.
+Refs shown in default snapshot output are actionable now. Hidden content is surfaced as scroll/list discovery hints; scroll and re-snapshot before acting on it.
 
 In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
+
+## Features
+
+- Mobile, TV, and desktop coverage: iOS, Android, tvOS, Android TV, macOS, and Linux.
+- Real device and simulator support.
+- Token-efficient accessibility snapshots for agent loops.
+- MIT licensed. Free to use.
+- Automation, diffing, logging, debugging, network inspection, and profiling.
+- React Native and Expo workflows, including React component tree inspection, props/state/hooks, and render profiling.
+- Screenshots and video recordings.
+- Replayable `.ad` scripts that turn exploration into e2e tests.
+- Accessibility checks and dogfooding workflows.
+
+## Used By
+
+Used by teams and developers at Callstack, Expensify, [Shopify](https://x.com/mustafa01ali/status/2035155157982289998), [Kindred](https://x.com/sregg/status/2045231628369191075), Total Wine & More, [LegendList](https://x.com/jmeistrich/status/2036398735698305178), [HerLyfe](https://x.com/oliverbowman_), App & Flow, and more.
+
+- [Oliver Bowman](https://x.com/oliverbowman_), HerLyfe: reduced the feedback loop in agentic workflows.
+- [Jay Meistrich](https://x.com/jmeistrich/status/2036398735698305178), LegendList: used it for Android phone and iOS simulator testing while developing LegendList optimizations.
 
 ## Where To Go Next
 
@@ -87,11 +92,6 @@ For people:
 
 - [Website](https://agent-device.dev/)
 - [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
-- [Skillgym starter](test/skillgym/README.md)
-
-Local benchmark starter:
-
-- `pnpm test:skillgym`
 
 For agents:
 
@@ -99,18 +99,6 @@ For agents:
 - [react-devtools skill](skills/react-devtools/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)
-
-## Install
-
-```bash
-npm install -g agent-device
-```
-
-`agent-device` now performs a lightweight background upgrade check for interactive CLI runs and, when a newer package is available, suggests a global reinstall command. Updating the package also refreshes the bundled `skills/` shipped with the CLI.
-
-Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
-
-On macOS, `agent-device` includes a local `agent-device-macos-helper` source package that is built on demand for desktop permission checks, alert handling, and helper-backed desktop snapshot surfaces. Release distribution should use a signed/notarized helper build; source checkouts fall back to a local Swift build. Local helper overrides through `AGENT_DEVICE_MACOS_HELPER_BIN` must use an absolute executable path.
 
 ## Contributing
 
