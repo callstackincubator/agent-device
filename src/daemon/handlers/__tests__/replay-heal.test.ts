@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { handleSessionCommands } from '../session.ts';
+import { healReplayAction } from '../session-replay-heal.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
@@ -88,6 +89,59 @@ function tokenizeReplayLine(line: string): string[] {
   }
   return tokens;
 }
+
+test('replay heal snapshot refresh clears stale scoped snapshot source', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-scope-source-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-scope-source-session';
+  const session = makeSession(sessionName);
+  session.snapshotScopeSource = {
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        depth: 0,
+        type: 'Button',
+        label: 'Stale button',
+      },
+    ],
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Button',
+        label: 'Continue',
+        rect: { x: 0, y: 0, width: 100, height: 44 },
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const healed = await healReplayAction({
+    action: {
+      ts: Date.now(),
+      command: 'click',
+      positionals: ['label="Continue"'],
+      flags: {},
+      result: {},
+    },
+    sessionName,
+    logPath: '/tmp/replay.log',
+    sessionStore,
+  });
+
+  expect(healed?.positionals[0]).toContain('label="Continue"');
+  expect(sessionStore.get(sessionName)?.snapshotScopeSource).toBeUndefined();
+});
 
 test('replay --update heals selector and rewrites replay file', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-'));

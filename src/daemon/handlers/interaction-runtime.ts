@@ -8,6 +8,7 @@ import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { SessionState } from '../types.ts';
 import { createUnsupportedArtifactAdapter } from '../runtime-artifacts.ts';
+import { setSessionSnapshot } from '../session-snapshot.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
 
@@ -34,7 +35,7 @@ export function createInteractionRuntime(
           : undefined,
       set: (record) => {
         if (!record.snapshot) return;
-        session.snapshot = record.snapshot;
+        setSessionSnapshot(session, record.snapshot);
         params.sessionStore.set(params.sessionName, session);
       },
     },

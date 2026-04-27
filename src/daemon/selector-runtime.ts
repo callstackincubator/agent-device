@@ -31,6 +31,7 @@ import type { IsCommandOptions } from '../commands/selector-read.ts';
 import { isSupportedPredicate } from './is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
 import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
+import { setSessionSnapshot } from './session-snapshot.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import {
   describeAndroidEscapeSurface,
@@ -232,7 +233,7 @@ function createSelectorRuntimeForDevice(params: {
       get: (name) => (name === params.sessionName ? toCommandSession(params.session) : undefined),
       set: (record) => {
         if (!params.session || !record.snapshot) return;
-        params.session.snapshot = record.snapshot;
+        setSessionSnapshot(params.session, record.snapshot);
         params.sessionStore.set(params.sessionName, params.session);
       },
     },
@@ -312,7 +313,7 @@ function createSelectorBackend(params: {
         snapshotScope,
       });
       if (session) {
-        session.snapshot = capture.snapshot;
+        setSessionSnapshot(session, capture.snapshot);
         sessionStore.set(sessionName, session);
       }
       lastSnapshotAt = timestamp;
@@ -405,7 +406,7 @@ async function captureWaitSnapshot(params: {
     logPath: params.logPath ?? '',
   });
   if (params.session) {
-    params.session.snapshot = capture.snapshot;
+    setSessionSnapshot(params.session, capture.snapshot);
     params.sessionStore.set(params.sessionName, params.session);
   }
   return capture.snapshot;

@@ -138,19 +138,74 @@ function createSnapshotRuntime(params: {
           throw new AppError('UNKNOWN', 'snapshot runtime did not produce session state');
         }
         const current = sessionStore.get(sessionName);
-        const nextSession = buildSnapshotSession({
-          session: current,
+        sessionStore.set(
           sessionName,
-          device,
-          snapshot: record.snapshot,
-          appBundleId: record.appBundleId,
-        });
-        if (record.appName) nextSession.appName = record.appName;
-        sessionStore.set(sessionName, nextSession);
+          buildNextSnapshotSession({
+            current,
+            sessionName,
+            device,
+            record,
+            refScopedSnapshot: isRefScopedSnapshot(req),
+          }),
+        );
       },
     },
     policy: localCommandPolicy(),
   });
+}
+
+function buildNextSnapshotSession(params: {
+  current: SessionState | undefined;
+  sessionName: string;
+  device: SessionState['device'];
+  record: CommandSessionRecord;
+  refScopedSnapshot: boolean;
+}): SessionState {
+  const { current, sessionName, device, record, refScopedSnapshot } = params;
+  if (!record.snapshot) {
+    throw new AppError('UNKNOWN', 'snapshot runtime did not produce session state');
+  }
+  const keepCurrentSnapshot = shouldKeepCurrentSnapshot(current, record, refScopedSnapshot);
+  const snapshot = keepCurrentSnapshot ? current.snapshot : record.snapshot;
+  const nextSession = buildSnapshotSession({
+    session: current,
+    sessionName,
+    device,
+    snapshot,
+    appBundleId: record.appBundleId,
+  });
+  nextSession.snapshotScopeSource = resolveNextSnapshotScopeSource({
+    current,
+    keepCurrentSnapshot,
+    refScopedSnapshot,
+  });
+  if (record.appName) nextSession.appName = record.appName;
+  return nextSession;
+}
+
+function isRefScopedSnapshot(req: DaemonRequest): boolean {
+  return req.flags?.snapshotScope?.trim().startsWith('@') === true;
+}
+
+function shouldKeepCurrentSnapshot(
+  current: SessionState | undefined,
+  record: CommandSessionRecord,
+  refScopedSnapshot: boolean,
+): current is SessionState & { snapshot: NonNullable<SessionState['snapshot']> } {
+  return (
+    refScopedSnapshot && record.snapshot?.nodes.length === 0 && current?.snapshot !== undefined
+  );
+}
+
+function resolveNextSnapshotScopeSource(params: {
+  current: SessionState | undefined;
+  keepCurrentSnapshot: boolean;
+  refScopedSnapshot: boolean;
+}): SessionState['snapshotScopeSource'] {
+  const { current, keepCurrentSnapshot, refScopedSnapshot } = params;
+  if (!refScopedSnapshot) return undefined;
+  if (keepCurrentSnapshot) return current?.snapshotScopeSource;
+  return current?.snapshotScopeSource ?? current?.snapshot;
 }
 
 function createDaemonSnapshotBackend(params: {

@@ -60,7 +60,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   const data = await captureSnapshotData(params);
   clearAndroidSnapshotFreshness(params.session);
   return {
-    snapshot: buildSnapshotState(data, params.flags),
+    snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
     analysis: data.analysis,
   };
 }
@@ -146,7 +146,19 @@ async function captureSnapshotAttempt(
   const data = await captureSnapshotData(params);
   return {
     data,
-    snapshot: buildSnapshotState(data, params.flags),
+    snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
+  };
+}
+
+function resolveSnapshotStateFlags(
+  params: Pick<CaptureSnapshotParams, 'flags' | 'snapshotScope'>,
+): CaptureSnapshotParams['flags'] {
+  if (params.snapshotScope === undefined) {
+    return params.flags;
+  }
+  return {
+    ...params.flags,
+    snapshotScope: params.snapshotScope,
   };
 }
 
@@ -350,8 +362,16 @@ export function resolveSnapshotScope(
   if (!ref) {
     return errorResponse('INVALID_ARGS', `Invalid ref scope: ${snapshotScope}`);
   }
-  const node = findNodeByRef(session.snapshot.nodes, ref);
-  const resolved = node ? resolveRefLabel(node, session.snapshot.nodes) : undefined;
+  const candidates = [
+    session.snapshot,
+    ...(session.snapshotScopeSource ? [session.snapshotScopeSource] : []),
+  ];
+  let resolved: string | undefined;
+  for (const snapshot of candidates) {
+    const node = findNodeByRef(snapshot.nodes, ref);
+    resolved = node ? resolveRefLabel(node, snapshot.nodes) : undefined;
+    if (resolved) break;
+  }
   if (!resolved) {
     return errorResponse('COMMAND_FAILED', `Ref ${snapshotScope} not found or has no label`);
   }

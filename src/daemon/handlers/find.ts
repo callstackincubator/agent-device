@@ -9,6 +9,7 @@ import { ensureDeviceReady } from '../device-ready.ts';
 import { extractNodeText, findNearestHittableAncestor } from '../snapshot-processing.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
+import { setSessionSnapshot } from '../session-snapshot.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
@@ -109,7 +110,7 @@ export async function handleFindCommands(params: {
     lastSnapshotAt = now;
     lastNodes = nodes;
     if (session) {
-      session.snapshot = snapshot;
+      setSessionSnapshot(session, snapshot);
       sessionStore.set(sessionName, session);
     }
     return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };

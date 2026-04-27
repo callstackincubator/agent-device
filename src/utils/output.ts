@@ -569,10 +569,28 @@ function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
 }
 
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
-  return lines.flatMap((line) => [line.text, ...readHiddenContentHintLines(line)]);
+  const output: string[] = [];
+  const pendingBelow: ReturnType<typeof buildSnapshotDisplayLines> = [];
+  const flushClosedBelowHints = (nextDepth: number) => {
+    while (pendingBelow.length > 0 && nextDepth <= pendingBelow[pendingBelow.length - 1]!.depth) {
+      output.push(...readHiddenContentHintLines(pendingBelow.pop()!, 'below'));
+    }
+  };
+
+  for (const line of lines) {
+    flushClosedBelowHints(line.depth);
+    output.push(line.text);
+    output.push(...readHiddenContentHintLines(line, 'above'));
+    if (line.node.hiddenContentBelow) {
+      pendingBelow.push(line);
+    }
+  }
+  flushClosedBelowHints(0);
+  return output;
 }
 
 function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
+  // Flattened output has no subtree boundary to defer below-hints past.
   return buildSnapshotDisplayLines(nodes, { summarizeTextSurfaces: true }).flatMap((line) => [
     formatSnapshotLine(line.node, 0, false, line.type, { summarizeTextSurfaces: true }),
     ...readHiddenContentHintLines({ ...line, depth: 0 }),
@@ -581,16 +599,17 @@ function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
 
 function readHiddenContentHintLines(
   line: ReturnType<typeof buildSnapshotDisplayLines>[number],
+  direction?: 'above' | 'below',
 ): string[] {
   const target = hintTargetLabel(line.type);
   if (!target) {
     return [];
   }
   const hints: string[] = [];
-  if (line.node.hiddenContentAbove) {
+  if (line.node.hiddenContentAbove && direction !== 'below') {
     hints.push(`[content above ${target} hidden]`);
   }
-  if (line.node.hiddenContentBelow) {
+  if (line.node.hiddenContentBelow && direction !== 'above') {
     hints.push(`[content below ${target} hidden]`);
   }
   if (hints.length === 0) {

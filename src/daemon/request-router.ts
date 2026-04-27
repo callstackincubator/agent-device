@@ -23,6 +23,7 @@ import { handleInteractionCommands } from './handlers/interaction.ts';
 import { handleLeaseCommands } from './handlers/lease.ts';
 import { buildSnapshotState, captureSnapshotData } from './handlers/snapshot-capture.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
+import { setSessionSnapshot } from './session-snapshot.ts';
 import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
 import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
@@ -473,7 +474,7 @@ async function applyScreenshotOverlay(
     snapshotScope: undefined,
   });
   const overlaySnapshot = buildSnapshotState(overlaySnapshotData, undefined);
-  session.snapshot = overlaySnapshot;
+  setSessionSnapshot(session, overlaySnapshot);
   const overlayRefs = await annotateScreenshotWithRefs({
     screenshotPath: data.path as string,
     snapshot: overlaySnapshot,

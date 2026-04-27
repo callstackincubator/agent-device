@@ -226,9 +226,10 @@ test('handleFindCommands click returns deterministic metadata across locator var
       positionals: ['Increment', 'click'],
       nodes: [hittableParentNoRect, nonHittableChildWithRect],
       invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeView' }),
-      expectedKeys: ['locator', 'query', 'ref'],
+      expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
       expectedLocator: 'any',
       expectedQuery: 'Increment',
+      expectedCoordinates: { x: 100, y: 50 },
     },
     {
       label: 'keeps explicit label locator in metadata',
