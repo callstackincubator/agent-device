@@ -158,10 +158,13 @@ const SELECTOR_SNAPSHOT_FLAGS = [
 
 const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
 
-const AGENT_SKILLS = [
-  { label: 'agent-device', description: 'Canonical mobile automation flows' },
-  { label: 'react-devtools', description: 'React Native component tree and render profiling' },
-  { label: 'dogfood', description: 'Exploratory QA and bug hunts' },
+const AGENT_WORKFLOWS = [
+  { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
+  { label: 'help debugging', description: 'Logs, network, alerts, diagnostics, and traces' },
+  { label: 'help react-devtools', description: 'React Native component tree and render profiling' },
+  { label: 'help remote', description: 'Remote config, tenants, leases, and companion tunnels' },
+  { label: 'help macos', description: 'Desktop, frontmost-app, and menu bar surfaces' },
+  { label: 'help dogfood', description: 'Exploratory QA report workflow' },
 ] as const;
 
 const CONFIGURATION_LINES = [
@@ -193,6 +196,258 @@ const EXAMPLE_LINES = [
   'agent-device replay ./session.ad',
   'agent-device test ./suite --platform android',
 ] as const;
+
+const HELP_TOPICS = {
+  workflow: {
+    summary: 'Normal agent-device bootstrap, exploration, and validation loop',
+    body: `agent-device help workflow
+
+Version-matched operating guide for normal agent-device work.
+
+Core loop:
+  devices/apps -> open -> snapshot or snapshot -i -> get/is/find/wait or press/fill/scroll/back -> verify -> close
+
+Command shape:
+  Final plans should use agent-device, not node bin/agent-device.mjs, pnpm ad, raw platform tools, or helper prose.
+  Put subcommand first, then positionals, then flags:
+    agent-device open com.example.app --session checkout --platform android --relaunch
+    agent-device record start ./checkout.mp4 --session checkout
+  Unknown current ref placeholder: @ref. Use provided labels/ids/selectors when known. Never invent @e#.
+  After snapshot -i, use @ref in plans when the exact @e number is unknown.
+  Close means agent-device close. App-owned back means back; system back means back --system.
+  Taps are press or click. Gestures are direct commands: swipe, longpress, pinch.
+
+Bootstrap:
+  agent-device devices --platform ios
+  agent-device apps --platform android
+  agent-device open MyApp --platform ios --device "iPhone 17 Pro"
+  agent-device open <discovered-app-id> --session checkout --platform android
+  agent-device install com.example.app ./dist/app.apk --platform android
+  agent-device reinstall com.example.app ./build/MyApp.app --platform ios
+  If app id is unknown, plan devices, apps, then open <discovered-app-id>. Install arguments are app/package id then artifact path. Fresh install state: open with --relaunch.
+
+Snapshots and refs:
+  snapshot reads visible state. snapshot -i gets current interactive refs.
+  Re-snapshot after navigation, submit, modal/list/reload/dynamic changes.
+  Off-screen summaries are scroll hints; use scroll, not swipe, then snapshot -i.
+
+Selectors:
+  Use selectors as positional targets: id="field-email" or label="Allow".
+  Do not use CSS selectors, pseudo refs, --selector, --text, or raw x/y when refs/selectors exist.
+    agent-device fill 'id="catalog-search"' "tart" --delay-ms 80
+    agent-device press 'id="submit-order"'
+    agent-device is visible 'label="Online"'
+    agent-device get text 'id="quantity-value"'
+
+Text entry:
+  fill replaces; type appends to focused field.
+    agent-device fill @e5 "qa@example.com"
+    agent-device fill 'id="field-email"' "qa@example.com"
+    agent-device press 'id="product-note"'
+    agent-device type "Handle with care" --delay-ms 80
+  Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: keyboard dismiss.
+
+Read-only and waits:
+  agent-device snapshot
+  agent-device get text 'id="product-title"'
+  agent-device is visible 'label="Online"'
+  agent-device wait visible 'label="Refreshing metrics..."' 3000
+  agent-device find "Increment" press --json
+
+Navigation and gestures:
+  Use scroll for lists; swipe for coordinate gestures/carousels.
+  Keep count/pause/pattern on one swipe; flags are --count, --pause-ms, --pattern ping-pong.
+  longpress duration and pinch scale/center are positional:
+    agent-device longpress 300 500 800
+    agent-device swipe 320 500 40 500 --count 8 --pause-ms 30 --pattern ping-pong
+    agent-device pinch 0.5 200 400
+
+Validation and evidence:
+  Nearby mutation diff: agent-device diff snapshot -i.
+  Expected text/selector verification should mention it via wait, is, get, or find; avoid bare screenshots/snapshots for expected text.
+  If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
+  Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
+  Startup/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
+  Recording: record start/stop. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
+  Stable known flow: batch ./steps.json, not workflow batch.
+  Android animations: settings animations off/on, not animations disable/restore.
+  Network headers: network dump --include headers.
+  Remote config: connect --remote-config ./remote-config.json, open, snapshot, disconnect.
+  macOS menu bar: open ... --platform macos --surface menubar; snapshot -i --platform macos --surface menubar.
+
+React Native dev loop:
+  JS-only change with Metro connected:
+    agent-device metro reload
+    agent-device find "Home"
+  Do not use agent-device reload. Use open --relaunch for native startup reset.
+
+React DevTools minimum loop:
+  react-devtools status -> react-devtools wait --connected -> react-devtools profile start -> interact -> react-devtools profile stop -> react-devtools profile slow -> react-devtools profile rerenders.
+
+Escalate:
+  help debugging       logs, network, alerts, traces, flaky runtime failures
+  help react-devtools  props, state, hooks, component tree, slow renders, rerenders
+  help remote          remote-config, tenant, lease, remote Android companion tunnel
+  help macos           desktop, frontmost-app, menu bar surfaces
+  help dogfood         exploratory QA report workflow`,
+  },
+  debugging: {
+    summary: 'Targeted failure evidence without dumping stale context',
+    body: `agent-device help debugging
+
+Use this when behavior fails, hangs, times out, throws alerts, or needs runtime evidence.
+
+Logs:
+  Keep log windows small. Prefer clear, mark, reproduce, then path.
+    agent-device logs clear --restart
+    agent-device logs mark "before diagnostics retry"
+    agent-device press 'id="load-diagnostics"'
+    agent-device logs path
+  Do not cat a full stale log into agent context. Open or grep only the relevant window when needed.
+
+Network:
+  Use network dump for recent session HTTP traffic parsed from app logs.
+    agent-device network dump --include headers
+    agent-device network dump 20 --include all
+  Use this instead of logs path when the question is request/response metadata.
+  network log is a supported alias, but network dump --include headers is the clearest plan form.
+
+Alerts:
+  Native alerts:
+    agent-device alert wait 3000
+    agent-device alert accept
+    agent-device alert dismiss
+  If alert accept says no alert but a permission sheet is visibly on screen, treat it as normal UI:
+    agent-device snapshot -i
+    agent-device press 'label="Allow"'
+
+Diagnostics and traces:
+  Use --debug for CLI/daemon diagnostic ids and log paths.
+  Use trace for low-level session diagnostics around one repro:
+    agent-device trace start ./traces/diagnostics.trace
+    agent-device press 'id="load-diagnostics"'
+    agent-device trace stop ./traces/diagnostics.trace
+  The trace path is positional. Do not use --path for trace start or trace stop.
+
+Stabilizers:
+  Android animation-sensitive flows:
+    agent-device settings animations off
+    agent-device snapshot
+    agent-device settings animations on
+  Re-enable settings you changed before finishing.
+
+React Native internals:
+  If the question is about props, state, hooks, render causes, slow components, or rerenders, use help react-devtools instead of inferring from screenshots or logs.`,
+  },
+  'react-devtools': {
+    summary: 'React Native component tree and profiling workflow',
+    body: `agent-device help react-devtools
+
+Use this for React Native internals that the accessibility tree cannot expose: components, props, state, hooks, ownership, slow renders, and rerenders.
+
+Core commands:
+  agent-device react-devtools status
+  agent-device react-devtools wait --connected
+  agent-device react-devtools get tree --depth 3
+  agent-device react-devtools find <ComponentName>
+  agent-device react-devtools get component @c5
+  agent-device react-devtools profile start
+  agent-device react-devtools profile stop
+  agent-device react-devtools profile slow --limit 5
+  agent-device react-devtools profile rerenders --limit 5
+
+Profiling loop:
+  1. Verify the app is connected: react-devtools status, then wait --connected if needed.
+  2. Start profiling immediately before the interaction.
+  3. Drive the interaction with normal agent-device commands.
+  4. Stop profiling.
+  5. Inspect slow components and rerenders.
+
+Example:
+  agent-device react-devtools status
+  agent-device react-devtools wait --connected
+  agent-device react-devtools profile start
+  agent-device fill 'id="catalog-search"' "tart" --delay-ms 80
+  agent-device react-devtools profile stop
+  agent-device react-devtools profile slow --limit 5
+  agent-device react-devtools profile rerenders --limit 5
+
+Use snapshot, screenshot, logs, network, and perf for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
+  },
+  remote: {
+    summary: 'Remote config, tenant, lease, and remote host flow',
+    body: `agent-device help remote
+
+Use remote config when a profile owns daemon URL, auth, tenant, run, lease, device scope, and Metro hints. Do not restate those as individual flags unless overriding intentionally.
+
+Normal flow:
+  agent-device connect --remote-config ./remote-config.json
+  agent-device open com.example.app
+  agent-device snapshot
+  agent-device disconnect
+
+Rules:
+  connect and disconnect are top-level commands. Do not write agent-device remote connect or agent-device remote disconnect.
+  Prefer --remote-config over --daemon-base-url, --tenant, --run-id, and --lease-id in ordinary remote flows.
+  After connect, let the active remote connection supply runtime hints.
+  For remote Android React DevTools, run agent-device react-devtools normally. The CLI opens the companion tunnel for the local DevTools daemon and cleans it up when the command exits.
+  Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
+  },
+  macos: {
+    summary: 'macOS desktop, frontmost-app, and menu bar surfaces',
+    body: `agent-device help macos
+
+Use macOS only when the task targets desktop apps, desktop surfaces, or menu bar extras.
+
+Open and inspect:
+  agent-device open TextEdit --platform macos
+  agent-device snapshot -i --platform macos
+
+Surfaces:
+  --surface app            normal app session
+  --surface frontmost-app  inspect whichever app is frontmost
+  --surface desktop        desktop-wide surface
+  --surface menubar        menu bar extras and menu bar-only apps
+
+Menu bar app example:
+  agent-device open "Agent Device Tester Menu" --platform macos --surface menubar
+  agent-device snapshot -i --platform macos --surface menubar
+
+Rules:
+  Use open and snapshot -i for menu bar inspection. Do not output inspect as a command.
+  Do not let iOS simulator-set scoping hide macOS desktop targets.
+  Prefer refs/selectors over raw coordinates.
+  macOS snapshot rects are window-space; use current refs or overlay refs instead of guessing coordinates.`,
+  },
+  dogfood: {
+    summary: 'Exploratory QA workflow with reproducible evidence',
+    body: `agent-device help dogfood
+
+Use this when asked to dogfood, exploratory test, bug hunt, QA, or find issues in an app.
+
+Loop:
+  1. Open a named session for the target app and platform.
+  2. Capture initial snapshot -i and screenshot.
+  3. Map top-level navigation.
+  4. Explore major flows, edge states, loading, errors, offline, permissions, and settings.
+  5. For each issue, stop and capture evidence before continuing.
+  6. Close the session and summarize findings.
+
+Evidence commands:
+  agent-device --session qa open <app> --platform ios
+  agent-device --session qa snapshot -i
+  agent-device --session qa screenshot ./dogfood-output/screenshots/initial.png
+  agent-device --session qa record start ./dogfood-output/videos/issue-001.mp4
+  agent-device --session qa record stop
+  agent-device --session qa close
+
+Rules:
+  Never read app source to invent findings.
+  Re-snapshot after each mutation.
+  Prefer refs for exploration and selectors for deterministic replay.
+  Use logs, network, screenshot --overlay-refs, trace, perf, or react-devtools only when they add evidence to a specific issue.`,
+  },
+} as const satisfies Record<string, { summary: string; body: string }>;
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
@@ -1565,10 +1820,7 @@ CLI to control iOS and Android devices for AI agents.
 
   const helpFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
   const flagsSection = renderFlagSection('Flags:', helpFlags);
-  const skillsSection = [
-    renderAlignedSection('Agent Skills:', AGENT_SKILLS),
-    'See `skills/<name>/SKILL.md` in the installed package.',
-  ].join('\n\n');
+  const workflowsSection = renderAlignedSection('Agent Workflows:', AGENT_WORKFLOWS);
   const configSection = renderTextSection('Configuration:', CONFIGURATION_LINES);
   const environmentSection = renderAlignedSection('Environment:', ENVIRONMENT_LINES);
   const examplesSection = renderTextSection('Examples:', EXAMPLE_LINES);
@@ -1578,7 +1830,7 @@ ${commandLines}
 
 ${flagsSection}
 
-${skillsSection}
+${workflowsSection}
 
 ${configSection}
 
@@ -1648,6 +1900,8 @@ function renderCommandSection(
 }
 
 export function buildCommandUsageText(commandName: string): string | null {
+  const topicHelp = buildHelpTopicUsageText(commandName);
+  if (topicHelp) return topicHelp;
   const schema = getCommandSchema(commandName);
   if (!schema) return null;
   const usage = buildCommandUsage(commandName, schema);
@@ -1667,5 +1921,17 @@ Usage:
   agent-device ${usage}
 
 ${sections.join('\n\n')}
+`;
+}
+
+function buildHelpTopicUsageText(topicName: string): string | null {
+  const topic = HELP_TOPICS[topicName as keyof typeof HELP_TOPICS];
+  if (!topic) return null;
+  return `${topic.body}
+
+Related:
+  agent-device help                  command list and global flags
+  agent-device help <command>        command-specific flags
+  agent-device help workflow         normal app automation loop
 `;
 }

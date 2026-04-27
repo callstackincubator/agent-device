@@ -44,7 +44,7 @@ Skill-guidance regression cases cover distinct command-planning habits:
 
 `assertAgentDeviceEvidence` is intentionally soft when a runner does not expose skill-detection telemetry. When telemetry exists, the suite asserts that `agent-device` was loaded; when it is absent, the cases still judge command-planning output instead of failing on missing runner metadata.
 
-The `codex-main` baseline is a benchmark signal, not a required all-green gate. Its failures should map to command-planning regressions called out by individual case IDs; do not treat the historical pass/fail count as a fixed threshold.
+The `codex-mini` baseline is a benchmark signal, not a required all-green gate. Its failures should map to command-planning regressions called out by individual case IDs; do not treat the historical pass/fail count as a fixed threshold.
 
 ## Suggested workflow
 
@@ -62,10 +62,11 @@ pnpm install
 pnpm test:skillgym
 ```
 
-If you want to run `skillgym` directly instead of using the convenience script:
+If you want to run `skillgym` directly instead of using the convenience script, build the local CLI first so agents can call `node bin/agent-device.mjs help workflow`:
 
 ```bash
 cd /absolute/path/to/agent-device
+pnpm build
 pnpm exec skillgym run \
   ./test/skillgym/suites/agent-device-smoke-suite.ts \
   --config ./test/skillgym/skillgym.config.ts

@@ -783,12 +783,12 @@ test('usage includes only global flags in the top-level flags section', () => {
   assert.doesNotMatch(usageText, /--metadata/);
 });
 
-test('usage includes skills, config, environment, and examples footers', () => {
+test('usage includes agent workflows, config, environment, and examples footers', () => {
   const usageText = usage();
-  assert.match(usageText, /Agent Skills:/);
-  assert.match(usageText, /agent-device\s+Canonical mobile automation flows/);
-  assert.match(usageText, /dogfood\s+Exploratory QA and bug hunts/);
-  assert.match(usageText, /See `skills\/<name>\/SKILL\.md` in the installed package\./);
+  assert.match(usageText, /Agent Workflows:/);
+  assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
+  assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
+  assert.match(usageText, /help react-devtools\s+React Native component tree and render profiling/);
   assert.match(usageText, /Configuration:/);
   assert.match(
     usageText,
@@ -809,6 +809,15 @@ test('usage includes skills, config, environment, and examples footers', () => {
   assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
   assert.match(usageText, /agent-device replay \.\/session\.ad/);
   assert.match(usageText, /agent-device test \.\/suite --platform android/);
+});
+
+test('usageForCommand resolves workflow help topic', () => {
+  const help = usageForCommand('workflow');
+  if (help === null) throw new Error('Expected workflow help text');
+  assert.match(help, /agent-device help workflow/);
+  assert.match(help, /Use selectors as positional targets/);
+  assert.match(help, /Do not use CSS selectors/);
+  assert.match(help, /help react-devtools/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {

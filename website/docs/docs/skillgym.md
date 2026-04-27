@@ -1,6 +1,6 @@
 # Skillgym
 
-`agent-device` works well with [`skillgym`](https://github.com/callstackincubator/skillgym) when you want to benchmark skill routing and workflow quality before paying the cost of full live-device runs.
+`agent-device` works well with [`skillgym`](https://github.com/callstackincubator/skillgym) when you want to benchmark help-guided command planning and workflow quality before paying the cost of full live-device runs.
 
 ## What `skillgym` gives us
 
@@ -10,9 +10,9 @@
 
 For `agent-device`, that makes it a strong fit for:
 
-- verifying that the `agent-device` skill is selected for simulator and device tasks
-- verifying that the skill loads its mandatory references before normal interactions
-- checking that planning guidance mentions the right `agent-device` loop for a known fixture app
+- verifying that agents use version-matched `agent-device help workflow` guidance instead of stale priors
+- checking that planning guidance produces valid `agent-device` command shapes for a known fixture app
+- keeping optional skill telemetry visible without making it a hard dependency for every runner
 
 ## Included starter
 
@@ -24,8 +24,8 @@ This repo now includes a starter setup under `test/skillgym` plus a fixture app 
 
 ## Recommended rollout
 
-1. Start with skill-routing suites that assert `agent-device` is loaded in the right prompts.
-2. Add fixture-aware planning suites against `Agent Device Tester` to keep prompts concrete.
+1. Start with fixture-aware planning suites against `Agent Device Tester` to keep prompts concrete.
+2. Add targeted cases when new help guidance or command surfaces are introduced.
 3. Add local-only cases that expect real `agent-device` command usage when a simulator or device is available.
 
 ## Fixture app coverage
@@ -73,9 +73,10 @@ pnpm install
 pnpm test:skillgym
 ```
 
-Equivalent direct command:
+Equivalent direct command after building the CLI:
 
 ```bash
+pnpm build
 pnpm exec skillgym run \
   ./test/skillgym/suites/agent-device-smoke-suite.ts \
   --config ./test/skillgym/skillgym.config.ts

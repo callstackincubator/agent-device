@@ -47,8 +47,18 @@ test('help react-devtools prints passthrough command help and skips daemon dispa
   const result = await runCliCapture(['help', 'react-devtools']);
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);
-  assert.match(result.stdout, /Usage:\n  agent-device react-devtools \[\.\.\.args\]/);
-  assert.match(result.stdout, /React Native component trees/);
+  assert.match(result.stdout, /agent-device help react-devtools/);
+  assert.match(result.stdout, /React Native internals/);
+  assert.match(result.stdout, /agent-device react-devtools status/);
+});
+
+test('help workflow prints agent workflow topic and skips daemon dispatch', async () => {
+  const result = await runCliCapture(['help', 'workflow']);
+  assert.equal(result.code, 0);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /agent-device help workflow/);
+  assert.match(result.stdout, /Core loop:/);
+  assert.match(result.stdout, /Do not use CSS selectors/);
 });
 
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {

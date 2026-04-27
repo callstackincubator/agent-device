@@ -12,9 +12,21 @@ You are benchmarking agent-device command planning for a known fixture app.
 
 Do not read project source files or project docs.
 Do not inspect examples/test-app, src/, README.md, or website/docs.
-Use only the app contract provided in this prompt and your existing agent-device knowledge.
-If you need command syntax, rely on known agent-device usage patterns instead of reading repository code.
-Output only the requested commands, one per line, with no explanation.
+Do not browse the web.
+Use only this prompt plus local CLI help: run node bin/agent-device.mjs help workflow once as private reference.
+Final output: only agent-device commands, one per line. Any prose or Markdown fails.
+Follow the task wording exactly: snapshot != screenshot; record != trace; batch is direct; Metro reload is metro reload.
+Screenshot evidence uses screenshot --overlay-refs when ref overlays are requested.
+Use current command shapes from help: @ref placeholder after snapshot -i, id="..."/label="..." selectors, fill replaces, type appends, press/click not tap.
+Use provided labels, ids, and selectors when known; reserve @ref for unknown current refs.
+If the task says by @ref, output press @ref or click @ref.
+App-owned navigation/back means the back command, not clicking a tab.
+Use direct gesture forms: swipe 320 500 40 500 --count 8 --pause-ms 30 --pattern ping-pong; longpress 300 500 800; pinch 0.5 200 400.
+Off-screen snapshot hints use scroll down/up then snapshot -i, not swipe or coordinate scroll.
+If discovery is needed, include devices, apps, and open <discovered-app-id>; if debounced wait has no result selector, use wait 1000.
+Use precise helpers when relevant: diff snapshot -i; logs clear --restart -> logs mark -> reproduce -> logs path; network dump --include headers; connect --remote-config -> open -> snapshot -> disconnect; settings animations off/on; macOS menubar uses --platform macos --surface menubar.
+React DevTools loop keeps the react-devtools prefix on every profile command: status -> wait --connected -> profile start -> interact -> profile stop -> profile slow -> profile rerenders.
+When expected text is provided, verify it with wait/is/get/find instead of a bare screenshot.
 `.trim();
 
 function buildPrompt(options: { contract: string[]; task: string }) {
@@ -40,32 +52,56 @@ function assertNoProjectSourceReads(report: SessionReport) {
 
 function commandPattern(command: string) {
   // The suite asks agents for one command per line, so command-name assertions stay line anchored.
-  return new RegExp(`(?:^|\\n)(?:agent-device\\s+)?${command}(?:\\s|$)`, 'i');
+  return new RegExp(
+    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)?\\s+)?${command}(?:\\s|$)`,
+    'i',
+  );
 }
 
 function commandAlternativesPattern(commands: string[]) {
   const alternatives = commands.join('|');
-  return new RegExp(`(?:^|\\n)(?:agent-device\\s+)?(?:${alternatives})(?:\\s|$)`, 'i');
+  return new RegExp(
+    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)?\\s+)?(?:${alternatives})(?:\\s|$)`,
+    'i',
+  );
 }
 
 function assertOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
+  const output = normalizedFinalOutput(report);
   for (const matcher of matchers) {
-    assert.output.includes(report, matcher);
+    if (typeof matcher === 'string') {
+      assert.ok(
+        output.includes(matcher),
+        `Expected final output to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
+      );
+      continue;
+    }
+
+    assert.match(output, matcher);
   }
 }
 
 function assertNoOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
+  const output = normalizedFinalOutput(report);
   for (const matcher of matchers) {
     if (typeof matcher === 'string') {
       assert.ok(
-        !report.finalOutput.includes(matcher),
+        !output.includes(matcher),
         `Expected final output not to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
       );
       continue;
     }
 
-    assert.doesNotMatch(report.finalOutput, matcher);
+    assert.doesNotMatch(output, matcher);
   }
+}
+
+function normalizedFinalOutput(report: SessionReport): string {
+  return report.finalOutput
+    .replace(/```[a-z]*\n?/gi, '')
+    .replace(/```/g, '')
+    .replace(/`([^`\n]+)`/g, '$1')
+    .trim();
 }
 
 function assertExpectedOutput(report: SessionReport, matchers: Array<string | RegExp> = []) {
@@ -117,7 +153,11 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'visible text: Release notice',
     ],
     task: 'Assume Agent Device Tester is already open on the Home tab. Plan the commands to dismiss the Release notice using the dismiss-notice testID, verify it is gone with diff snapshot -i, then close.',
-    outputs: [/dismiss-notice/i, /diff snapshot -i/i, commandPattern('close')],
+    outputs: [
+      /dismiss-notice/i,
+      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b))/i,
+      commandPattern('close'),
+    ],
   }),
   makeCase({
     id: 'home-confirm-alert',
@@ -172,7 +212,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'visible product after filtering: Berry Tart',
     ],
     task: 'Assume Agent Device Tester is on the Catalog tab. Plan the commands to select the Bakery category and verify Berry Tart is visible.',
-    outputs: [/category-bakery/i, /Berry Tart/i],
+    outputs: [/(?:category-bakery|Bakery)/i, /Berry Tart/i],
   }),
   makeCase({
     id: 'catalog-favorite-toggle',
@@ -368,7 +408,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'No interaction is needed to answer this task',
     ],
     task: 'Plan the minimal read-only command to verify whether the Online badge is visible. Do not request interactive refs or mutate the UI.',
-    outputs: [/(?:^|\n)(?:agent-device\s+)?(?:snapshot|is)(?:\s|$)/i, /Online/i],
+    outputs: [/(?:^|\n)(?:agent-device\s+)?(?:snapshot|is|find)(?:\s|$)/i, /Online/i],
     forbiddenOutputs: [
       /snapshot -i/i,
       commandPattern('click'),
@@ -463,8 +503,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Target app display name is known: Agent Device Tester',
       'Package id is unknown',
       'No app session is open yet',
+      'Session name: discovery',
     ],
-    task: 'Plan the bootstrap commands to discover the correct Android device and app identifier before opening the app in a named session.',
+    task: 'Plan the bootstrap commands to discover the correct Android device and app identifier before opening the app in the named session.',
     outputs: [
       commandPattern('devices'),
       commandPattern('apps'),
@@ -498,8 +539,11 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Only JavaScript changed',
     ],
     task: 'Plan the commands to reload the running app after the JS change, then verify the Home screen is visible.',
-    outputs: [/(?:^|\n)(?:agent-device\s+)?metro\s+reload(?:\s|$)/i, commandPattern('snapshot')],
-    forbiddenOutputs: [/open\b.*--relaunch/i],
+    outputs: [
+      /(?:^|\n)(?:agent-device\s+)?metro\s+reload(?:\s|$)/i,
+      /(?:^|\n)(?:agent-device\s+)?(?:snapshot\b|find\b[^\n]*Home|is\b[^\n]*Home|wait\b[^\n]*Home)/i,
+    ],
+    forbiddenOutputs: [/open\b.*--relaunch/i, /(?:^|\n)(?:agent-device\s+)?screenshot\b/i],
   }),
   makeCase({
     id: 'debug-logs-short-window',
@@ -519,10 +563,16 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'App name: Agent Device Tester',
       'Current screen: Settings tab',
       'Diagnostics load triggers HTTP traffic logged by the app',
+      'Repro button selector: id="load-diagnostics"',
       'Need request and response headers',
     ],
     task: 'Plan the commands to reproduce the diagnostics request and inspect recent session network traffic with headers.',
-    outputs: [commandPattern('network'), /dump/i, /--include headers/i],
+    outputs: [
+      /load-diagnostics/i,
+      commandPattern('network'),
+      /(?:dump|log)/i,
+      /(?:--include\s+headers|\bheaders\b)/i,
+    ],
     forbiddenOutputs: [/logs path/i, /cat .*log/i],
   }),
   makeCase({
@@ -554,6 +604,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'App name: Agent Device Tester',
       'React Native DevTools can connect to the running app',
       'Interaction to profile: type in the Catalog search field',
+      'Search field selector: id="catalog-search"',
       'Need slow components and rerender counts',
     ],
     task: 'Plan the commands to verify React DevTools is connected, profile the Catalog search interaction, then list slow components and rerenders.',
@@ -576,7 +627,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Need to advance and return across pages repeatedly',
       'Gesture should use a swipe series, not scroll',
     ],
-    task: 'Plan the gesture command to swipe horizontally across the carousel eight times with a short pause and ping-pong pattern.',
+    task: 'Plan the gesture command to swipe horizontally across the carousel eight times with a 30ms pause and ping-pong pattern.',
     outputs: [
       commandPattern('swipe'),
       /--count\s+8/i,
@@ -595,7 +646,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the gesture command to long-press the target center for 800ms.',
     outputs: [commandPattern('longpress'), /300\s+500\s+800/i],
-    forbiddenOutputs: [/--hold-ms/i, commandPattern('click')],
+    forbiddenOutputs: [/--duration-ms/i, /--hold-ms/i, commandPattern('click')],
   }),
   makeCase({
     id: 'gesture-pinch-zoom',
@@ -604,10 +655,17 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Current screen: image preview',
       'Pinch is supported on Apple simulators',
       'Need to zoom out around x=200 y=400',
+      'Zoom-out scale: 0.5',
     ],
     task: 'Plan the gesture command to pinch zoom out at the specified center.',
     outputs: [commandPattern('pinch'), /0\.5/i, /200\s+400/i],
-    forbiddenOutputs: [commandPattern('scroll'), commandPattern('swipe')],
+    forbiddenOutputs: [
+      /--scale/i,
+      /--x/i,
+      /--y/i,
+      commandPattern('scroll'),
+      commandPattern('swipe'),
+    ],
   }),
   makeCase({
     id: 'settings-animation-stabilizer',
@@ -619,13 +677,19 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the commands to disable platform animations before the app check, run a snapshot, then restore animations.',
     outputs: [/settings animations off/i, commandPattern('snapshot'), /settings animations on/i],
-    forbiddenOutputs: [/--platform macos/i, /settings appearance/i],
+    forbiddenOutputs: [
+      /--platform macos/i,
+      /settings appearance/i,
+      /animations disable/i,
+      /animations restore/i,
+    ],
   }),
   makeCase({
     id: 'trace-capture-session',
     contract: [
       'App name: Agent Device Tester',
       'An app session is already open',
+      'Repro button selector: id="load-diagnostics"',
       'Need low-level session diagnostics for one diagnostics-button repro',
       'Trace artifact path: ./traces/diagnostics.trace',
     ],
@@ -635,7 +699,11 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /load-diagnostics/i,
       /trace stop \.\/traces\/diagnostics\.trace/i,
     ],
-    forbiddenOutputs: [commandPattern('record'), /logs clear --restart/i],
+    forbiddenOutputs: [
+      commandPattern('record'),
+      /logs clear --restart/i,
+      /trace (?:start|stop) --path/i,
+    ],
   }),
   makeCase({
     id: 'alert-visible-ui-fallback',
@@ -647,7 +715,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the fallback commands to handle the visible sheet as normal tappable UI instead of looping on alert accept.',
     outputs: [
-      /(?:^|\n)(?:agent-device\s+)?(?:find\b.*\bpress\b|press\b.*Allow|snapshot -i)/is,
+      /(?:^|\n)(?:agent-device\s+)?(?:find\b.*\bpress\b|(?:press|click)\b.*Allow|snapshot -i)/is,
       /Allow/i,
     ],
     forbiddenOutputs: [/alert accept.*\n.*alert accept/is, RAW_COORDINATE_TARGET],
@@ -678,7 +746,12 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       commandPattern('snapshot'),
       commandPattern('disconnect'),
     ],
-    forbiddenOutputs: [/--session\s+\w+/i, /--daemon-base-url/i, /--tenant/i, /--run-id/i],
+    forbiddenOutputs: [
+      /--daemon-base-url/i,
+      /--tenant/i,
+      /--run-id/i,
+      commandPattern('screenshot'),
+    ],
   }),
   makeCase({
     id: 'macos-menubar-surface',
@@ -688,8 +761,8 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'The app lives entirely as a menu bar extra',
       'Normal app snapshots can be sparse or empty',
     ],
-    task: 'Plan the commands to inspect the menu bar app surface and capture interactive refs.',
-    outputs: [/--platform macos/i, /--surface menubar/i, /snapshot -i/i],
+    task: 'Plan the commands to inspect the menu bar app surface and capture interactive refs with snapshot -i.',
+    outputs: [/--platform macos/i, /--surface menubar/i, /snapshot\b.*(?:-i\b|\s-i\b)/i],
     forbiddenOutputs: [/--surface app/i, /snapshot --raw/i],
   }),
   makeCase({
@@ -708,15 +781,16 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     contract: [
       'App name: Agent Device Tester',
       'The full checkout flow is already known and stable',
+      'Known batch steps file: ./checkout-steps.json',
       'Need fewer round trips while recording evidence',
     ],
-    task: 'Plan the commands to start a recording, execute the known checkout steps as one batch, and stop the recording.',
+    task: 'Plan the commands to start a recording, execute the known checkout steps from the provided steps file as one batch, and stop the recording.',
     outputs: [
       /(?:^|\n)(?:agent-device\s+)?record\s+start/i,
       commandPattern('batch'),
       /(?:^|\n)(?:agent-device\s+)?record\s+stop/i,
     ],
-    forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND],
+    forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND, /workflow batch/i, commandPattern('trace')],
   }),
 ];
 

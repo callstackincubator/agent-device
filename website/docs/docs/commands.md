@@ -8,6 +8,17 @@ This page summarizes the primary command groups.
 
 For persistent defaults and project-scoped CLI settings, see [Configuration](/docs/configuration).
 
+For agent workflow guidance that is matched to the installed CLI, run:
+
+```bash
+agent-device help workflow
+agent-device help debugging
+agent-device help react-devtools
+agent-device help remote
+agent-device help macos
+agent-device help dogfood
+```
+
 ## Navigation
 
 ```bash

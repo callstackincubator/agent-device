@@ -12,7 +12,7 @@ const config: SkillGymConfig = {
     timeoutMs: 120_000,
   },
   runners: {
-    'codex-main': {
+    'codex-mini': {
       agent: {
         type: 'codex',
         model: 'gpt-5.4-mini',
