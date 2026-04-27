@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Agent Device Tester",
+    "slug": "agent-device-test-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.callstack.agentdevicelab"
+    },
+    "android": {
+      "package": "com.callstack.agentdevicelab",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    }
+  }
+}

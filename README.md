@@ -87,6 +87,11 @@ For people:
 
 - [Website](https://agent-device.dev/)
 - [Docs](https://incubator.callstack.com/agent-device/docs/introduction)
+- [Skillgym starter](test/skillgym/README.md)
+
+Local benchmark starter:
+
+- `pnpm test:skillgym`
 
 For agents:
 
