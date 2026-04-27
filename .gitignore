@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 .fallow/
 dist/
+.tmp/
 .DS_Store
 __pycache__/
 *.pyc
@@ -23,9 +24,12 @@ xcuserdata/
 *.xcsettings
 *.xcresult
 *.ipa
+*.apk
 *.dSYM
 *.dSYM.zip
 *.app
 *.xctestrun
 *.xcarchive
 .skillgym-results/
+android-snapshot-helper/build/
+android-snapshot-helper/dist/

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   serializeInstallFromSourceResult,
   serializeOpenResult,
+  serializeSnapshotResult,
   serializeSessionListEntry,
 } from '../client-shared.ts';
 
@@ -98,5 +99,34 @@ test('serializeInstallFromSourceResult uses install-family package naming', () =
     appId: 'com.example.demo',
     package: 'com.example.demo',
     message: 'Installed: Demo',
+  });
+});
+
+test('serializeSnapshotResult includes Android backend metadata', () => {
+  const data = serializeSnapshotResult({
+    nodes: [],
+    truncated: false,
+    androidSnapshot: {
+      backend: 'android-helper',
+      helperVersion: '0.13.3',
+      installReason: 'current',
+      waitForIdleTimeoutMs: 500,
+      nodeCount: 12,
+    },
+    identifiers: {
+      session: 'qa',
+    },
+  });
+
+  assert.deepEqual(data, {
+    nodes: [],
+    truncated: false,
+    androidSnapshot: {
+      backend: 'android-helper',
+      helperVersion: '0.13.3',
+      installReason: 'current',
+      waitForIdleTimeoutMs: 500,
+      nodeCount: 12,
+    },
   });
 });

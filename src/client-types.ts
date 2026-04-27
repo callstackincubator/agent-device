@@ -9,6 +9,7 @@ import type {
 } from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { FindLocator } from './utils/finders.ts';
+import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type { ScreenshotOverlayRef, SnapshotNode, SnapshotVisibility } from './utils/snapshot.ts';
 import type {
   MetroPrepareKind,
@@ -317,6 +318,7 @@ export type CaptureSnapshotResult = {
   appName?: string;
   appBundleId?: string;
   visibility?: SnapshotVisibility;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
   warnings?: string[];
   identifiers: AgentDeviceIdentifiers;
 };

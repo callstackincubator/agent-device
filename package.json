@@ -44,6 +44,10 @@
       "import": "./dist/src/android-apps.js",
       "types": "./dist/src/android-apps.d.ts"
     },
+    "./android-snapshot-helper": {
+      "import": "./dist/src/android-snapshot-helper.js",
+      "types": "./dist/src/android-snapshot-helper.d.ts"
+    },
     "./contracts": {
       "import": "./dist/src/contracts.js",
       "types": "./dist/src/contracts.d.ts"
@@ -71,6 +75,9 @@
     "build:xcuitest:ios": "AGENT_DEVICE_XCUITEST_PLATFORM=ios AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
     "build:xcuitest:macos": "AGENT_DEVICE_XCUITEST_PLATFORM=macos sh ./scripts/build-xcuitest-apple.sh",
     "build:xcuitest:tvos": "AGENT_DEVICE_XCUITEST_PLATFORM=tvos AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
+    "build:android-snapshot-helper": "sh ./scripts/build-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
+    "package:android-snapshot-helper": "sh ./scripts/package-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") v$(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
+    "package:android-snapshot-helper:npm": "rm -rf android-snapshot-helper/dist && sh ./scripts/package-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") v$(node -p \"require('./package.json').version\") android-snapshot-helper/dist",
     "build:macos-helper": "swift build -c release --package-path macos-helper",
     "build:all": "pnpm build:node && pnpm build:xcuitest",
     "ad": "node bin/agent-device.mjs",
@@ -83,7 +90,7 @@
     "check:tooling": "pnpm lint && pnpm typecheck && pnpm build",
     "check:unit": "pnpm test:unit && pnpm test:smoke",
     "check": "pnpm check:tooling && pnpm check:fallow && pnpm check:unit",
-    "prepack": "pnpm build:all",
+    "prepack": "pnpm build:all && pnpm package:android-snapshot-helper:npm",
     "typecheck": "tsc -p tsconfig.json",
     "test-app:install": "pnpm install --dir examples/test-app --ignore-workspace",
     "test-app:start": "pnpm --dir examples/test-app start",
@@ -111,6 +118,8 @@
     "!ios-runner/**/*.xcuserstate",
     "macos-helper",
     "!macos-helper/**/.build",
+    "android-snapshot-helper/dist",
+    "!android-snapshot-helper/dist/*.idsig",
     "src/platforms/linux/atspi-dump.py",
     "skills",
     "README.md",

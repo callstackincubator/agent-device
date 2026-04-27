@@ -52,6 +52,14 @@ Public subpath API exposed for Node consumers:
   - types: `MaterializeInstallSource`, `MaterializedInstallable`
 - `agent-device/artifacts`
   - `resolveAndroidArchivePackageName(archivePath)`
+- `agent-device/android-snapshot-helper`
+  - `ensureAndroidSnapshotHelper(options)`
+  - `captureAndroidSnapshotWithHelper(options)`
+  - `parseAndroidSnapshotHelperOutput(output)`
+  - `parseAndroidSnapshotHelperXml(xml, metadata?, options?, maxNodes?)`
+  - `prepareAndroidSnapshotHelperArtifactFromManifestUrl(options)`
+  - `verifyAndroidSnapshotHelperArtifact(artifact)`
+  - types: `AndroidAdbExecutor`, `AndroidSnapshotHelperArtifact`, `AndroidSnapshotHelperManifest`, `AndroidSnapshotHelperOutput`, `AndroidSnapshotHelperParsedSnapshot`
 
 The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
 
@@ -87,6 +95,43 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 
 await client.sessions.close();
 ```
+
+## Android snapshot helper providers
+
+Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
+ADB-shaped executor. The executor receives arguments after `adb`, so local callers may wrap
+`adb -s <serial>`, while cloud providers can route the same operations through an ADB tunnel.
+
+```ts
+import {
+  captureAndroidSnapshotWithHelper,
+  ensureAndroidSnapshotHelper,
+  parseAndroidSnapshotHelperXml,
+  prepareAndroidSnapshotHelperArtifactFromManifestUrl,
+} from 'agent-device/android-snapshot-helper';
+
+const artifact = await prepareAndroidSnapshotHelperArtifactFromManifestUrl({
+  manifestUrl:
+    'https://github.com/callstackincubator/agent-device/releases/download/v0.13.3/agent-device-android-snapshot-helper-0.13.3.manifest.json',
+});
+
+await ensureAndroidSnapshotHelper({
+  adb: runProviderAdb,
+  artifact,
+  installPolicy: 'missing-or-outdated',
+});
+
+const output = await captureAndroidSnapshotWithHelper({
+  adb: runProviderAdb,
+  timeoutMs: 8000,
+});
+
+const snapshot = parseAndroidSnapshotHelperXml(output.xml, output.metadata);
+```
+
+Helper captures report `metadata.captureMode` as `interactive-windows` when Android returns
+interactive window roots, or `active-window` when the helper falls back to
+`getRootInActiveWindow()`. `metadata.windowCount` is the number of serialized roots.
 
 ## Command methods
 

@@ -51,88 +51,125 @@ export type AndroidBuiltSnapshot = {
   analysis: AndroidSnapshotAnalysis;
 };
 
+type AndroidSnapshotBuildState = {
+  nodes: RawSnapshotNode[];
+  sourceNodes: AndroidUiHierarchy[];
+  maxNodes: number;
+  maxDepth: number;
+  options: SnapshotOptions;
+  analysis: AndroidSnapshotAnalysis;
+  interactiveDescendantMemo: Map<AndroidNode, boolean>;
+  truncated: boolean;
+};
+
 export function buildUiHierarchySnapshot(
   tree: AndroidUiHierarchy,
   maxNodes: number,
   options: SnapshotOptions,
 ): AndroidBuiltSnapshot {
-  const analysis = analyzeAndroidTree(tree);
-  const nodes: RawSnapshotNode[] = [];
-  const sourceNodes: AndroidUiHierarchy[] = [];
-  let truncated = false;
-  const maxDepth = options.depth ?? Number.POSITIVE_INFINITY;
+  const state: AndroidSnapshotBuildState = {
+    nodes: [],
+    sourceNodes: [],
+    maxNodes,
+    maxDepth: options.depth ?? Number.POSITIVE_INFINITY,
+    options,
+    analysis: analyzeAndroidTree(tree),
+    interactiveDescendantMemo: new Map(),
+    truncated: false,
+  };
   const scopedRoot = options.scope ? findScopeNode(tree, options.scope) : null;
   const roots = scopedRoot ? [scopedRoot] : tree.children;
 
-  const interactiveDescendantMemo = new Map<AndroidNode, boolean>();
-  const hasInteractiveDescendant = (node: AndroidNode): boolean => {
-    const cached = interactiveDescendantMemo.get(node);
-    if (cached !== undefined) return cached;
-    for (const child of node.children) {
-      if (child.hittable || hasInteractiveDescendant(child)) {
-        interactiveDescendantMemo.set(node, true);
-        return true;
-      }
-    }
-    interactiveDescendantMemo.set(node, false);
-    return false;
-  };
-
-  const walk = (
-    node: AndroidNode,
-    depth: number,
-    parentIndex?: number,
-    ancestorHittable: boolean = false,
-    ancestorCollection: boolean = false,
-  ) => {
-    if (nodes.length >= maxNodes) {
-      truncated = true;
-      return;
-    }
-    if (depth > maxDepth) return;
-
-    const include = options.raw
-      ? true
-      : shouldIncludeAndroidNode(
-          node,
-          options,
-          ancestorHittable,
-          hasInteractiveDescendant(node),
-          ancestorCollection,
-        );
-    let currentIndex = parentIndex;
-    if (include) {
-      currentIndex = nodes.length;
-      sourceNodes.push(node);
-      nodes.push({
-        index: currentIndex,
-        type: node.type ?? undefined,
-        label: node.label ?? undefined,
-        value: node.value ?? undefined,
-        identifier: node.identifier ?? undefined,
-        rect: node.rect,
-        enabled: node.enabled,
-        hittable: node.hittable,
-        depth,
-        parentIndex,
-        ...(node.hiddenContentAbove ? { hiddenContentAbove: true } : {}),
-        ...(node.hiddenContentBelow ? { hiddenContentBelow: true } : {}),
-      });
-    }
-    const nextAncestorHittable = ancestorHittable || Boolean(node.hittable);
-    const nextAncestorCollection = ancestorCollection || isCollectionContainerType(node.type);
-    for (const child of node.children) {
-      walk(child, depth + 1, currentIndex, nextAncestorHittable, nextAncestorCollection);
-      if (truncated) return;
-    }
-  };
-
   for (const root of roots) {
-    walk(root, 0, undefined, false, false);
-    if (truncated) break;
+    walkUiHierarchyNode(state, root, 0);
+    if (state.truncated) break;
   }
 
-  return truncated ? { nodes, sourceNodes, truncated, analysis } : { nodes, sourceNodes, analysis };
+  const snapshot = {
+    nodes: state.nodes,
+    sourceNodes: state.sourceNodes,
+    analysis: state.analysis,
+  };
+  return state.truncated ? { ...snapshot, truncated: true } : snapshot;
+}
+
+function walkUiHierarchyNode(
+  state: AndroidSnapshotBuildState,
+  node: AndroidNode,
+  depth: number,
+  parentIndex?: number,
+  ancestorHittable: boolean = false,
+  ancestorCollection: boolean = false,
+): void {
+  if (state.nodes.length >= state.maxNodes) {
+    state.truncated = true;
+    return;
+  }
+  if (depth > state.maxDepth) return;
+
+  const include = state.options.raw
+    ? true
+    : shouldIncludeAndroidNode(
+        node,
+        state.options,
+        ancestorHittable,
+        hasInteractiveDescendant(state, node),
+        ancestorCollection,
+      );
+  const currentIndex = include
+    ? appendAndroidSnapshotNode(state, node, depth, parentIndex)
+    : parentIndex;
+  const nextAncestorHittable = ancestorHittable || Boolean(node.hittable);
+  const nextAncestorCollection = ancestorCollection || isCollectionContainerType(node.type);
+  for (const child of node.children) {
+    walkUiHierarchyNode(
+      state,
+      child,
+      depth + 1,
+      currentIndex,
+      nextAncestorHittable,
+      nextAncestorCollection,
+    );
+    if (state.truncated) return;
+  }
+}
+
+function appendAndroidSnapshotNode(
+  state: AndroidSnapshotBuildState,
+  node: AndroidNode,
+  depth: number,
+  parentIndex?: number,
+): number {
+  const currentIndex = state.nodes.length;
+  state.sourceNodes.push(node);
+  state.nodes.push({
+    index: currentIndex,
+    type: node.type ?? undefined,
+    label: node.label ?? undefined,
+    value: node.value ?? undefined,
+    identifier: node.identifier ?? undefined,
+    rect: node.rect,
+    enabled: node.enabled,
+    hittable: node.hittable,
+    depth,
+    parentIndex,
+    ...(node.hiddenContentAbove ? { hiddenContentAbove: true } : {}),
+    ...(node.hiddenContentBelow ? { hiddenContentBelow: true } : {}),
+  });
+  return currentIndex;
+}
+
+function hasInteractiveDescendant(state: AndroidSnapshotBuildState, node: AndroidNode): boolean {
+  const cached = state.interactiveDescendantMemo.get(node);
+  if (cached !== undefined) return cached;
+  for (const child of node.children) {
+    if (child.hittable || hasInteractiveDescendant(state, child)) {
+      state.interactiveDescendantMemo.set(node, true);
+      return true;
+    }
+  }
+  state.interactiveDescendantMemo.set(node, false);
+  return false;
 }
 
 export function readNodeAttributes(node: string): {
@@ -172,26 +209,119 @@ function parseXmlNodeAttributes(node: string): Map<string, string> {
   const end = node.lastIndexOf('>');
   if (start < 0 || end <= start) return attrs;
 
-  const attrRegex = /([^\s=/>]+)\s*=\s*(["'])([\s\S]*?)\2/y;
   let cursor = start;
   while (cursor < end) {
-    while (cursor < end) {
-      const char = node[cursor];
-      if (char !== ' ' && char !== '\n' && char !== '\r' && char !== '\t') break;
-      cursor += 1;
-    }
+    cursor = skipXmlWhitespace(node, cursor, end);
     if (cursor >= end) break;
     const char = node[cursor];
     if (char === '/' || char === '>') break;
 
-    attrRegex.lastIndex = cursor;
-    const match = attrRegex.exec(node);
-    if (!match) break;
-    attrs.set(match[1], match[3]);
-    cursor = attrRegex.lastIndex;
+    const nameStart = cursor;
+    while (cursor < end && !isXmlAttributeNameTerminator(node[cursor] ?? '')) {
+      cursor += 1;
+    }
+    const name = node.slice(nameStart, cursor);
+    cursor = skipXmlWhitespace(node, cursor, end);
+    if (!name || node[cursor] !== '=') break;
+    cursor = skipXmlWhitespace(node, cursor + 1, end);
+
+    const quote = node[cursor];
+    if (quote !== '"' && quote !== "'") break;
+    cursor += 1;
+
+    const valueStart = cursor;
+    while (cursor < end && node[cursor] !== quote) {
+      cursor += 1;
+    }
+    if (cursor >= end) break;
+    attrs.set(name, decodeXmlAttributeValue(node.slice(valueStart, cursor)));
+    cursor += 1;
   }
 
   return attrs;
+}
+
+function skipXmlWhitespace(value: string, cursor: number, end: number): number {
+  while (cursor < end && isXmlWhitespace(value[cursor] ?? '')) {
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function isXmlWhitespace(char: string): boolean {
+  return char === ' ' || char === '\n' || char === '\r' || char === '\t';
+}
+
+function isXmlAttributeNameTerminator(char: string): boolean {
+  return char === '=' || char === '/' || char === '>' || isXmlWhitespace(char);
+}
+
+function decodeXmlAttributeValue(value: string): string {
+  let decoded = '';
+  let cursor = 0;
+  while (cursor < value.length) {
+    const entityStart = value.indexOf('&', cursor);
+    if (entityStart < 0) {
+      decoded += value.slice(cursor);
+      break;
+    }
+    decoded += value.slice(cursor, entityStart);
+    const entityEnd = value.indexOf(';', entityStart + 1);
+    if (entityEnd < 0) {
+      decoded += value.slice(entityStart);
+      break;
+    }
+    const rawEntity = value.slice(entityStart + 1, entityEnd);
+    decoded += decodeXmlEntity(rawEntity) ?? value.slice(entityStart, entityEnd + 1);
+    cursor = entityEnd + 1;
+  }
+  return decoded;
+}
+
+function decodeXmlEntity(entity: string): string | undefined {
+  switch (entity) {
+    case 'amp':
+      return '&';
+    case 'lt':
+      return '<';
+    case 'gt':
+      return '>';
+    case 'quot':
+      return '"';
+    case 'apos':
+      return "'";
+    default:
+      return decodeNumericXmlEntity(entity);
+  }
+}
+
+function decodeNumericXmlEntity(entity: string): string | undefined {
+  if (!entity.startsWith('#')) return undefined;
+  const radix = entity[1]?.toLowerCase() === 'x' ? 16 : 10;
+  const digits = radix === 16 ? entity.slice(2) : entity.slice(1);
+  if (!digits || !isValidNumericEntityDigits(digits, radix)) return undefined;
+  const codePoint = Number.parseInt(digits, radix);
+  if (!Number.isFinite(codePoint)) return undefined;
+  try {
+    return String.fromCodePoint(codePoint);
+  } catch {
+    return undefined;
+  }
+}
+
+function isValidNumericEntityDigits(digits: string, radix: 10 | 16): boolean {
+  for (const digit of digits) {
+    const code = digit.charCodeAt(0);
+    const isDecimal = code >= 48 && code <= 57;
+    if (radix === 10) {
+      if (!isDecimal) return false;
+      continue;
+    }
+    const isUpperHex = code >= 65 && code <= 70;
+    const isLowerHex = code >= 97 && code <= 102;
+    if (!isDecimal && !isUpperHex && !isLowerHex) return false;
+  }
+  return true;
 }
 
 function readXmlAttr(attrs: Map<string, string>, name: string): string | null {
@@ -225,6 +355,14 @@ export type AndroidUiHierarchy = {
 };
 
 type AndroidNode = AndroidUiHierarchy;
+
+type AndroidNodeInclusionInfo = {
+  type: string;
+  hasMeaningfulText: boolean;
+  hasMeaningfulId: boolean;
+  isStructural: boolean;
+  isVisual: boolean;
+};
 
 export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
   const root: AndroidUiHierarchy = {
@@ -276,35 +414,76 @@ function shouldIncludeAndroidNode(
   descendantHittable: boolean,
   ancestorCollection: boolean,
 ): boolean {
+  const info = getAndroidNodeInclusionInfo(node);
+  if (options.interactiveOnly) {
+    return shouldIncludeInteractiveAndroidNode(
+      node,
+      info,
+      ancestorHittable,
+      descendantHittable,
+      ancestorCollection,
+    );
+  }
+  if (options.compact) {
+    return info.hasMeaningfulText || info.hasMeaningfulId || Boolean(node.hittable);
+  }
+  if (info.isStructural || info.isVisual) {
+    return shouldIncludeStructuralAndroidNode(node, info, descendantHittable);
+  }
+  return true;
+}
+
+function getAndroidNodeInclusionInfo(node: AndroidNode): AndroidNodeInclusionInfo {
   const type = normalizeAndroidType(node.type);
   const hasText = Boolean(node.label && node.label.trim().length > 0);
   const hasId = Boolean(node.identifier && node.identifier.trim().length > 0);
-  const hasMeaningfulText = hasText && !isGenericAndroidId(node.label ?? '');
-  const hasMeaningfulId = hasId && !isGenericAndroidId(node.identifier ?? '');
-  const isStructural = isStructuralAndroidType(type);
-  const isVisual = type === 'imageview' || type === 'imagebutton';
-  if (options.interactiveOnly) {
-    if (node.hittable) return true;
-    if (isScrollableType(type) && descendantHittable) {
-      return true;
-    }
-    // Keep text proxies for tappable rows while dropping structural noise.
-    const proxyCandidate = hasMeaningfulText || hasMeaningfulId;
-    if (!proxyCandidate) return false;
-    if (isVisual) return false;
-    if (isStructural && !ancestorCollection) return false;
-    return ancestorHittable || descendantHittable || ancestorCollection;
-  }
-  if (options.compact) {
-    return hasMeaningfulText || hasMeaningfulId || Boolean(node.hittable);
-  }
-  if (isStructural || isVisual) {
-    if (node.hittable) return true;
-    if (hasMeaningfulText) return true;
-    if (hasMeaningfulId && descendantHittable) return true;
-    return descendantHittable;
-  }
-  return true;
+  return {
+    type,
+    hasMeaningfulText: hasText && !isGenericAndroidId(node.label ?? ''),
+    hasMeaningfulId: hasId && !isGenericAndroidId(node.identifier ?? ''),
+    isStructural: isStructuralAndroidType(type),
+    isVisual: type === 'imageview' || type === 'imagebutton',
+  };
+}
+
+function shouldIncludeInteractiveAndroidNode(
+  node: AndroidNode,
+  info: AndroidNodeInclusionInfo,
+  ancestorHittable: boolean,
+  descendantHittable: boolean,
+  ancestorCollection: boolean,
+): boolean {
+  if (node.hittable) return true;
+  if (isScrollableType(info.type) && descendantHittable) return true;
+  return shouldIncludeInteractiveProxyNode(
+    info,
+    ancestorHittable,
+    descendantHittable,
+    ancestorCollection,
+  );
+}
+
+function shouldIncludeInteractiveProxyNode(
+  info: AndroidNodeInclusionInfo,
+  ancestorHittable: boolean,
+  descendantHittable: boolean,
+  ancestorCollection: boolean,
+): boolean {
+  if (!info.hasMeaningfulText && !info.hasMeaningfulId) return false;
+  if (info.isVisual) return false;
+  if (info.isStructural && !ancestorCollection) return false;
+  return ancestorHittable || descendantHittable || ancestorCollection;
+}
+
+function shouldIncludeStructuralAndroidNode(
+  node: AndroidNode,
+  info: AndroidNodeInclusionInfo,
+  descendantHittable: boolean,
+): boolean {
+  if (node.hittable) return true;
+  if (info.hasMeaningfulText) return true;
+  if (info.hasMeaningfulId && descendantHittable) return true;
+  return descendantHittable;
 }
 
 function isCollectionContainerType(type: string | null): boolean {

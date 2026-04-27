@@ -1,0 +1,16 @@
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.callstack.agentdevice.snapshothelper">
+    <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36" />
+
+    <application
+        android:debuggable="true"
+        android:label="Agent Device Snapshot Helper"
+        android:theme="@android:style/Theme.NoDisplay" />
+
+    <instrumentation
+        android:name=".SnapshotInstrumentation"
+        android:targetPackage="com.callstack.agentdevice.snapshothelper"
+        android:label="Agent Device Snapshot Helper"
+        android:functionalTest="true" />
+</manifest>

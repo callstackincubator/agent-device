@@ -296,12 +296,17 @@ export function createAgentDeviceClient(
           typeof data.visibility === 'object' && data.visibility !== null
             ? (data.visibility as CaptureSnapshotResult['visibility'])
             : undefined;
+        const androidSnapshot =
+          typeof data.androidSnapshot === 'object' && data.androidSnapshot !== null
+            ? (data.androidSnapshot as CaptureSnapshotResult['androidSnapshot'])
+            : undefined;
         return {
           nodes: readSnapshotNodes(data.nodes),
           truncated: data.truncated === true,
           appName: readOptionalString(data, 'appName'),
           appBundleId,
           ...(visibility ? { visibility } : {}),
+          ...(androidSnapshot ? { androidSnapshot } : {}),
           warnings: Array.isArray(data.warnings)
             ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
             : undefined,
