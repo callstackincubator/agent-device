@@ -92,96 +92,53 @@ test('screenshotAndroid waits for transient UI to settle before capture', async 
 });
 
 test('screenshotAndroid writes a valid PNG when output is clean', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'screenshot-clean-'));
-  try {
-    const outPath = path.join(tmpDir, 'out.png');
+  await withTempScreenshot('screenshot-clean-', async (outPath) => {
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
     assert.deepEqual(written, VALID_PNG);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
 });
 
 test('screenshotAndroid strips warning text before PNG signature', async () => {
   const warning =
     '[Warning] Multiple displays were found, but no display id was specified! Defaulting to the first display found.';
-  const payload = Buffer.concat([Buffer.from(warning), VALID_PNG]);
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: payload };
-    }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
+  mockScreenshotPayload(Buffer.concat([Buffer.from(warning), VALID_PNG]));
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'screenshot-warning-'));
-  try {
-    const outPath = path.join(tmpDir, 'out.png');
+  await withTempScreenshot('screenshot-warning-', async (outPath) => {
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
     assert.deepEqual(written, VALID_PNG);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
 });
 
 test('screenshotAndroid strips trailing garbage after PNG payload', async () => {
-  const payload = Buffer.concat([VALID_PNG, Buffer.from('\ntrailing-warning\n')]);
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: payload };
-    }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
+  mockScreenshotPayload(Buffer.concat([VALID_PNG, Buffer.from('\ntrailing-warning\n')]));
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'screenshot-trailing-'));
-  try {
-    const outPath = path.join(tmpDir, 'out.png');
+  await withTempScreenshot('screenshot-trailing-', async (outPath) => {
     await screenshotAndroid(device, outPath);
     const written = await fs.readFile(outPath);
     assert.deepEqual(written, VALID_PNG);
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
 });
 
 test('screenshotAndroid throws when output contains no PNG signature', async () => {
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: Buffer.from('not a png') };
-    }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
+  mockScreenshotPayload(Buffer.from('not a png'));
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'screenshot-nopng-'));
-  try {
-    const outPath = path.join(tmpDir, 'out.png');
+  await withTempScreenshot('screenshot-nopng-', async (outPath) => {
     await assert.rejects(() => screenshotAndroid(device, outPath), {
       message: 'Screenshot data does not contain a valid PNG header',
     });
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
 });
 
 test('screenshotAndroid throws when PNG payload is truncated', async () => {
-  const payload = VALID_PNG.subarray(0, VALID_PNG.length - 3);
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: payload };
-    }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
+  mockScreenshotPayload(VALID_PNG.subarray(0, VALID_PNG.length - 3));
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'screenshot-truncated-'));
-  try {
-    const outPath = path.join(tmpDir, 'out.png');
+  await withTempScreenshot('screenshot-truncated-', async (outPath) => {
     await assert.rejects(() => screenshotAndroid(device, outPath), {
       message: 'Screenshot data does not contain a complete PNG payload',
     });
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
+  });
 });
 
 function helperOutput(xml: string): string {
@@ -207,6 +164,39 @@ function helperOutput(xml: string): string {
     'INSTRUMENTATION_RESULT: elapsedMs=12',
     'INSTRUMENTATION_CODE: 0',
   ].join('\n');
+}
+
+function mockScreenshotPayload(payload: Buffer): void {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: payload };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+}
+
+async function withTempScreenshot(
+  name: string,
+  callback: (outPath: string) => Promise<void>,
+): Promise<void> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), name));
+  try {
+    await callback(path.join(tmpDir, 'out.png'));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+function mockAndroidSnapshotXml(xml: string, activityDump = ''): void {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      return { exitCode: 0, stdout: activityDump, stderr: '' };
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
 }
 
 test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', async () => {
@@ -456,15 +446,7 @@ test('snapshotAndroid preserves hidden scroll content hints in interactive snaps
     '        com.facebook.react.views.view.ReactViewGroup{c V.E...... ........ 0,636-390,804 #3}',
   ].join('\n');
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: xml, stderr: '' };
-    }
-    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
-      return { exitCode: 0, stdout: dump, stderr: '' };
-    }
-    throw new Error(`unexpected args: ${args.join(' ')}`);
-  });
+  mockAndroidSnapshotXml(xml, dump);
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
   const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
@@ -487,15 +469,7 @@ test('snapshotAndroid keeps generic-id scroll containers in interactive snapshot
   </node>
 </hierarchy>`;
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: xml, stderr: '' };
-    }
-    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    throw new Error(`unexpected args: ${args.join(' ')}`);
-  });
+  mockAndroidSnapshotXml(xml);
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
   const scrollArea = result.nodes.find(
@@ -544,15 +518,7 @@ test('snapshotAndroid derives hidden content hints for interactive snapshots fro
   </node>
 </hierarchy>`;
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: xml, stderr: '' };
-    }
-    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    throw new Error(`unexpected args: ${args.join(' ')}`);
-  });
+  mockAndroidSnapshotXml(xml);
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
   const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
@@ -587,15 +553,7 @@ test('snapshotAndroid preserves bottomed-out hidden-above hints in interactive s
     '        com.facebook.react.views.view.ReactViewGroup{c V.E...... ........ 0,636-390,804 #3}',
   ].join('\n');
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: xml, stderr: '' };
-    }
-    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
-      return { exitCode: 0, stdout: dump, stderr: '' };
-    }
-    throw new Error(`unexpected args: ${args.join(' ')}`);
-  });
+  mockAndroidSnapshotXml(xml, dump);
 
   const result = await snapshotAndroid(device, { interactiveOnly: true });
   const scrollArea = result.nodes.find(

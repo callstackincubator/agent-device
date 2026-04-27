@@ -48,7 +48,7 @@ VERSION_CODE="$(
 BUILD_DIR="$HELPER_DIR/build"
 CLASSES_DIR="$BUILD_DIR/classes"
 DEX_DIR="$BUILD_DIR/dex"
-KEYSTORE="$BUILD_DIR/debug.keystore"
+KEYSTORE="$HELPER_DIR/debug.keystore"
 UNSIGNED_APK="$BUILD_DIR/helper-unsigned.apk"
 ALIGNED_APK="$BUILD_DIR/helper-aligned.apk"
 APK_PATH="$OUTPUT_DIR/$APK_BASENAME"
@@ -81,15 +81,10 @@ zip -q -j "$UNSIGNED_APK" "$DEX_DIR/classes.dex"
 
 "$BUILD_TOOLS_DIR/zipalign" -f 4 "$UNSIGNED_APK" "$ALIGNED_APK"
 
-keytool -genkeypair \
-  -keystore "$KEYSTORE" \
-  -storepass android \
-  -keypass android \
-  -alias androiddebugkey \
-  -keyalg RSA \
-  -keysize 2048 \
-  -validity 10000 \
-  -dname "CN=Android Debug,O=Android,C=US" >/dev/null 2>&1
+if [ ! -f "$KEYSTORE" ]; then
+  echo "Missing Android snapshot helper signing keystore: $KEYSTORE" >&2
+  exit 1
+fi
 
 "$BUILD_TOOLS_DIR/apksigner" sign \
   --ks "$KEYSTORE" \

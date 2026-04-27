@@ -208,6 +208,15 @@ public final class SnapshotInstrumentation extends Instrumentation {
         case '\'':
           xml.append("&apos;");
           break;
+        case '\n':
+          xml.append("&#10;");
+          break;
+        case '\r':
+          xml.append("&#13;");
+          break;
+        case '\t':
+          xml.append("&#9;");
+          break;
         default:
           xml.append(character);
           break;

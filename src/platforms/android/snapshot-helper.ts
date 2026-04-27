@@ -107,6 +107,19 @@ export type AndroidSnapshotHelperParsedSnapshot = {
 
 export type { AndroidSnapshotBackendMetadata };
 
+type AndroidSnapshotHelperChunk = {
+  index: number | undefined;
+  count: number | undefined;
+  payloadBase64: string;
+};
+
+type AndroidInstrumentationRecordState = {
+  status: Array<Record<string, string>>;
+  results: Array<Record<string, string>>;
+  currentStatus: Record<string, string> | null;
+  currentResult: Record<string, string> | null;
+};
+
 export async function ensureAndroidSnapshotHelper(options: {
   adb: AndroidAdbExecutor;
   artifact: AndroidSnapshotHelperArtifact;
@@ -292,7 +305,17 @@ export async function captureAndroidSnapshotWithHelper(
 
 export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapshotHelperOutput {
   const records = parseInstrumentationRecords(output);
-  const chunks = records.status
+  const finalResult = readFinalHelperResult(records.results);
+  const xml = decodeHelperXml(collectHelperChunks(records.status), finalResult);
+
+  return {
+    xml,
+    metadata: readHelperMetadata(finalResult),
+  };
+}
+
+function collectHelperChunks(records: Array<Record<string, string>>): AndroidSnapshotHelperChunk[] {
+  return records
     .filter(
       (record) =>
         record.agentDeviceProtocol === ANDROID_SNAPSHOT_HELPER_PROTOCOL &&
@@ -304,31 +327,52 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
       count: readOptionalNumber(record.chunkCount),
       payloadBase64: record.payloadBase64,
     }));
+}
 
-  const finalResult = records.results.find(
+function readFinalHelperResult(records: Array<Record<string, string>>): Record<string, string> {
+  const finalResult = records.find(
     (record) => record.agentDeviceProtocol === ANDROID_SNAPSHOT_HELPER_PROTOCOL,
   );
   if (!finalResult) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper did not return a final result');
   }
   if (finalResult.ok !== 'true') {
-    throw new AppError(
-      'COMMAND_FAILED',
-      finalResult.message && finalResult.message !== 'null'
-        ? finalResult.message
-        : finalResult.errorType || 'Android snapshot helper returned an error',
-      {
-        errorType: finalResult.errorType,
-        helper: finalResult,
-      },
-    );
+    throw new AppError('COMMAND_FAILED', readHelperErrorMessage(finalResult), {
+      errorType: finalResult.errorType,
+      helper: finalResult,
+    });
   }
+  return finalResult;
+}
+
+function readHelperErrorMessage(finalResult: Record<string, string>): string {
+  return finalResult.message && finalResult.message !== 'null'
+    ? finalResult.message
+    : finalResult.errorType || 'Android snapshot helper returned an error';
+}
+
+function decodeHelperXml(
+  chunks: AndroidSnapshotHelperChunk[],
+  finalResult: Record<string, string>,
+): string {
   if (chunks.length === 0) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper did not return XML chunks', {
       helper: finalResult,
     });
   }
+  const chunkCount = validateChunkCount(chunks);
+  const xml = Buffer.concat(
+    readChunkPayloads(indexChunks(chunks, chunkCount), chunkCount),
+  ).toString('utf8');
+  if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) {
+    throw new AppError('COMMAND_FAILED', 'Android snapshot helper output did not contain XML', {
+      xml,
+    });
+  }
+  return xml;
+}
 
+function validateChunkCount(chunks: AndroidSnapshotHelperChunk[]): number {
   const chunkCount = chunks[0]?.count ?? chunks.length;
   if (
     chunkCount < 1 ||
@@ -340,6 +384,13 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
       actualChunks: chunks.length,
     });
   }
+  return chunkCount;
+}
+
+function indexChunks(
+  chunks: AndroidSnapshotHelperChunk[],
+  chunkCount: number,
+): Map<number, string> {
   const chunksByIndex = new Map<number, string>();
   for (const chunk of chunks) {
     if (chunk.index === undefined || chunk.index < 0 || chunk.index >= chunkCount) {
@@ -352,14 +403,15 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
       throw new AppError(
         'COMMAND_FAILED',
         'Android snapshot helper returned duplicate XML chunks',
-        {
-          chunkIndex: chunk.index,
-        },
+        { chunkIndex: chunk.index },
       );
     }
     chunksByIndex.set(chunk.index, chunk.payloadBase64);
   }
+  return chunksByIndex;
+}
 
+function readChunkPayloads(chunksByIndex: Map<number, string>, chunkCount: number): Buffer[] {
   const payloads: Buffer[] = [];
   for (let index = 0; index < chunkCount; index += 1) {
     const payloadBase64 = chunksByIndex.get(index);
@@ -375,27 +427,21 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
     }
     payloads.push(Buffer.from(payloadBase64, 'base64'));
   }
-  const xml = Buffer.concat(payloads).toString('utf8');
-  if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) {
-    throw new AppError('COMMAND_FAILED', 'Android snapshot helper output did not contain XML', {
-      xml,
-    });
-  }
+  return payloads;
+}
 
+function readHelperMetadata(finalResult: Record<string, string>): AndroidSnapshotHelperMetadata {
   return {
-    xml,
-    metadata: {
-      helperApiVersion: finalResult.helperApiVersion,
-      outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
-      waitForIdleTimeoutMs: readOptionalNumber(finalResult.waitForIdleTimeoutMs),
-      timeoutMs: readOptionalNumber(finalResult.timeoutMs),
-      maxDepth: readOptionalNumber(finalResult.maxDepth),
-      maxNodes: readOptionalNumber(finalResult.maxNodes),
-      rootPresent: readOptionalBoolean(finalResult.rootPresent),
-      nodeCount: readOptionalNumber(finalResult.nodeCount),
-      truncated: readOptionalBoolean(finalResult.truncated),
-      elapsedMs: readOptionalNumber(finalResult.elapsedMs),
-    },
+    helperApiVersion: finalResult.helperApiVersion,
+    outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
+    waitForIdleTimeoutMs: readOptionalNumber(finalResult.waitForIdleTimeoutMs),
+    timeoutMs: readOptionalNumber(finalResult.timeoutMs),
+    maxDepth: readOptionalNumber(finalResult.maxDepth),
+    maxNodes: readOptionalNumber(finalResult.maxNodes),
+    rootPresent: readOptionalBoolean(finalResult.rootPresent),
+    nodeCount: readOptionalNumber(finalResult.nodeCount),
+    truncated: readOptionalBoolean(finalResult.truncated),
+    elapsedMs: readOptionalNumber(finalResult.elapsedMs),
   };
 }
 
@@ -543,44 +589,66 @@ function parseInstrumentationRecords(output: string): {
   status: Array<Record<string, string>>;
   results: Array<Record<string, string>>;
 } {
-  const status: Array<Record<string, string>> = [];
-  const results: Array<Record<string, string>> = [];
-  let currentStatus: Record<string, string> | null = null;
-  let currentResult: Record<string, string> | null = null;
+  const state: AndroidInstrumentationRecordState = {
+    status: [],
+    results: [],
+    currentStatus: null,
+    currentResult: null,
+  };
 
   for (const line of output.split(/\r?\n/)) {
-    if (line.startsWith('INSTRUMENTATION_STATUS: ')) {
-      currentStatus ??= {};
-      readKeyValue(line.slice('INSTRUMENTATION_STATUS: '.length), currentStatus);
-      continue;
-    }
-    if (line.startsWith('INSTRUMENTATION_STATUS_CODE: ')) {
-      if (currentStatus) {
-        status.push(currentStatus);
-        currentStatus = null;
-      }
-      continue;
-    }
-    if (line.startsWith('INSTRUMENTATION_RESULT: ')) {
-      currentResult ??= {};
-      readKeyValue(line.slice('INSTRUMENTATION_RESULT: '.length), currentResult);
-      continue;
-    }
-    if (line.startsWith('INSTRUMENTATION_CODE: ')) {
-      if (currentResult) {
-        results.push(currentResult);
-        currentResult = null;
-      }
-    }
+    readInstrumentationRecordLine(line, state);
   }
+  flushInstrumentationRecords(state);
+  return { status: state.status, results: state.results };
+}
 
-  if (currentStatus) {
-    status.push(currentStatus);
+function readInstrumentationRecordLine(
+  line: string,
+  state: AndroidInstrumentationRecordState,
+): void {
+  if (line.startsWith('INSTRUMENTATION_STATUS: ')) {
+    state.currentStatus ??= {};
+    readKeyValue(line.slice('INSTRUMENTATION_STATUS: '.length), state.currentStatus);
+    return;
   }
-  if (currentResult) {
-    results.push(currentResult);
+  if (line.startsWith('INSTRUMENTATION_STATUS_CODE: ')) {
+    flushStatusRecord(state);
+    return;
   }
-  return { status, results };
+  if (line.startsWith('INSTRUMENTATION_RESULT: ')) {
+    state.currentResult ??= {};
+    readKeyValue(line.slice('INSTRUMENTATION_RESULT: '.length), state.currentResult);
+    return;
+  }
+  if (line.startsWith('INSTRUMENTATION_CODE: ')) {
+    flushResultRecord(state);
+  }
+}
+
+function flushInstrumentationRecords(state: AndroidInstrumentationRecordState): void {
+  flushStatusRecord(state);
+  flushResultRecord(state);
+}
+
+function flushStatusRecord(state: {
+  status: Array<Record<string, string>>;
+  currentStatus: Record<string, string> | null;
+}): void {
+  if (state.currentStatus) {
+    state.status.push(state.currentStatus);
+    state.currentStatus = null;
+  }
+}
+
+function flushResultRecord(state: {
+  results: Array<Record<string, string>>;
+  currentResult: Record<string, string> | null;
+}): void {
+  if (state.currentResult) {
+    state.results.push(state.currentResult);
+    state.currentResult = null;
+  }
 }
 
 function readKeyValue(line: string, target: Record<string, string>): void {
