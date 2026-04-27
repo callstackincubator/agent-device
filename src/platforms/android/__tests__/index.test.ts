@@ -104,6 +104,16 @@ test('parseUiHierarchy supports mixed quote styles in one node', () => {
   assert.equal(result.nodes[0].identifier, 'com.demo:id/title');
 });
 
+test('parseUiHierarchy decodes XML entities in Android node attributes', () => {
+  const xml =
+    '<hierarchy><node class="android.widget.TextView" text="Line 1&#10;Line 2&#9;&amp;&lt;&gt;&quot;&apos;" bounds="[0,0][10,10]"/></hierarchy>';
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(result.nodes.length, 1);
+  assert.equal(result.nodes[0].value, 'Line 1\nLine 2\t&<>"\'');
+  assert.equal(result.nodes[0].label, 'Line 1\nLine 2\t&<>"\'');
+});
+
 test('findBounds supports single and double quoted attributes', () => {
   const xml = [
     '<hierarchy>',
