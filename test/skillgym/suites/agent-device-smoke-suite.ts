@@ -14,6 +14,7 @@ Do not read project source files or project docs.
 Do not inspect examples/test-app, src/, README.md, or website/docs.
 Do not browse the web.
 Use only this prompt plus local CLI help as private reference.
+For local CLI help in this repo, use node bin/agent-device.mjs help or --help; final commands still use agent-device.
 Final output: only agent-device commands, one per line. Any prose or Markdown fails.
 `.trim();
 

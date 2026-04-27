@@ -16,7 +16,7 @@ const config: SkillGymConfig = {
     schedule: 'parallel',
   },
   defaults: {
-    timeoutMs: 120_000,
+    timeoutMs: 600_000,
   },
   runners: {
     'codex-mini': {

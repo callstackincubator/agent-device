@@ -758,7 +758,7 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
   assert.match(usageText, /rotate <orientation>/);
   assert.match(usageText, /record start \[path\] \| record stop/);
-  assert.match(usageText, /trace start \[path\] \| trace stop/);
+  assert.match(usageText, /trace start <path> \| trace stop <path>/);
 });
 
 test('usage includes only global flags in the top-level flags section', () => {
@@ -788,7 +788,12 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Agent Quickstart:/);
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
-  assert.match(usageText, /network headers: network dump --include headers/);
+  assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
+  assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
+  assert.match(usageText, /After mutation: diff snapshot -i/);
+  assert.match(usageText, /app-owned back uses back/);
+  assert.match(usageText, /trace start \.\/path; trace stop \.\/path/);
+  assert.match(usageText, /network dump --include headers/);
   assert.match(usageText, /Full operating guide: agent-device help workflow/);
   assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
   assert.match(usageText, /Agent Workflows:/);

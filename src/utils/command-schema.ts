@@ -173,8 +173,12 @@ const AGENT_WORKFLOWS = [
 const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
+  'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
+  'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
+  'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
+  'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
-  'Debug evidence: logs clear/mark/path; network headers: network dump --include headers.',
+  'Debug evidence: logs clear/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
   'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
   'Full operating guide: agent-device help workflow. Exploratory QA: agent-device help dogfood.',
 ] as const;
@@ -1704,9 +1708,10 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['fps', 'quality', 'hideTouches'],
   },
   trace: {
-    usageOverride: 'trace start [path] | trace stop [path]',
-    listUsageOverride: 'trace start [path] | trace stop',
-    helpDescription: 'Start/stop trace log capture',
+    usageOverride: 'trace start <path> | trace stop <path>',
+    listUsageOverride: 'trace start <path> | trace stop <path>',
+    helpDescription:
+      'Start/stop trace log capture; when an artifact path is requested, pass the same positional path to start and stop',
     summary: 'Start or stop trace capture',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: [],
