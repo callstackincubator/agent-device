@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-454/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-454/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-454/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-454/static/js/index.6aee947102.js"></script>
+<script defer src="/agent-device/pr-preview/pr-454/static/js/index.843c4a6a95.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -190,7 +190,9 @@
 <li>Android snapshots use stock UIAutomator by default. To try the released Android snapshot helper
 before stock UIAutomator, set both <code>AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_APK</code> and
 <code>AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_MANIFEST</code>; helper failures fall back to stock UIAutomator
-and include <code>androidSnapshot.fallbackReason</code> in typed results.</li>
+and include <code>androidSnapshot.fallbackReason</code> in typed results. The helper serializes Android
+interactive window roots when available, so keyboard and system-overlay nodes can appear alongside
+the app root; <code>androidSnapshot.captureMode</code> and <code>androidSnapshot.windowCount</code> describe the capture.</li>
 <li><code>diff snapshot</code> compares the current snapshot with the previous session baseline and then updates baseline.</li>
 <li><code>snapshot --diff</code> is an alias for <code>diff snapshot</code>.</li>
 </ul>
