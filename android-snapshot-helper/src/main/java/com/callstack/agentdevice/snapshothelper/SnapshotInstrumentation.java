@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeoutException;
 
-@SuppressWarnings("deprecation")
 public final class SnapshotInstrumentation extends Instrumentation {
   private static final String PROTOCOL = "android-snapshot-helper-v1";
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
@@ -71,6 +70,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     }
   }
 
+  @SuppressWarnings("deprecation")
   private CaptureResult captureXml(long waitForIdleTimeoutMs, int maxDepth, int maxNodes)
       throws TimeoutException {
     UiAutomation automation = getUiAutomation();
@@ -130,6 +130,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     }
   }
 
+  @SuppressWarnings("deprecation")
   private static int appendInteractiveWindowRoots(
       StringBuilder xml,
       UiAutomation automation,
@@ -192,6 +193,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     }
   }
 
+  @SuppressWarnings("deprecation")
   private static void appendNode(
       StringBuilder xml,
       AccessibilityNodeInfo node,

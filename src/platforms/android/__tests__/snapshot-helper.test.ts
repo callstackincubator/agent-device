@@ -144,6 +144,18 @@ test('parseAndroidSnapshotHelperOutput rejects incomplete chunks', () => {
   });
 });
 
+test('parseAndroidSnapshotHelperOutput treats empty chunk payloads as present', () => {
+  const output = [
+    statusRecord({ chunkIndex: '0', chunkCount: '1', payloadBase64: '' }),
+    resultRecord({ ok: 'true', outputFormat: 'uiautomator-xml' }),
+    'INSTRUMENTATION_CODE: 0',
+  ].join('\n');
+
+  assert.throws(() => parseAndroidSnapshotHelperOutput(output), {
+    message: 'Android snapshot helper output did not contain XML',
+  });
+});
+
 test('parseAndroidSnapshotHelperOutput rejects duplicate chunks', () => {
   const output = [
     statusRecord({ chunkIndex: '0', chunkCount: '2', payloadBase64: encodeChunk('<hierarchy>') }),
@@ -398,34 +410,57 @@ test('prepareAndroidSnapshotHelperArtifactFromManifestUrl downloads and verifies
   const apk = Buffer.from('downloaded-helper');
   const manifestUrl = 'https://example.test/helper.manifest.json';
   const apkUrl = 'https://example.test/helper.apk';
-  const fetched: string[] = [];
+  const fetch = createArtifactFetch({ manifestUrl, apkUrl, apk });
 
   const artifact = await prepareAndroidSnapshotHelperArtifactFromManifestUrl({
     manifestUrl,
     cacheDir: tmpDir,
-    fetch: async (url) => {
-      fetched.push(String(url));
-      if (url === manifestUrl) {
-        return new Response(
-          JSON.stringify({
-            ...manifest,
-            assetName: 'helper.apk',
-            apkUrl,
-            sha256: sha256Buffer(apk),
-          }),
-        );
-      }
-      if (url === apkUrl) {
-        return new Response(apk);
-      }
-      return new Response('not found', { status: 404 });
-    },
+    fetch,
   });
 
-  assert.deepEqual(fetched, [manifestUrl, apkUrl]);
+  assert.deepEqual(fetch.fetched, [manifestUrl, apkUrl]);
   assert.equal(await fs.readFile(artifact.apkPath, 'utf8'), 'downloaded-helper');
   assert.equal(artifact.manifest.sha256, sha256Buffer(apk));
   await artifact.cleanup?.();
+});
+
+test('prepareAndroidSnapshotHelperArtifactFromManifestUrl removes owned cache directory on cleanup', async () => {
+  const apk = Buffer.from('downloaded-helper');
+  const manifestUrl = 'https://example.test/helper.manifest.json';
+  const apkUrl = 'https://example.test/helper.apk';
+  const fetch = createArtifactFetch({ manifestUrl, apkUrl, apk });
+
+  const artifact = await prepareAndroidSnapshotHelperArtifactFromManifestUrl({
+    manifestUrl,
+    fetch,
+  });
+  const cacheDir = path.dirname(artifact.apkPath);
+
+  await artifact.cleanup?.();
+
+  await assert.rejects(() => fs.access(cacheDir), { code: 'ENOENT' });
+});
+
+test('prepareAndroidSnapshotHelperArtifactFromManifestUrl rejects oversized APK downloads', async () => {
+  const manifestUrl = 'https://example.test/helper.manifest.json';
+  const apkUrl = 'https://example.test/helper.apk';
+  const fetch = createArtifactFetch({
+    manifestUrl,
+    apkUrl,
+    apk: Buffer.from('small'),
+    apkResponse: new Response('small', {
+      headers: { 'content-length': String(20 * 1024 * 1024 + 1) },
+    }),
+  });
+
+  await assert.rejects(
+    () =>
+      prepareAndroidSnapshotHelperArtifactFromManifestUrl({
+        manifestUrl,
+        fetch,
+      }),
+    { message: 'Android snapshot helper APK download exceeds size limit' },
+  );
 });
 
 test('parseAndroidSnapshotHelperManifest validates manifest shape', () => {
@@ -435,6 +470,13 @@ test('parseAndroidSnapshotHelperManifest validates manifest shape', () => {
   assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, installArgs: ['shell'] }), {
     message: 'Android snapshot helper manifest installArgs must start with "install".',
   });
+  assert.throws(
+    () => parseAndroidSnapshotHelperManifest({ ...manifest, installArgs: ['install', '--user'] }),
+    {
+      message:
+        'Android snapshot helper manifest installArgs contains unsupported install flag "--user".',
+    },
+  );
   assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, sha256: 'not-a-sha' }), {
     message: 'Android snapshot helper manifest sha256 must be a 64-character hex string.',
   });
@@ -481,6 +523,33 @@ function resultRecord(values: Record<string, string>): string {
     'INSTRUMENTATION_RESULT: helperApiVersion=1',
     ...Object.entries(values).map(([key, value]) => `INSTRUMENTATION_RESULT: ${key}=${value}`),
   ].join('\n');
+}
+
+function createArtifactFetch(options: {
+  manifestUrl: string;
+  apkUrl: string;
+  apk: Buffer;
+  apkResponse?: Response;
+}): typeof fetch & { fetched: string[] } {
+  const fetched: string[] = [];
+  const fetchImpl = async (url: string | URL | Request) => {
+    fetched.push(String(url));
+    if (String(url) === options.manifestUrl) {
+      return new Response(
+        JSON.stringify({
+          ...manifest,
+          assetName: 'helper.apk',
+          apkUrl: options.apkUrl,
+          sha256: sha256Buffer(options.apk),
+        }),
+      );
+    }
+    if (String(url) === options.apkUrl) {
+      return options.apkResponse ?? new Response(new Uint8Array(options.apk));
+    }
+    return new Response('not found', { status: 404 });
+  };
+  return Object.assign(fetchImpl, { fetched }) as typeof fetch & { fetched: string[] };
 }
 
 function sha256Text(value: string): string {

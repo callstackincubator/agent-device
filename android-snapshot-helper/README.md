@@ -71,5 +71,5 @@ Failures return `ok=false`, `errorType`, and `message` in the final result.
 
 The release manifest is a stable provider contract for the current helper protocol. Providers should
 resolve the APK from `apkUrl`, verify `sha256`, install using `installArgs`, and run
-`instrumentationRunner`. `installArgs` must start with `install`; extra arguments are limited to adb
-install flags and the consumer appends the APK path.
+`instrumentationRunner`. `installArgs` must start with `install`; extra arguments are limited to the
+allowlisted adb install flags `-r`, `-t`, `-d`, and `-g`, and the consumer appends the APK path.

@@ -19,6 +19,10 @@ export const ANDROID_SNAPSHOT_HELPER_RUNNER =
 export const ANDROID_SNAPSHOT_HELPER_PROTOCOL = 'android-snapshot-helper-v1';
 export const ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT = 'uiautomator-xml';
 export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
+const ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS = 5_000;
+const ANDROID_SNAPSHOT_HELPER_MAX_MANIFEST_BYTES = 64 * 1024;
+const ANDROID_SNAPSHOT_HELPER_MAX_APK_BYTES = 20 * 1024 * 1024;
+const ANDROID_SNAPSHOT_HELPER_ALLOWED_INSTALL_FLAGS = new Set(['-r', '-t', '-d', '-g']);
 
 export type AndroidAdbExecutor = (
   args: string[],
@@ -208,7 +212,17 @@ export async function prepareAndroidSnapshotHelperArtifactFromManifestUrl(option
       statusText: manifestResponse.statusText,
     });
   }
-  const manifest = parseAndroidSnapshotHelperManifest(await manifestResponse.json());
+  const manifest = parseAndroidSnapshotHelperManifest(
+    JSON.parse(
+      (
+        await readResponseBodyWithLimit(
+          manifestResponse,
+          ANDROID_SNAPSHOT_HELPER_MAX_MANIFEST_BYTES,
+          'Android snapshot helper manifest',
+        )
+      ).toString('utf8'),
+    ),
+  );
   if (!manifest.apkUrl) {
     throw new AppError(
       'COMMAND_FAILED',
@@ -222,6 +236,7 @@ export async function prepareAndroidSnapshotHelperArtifactFromManifestUrl(option
   const cacheDir =
     options.cacheDir ??
     path.join(os.tmpdir(), `agent-device-android-snapshot-helper-${manifest.version}`);
+  const ownsCacheDir = !options.cacheDir;
   await fsp.mkdir(cacheDir, { recursive: true });
   const apkName =
     manifest.assetName ?? `agent-device-android-snapshot-helper-${manifest.version}.apk`;
@@ -234,13 +249,20 @@ export async function prepareAndroidSnapshotHelperArtifactFromManifestUrl(option
       statusText: apkResponse.statusText,
     });
   }
-  await fsp.writeFile(apkPath, Buffer.from(await apkResponse.arrayBuffer()));
+  await fsp.writeFile(
+    apkPath,
+    await readResponseBodyWithLimit(
+      apkResponse,
+      ANDROID_SNAPSHOT_HELPER_MAX_APK_BYTES,
+      'Android snapshot helper APK',
+    ),
+  );
   const artifact = { apkPath, manifest };
   await verifyAndroidSnapshotHelperArtifact(artifact);
   return {
     ...artifact,
     cleanup: async () => {
-      await fsp.rm(apkPath, { force: true });
+      await fsp.rm(ownsCacheDir ? cacheDir : apkPath, { recursive: ownsCacheDir, force: true });
     },
   };
 }
@@ -251,7 +273,8 @@ export async function captureAndroidSnapshotWithHelper(
   const waitForIdleTimeoutMs =
     options.waitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS;
   const timeoutMs = options.timeoutMs ?? 8_000;
-  const commandTimeoutMs = options.commandTimeoutMs ?? timeoutMs + 5_000;
+  const commandTimeoutMs =
+    options.commandTimeoutMs ?? timeoutMs + ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS;
   const maxDepth = options.maxDepth ?? 128;
   const maxNodes = options.maxNodes ?? 5_000;
   const packageName = options.packageName ?? ANDROID_SNAPSHOT_HELPER_PACKAGE;
@@ -282,6 +305,7 @@ export async function captureAndroidSnapshotWithHelper(
   });
   let output: AndroidSnapshotHelperOutput;
   try {
+    // The helper can report structured ok=false details even when am exits non-zero.
     output = parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
   } catch (error) {
     throw new AppError(
@@ -420,7 +444,7 @@ function readChunkPayloads(chunksByIndex: Map<number, string>, chunkCount: numbe
   const payloads: Buffer[] = [];
   for (let index = 0; index < chunkCount; index += 1) {
     const payloadBase64 = chunksByIndex.get(index);
-    if (!payloadBase64) {
+    if (payloadBase64 === undefined) {
       throw new AppError(
         'COMMAND_FAILED',
         'Android snapshot helper returned incomplete XML chunks',
@@ -528,6 +552,13 @@ function readAndroidSnapshotHelperManifestInstallArgs(value: unknown): string[] 
       'Android snapshot helper manifest installArgs must not contain null bytes.',
     );
   }
+  const unsupportedArg = installArgs.slice(1).find((arg) => !isAllowedInstallFlag(arg));
+  if (unsupportedArg) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Android snapshot helper manifest installArgs contains unsupported install flag "${unsupportedArg}".`,
+    );
+  }
   return installArgs;
 }
 
@@ -590,6 +621,59 @@ async function installAndroidSnapshotHelper(
       .filter(Boolean)
       .join('\n'),
   };
+}
+
+async function readResponseBodyWithLimit(
+  response: Response,
+  maxBytes: number,
+  label: string,
+): Promise<Buffer> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength !== null) {
+    const parsedLength = Number(contentLength);
+    if (Number.isFinite(parsedLength) && parsedLength > maxBytes) {
+      throw new AppError('COMMAND_FAILED', `${label} download exceeds size limit`, {
+        contentLength: parsedLength,
+        maxBytes,
+      });
+    }
+  }
+
+  if (!response.body) {
+    const body = Buffer.from(await response.arrayBuffer());
+    if (body.length > maxBytes) {
+      throw new AppError('COMMAND_FAILED', `${label} download exceeds size limit`, {
+        contentLength: body.length,
+        maxBytes,
+      });
+    }
+    return body;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        throw new AppError('COMMAND_FAILED', `${label} download exceeds size limit`, {
+          contentLength: total,
+          maxBytes,
+        });
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, total);
+}
+
+function isAllowedInstallFlag(arg: string): boolean {
+  return ANDROID_SNAPSHOT_HELPER_ALLOWED_INSTALL_FLAGS.has(arg);
 }
 
 function parsePackageListVersionCode(output: string, packageName: string): number | undefined {
