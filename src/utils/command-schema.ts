@@ -165,7 +165,10 @@ const AGENT_WORKFLOWS = [
     label: 'help react-devtools',
     description: 'React Native performance, profiling, component tree, and renders',
   },
-  { label: 'help remote', description: 'Remote config, tenants, leases, and companion tunnels' },
+  {
+    label: 'help remote',
+    description: 'Remote/cloud config, tenants, leases, and local service tunnels',
+  },
   { label: 'help macos', description: 'Desktop, frontmost-app, and menu bar surfaces' },
   { label: 'help dogfood', description: 'Exploratory QA report workflow' },
 ] as const;
@@ -314,7 +317,7 @@ React DevTools minimum loop:
 Escalate:
   help debugging       logs, network, alerts, traces, flaky runtime failures
   help react-devtools  React Native performance, profiling, props/state/hooks, slow renders, rerenders
-  help remote          remote-config, tenant, lease, remote Android companion tunnel
+  help remote          remote/cloud config, tenant, lease, local service tunnels
   help macos           desktop, frontmost-app, menu bar surfaces
   help dogfood         exploratory QA report workflow`,
   },
@@ -417,7 +420,7 @@ Rules:
   connect and disconnect are top-level commands. Do not write agent-device remote connect or agent-device remote disconnect.
   Prefer --remote-config over --daemon-base-url, --tenant, --run-id, and --lease-id in ordinary remote flows.
   After connect, let the active remote connection supply runtime hints.
-  For remote Android React DevTools, run agent-device react-devtools normally. The CLI opens the companion tunnel for the local DevTools daemon and cleans it up when the command exits.
+  For remote Android React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and cleans it up when the command exits.
   Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
   },
   macos: {
