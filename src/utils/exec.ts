@@ -2,6 +2,8 @@ import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn, spawnSync, type ChildProcess, type StdioOptions } from 'node:child_process';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from './errors.ts';
 
 export type ExecResult = {
@@ -19,6 +21,7 @@ type ExecOptions = {
   stdin?: string | Buffer;
   timeoutMs?: number;
   detached?: boolean;
+  signal?: AbortSignal;
 };
 
 type ExecStreamOptions = ExecOptions & {
@@ -75,6 +78,7 @@ function runSpawnedCommand(
     const stdoutChunks: Buffer[] | undefined = options.binaryStdout ? [] : undefined;
     let stderr = '';
     let didTimeout = false;
+    let didAbort = false;
     const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     const timeoutHandle = timeoutMs
       ? setTimeout(() => {
@@ -82,20 +86,25 @@ function runSpawnedCommand(
           killProcessTree(child, options.detached);
         }, timeoutMs)
       : null;
+    const onAbort = () => {
+      didAbort = true;
+      killProcessTree(child, options.detached);
+    };
+    if (options.signal?.aborted) {
+      onAbort();
+    } else {
+      options.signal?.addEventListener('abort', onAbort, { once: true });
+    }
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
-    child.stdin.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EPIPE') {
-        child.emit('error', err);
-      }
+    void writeChildStdin(child, options.stdin).catch((err: unknown) => {
+      if (didAbort || didTimeout) return;
+      if (isEpipeError(err)) return;
+      reject(createStdinError(executable, cmd, args, err));
+      killProcessTree(child, options.detached);
     });
-    if (options.stdin !== undefined) {
-      child.stdin.end(options.stdin);
-    } else {
-      child.stdin.end();
-    }
 
     child.stdout.on('data', (chunk) => {
       if (options.binaryStdout) {
@@ -115,12 +124,22 @@ function runSpawnedCommand(
 
     child.on('error', (err) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      reject(createSpawnError(executable, cmd, args, err));
+      options.signal?.removeEventListener('abort', onAbort);
+      reject(
+        didAbort
+          ? createCommandCanceledError(executable, cmd, args)
+          : createSpawnError(executable, cmd, args, err),
+      );
     });
 
     child.on('close', (code) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
+      options.signal?.removeEventListener('abort', onAbort);
       const exitCode = code ?? 1;
+      if (didAbort) {
+        reject(createCommandCanceledError(executable, cmd, args));
+        return;
+      }
       if (didTimeout && timeoutMs) {
         reject(createTimeoutError(executable, cmd, args, timeoutMs, exitCode, stdout, stderr));
         return;
@@ -341,6 +360,29 @@ function createCommandFailedError(
   return new AppError('COMMAND_FAILED', `Failed to run ${executable}`, { cmd, args }, cause);
 }
 
+function createStdinError(
+  executable: string,
+  cmd: string,
+  args: string[],
+  cause: unknown,
+): AppError {
+  return new AppError(
+    'COMMAND_FAILED',
+    `Failed to write stdin for ${executable}`,
+    { cmd, args },
+    cause instanceof Error ? cause : undefined,
+  );
+}
+
+function createCommandCanceledError(executable: string, cmd: string, args: string[]): AppError {
+  return new AppError('COMMAND_FAILED', 'request canceled', {
+    cmd,
+    args,
+    executable,
+    reason: 'request_canceled',
+  });
+}
+
 function createTimeoutError(
   executable: string,
   cmd: string,
@@ -459,4 +501,22 @@ function killProcessTree(child: ChildProcess, detached: boolean | undefined): vo
     } catch {}
   }
   child.kill('SIGKILL');
+}
+
+async function writeChildStdin(
+  child: ChildProcess,
+  stdin: string | Buffer | undefined,
+): Promise<void> {
+  if (!child.stdin) return;
+  if (stdin === undefined) {
+    child.stdin?.end();
+    return;
+  }
+  await pipeline(Readable.from([stdin]), child.stdin);
+}
+
+function isEpipeError(error: unknown): boolean {
+  return (
+    error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'EPIPE'
+  );
 }

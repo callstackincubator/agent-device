@@ -27,6 +27,63 @@ test('runCmd enforces timeoutMs and rejects with COMMAND_FAILED', async () => {
   );
 });
 
+test('runCmd aborts with request cancellation details', async () => {
+  const controller = new AbortController();
+  const promise = runCmd(process.execPath, ['-e', 'setTimeout(() => {}, 10_000)'], {
+    signal: controller.signal,
+  });
+  controller.abort();
+
+  await assert.rejects(promise, (error: unknown) => {
+    const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
+    return (
+      err?.code === 'COMMAND_FAILED' &&
+      err.message === 'request canceled' &&
+      err.details?.reason === 'request_canceled'
+    );
+  });
+});
+
+test('runCmd abort keeps cancellation details while writing stdin', async () => {
+  const controller = new AbortController();
+  const promise = runCmd(
+    process.execPath,
+    ['-e', ['process.stdin.resume();', 'setTimeout(() => {}, 10_000);'].join('')],
+    {
+      signal: controller.signal,
+      stdin: Buffer.alloc(512_000, 'a'),
+    },
+  );
+  controller.abort();
+
+  await assert.rejects(promise, (error: unknown) => {
+    const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
+    return (
+      err?.code === 'COMMAND_FAILED' &&
+      err.message === 'request canceled' &&
+      err.details?.reason === 'request_canceled'
+    );
+  });
+});
+
+test('runCmd writes stdin through pipeline', async () => {
+  const stdin = Buffer.alloc(256_000, 'a');
+  const result = await runCmd(
+    process.execPath,
+    [
+      '-e',
+      [
+        'let bytes = 0;',
+        'process.stdin.on("data", chunk => { bytes += chunk.length; });',
+        'process.stdin.on("end", () => process.stdout.write(String(bytes)));',
+      ].join(''),
+    ],
+    { stdin },
+  );
+
+  assert.equal(result.stdout, String(stdin.length));
+});
+
 test('whichCmd resolves absolute executable paths without invoking a shell', async () => {
   assert.equal(await whichCmd(process.execPath), true);
 });

@@ -154,7 +154,7 @@ export async function waitForRunner(
     if (remainingMs <= 0) {
       throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
     }
-    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs);
+    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs, signal);
     return new Response(simResponse.body, { status: simResponse.status });
   }
 
@@ -250,6 +250,7 @@ async function postCommandViaSimulator(
   port: number,
   command: RunnerCommand,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<{ status: number; body: string }> {
   const payload = JSON.stringify(command);
   const args = buildSimctlArgsForDevice(device, [
@@ -265,7 +266,7 @@ async function postCommandViaSimulator(
     payload,
     `http://127.0.0.1:${port}/command`,
   ]);
-  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs });
+  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs, signal });
   const body = result.stdout as string;
   if (result.exitCode !== 0) {
     const reason = classifyBootFailure({
