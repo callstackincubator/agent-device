@@ -167,6 +167,14 @@ const AGENT_WORKFLOWS = [
   { label: 'help dogfood', description: 'Exploratory QA report workflow' },
 ] as const;
 
+const AGENT_QUICKSTART_LINES = [
+  'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
+  'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
+  'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
+  'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
+  'Full operating guide: agent-device help workflow.',
+] as const;
+
 const CONFIGURATION_LINES = [
   'Default config files: ~/.agent-device/config.json, ./agent-device.json',
   'Use --config <path> or AGENT_DEVICE_CONFIG to load one explicit config file.',
@@ -1821,6 +1829,7 @@ CLI to control iOS and Android devices for AI agents.
 
   const helpFlags = listHelpFlags(GLOBAL_FLAG_KEYS);
   const flagsSection = renderFlagSection('Flags:', helpFlags);
+  const quickstartSection = renderTextSection('Agent Quickstart:', AGENT_QUICKSTART_LINES);
   const workflowsSection = renderAlignedSection('Agent Workflows:', AGENT_WORKFLOWS);
   const configSection = renderTextSection('Configuration:', CONFIGURATION_LINES);
   const environmentSection = renderAlignedSection('Environment:', ENVIRONMENT_LINES);
@@ -1830,6 +1839,8 @@ CLI to control iOS and Android devices for AI agents.
 ${commandLines}
 
 ${flagsSection}
+
+${quickstartSection}
 
 ${workflowsSection}
 

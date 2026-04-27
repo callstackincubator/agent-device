@@ -785,6 +785,10 @@ test('usage includes only global flags in the top-level flags section', () => {
 
 test('usage includes agent workflows, config, environment, and examples footers', () => {
   const usageText = usage();
+  assert.match(usageText, /Agent Quickstart:/);
+  assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
+  assert.match(usageText, /Use selectors or refs as positional targets/);
+  assert.match(usageText, /Full operating guide: agent-device help workflow/);
   assert.match(usageText, /Agent Workflows:/);
   assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
   assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
