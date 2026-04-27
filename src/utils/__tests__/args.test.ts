@@ -820,6 +820,16 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /help react-devtools/);
 });
 
+test('workflow help keeps common copyable command forms', () => {
+  const help = usageForCommand('workflow');
+  if (help === null) throw new Error('Expected workflow help text');
+  assert.match(help, /network dump --include headers/);
+  assert.match(help, /settings animations off/);
+  assert.match(help, /connect --remote-config/);
+  assert.match(help, /metro reload/);
+  assert.match(help, /screenshot --overlay-refs/);
+});
+
 test('apps defaults to --all filter and allows overrides', () => {
   const defaultFilter = parseArgs(['apps'], { strictFlags: true });
   assert.equal(defaultFilter.command, 'apps');

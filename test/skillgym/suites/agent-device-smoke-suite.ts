@@ -19,6 +19,7 @@ Follow the task wording exactly: snapshot != screenshot; record != trace; batch 
 Screenshot evidence uses screenshot --overlay-refs when ref overlays are requested.
 Use current command shapes from help: @ref placeholder after snapshot -i, id="..."/label="..." selectors, fill replaces, type appends, press/click not tap.
 Use provided labels, ids, and selectors when known; reserve @ref for unknown current refs.
+For verification, prefer provided testIDs/selectors over inferred visible text.
 If the task says by @ref, output press @ref or click @ref.
 App-owned navigation/back means the back command, not clicking a tab.
 Use direct gesture forms: swipe 320 500 40 500 --count 8 --pause-ms 30 --pattern ping-pong; longpress 300 500 800; pinch 0.5 200 400.
@@ -26,7 +27,7 @@ Off-screen snapshot hints use scroll down/up then snapshot -i, not swipe or coor
 If discovery is needed, include devices, apps, and open <discovered-app-id>; if debounced wait has no result selector, use wait 1000.
 Use precise helpers when relevant: diff snapshot -i; logs clear --restart -> logs mark -> reproduce -> logs path; network dump --include headers; connect --remote-config -> open -> snapshot -> disconnect; settings animations off/on; macOS menubar uses --platform macos --surface menubar.
 React DevTools loop keeps the react-devtools prefix on every profile command: status -> wait --connected -> profile start -> interact -> profile stop -> profile slow -> profile rerenders.
-When expected text is provided, verify it with wait/is/get/find instead of a bare screenshot.
+When expected text is provided, include that exact text in a wait/is/get/find command; a bare snapshot or screenshot fails.
 `.trim();
 
 function buildPrompt(options: { contract: string[]; task: string }) {
@@ -53,7 +54,7 @@ function assertNoProjectSourceReads(report: SessionReport) {
 function commandPattern(command: string) {
   // The suite asks agents for one command per line, so command-name assertions stay line anchored.
   return new RegExp(
-    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)?\\s+)?${command}(?:\\s|$)`,
+    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?${command}(?:\\s|$)`,
     'i',
   );
 }
@@ -61,7 +62,7 @@ function commandPattern(command: string) {
 function commandAlternativesPattern(commands: string[]) {
   const alternatives = commands.join('|');
   return new RegExp(
-    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)?\\s+)?(?:${alternatives})(?:\\s|$)`,
+    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?(?:${alternatives})(?:\\s|$)`,
     'i',
   );
 }
@@ -570,7 +571,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     outputs: [
       /load-diagnostics/i,
       commandPattern('network'),
-      /(?:dump|log)/i,
+      /dump/i,
       /(?:--include\s+headers|\bheaders\b)/i,
     ],
     forbiddenOutputs: [/logs path/i, /cat .*log/i],
@@ -660,9 +661,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the gesture command to pinch zoom out at the specified center.',
     outputs: [commandPattern('pinch'), /0\.5/i, /200\s+400/i],
     forbiddenOutputs: [
-      /--scale/i,
-      /--x/i,
-      /--y/i,
+      /(?:^|\s)--scale(?!\w)/i,
+      /(?:^|\s)--x(?!\w)/i,
+      /(?:^|\s)--y(?!\w)/i,
       commandPattern('scroll'),
       commandPattern('swipe'),
     ],

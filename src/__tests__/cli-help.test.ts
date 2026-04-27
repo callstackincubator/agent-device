@@ -43,7 +43,7 @@ test('connect help documents cloud auth environment origins', async () => {
   assert.match(result.stdout, /AGENT_DEVICE_DAEMON_AUTH_TOKEN/);
 });
 
-test('help react-devtools prints passthrough command help and skips daemon dispatch', async () => {
+test('help react-devtools prints agent workflow topic and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'react-devtools']);
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);

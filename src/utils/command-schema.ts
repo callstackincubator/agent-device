@@ -208,7 +208,7 @@ Core loop:
   devices/apps -> open -> snapshot or snapshot -i -> get/is/find/wait or press/fill/scroll/back -> verify -> close
 
 Command shape:
-  Final plans should use agent-device, not node bin/agent-device.mjs, pnpm ad, raw platform tools, or helper prose.
+  Reading help through node bin/agent-device.mjs help <topic> in local tests is fine; final command plans should use agent-device, not node bin/agent-device.mjs, pnpm ad, raw platform tools, or helper prose.
   Put subcommand first, then positionals, then flags:
     agent-device open com.example.app --session checkout --platform android --relaunch
     agent-device record start ./checkout.mp4 --session checkout
@@ -264,7 +264,8 @@ Navigation and gestures:
 
 Validation and evidence:
   Nearby mutation diff: agent-device diff snapshot -i.
-  Expected text/selector verification should mention it via wait, is, get, or find; avoid bare screenshots/snapshots for expected text.
+  Expected text/selector verification must include the exact text or selector via wait, is, get, or find; bare screenshots/snapshots are insufficient for named expectations.
+  Prefer provided testIDs/ids/selectors for verification; use visible text when no durable selector is provided.
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
   Startup/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
