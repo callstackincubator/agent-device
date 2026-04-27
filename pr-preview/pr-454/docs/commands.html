@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-454/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-454/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-454/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-454/static/js/index.6504182d63.js"></script>
+<script defer src="/agent-device/pr-preview/pr-454/static/js/index.3356d232de.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -190,11 +190,10 @@
 <li>Android snapshots use the bundled Android snapshot helper when the npm package includes it. The
 first helper-backed snapshot verifies and installs the helper APK if it is missing or outdated;
 helper failures fall back to stock UIAutomator and include <code>androidSnapshot.fallbackReason</code> in
-typed results. Source checkouts without a bundled helper use stock UIAutomator unless both
-<code>AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_APK</code> and <code>AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_MANIFEST</code>
-point at a helper build. The helper serializes Android interactive window roots when available, so
-keyboard and system-overlay nodes can appear alongside the app root; <code>androidSnapshot.captureMode</code>
-and <code>androidSnapshot.windowCount</code> describe the capture.</li>
+typed results. Source checkouts without a bundled helper use stock UIAutomator. The helper
+serializes Android interactive window roots when available, so keyboard and system-overlay nodes
+can appear alongside the app root; <code>androidSnapshot.captureMode</code> and
+<code>androidSnapshot.windowCount</code> describe the capture.</li>
 <li><code>diff snapshot</code> compares the current snapshot with the previous session baseline and then updates baseline.</li>
 <li><code>snapshot --diff</code> is an alias for <code>diff snapshot</code>.</li>
 </ul>
