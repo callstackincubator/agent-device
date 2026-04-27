@@ -61,6 +61,23 @@ test('help workflow prints agent workflow topic and skips daemon dispatch', asyn
   assert.match(result.stdout, /Do not use CSS selectors/);
 });
 
+test('help workflow preserves known device workaround guidance', async () => {
+  const result = await runCliCapture(['help', 'workflow']);
+  assert.equal(result.code, 0);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /disabled\/hittable:false/);
+  assert.match(result.stdout, /snapshot -i -c --json/);
+  assert.match(result.stdout, /@Label_Name/);
+  assert.match(result.stdout, /press @e12/);
+  assert.match(result.stdout, /Snapshot legend:/);
+  assert.match(result.stdout, /preview="Leave at side\.\.\." truncated/);
+  assert.match(result.stdout, /wait text/);
+  assert.match(result.stdout, /Never use args/);
+  assert.match(result.stdout, /Never use args, step/);
+  assert.match(result.stdout, /scrollintoview/);
+  assert.match(result.stdout, /--delay-ms/);
+});
+
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'not-a-command']);
   assert.equal(result.code, 1);

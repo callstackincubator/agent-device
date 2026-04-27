@@ -114,6 +114,7 @@ function assertExpectedOutput(report: SessionReport, matchers: Array<string | Re
 const RAW_COORDINATE_TARGET =
   /(?:^|\n)(?:agent-device\s+)?(?:click|fill|press)\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/i;
 const PSEUDO_ASSERTION_COMMAND = /(?:^|\n)\s*(?:assert|assertVisible|waitFor|waitForText)\b/i;
+const COMPACT_RECT_SNAPSHOT = /snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))/i;
 
 function makeCase(options: {
   id: string;
@@ -419,16 +420,33 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     contract: [
       'App name: Agent Device Tester',
       'Current screen: Home tab',
-      'Control label: Lab online',
-      'The current @ref is unknown until a fresh interactive snapshot is captured',
+      'The target control has no stable selector in the task context',
+      'Fresh interactive snapshot will expose the target as @e12',
     ],
-    task: 'Plan the commands to capture fresh interactive refs, press the Lab online control by @ref, then verify the nearby change with diff snapshot -i.',
+    task: 'Plan the commands to capture fresh interactive refs, press the target control with its @e12 ref, then verify the nearby change with diff snapshot -i.',
     outputs: [
       /snapshot -i/i,
-      /(?:^|\n)(?:agent-device\s+)?(?:click|press)\s+@(?:e\d+|ref)\b/i,
+      /(?:^|\n)(?:agent-device\s+)?(?:click|press)\s+@e12\b/i,
       /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b))/i,
     ],
     forbiddenOutputs: [RAW_COORDINATE_TARGET, /\btestID=/i],
+  }),
+  makeCase({
+    id: 'ios-disabled-row-raw-rect-fallback',
+    contract: [
+      'Platform: iOS simulator',
+      'Current screen: Orders list',
+      'Fresh interactive snapshot shows @e12 [disabled] hittable:false label "Order #1042"',
+      'press @e12 already returned success, but diff snapshot showed no navigation',
+      'Compact raw JSON rect center for @e12 is x=196 y=318',
+    ],
+    task: 'Plan the fallback commands to inspect raw compact snapshot rects, press the row center, then verify the nearby change.',
+    outputs: [
+      COMPACT_RECT_SNAPSHOT,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+196\s+318\b/i,
+      /(?:diff snapshot|snapshot\b.*--diff)/i,
+    ],
+    forbiddenOutputs: [/(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@e12\b/i, /scrollintoview/i],
   }),
   makeCase({
     id: 'truncated-text-input-scope-ref',
@@ -506,6 +524,39 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
   }),
   makeCase({
+    id: 'ios-composite-horizontal-tabs-coordinate-fallback',
+    contract: [
+      'Platform: iOS simulator',
+      'Current screen: Catalog filters',
+      'Horizontal filter tabs are collapsed into one [seekbar] in snapshot -i',
+      'The individual Bakery tab has no @ref or selector on iOS',
+      'Compact raw JSON plus visual inspection gives Bakery center x=84 y=220',
+    ],
+    task: 'Plan commands to handle the missing child refs by inspecting raw compact rects, tapping the Bakery center, and verifying the selected filter changed.',
+    outputs: [
+      COMPACT_RECT_SNAPSHOT,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+84\s+220\b/i,
+      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot -i|Berry Tart|Bakery)/i,
+    ],
+    forbiddenOutputs: [
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@(?:e\d+|ref)\b/i,
+      /scrollintoview/i,
+    ],
+  }),
+  makeCase({
+    id: 'list-text-presence-prefers-wait-text',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: Catalog tab',
+      'List content loads asynchronously',
+      'Expected list item text: Trip ideas',
+      'No interaction is needed; this is a presence check for visible text in a list',
+    ],
+    task: 'Plan the robust read-only command to wait for the Trip ideas list text to appear.',
+    outputs: [commandPattern('wait'), /Trip ideas/i],
+    forbiddenOutputs: [commandPattern('is visible'), /snapshot -i/i, commandPattern('press')],
+  }),
+  makeCase({
     id: 'navigation-back-in-app',
     contract: [
       'App name: Agent Device Tester',
@@ -515,6 +566,19 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the command to go back to Catalog using app-owned navigation semantics.',
     outputs: [commandPattern('back')],
     forbiddenOutputs: [/back\s+--system/i],
+  }),
+  makeCase({
+    id: 'navigation-back-ambiguous-use-visible-nav',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: nested product detail',
+      'Previous back command navigated to an unexpected screen',
+      'Visible app nav button selector: id="nav-back"',
+      'Goal: return one level inside the app, not trigger system back',
+    ],
+    task: 'Plan the next navigation command using the visible app-owned control instead of retrying back.',
+    outputs: [/nav-back/i, commandAlternativesPattern(['press', 'click'])],
+    forbiddenOutputs: [commandPattern('back'), /back\s+--system/i],
   }),
   makeCase({
     id: 'setup-unknown-app-discover-first',
@@ -930,9 +994,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan a self-contained remote script that opens the app, captures a snapshot, and disconnects using the remote config on every command.',
     outputs: [
-      /open\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
-      /snapshot\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
-      /disconnect\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
+      /(?:--remote-config\s+\.\/remote-config\.json[^\n]*open|open\b[^\n]*--remote-config\s+\.\/remote-config\.json)/i,
+      /(?:--remote-config\s+\.\/remote-config\.json[^\n]*snapshot|snapshot\b[^\n]*--remote-config\s+\.\/remote-config\.json)/i,
+      /(?:--remote-config\s+\.\/remote-config\.json[^\n]*disconnect|disconnect\b[^\n]*--remote-config\s+\.\/remote-config\.json)/i,
     ],
     forbiddenOutputs: [/--daemon-base-url/i, /--tenant/i, /--run-id/i],
   }),
@@ -992,6 +1056,19 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /(?:^|\n)(?:agent-device\s+)?record\s+stop/i,
     ],
     forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND, /workflow batch/i, commandPattern('trace')],
+  }),
+  makeCase({
+    id: 'batch-inline-step-schema-positionals',
+    contract: [
+      'Need one inline batch command',
+      'Step 1: open settings',
+      'Step 2: wait 100 ms',
+      'Batch step schema supports command, positionals, flags, and runtime',
+      'The args field is invalid and must not be used',
+    ],
+    task: 'Plan the batch command with inline JSON steps using the supported step field for positional arguments.',
+    outputs: [commandPattern('batch'), /--steps/i, /"positionals"\s*:/i, /"open"/i, /"wait"/i],
+    forbiddenOutputs: [/"args"\s*:/i, /workflow batch/i],
   }),
 ];
 

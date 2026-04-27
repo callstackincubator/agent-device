@@ -789,7 +789,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
-  assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @ref/);
+  assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
   assert.match(usageText, /Expo Go\/dev clients need their provided exp:\/\//);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
@@ -834,6 +834,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /agent-device help workflow/);
   assert.match(help, /Use selectors as positional targets/);
   assert.match(help, /Do not use CSS selectors/);
+  assert.match(help, /Snapshot legend:/);
+  assert.match(help, /@e12 \[button\] label="Add to cart"/);
   assert.match(help, /Truncated text\/input previews: do not use get text first/);
   assert.match(help, /snapshot -s @e7/);
   assert.match(help, /Read-only visible\/state question: use snapshot\/get\/is\/find/);
@@ -860,7 +862,7 @@ test('workflow help keeps common copyable command forms', () => {
   assert.match(help, /connect --remote-config/);
   assert.match(help, /metro reload/);
   assert.match(help, /screenshot --overlay-refs/);
-  assert.match(help, /snapshot -s @ref/);
+  assert.match(help, /snapshot -s @e7/);
 });
 
 test('usageForCommand resolves remote help topic', () => {

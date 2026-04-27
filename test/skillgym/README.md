@@ -16,7 +16,7 @@ The included suite focuses on the first two layers so it stays stable and CI-saf
 
 - `../../examples/test-app/`: minimal Expo SDK 55 fixture app for broad UI coverage
 - `skillgym.config.ts`: starter config that runs Codex and Claude Haiku against this repo
-- `suites/agent-device-smoke-suite.ts`: 48-case suite for skill routing, fixture-aware planning, and skill-guidance regressions
+- `suites/agent-device-smoke-suite.ts`: 64-case suite for skill routing, fixture-aware planning, and skill-guidance regressions
 
 ## Current coverage
 
@@ -35,12 +35,12 @@ Fixture smoke cases cover concrete app surfaces:
 Skill-guidance regression cases cover distinct command-planning habits:
 
 - read-only inspection versus mutation
-- fresh `@ref` targeting, durable selectors, and off-screen scroll recovery
+- fresh `@ref` targeting, durable selectors, raw-rect fallbacks, and off-screen scroll recovery
 - text replacement, append semantics, keyboard status, and keyboard dismiss
-- install/open setup, app discovery, session scoping, and in-app back navigation
+- install/open setup, app discovery, session scoping, and app-owned navigation fallbacks
 - Metro reload, logs, network dump, alert fallback, and screenshot evidence
 - performance metrics, React DevTools profiling, gestures, settings, and trace capture
-- remote config, macOS menu bar surfaces, replay update, and batch during recording
+- remote config, macOS menu bar surfaces, replay update, and batch schema/recording
 
 `assertAgentDeviceEvidence` is intentionally soft when a runner does not expose skill-detection telemetry. When telemetry exists, the suite asserts that `agent-device` was loaded; when it is absent, the cases still judge command-planning output instead of failing on missing runner metadata.
 

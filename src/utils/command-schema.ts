@@ -175,14 +175,16 @@ const AGENT_WORKFLOWS = [
 
 const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
-  'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
+  'Use selectors or refs as positional targets: id="submit", label="Allow", or @e12 from snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
-  'Truncated text/input preview: expand first with snapshot -s @ref, not get text.',
+  'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
   'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
+  'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
+  'Batch JSON steps use "command", "positionals", "flags"; never "args" or "step".',
   'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
   'Debug evidence: logs clear/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
@@ -235,9 +237,8 @@ Command shape:
   Put subcommand first, then positionals, then flags:
     agent-device open com.example.app --session checkout --platform android --relaunch
     agent-device record start ./checkout.mp4 --session checkout
-  Unknown current ref placeholder: @ref. Use provided labels/ids/selectors when known. Never invent @e#.
-  After snapshot -i, use @ref in plans when the exact @e number is unknown.
-  If a task explicitly says to act by @ref, output press @ref or click @ref after refreshing refs.
+  Snapshot refs look like @e12. After snapshot -i, use the exact @eN ref from that output.
+  If the exact ref is not known yet, first output snapshot -i, then use a concrete example shape like press @e12 in the next command; do not write @<ref>, @ref, @Label_Name, or @eN placeholders.
   Close means agent-device close. App-owned back means back; system back means back --system.
   Taps are press or click. Gestures are direct commands: swipe, longpress, pinch.
 
@@ -249,14 +250,21 @@ Bootstrap:
   agent-device install com.example.app ./dist/app.apk --platform android
   agent-device reinstall com.example.app ./build/MyApp.app --platform ios
   agent-device install-from-source --github-actions-artifact org/repo:app-debug --platform android
-  If app id is unknown, plan devices, apps, then open <discovered-app-id>. Install arguments are app/package id then artifact path. Fresh install state: open with --relaunch.
+  agent-device open com.example.app --platform android --relaunch
+  If app id is unknown, plan devices, apps, then open <discovered-app-id>. Install arguments are app/package id then artifact path. After install, install-from-source, or reinstall, open the installed id with --relaunch for fresh runtime state.
   Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
 
 Snapshots and refs:
   snapshot reads visible state. snapshot -i gets current interactive refs.
+  Snapshot legend:
+    @e12 [button] label="Add to cart" id="add-cart" enabled hittable -> press @e12 or press 'id="add-cart"'.
+    @e13 [textinput] label="Notes" preview="Leave at side..." truncated -> snapshot -s @e13 before reading.
+    [off-screen below] 4 items: "Privacy", "About" -> scroll down, then snapshot -i; those are hints, not refs.
   Re-snapshot after navigation, submit, modal/list/reload/dynamic changes.
   Off-screen summaries are scroll hints; use scroll, not swipe, then snapshot -i.
+  Missing target in a long list: use a short manual scroll + snapshot loop with a max attempt count; do not rely on unbounded scrollintoview.
   Truncated text/input previews: do not use get text first; expand with snapshot -s @ref (for example snapshot -s @e7), then read the scoped output.
+  Rare iOS accessibility gaps: if a row ref is shown disabled/hittable:false and press @ref reports success but no UI change, or a horizontal tab/filter bar is collapsed into one composite/seekbar with no child refs, run agent-device snapshot -i -c --json to read rects, compute the target center, press x y, then diff snapshot -i. Coordinates are fallback-only; document why you used them.
 
 Selectors:
   Use selectors as positional targets: id="field-email" or label="Allow".
@@ -273,6 +281,7 @@ Text entry:
     agent-device press 'id="product-note"'
     agent-device type "Handle with care" --delay-ms 80
   Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: keyboard dismiss.
+  Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
 
 Read-only and waits:
   Read-only visible/state question: use snapshot/get/is/find.
@@ -280,13 +289,16 @@ Read-only and waits:
   agent-device get text 'id="product-title"'
   agent-device get attrs @e4
   agent-device is visible 'label="Online"'
-  agent-device wait visible 'label="Refreshing metrics..."' 3000
+  agent-device wait text "Refreshing metrics..." 3000
+  agent-device wait 'label="Ready"' 3000
   agent-device find "Increment" press --json
+  For async/list text presence, prefer wait text over is visible when no interaction is needed.
   Use snapshot -i only when refs are needed for an action or targeted query.
   Ambiguous find: add --first or --last. If info is not visible/exposed, report that gap instead of typing/searching/navigating to reveal it.
 
 Navigation and gestures:
   Use scroll for lists; swipe for coordinate gestures/carousels.
+  If app-owned back is ambiguous or has just misrouted, prefer a visible nav/back button ref, tab-bar ref, or deep link over repeated back/system back.
   Keep count/pause/pattern on one swipe; flags are --count, --pause-ms, --pattern ping-pong.
   longpress duration and pinch scale/center are positional:
     agent-device longpress 300 500 800
@@ -302,6 +314,9 @@ Validation and evidence:
   Startup/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
   Recording: record start/stop. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
+  Inline batch JSON example:
+    agent-device batch --steps '[{"command":"open","positionals":["settings"],"flags":{}},{"command":"wait","positionals":["100"],"flags":{}}]'
+  Batch step keys are command, positionals, flags, and optional runtime. Never use args, step, text, or target as batch step fields.
   Android animations: settings animations off/on, not animations disable/restore.
   Network headers: network dump --include headers.
   Remote config: connect --remote-config ./remote-config.json, open, snapshot, disconnect.

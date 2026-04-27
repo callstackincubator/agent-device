@@ -13,7 +13,7 @@ const config: SkillGymConfig = {
     cwd: '../..',
     outputDir: './.skillgym-results',
     reporter: 'standard',
-    schedule: 'parallel',
+    schedule: 'isolated-by-runner',
   },
   defaults: {
     timeoutMs: 600_000,
