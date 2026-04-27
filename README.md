@@ -20,7 +20,7 @@ It is built around token-efficient accessibility snapshots, not pixel-first scre
 
 Built for two agentic workflows:
 
-- **Quality Assurance**: dogfood flows, validate PR builds, capture evidence, and turn stable explorations into `.ad` e2e tests.
+- **Quality Assurance**: dogfood flows, validate PR builds, check accessibility coverage, capture evidence, and turn stable explorations into `.ad` e2e tests.
 - **Development**: build from specs, reproduce crashes and support issues, inspect logs/network/perf data, and iterate until the UI matches the work.
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
@@ -72,20 +72,21 @@ Choose how to run it.
 
 **Quality Assurance**
 
-Dogfood flows. Capture evidence. Turn stable explorations into replayable e2e tests.
+Exploration to replayable check:
 
 ```bash
 agent-device open SampleApp --platform ios --save-script ./workflows/smoke.ad
 agent-device snapshot -i
 agent-device fill @e3 "test"
 agent-device screenshot ./artifacts/smoke.png
+# Compare screenshot vs snapshot output for accessibility gaps.
 agent-device close
 agent-device test ./workflows
 ```
 
 **Development**
 
-Build from a specification. Run the app, inspect the UI, interact, debug, and iterate until the screen matches the spec.
+Implementation and debugging loop:
 
 ```bash
 agent-device open SampleApp --platform ios
@@ -93,13 +94,14 @@ agent-device logs clear --restart
 agent-device snapshot -i
 agent-device fill @e3 "test"
 agent-device screenshot ./artifacts/current-ui.png
+agent-device react-devtools get tree --depth 3
 agent-device network dump
 agent-device perf
 ```
 
 ## How It Works
 
-`agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets.
+`agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets. See [Introduction](https://incubator.callstack.com/agent-device/docs/introduction) and [Commands](https://incubator.callstack.com/agent-device/docs/commands) for platform details.
 
 ## Capabilities
 
