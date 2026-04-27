@@ -79,7 +79,7 @@ Refs shown in default snapshot output are actionable now. For hidden content, sc
 - Token-efficient accessibility snapshots for agent loops.
 - MIT licensed. Free to use.
 - Automation, diffing, logging, network inspection, and profiling.
-- React Native and Expo workflows, including React component tree inspection, props/state/hooks, and render profiling.
+- React Native and Expo workflows, including pinned `agent-react-devtools@0.4.0` for component tree inspection, props/state/hooks, and render profiling.
 - Screenshots and video recordings.
 - Replayable `.ad` scripts for e2e tests.
 - Accessibility checks and dogfooding workflows.
