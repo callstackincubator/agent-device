@@ -849,8 +849,12 @@ test('usageForCommand resolves dogfood help topic', () => {
   if (help === null) throw new Error('Expected dogfood help text');
   assert.match(help, /agent-device help dogfood/);
   assert.match(help, /Find user-visible issues from runtime behavior/);
+  assert.match(help, /Severity: critical blocks a core flow\/data\/crashes/);
+  assert.match(help, /Interactive\/behavioral issues need step screenshots/);
+  assert.match(help, /Static\/on-load issues can use one screenshot/);
   assert.match(help, /dogfood-output\/report\.md/);
-  assert.match(help, /severity, title, affected flow, repro commands/);
+  assert.match(help, /ID, severity, category, title, affected flow\/screen/);
+  assert.match(help, /Never delete screenshots, videos, traces, or report artifacts/);
   assert.match(help, /screenshot \.\/dogfood-output\/screenshots\/issue-001\.png --overlay-refs/);
 });
 

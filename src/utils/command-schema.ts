@@ -456,14 +456,16 @@ Goal:
 
 Loop:
   1. Identify target app/platform; ask only if missing.
-  2. Create output dirs and open a named session.
+  2. Create output dirs and open a named session. If auth or OTP is required, sign in or ask the user for the code.
   3. Capture baseline snapshot -i and screenshot.
   4. Map top-level navigation, then exercise primary flows and edge states.
-  5. For each issue, capture evidence immediately, then continue.
-  6. Close the session and write the report.
+  5. For each issue, capture evidence and write the finding immediately, then continue.
+  6. Close the session and reconcile the report summary.
 
 Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
+  Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
+  Severity: critical blocks a core flow/data/crashes; high breaks a major feature; medium has friction or workaround; low is polish.
 
 Evidence commands:
   mkdir -p ./dogfood-output/screenshots ./dogfood-output/videos ./dogfood-output/traces
@@ -478,10 +480,16 @@ Evidence commands:
   agent-device --session qa record stop
   agent-device --session qa close
 
+Evidence rules:
+  Interactive/behavioral issues need step screenshots and usually a repro video.
+  Static/on-load issues can use one screenshot; set repro video to N/A.
+  Use screenshot --overlay-refs when showing the tappable target or broken state helps repro.
+
 Report shape:
   ./dogfood-output/report.md
-  For each finding: severity, title, affected flow, repro commands, expected, actual, evidence files, notes.
-  If no issues are found, report coverage completed and residual risk instead of claiming the app is bug-free.
+  Include date, platform, target app, session, scope, severity counts, and issues.
+  For each finding: ID, severity, category, title, affected flow/screen, repro commands, expected, actual, evidence files, notes.
+  Target 5-10 well-evidenced issues when available. If no issues are found, report coverage completed and residual risk instead of claiming the app is bug-free.
 
 Rules:
   Findings must come from observed runtime behavior, not source reads.
@@ -489,6 +497,7 @@ Rules:
   Keep commands in the report reproducible; use selectors or refs from fresh snapshots, not guessed coordinates.
   Prefer refs for exploration and selectors for deterministic replay.
   Use logs, network, screenshot --overlay-refs, trace, perf, or react-devtools only when they add evidence to a specific issue.
+  Never delete screenshots, videos, traces, or report artifacts during a session.
   Escalate to help debugging or help react-devtools when runtime symptoms require those tools.`,
   },
 } as const satisfies Record<string, { summary: string; body: string }>;
