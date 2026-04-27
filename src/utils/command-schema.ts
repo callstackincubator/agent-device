@@ -386,15 +386,25 @@ React Native internals:
 Use this for React Native performance/profiling and internals that the accessibility tree cannot expose: components, props, state, hooks, ownership, slow renders, and rerenders.
 
 Core commands:
+  agent-device react-devtools start
+  agent-device react-devtools stop
   agent-device react-devtools status
   agent-device react-devtools wait --connected
+  agent-device react-devtools wait --component <ComponentName>
+  agent-device react-devtools count
   agent-device react-devtools get tree --depth 3
   agent-device react-devtools find <ComponentName>
+  agent-device react-devtools find <ComponentName> --exact
   agent-device react-devtools get component @c5
+  agent-device react-devtools errors
   agent-device react-devtools profile start
   agent-device react-devtools profile stop
   agent-device react-devtools profile slow --limit 5
   agent-device react-devtools profile rerenders --limit 5
+  agent-device react-devtools profile report @c5
+  agent-device react-devtools profile timeline --limit 20
+  agent-device react-devtools profile export profile.json
+  agent-device react-devtools profile diff before.json after.json --limit 10
 
 Profiling loop:
   1. Verify the app is connected: react-devtools status, then wait --connected if needed.
@@ -402,6 +412,14 @@ Profiling loop:
   3. Drive the interaction with normal agent-device commands.
   4. Stop profiling.
   5. Inspect slow components and rerenders.
+  6. Use profile report @cN for render causes and changed props/state/hooks; use get component @cN for current props/state/hooks.
+
+Rules:
+  Start with get tree --depth 3 or find <name>; use find --exact when fuzzy results are noisy.
+  @c refs reset after reload/remount. After reload, wait --connected and inspect again.
+  Keep the profile window narrow; unrelated navigation makes render data noisy.
+  For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
+  Remote Android runs normally through agent-device react-devtools; the CLI manages the needed local service tunnel. Expo support depends on the SDK's bundled React Native runtime.
 
 Example:
   agent-device react-devtools status
@@ -411,6 +429,7 @@ Example:
   agent-device react-devtools profile stop
   agent-device react-devtools profile slow --limit 5
   agent-device react-devtools profile rerenders --limit 5
+  agent-device react-devtools profile report @c5
 
 Use snapshot, screenshot, logs, network, and perf for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
   },

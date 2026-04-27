@@ -872,6 +872,26 @@ test('usageForCommand resolves dogfood help topic', () => {
   assert.match(help, /screenshot \.\/dogfood-output\/screenshots\/issue-001\.png --overlay-refs/);
 });
 
+test('usageForCommand resolves react-devtools help topic', () => {
+  const help = usageForCommand('react-devtools');
+  if (help === null) throw new Error('Expected react-devtools help text');
+  assert.match(help, /agent-device react-devtools start/);
+  assert.match(help, /agent-device react-devtools wait --component <ComponentName>/);
+  assert.match(help, /agent-device react-devtools find <ComponentName> --exact/);
+  assert.match(help, /agent-device react-devtools errors/);
+  assert.match(help, /agent-device react-devtools profile report @c5/);
+  assert.match(help, /agent-device react-devtools profile timeline --limit 20/);
+  assert.match(help, /agent-device react-devtools profile export profile\.json/);
+  assert.match(
+    help,
+    /agent-device react-devtools profile diff before\.json after\.json --limit 10/,
+  );
+  assert.match(help, /render causes and changed props\/state\/hooks/);
+  assert.match(help, /@c refs reset after reload\/remount/);
+  assert.match(help, /isolated --state-dir/);
+  assert.match(help, /local service tunnel/);
+});
+
 test('apps defaults to --all filter and allows overrides', () => {
   const defaultFilter = parseArgs(['apps'], { strictFlags: true });
   assert.equal(defaultFilter.command, 'apps');

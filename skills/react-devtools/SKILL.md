@@ -36,4 +36,4 @@ agent-device react-devtools profile rerenders --limit 5
 
 Rules:
 
-Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and run the same command in remote Android sessions; the CLI manages the companion tunnel.
+Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and run the same command in remote Android sessions; the CLI manages the needed local service tunnel.

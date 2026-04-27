@@ -711,6 +711,40 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [commandPattern('snapshot'), commandPattern('perf')],
   }),
   makeCase({
+    id: 'react-devtools-exact-component-inspect',
+    contract: [
+      'App name: Agent Device Tester',
+      'React Native DevTools is connected',
+      'Need current props, state, and hooks for component SearchScreen',
+      'Fuzzy component search returns noisy matches unless exact matching is used',
+    ],
+    task: 'Plan bounded React DevTools commands to find the exact SearchScreen component and inspect it.',
+    outputs: [
+      commandPattern('react-devtools find'),
+      /SearchScreen/i,
+      /--exact/i,
+      commandPattern('react-devtools get component'),
+    ],
+    forbiddenOutputs: [commandPattern('snapshot'), commandPattern('perf')],
+  }),
+  makeCase({
+    id: 'react-devtools-render-cause-report',
+    contract: [
+      'App name: Agent Device Tester',
+      'React Native profile has already been stopped',
+      'Rerender suspect from profile output: @c12',
+      'Need render causes and changed props/state/hooks for that component',
+    ],
+    task: 'Plan the React DevTools command to inspect render causes for @c12.',
+    outputs: [commandPattern('react-devtools profile report'), /@c12/i],
+    forbiddenOutputs: [
+      commandPattern('snapshot'),
+      commandPattern('perf'),
+      commandPattern('react-devtools profile slow'),
+      commandPattern('react-devtools profile rerenders'),
+    ],
+  }),
+  makeCase({
     id: 'gesture-swipe-carousel',
     contract: [
       'Platform: iOS simulator',
