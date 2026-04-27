@@ -10,17 +10,24 @@
 
 Device automation CLI for AI agents. Mobile, TV, and desktop.
 
-Run the app. Inspect the UI. Collect the evidence. Repeat the flow.
+Run the app. Read the UI. Act on the screen. Capture evidence.
 
-It gives agents structured UI access, deterministic interactions, screenshots, recordings, logs, network inspection, performance data, and replayable sessions on iOS, Android, tvOS, macOS, and Linux. If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
+Give agents a runtime loop for iOS, Android, tvOS, macOS, and Linux apps:
+
+- See current UI as compact snapshots.
+- Act through stable refs and selectors.
+- Capture screenshots, video, logs, network, perf, and React profiles.
+- Replay flows as e2e tests.
+
+If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
 
 [![Watch the demo video](./website/docs/public/agent-device-contacts.gif)](./website/docs/public/agent-device-contacts.mp4)
 
 ## Use Cases
 
-- **QA**: explore flows, dogfood the app, run accessibility checks, capture evidence, and turn stable explorations into e2e tests.
-- **Debugging**: start from a Sentry issue, crash during development, support ticket, or bug description. Reproduce the flow, inspect logs/network/perf data, and fix with context.
-- **Development**: build from a product or engineering specification. Run the app, inspect the result, interact, debug, and iterate until the UI confirms the work.
+- **QA**: dogfood flows, run accessibility checks, capture evidence, and generate replayable e2e tests.
+- **Debugging**: start from Sentry, a development crash, a support ticket, or a bug description. Reproduce the flow and fix with UI, logs, network, and perf context.
+- **Development**: build from a product or engineering specification. Run, inspect, interact, debug, and iterate until the UI confirms the work.
 
 ## Get Started
 
@@ -35,7 +42,7 @@ Choose how to run it.
 | Path | Best for | Start with |
 | --- | --- | --- |
 | Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
-| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Use a ready setup for GitHub PRs, EAS builds, or CI validation. Coming soon. |
+| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Wire it into your pipeline today. GitHub PR and EAS templates are coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
 ## Command Flow
@@ -63,9 +70,7 @@ agent-device diff snapshot -i
 agent-device close
 ```
 
-Refs shown in default snapshot output are actionable now. Hidden content is surfaced as scroll/list discovery hints; scroll and re-snapshot before acting on it.
-
-In non-JSON mode, core mutating commands print a short success acknowledgment so agents and humans can distinguish successful actions from dropped or silent no-ops.
+Refs shown in default snapshot output are actionable now. For hidden content, scroll and re-snapshot before acting.
 
 ## Features
 
@@ -73,10 +78,10 @@ In non-JSON mode, core mutating commands print a short success acknowledgment so
 - Real device and simulator support.
 - Token-efficient accessibility snapshots for agent loops.
 - MIT licensed. Free to use.
-- Automation, diffing, logging, debugging, network inspection, and profiling.
+- Automation, diffing, logging, network inspection, and profiling.
 - React Native and Expo workflows, including React component tree inspection, props/state/hooks, and render profiling.
 - Screenshots and video recordings.
-- Replayable `.ad` scripts that turn exploration into e2e tests.
+- Replayable `.ad` scripts for e2e tests.
 - Accessibility checks and dogfooding workflows.
 
 ## Used By
