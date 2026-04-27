@@ -203,6 +203,13 @@ agent-device get attrs @e1
 ```
 
 - iOS snapshots use XCTest on simulators and physical devices.
+- Android snapshots use the bundled Android snapshot helper when the npm package includes it. The
+  first helper-backed snapshot verifies and installs the helper APK if it is missing or outdated;
+  helper failures fall back to stock UIAutomator and include `androidSnapshot.fallbackReason` in
+  typed results. Source checkouts without a bundled helper use stock UIAutomator. The helper
+  serializes Android interactive window roots when available, so keyboard and system-overlay nodes
+  can appear alongside the app root; `androidSnapshot.captureMode` and
+  `androidSnapshot.windowCount` describe the capture.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 - `snapshot --diff` is an alias for `diff snapshot`.
 
