@@ -836,6 +836,13 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Do not use CSS selectors/);
   assert.match(help, /Truncated text\/input previews: do not use get text first/);
   assert.match(help, /snapshot -s @e7/);
+  assert.match(help, /Read-only visible\/state question: use snapshot\/get\/is\/find/);
+  assert.match(help, /Use snapshot -i only when refs are needed/);
+  assert.match(help, /install-from-source --github-actions-artifact org\/repo:app-debug/);
+  assert.match(help, /Do not open artifact paths or invent package ids/);
+  assert.match(help, /agent-device get attrs @e4/);
+  assert.match(help, /Ambiguous find: add --first or --last/);
+  assert.match(help, /report that gap instead of typing\/searching\/navigating/);
   assert.match(help, /If snapshot -i shows one, dismiss\/close its visible control/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
@@ -854,6 +861,24 @@ test('workflow help keeps common copyable command forms', () => {
   assert.match(help, /metro reload/);
   assert.match(help, /screenshot --overlay-refs/);
   assert.match(help, /snapshot -s @ref/);
+});
+
+test('usageForCommand resolves remote help topic', () => {
+  const help = usageForCommand('remote');
+  if (help === null) throw new Error('Expected remote help text');
+  assert.match(help, /agent-device open com\.example\.app --remote-config \.\/remote-config\.json/);
+  assert.match(help, /disconnect --remote-config \.\/remote-config\.json/);
+  assert.match(help, /Script flow, per-command config/);
+  assert.match(help, /same --remote-config to every operational command/);
+  assert.match(help, /install-from-source --github-actions-artifact org\/repo:artifact/);
+});
+
+test('usageForCommand resolves macos help topic', () => {
+  const help = usageForCommand('macos');
+  if (help === null) throw new Error('Expected macos help text');
+  assert.match(help, /agent-device click @e66 --button secondary --platform macos/);
+  assert.match(help, /Context menus are not ambient UI/);
+  assert.match(help, /menu-item refs/);
 });
 
 test('usageForCommand resolves dogfood help topic', () => {

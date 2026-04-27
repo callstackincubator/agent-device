@@ -552,6 +552,48 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [/open\s+\.\/dist\/agent-device-tester\.apk/i],
   }),
   makeCase({
+    id: 'install-from-github-artifact-before-open',
+    contract: [
+      'Platform: Android',
+      'Install source: GitHub Actions artifact callstackincubator/agent-device:agent-device-tester-apk',
+      'Known package after install: com.callstack.agentdevicetester',
+      'Remote daemon can resolve the artifact server-side',
+    ],
+    task: 'Plan commands to install from the GitHub Actions artifact, then open the installed package in fresh runtime state.',
+    outputs: [
+      commandPattern('install-from-source'),
+      /--github-actions-artifact\s+callstackincubator\/agent-device:agent-device-tester-apk/i,
+      commandPattern('open'),
+      /com\.callstack\.agentdevicetester/i,
+      /--relaunch/i,
+    ],
+    forbiddenOutputs: [
+      /curl\b/i,
+      /gh\s+(?:run|artifact|download)/i,
+      /open\s+.*agent-device-tester-apk/i,
+    ],
+  }),
+  makeCase({
+    id: 'hidden-info-do-not-force-ui',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: Home tab',
+      'Question: what is the hidden promo code?',
+      'The current screen does not expose any promo code text or selector',
+      'No interaction was requested',
+    ],
+    task: 'Plan the minimal read-only command to inspect exposed UI without typing, navigating, or mutating the app to reveal hidden information.',
+    outputs: [commandPattern('snapshot')],
+    forbiddenOutputs: [
+      /snapshot -i/i,
+      commandPattern('press'),
+      commandPattern('click'),
+      commandPattern('fill'),
+      commandPattern('type'),
+      commandPattern('open'),
+    ],
+  }),
+  makeCase({
     id: 'metro-reload-dev-loop',
     contract: [
       'App name: Agent Device Tester',
@@ -879,6 +921,22 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
   }),
   makeCase({
+    id: 'remote-config-script-flow',
+    contract: [
+      'Remote config path: ./remote-config.json',
+      'App package: com.callstack.agentdevicetester',
+      'This is a self-contained script where every command must be explicit',
+      'The remote profile owns tenant, run, lease, and Metro hints',
+    ],
+    task: 'Plan a self-contained remote script that opens the app, captures a snapshot, and disconnects using the remote config on every command.',
+    outputs: [
+      /open\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
+      /snapshot\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
+      /disconnect\b[^\n]*--remote-config\s+\.\/remote-config\.json/i,
+    ],
+    forbiddenOutputs: [/--daemon-base-url/i, /--tenant/i, /--run-id/i],
+  }),
+  makeCase({
     id: 'macos-menubar-surface',
     contract: [
       'Platform: macOS',
@@ -889,6 +947,24 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the commands to inspect the menu bar app surface and capture interactive refs with snapshot -i.',
     outputs: [/--platform macos/i, /--surface menubar/i, /snapshot\b.*(?:-i\b|\s-i\b)/i],
     forbiddenOutputs: [/--surface app/i, /snapshot --raw/i],
+  }),
+  makeCase({
+    id: 'macos-context-menu-secondary-click',
+    contract: [
+      'Platform: macOS',
+      'Current surface: app',
+      'Target row current ref: @e66',
+      'Need to open its native context menu and inspect menu item refs',
+    ],
+    task: 'Plan commands to open the context menu for @e66 and then refresh interactive refs for the menu items.',
+    outputs: [
+      commandPattern('click'),
+      /@e66/i,
+      /--button\s+secondary/i,
+      /--platform\s+macos/i,
+      /snapshot\b.*-i/i,
+    ],
+    forbiddenOutputs: [commandPattern('longpress'), RAW_COORDINATE_TARGET, /--surface menubar/i],
   }),
   makeCase({
     id: 'replay-maintenance-update',

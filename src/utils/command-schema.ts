@@ -177,6 +177,7 @@ const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
+  'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @ref, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
   'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
@@ -247,7 +248,9 @@ Bootstrap:
   agent-device open <discovered-app-id> --session checkout --platform android
   agent-device install com.example.app ./dist/app.apk --platform android
   agent-device reinstall com.example.app ./build/MyApp.app --platform ios
+  agent-device install-from-source --github-actions-artifact org/repo:app-debug --platform android
   If app id is unknown, plan devices, apps, then open <discovered-app-id>. Install arguments are app/package id then artifact path. Fresh install state: open with --relaunch.
+  Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
 
 Snapshots and refs:
   snapshot reads visible state. snapshot -i gets current interactive refs.
@@ -272,11 +275,15 @@ Text entry:
   Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: keyboard dismiss.
 
 Read-only and waits:
+  Read-only visible/state question: use snapshot/get/is/find.
   agent-device snapshot
   agent-device get text 'id="product-title"'
+  agent-device get attrs @e4
   agent-device is visible 'label="Online"'
   agent-device wait visible 'label="Refreshing metrics..."' 3000
   agent-device find "Increment" press --json
+  Use snapshot -i only when refs are needed for an action or targeted query.
+  Ambiguous find: add --first or --last. If info is not visible/exposed, report that gap instead of typing/searching/navigating to reveal it.
 
 Navigation and gestures:
   Use scroll for lists; swipe for coordinate gestures/carousels.
@@ -445,9 +452,16 @@ Normal flow:
   agent-device snapshot
   agent-device disconnect
 
+Script flow, per-command config:
+  agent-device open com.example.app --remote-config ./remote-config.json
+  agent-device snapshot --remote-config ./remote-config.json
+  agent-device disconnect --remote-config ./remote-config.json
+
 Rules:
   connect and disconnect are top-level commands. Do not write agent-device remote connect or agent-device remote disconnect.
   Prefer --remote-config over --daemon-base-url, --tenant, --run-id, and --lease-id in ordinary remote flows.
+  For self-contained scripts, pass the same --remote-config to every operational command, including disconnect; a preceding connect is optional but not required.
+  For remote artifact installs, use install-from-source <url> or install-from-source --github-actions-artifact org/repo:artifact; do not download CI artifacts locally first.
   After connect, let the active remote connection supply runtime hints.
   For remote Android React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and cleans it up when the command exits.
   Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
@@ -472,8 +486,13 @@ Menu bar app example:
   agent-device open "Agent Device Tester Menu" --platform macos --surface menubar
   agent-device snapshot -i --platform macos --surface menubar
 
+Context menu example:
+  agent-device click @e66 --button secondary --platform macos
+  agent-device snapshot -i --platform macos
+
 Rules:
   Use open and snapshot -i for menu bar inspection. Do not output inspect as a command.
+  Context menus are not ambient UI: secondary-click a visible target, then re-snapshot and use the new menu-item refs.
   Do not let iOS simulator-set scoping hide macOS desktop targets.
   Prefer refs/selectors over raw coordinates.
   macOS snapshot rects are window-space; use current refs or overlay refs instead of guessing coordinates.`,
