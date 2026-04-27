@@ -18,7 +18,7 @@ Device automation CLI for AI agents. Mobile, TV, and desktop apps.
 
 It is built around token-efficient accessibility snapshots, not pixel-first screenshots. Agents read compact UI trees, use refs like `@e3` for deterministic actions, and capture screenshots, video, logs, network, perf, and React profiles only when evidence is needed.
 
-Built for two workflows:
+Built for two agentic workflows:
 
 - **Quality Assurance**: dogfood flows, validate PR builds, capture evidence, and turn stable explorations into `.ad` e2e tests.
 - **Development**: build from specs, reproduce crashes and support issues, inspect logs/network/perf data, and iterate until the UI matches the work.
