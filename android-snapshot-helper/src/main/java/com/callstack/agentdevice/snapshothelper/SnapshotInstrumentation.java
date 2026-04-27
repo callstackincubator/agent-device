@@ -1,12 +1,15 @@
 package com.callstack.agentdevice.snapshothelper;
 
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.Instrumentation;
 import android.app.UiAutomation;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeoutException;
 
@@ -52,6 +55,8 @@ public final class SnapshotInstrumentation extends Instrumentation {
       emitChunks(capture.xml);
       result.putString("ok", "true");
       result.putString("rootPresent", Boolean.toString(capture.rootPresent));
+      result.putString("captureMode", capture.captureMode);
+      result.putString("windowCount", Integer.toString(capture.windowCount));
       result.putString("nodeCount", Integer.toString(capture.nodeCount));
       result.putString("truncated", Boolean.toString(capture.truncated));
       result.putString("elapsedMs", Long.toString(System.currentTimeMillis() - startedAtMs));
@@ -70,6 +75,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
       long waitForIdleTimeoutMs, long timeoutMs, int maxDepth, int maxNodes)
       throws TimeoutException {
     UiAutomation automation = getUiAutomation();
+    enableInteractiveWindowRetrieval(automation);
     if (waitForIdleTimeoutMs > 0) {
       try {
         // Best-effort settle: avoids empty roots without inheriting UIAutomator's long idle wait.
@@ -79,19 +85,87 @@ public final class SnapshotInstrumentation extends Instrumentation {
       }
     }
 
-    AccessibilityNodeInfo root = automation.getRootInActiveWindow();
     CaptureStats stats = new CaptureStats();
     StringBuilder xml = new StringBuilder();
     xml.append("<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>");
     xml.append("<hierarchy rotation=\"0\">");
-    if (root != null) {
-      appendNode(xml, root, 0, 0, maxDepth, maxNodes, stats);
+    int windowCount = appendInteractiveWindowRoots(xml, automation, maxDepth, maxNodes, stats);
+    String captureMode = "interactive-windows";
+    if (windowCount == 0) {
+      AccessibilityNodeInfo root = automation.getRootInActiveWindow();
+      try {
+        if (root != null) {
+          appendNode(xml, root, 0, 0, maxDepth, maxNodes, stats);
+          windowCount = 1;
+        }
+        captureMode = "active-window";
+      } finally {
+        if (root != null) {
+          root.recycle();
+        }
+      }
     }
     xml.append("</hierarchy>");
-    if (root != null) {
-      root.recycle();
+    return new CaptureResult(
+        xml.toString(), windowCount > 0, captureMode, windowCount, stats.nodeCount, stats.truncated);
+  }
+
+  private static void enableInteractiveWindowRetrieval(UiAutomation automation) {
+    AccessibilityServiceInfo serviceInfo;
+    try {
+      serviceInfo = automation.getServiceInfo();
+    } catch (RuntimeException error) {
+      return;
     }
-    return new CaptureResult(xml.toString(), root != null, stats.nodeCount, stats.truncated);
+    if (serviceInfo == null) {
+      return;
+    }
+    if ((serviceInfo.flags & AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS) != 0) {
+      return;
+    }
+    serviceInfo.flags |= AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+    try {
+      automation.setServiceInfo(serviceInfo);
+    } catch (RuntimeException ignored) {
+      // Fall back to active-window capture if the platform rejects dynamic service flags.
+    }
+  }
+
+  private static int appendInteractiveWindowRoots(
+      StringBuilder xml,
+      UiAutomation automation,
+      int maxDepth,
+      int maxNodes,
+      CaptureStats stats) {
+    List<AccessibilityWindowInfo> windows;
+    try {
+      windows = automation.getWindows();
+    } catch (RuntimeException error) {
+      return 0;
+    }
+    int windowCount = 0;
+    for (int index = 0; index < windows.size(); index += 1) {
+      if (stats.nodeCount >= maxNodes) {
+        stats.truncated = true;
+        break;
+      }
+      AccessibilityWindowInfo window = windows.get(index);
+      AccessibilityNodeInfo root = null;
+      try {
+        root = window.getRoot();
+        if (root == null) {
+          continue;
+        }
+        appendNode(xml, root, windowCount, 0, maxDepth, maxNodes, stats);
+        windowCount += 1;
+      } finally {
+        if (root != null) {
+          root.recycle();
+        }
+        window.recycle();
+      }
+    }
+    return windowCount;
   }
 
   private void emitChunks(String payload) {
@@ -262,12 +336,22 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final class CaptureResult {
     final String xml;
     final boolean rootPresent;
+    final String captureMode;
+    final int windowCount;
     final int nodeCount;
     final boolean truncated;
 
-    CaptureResult(String xml, boolean rootPresent, int nodeCount, boolean truncated) {
+    CaptureResult(
+        String xml,
+        boolean rootPresent,
+        String captureMode,
+        int windowCount,
+        int nodeCount,
+        boolean truncated) {
       this.xml = xml;
       this.rootPresent = rootPresent;
+      this.captureMode = captureMode;
+      this.windowCount = windowCount;
       this.nodeCount = nodeCount;
       this.truncated = truncated;
     }

@@ -117,6 +117,8 @@ async function captureAndroidUiHierarchy(
           maxDepth: capture.metadata.maxDepth,
           maxNodes: capture.metadata.maxNodes,
           rootPresent: capture.metadata.rootPresent,
+          captureMode: capture.metadata.captureMode,
+          windowCount: capture.metadata.windowCount,
           nodeCount: capture.metadata.nodeCount,
           helperTruncated: capture.metadata.truncated,
           elapsedMs: capture.metadata.elapsedMs,

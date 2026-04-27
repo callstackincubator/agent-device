@@ -159,6 +159,8 @@ function helperOutput(xml: string): string {
     'INSTRUMENTATION_RESULT: maxDepth=128',
     'INSTRUMENTATION_RESULT: maxNodes=5000',
     'INSTRUMENTATION_RESULT: rootPresent=true',
+    'INSTRUMENTATION_RESULT: captureMode=interactive-windows',
+    'INSTRUMENTATION_RESULT: windowCount=1',
     'INSTRUMENTATION_RESULT: nodeCount=1',
     'INSTRUMENTATION_RESULT: truncated=false',
     'INSTRUMENTATION_RESULT: elapsedMs=12',
@@ -250,6 +252,8 @@ test('snapshotAndroid uses configured helper before stock uiautomator', async ()
   assert.equal(result.androidSnapshot.backend, 'android-helper');
   assert.equal(result.androidSnapshot.helperVersion, '0.13.3');
   assert.equal(result.androidSnapshot.installReason, 'current');
+  assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
+  assert.equal(result.androidSnapshot.windowCount, 1);
   assert.deepEqual(timeouts, [30000, 13000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });

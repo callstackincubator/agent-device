@@ -199,7 +199,9 @@ agent-device get attrs @e1
 - Android snapshots use stock UIAutomator by default. To try the released Android snapshot helper
   before stock UIAutomator, set both `AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_APK` and
   `AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_MANIFEST`; helper failures fall back to stock UIAutomator
-  and include `androidSnapshot.fallbackReason` in typed results.
+  and include `androidSnapshot.fallbackReason` in typed results. The helper serializes Android
+  interactive window roots when available, so keyboard and system-overlay nodes can appear alongside
+  the app root; `androidSnapshot.captureMode` and `androidSnapshot.windowCount` describe the capture.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 - `snapshot --diff` is an alias for `diff snapshot`.
 

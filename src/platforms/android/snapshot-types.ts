@@ -11,6 +11,8 @@ export type AndroidSnapshotBackendMetadata = {
   maxDepth?: number;
   maxNodes?: number;
   rootPresent?: boolean;
+  captureMode?: 'interactive-windows' | 'active-window';
+  windowCount?: number;
   nodeCount?: number;
   helperTruncated?: boolean;
   elapsedMs?: number;

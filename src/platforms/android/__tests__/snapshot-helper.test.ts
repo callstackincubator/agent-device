@@ -45,6 +45,8 @@ test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', ()
       maxDepth: '128',
       maxNodes: '5000',
       rootPresent: 'true',
+      captureMode: 'interactive-windows',
+      windowCount: '2',
       nodeCount: '1',
       truncated: 'false',
       elapsedMs: '42',
@@ -62,6 +64,8 @@ test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', ()
     maxDepth: 128,
     maxNodes: 5000,
     rootPresent: true,
+    captureMode: 'interactive-windows',
+    windowCount: 2,
     nodeCount: 1,
     truncated: false,
     elapsedMs: 42,
@@ -95,12 +99,14 @@ test('parseAndroidSnapshotHelperOutput decodes UTF-8 across byte chunk boundarie
 test('parseAndroidSnapshotHelperSnapshot returns shaped nodes', () => {
   const output = helperOutput({
     chunks: [
-      '<hierarchy><node text="Continue" class="android.widget.Button" bounds="[1,2][21,42]" clickable="true" /></hierarchy>',
+      '<hierarchy><node text="Continue" class="android.widget.Button" bounds="[1,2][21,42]" clickable="true" /><node text="Keyboard suggestion" class="android.widget.TextView" bounds="[1,44][121,84]" /></hierarchy>',
     ],
     result: {
       ok: 'true',
       outputFormat: 'uiautomator-xml',
-      nodeCount: '1',
+      captureMode: 'interactive-windows',
+      windowCount: '2',
+      nodeCount: '2',
     },
   });
 
@@ -109,7 +115,10 @@ test('parseAndroidSnapshotHelperSnapshot returns shaped nodes', () => {
   assert.equal(parsed.nodes[0]?.label, 'Continue');
   assert.equal(parsed.nodes[0]?.hittable, true);
   assert.deepEqual(parsed.nodes[0]?.rect, { x: 1, y: 2, width: 20, height: 40 });
-  assert.equal(parsed.metadata.nodeCount, 1);
+  assert.equal(parsed.nodes[1]?.label, 'Keyboard suggestion');
+  assert.equal(parsed.metadata.captureMode, 'interactive-windows');
+  assert.equal(parsed.metadata.windowCount, 2);
+  assert.equal(parsed.metadata.nodeCount, 2);
 });
 
 test('parseAndroidSnapshotHelperXml returns shaped nodes from captured helper output', () => {

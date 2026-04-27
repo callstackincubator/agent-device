@@ -88,6 +88,8 @@ export type AndroidSnapshotHelperMetadata = {
   maxDepth?: number;
   maxNodes?: number;
   rootPresent?: boolean;
+  captureMode?: 'interactive-windows' | 'active-window';
+  windowCount?: number;
   nodeCount?: number;
   truncated?: boolean;
   elapsedMs?: number;
@@ -439,10 +441,18 @@ function readHelperMetadata(finalResult: Record<string, string>): AndroidSnapsho
     maxDepth: readOptionalNumber(finalResult.maxDepth),
     maxNodes: readOptionalNumber(finalResult.maxNodes),
     rootPresent: readOptionalBoolean(finalResult.rootPresent),
+    captureMode: readOptionalCaptureMode(finalResult.captureMode),
+    windowCount: readOptionalNumber(finalResult.windowCount),
     nodeCount: readOptionalNumber(finalResult.nodeCount),
     truncated: readOptionalBoolean(finalResult.truncated),
     elapsedMs: readOptionalNumber(finalResult.elapsedMs),
   };
+}
+
+function readOptionalCaptureMode(
+  value: string | undefined,
+): AndroidSnapshotHelperMetadata['captureMode'] {
+  return value === 'interactive-windows' || value === 'active-window' ? value : undefined;
 }
 
 export function parseAndroidSnapshotHelperSnapshot(

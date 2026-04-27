@@ -130,6 +130,10 @@ const output = await captureAndroidSnapshotWithHelper({
 const snapshot = parseAndroidSnapshotHelperXml(output.xml, output.metadata);
 ```
 
+Helper captures report `metadata.captureMode` as `interactive-windows` when Android returns
+interactive window roots, or `active-window` when the helper falls back to
+`getRootInActiveWindow()`. `metadata.windowCount` is the number of serialized roots.
+
 ## Command methods
 
 Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, normalized daemon errors, and remote artifact handling.

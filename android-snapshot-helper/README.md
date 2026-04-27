@@ -1,7 +1,10 @@
 # Android Snapshot Helper
 
 Small instrumentation APK used to capture Android accessibility snapshots without relying on
-`uiautomator dump`'s fixed idle wait behavior.
+`uiautomator dump`'s fixed idle wait behavior. The helper enables Android's interactive-window
+retrieval flag and serializes every accessible window root returned by `UiAutomation.getWindows()`
+so keyboards and system overlays can appear in the same snapshot. If interactive window roots are
+unavailable, it falls back to the active-window root.
 
 The helper is intentionally provider-neutral. Local `adb`, cloud ADB tunnels, and remote device
 providers can all install and run the same APK as long as they can execute ADB-style operations.
@@ -50,6 +53,8 @@ The final instrumentation result includes:
 - `maxDepth`
 - `maxNodes`
 - `rootPresent`
+- `captureMode` (`interactive-windows` or `active-window`)
+- `windowCount`
 - `nodeCount`
 - `truncated`
 - `elapsedMs`
