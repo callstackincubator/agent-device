@@ -13,7 +13,7 @@ url: /agent-device/pr-preview/pr-352/docs/introduction.md
 - Performance snapshots with `perf`/`metrics`, including CPU and memory data where supported
 
 If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
-For agent-oriented operating guidance, start with `agent-device help workflow`. For exploratory QA, use `agent-device help dogfood`. For React Native component trees, props/state/hooks, and render profiling, use `agent-device help react-devtools` and the `agent-device react-devtools` passthrough.
+For agent-oriented operating guidance, start with `agent-device help` or `agent-device help workflow`. Skills are recommended auto-routing helpers when your agent runtime supports them, but agents can operate from CLI help alone. For exploratory QA, use `agent-device help dogfood`. For React Native component trees, props/state/hooks, and render profiling, use `agent-device help react-devtools` and the `agent-device react-devtools` passthrough.
 
 ## What it’s good at
 
@@ -576,6 +576,7 @@ For persistent defaults and project-scoped CLI settings, see [Configuration](/ag
 For agent workflow guidance that is matched to the installed CLI, run:
 
 ```bash
+agent-device help
 agent-device help workflow
 agent-device help debugging
 agent-device help react-devtools
@@ -583,6 +584,8 @@ agent-device help remote
 agent-device help macos
 agent-device help dogfood
 ```
+
+Skills are recommended for auto-routing when your agent runtime supports them, but they are not required. The CLI help topics are the version-matched operating contract.
 
 ## Navigation
 
@@ -1580,6 +1583,23 @@ url: /agent-device/pr-preview/pr-352/docs/installation.md
 
 ```bash
 npm install -g agent-device
+agent-device --version
+agent-device help
+```
+
+Use global install for normal agent workflows. It gives agents a stable `agent-device` command and version-matched help topics:
+
+```bash
+agent-device help workflow
+agent-device help debugging
+agent-device help react-devtools
+```
+
+The CLI help is the source of truth. Skills are optional but recommended when your agent runtime supports them because they auto-route relevant tasks to the installed CLI's own help. The published router skills require `agent-device >= 0.13.4`; if you install or update skills separately, update the CLI too:
+
+```bash
+npm install -g agent-device@latest
+agent-device --version
 ```
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally; that also refreshes the bundled `skills/` directory shipped with the release.
@@ -1591,6 +1611,8 @@ Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 ```bash
 npx agent-device open Settings --platform ios
 ```
+
+One-off `npx` usage is fine for humans and scripts. For agents, prefer global install so repeated commands and any installed skills resolve to the same CLI version. If an agent cannot rely on skills, it should run `agent-device help` or `agent-device help workflow` before planning device commands.
 
 ## Requirements
 
