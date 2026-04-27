@@ -178,7 +178,7 @@ const AGENT_QUICKSTART_LINES = [
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
   'Truncated text/input preview: expand first with snapshot -s @ref, not get text.',
-  'RN warning/error overlays can block taps: screenshot, dismiss/close, then snapshot -i.',
+  'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
   'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
@@ -305,7 +305,7 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
-  Warning/error overlays can obscure UI and intercept taps. If visible: screenshot it, dismiss/close it if it is not the task target, then snapshot -i before tapping the real UI.
+  Warning/error overlays can obscure UI and intercept taps. If snapshot -i shows one, dismiss/close its visible control (for example Dismiss or Close) if it is not the task target, then diff snapshot -i or snapshot -i before tapping the real UI.
   Expo Go is a host shell; use the provided project URL instead of inventing a bundle id. iOS simulators can open the URL directly; use host + URL when targeting a specific host shell:
     agent-device open exp://127.0.0.1:8081 --platform ios
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
