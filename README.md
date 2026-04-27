@@ -113,7 +113,7 @@ agent-device perf
 - **Platforms**: iOS, Android, tvOS, Android TV, macOS, and Linux. Real devices and simulators are supported.
 - **Capture**: screenshots, video, logs, network traffic, performance data, accessibility snapshots, and React render profiles.
 - **Produce**: replayable `.ad` scripts, e2e test runs, diff output, and debugging artifacts.
-- **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling through pinned `agent-react-devtools@0.4.0`.
+- **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling.
 - **License**: MIT. Free to use.
 
 ## Used By
