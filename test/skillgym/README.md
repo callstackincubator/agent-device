@@ -16,7 +16,7 @@ The included suite focuses on the first two layers so it stays stable and CI-saf
 
 - `../../examples/test-app/`: minimal Expo SDK 55 fixture app for broad UI coverage
 - `skillgym.config.ts`: starter config that runs Codex and Claude Haiku against this repo
-- `suites/agent-device-smoke-suite.ts`: 64-case suite for skill routing, fixture-aware planning, and skill-guidance regressions
+- `suites/agent-device-smoke-suite.ts`: 66-case suite for skill routing, fixture-aware planning, and skill-guidance regressions
 
 ## Current coverage
 

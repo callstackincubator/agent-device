@@ -60,11 +60,6 @@
     "label": "Snapshots"
   },
   {
-    "name": "skillgym",
-    "type": "file",
-    "label": "Skillgym"
-  },
-  {
     "name": "known-limitations",
     "type": "file",
     "label": "Known Limitations"

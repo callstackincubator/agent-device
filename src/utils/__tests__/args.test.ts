@@ -846,6 +846,9 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Ambiguous find: add --first or --last/);
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);
   assert.match(help, /If snapshot -i shows one, dismiss\/close its visible control/);
+  assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
+  assert.match(help, /agent-device clipboard write "some text"/);
+  assert.match(help, /trusted ADB keyboard IME/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
@@ -863,6 +866,7 @@ test('workflow help keeps common copyable command forms', () => {
   assert.match(help, /metro reload/);
   assert.match(help, /screenshot --overlay-refs/);
   assert.match(help, /snapshot -s @e7/);
+  assert.match(help, /clipboard write "some text"/);
 });
 
 test('usageForCommand resolves remote help topic', () => {

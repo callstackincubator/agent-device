@@ -182,6 +182,7 @@ const AGENT_QUICKSTART_LINES = [
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
   'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
+  'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
   'Batch JSON steps use "command", "positionals", "flags"; never "args" or "step".',
@@ -282,6 +283,8 @@ Text entry:
     agent-device type "Handle with care" --delay-ms 80
   Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: keyboard dismiss.
   Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
+  iOS Allow Paste prompt cannot be exercised under XCUITest. To test paste-driven app behavior, prefill first with agent-device clipboard write "some text"; test the system prompt manually.
+  Android non-ASCII can fail on some system images. Try fill/type normally; agent-device uses safer fallbacks. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
 
 Read-only and waits:
   Read-only visible/state question: use snapshot/get/is/find.

@@ -509,6 +509,37 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [commandPattern('type'), /(?:^|\n)(?:agent-device\s+)?fill\s+\d+\s+\d+/i],
   }),
   makeCase({
+    id: 'ios-allow-paste-prefill-only',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'App reads UIPasteboard.general when opened',
+      'iOS Allow Paste system prompt is suppressed under XCUITest automation',
+      'Need to test app behavior when pasteboard contains: some text',
+    ],
+    task: 'Plan commands to prefill the simulator pasteboard and open the app for paste-driven behavior. Do not try to automate the Allow Paste system dialog.',
+    outputs: [commandPattern('clipboard'), /write/i, /some text/i, commandPattern('open')],
+    forbiddenOutputs: [
+      /Allow Paste/i,
+      /alert (?:wait|accept|dismiss)/i,
+      /\bxcrun\b/i,
+      /\bsimctl\b/i,
+    ],
+  }),
+  makeCase({
+    id: 'android-non-ascii-text-stays-in-fill',
+    contract: [
+      'Platform: Android',
+      'Current screen: Checkout form tab',
+      'Field selector: id="field-name"',
+      'Desired value: Café ☕ 🎉',
+      'Some Android system images fail with direct platform-shell text injection',
+    ],
+    task: 'Plan only the robust agent-device command to fill the field with the provided non-ASCII value.',
+    outputs: [commandPattern('fill'), /id=(?:["']field-name["']|field-name)/i, /Café ☕ 🎉/i],
+    forbiddenOutputs: [/\badb\b/i, /shell input text/i, /\bime\b/i, /ADBKeyBoard/i],
+  }),
+  makeCase({
     id: 'offscreen-target-scroll-resnapshot',
     contract: [
       'App name: Agent Device Tester',
