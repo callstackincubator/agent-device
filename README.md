@@ -12,19 +12,16 @@
 [![CI](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml/badge.svg)](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 
-Agent-first device automation CLI. Mobile, TV, and desktop.
+Device automation CLI for AI agents. Mobile, TV, and desktop apps.
 
-For QA and development agents that need to use real apps: run them, inspect UI state, interact, debug, and capture evidence.
+`agent-device` lets coding agents run real apps, inspect UI state, interact with visible elements, and collect debugging evidence from the terminal.
 
-Screenshots are useful for humans. Compact snapshots are better for agents. `agent-device` turns app UI into token-efficient accessibility snapshots with actionable refs like `@e3`, so agents can understand the screen and act deterministically without spending the whole context window on pixels.
+It is built around token-efficient accessibility snapshots, not pixel-first screenshots. Agents read compact UI trees, use refs like `@e3` for deterministic actions, and capture screenshots, video, logs, network, perf, and React profiles only when evidence is needed.
 
-What agents can do:
+Built for two workflows:
 
-- Open apps on iOS, Android, tvOS, macOS, and Linux.
-- Read UI state as compact snapshots.
-- Act through refs and selectors with `press`, `fill`, `scroll`, `wait`, and more.
-- Capture screenshots, video, logs, network, perf, and React profiles.
-- Record `.ad` replay scripts and run them as e2e tests.
+- **Quality Assurance**: dogfood flows, validate PR builds, capture evidence, and turn stable explorations into `.ad` e2e tests.
+- **Development**: build from specs, reproduce crashes and support issues, inspect logs/network/perf data, and iterate until the UI matches the work.
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
 
