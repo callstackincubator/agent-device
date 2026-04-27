@@ -13,161 +13,129 @@ import {
 const recordingE2EEnabled = isTruthy(process.env.AGENT_DEVICE_RECORDING_E2E);
 
 test('recording tap overlay on iOS simulator', { skip: shouldSkipIosRecordingE2E() }, () => {
-  const integration = createRecordingIntegrationContext('ios', 'recording tap overlay');
-  const outPath = path.join(integration.artifactDir(), 'ios-tap.mp4');
-  const session = ['--session', 'recording-ios-tap'];
-
-  integration.runStep('open settings', [
-    'open',
-    'com.apple.Preferences',
-    '--platform',
-    'ios',
-    '--relaunch',
-    '--json',
-    ...session,
-  ]);
-  integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('tap general', ['click', 'role=cell', 'label=General', '--json', ...session]);
-  const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
-
-  assertRecordingArtifacts(stop, outPath);
-  const manifest = inspectRecording(
-    outPath,
-    stop.json?.data?.telemetryPath,
-    integration.artifactDir(),
-    'ios-tap',
-  );
-  assertOverlayForKind(manifest, 'tap', { minPixelCount: 180, maxCenterDistance: 80 });
+  runRecordingOverlayCase({
+    platform: 'ios',
+    testName: 'recording tap overlay',
+    outFile: 'ios-tap.mp4',
+    sessionName: 'recording-ios-tap',
+    openArgs: ['open', 'com.apple.Preferences', '--platform', 'ios', '--relaunch', '--json'],
+    steps: [['tap general', ['click', 'role=cell', 'label=General', '--json']]],
+    inspectPrefix: 'ios-tap',
+    overlayKind: 'tap',
+    overlayOptions: { minPixelCount: 180, maxCenterDistance: 80 },
+  });
 });
 
 test('recording scroll overlay on iOS simulator', { skip: shouldSkipIosRecordingE2E() }, () => {
-  const integration = createRecordingIntegrationContext('ios', 'recording scroll overlay');
-  const outPath = path.join(integration.artifactDir(), 'ios-scroll.mp4');
-  const session = ['--session', 'recording-ios-scroll'];
-
-  integration.runStep('open settings', [
-    'open',
-    'com.apple.Preferences',
-    '--platform',
-    'ios',
-    '--relaunch',
-    '--json',
-    ...session,
-  ]);
-  integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('scroll down', ['scroll', 'down', '0.45', '--json', ...session]);
-  const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
-
-  assertRecordingArtifacts(stop, outPath);
-  const manifest = inspectRecording(
-    outPath,
-    stop.json?.data?.telemetryPath,
-    integration.artifactDir(),
-    'ios-scroll',
-  );
-  assertOverlayForKind(manifest, 'scroll', { minPixelCount: 5 });
+  runRecordingOverlayCase({
+    platform: 'ios',
+    testName: 'recording scroll overlay',
+    outFile: 'ios-scroll.mp4',
+    sessionName: 'recording-ios-scroll',
+    openArgs: ['open', 'com.apple.Preferences', '--platform', 'ios', '--relaunch', '--json'],
+    steps: [['scroll down', ['scroll', 'down', '0.45', '--json']]],
+    inspectPrefix: 'ios-scroll',
+    overlayKind: 'scroll',
+    overlayOptions: { minPixelCount: 5 },
+  });
 });
 
 test('recording back-swipe overlay on iOS simulator', { skip: shouldSkipIosRecordingE2E() }, () => {
-  const integration = createRecordingIntegrationContext('ios', 'recording back swipe overlay');
-  const outPath = path.join(integration.artifactDir(), 'ios-back-swipe.mp4');
-  const session = ['--session', 'recording-ios-back-swipe'];
-
-  integration.runStep('open settings', [
-    'open',
-    'com.apple.Preferences',
-    '--platform',
-    'ios',
-    '--relaunch',
-    '--json',
-    ...session,
-  ]);
-  integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('open general', ['press', '201', '319', '--json', ...session]);
-  integration.runStep('edge swipe', [
-    'swipe',
-    '10',
-    '400',
-    '250',
-    '400',
-    '250',
-    '--json',
-    ...session,
-  ]);
-  const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
-
-  assertRecordingArtifacts(stop, outPath);
-  const manifest = inspectRecording(
-    outPath,
-    stop.json?.data?.telemetryPath,
-    integration.artifactDir(),
-    'ios-back-swipe',
-  );
-  assertOverlayForKind(manifest, 'back-swipe', { minPixelCount: 80 });
+  runRecordingOverlayCase({
+    platform: 'ios',
+    testName: 'recording back swipe overlay',
+    outFile: 'ios-back-swipe.mp4',
+    sessionName: 'recording-ios-back-swipe',
+    openArgs: ['open', 'com.apple.Preferences', '--platform', 'ios', '--relaunch', '--json'],
+    steps: [
+      ['open general', ['press', '201', '319', '--json']],
+      ['edge swipe', ['swipe', '10', '400', '250', '400', '250', '--json']],
+    ],
+    inspectPrefix: 'ios-back-swipe',
+    overlayKind: 'back-swipe',
+    overlayOptions: { minPixelCount: 80 },
+  });
 });
 
 test('recording tap overlay on Android emulator', { skip: shouldSkipAndroidRecordingE2E() }, () => {
-  const integration = createRecordingIntegrationContext('android', 'recording tap overlay');
-  const outPath = path.join(integration.artifactDir(), 'android-tap.mp4');
-  const session = ['--session', 'recording-android-tap'];
-
-  integration.runStep('open settings', [
-    'open',
-    'settings',
-    '--platform',
-    'android',
-    '--relaunch',
-    '--json',
-    ...session,
-  ]);
-  integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-  integration.runStep('tap apps', ['press', '672', '1362', '--json', ...session]);
-  integration.runStep('scroll down', ['scroll', 'down', '0.2', '--json', ...session]);
-  integration.runStep('settle', ['wait', '1200', '--json', ...session]);
-  const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
-
-  assertRecordingArtifacts(stop, outPath);
-  const manifest = inspectRecording(
-    outPath,
-    stop.json?.data?.telemetryPath,
-    integration.artifactDir(),
-    'android-tap',
-  );
-  assertOverlayForKind(manifest, 'tap', { minPixelCount: 180, maxCenterDistance: 80 });
+  runRecordingOverlayCase({
+    platform: 'android',
+    testName: 'recording tap overlay',
+    outFile: 'android-tap.mp4',
+    sessionName: 'recording-android-tap',
+    openArgs: ['open', 'settings', '--platform', 'android', '--relaunch', '--json'],
+    steps: [
+      ['tap apps', ['press', '672', '1362', '--json']],
+      ['scroll down', ['scroll', 'down', '0.2', '--json']],
+      ['settle', ['wait', '1200', '--json']],
+    ],
+    inspectPrefix: 'android-tap',
+    overlayKind: 'tap',
+    overlayOptions: { minPixelCount: 180, maxCenterDistance: 80 },
+  });
 });
 
 test(
   'recording scroll overlay on Android emulator',
   { skip: shouldSkipAndroidRecordingE2E() },
   () => {
-    const integration = createRecordingIntegrationContext('android', 'recording scroll overlay');
-    const outPath = path.join(integration.artifactDir(), 'android-scroll.mp4');
-    const session = ['--session', 'recording-android-scroll'];
+    runRecordingOverlayCase({
+      platform: 'android',
+      testName: 'recording scroll overlay',
+      outFile: 'android-scroll.mp4',
+      sessionName: 'recording-android-scroll',
+      openArgs: ['open', 'settings', '--platform', 'android', '--relaunch', '--json'],
+      steps: [
+        ['scroll down', ['scroll', 'down', '0.45', '--json']],
+        ['settle', ['wait', '1200', '--json']],
+      ],
+      inspectPrefix: 'android-scroll',
+      overlayKind: 'scroll',
+      overlayOptions: { minPixelCount: 5 },
+    });
+  },
+);
 
-    integration.runStep('open settings', [
-      'open',
-      'settings',
-      '--platform',
-      'android',
-      '--relaunch',
-      '--json',
-      ...session,
-    ]);
+type RecordingOverlayCase = {
+  platform: 'ios' | 'android';
+  testName: string;
+  outFile: string;
+  sessionName: string;
+  openArgs: string[];
+  steps: Array<[string, string[]]>;
+  inspectPrefix: string;
+  overlayKind: string;
+  overlayOptions: { minPixelCount: number; maxCenterDistance?: number };
+};
+
+function runRecordingOverlayCase(options: RecordingOverlayCase): void {
+  const integration = createRecordingIntegrationContext(options.platform, options.testName);
+  const outPath = path.join(integration.artifactDir(), options.outFile);
+  const session = ['--session', options.sessionName];
+  let recordingStarted = false;
+  let recordingStopped = false;
+
+  try {
+    integration.runStep('open settings', [...options.openArgs, ...session]);
     integration.runStep('record start', ['record', 'start', outPath, '--json', ...session]);
-    integration.runStep('scroll down', ['scroll', 'down', '0.45', '--json', ...session]);
-    integration.runStep('settle', ['wait', '1200', '--json', ...session]);
+    recordingStarted = true;
+    for (const [label, args] of options.steps) {
+      integration.runStep(label, [...args, ...session]);
+    }
     const stop = integration.runStep('record stop', ['record', 'stop', '--json', ...session]);
-
+    recordingStopped = true;
     assertRecordingArtifacts(stop, outPath);
     const manifest = inspectRecording(
       outPath,
       stop.json?.data?.telemetryPath,
       integration.artifactDir(),
-      'android-scroll',
+      options.inspectPrefix,
     );
-    assertOverlayForKind(manifest, 'scroll', { minPixelCount: 5 });
-  },
-);
+    assertOverlayForKind(manifest, options.overlayKind, options.overlayOptions);
+  } finally {
+    cleanupRecordingSession(integration, session, recordingStarted, recordingStopped);
+  }
+}
 
 function createRecordingIntegrationContext(platform: 'ios' | 'android', testName: string) {
   const runId = new Date().toISOString().replaceAll(':', '-');
@@ -177,6 +145,18 @@ function createRecordingIntegrationContext(platform: 'ios' | 'android', testName
     testName,
     extraEnv: { ...process.env, AGENT_DEVICE_STATE_DIR: stateDir },
   });
+}
+
+function cleanupRecordingSession(
+  integration: ReturnType<typeof createRecordingIntegrationContext>,
+  session: string[],
+  recordingStarted: boolean,
+  recordingStopped: boolean,
+): void {
+  if (recordingStarted && !recordingStopped) {
+    integration.runCleanupStep('cleanup record stop', ['record', 'stop', '--json', ...session]);
+  }
+  integration.runCleanupStep('cleanup close', ['close', '--json', ...session]);
 }
 
 function assertRecordingArtifacts(result: ReturnType<typeof runCliJson>, outPath: string): void {

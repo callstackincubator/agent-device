@@ -1,7 +1,9 @@
 import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { spawn, spawnSync, type StdioOptions } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess, type StdioOptions } from 'node:child_process';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from './errors.ts';
 
 export type ExecResult = {
@@ -19,6 +21,7 @@ type ExecOptions = {
   stdin?: string | Buffer;
   timeoutMs?: number;
   detached?: boolean;
+  signal?: AbortSignal;
 };
 
 type ExecStreamOptions = ExecOptions & {
@@ -44,6 +47,22 @@ export async function runCmd(
   args: string[],
   options: ExecOptions = {},
 ): Promise<ExecResult> {
+  return await runSpawnedCommand(cmd, args, options);
+}
+
+export async function runCmdStreaming(
+  cmd: string,
+  args: string[],
+  options: ExecStreamOptions = {},
+): Promise<ExecResult> {
+  return await runSpawnedCommand(cmd, args, options);
+}
+
+function runSpawnedCommand(
+  cmd: string,
+  args: string[],
+  options: ExecStreamOptions = {},
+): Promise<ExecResult> {
   const executable = normalizeExecutableCommand(cmd);
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
@@ -53,82 +72,88 @@ export async function runCmd(
       detached: options.detached,
       shell: false,
     });
+    options.onSpawn?.(child);
 
     let stdout = '';
-    let stdoutBuffer: Buffer | undefined = options.binaryStdout ? Buffer.alloc(0) : undefined;
+    const stdoutChunks: Buffer[] | undefined = options.binaryStdout ? [] : undefined;
     let stderr = '';
     let didTimeout = false;
+    let didAbort = false;
     const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     const timeoutHandle = timeoutMs
       ? setTimeout(() => {
           didTimeout = true;
-          child.kill('SIGKILL');
+          killProcessTree(child, options.detached);
         }, timeoutMs)
       : null;
+    const onAbort = () => {
+      didAbort = true;
+      killProcessTree(child, options.detached);
+    };
+    if (options.signal?.aborted) {
+      onAbort();
+    } else {
+      options.signal?.addEventListener('abort', onAbort, { once: true });
+    }
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
-    if (options.stdin !== undefined) {
-      child.stdin.write(options.stdin);
-    }
-    child.stdin.end();
+    void writeChildStdin(child, options.stdin).catch((err: unknown) => {
+      if (didAbort || didTimeout) return;
+      if (isEpipeError(err)) return;
+      reject(createStdinError(executable, cmd, args, err));
+      killProcessTree(child, options.detached);
+    });
 
     child.stdout.on('data', (chunk) => {
       if (options.binaryStdout) {
-        stdoutBuffer = Buffer.concat([
-          stdoutBuffer ?? Buffer.alloc(0),
-          Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-        ]);
-      } else {
-        stdout += chunk;
+        stdoutChunks?.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        return;
       }
+      const text = String(chunk);
+      stdout += text;
+      options.onStdoutChunk?.(text);
     });
 
     child.stderr.on('data', (chunk) => {
-      stderr += chunk;
+      const text = String(chunk);
+      stderr += text;
+      options.onStderrChunk?.(text);
     });
 
     child.on('error', (err) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        reject(new AppError('TOOL_MISSING', `${executable} not found in PATH`, { cmd }, err));
-        return;
-      }
-      reject(new AppError('COMMAND_FAILED', `Failed to run ${executable}`, { cmd, args }, err));
+      options.signal?.removeEventListener('abort', onAbort);
+      reject(
+        didAbort
+          ? createCommandCanceledError(executable, cmd, args)
+          : createSpawnError(executable, cmd, args, err),
+      );
     });
 
     child.on('close', (code) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
+      options.signal?.removeEventListener('abort', onAbort);
       const exitCode = code ?? 1;
+      if (didAbort) {
+        reject(createCommandCanceledError(executable, cmd, args));
+        return;
+      }
       if (didTimeout && timeoutMs) {
-        reject(
-          new AppError('COMMAND_FAILED', `${executable} timed out after ${timeoutMs}ms`, {
-            cmd,
-            args,
-            stdout,
-            stderr,
-            exitCode,
-            timeoutMs,
-          }),
-        );
+        reject(createTimeoutError(executable, cmd, args, timeoutMs, exitCode, stdout, stderr));
         return;
       }
       if (exitCode !== 0 && !options.allowFailure) {
-        reject(
-          new AppError('COMMAND_FAILED', `${executable} exited with code ${exitCode}`, {
-            cmd,
-            args,
-            stdout,
-            stderr,
-            exitCode,
-            processExitError: true,
-          }),
-        );
+        reject(createExitError(executable, cmd, args, exitCode, stdout, stderr));
         return;
       }
-      resolve({ stdout, stderr, exitCode, stdoutBuffer });
+      resolve({
+        stdout,
+        stderr,
+        exitCode,
+        stdoutBuffer: stdoutChunks ? Buffer.concat(stdoutChunks) : undefined,
+      });
     });
   });
 }
@@ -216,14 +241,9 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
       );
     }
     if (code === 'ENOENT') {
-      throw new AppError('TOOL_MISSING', `${executable} not found in PATH`, { cmd }, result.error);
+      throw createMissingToolError(executable, cmd, result.error);
     }
-    throw new AppError(
-      'COMMAND_FAILED',
-      `Failed to run ${executable}`,
-      { cmd, args },
-      result.error,
-    );
+    throw createCommandFailedError(executable, cmd, args, result.error);
   }
 
   const stdoutBuffer = options.binaryStdout
@@ -241,14 +261,7 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
   const exitCode = result.status ?? 1;
 
   if (exitCode !== 0 && !options.allowFailure) {
-    throw new AppError('COMMAND_FAILED', `${executable} exited with code ${exitCode}`, {
-      cmd,
-      args,
-      stdout,
-      stderr,
-      exitCode,
-      processExitError: true,
-    });
+    throw createExitError(executable, cmd, args, exitCode, stdout, stderr);
   }
 
   return { stdout, stderr, exitCode, stdoutBuffer };
@@ -269,105 +282,6 @@ export function runCmdDetached(
   });
   child.unref();
   return child.pid ?? 0;
-}
-
-export async function runCmdStreaming(
-  cmd: string,
-  args: string[],
-  options: ExecStreamOptions = {},
-): Promise<ExecResult> {
-  const executable = normalizeExecutableCommand(cmd);
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      detached: options.detached,
-      shell: false,
-    });
-    options.onSpawn?.(child);
-
-    let stdout = '';
-    let stderr = '';
-    let stdoutBuffer: Buffer | undefined = options.binaryStdout ? Buffer.alloc(0) : undefined;
-    let didTimeout = false;
-    const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
-    const timeoutHandle = timeoutMs
-      ? setTimeout(() => {
-          didTimeout = true;
-          child.kill('SIGKILL');
-        }, timeoutMs)
-      : null;
-
-    if (!options.binaryStdout) child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-
-    if (options.stdin !== undefined) {
-      child.stdin.write(options.stdin);
-    }
-    child.stdin.end();
-
-    child.stdout.on('data', (chunk) => {
-      if (options.binaryStdout) {
-        stdoutBuffer = Buffer.concat([
-          stdoutBuffer ?? Buffer.alloc(0),
-          Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-        ]);
-        return;
-      }
-      const text = String(chunk);
-      stdout += text;
-      options.onStdoutChunk?.(text);
-    });
-
-    child.stderr.on('data', (chunk) => {
-      const text = String(chunk);
-      stderr += text;
-      options.onStderrChunk?.(text);
-    });
-
-    child.on('error', (err) => {
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        reject(new AppError('TOOL_MISSING', `${executable} not found in PATH`, { cmd }, err));
-        return;
-      }
-      reject(new AppError('COMMAND_FAILED', `Failed to run ${executable}`, { cmd, args }, err));
-    });
-
-    child.on('close', (code) => {
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-      const exitCode = code ?? 1;
-      if (didTimeout && timeoutMs) {
-        reject(
-          new AppError('COMMAND_FAILED', `${executable} timed out after ${timeoutMs}ms`, {
-            cmd,
-            args,
-            stdout,
-            stderr,
-            exitCode,
-            timeoutMs,
-          }),
-        );
-        return;
-      }
-      if (exitCode !== 0 && !options.allowFailure) {
-        reject(
-          new AppError('COMMAND_FAILED', `${executable} exited with code ${exitCode}`, {
-            cmd,
-            args,
-            stdout,
-            stderr,
-            exitCode,
-            processExitError: true,
-          }),
-        );
-        return;
-      }
-      resolve({ stdout, stderr, exitCode, stdoutBuffer });
-    });
-  });
 }
 
 export function runCmdBackground(
@@ -399,26 +313,12 @@ export function runCmdBackground(
 
   const wait = new Promise<ExecResult>((resolve, reject) => {
     child.on('error', (err) => {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === 'ENOENT') {
-        reject(new AppError('TOOL_MISSING', `${executable} not found in PATH`, { cmd }, err));
-        return;
-      }
-      reject(new AppError('COMMAND_FAILED', `Failed to run ${executable}`, { cmd, args }, err));
+      reject(createSpawnError(executable, cmd, args, err));
     });
     child.on('close', (code) => {
       const exitCode = code ?? 1;
       if (exitCode !== 0 && !options.allowFailure) {
-        reject(
-          new AppError('COMMAND_FAILED', `${executable} exited with code ${exitCode}`, {
-            cmd,
-            args,
-            stdout,
-            stderr,
-            exitCode,
-            processExitError: true,
-          }),
-        );
+        reject(createExitError(executable, cmd, args, exitCode, stdout, stderr));
         return;
       }
       resolve({ stdout, stderr, exitCode });
@@ -437,6 +337,87 @@ function normalizeExecutableCommand(cmd: string): string {
     });
   }
   return candidate;
+}
+
+function createSpawnError(executable: string, cmd: string, args: string[], err: Error): AppError {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code === 'ENOENT') {
+    return createMissingToolError(executable, cmd, err);
+  }
+  return createCommandFailedError(executable, cmd, args, err);
+}
+
+function createMissingToolError(executable: string, cmd: string, cause: Error): AppError {
+  return new AppError('TOOL_MISSING', `${executable} not found in PATH`, { cmd }, cause);
+}
+
+function createCommandFailedError(
+  executable: string,
+  cmd: string,
+  args: string[],
+  cause: Error,
+): AppError {
+  return new AppError('COMMAND_FAILED', `Failed to run ${executable}`, { cmd, args }, cause);
+}
+
+function createStdinError(
+  executable: string,
+  cmd: string,
+  args: string[],
+  cause: unknown,
+): AppError {
+  return new AppError(
+    'COMMAND_FAILED',
+    `Failed to write stdin for ${executable}`,
+    { cmd, args },
+    cause instanceof Error ? cause : undefined,
+  );
+}
+
+function createCommandCanceledError(executable: string, cmd: string, args: string[]): AppError {
+  return new AppError('COMMAND_FAILED', 'request canceled', {
+    cmd,
+    args,
+    executable,
+    reason: 'request_canceled',
+  });
+}
+
+function createTimeoutError(
+  executable: string,
+  cmd: string,
+  args: string[],
+  timeoutMs: number,
+  exitCode: number,
+  stdout: string,
+  stderr: string,
+): AppError {
+  return new AppError('COMMAND_FAILED', `${executable} timed out after ${timeoutMs}ms`, {
+    cmd,
+    args,
+    stdout,
+    stderr,
+    exitCode,
+    timeoutMs,
+  });
+}
+
+function createExitError(
+  executable: string,
+  cmd: string,
+  args: string[],
+  exitCode: number,
+  stdout: string,
+  stderr: string,
+): AppError {
+  return new AppError('COMMAND_FAILED', `${executable} exited with code ${exitCode}`, {
+    cmd,
+    args,
+    stdout,
+    stderr,
+    exitCode,
+    processExitError: true,
+  });
 }
 
 function normalizeOverridePath(
@@ -510,4 +491,32 @@ function normalizeTimeoutMs(value: number | undefined): number | undefined {
   const timeout = Math.floor(value as number);
   if (timeout <= 0) return undefined;
   return timeout;
+}
+
+function killProcessTree(child: ChildProcess, detached: boolean | undefined): void {
+  if (detached && child.pid && process.platform !== 'win32') {
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+      return;
+    } catch {}
+  }
+  child.kill('SIGKILL');
+}
+
+async function writeChildStdin(
+  child: ChildProcess,
+  stdin: string | Buffer | undefined,
+): Promise<void> {
+  if (!child.stdin) return;
+  if (stdin === undefined) {
+    child.stdin?.end();
+    return;
+  }
+  await pipeline(Readable.from([stdin]), child.stdin);
+}
+
+function isEpipeError(error: unknown): boolean {
+  return (
+    error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'EPIPE'
+  );
 }

@@ -69,7 +69,14 @@ export async function waitForRunner(
   signal?: AbortSignal,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  let endpoints = await resolveRunnerCommandEndpoints(device, port, deadline.remainingMs());
+  let deviceTunnelIp: string | undefined;
+  const getEndpoints = async (timeoutBudgetMs?: number) => {
+    if (device.kind === 'device' && deviceTunnelIp === undefined) {
+      deviceTunnelIp = (await resolveDeviceTunnelIp(device.id, timeoutBudgetMs)) ?? undefined;
+    }
+    return resolveRunnerCommandEndpoints(device, port, deviceTunnelIp ?? null);
+  };
+  let endpoints = await getEndpoints(deadline.remainingMs());
   let lastError: unknown = null;
   const maxAttempts = Math.max(1, Math.ceil(timeoutMs / RUNNER_CONNECT_ATTEMPT_INTERVAL_MS));
   try {
@@ -85,11 +92,7 @@ export async function waitForRunner(
           throw await buildRunnerEarlyExitError({ session, port, logPath });
         }
         if (device.kind === 'device') {
-          endpoints = await resolveRunnerCommandEndpoints(
-            device,
-            port,
-            attemptDeadline?.remainingMs(),
-          );
+          endpoints = await getEndpoints(attemptDeadline?.remainingMs());
         }
         for (const endpoint of endpoints) {
           try {
@@ -151,7 +154,7 @@ export async function waitForRunner(
     if (remainingMs <= 0) {
       throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
     }
-    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs);
+    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs, signal);
     return new Response(simResponse.body, { status: simResponse.status });
   }
 
@@ -161,13 +164,12 @@ export async function waitForRunner(
 async function resolveRunnerCommandEndpoints(
   device: DeviceInfo,
   port: number,
-  timeoutBudgetMs?: number,
+  tunnelIp: string | null,
 ): Promise<string[]> {
   const endpoints = [`http://127.0.0.1:${port}/command`];
   if (device.kind !== 'device') {
     return endpoints;
   }
-  const tunnelIp = await resolveDeviceTunnelIp(device.id, timeoutBudgetMs);
   if (tunnelIp) {
     endpoints.unshift(`http://[${tunnelIp}]:${port}/command`);
   }
@@ -180,26 +182,9 @@ async function fetchWithTimeout(
   timeoutMs: number,
   requestSignal?: AbortSignal,
 ): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  let onRequestAbort: (() => void) | undefined;
-  if (requestSignal) {
-    if (requestSignal.aborted) {
-      clearTimeout(timeout);
-      controller.abort();
-    } else {
-      onRequestAbort = () => controller.abort();
-      requestSignal.addEventListener('abort', onRequestAbort, { once: true });
-    }
-  }
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-    if (onRequestAbort && requestSignal) {
-      requestSignal.removeEventListener('abort', onRequestAbort);
-    }
-  }
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const signal = requestSignal ? AbortSignal.any([requestSignal, timeoutSignal]) : timeoutSignal;
+  return await fetch(url, { ...init, signal });
 }
 
 async function resolveDeviceTunnelIp(
@@ -265,6 +250,7 @@ async function postCommandViaSimulator(
   port: number,
   command: RunnerCommand,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<{ status: number; body: string }> {
   const payload = JSON.stringify(command);
   const args = buildSimctlArgsForDevice(device, [
@@ -280,7 +266,7 @@ async function postCommandViaSimulator(
     payload,
     `http://127.0.0.1:${port}/command`,
   ]);
-  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs });
+  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs, signal });
   const body = result.stdout as string;
   if (result.exitCode !== 0) {
     const reason = classifyBootFailure({
@@ -323,11 +309,27 @@ export function logChunk(
   traceLogPath?: string,
   verbose?: boolean,
 ): void {
-  if (logPath) fs.appendFile(logPath, chunk, () => {});
-  if (traceLogPath) fs.appendFile(traceLogPath, chunk, () => {});
+  if (logPath) appendLogChunk(logPath, chunk);
+  if (traceLogPath) appendLogChunk(traceLogPath, chunk);
   if (verbose) {
     process.stderr.write(chunk);
   }
+}
+
+const logAppendQueues = new Map<string, Promise<void>>();
+
+function appendLogChunk(logPath: string, chunk: string): void {
+  const previous = logAppendQueues.get(logPath) ?? Promise.resolve();
+  const next = previous
+    .catch(() => {})
+    .then(() => fs.promises.appendFile(logPath, chunk))
+    .catch(() => {});
+  const queued = next.finally(() => {
+    if (logAppendQueues.get(logPath) === queued) {
+      logAppendQueues.delete(logPath);
+    }
+  });
+  logAppendQueues.set(logPath, queued);
 }
 
 export function cleanupTempFile(filePath: string): void {

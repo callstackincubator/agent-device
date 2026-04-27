@@ -46,6 +46,7 @@ import {
 import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
 import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
 import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
+import { createRequestCanceledError, isRequestCanceled } from './request-cancel.ts';
 import {
   isNavigationSensitiveAction,
   markAndroidSnapshotFreshness,
@@ -78,6 +79,12 @@ const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 // ---------------------------------------------------------------------------
 // Request preparation helpers
 // ---------------------------------------------------------------------------
+
+function throwIfRequestCanceled(req: DaemonRequest): void {
+  if (isRequestCanceled(req.meta?.requestId)) {
+    throw createRequestCanceledError();
+  }
+}
 
 function contextFromFlags(
   logPath: string,
@@ -599,6 +606,7 @@ export function createRequestHandler(
             : await resolveExecutionLockKey(scopedReq, sessionName, sessionStore);
 
           const executeSessionRequest = async (): Promise<DaemonResponse> => {
+            throwIfRequestCanceled(scopedReq);
             const existingSession = sessionStore.get(sessionName);
             if (existingSession) {
               refreshRecordingHealth(existingSession);
@@ -668,8 +676,10 @@ export function createRequestHandler(
           };
 
           if (!executionLockKey) {
+            throwIfRequestCanceled(scopedReq);
             return await executeSessionRequest();
           }
+          throwIfRequestCanceled(scopedReq);
           return await withKeyedLock(
             sessionExecutionLocks,
             executionLockKey,

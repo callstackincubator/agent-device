@@ -6,6 +6,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import type { IncomingMessage } from 'node:http';
 import { receiveUpload } from '../upload.ts';
+import { streamReadableToFile } from '../artifact-download.ts';
 import { runCmdSync } from '../../utils/exec.ts';
 
 function makeUploadRequest(body: Buffer, headers: Record<string, string>): IncomingMessage {
@@ -44,6 +45,24 @@ test('receiveUpload rejects app bundle archives containing symlinks', async () =
       async () => await receiveUpload(req),
       /cannot contain symlinks or hard links/i,
     );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('streamReadableToFile removes partial files after stream errors', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-upload-error-'));
+  const destPath = path.join(tempRoot, 'partial.bin');
+  const source = new Readable({
+    read() {
+      this.push('partial');
+      this.destroy(new Error('source failed'));
+    },
+  });
+
+  try {
+    await assert.rejects(async () => await streamReadableToFile(source, destPath), /source failed/);
+    assert.equal(fs.existsSync(destPath), false);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
