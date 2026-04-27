@@ -161,7 +161,10 @@ const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies 
 const AGENT_WORKFLOWS = [
   { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
   { label: 'help debugging', description: 'Logs, network, alerts, diagnostics, and traces' },
-  { label: 'help react-devtools', description: 'React Native component tree and render profiling' },
+  {
+    label: 'help react-devtools',
+    description: 'React Native performance, profiling, component tree, and renders',
+  },
   { label: 'help remote', description: 'Remote config, tenants, leases, and companion tunnels' },
   { label: 'help macos', description: 'Desktop, frontmost-app, and menu bar surfaces' },
   { label: 'help dogfood', description: 'Exploratory QA report workflow' },
@@ -295,7 +298,7 @@ React DevTools minimum loop:
 
 Escalate:
   help debugging       logs, network, alerts, traces, flaky runtime failures
-  help react-devtools  props, state, hooks, component tree, slow renders, rerenders
+  help react-devtools  React Native performance, profiling, props/state/hooks, slow renders, rerenders
   help remote          remote-config, tenant, lease, remote Android companion tunnel
   help macos           desktop, frontmost-app, menu bar surfaces
   help dogfood         exploratory QA report workflow`,
@@ -346,13 +349,13 @@ Stabilizers:
   Re-enable settings you changed before finishing.
 
 React Native internals:
-  If the question is about props, state, hooks, render causes, slow components, or rerenders, use help react-devtools instead of inferring from screenshots or logs.`,
+  If the question is about React Native performance, profiling, props, state, hooks, render causes, slow components, or rerenders, use help react-devtools instead of inferring from screenshots or logs.`,
   },
   'react-devtools': {
-    summary: 'React Native component tree and profiling workflow',
+    summary: 'React Native performance, profiling, and component internals',
     body: `agent-device help react-devtools
 
-Use this for React Native internals that the accessibility tree cannot expose: components, props, state, hooks, ownership, slow renders, and rerenders.
+Use this for React Native performance/profiling and internals that the accessibility tree cannot expose: components, props, state, hooks, ownership, slow renders, and rerenders.
 
 Core commands:
   agent-device react-devtools status
@@ -1507,8 +1510,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: 'react-devtools [...args]',
     listUsageOverride: 'react-devtools [...args]',
     helpDescription:
-      'Run pinned agent-react-devtools commands for React Native component trees, props/state/hooks, and render profiling',
-    summary: 'Inspect and profile React Native component trees',
+      'Run pinned agent-react-devtools commands for React Native performance profiling, component trees, props/state/hooks, and render analysis',
+    summary: 'Profile React Native performance and component renders',
     positionalArgs: ['args?'],
     allowsExtraPositionals: true,
     allowedFlags: [],

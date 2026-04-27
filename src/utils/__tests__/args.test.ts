@@ -793,7 +793,10 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Agent Workflows:/);
   assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
   assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
-  assert.match(usageText, /help react-devtools\s+React Native component tree and render profiling/);
+  assert.match(
+    usageText,
+    /help react-devtools\s+React Native performance, profiling, component tree, and renders/,
+  );
   assert.match(usageText, /Configuration:/);
   assert.match(
     usageText,

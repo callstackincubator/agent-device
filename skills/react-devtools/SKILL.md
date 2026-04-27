@@ -1,6 +1,6 @@
 ---
 name: react-devtools
-description: Inspect and profile React Native component trees from agent-device. Use when debugging React Native props, state, hooks, render causes, slow components, excessive rerenders, or questions like why a component rerendered.
+description: Inspect and profile React Native component trees from agent-device. Use for React Native performance, profiling, props, state, hooks, render causes, slow components, excessive rerenders, or questions like why a component rerendered.
 ---
 
 # react-devtools
@@ -11,7 +11,7 @@ Router for React Native internals. Read current CLI guidance:
 agent-device help react-devtools
 ```
 
-Use `agent-device react-devtools ...` for component tree, props, state, hooks, render ownership, slow components, or rerenders. It dynamically runs pinned `agent-react-devtools@0.4.0`. Use normal `agent-device` commands for visible UI, refs, screenshots, logs, network, or perf.
+Use `agent-device react-devtools ...` for component tree, props, state, hooks, render ownership, performance profiling, slow components, or rerenders. It dynamically runs pinned `agent-react-devtools@0.4.0`. Use normal `agent-device` commands for visible UI, refs, screenshots, logs, network, or device-level perf.
 
 Core loop:
 
