@@ -51,7 +51,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
 
     try {
       long startedAtMs = System.currentTimeMillis();
-      CaptureResult capture = captureXml(waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
+      CaptureResult capture = captureXml(waitForIdleTimeoutMs, maxDepth, maxNodes);
       emitChunks(capture.xml);
       result.putString("ok", "true");
       result.putString("rootPresent", Boolean.toString(capture.rootPresent));
@@ -71,8 +71,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     }
   }
 
-  private CaptureResult captureXml(
-      long waitForIdleTimeoutMs, long timeoutMs, int maxDepth, int maxNodes)
+  private CaptureResult captureXml(long waitForIdleTimeoutMs, int maxDepth, int maxNodes)
       throws TimeoutException {
     UiAutomation automation = getUiAutomation();
     enableInteractiveWindowRetrieval(automation);
