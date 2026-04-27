@@ -219,7 +219,7 @@ test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', a
   assert.deepEqual(mockRunCmd.mock.calls[0]?.[2], { allowFailure: true, timeoutMs: 8000 });
 });
 
-test('snapshotAndroid uses configured helper before stock uiautomator', async () => {
+test('snapshotAndroid uses injected helper artifact before stock uiautomator', async () => {
   const timeouts: Array<number | undefined> = [];
   const helperAdb: AndroidAdbExecutor = async (args, options) => {
     timeouts.push(options?.timeoutMs);
