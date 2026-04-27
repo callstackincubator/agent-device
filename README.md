@@ -12,16 +12,19 @@
 [![CI](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml/badge.svg)](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 
-Device automation CLI for AI agents. Mobile, TV, and desktop.
+Agent-first device automation CLI. Mobile, TV, and desktop.
 
-Run the app. Read the UI. Act on the screen. Capture evidence.
+For QA and development agents that need to use real apps: run them, inspect UI state, interact, debug, and capture evidence.
 
-Give agents a runtime loop for iOS, Android, tvOS, macOS, and Linux apps:
+Screenshots are useful for humans. Compact snapshots are better for agents. `agent-device` turns app UI into token-efficient accessibility snapshots with actionable refs like `@e3`, so agents can understand the screen and act deterministically without spending the whole context window on pixels.
 
-- See current UI as compact snapshots.
-- Act through stable refs and selectors.
+What agents can do:
+
+- Open apps on iOS, Android, tvOS, macOS, and Linux.
+- Read UI state as compact snapshots.
+- Act through refs and selectors with `press`, `fill`, `scroll`, `wait`, and more.
 - Capture screenshots, video, logs, network, perf, and React profiles.
-- Replay flows as e2e tests.
+- Record `.ad` replay scripts and run them as e2e tests.
 
 If you know Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), this is the same idea for apps and devices.
 
@@ -72,7 +75,7 @@ Choose how to run it.
 
 **Quality Assurance**
 
-Dogfood flows, run accessibility checks, capture evidence, and generate replayable e2e tests.
+Dogfood flows. Capture evidence. Turn stable explorations into replayable e2e tests.
 
 ```bash
 agent-device open SampleApp --platform ios --save-script ./workflows/smoke.ad
@@ -85,7 +88,7 @@ agent-device test ./workflows
 
 **Development**
 
-Build from a product or engineering specification. Run, inspect, interact, debug, and iterate until the UI confirms the work.
+Build from a specification. Run the app, inspect the UI, interact, debug, and iterate until the screen matches the spec.
 
 ```bash
 agent-device open SampleApp --platform ios
@@ -96,13 +99,6 @@ agent-device screenshot ./artifacts/current-ui.png
 agent-device network dump
 agent-device perf
 ```
-
-## Concepts
-
-- **Snapshot**: compact accessibility-tree output for the current UI.
-- **Ref**: a current-screen handle like `@e3`; re-snapshot after UI changes.
-- **Selector**: a stable text, role, or label query for replay and assertions.
-- **`.ad` script**: a recorded replay file that can run locally or in CI.
 
 ## How It Works
 
