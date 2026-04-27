@@ -789,6 +789,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Full operating guide: agent-device help workflow/);
+  assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
   assert.match(usageText, /Agent Workflows:/);
   assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
   assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
@@ -832,6 +833,16 @@ test('workflow help keeps common copyable command forms', () => {
   assert.match(help, /connect --remote-config/);
   assert.match(help, /metro reload/);
   assert.match(help, /screenshot --overlay-refs/);
+});
+
+test('usageForCommand resolves dogfood help topic', () => {
+  const help = usageForCommand('dogfood');
+  if (help === null) throw new Error('Expected dogfood help text');
+  assert.match(help, /agent-device help dogfood/);
+  assert.match(help, /Find user-visible issues from runtime behavior/);
+  assert.match(help, /dogfood-output\/report\.md/);
+  assert.match(help, /severity, title, affected flow, repro commands/);
+  assert.match(help, /screenshot \.\/dogfood-output\/screenshots\/issue-001\.png --overlay-refs/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {

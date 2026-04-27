@@ -172,7 +172,7 @@ const AGENT_QUICKSTART_LINES = [
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
   'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
-  'Full operating guide: agent-device help workflow.',
+  'Full operating guide: agent-device help workflow. Exploratory QA: agent-device help dogfood.',
 ] as const;
 
 const CONFIGURATION_LINES = [
@@ -434,27 +434,46 @@ Rules:
 
 Use this when asked to dogfood, exploratory test, bug hunt, QA, or find issues in an app.
 
+Goal:
+  Find user-visible issues from runtime behavior. Do not read app source or invent findings from code.
+  Produce a concise report with severity, repro commands, expected/actual behavior, and evidence paths.
+
 Loop:
-  1. Open a named session for the target app and platform.
-  2. Capture initial snapshot -i and screenshot.
-  3. Map top-level navigation.
-  4. Explore major flows, edge states, loading, errors, offline, permissions, and settings.
-  5. For each issue, stop and capture evidence before continuing.
-  6. Close the session and summarize findings.
+  1. Identify target app/platform; ask only if missing.
+  2. Create output dirs and open a named session.
+  3. Capture baseline snapshot -i and screenshot.
+  4. Map top-level navigation, then exercise primary flows and edge states.
+  5. For each issue, capture evidence immediately, then continue.
+  6. Close the session and write the report.
+
+Coverage:
+  Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
 
 Evidence commands:
+  mkdir -p ./dogfood-output/screenshots ./dogfood-output/videos ./dogfood-output/traces
   agent-device --session qa open <app> --platform ios
   agent-device --session qa snapshot -i
   agent-device --session qa screenshot ./dogfood-output/screenshots/initial.png
+  agent-device --session qa screenshot ./dogfood-output/screenshots/issue-001.png --overlay-refs
+  agent-device --session qa logs clear --restart
+  agent-device --session qa logs mark "issue-001 repro"
+  agent-device --session qa logs path
   agent-device --session qa record start ./dogfood-output/videos/issue-001.mp4
   agent-device --session qa record stop
   agent-device --session qa close
 
+Report shape:
+  ./dogfood-output/report.md
+  For each finding: severity, title, affected flow, repro commands, expected, actual, evidence files, notes.
+  If no issues are found, report coverage completed and residual risk instead of claiming the app is bug-free.
+
 Rules:
-  Never read app source to invent findings.
+  Findings must come from observed runtime behavior, not source reads.
   Re-snapshot after each mutation.
+  Keep commands in the report reproducible; use selectors or refs from fresh snapshots, not guessed coordinates.
   Prefer refs for exploration and selectors for deterministic replay.
-  Use logs, network, screenshot --overlay-refs, trace, perf, or react-devtools only when they add evidence to a specific issue.`,
+  Use logs, network, screenshot --overlay-refs, trace, perf, or react-devtools only when they add evidence to a specific issue.
+  Escalate to help debugging or help react-devtools when runtime symptoms require those tools.`,
   },
 } as const satisfies Record<string, { summary: string; body: string }>;
 
