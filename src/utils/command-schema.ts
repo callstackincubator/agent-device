@@ -180,7 +180,7 @@ const AGENT_QUICKSTART_LINES = [
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
-  'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
+  'Expo Go/dev clients: use the provided URL when given; if only a target name is given, open that target and do not search project files for a URL.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
@@ -252,7 +252,8 @@ Bootstrap:
   agent-device reinstall com.example.app ./build/MyApp.app --platform ios
   agent-device install-from-source --github-actions-artifact org/repo:app-debug --platform android
   agent-device open com.example.app --platform android --relaunch
-  If app id is unknown, plan devices, apps, then open <discovered-app-id>. Install arguments are app/package id then artifact path. After install, install-from-source, or reinstall, open the installed id with --relaunch for fresh runtime state.
+  If app id is unknown, plan devices, apps, then open <discovered-app-id>. Discovery is not enough when the task asks to open/start the app.
+  Install arguments are app/package id then artifact path. If the task says install, use install; use reinstall only when explicitly requested. Fresh runtime state is open --relaunch after install.
   Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
 
 Snapshots and refs:
@@ -331,7 +332,7 @@ React Native dev loop:
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
   Warning/error overlays can obscure UI and intercept taps. If snapshot -i shows one, dismiss/close its visible control (for example Dismiss or Close) if it is not the task target, then diff snapshot -i or snapshot -i before tapping the real UI.
-  Expo Go is a host shell; use the provided project URL instead of inventing a bundle id. iOS simulators can open the URL directly; use host + URL when targeting a specific host shell:
+  Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. iOS simulators can open a URL directly; use host + URL when targeting a specific host shell:
     agent-device open exp://127.0.0.1:8081 --platform ios
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
   Android uses the URL target directly; do not write open <app> <url> there:

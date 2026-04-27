@@ -76,6 +76,9 @@ test('help workflow preserves known device workaround guidance', async () => {
   assert.match(result.stdout, /Never use args, step/);
   assert.match(result.stdout, /scrollintoview/);
   assert.match(result.stdout, /--delay-ms/);
+  assert.match(result.stdout, /Discovery is not enough when the task asks to open\/start/);
+  assert.match(result.stdout, /If the task says install, use install/);
+  assert.match(result.stdout, /do not inspect project files to find one/);
   assert.match(result.stdout, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(result.stdout, /agent-device clipboard write "some text"/);
   assert.match(result.stdout, /trusted ADB keyboard IME/);

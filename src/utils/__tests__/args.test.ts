@@ -791,7 +791,8 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
-  assert.match(usageText, /Expo Go\/dev clients need their provided exp:\/\//);
+  assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
+  assert.match(usageText, /if only a target name is given, open that target/);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
@@ -841,6 +842,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Read-only visible\/state question: use snapshot\/get\/is\/find/);
   assert.match(help, /Use snapshot -i only when refs are needed/);
   assert.match(help, /install-from-source --github-actions-artifact org\/repo:app-debug/);
+  assert.match(help, /Discovery is not enough when the task asks to open\/start/);
+  assert.match(help, /If the task says install, use install/);
   assert.match(help, /Do not open artifact paths or invent package ids/);
   assert.match(help, /agent-device get attrs @e4/);
   assert.match(help, /Ambiguous find: add --first or --last/);
@@ -849,6 +852,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(help, /agent-device clipboard write "some text"/);
   assert.match(help, /trusted ADB keyboard IME/);
+  assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
