@@ -34,14 +34,7 @@ test('runCmd aborts with request cancellation details', async () => {
   });
   controller.abort();
 
-  await assert.rejects(promise, (error: unknown) => {
-    const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
-    return (
-      err?.code === 'COMMAND_FAILED' &&
-      err.message === 'request canceled' &&
-      err.details?.reason === 'request_canceled'
-    );
-  });
+  await assertRejectsRequestCanceled(promise);
 });
 
 test('runCmd abort keeps cancellation details while writing stdin', async () => {
@@ -56,14 +49,7 @@ test('runCmd abort keeps cancellation details while writing stdin', async () => 
   );
   controller.abort();
 
-  await assert.rejects(promise, (error: unknown) => {
-    const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
-    return (
-      err?.code === 'COMMAND_FAILED' &&
-      err.message === 'request canceled' &&
-      err.details?.reason === 'request_canceled'
-    );
-  });
+  await assertRejectsRequestCanceled(promise);
 });
 
 test('runCmd writes stdin through pipeline', async () => {
@@ -87,6 +73,17 @@ test('runCmd writes stdin through pipeline', async () => {
 test('whichCmd resolves absolute executable paths without invoking a shell', async () => {
   assert.equal(await whichCmd(process.execPath), true);
 });
+
+async function assertRejectsRequestCanceled(promise: Promise<unknown>): Promise<void> {
+  await assert.rejects(promise, (error: unknown) => {
+    const err = error as { code?: string; message?: string; details?: Record<string, unknown> };
+    return (
+      err?.code === 'COMMAND_FAILED' &&
+      err.message === 'request canceled' &&
+      err.details?.reason === 'request_canceled'
+    );
+  });
+}
 
 test('whichCmd resolves bare commands from PATH', async () => {
   assert.equal(await whichCmd('node'), true);

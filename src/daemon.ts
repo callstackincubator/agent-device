@@ -9,6 +9,8 @@ import { trackDownloadableArtifact } from './daemon/artifact-tracking.ts';
 import { LeaseRegistry } from './daemon/lease-registry.ts';
 import { createRequestHandler } from './daemon/request-router.ts';
 import { teardownSessionResources } from './daemon/handlers/session-close.ts';
+import { closeDaemonServers } from './daemon/server-shutdown.ts';
+import type { SessionState } from './daemon/types.ts';
 import {
   emitDiagnostic,
   flushDiagnosticsToSessionFile,
@@ -30,8 +32,9 @@ import {
   listenNetServer,
   type DaemonServer,
 } from './daemon/transport.ts';
+import { sleep } from './utils/timeouts.ts';
 
-const DAEMON_SHUTDOWN_TIMEOUT_MS = 5_000;
+const DAEMON_SESSION_TEARDOWN_TIMEOUT_MS = 5_000;
 
 const daemonPaths = resolveDaemonPaths(process.env.AGENT_DEVICE_STATE_DIR);
 const { baseDir, infoPath, lockPath, logPath, sessionsDir } = daemonPaths;
@@ -58,39 +61,6 @@ const handleRequest = createRequestHandler({
   trackDownloadableArtifact,
 });
 
-function forceCloseServer(server: DaemonServer): void {
-  server.destroyConnections?.();
-  const closeAllConnections =
-    'closeAllConnections' in server ? server.closeAllConnections : undefined;
-  if (typeof closeAllConnections === 'function') {
-    closeAllConnections.call(server);
-    return;
-  }
-  const closeIdleConnections =
-    'closeIdleConnections' in server ? server.closeIdleConnections : undefined;
-  if (typeof closeIdleConnections === 'function') closeIdleConnections.call(server);
-}
-
-async function closeDaemonServers(servers: DaemonServer[]): Promise<void> {
-  await Promise.all(
-    servers.map(async (server) => {
-      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-      await new Promise<void>((resolve) => {
-        timeoutHandle = setTimeout(() => {
-          forceCloseServer(server);
-          resolve();
-        }, DAEMON_SHUTDOWN_TIMEOUT_MS);
-        try {
-          server.close(() => resolve());
-        } catch {
-          resolve();
-        }
-      });
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-    }),
-  );
-}
-
 async function emitFatalDiagnostic(error: unknown): Promise<void> {
   await withDiagnosticsScope(
     { command: 'daemon', session: 'daemon', logPath, debug: true },
@@ -109,17 +79,25 @@ async function emitFatalDiagnostic(error: unknown): Promise<void> {
 
 async function teardownDaemonSessions(): Promise<void> {
   const sessionsToStop = sessionStore.toArray();
-  for (const session of sessionsToStop) {
-    await teardownSessionResources(session, session.name).catch((error) => {
-      process.stderr.write(
-        `Daemon session teardown error (${session.name}): ${
-          error instanceof Error ? error.message : String(error)
-        }\n`,
-      );
-    });
-    sessionStore.writeSessionLog(session);
-    sessionStore.delete(session.name);
-  }
+  await Promise.all(sessionsToStop.map(teardownDaemonSession));
+}
+
+async function teardownDaemonSession(session: SessionState) {
+  const teardown = teardownSessionResources(session, session.name).catch((error) => {
+    process.stderr.write(
+      `Daemon session teardown error (${session.name}): ${
+        error instanceof Error ? error.message : String(error)
+      }\n`,
+    );
+  });
+  await Promise.race([
+    teardown,
+    sleep(DAEMON_SESSION_TEARDOWN_TIMEOUT_MS).then(() => {
+      process.stderr.write(`Daemon session teardown timed out (${session.name}).\n`);
+    }),
+  ]);
+  sessionStore.writeSessionLog(session);
+  sessionStore.delete(session.name);
 }
 
 async function openDaemonServers(): Promise<{

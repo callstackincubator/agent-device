@@ -163,7 +163,7 @@ async function downloadToTempFile(
       });
     }
     await pipeline(
-      Readable.from(body as unknown as AsyncIterable<Uint8Array>),
+      Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]),
       createWriteStream(destinationPath),
     );
     return destinationPath;

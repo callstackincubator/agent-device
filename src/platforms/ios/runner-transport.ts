@@ -69,10 +69,10 @@ export async function waitForRunner(
   signal?: AbortSignal,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  let deviceTunnelIp: string | null | undefined;
+  let deviceTunnelIp: string | undefined;
   const getEndpoints = async (timeoutBudgetMs?: number) => {
     if (device.kind === 'device' && deviceTunnelIp === undefined) {
-      deviceTunnelIp = await resolveDeviceTunnelIp(device.id, timeoutBudgetMs);
+      deviceTunnelIp = (await resolveDeviceTunnelIp(device.id, timeoutBudgetMs)) ?? undefined;
     }
     return resolveRunnerCommandEndpoints(device, port, deviceTunnelIp ?? null);
   };
